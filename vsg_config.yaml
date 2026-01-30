@@ -1,0 +1,25 @@
+rule:
+  signal_007:
+    disable: true
+  instantiation_034:
+    disable: true
+  instantiation_036:
+    disable: true
+  case_007:
+    disable: true
+  case_009:
+    disable: true
+  case_010:
+    disable: true
+  case_200:
+    disable: true
+  case_201:
+    disable: true
+  process_016:
+    disable: true
+  process_018:
+    disable: true
+  whitespace_006:
+    length: 80
+  conditional_waveforms_001:
+    disable: true

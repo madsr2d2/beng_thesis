@@ -1,0 +1,13 @@
+v 4
+file "/home/madsr2d2/beng_thesis/" "src/counter.vhd" "99a14cf380c2d1e82b8cf7af742dc9a70c0de974" "20260130190408.592":
+  entity counter at 1( 0) + 0 on 13;
+  architecture rtl of counter at 19( 418) + 0 on 14;
+file "/home/madsr2d2/beng_thesis/" "src/shift_reg.vhd" "54d7ee2bc7ea6311877ea616261bfac16efcbb00" "20260130190408.592":
+  entity shift_reg at 1( 0) + 0 on 11;
+  architecture rtl of shift_reg at 17( 357) + 0 on 12;
+file "/home/madsr2d2/beng_thesis/" "src/shift_reg_with_empty.vhd" "7e647b8924c45a99bdaff1ffe3936fe0965c5d90" "20260130190408.592":
+  entity shift_reg_with_empty at 1( 0) + 0 on 15;
+  architecture rtl of shift_reg_with_empty at 18( 431) + 0 on 16;
+file "/home/madsr2d2/beng_thesis/" "src/shift_reg_with_empty_tb.vhd" "a5ddb57e40ddb183613213efbe9a5bb29dc86025" "20260130190408.592":
+  entity shift_reg_with_empty_tb at 1( 0) + 0 on 17;
+  architecture sim of shift_reg_with_empty_tb at 8( 145) + 0 on 18;

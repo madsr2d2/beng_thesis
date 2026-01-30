@@ -1,0 +1,13 @@
+v 4
+file . "src/shift_reg.vhd" "54d7ee2bc7ea6311877ea616261bfac16efcbb00" "20260130174713.091":
+  entity shift_reg at 1( 0) + 0 on 19;
+  architecture rtl of shift_reg at 17( 357) + 0 on 20;
+file . "src/counter.vhd" "99a14cf380c2d1e82b8cf7af742dc9a70c0de974" "20260130174713.093":
+  entity counter at 1( 0) + 0 on 21;
+  architecture rtl of counter at 19( 418) + 0 on 22;
+file . "src/shift_reg_with_empty.vhd" "c89154ab8bd23fa56c5229b21e114b1086a25914" "20260130174713.093":
+  entity shift_reg_with_empty at 1( 0) + 0 on 23;
+  architecture rtl of shift_reg_with_empty at 18( 431) + 0 on 24;
+file . "src/shift_reg_with_empty_tb.vhd" "6a86ac687ef9bc58962f2243ad8adc568edf8fd7" "20260130174713.093":
+  entity shift_reg_with_empty_tb at 1( 0) + 0 on 25;
+  architecture sim of shift_reg_with_empty_tb at 8( 145) + 0 on 26;
