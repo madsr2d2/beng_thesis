@@ -2,6 +2,10 @@
 standard = "2008"
 
 [libraries]
-work.files = [
+osvvm.files = [
+    "OsvvmLibraries/osvvm/*.vhd"
+]
+
+project.files = [
     "src/*.vhd"
 ]

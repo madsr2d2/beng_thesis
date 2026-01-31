@@ -1,53 +1,68 @@
-# Makefile for GHDL Workflow
+#  @file  Makefile
+#  @brief GHDL/OSVVM makefile for testbench simulation
+#
+#  Usage: make TB=src/my_tb
+#  Example: make TB=src/bit_stuffer_tb
+#
+#  Note: OSVVM must be compiled first in OsvvmLibraries/osvvm
 
-# Constants
-GHDL = ghdl
-FLAGS = --std=08
+# VHDL design files (excluding testbenches)
+# Leaf modules (no dependencies on other design files)
+LEAF_MODULES = ./src/mod_n.vhd ./src/parity.vhd ./src/gray.vhd ./src/shift_reg.vhd
+
+# Modules that depend on leaf modules
+DEPENDENT_MODULES = ./src/bit_stuffer.vhd ./src/bit_stuffer_fd.vhd
+
+SRCFILES = $(LEAF_MODULES) $(DEPENDENT_MODULES)
+VHDLEX = .vhd
+
+# OSVVM library path (where TCL build compiled it)
+OSVVM_LIB_PATH = $(CURDIR)/OsvvmLibraries/osvvm/VHDL_LIBS/GHDL-4.1.0
+
+# Testbench configuration
+TB ?=
+TB_NOEXT = $(basename $(TB))
+TESTBENCHFILE = $(notdir $(TB_NOEXT))
+TESTBENCHPATH = $(TB_NOEXT)$(VHDLEX)
+
+# GHDL configuration
+GHDL_CMD = ghdl
+GHDL_FLAGS = --std=08 --warn-no-vital-generic -P$(OSVVM_LIB_PATH) -P.
+
 SIMDIR = sim
-SIM_TIME = 2000
+STOP_TIME = 10000ns
+GHDL_SIM_OPT = --stop-time=$(STOP_TIME)
+VCDFILE = ${SIMDIR}/${TESTBENCHFILE}.vcd
 
-# Files
-FILES = src/*.vhd
+WAVEFORM_VIEWER = gtkwave
 
-# Default Testbench (can be overridden via command line: make TB=src/my_tb.vhd)
-TB ?= 
-SIM_ENTITY = $(basename $(notdir $(TB)))
-WAVE_FILE = $(SIMDIR)/$(SIM_ENTITY).vcd
+.PHONY: all compile run view clean
 
-# Default target
-all: run
+all: clean compile run view
 
-# Create simulation directory
-$(SIMDIR):
-	mkdir -p $(SIMDIR)
-
-# Import sources
-import: $(SIMDIR)
-	$(GHDL) -i $(FLAGS) --workdir=$(SIMDIR) $(FILES)
-
-# Check if TB variable is set
-check_tb:
+compile:
 	@if [ -z "$(TB)" ]; then \
-		echo "Error: TB variable not set. Usage: make TB=my_testbench"; \
+		echo "Error: TB not set. Usage: make TB=src/my_tb"; \
 		exit 1; \
 	fi
+	@if [ ! -d "$(OSVVM_LIB_PATH)/osvvm/v08" ]; then \
+		echo "Error: OSVVM not compiled. Build it first in OsvvmLibraries/osvvm"; \
+		exit 1; \
+	fi
+	@mkdir -p $(SIMDIR)
+	@cp -r OsvvmLibraries/osvvm/OsvvmTemp_GHDL . 2>/dev/null || true
+	@echo "Compiling design and testbench..."
+	@$(GHDL_CMD) -a $(GHDL_FLAGS) --workdir=$(SIMDIR) --work=work $(SRCFILES)
+	@$(GHDL_CMD) -a $(GHDL_FLAGS) --workdir=$(SIMDIR) --work=work $(TESTBENCHPATH)
+	@echo "Elaborating $(TESTBENCHFILE)..."
+	@$(GHDL_CMD) -m $(GHDL_FLAGS) --workdir=$(SIMDIR) --work=work $(TESTBENCHFILE)
 
-# Build (Analyze + Elaborate automatically)
-build: check_tb import
-	$(GHDL) -m $(FLAGS) --workdir=$(SIMDIR) $(SIM_ENTITY)
+run:
+	@$(GHDL_CMD) -r $(GHDL_FLAGS) --workdir=$(SIMDIR) --work=work $(TESTBENCHFILE) --vcd=$(VCDFILE) $(GHDL_SIM_OPT)
+	@echo "Simulation finished. Waveform saved to $(VCDFILE)"
 
-# Run Simulation
-run: build
-	$(GHDL) -r $(FLAGS) --workdir=$(SIMDIR) $(SIM_ENTITY) --vcd=$(WAVE_FILE) --stop-time=$(SIM_TIME)ns
-	@echo "Simulation finished. Waveform saved to $(WAVE_FILE)"
+view:
+	@$(WAVEFORM_VIEWER) $(VCDFILE) &
 
-# View Waveform
-wave: run
-	gtkwave $(WAVE_FILE) &
-
-# Clean up
 clean:
-	$(GHDL) --clean --workdir=$(SIMDIR)
-	rm -rf $(SIMDIR)
-
-.PHONY: all import check_tb build run wave clean
+	@rm -rf $(SIMDIR) OsvvmTemp_GHDL

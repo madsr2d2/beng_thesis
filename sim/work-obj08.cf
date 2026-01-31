@@ -1,13 +1,22 @@
 v 4
-file "/home/madsr2d2/beng_thesis/" "src/counter.vhd" "99a14cf380c2d1e82b8cf7af742dc9a70c0de974" "20260130190408.592":
-  entity counter at 1( 0) + 0 on 13;
-  architecture rtl of counter at 19( 418) + 0 on 14;
-file "/home/madsr2d2/beng_thesis/" "src/shift_reg.vhd" "54d7ee2bc7ea6311877ea616261bfac16efcbb00" "20260130190408.592":
-  entity shift_reg at 1( 0) + 0 on 11;
-  architecture rtl of shift_reg at 17( 357) + 0 on 12;
-file "/home/madsr2d2/beng_thesis/" "src/shift_reg_with_empty.vhd" "7e647b8924c45a99bdaff1ffe3936fe0965c5d90" "20260130190408.592":
-  entity shift_reg_with_empty at 1( 0) + 0 on 15;
-  architecture rtl of shift_reg_with_empty at 18( 431) + 0 on 16;
-file "/home/madsr2d2/beng_thesis/" "src/shift_reg_with_empty_tb.vhd" "a5ddb57e40ddb183613213efbe9a5bb29dc86025" "20260130190408.592":
-  entity shift_reg_with_empty_tb at 1( 0) + 0 on 17;
-  architecture sim of shift_reg_with_empty_tb at 8( 145) + 0 on 18;
+file "/home/madsr2d2/beng_thesis/" "src/bit_stuffer_fd_tb.vhd" "006846968d5bd9525dff1a5609de2f3508f61dfb" "20260202103448.030":
+  entity bit_stuffer_fd_tb at 1( 0) + 0 on 23;
+  architecture tb of bit_stuffer_fd_tb at 11( 173) + 0 on 24;
+file "/home/madsr2d2/beng_thesis/" "./src/mod_n.vhd" "374fdfc3692d4bd9e166ea8a032f53780c7c5dde" "20260202103447.985":
+  entity mod_n at 1( 0) + 0 on 11;
+  architecture rtl of mod_n at 17( 373) + 0 on 12;
+file "/home/madsr2d2/beng_thesis/" "./src/parity.vhd" "f9246bd3b8ee4a5712883420ca470154d7aec992" "20260202103447.985":
+  entity parity at 1( 0) + 0 on 13;
+  architecture rtl of parity at 14( 230) + 0 on 14;
+file "/home/madsr2d2/beng_thesis/" "./src/gray.vhd" "14a0e976a64ef9c1cd9c3ca6917981b734ff69e7" "20260202103447.986":
+  entity gray at 1( 0) + 0 on 15;
+  architecture rtl of gray at 14( 278) + 0 on 16;
+file "/home/madsr2d2/beng_thesis/" "./src/shift_reg.vhd" "5e51fc57a897c97abf636e921c74112a510bf03e" "20260202103447.986":
+  entity shift_reg at 1( 0) + 0 on 17;
+  architecture rtl of shift_reg at 25( 526) + 0 on 18;
+file "/home/madsr2d2/beng_thesis/" "./src/bit_stuffer.vhd" "c3ff29ed6c45d8575bbdf342ccea54cf6797175e" "20260202103447.986":
+  entity bit_stuffer at 1( 0) + 0 on 19;
+  architecture rtl of bit_stuffer at 19( 357) + 0 on 20;
+file "/home/madsr2d2/beng_thesis/" "./src/bit_stuffer_fd.vhd" "b233e0ed37dbc0a43355e1cd50b47c64770bfee8" "20260202103447.987":
+  entity bit_stuffer_fd at 1( 0) + 0 on 21;
+  architecture rtl of bit_stuffer_fd at 21( 451) + 0 on 22;

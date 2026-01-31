@@ -1,0 +1,23 @@
+=== Bit Stuffer FD Testbench Started ===
+Applying reset...
+Reset released
+Sending random bit pattern with variable valid timing...
+Output #1: 1 Gray+Parity=0 at time 1145000000 fs
+Output #2: 0 Gray+Parity=3 at time 1415000000 fs
+Output #3: 1 Gray+Parity=6 at time 2285000000 fs
+Sending random burst...
+Output #4: 0 Gray+Parity=5 at time 3135000000 fs
+Output #5: 1 Gray+Parity=C at time 3285000000 fs
+Output #6: 1 Gray+Parity=F at time 3335000000 fs
+Output #7: 0 Gray+Parity=A at time 3485000000 fs
+Output #8: 1 Gray+Parity=9 at time 3535000000 fs
+Output #9: 0 Gray+Parity=0 at time 4595000000 fs
+Output #10: 0 Gray+Parity=3 at time 4795000000 fs
+Output #11: 0 Gray+Parity=6 at time 5005000000 fs
+Output #12: 0 Gray+Parity=5 at time 5155000000 fs
+Output #13: 0 Gray+Parity=C at time 5225000000 fs
+Output #14: 1 Gray+Parity=F at time 5385000000 fs
+Output #15: 1 Gray+Parity=A at time 5545000000 fs
+Output #16: 1 Gray+Parity=9 at time 5645000000 fs
+Test complete, waiting for outputs to settle...
+=== Bit Stuffer FD Testbench Finished ===
