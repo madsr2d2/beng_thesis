@@ -34,22 +34,24 @@ begin
     if (rst_i = '1') then
       data_o   <= (others => '0');
       serial_o <= '0';
-      count    <= 0;
+      count    <= width_g - 1;
       empty_o  <= '0';
     elsif (rising_edge(clk_i)) then
       if (load_i = '1') then
-        data_o   <= data_i;                                                  -- load
-        count    <= 0;                                                       -- reset count
-        empty_o  <= '0';                                                     -- set empty flag low
-        serial_o <= data_i(data_i'left);                                     -- Set serial_o to MSB of data_o
+        data_o   <= data_i;                                                    -- Load
+        count    <= width_g - 1;                                               -- Reset count
+        empty_o  <= '0';                                                       -- Clear empty flag
+        serial_o <= data_i(data_i'left);                                       -- Set serial_o to MSB of data_o
       else
         if (shift_i = '1') then
-          data_o   <= data_o(data_o'left - 1 downto 0) & serial_i;           -- Shift in serial_i bit from right
-          serial_o <= data_o(data_o'left);
-          count    <= count + 1;
-          if (count = data_o'left) then
-            empty_o <= '1';
-            count   <= 0;
+          data_o   <= data_o(data_o'left - 1 downto 0) & serial_i;             -- Shift in serial_i bit from right
+          serial_o <= data_o(data_o'left);                                     -- Set serial_o to MSB of data_o
+          count    <= count - 1;                                               -- Decrement count
+          if (count = 0) then
+            empty_o <= '1';                                                    -- Raise empty flag
+            count   <= width_g - 1;
+          else
+            empty_o <= '0';                                                    -- Clear empty flag
           end if;
         end if;
       end if;

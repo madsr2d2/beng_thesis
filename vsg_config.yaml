@@ -1,25 +1,26 @@
+style: jcl
+
 rule:
-  signal_007:
+  # variable_007: Remove default assignment from variables
+  variable_007:
     disable: true
+
+  # instantiation_034: Prefer component instantiation over direct entity instantiation
   instantiation_034:
     disable: true
+
+  # instantiation_036: Add architecture identifier to entity instantiation
   instantiation_036:
     disable: true
-  case_007:
+
+  # loop_statement_201: Insert blank line below loop statement (e.g., after "for")
+  loop_statement_201:
     disable: true
-  case_009:
+
+  # loop_statement_202: Insert blank line above loop end statement (e.g., before "end loop")
+  loop_statement_202:
     disable: true
-  case_010:
-    disable: true
-  case_200:
-    disable: true
-  case_201:
-    disable: true
-  process_016:
-    disable: true
-  process_018:
-    disable: true
-  whitespace_006:
-    length: 80
-  conditional_waveforms_001:
+
+  # function_006: Insert blank line above function declaration
+  function_006:
     disable: true

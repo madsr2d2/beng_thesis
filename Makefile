@@ -7,13 +7,16 @@
 #  Note: OSVVM must be compiled first in OsvvmLibraries/osvvm
 
 # VHDL design files (excluding testbenches)
-# Leaf modules (no dependencies on other design files)
-LEAF_MODULES = ./src/mod_n.vhd ./src/parity.vhd ./src/gray.vhd ./src/shift_reg.vhd
+# Automatically find all files, compile packages and leaf modules first
+PACKAGES = $(shell find ./src -name "*package.vhd" -size +0)
+ALL_MODULES = $(shell find ./src -name "*.vhd" ! -name "*package.vhd" ! -name "*_tb.vhd" -size +0)
 
-# Modules that depend on leaf modules
-DEPENDENT_MODULES = ./src/bit_stuffer.vhd ./src/bit_stuffer_fd.vhd
+# Separate leaf modules (no dependencies on other design modules) from dependent modules
+# This ensures correct compilation order
+LEAF_MODULES = $(filter-out %_fd.vhd,$(ALL_MODULES))
+DEPENDENT_MODULES = $(filter %_fd.vhd,$(ALL_MODULES))
 
-SRCFILES = $(LEAF_MODULES) $(DEPENDENT_MODULES)
+SRCFILES = $(PACKAGES) $(LEAF_MODULES) $(DEPENDENT_MODULES)
 VHDLEX = .vhd
 
 # OSVVM library path (where TCL build compiled it)
@@ -30,7 +33,7 @@ GHDL_CMD = ghdl
 GHDL_FLAGS = --std=08 --warn-no-vital-generic -P$(OSVVM_LIB_PATH) -P.
 
 SIMDIR = sim
-STOP_TIME = 10000ns
+STOP_TIME = 200us
 GHDL_SIM_OPT = --stop-time=$(STOP_TIME)
 VCDFILE = ${SIMDIR}/${TESTBENCHFILE}.vcd
 
