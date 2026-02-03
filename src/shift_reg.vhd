@@ -1,63 +1,55 @@
 library ieee;
   use ieee.std_logic_1164.all;
+  use work.can_pkg.all;
 
 entity shift_reg is
-  generic (
-    width_g : integer := 8
-  );
   port (
-    clk_i : in    std_logic;
-    rst_i : in    std_logic;
-
-    -- Control and status
-    shift_i : in    std_logic;
-    load_i  : in    std_logic;
-    empty_o : out   std_logic;
-
-    -- Data IO
-    data_i   : in    std_logic_vector(width_g - 1 downto 0);
-    data_o   : out   std_logic_vector(width_g - 1 downto 0);
-    serial_i : in    std_logic;
-    serial_o : out   std_logic
+    sr_i : in    shift_reg_in_if_t;
+    sr_o : out   shift_reg_out_t
   );
 end entity shift_reg;
 
 architecture rtl of shift_reg is
 
-  signal count : integer range 0 to width_g - 1;
+  constant width    : integer := 8;
+  signal   count    : integer range 0 to width - 1;
+  signal   data_reg : std_logic_vector(width - 1 downto 0);
 
 begin
 
-  shift_reg_proc : process (clk_i, rst_i) is
+  shift_reg_proc : process (sr_i.clk, sr_i.rst) is
   begin
 
-    if (rst_i = '1') then
-      data_o   <= (others => '0');
-      serial_o <= '0';
-      count    <= width_g - 1;
-      empty_o  <= '0';
-    elsif (rising_edge(clk_i)) then
-      if (load_i = '1') then
-        data_o   <= data_i;                                                    -- Load
-        count    <= width_g - 1;                                               -- Reset count
-        empty_o  <= '0';                                                       -- Clear empty flag
-        serial_o <= data_i(data_i'left);                                       -- Set serial_o to MSB of data_o
+    if (sr_i.rst = '1') then
+      data_reg        <= (others => '0');
+      sr_o.serial_out <= '0';
+      sr_o.empty      <= '0';
+      count           <= width - 1;
+    elsif (rising_edge(sr_i.clk)) then
+      if (sr_i.load = '1') then
+        data_reg        <= sr_i.data_in;                                            -- Load
+        count           <= width - 1;                                               -- Reset count
+        sr_o.empty      <= '0';                                                     -- Clear empty flag
+        sr_o.serial_out <= sr_i.data_in(sr_i.data_in'left);                         -- Set serial_out to MSB of data_in
       else
-        if (shift_i = '1') then
-          data_o   <= data_o(data_o'left - 1 downto 0) & serial_i;             -- Shift in serial_i bit from right
-          serial_o <= data_o(data_o'left);                                     -- Set serial_o to MSB of data_o
-          count    <= count - 1;                                               -- Decrement count
+        if (sr_i.shift = '1') then
+          data_reg        <= data_reg(data_reg'left - 1 downto 0) & sr_i.serial_in; -- Shift in serial_in bit from right
+          sr_o.serial_out <= data_reg(data_reg'left);                               -- Set serial_out to MSB of data_reg
+          count           <= count - 1;                                             -- Decrement count
           if (count = 0) then
-            empty_o <= '1';                                                    -- Raise empty flag
-            count   <= width_g - 1;
+            sr_o.empty <= '1';                                                      -- Raise empty flag
+            count      <= width - 1;
           else
-            empty_o <= '0';                                                    -- Clear empty flag
+            sr_o.empty <= '0';                                                      -- Clear empty flag
           end if;
         end if;
       end if;
     end if;
 
   end process shift_reg_proc;
+
+  -- Assign parallel output
+  sr_o.data_out <= data_reg;
 
 end architecture rtl;
 

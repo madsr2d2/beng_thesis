@@ -5,7 +5,7 @@ use ieee.numeric_std.all;
 library osvvm;
 context osvvm.OsvvmContext;
 
-use work.can_package.all;
+use work.can_pkg.all;
 
 entity bit_stuffer_fd_tb is
 end entity bit_stuffer_fd_tb;
@@ -16,8 +16,8 @@ architecture tb of bit_stuffer_fd_tb is
   constant RUN_TIME : time := 100 us;
 
   signal clk_i : std_logic := '0';
-  signal bs_fd_i : mac_fsm_to_bs_fd_t;
-  signal bs_fd_o : bs_fd_to_mac_fsm_t;
+  signal bs_fd_i : mac_fsm_to_bs_fd_if_t;
+  signal bs_fd_o : bs_fd_to_mac_fsm_if_t;
 
   -- Signals for waveform viewing (unpacked from records)
   signal tb_clk : std_logic;

@@ -1,12 +1,12 @@
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
-  use work.can_package.all;
+  use work.can_pkg.all;
 
 entity bit_stuffer_fd is
   port (
-    bs_fd_i : in    mac_fsm_to_bs_fd_t;
-    bs_fd_o : out   bs_fd_to_mac_fsm_t
+    bs_fd_i : in    mac_fsm_to_bs_fd_if_t;
+    bs_fd_o : out   bs_fd_to_mac_fsm_if_t
   );
 end entity bit_stuffer_fd;
 
