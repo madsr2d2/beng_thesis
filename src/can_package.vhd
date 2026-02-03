@@ -18,6 +18,11 @@ package can_pkg is
   constant cc_extended_data_start_pos : integer                       := 39;
   constant fd_basic_data_start_pos    : integer                       := 22;
   constant fd_extended_data_start_pos : integer                       := 41;
+  constant cc_basic_dlc_start_pos     : integer                       := 15;
+  constant cc_extended_dlc_start_pos  : integer                       := 35;
+  constant fd_basic_dlc_start_pos     : integer                       := 18;
+  constant fd_extended_dlc_start_pos  : integer                       := 37;
+  constant dlc_length                 : integer                       := 4;
   -- can classic  form bit positions
   constant cc_basic_rtr_pos : integer := 12;
   constant cc_basic_ide_pos : integer := 13;
@@ -244,7 +249,6 @@ package body can_pkg is
 
       when cc_basic | cc_extended =>
 
-        -- CAN Classic: DLC 0-8 = actual bytes, 9-15 = 8 bytes
         if (dlc <= 8) then
           return dlc;
         else
@@ -252,44 +256,34 @@ package body can_pkg is
         end if;
 
       when fd_basic | fd_extended =>
-
         -- CAN FD: Extended DLC encoding
         case dlc is
 
           when 0 to 8 =>
-
             return dlc;
 
           when 9 =>
-
             return 12;
 
           when 10 =>
-
             return 16;
 
           when 11 =>
-
             return 20;
 
           when 12 =>
-
             return 24;
 
           when 13 =>
-
             return 32;
 
           when 14 =>
-
             return 48;
 
           when 15 =>
-
             return 64;
 
           when others =>
-
             return 0;
 
         end case;
@@ -308,7 +302,6 @@ package body can_pkg is
     case can_format is
 
       when cc_basic | cc_extended =>
-
         return crc_poly_15_vec'left + 1;
 
       when fd_basic | fd_extended =>
@@ -332,19 +325,15 @@ package body can_pkg is
     case can_format is
 
       when cc_basic =>
-
         return cc_basic_data_start_pos;
 
       when cc_extended =>
-
         return cc_extended_data_start_pos;
 
       when fd_basic =>
-
         return fd_basic_data_start_pos;
 
       when fd_extended =>
-
         return fd_extended_data_start_pos;
 
     end case;
@@ -360,11 +349,9 @@ package body can_pkg is
     case can_format is
 
       when fd_basic | fd_extended =>
-
         return true;
 
       when others =>
-
         return false;
 
     end case;
@@ -400,12 +387,18 @@ package body can_pkg is
     variable esi_position   : integer;
     variable esi_polarity   : std_logic;
     variable ack_polarity   : std_logic;
+    variable dlc_start_pos  : integer;  -- NEW: DLC field start position
+    variable dlc_bit_index  : integer;  -- NEW: Which DLC bit (0-3)
+    variable dlc_vector     : std_logic_vector(3 downto 0);  -- NEW: DLC as vector
 
   begin
 
     -- Initialize
     result.is_form_bit := false;
     result.polarity    := recessive_bit;
+
+    -- Convert DLC integer to std_logic_vector
+    dlc_vector := std_logic_vector(to_unsigned(dlc, 4));
 
     -- Convert DLC to actual data length
     data_length := dlc_to_data_length(dlc, can_format);
@@ -414,32 +407,32 @@ package body can_pkg is
     case can_format is
 
       when cc_basic =>
-
-        static_table := cc_basic_static_form_bits;
-        rtr_position := cc_basic_rtr_pos;
-        brs_position := -1; -- No BRS in Classic CAN
-        esi_position := -1; -- No ESI in Classic CAN
+        static_table  := cc_basic_static_form_bits;
+        rtr_position  := cc_basic_rtr_pos;
+        brs_position  := -1; -- No BRS in Classic CAN
+        esi_position  := -1; -- No ESI in Classic CAN
+        dlc_start_pos := cc_basic_dlc_start_pos;
 
       when cc_extended =>
-
-        static_table := cc_extended_static_form_bits;
-        rtr_position := cc_extended_rtr_pos;
-        brs_position := -1; -- No BRS in Classic CAN
-        esi_position := -1; -- No ESI in Classic CAN
+        static_table  := cc_extended_static_form_bits;
+        rtr_position  := cc_extended_rtr_pos;
+        brs_position  := -1; -- No BRS in Classic CAN
+        esi_position  := -1; -- No ESI in Classic CAN
+        dlc_start_pos := cc_extended_dlc_start_pos;
 
       when fd_basic =>
-
-        static_table := fd_basic_static_form_bits;
-        rtr_position := -1; -- No RTR in FD
-        brs_position := fd_basic_brs_pos;
-        esi_position := fd_basic_esi_pos;
+        static_table  := fd_basic_static_form_bits;
+        rtr_position  := -1; -- No RTR in FD
+        brs_position  := fd_basic_brs_pos;
+        esi_position  := fd_basic_esi_pos;
+        dlc_start_pos := fd_basic_dlc_start_pos;
 
       when fd_extended =>
-
-        static_table := fd_extended_static_form_bits;
-        rtr_position := -1;  -- No RTR in FD
-        brs_position := fd_extended_brs_pos;
-        esi_position := fd_extended_esi_pos;
+        static_table  := fd_extended_static_form_bits;
+        rtr_position  := -1;  -- No RTR in FD
+        brs_position  := fd_extended_brs_pos;
+        esi_position  := fd_extended_esi_pos;
+        dlc_start_pos := fd_extended_dlc_start_pos;
 
     end case;
 
@@ -447,11 +440,9 @@ package body can_pkg is
     case frame_type is
 
       when data_frame =>
-
         rtr_polarity := dominant_bit;
 
       when remote_frame =>
-
         rtr_polarity := recessive_bit;
 
     end case;
@@ -474,11 +465,9 @@ package body can_pkg is
     case node_type is
 
       when transmitter =>
-
         ack_polarity := recessive_bit;
 
       when receiver =>
-
         ack_polarity := dominant_bit;
 
     end case;
@@ -501,6 +490,14 @@ package body can_pkg is
     if (esi_position /= -1 and bit_count = esi_position) then
       result.is_form_bit := true;
       result.polarity    := esi_polarity;
+      return result;
+    end if;
+
+    -- Check DLC field (4 bits, MSB first)
+    if (bit_count >= dlc_start_pos and bit_count < dlc_start_pos + dlc_length) then
+      result.is_form_bit := true;
+      dlc_bit_index      := bit_count - dlc_start_pos;
+      result.polarity    := dlc_vector(3 - dlc_bit_index);
       return result;
     end if;
 

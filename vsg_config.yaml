@@ -24,3 +24,7 @@ rule:
   # function_006: Insert blank line above function declaration
   function_006:
     disable: true
+
+  # case_200: Insert blank line below case/when statement
+  case_200:
+    disable: true
