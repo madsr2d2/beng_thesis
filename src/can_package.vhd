@@ -7,51 +7,52 @@ package can_pkg is
   -- =================================================================
   -- Constants
   -- =================================================================
-  constant dominant_bit               : std_logic                     := '0';
-  constant recessive_bit              : std_logic                     := '1';
-  constant max_static_form_bits       : integer                       := 8;
-  constant sof_bit_position           : integer                       := 0;
-  constant crc_poly_15_vec            : std_logic_vector(14 downto 0) := x"4599";
-  constant crc_poly_17_vec            : std_logic_vector(16 downto 0) := x"3685B";
-  constant crc_poly_21_vec            : std_logic_vector(20 downto 0) := x"302899";
-  constant cc_basic_data_start_pos    : integer                       := 19;
-  constant cc_extended_data_start_pos : integer                       := 39;
-  constant fd_basic_data_start_pos    : integer                       := 22;
-  constant fd_extended_data_start_pos : integer                       := 41;
-  constant cc_basic_dlc_start_pos     : integer                       := 15;
-  constant cc_extended_dlc_start_pos  : integer                       := 35;
-  constant fd_basic_dlc_start_pos     : integer                       := 18;
-  constant fd_extended_dlc_start_pos  : integer                       := 37;
-  constant dlc_length                 : integer                       := 4;
+  constant dominant_bit_c         : std_logic                     := '0';
+  constant recessive_bit_c        : std_logic                     := '1';
+  constant max_static_form_bits_c : integer                       := 8;
+  constant sof_bit_position_c     : integer                       := 0;
+  constant crc_poly_15_vec_c      : std_logic_vector(14 downto 0) := x"4599";
+  constant crc_poly_17_vec_c      : std_logic_vector(16 downto 0) := x"3685B";
+  constant crc_poly_21_vec_c      : std_logic_vector(20 downto 0) := x"302899";
+  constant cc_basic_data_c        : integer                       := 19;
+  constant cc_extended_data_c     : integer                       := 39;
+  constant fd_basic_data_c        : integer                       := 22;
+  constant fd_extended_data_c     : integer                       := 41;
+  constant cc_basic_dlc_c         : integer                       := 15;
+  constant cc_extended_dlc_c      : integer                       := 35;
+  constant fd_basic_dlc_c         : integer                       := 18;
+  constant fd_extended_dlc_c      : integer                       := 37;
+  constant dlc_length_c           : integer                       := 4;
+  constant sbc_length_c           : integer                       := 4;
 
   -- can classic  form bit positions
-  constant cc_basic_rtr_pos : integer := 12;
-  constant cc_basic_ide_pos : integer := 13;
-  constant cc_basic_r0_pos  : integer := 14;
+  constant cc_basic_rtr_c : integer := 12;
+  constant cc_basic_ide_c : integer := 13;
+  constant cc_basic_r0_c  : integer := 14;
 
   -- can extended form bit positions
-  constant cc_extended_srr_pos : integer := 12;
-  constant cc_extended_ide_pos : integer := 13;
-  constant cc_extended_rtr_pos : integer := 32;
-  constant cc_extended_r1_pos  : integer := 33;
-  constant cc_extended_r0_pos  : integer := 34;
+  constant cc_extended_srr_c : integer := 12;
+  constant cc_extended_ide_c : integer := 13;
+  constant cc_extended_rtr_c : integer := 32;
+  constant cc_extended_r1_c  : integer := 33;
+  constant cc_extended_r0_c  : integer := 34;
 
   -- can FD basic form bit positions
-  constant fd_basic_rss_pos : integer := 12;
-  constant fd_basic_ide_pos : integer := 13;
-  constant fd_basic_fdf_pos : integer := 14;
-  constant fd_basic_res_pos : integer := 15;
-  constant fd_basic_brs_pos : integer := 16;
-  constant fd_basic_esi_pos : integer := 17;
+  constant fd_basic_rss_c : integer := 12;
+  constant fd_basic_ide_c : integer := 13;
+  constant fd_basic_fdf_c : integer := 14;
+  constant fd_basic_res_c : integer := 15;
+  constant fd_basic_brs_c : integer := 16;
+  constant fd_basic_esi_c : integer := 17;
 
   -- can FD extended form bit positions
-  constant fd_extended_srr_pos : integer := 12;
-  constant fd_extended_ide_pos : integer := 13;
-  constant fd_extended_rrs_pos : integer := 32;
-  constant fd_extended_fdf_pos : integer := 33;
-  constant fd_extended_res_pos : integer := 34;
-  constant fd_extended_brs_pos : integer := 35;
-  constant fd_extended_esi_pos : integer := 36;
+  constant fd_extended_srr_c : integer := 12;
+  constant fd_extended_ide_c : integer := 13;
+  constant fd_extended_rrs_c : integer := 32;
+  constant fd_extended_fdf_c : integer := 33;
+  constant fd_extended_res_c : integer := 34;
+  constant fd_extended_brs_c : integer := 35;
+  constant fd_extended_esi_c : integer := 36;
 
   -- =================================================================
   -- Types
@@ -66,8 +67,8 @@ package can_pkg is
 
   -- Node type (for ACK slot polarity)
   type can_node_type_t is (
-    transmitter, -- ACK slot = recessive (waiting for ACK)
-    receiver     -- ACK slot = dominant (acknowledging)
+    transmitter,
+    receiver
   );
 
   -- Frame type (data vs remote)
@@ -101,8 +102,8 @@ package can_pkg is
     frame_field : mac_frame_field_t;
   end record mac_frame_bit_info_t;
 
-  -- Table types
-  type form_bit_table_t is array (0 to max_static_form_bits - 1) of form_bit_entry_t;
+  -- Static form bit table type
+  type form_bit_table_t is array (0 to max_static_form_bits_c - 1) of form_bit_entry_t;
 
   -- LLC (Logical Link Control) Interface
   type llc_to_mac_if_t is record
@@ -176,62 +177,57 @@ package can_pkg is
   end record shift_reg_out_t;
 
   -- =================================================================
-  -- STATIC FORM BIT TABLES
+  -- Static form bit tables
   -- =================================================================
-  -- CAN Classic Basic (11-bit ID)
   constant cc_basic_static_form_bits : form_bit_table_t :=
   (
-    0      => (position => sof_bit_position, polarity => dominant_bit), -- SOF
-    1      => (position => cc_basic_ide_pos, polarity => dominant_bit), -- IDE
-    2      => (position => cc_basic_r0_pos, polarity => dominant_bit),  -- r0
-    others => (position => -1, polarity => recessive_bit)
+    0      => (position => sof_bit_position_c, polarity => dominant_bit_c), -- SOF
+    1      => (position => cc_basic_ide_c, polarity => dominant_bit_c),     -- IDE
+    2      => (position => cc_basic_r0_c, polarity => dominant_bit_c),      -- r0
+    others => (position => -1, polarity => recessive_bit_c)
   );
 
-  -- CAN Classic Extended (29-bit ID)
   constant cc_extended_static_form_bits : form_bit_table_t :=
   (
-    0      => (position => sof_bit_position, polarity => dominant_bit),     -- SOF
-    1      => (position => cc_extended_srr_pos, polarity => recessive_bit), -- SRR
-    2      => (position => cc_extended_ide_pos, polarity => recessive_bit), -- IDE
-    3      => (position => cc_extended_r1_pos, polarity => dominant_bit),   -- r1
-    4      => (position => cc_extended_r0_pos,  polarity => dominant_bit),  -- r0
-    others => (position => -1, polarity => recessive_bit)
+    0      => (position => sof_bit_position_c, polarity => dominant_bit_c), -- SOF
+    1      => (position => cc_extended_srr_c, polarity => recessive_bit_c), -- SRR
+    2      => (position => cc_extended_ide_c, polarity => recessive_bit_c), -- IDE
+    3      => (position => cc_extended_r1_c, polarity => dominant_bit_c),   -- r1
+    4      => (position => cc_extended_r0_c,  polarity => dominant_bit_c),  -- r0
+    others => (position => -1, polarity => recessive_bit_c)
   );
 
-  -- CAN FD Basic (11-bit ID)
   constant fd_basic_static_form_bits : form_bit_table_t :=
   (
-    0      => (position => sof_bit_position, polarity => dominant_bit),  -- SOF
-    1      => (position => fd_basic_rss_pos, polarity => dominant_bit),  -- RRS
-    2      => (position => fd_basic_ide_pos, polarity => dominant_bit),  -- IDE
-    3      => (position => fd_basic_fdf_pos, polarity => recessive_bit), -- FDF
-    4      => (position => fd_basic_res_pos,  polarity => dominant_bit), -- RES
-    others => (position => -1, polarity => recessive_bit)
+    0      => (position => sof_bit_position_c, polarity => dominant_bit_c), -- SOF
+    1      => (position => fd_basic_rss_c, polarity => dominant_bit_c),     -- RRS
+    2      => (position => fd_basic_ide_c, polarity => dominant_bit_c),     -- IDE
+    3      => (position => fd_basic_fdf_c, polarity => recessive_bit_c),    -- FDF
+    4      => (position => fd_basic_res_c,  polarity => dominant_bit_c),    -- RES
+    others => (position => -1, polarity => recessive_bit_c)
   );
 
-  -- CAN FD Extended (29-bit ID)
   constant fd_extended_static_form_bits : form_bit_table_t :=
   (
-    0      => (position => sof_bit_position, polarity => dominant_bit),     -- SOF
-    1      => (position => fd_extended_srr_pos, polarity => recessive_bit), -- SRR
-    2      => (position => fd_extended_ide_pos, polarity => recessive_bit), -- IDE
-    3      => (position => fd_extended_rrs_pos, polarity => dominant_bit),  -- RRS
-    4      => (position => fd_extended_fdf_pos, polarity => recessive_bit), -- FDF
-    5      => (position => fd_extended_res_pos, polarity => dominant_bit),  -- RES
-    others => (position => -1, polarity => recessive_bit)
+    0      => (position => sof_bit_position_c, polarity => dominant_bit_c), -- SOF
+    1      => (position => fd_extended_srr_c, polarity => recessive_bit_c), -- SRR
+    2      => (position => fd_extended_ide_c, polarity => recessive_bit_c), -- IDE
+    3      => (position => fd_extended_rrs_c, polarity => dominant_bit_c),  -- RRS
+    4      => (position => fd_extended_fdf_c, polarity => recessive_bit_c), -- FDF
+    5      => (position => fd_extended_res_c, polarity => dominant_bit_c),  -- RES
+    others => (position => -1, polarity => recessive_bit_c)
   );
 
   -- =================================================================
-  -- FUNCTION DECLARATION
+  -- Function declarations
   -- =================================================================
-  function check_frame_bit (
+  function tx_mac_frame_bit (
     bit_count    : integer;
     can_format   : can_format_t;
     frame_type   : frame_type_t;
     dlc          : integer range 0 to 15;
     brs_enable   : boolean;
     esi_flag     : boolean;
-    node_type    : can_node_type_t;
     previous_bit : std_logic
   ) return mac_frame_bit_info_t;
 
@@ -284,13 +280,13 @@ package body can_pkg is
 
     case can_format is
       when cc_basic | cc_extended =>
-        return crc_poly_15_vec'left + 1;
+        return crc_poly_15_vec_c'left + 1;
       when fd_basic | fd_extended =>
 
-        if (data_length <= crc_poly_17_vec'left) then
-          return crc_poly_17_vec'left + 1;
+        if (data_length <= crc_poly_17_vec_c'left) then
+          return crc_poly_17_vec_c'left + 1;
         else
-          return crc_poly_21_vec'left + 1;
+          return crc_poly_21_vec_c'left + 1;
         end if;
 
     end case;
@@ -304,10 +300,10 @@ package body can_pkg is
   begin
 
     case can_format is
-      when cc_basic => return cc_basic_data_start_pos;
-      when cc_extended => return cc_extended_data_start_pos;
-      when fd_basic => return fd_basic_data_start_pos;
-      when fd_extended => return fd_extended_data_start_pos;
+      when cc_basic => return cc_basic_data_c;
+      when cc_extended => return cc_extended_data_c;
+      when fd_basic => return fd_basic_data_c;
+      when fd_extended => return fd_extended_data_c;
     end case;
 
   end function get_data_start_position;
@@ -326,71 +322,56 @@ package body can_pkg is
 
   end function is_fd_format;
 
-  -- Check if position is a fixed stuff bit in CAN FD CRC field
+  -- Helper function to check if position is a fixed stuff bit in CAN FD CRC field
   function is_fixed_stuff_bit_position (
     position_in_crc_field : integer
   ) return boolean is
 
   begin
 
-    -- Fixed stuff bits are at positions: 0, 5, 10, 15, 20, 25, ...
-    -- Pattern: every 5th position starting at 0
+    -- Every 5th position starting at 0
     return (position_in_crc_field mod 5) = 0;
 
   end function is_fixed_stuff_bit_position;
 
-  -- Calculate total number of fixed stuff bits in CRC field
+  -- Helper function to calculate total number of fixed stuff bits in FD CRC field
   function get_fixed_stuff_bit_count (
-    sbc_and_crc_length : integer  -- SBC (4 bits) + CRC length
+    sbc_and_crc_length : integer
   ) return integer is
 
-    variable data_bits       : integer;
     variable num_fixed_stuff : integer;
 
   begin
 
-    data_bits := sbc_and_crc_length;
     -- Fixed stuff bits: 1 before first bit, then after every 4 data bits
-    -- Pattern: [FSB] [D D D D] [FSB] [D D D D] ...
-    -- Number of FSB = ceil((data_bits + 1) / 4)
-    -- Actually: 1 + floor(data_bits / 4)
-    num_fixed_stuff := 1 + (data_bits / 4);
+    -- Stuff bit positions: 0, 5, 10, 15, ...
+    num_fixed_stuff := 1 + (sbc_and_crc_length / 5);
     return num_fixed_stuff;
 
   end function get_fixed_stuff_bit_count;
 
-  -- Helper to get arbitration field end position
-  function get_arbitration_end (
+  -- Helper to get control field start position
+  function get_control_start (
     can_format : can_format_t
   ) return integer is
   begin
 
     case can_format is
-
-      when cc_basic =>
-        return cc_basic_ide_pos;
-
-      when cc_extended =>
-        return cc_extended_r1_pos;
-
-      when fd_basic =>
-        return fd_basic_ide_pos;
-
-      when fd_extended =>
-        return fd_extended_rrs_pos;
-
+      when cc_basic => return cc_basic_ide_c;
+      when cc_extended => return cc_extended_r1_c;
+      when fd_basic => return fd_basic_ide_c;
+      when fd_extended => return fd_extended_rrs_c;
     end case;
 
-  end function get_arbitration_end;
+  end function get_control_start;
 
-  function check_frame_bit (
+  function tx_mac_frame_bit (
     bit_count    : integer;
     can_format   : can_format_t;
     frame_type   : frame_type_t;
     dlc          : integer range 0 to 15;
     brs_enable   : boolean;
     esi_flag     : boolean;
-    node_type    : can_node_type_t;
     previous_bit : std_logic
   ) return mac_frame_bit_info_t is
 
@@ -399,10 +380,8 @@ package body can_pkg is
     variable data_start_pos        : integer;
     variable data_length           : integer;
     variable data_bits             : integer;
-    variable sbc_bits              : integer;
     variable crc_length            : integer;
-    variable crc_field_start       : integer;  -- NEW: Start of CRC field (includes SBC + CRC + fixed stuff bits)
-    variable crc_field_length      : integer; -- NEW: Total length including fixed stuff bits
+    variable crc_field_length      : integer;
     variable crc_delim_pos         : integer;
     variable ack_slot_pos          : integer;
     variable ack_delim_pos         : integer;
@@ -414,19 +393,17 @@ package body can_pkg is
     variable brs_polarity          : std_logic;
     variable esi_position          : integer;
     variable esi_polarity          : std_logic;
-    variable ack_polarity          : std_logic;
     variable dlc_start_pos         : integer;
     variable dlc_bit_index         : integer;
     variable dlc_vector            : std_logic_vector(3 downto 0);
-    variable arb_end_pos           : integer;
-    variable control_end_pos       : integer;
-    variable data_end_pos          : integer;
-    variable position_in_crc_field : integer;  -- NEW: Position relative to CRC field start
-    variable fixed_stuff_count     : integer;      -- NEW: Number of fixed stuff bits
+    variable control_start_pos     : integer;
+    variable crc_start             : integer;
+    variable position_in_crc_field : integer;
+    variable fixed_stuff_count     : integer;
 
   begin
 
-    -- Initialize
+    -- Initialize return value
     result.is_form_bit := false;
     result.polarity    := '0';
     result.frame_field := FIELD_UNKNOWN;
@@ -434,34 +411,25 @@ package body can_pkg is
     dlc_vector  := std_logic_vector(to_unsigned(dlc, 4));
     data_length := dlc_to_data_length(dlc, can_format);
 
-    -- Calculate basic positions
-    arb_end_pos     := get_arbitration_end(can_format);
-    data_start_pos  := get_data_start_position(can_format);
-    control_end_pos := data_start_pos - 1;
-    data_bits       := data_length * 8;
-    data_end_pos    := data_start_pos + data_bits - 1;
+    -- =================================================================
+    -- Calculate positions
+    -- =================================================================
+    control_start_pos := get_control_start(can_format);
+    data_start_pos    := get_data_start_position(can_format);
+    data_bits         := data_length * 8;
+    crc_start         := data_start_pos + data_bits;
 
-    -- CAN FD has different CRC field structure with fixed stuff bits
+    -- CAN FD CRC fields contains SBC and fixed stuff bits
     if is_fd_format(can_format) then
-      sbc_bits   := 4;
-      crc_length := get_crc_length(can_format, data_length);
-
-      -- Calculate number of fixed stuff bits in CRC field
-      -- CRC field contains: SBC (4 bits) + CRC (17 or 21 bits) + fixed stuff bits
-      fixed_stuff_count := get_fixed_stuff_bit_count(sbc_bits + crc_length);
-
-      -- Total CRC field length includes data bits + fixed stuff bits
-      crc_field_length := sbc_bits + crc_length + fixed_stuff_count;
-
-      crc_field_start := data_start_pos + data_bits;
-      crc_delim_pos   := crc_field_start + crc_field_length;
+      crc_length        := get_crc_length(can_format, data_length); -- Get CRC length
+      fixed_stuff_count := get_fixed_stuff_bit_count(sbc_length_c + crc_length); -- Get fixed stiff bits count
+      crc_field_length  := sbc_length_c + crc_length + fixed_stuff_count; -- Get CRC field length
+      crc_delim_pos     := crc_start + crc_field_length;
     else
-      -- CAN Classic: no SBC, no fixed stuff bits
-      sbc_bits         := 0;
+      -- CAN Classic CRC field contains only CRC bits
       crc_length       := get_crc_length(can_format, data_length);
-      crc_field_start  := data_start_pos + data_bits;
       crc_field_length := crc_length;  -- Just CRC, no fixed stuff bits
-      crc_delim_pos    := crc_field_start + crc_field_length;
+      crc_delim_pos    := crc_start + crc_field_length;
     end if;
 
     ack_slot_pos  := crc_delim_pos + 1;
@@ -469,98 +437,71 @@ package body can_pkg is
     eof_start_pos := ack_delim_pos + 1;
     eof_end_pos   := eof_start_pos + 6;
 
-    -- Determine current field
-    if (bit_count = 0) then
-      result.frame_field := FIELD_SOF;
-    elsif (bit_count >= 1 and bit_count <= arb_end_pos) then
-      result.frame_field := FIELD_ARBITRATION;
-    elsif (bit_count > arb_end_pos and bit_count <= control_end_pos) then
-      result.frame_field := FIELD_CONTROL;
-    elsif (bit_count >= data_start_pos and bit_count <= data_end_pos) then
-      result.frame_field := FIELD_DATA;
-    elsif (bit_count >= crc_field_start and bit_count < crc_delim_pos) then
-      result.frame_field := FIELD_CRC;
-    elsif (bit_count >= ack_slot_pos and bit_count <= ack_delim_pos) then
-      result.frame_field := FIELD_ACK;
-    elsif (bit_count >= eof_start_pos and bit_count <= eof_end_pos) then
-      result.frame_field := FIELD_EOF;
+    -- =================================================================
+    -- Determine current mac frame field
+    -- =================================================================
+    if (bit_count = sof_bit_position_c) then
+      result.frame_field := field_sof;
+    elsif (bit_count >= 1 and bit_count < control_start_pos) then
+      result.frame_field := field_arbitration;
+    elsif (bit_count >= control_start_pos and bit_count < data_start_pos) then
+      result.frame_field := field_control;
+    elsif (bit_count >= data_start_pos and bit_count < crc_start) then
+      result.frame_field := field_data;
+    elsif (bit_count >= crc_start and bit_count < ack_slot_pos) then
+      result.frame_field := field_crc;
+    elsif (bit_count >= ack_slot_pos and bit_count < eof_start_pos) then
+      result.frame_field := field_ack;
+    elsif (bit_count >= eof_start_pos and bit_count < eof_end_pos + 1) then
+      result.frame_field := field_eof;
     else
       result.frame_field := FIELD_UNKNOWN;
     end if;
 
+    -- =================================================================
     -- Select static table and positions
+    -- =================================================================
     case can_format is
-
       when cc_basic =>
         static_table  := CC_BASIC_STATIC_FORM_BITS;
-        rtr_position  := CC_BASIC_RTR_POS;
+        rtr_position  := cc_basic_rtr_c;
         brs_position  := -1;
         esi_position  := -1;
-        dlc_start_pos := cc_basic_dlc_start_pos;
-
+        dlc_start_pos := cc_basic_dlc_c;
       when cc_extended =>
         static_table  := CC_EXTENDED_STATIC_FORM_BITS;
-        rtr_position  := CC_EXTENDED_RTR_POS;
+        rtr_position  := cc_extended_rtr_c;
         brs_position  := -1;
         esi_position  := -1;
-        dlc_start_pos := cc_extended_dlc_start_pos;
-
+        dlc_start_pos := cc_extended_dlc_c;
       when fd_basic =>
         static_table  := FD_BASIC_STATIC_FORM_BITS;
         rtr_position  := -1;
-        brs_position  := FD_BASIC_BRS_POS;
-        esi_position  := FD_BASIC_ESI_POS;
-        dlc_start_pos := fd_basic_dlc_start_pos;
-
+        brs_position  := fd_basic_brs_c;
+        esi_position  := fd_basic_esi_c;
+        dlc_start_pos := fd_basic_dlc_c;
       when fd_extended =>
         static_table  := FD_EXTENDED_STATIC_FORM_BITS;
         rtr_position  := -1;
-        brs_position  := FD_EXTENDED_BRS_POS;
-        esi_position  := FD_EXTENDED_ESI_POS;
-        dlc_start_pos := fd_extended_dlc_start_pos;
-
+        brs_position  := fd_extended_brs_c;
+        esi_position  := fd_extended_esi_c;
+        dlc_start_pos := fd_extended_dlc_c;
     end case;
 
-    -- Determine polarities
+    -- =================================================================
+    -- Set control bit polarities
+    -- =================================================================
     case frame_type is
-
-      when DATA_FRAME =>
-        rtr_polarity := '0';
-
-      when REMOTE_FRAME =>
-        rtr_polarity := '1';
-
+      when DATA_FRAME => rtr_polarity := dominant_bit_c;
+      when REMOTE_FRAME => rtr_polarity := recessive_bit_c;
     end case;
 
-    brs_polarity := '1' when brs_enable else '0';
-    esi_polarity := '1' when esi_flag else '0';
+    brs_polarity := recessive_bit_c when brs_enable else dominant_bit_c;
+    esi_polarity := recessive_bit_c when esi_flag else dominant_bit_c;
 
-    case node_type is
-
-      when TRANSMITTER =>
-        ack_polarity := '1';
-
-      when RECEIVER =>
-        ack_polarity := '0';
-
-    end case;
-
-    -- NEW: Check for fixed stuff bits in CAN FD CRC field
-    if (is_fd_format(can_format) and
-        bit_count >= crc_field_start and
-        bit_count < crc_delim_pos) then
-      position_in_crc_field := bit_count - crc_field_start;
-
-      if is_fixed_stuff_bit_position(position_in_crc_field) then
-        -- This is a fixed stuff bit!
-        result.is_form_bit := true;
-        -- Polarity is INVERSE of previous bit
-        result.polarity := not previous_bit;
-        return result;
-      end if;
-    end if;
-
+    -- =================================================================
     -- Check control bits
+    -- =================================================================
     if (rtr_position /= -1 and bit_count = rtr_position) then
       result.is_form_bit := true;
       result.polarity    := rtr_polarity;
@@ -579,15 +520,19 @@ package body can_pkg is
       return result;
     end if;
 
+    -- =================================================================
     -- Check DLC field
-    if (bit_count >= dlc_start_pos and bit_count < dlc_start_pos + dlc_length) then
+    -- =================================================================
+    if (bit_count >= dlc_start_pos and bit_count < dlc_start_pos + dlc_length_c) then
       result.is_form_bit := true;
       dlc_bit_index      := bit_count - dlc_start_pos;
       result.polarity    := dlc_vector(3 - dlc_bit_index);
       return result;
     end if;
 
+    -- =================================================================
     -- Check static form bits
+    -- =================================================================
     for i in static_table'range loop
 
       if (static_table(i).position = -1) then
@@ -602,33 +547,47 @@ package body can_pkg is
 
     end loop;
 
-    -- Check dynamic form bits
+    -- =================================================================
+    -- Check for fixed stuff bits in CAN FD CRC field
+    -- =================================================================
+    if (is_fd_format(can_format) and bit_count >= crc_start and bit_count < ack_slot_pos) then
+      position_in_crc_field := bit_count - crc_start;
+      if is_fixed_stuff_bit_position(position_in_crc_field) then
+        result.is_form_bit := true;
+        result.polarity    := not previous_bit;
+        return result;
+      end if;
+    end if;
+
+    -- =================================================================
+    -- Check dynamic form bits: ACK, ACK delimiter, CRC delimiter, EOF
+    -- =================================================================
     if (bit_count = crc_delim_pos) then
       result.is_form_bit := true;
-      result.polarity    := '1';
+      result.polarity    := recessive_bit_c;
       return result;
     end if;
 
     if (bit_count = ack_slot_pos) then
       result.is_form_bit := true;
-      result.polarity    := ack_polarity;
+      result.polarity    := recessive_bit_c;
       return result;
     end if;
 
     if (bit_count = ack_delim_pos) then
       result.is_form_bit := true;
-      result.polarity    := '1';
+      result.polarity    := recessive_bit_c;
       return result;
     end if;
 
-    if (bit_count >= eof_start_pos and bit_count <= eof_end_pos) then
+    if (bit_count >= eof_start_pos and bit_count < eof_end_pos + 1) then
       result.is_form_bit := true;
-      result.polarity    := '1';
+      result.polarity    := recessive_bit_c;
       return result;
     end if;
 
     return result;
 
-  end function check_frame_bit;
+  end function tx_mac_frame_bit;
 
 end package body can_pkg;
