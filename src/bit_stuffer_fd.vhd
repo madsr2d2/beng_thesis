@@ -12,45 +12,9 @@ end entity bit_stuffer_fd;
 
 architecture rtl of bit_stuffer_fd is
 
-  -- Function calculates the parity bit of a std_logic_vector
-  function calc_parity (
-    v : std_logic_vector
-  ) return std_logic is
-
-    variable v_parity : std_logic := '0';
-
-  begin
-
-    for i in v'range loop
-      v_parity := v_parity xor v(i);
-    end loop;
-
-    return v_parity;
-
-  end function calc_parity;
-
-  -- Function Gray encodes a std_logic_vector
-  function to_gray (
-    v : std_logic_vector
-  ) return std_logic_vector is
-
-    variable result : std_logic_vector(v'range);
-
-  begin
-
-    result(v'left) := v(v'left);
-
-    for i in v'left - 1 downto v'right loop
-      result(i) := v(i) xor v(i + 1);
-    end loop;
-
-    return result;
-
-  end function to_gray;
-
   -- Signal declarations
-  signal count_reg : unsigned(2 downto 0);
-  signal wire      : std_logic;
+  signal count_reg                : unsigned(2 downto 0);
+  signal stuff_bit_valid_internal : std_logic;
 
 begin
 
@@ -71,7 +35,7 @@ begin
         v_parity_bit := '0';
         v_count_temp := (others => '0');
       else
-        if (wire = '1') then
+        if (stuff_bit_valid_internal = '1') then
           v_count_temp := count_reg + 1;
           v_gray_bits  := to_gray(std_logic_vector(v_count_temp));       -- Gray code count
           v_parity_bit := calc_parity(v_gray_bits);                      -- Calc parity bit
@@ -93,9 +57,9 @@ begin
       data_i            => bs_fd_i.data,
       valid_i           => bs_fd_i.data_valid,
       stuff_bit_o       => bs_fd_o.stuff_bit,
-      stuff_bit_valid_o => wire
+      stuff_bit_valid_o => stuff_bit_valid_internal
     );
 
-  bs_fd_o.stuff_bit_valid <= wire;
+  bs_fd_o.stuff_bit_valid <= stuff_bit_valid_internal;
 
 end architecture rtl;

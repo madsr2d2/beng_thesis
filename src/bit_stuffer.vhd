@@ -25,7 +25,6 @@ architecture rtl of bit_stuffer is
 
 begin
 
-  -- Synchronous FSM
   p_fsm : process (clk) is
   begin
 
@@ -36,68 +35,51 @@ begin
         stuff_bit_o       <= '0';
         stuff_bit_valid_o <= '0';
       else
-        -- Defaults (hold current state/outputs)
         state_reg         <= state_reg;
         last_bit_reg      <= last_bit_reg;
         stuff_bit_o       <= '0';
         stuff_bit_valid_o <= '0';
 
         if (valid_i = '1') then
-
           case state_reg is
-
             when idle =>
-
               last_bit_reg <= data_i;
               state_reg    <= count_1;
-
             when count_1 =>
-
               if (data_i = last_bit_reg) then
                 state_reg <= count_2;
               else
                 state_reg    <= count_1;
                 last_bit_reg <= data_i;
               end if;
-
             when count_2 =>
-
               if (data_i = last_bit_reg) then
                 state_reg <= count_3;
               else
                 state_reg    <= count_1;
                 last_bit_reg <= data_i;
               end if;
-
             when count_3 =>
-
               if (data_i = last_bit_reg) then
                 state_reg <= count_4;
               else
                 state_reg    <= count_1;
                 last_bit_reg <= data_i;
               end if;
-
             when count_4 =>
-
               if (data_i = last_bit_reg) then
                 state_reg <= stuff;
               else
                 state_reg    <= count_1;
                 last_bit_reg <= data_i;
               end if;
-
             when stuff =>
-
               stuff_bit_o       <= not last_bit_reg;
               stuff_bit_valid_o <= '1';
               state_reg         <= count_1;
               last_bit_reg      <= data_i;
-
             when others =>
-
           end case;
-
         end if;
       end if;
     end if;

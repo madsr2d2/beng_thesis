@@ -13,7 +13,7 @@ entity mac_tx is
     llc_o : out   mac_to_llc_if_t;
 
     -- PCS interface (Physical Coding Sublayer)
-    pcs_i : in    pcs_mac_t;
+    pcs_i : in    pcs_mac_if_t;
     pcs_o : out   mac_pcs_if_t
   );
 end entity mac_tx;
@@ -26,10 +26,10 @@ architecture rtl of mac_tx is
   signal mac_fsm_state_reg : mac_fsm_state_t;
 
   -- Counts the transmitted MAC frame bits - excluding stuff bits
-  signal mac_frame_bit_count : integer  range 0 to  max_mac_frame_length;
+  signal mac_frame_bit_count : integer  range 0 to  max_mac_frame_length_c;
 
   -- Holds the LLC frame config byte (byte 0)
-  signal config_reg : std_logic_vector(byte_width - 1 downto 0);
+  signal config_reg : std_logic_vector(byte_width_c - 1 downto 0);
 
   -- bs_fd interface
   signal bs_fd_to_mac_fsm : bs_fd_to_mac_fsm_if_t;

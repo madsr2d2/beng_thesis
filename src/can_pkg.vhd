@@ -11,9 +11,9 @@ package can_pkg is
   constant recessive_bit_c        : std_logic                     := '1';
   constant max_static_form_bits_c : integer                       := 8;
   constant sof_bit_position_c     : integer                       := 0;
-  constant crc_poly_15_vec_c      : std_logic_vector(14 downto 0) := x"4599";
-  constant crc_poly_17_vec_c      : std_logic_vector(16 downto 0) := x"3685B";
-  constant crc_poly_21_vec_c      : std_logic_vector(20 downto 0) := x"302899";
+  constant crc_poly_15_vec_c      : std_logic_vector(15 downto 0) := x"C599";
+  constant crc_poly_17_vec_c      : std_logic_vector(19 downto 0) := x"3685B";
+  constant crc_poly_21_vec_c      : std_logic_vector(23 downto 0) := x"302899";
   constant cc_basic_data_c        : integer                       := 19;
   constant cc_extended_data_c     : integer                       := 39;
   constant fd_basic_data_c        : integer                       := 22;
@@ -24,6 +24,8 @@ package can_pkg is
   constant fd_extended_dlc_c      : integer                       := 37;
   constant dlc_length_c           : integer                       := 4;
   constant sbc_length_c           : integer                       := 4;
+  constant byte_width_c           : integer                       := 8;
+  constant max_mac_frame_length_c : integer                       := 1024; -- Maximum frame length in bits
 
   -- can classic  form bit positions
   constant cc_basic_rtr_c : integer := 12;
@@ -221,6 +223,14 @@ package can_pkg is
   -- =================================================================
   -- Function declarations
   -- =================================================================
+  function calc_parity (
+    v : std_logic_vector
+  ) return std_logic;
+
+  function to_gray (
+    v : std_logic_vector
+  ) return std_logic_vector;
+
   function tx_mac_frame_bit (
     bit_count    : integer;
     can_format   : can_format_t;
@@ -238,6 +248,42 @@ end package can_pkg;
 -- =================================================================
 
 package body can_pkg is
+
+  -- Function calculates the parity bit of a std_logic_vector
+  function calc_parity (
+    v : std_logic_vector
+  ) return std_logic is
+
+    variable v_parity : std_logic := '0';
+
+  begin
+
+    for i in v'range loop
+      v_parity := v_parity xor v(i);
+    end loop;
+
+    return v_parity;
+
+  end function calc_parity;
+
+  -- Function Gray encodes a std_logic_vector
+  function to_gray (
+    v : std_logic_vector
+  ) return std_logic_vector is
+
+    variable result : std_logic_vector(v'range);
+
+  begin
+
+    result(v'left) := v(v'left);
+
+    for i in v'left - 1 downto v'right loop
+      result(i) := v(i) xor v(i + 1);
+    end loop;
+
+    return result;
+
+  end function to_gray;
 
   -- Helper function to convert DLC to actual data length in bytes
   function dlc_to_data_length (
@@ -280,13 +326,13 @@ package body can_pkg is
 
     case can_format is
       when cc_basic | cc_extended =>
-        return crc_poly_15_vec_c'left + 1;
+        return 15;  -- CRC-15 for classic CAN
       when fd_basic | fd_extended =>
-
-        if (data_length <= crc_poly_17_vec_c'left) then
-          return crc_poly_17_vec_c'left + 1;
+        -- Use CRC-17 for payloads <= 16 bytes, CRC-21 otherwise
+        if (data_length <= 16) then
+          return 17;
         else
-          return crc_poly_21_vec_c'left + 1;
+          return 21;
         end if;
 
     end case;
