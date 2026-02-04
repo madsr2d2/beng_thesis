@@ -5,6 +5,10 @@ rule:
   variable_007:
     disable: true
 
+  # signal_007: Remove default assignment from signals
+  signal_007:
+    disable: true
+
   # instantiation_034: Prefer component instantiation over direct entity instantiation
   instantiation_034:
     disable: true
@@ -27,4 +31,28 @@ rule:
 
   # case_200: Insert blank line below case/when statement
   case_200:
+    disable: true
+
+  # type_010: Insert blank line above type declaration
+  type_010:
+    disable: true
+
+  # case_012: Move code after the => to the next line
+  case_012:
+    disable: true
+
+  # case_201: Insert blank line above when statement
+  case_201:
+    disable: true
+
+  # case_007: Insert blank line above case statement
+  case_007:
+    disable: true
+
+  # case_009: Insert blank line above end case
+  case_009:
+    disable: true
+
+  # case_010: Insert blank line below end case
+  case_010:
     disable: true
