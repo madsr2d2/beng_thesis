@@ -25,7 +25,7 @@ package can_pkg is
   constant dlc_length_c           : integer                       := 4;
   constant sbc_length_c           : integer                       := 4;
   constant byte_width_c           : integer                       := 8;
-  constant max_mac_frame_length_c : integer                       := 1024; -- Maximum frame length in bits
+  constant max_mac_frame_length_c : integer                       := 1024; -- TODO: Can we get by with 512?
 
   -- can classic  form bit positions
   constant cc_basic_rtr_c : integer := 12;
@@ -86,10 +86,45 @@ package can_pkg is
     field_control,
     field_data,
     field_crc,
-    field_ack,
+    field_ack_slot,
+    field_ack_delimiter,
     field_eof,
     field_unknown
   );
+
+  -- MAC layer TX state type
+  type mac_layer_tx_state_t is (
+    idle,
+    transmitting_mac_frame,
+    transmitting_error_flag
+  );
+
+  -- MAC frame error type
+  type mac_tx_error_type_t is (
+    bit_error,
+    ack_error
+  );
+
+  -- MAC error flag type
+  type mac_error_flag_type_t is (
+    active_error_flag,
+    passive_error_flag
+  );
+
+  -- LLC transfer status type
+  type llc_transfer_status_type_t is (
+    ongoing,
+    lost_arbitration,
+    transmitted,
+    aborted,
+    disturbed
+  );
+
+  -- error info
+  type error_info_t is record
+    is_error   : boolean;
+    error_type : mac_tx_error_type_t;
+  end record error_info_t;
 
   -- Form bit entry
   type form_bit_entry_t is record
@@ -102,6 +137,7 @@ package can_pkg is
     is_form_bit : boolean;
     polarity    : std_logic;
     frame_field : mac_frame_field_t;
+    brs_enable  : boolean; -- Used to signal bit rate switch to PC layer
   end record mac_frame_bit_info_t;
 
   -- Static form bit table type
@@ -115,23 +151,33 @@ package can_pkg is
     eop   : std_logic;
   end record llc_to_mac_if_t;
 
+  type avalon_st is record
+    data  : std_logic_vector(7 downto 0);
+    valid : std_logic;
+    ready : std_logic;
+    sop   : std_logic;
+    eop   : std_logic;
+  end record avalon_st;
+
   type mac_to_llc_if_t is record
     valid  : std_logic;
     ready  : std_logic;
-    status : std_logic_vector(2 downto 0);
+    status : llc_transfer_status_type_t;
   end record mac_to_llc_if_t;
 
   -- PCS (Physical Coding Sublayer) Interface
   type mac_pcs_if_t is record
-    mac_frame_bit   : std_logic;
-    mac_frame_valid : std_logic;
+    mac_bit         : std_logic;
+    mac_bit_valid   : std_logic;
+    mac_bit_ready   : std_logic;
     transmit_status : std_logic;
     receive_status  : std_logic;
   end record mac_pcs_if_t;
 
   type pcs_mac_if_t is record
-    mac_frame_bit   : std_logic;
-    mac_frame_valid : std_logic;
+    mac_bit       : std_logic;
+    mac_bit_valid : std_logic;
+    mac_bit_ready : std_logic;
   end record pcs_mac_if_t;
 
   -- Bit Stuffer FD Interface
@@ -223,6 +269,21 @@ package can_pkg is
   -- =================================================================
   -- Function declarations
   -- =================================================================
+
+  procedure load_tx_config_register (
+    llc_to_mac_if : in llc_to_mac_if_t;
+    mac_to_llc_if : in mac_to_llc_if_t;
+    config_reg    : out std_logic_vector(7 downto 0)
+  );
+
+  function is_error_tx (
+    mac_layer_tx_state : mac_layer_tx_state_t;
+    mac_error_flag : mac_error_flag_type_t;
+    frame_field : mac_frame_field_t;
+    sent_bit : std_logic;
+    monitored_bit : std_logic
+  ) return error_info_t;
+
   function calc_parity (
     v : std_logic_vector
   ) return std_logic;
@@ -248,6 +309,70 @@ end package can_pkg;
 -- =================================================================
 
 package body can_pkg is
+
+  procedure load_tx_config_register (
+    llc_to_mac_if : in llc_to_mac_if_t;
+    mac_to_llc_if : in mac_to_llc_if_t;
+    config_reg    : out std_logic_vector(7 downto 0)
+  ) is
+  begin
+
+    if (llc_to_mac_if.valid = '1') then
+      if (llc_to_mac_if.sop = '1') then
+        config_reg          <= llc_to_mac_if.data;
+        mac_to_llc_if.ready <= '1';
+      end if;
+    end if;
+
+  end procedure load_tx_config_register;
+
+  function is_error_tx (
+    mac_layer_tx_state : mac_layer_tx_state_t;
+    mac_error_flag : mac_error_flag_type_t;
+    frame_field : mac_frame_field_t;
+    sent_bit : std_logic;
+    monitored_bit : std_logic
+  ) return error_info_t is
+
+    variable result : error_info_t;
+
+  begin
+
+    -- Default value
+    result.is_error   := false;
+    result.error_type := bit_error;
+
+    -- Check for ACK error
+    if (frame_field = field_ack_slot) then
+      if (monitored_bit = recessive_bit_c) then
+        result.is_error   := true;
+        result.error_type := ack_error;
+      end if;
+      return result;
+    end if;
+
+    -- Exception 2: Don't check during passive error flag transmission (ISO 11898-1 6.6.21.2)
+    if ((mac_layer_tx_state = transmitting_error_flag) and (mac_error_flag = passive_error_flag)) then
+      return result;
+    end if;
+
+    -- Exception 1: In arbitration field, only check when sending dominant (ISO 11898-1 6.6.21.2)
+    if (sent_bit /= monitored_bit) then
+      if (frame_field = field_arbitration) then
+        if (sent_bit = dominant_bit_c) then
+          result.is_error   := true;
+          result.error_type := bit_error;
+        end if;
+      else
+        -- Everywhere else: check for mismatch
+        result.is_error   := true;
+        result.error_type := bit_error;
+      end if;
+    end if;
+
+    return result;
+
+  end function is_error_tx;
 
   -- Function calculates the parity bit of a std_logic_vector
   function calc_parity (
@@ -452,7 +577,8 @@ package body can_pkg is
     -- Initialize return value
     result.is_form_bit := false;
     result.polarity    := '0';
-    result.frame_field := FIELD_UNKNOWN;
+    result.frame_field := field_unknown;
+    result.brs_enable  := false;
 
     dlc_vector  := std_logic_vector(to_unsigned(dlc, 4));
     data_length := dlc_to_data_length(dlc, can_format);
@@ -496,8 +622,10 @@ package body can_pkg is
       result.frame_field := field_data;
     elsif (bit_count >= crc_start and bit_count < ack_slot_pos) then
       result.frame_field := field_crc;
-    elsif (bit_count >= ack_slot_pos and bit_count < eof_start_pos) then
-      result.frame_field := field_ack;
+    elsif (bit_count = ack_slot_pos) then
+      result.frame_field := field_ack_slot;
+    elsif (bit_count = ack_delim_pos) then
+      result.frame_field := field_ack_delimiter;
     elsif (bit_count >= eof_start_pos and bit_count < eof_end_pos + 1) then
       result.frame_field := field_eof;
     else
@@ -557,6 +685,7 @@ package body can_pkg is
     if (brs_position /= -1 and bit_count = brs_position) then
       result.is_form_bit := true;
       result.polarity    := brs_polarity;
+      result.brs_enable  := true;
       return result;
     end if;
 
@@ -611,6 +740,7 @@ package body can_pkg is
     if (bit_count = crc_delim_pos) then
       result.is_form_bit := true;
       result.polarity    := recessive_bit_c;
+      result.brs_enable  := false;
       return result;
     end if;
 

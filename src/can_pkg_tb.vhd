@@ -430,8 +430,8 @@ begin
     -- Test 7.1: ACK slot (form bit, recessive)
     frame_info := tx_mac_frame_bit(99, cc_basic, data_frame, 8,
                                    false, false, '0');
-    assert frame_info.frame_field = field_ack
-      report "Position 99 should be ACK field"
+    assert frame_info.frame_field = field_ack_slot
+      report "Position 99 should be ACK slot field"
       severity error;
     assert frame_info.is_form_bit = true
       report "ACK slot should be form bit"
@@ -444,8 +444,8 @@ begin
     -- Test 7.2: ACK delimiter (form bit, recessive)
     frame_info := tx_mac_frame_bit(100, cc_basic, data_frame, 8,
                                    false, false, '0');
-    assert frame_info.frame_field = field_ack
-      report "Position 100 should be ACK field (delimiter)"
+    assert frame_info.frame_field = field_ack_delimiter
+      report "Position 100 should be ACK delimiter field"
       severity error;
     assert frame_info.is_form_bit = true
       report "ACK delimiter should be form bit"

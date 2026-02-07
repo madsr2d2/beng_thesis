@@ -12,7 +12,6 @@ end entity bit_stuffer_fd;
 
 architecture rtl of bit_stuffer_fd is
 
-  -- Signal declarations
   signal count_reg                : unsigned(2 downto 0);
   signal stuff_bit_valid_internal : std_logic;
 

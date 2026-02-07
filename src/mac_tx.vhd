@@ -20,10 +20,8 @@ end entity mac_tx;
 
 architecture rtl of mac_tx is
 
-  type mac_fsm_state_t is (idle, count_1, count_2, count_3, count_4, stuff);
-
   -- mac_fsm state register
-  signal mac_fsm_state_reg : mac_fsm_state_t;
+  signal mac_layer_tx_state : mac_layer_tx_state_t;
 
   -- Counts the transmitted MAC frame bits - excluding stuff bits
   signal mac_frame_bit_count : integer  range 0 to  max_mac_frame_length_c;
@@ -47,14 +45,14 @@ architecture rtl of mac_tx is
   signal crc_to_mac_fsm : crc_to_mac_fsm_if_t;
   signal mac_fsm_to_crc : mac_fsm_to_crc_if_t;
 
-  -- TX bit
-  signal tx_bit : std_logic;
-  -- RX bit
-  signal rx_bit : std_logic;
+-- TX bit
+-- signal tx_bit : std_logic;
+-- RX bit
+-- signal rx_bit : std_logic;
 
 begin
 
-  mac_fsm_to_bs_fd.data <= tx_bit;
+  -- mac_fsm_to_bs_fd.data <= tx_bit;
 
   -- Synchronous MAC FSM
   p_mac_fsm : process (clk) is
@@ -62,7 +60,7 @@ begin
 
     if rising_edge(clk) then
       if (rst = '1') then
-        mac_fsm_state_reg              <= idle;
+        mac_layer_tx_state             <= idle;
         mac_frame_bit_count            <= 0;
         config_reg                     <= (others => '0');
         mac_fsm_to_bs_fd.clk           <= clk;
@@ -88,38 +86,14 @@ begin
         mac_fam_to_sr_b.serial_in      <= '0';
       else
 
-        case mac_fsm_state_reg is
+        case mac_layer_tx_state is
 
           when idle =>
-
-            -- TODO: Implement idle state logic
-            mac_fsm_state_reg <= idle;
-
-          when count_1 =>
-
-            -- TODO: Implement count_1 state logic
-            mac_fsm_state_reg <= count_1;
-
-          when count_2 =>
-
-            -- TODO: Implement count_2 state logic
-            mac_fsm_state_reg <= count_2;
-
-          when count_3 =>
-
-            -- TODO: Implement count_3 state logic
-            mac_fsm_state_reg <= count_3;
-
-          when count_4 =>
-
-            -- TODO: Implement count_4 state logic
-            mac_fsm_state_reg <= count_4;
-
-          when stuff =>
-
-            -- TODO: Implement stuff state logic
-            mac_fsm_state_reg <= idle;
-
+            if (llc_i.sop = '1') then
+            -- TODO: load config reg with the first byte from the LLC layer and go to transmitting_mac_frame state
+            end if;
+          when transmitting_mac_frame =>
+          when transmitting_error_flag =>
         end case;
 
       end if;
