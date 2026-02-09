@@ -8,8 +8,8 @@
 
 # VHDL design files (excluding testbenches)
 # Automatically find all files, compile packages and leaf modules first
-PACKAGES = $(shell find ./src -name "*package.vhd" -size +0)
-ALL_MODULES = $(shell find ./src -name "*.vhd" ! -name "*package.vhd" ! -name "*_tb.vhd" -size +0)
+PACKAGES = $(shell find ./src -name "*package.vhd" -o -name "can_pkg.vhd" -size +0)
+ALL_MODULES = $(shell find ./src -name "*.vhd" ! -name "*package.vhd" ! -name "can_pkg.vhd" ! -name "*_tb.vhd" -size +0)
 
 # Separate modules into categories based on dependencies
 # mac_tx depends on all other modules, so it's compiled last
@@ -37,8 +37,9 @@ GHDL_CMD = ghdl
 GHDL_FLAGS = --std=08 --warn-no-vital-generic -P$(OSVVM_LIB_PATH) -P.
 
 SIMDIR = sim
-STOP_TIME = 200us
+STOP_TIME = 2us
 GHDL_SIM_OPT = --stop-time=$(STOP_TIME)
+GHWFILE = ${SIMDIR}/${TESTBENCHFILE}.ghw
 VCDFILE = ${SIMDIR}/${TESTBENCHFILE}.vcd
 
 WAVEFORM_VIEWER = gtkwave
@@ -65,11 +66,11 @@ compile:
 	@$(GHDL_CMD) -m $(GHDL_FLAGS) --workdir=$(SIMDIR) --work=work $(TESTBENCHFILE)
 
 run:
-	@$(GHDL_CMD) -r $(GHDL_FLAGS) --workdir=$(SIMDIR) --work=work $(TESTBENCHFILE) --vcd=$(VCDFILE) $(GHDL_SIM_OPT)
-	@echo "Simulation finished. Waveform saved to $(VCDFILE)"
+	@$(GHDL_CMD) -r $(GHDL_FLAGS) --workdir=$(SIMDIR) --work=work $(TESTBENCHFILE) --wave=$(GHWFILE) $(GHDL_SIM_OPT)
+	@echo "Simulation finished. Waveform saved to $(GHWFILE)"
 
 view:
-	@$(WAVEFORM_VIEWER) $(VCDFILE) &
+	@$(WAVEFORM_VIEWER) $(GHWFILE) &
 
 clean:
 	@rm -rf $(SIMDIR) OsvvmTemp_GHDL
