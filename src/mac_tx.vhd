@@ -21,7 +21,7 @@ end entity mac_tx;
 architecture rtl of mac_tx is
 
   -- mac_fsm state register
-  signal mac_layer_tx_state : mac_layer_tx_state_t;
+  signal mac_layer_tx_state : tx_mac_state_t;
 
   -- Counts the transmitted MAC frame bits - excluding stuff bits
   signal mac_frame_bit_count : integer  range 0 to  max_mac_frame_length_c;

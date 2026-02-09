@@ -5,6 +5,8 @@ library ieee;
 
 entity bit_stuffer_fd is
   port (
+    clk_i   : in    std_logic;
+    rst_i   : in    std_logic;
     bs_fd_i : in    mac_fsm_to_bs_fd_if_t;
     bs_fd_o : out   bs_fd_to_mac_fsm_if_t
   );
@@ -12,6 +14,7 @@ end entity bit_stuffer_fd;
 
 architecture rtl of bit_stuffer_fd is
 
+  -- Signal declarations
   signal count_reg                : unsigned(2 downto 0);
   signal stuff_bit_valid_internal : std_logic;
 
@@ -26,8 +29,8 @@ begin
 
   begin
 
-    if rising_edge(bs_fd_i.clk) then
-      if (bs_fd_i.rst = '1') then
+    if rising_edge(clk_i) then
+      if (rst_i = '1') then
         count_reg    <= (others => '0');
         bs_fd_o.sbc  <= (others => '0');
         v_gray_bits  := (others => '0');

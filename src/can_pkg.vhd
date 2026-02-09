@@ -22,8 +22,9 @@ package can_pkg is
   constant cc_extended_dlc_c      : integer                       := 35;
   constant fd_basic_dlc_c         : integer                       := 18;
   constant fd_extended_dlc_c      : integer                       := 37;
-  constant dlc_length_c           : integer                       := 4;
-  constant sbc_length_c           : integer                       := 4;
+  constant dlc_max_decimal_value  : integer                       := 15;
+  constant dlc_field_width_c      : integer                       := 4;
+  constant sbc_filed_width_c      : integer                       := 4;
   constant byte_width_c           : integer                       := 8;
   constant max_mac_frame_length_c : integer                       := 1024; -- TODO: Can we get by with 512?
 
@@ -56,6 +57,15 @@ package can_pkg is
   constant fd_extended_brs_c : integer := 35;
   constant fd_extended_esi_c : integer := 36;
 
+  -- LLC frame config bytes (byte 0 and byte 1) structure
+  constant llc_frame_config_byte_0_format_start : integer := byte_width_c - 1;
+  constant llc_frame_config_byte_0_format_end   : integer := llc_frame_config_byte_0_format_start - 2;
+  constant llc_frame_config_byte_0_ftyp         : integer := llc_frame_config_byte_0_format_start - 3;
+  constant llc_frame_config_byte_0_esi          : integer := llc_frame_config_byte_0_format_start - 4;
+  constant llc_frame_config_byte_0_brs          : integer := llc_frame_config_byte_0_format_start - 5;
+  constant llc_frame_config_byte_1_dlc_start    : integer := byte_width_c - 1;
+  constant llc_frame_config_byte_1_dlc_end      : integer := llc_frame_config_byte_1_dlc_start - 3;
+
   -- =================================================================
   -- Types
   -- =================================================================
@@ -64,7 +74,8 @@ package can_pkg is
     cc_basic,
     cc_extended,
     fd_basic,
-    fd_extended
+    fd_extended,
+    unknown
   );
 
   -- Node type (for ACK slot polarity)
@@ -93,26 +104,34 @@ package can_pkg is
   );
 
   -- MAC layer TX state type
-  type mac_layer_tx_state_t is (
+  type tx_mac_state_t is (
     idle,
     transmitting_mac_frame,
     transmitting_error_flag
   );
 
+  -- LLC to MAC controller state type
+  type tx_mac_llc_ctrl_state_t is (
+    load_config_byte_0,
+    load_config_byte_1,
+    load_llc_frame_byte,
+    shift_out_bits
+  );
+
   -- MAC frame error type
-  type mac_tx_error_type_t is (
+  type tx_mac_error_t is (
     bit_error,
     ack_error
   );
 
   -- MAC error flag type
-  type mac_error_flag_type_t is (
+  type mac_error_flag_t is (
     active_error_flag,
     passive_error_flag
   );
 
-  -- LLC transfer status type
-  type llc_transfer_status_type_t is (
+  -- Transfer status type
+  type transfer_status_t is (
     ongoing,
     lost_arbitration,
     transmitted,
@@ -120,10 +139,49 @@ package can_pkg is
     disturbed
   );
 
+  -- Ensure one_hot encoding of all FSM state types
+  attribute fsm_encoding : string;
+  attribute fsm_encoding of can_format_t            : type is "one_hot";
+  attribute fsm_encoding of can_node_type_t         : type is "one_hot";
+  attribute fsm_encoding of frame_type_t            : type is "one_hot";
+  attribute fsm_encoding of mac_frame_field_t       : type is "one_hot";
+  attribute fsm_encoding of tx_mac_state_t          : type is "one_hot";
+  attribute fsm_encoding of tx_mac_llc_ctrl_state_t : type is "one_hot";
+  attribute fsm_encoding of tx_mac_error_t          : type is "one_hot";
+  attribute fsm_encoding of mac_error_flag_t        : type is "one_hot";
+  attribute fsm_encoding of transfer_status_t       : type is "one_hot";
+
+  -- Byte
+  subtype byte_t is std_logic_vector(byte_width_c - 1 downto 0);
+
+  -- Avalon-ST interface
+  type avalon_st_source_t is record
+    data  : byte_t;
+    valid : std_logic;
+    sop   : std_logic;
+    eop   : std_logic;
+  end record avalon_st_source_t;
+
+  type avalon_st_sink_t is record
+    ready : std_logic;
+  end record avalon_st_sink_t;
+
+  -- DLC
+  subtype dlc_t is integer range 0 to dlc_max_decimal_value;
+
+  -- Record encapsulates the LLC frame info
+  type llc_frame_info_t is record
+    format     : can_format_t;
+    ftyp       : frame_type_t;
+    brs_enable : boolean;
+    esi_enable : boolean;
+    dlc        : dlc_t;
+  end record llc_frame_info_t;
+
   -- error info
   type error_info_t is record
     is_error   : boolean;
-    error_type : mac_tx_error_type_t;
+    error_type : tx_mac_error_t;
   end record error_info_t;
 
   -- Form bit entry
@@ -143,26 +201,15 @@ package can_pkg is
   -- Static form bit table type
   type form_bit_table_t is array (0 to max_static_form_bits_c - 1) of form_bit_entry_t;
 
-  -- LLC (Logical Link Control) Interface
+  -- LLC to MAC interface
   type llc_to_mac_if_t is record
-    data  : std_logic_vector(7 downto 0);
-    valid : std_logic;
-    sop   : std_logic;
-    eop   : std_logic;
+    avalon_st_source : avalon_st_source_t;
   end record llc_to_mac_if_t;
 
-  type avalon_st is record
-    data  : std_logic_vector(7 downto 0);
-    valid : std_logic;
-    ready : std_logic;
-    sop   : std_logic;
-    eop   : std_logic;
-  end record avalon_st;
-
+  -- MAC to LLC interface
   type mac_to_llc_if_t is record
-    valid  : std_logic;
-    ready  : std_logic;
-    status : llc_transfer_status_type_t;
+    avalon_st_sink  : avalon_st_sink_t;
+    transfer_status : transfer_status_t;
   end record mac_to_llc_if_t;
 
   -- PCS (Physical Coding Sublayer) Interface
@@ -182,8 +229,6 @@ package can_pkg is
 
   -- Bit Stuffer FD Interface
   type mac_fsm_to_bs_fd_if_t is record
-    clk        : std_logic;
-    rst        : std_logic;
     data       : std_logic;
     data_valid : std_logic;
   end record mac_fsm_to_bs_fd_if_t;
@@ -196,6 +241,7 @@ package can_pkg is
 
   -- CRC Interface
   type mac_fsm_to_crc_if_t is record
+    -- TODO: Remove clk and rst from the interface
     clk             : std_logic;
     rst             : std_logic;
     crc_poly_select : std_logic_vector(1 downto 0);
@@ -210,17 +256,18 @@ package can_pkg is
 
   -- Shift Register Interface
   type shift_reg_in_if_t is record
+    -- TODO: Remove clk and rst from the interface
     clk       : std_logic;
     rst       : std_logic;
     shift     : std_logic;
     load      : std_logic;
-    data_in   : std_logic_vector(7 downto 0);
+    data_in   : byte_t;
     serial_in : std_logic;
   end record shift_reg_in_if_t;
 
   type shift_reg_out_t is record
     empty      : std_logic;
-    data_out   : std_logic_vector(7 downto 0);
+    data_out   : byte_t;
     serial_out : std_logic;
   end record shift_reg_out_t;
 
@@ -270,33 +317,36 @@ package can_pkg is
   -- Function declarations
   -- =================================================================
 
-  procedure load_tx_config_register (
-    llc_to_mac_if : in llc_to_mac_if_t;
-    mac_to_llc_if : in mac_to_llc_if_t;
-    config_reg    : out std_logic_vector(7 downto 0)
-  );
-
+  -- Function return the error info on a monitored MAC frame bit
   function is_error_tx (
-    mac_layer_tx_state : mac_layer_tx_state_t;
-    mac_error_flag : mac_error_flag_type_t;
+    mac_layer_tx_state : tx_mac_state_t;
+    mac_error_flag : mac_error_flag_t;
     frame_field : mac_frame_field_t;
     sent_bit : std_logic;
     monitored_bit : std_logic
   ) return error_info_t;
 
+  -- Function calculates the parity bit for a std_logic_vector
   function calc_parity (
     v : std_logic_vector
   ) return std_logic;
 
+  -- Function Gray encodes a std_logic_vector
   function to_gray (
     v : std_logic_vector
   ) return std_logic_vector;
+
+  -- Function converts the LLC frame configuration byte (byte 0) to frame_type_t
+  function get_frame_info (
+    config_byte_0 : byte_t;
+    config_byte_1 : byte_t
+  ) return llc_frame_info_t;
 
   function tx_mac_frame_bit (
     bit_count    : integer;
     can_format   : can_format_t;
     frame_type   : frame_type_t;
-    dlc          : integer range 0 to 15;
+    dlc          : dlc_t;
     brs_enable   : boolean;
     esi_flag     : boolean;
     previous_bit : std_logic
@@ -310,25 +360,48 @@ end package can_pkg;
 
 package body can_pkg is
 
-  procedure load_tx_config_register (
-    llc_to_mac_if : in llc_to_mac_if_t;
-    mac_to_llc_if : in mac_to_llc_if_t;
-    config_reg    : out std_logic_vector(7 downto 0)
-  ) is
+  function get_frame_info (
+    config_byte_0 : byte_t;
+    config_byte_1 : byte_t
+  ) return llc_frame_info_t is
+
+    variable result : llc_frame_info_t;
+
   begin
 
-    if (llc_to_mac_if.valid = '1') then
-      if (llc_to_mac_if.sop = '1') then
-        config_reg          <= llc_to_mac_if.data;
-        mac_to_llc_if.ready <= '1';
-      end if;
-    end if;
+    -- Get Error State Indicator (ESI)
+    result.esi_enable := true when config_byte_0(llc_frame_config_byte_0_esi) = '1' else false;
+    -- Get Bit rate switch (BRS)
+    result.brs_enable := true when config_byte_0(llc_frame_config_byte_0_brs) = '1' else false;
+    -- Get frame type (FTYP)
+    result.ftyp := remote_frame when config_byte_0(llc_frame_config_byte_0_ftyp) = '1' else data_frame;
 
-  end procedure load_tx_config_register;
+    -- Get frame format
+    case config_byte_0(llc_frame_config_byte_0_format_start downto llc_frame_config_byte_0_format_end) is
+      when "000" =>
+        result.format := cc_basic;
+      when "100" =>
+        result.format := cc_extended;
+      when "010" =>
+        result.format := fd_basic;
+      when "110" =>
+        result.format := fd_extended;
+      when others =>
+        result.format := unknown;
+    end case;
 
+    -- Get DLC
+    result.dlc := dlc_t(to_integer(unsigned(config_byte_1(llc_frame_config_byte_1_dlc_start downto llc_frame_config_byte_1_dlc_end))));
+
+    -- Get frame type
+    return result;
+
+  end function get_frame_info;
+
+  -- Function returns TX error_info_t
   function is_error_tx (
-    mac_layer_tx_state : mac_layer_tx_state_t;
-    mac_error_flag : mac_error_flag_type_t;
+    mac_layer_tx_state : tx_mac_state_t;
+    mac_error_flag : mac_error_flag_t;
     frame_field : mac_frame_field_t;
     sent_bit : std_logic;
     monitored_bit : std_logic
@@ -412,7 +485,7 @@ package body can_pkg is
 
   -- Helper function to convert DLC to actual data length in bytes
   function dlc_to_data_length (
-    dlc        : integer range 0 to 15;
+    dlc        : dlc_t;
     can_format : can_format_t
   ) return integer is
   begin
@@ -421,14 +494,14 @@ package body can_pkg is
       when cc_basic | cc_extended =>
 
         if (dlc <= 8) then
-          return dlc;
+          return integer(dlc);
         else
           return 8;
         end if;
 
       when fd_basic | fd_extended =>
         case dlc is
-          when 0 to 8 => return dlc;
+          when 0 to 8 => return integer(dlc);
           when 9 => return 12;
           when 10 => return 16;
           when 11 => return 20;
@@ -438,6 +511,7 @@ package body can_pkg is
           when 15 => return 64;
           when others => return 0;
         end case;
+      when unknown => return 0;
     end case;
 
   end function dlc_to_data_length;
@@ -460,6 +534,7 @@ package body can_pkg is
           return 21;
         end if;
 
+      when unknown => return 0;
     end case;
 
   end function get_crc_length;
@@ -475,6 +550,7 @@ package body can_pkg is
       when cc_extended => return cc_extended_data_c;
       when fd_basic => return fd_basic_data_c;
       when fd_extended => return fd_extended_data_c;
+      when unknown => return 0;
     end case;
 
   end function get_data_start_position;
@@ -532,6 +608,7 @@ package body can_pkg is
       when cc_extended => return cc_extended_r1_c;
       when fd_basic => return fd_basic_ide_c;
       when fd_extended => return fd_extended_rrs_c;
+      when unknown => return 0;
     end case;
 
   end function get_control_start;
@@ -540,7 +617,7 @@ package body can_pkg is
     bit_count    : integer;
     can_format   : can_format_t;
     frame_type   : frame_type_t;
-    dlc          : integer range 0 to 15;
+    dlc          : dlc_t;
     brs_enable   : boolean;
     esi_flag     : boolean;
     previous_bit : std_logic
@@ -594,8 +671,8 @@ package body can_pkg is
     -- CAN FD CRC fields contains SBC and fixed stuff bits
     if is_fd_format(can_format) then
       crc_length        := get_crc_length(can_format, data_length); -- Get CRC length
-      fixed_stuff_count := get_fixed_stuff_bit_count(sbc_length_c + crc_length); -- Get fixed stiff bits count
-      crc_field_length  := sbc_length_c + crc_length + fixed_stuff_count; -- Get CRC field length
+      fixed_stuff_count := get_fixed_stuff_bit_count(sbc_filed_width_c + crc_length); -- Get fixed stiff bits count
+      crc_field_length  := sbc_filed_width_c + crc_length + fixed_stuff_count; -- Get CRC field length
       crc_delim_pos     := crc_start + crc_field_length;
     else
       -- CAN Classic CRC field contains only CRC bits
@@ -660,6 +737,12 @@ package body can_pkg is
         brs_position  := fd_extended_brs_c;
         esi_position  := fd_extended_esi_c;
         dlc_start_pos := fd_extended_dlc_c;
+      when unknown =>
+        static_table  := cc_basic_static_form_bits;
+        rtr_position  := -1;
+        brs_position  := -1;
+        esi_position  := -1;
+        dlc_start_pos := -1;
     end case;
 
     -- =================================================================
@@ -698,7 +781,7 @@ package body can_pkg is
     -- =================================================================
     -- Check DLC field
     -- =================================================================
-    if (bit_count >= dlc_start_pos and bit_count < dlc_start_pos + dlc_length_c) then
+    if (bit_count >= dlc_start_pos and bit_count < dlc_start_pos + dlc_field_width_c) then
       result.is_form_bit := true;
       dlc_bit_index      := bit_count - dlc_start_pos;
       result.polarity    := dlc_vector(3 - dlc_bit_index);
