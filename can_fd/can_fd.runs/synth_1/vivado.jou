@@ -1,0 +1,24 @@
+#-----------------------------------------------------------
+# Vivado v2024.1 (64-bit)
+# SW Build 5076996 on Wed May 22 18:36:09 MDT 2024
+# IP Build 5075265 on Wed May 22 21:45:21 MDT 2024
+# SharedData Build 5076995 on Wed May 22 18:29:18 MDT 2024
+# Start of session at: Sat Feb  7 16:35:08 2026
+# Process ID: 140033
+# Current directory: /home/madsr2d2/beng_thesis/can_fd/can_fd.runs/synth_1
+# Command line: vivado -log tx_mac_llc_ctrl.vds -product Vivado -mode batch -messageDb vivado.pb -notrace -source tx_mac_llc_ctrl.tcl
+# Log file: /home/madsr2d2/beng_thesis/can_fd/can_fd.runs/synth_1/tx_mac_llc_ctrl.vds
+# Journal file: /home/madsr2d2/beng_thesis/can_fd/can_fd.runs/synth_1/vivado.jou
+# Running On        :madsr2d2
+# Platform          :Ubuntu
+# Operating System  :Ubuntu 24.04.3 LTS
+# Processor Detail  :13th Gen Intel(R) Core(TM) i7-1360P
+# CPU Frequency     :3600.000 MHz
+# CPU Physical cores:12
+# CPU Logical cores :16
+# Host memory       :33245 MB
+# Swap memory       :2147 MB
+# Total Virtual     :35393 MB
+# Available Virtual :25780 MB
+#-----------------------------------------------------------
+source tx_mac_llc_ctrl.tcl -notrace

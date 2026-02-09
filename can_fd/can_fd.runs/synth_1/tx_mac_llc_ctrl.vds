@@ -1,0 +1,49 @@
+#-----------------------------------------------------------
+# Vivado v2024.1 (64-bit)
+# SW Build 5076996 on Wed May 22 18:36:09 MDT 2024
+# IP Build 5075265 on Wed May 22 21:45:21 MDT 2024
+# SharedData Build 5076995 on Wed May 22 18:29:18 MDT 2024
+# Start of session at: Sat Feb  7 16:35:08 2026
+# Process ID: 140033
+# Current directory: /home/madsr2d2/beng_thesis/can_fd/can_fd.runs/synth_1
+# Command line: vivado -log tx_mac_llc_ctrl.vds -product Vivado -mode batch -messageDb vivado.pb -notrace -source tx_mac_llc_ctrl.tcl
+# Log file: /home/madsr2d2/beng_thesis/can_fd/can_fd.runs/synth_1/tx_mac_llc_ctrl.vds
+# Journal file: /home/madsr2d2/beng_thesis/can_fd/can_fd.runs/synth_1/vivado.jou
+# Running On        :madsr2d2
+# Platform          :Ubuntu
+# Operating System  :Ubuntu 24.04.3 LTS
+# Processor Detail  :13th Gen Intel(R) Core(TM) i7-1360P
+# CPU Frequency     :3600.000 MHz
+# CPU Physical cores:12
+# CPU Logical cores :16
+# Host memory       :33245 MB
+# Swap memory       :2147 MB
+# Total Virtual     :35393 MB
+# Available Virtual :25780 MB
+#-----------------------------------------------------------
+source tx_mac_llc_ctrl.tcl -notrace
+create_project: Time (s): cpu = 00:00:06 ; elapsed = 00:00:06 . Memory (MB): peak = 1477.461 ; gain = 39.809 ; free physical = 12099 ; free virtual = 24185
+Command: synth_design -top tx_mac_llc_ctrl -part xc7a200tiffg1156-1L
+Starting synth_design
+Attempting to get a license for feature 'Synthesis' and/or device 'xc7a200ti'
+INFO: [Common 17-349] Got license for feature 'Synthesis' and/or device 'xc7a200ti'
+INFO: [Synth 8-7079] Multithreading enabled for synth_design using a maximum of 4 processes.
+INFO: [Synth 8-7078] Launching helper process for spawning children vivado processes
+INFO: [Synth 8-7075] Helper process launched with PID 140070
+---------------------------------------------------------------------------------
+Starting Synthesize : Time (s): cpu = 00:00:02 ; elapsed = 00:00:03 . Memory (MB): peak = 1906.082 ; gain = 425.652 ; free physical = 11356 ; free virtual = 23433
+---------------------------------------------------------------------------------
+ERROR: [Synth 8-2757] this construct is only supported in VHDL 1076-2008 [/home/madsr2d2/beng_thesis/src/can_pkg.vhd:658]
+ERROR: [Synth 8-2757] this construct is only supported in VHDL 1076-2008 [/home/madsr2d2/beng_thesis/src/can_pkg.vhd:659]
+INFO: [Synth 8-11252] unit 'can_pkg' is ignored due to previous errors [/home/madsr2d2/beng_thesis/src/can_pkg.vhd:754]
+INFO: [Synth 8-10443] VHDL file '/home/madsr2d2/beng_thesis/src/can_pkg.vhd' is ignored due to errors
+ERROR: [Synth 8-439] module 'tx_mac_llc_ctrl' not found
+---------------------------------------------------------------------------------
+Finished Synthesize : Time (s): cpu = 00:00:03 ; elapsed = 00:00:03 . Memory (MB): peak = 1982.051 ; gain = 501.621 ; free physical = 11261 ; free virtual = 23340
+---------------------------------------------------------------------------------
+synthesize failed
+INFO: [Common 17-83] Releasing license: Synthesis
+7 Infos, 0 Warnings, 0 Critical Warnings and 4 Errors encountered.
+synth_design failed
+ERROR: [Common 17-69] Command failed: Vivado Synthesis failed
+INFO: [Common 17-206] Exiting Vivado at Sat Feb  7 16:35:20 2026...

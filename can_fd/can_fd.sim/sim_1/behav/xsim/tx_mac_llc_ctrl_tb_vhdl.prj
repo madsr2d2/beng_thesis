@@ -1,0 +1,8 @@
+# compile vhdl design source files
+vhdl2008 xil_defaultlib  \
+"../../../../../src/can_pkg.vhd" \
+"../../../../../src/tx_mac_llc_ctrl.vhd" \
+"../../../../../src/tx_mac_llc_ctrl_tb.vhd" \
+
+# Do not sort compile order
+nosort
