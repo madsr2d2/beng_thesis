@@ -765,8 +765,6 @@ package body can_pkg is
           elsif (bit_count = cb_r0_c.position) then
             result.bit_type := r0_bit;
             result.polarity := cb_r0_c.polarity;
-          elsif (bit_count >= cb_dlc_start_c.position and bit_count <= cb_dlc_stop_c.position) then
-            result.bit_type := dlc_bit;
           end if;
 
         when cc_extended =>
@@ -791,8 +789,6 @@ package body can_pkg is
           elsif (bit_count = ce_r0_c.position) then
             result.bit_type := r0_bit;
             result.polarity := ce_r0_c.polarity;
-          elsif (bit_count >= ce_dlc_start_c.position and bit_count <= ce_dlc_stop_c.position) then
-            result.bit_type := dlc_bit;
           end if;
 
         when fd_basic =>
@@ -817,8 +813,6 @@ package body can_pkg is
           elsif (bit_count = fb_esi_c.position) then
             result.bit_type := esi_bit;
             result.polarity := fb_esi_c.polarity;
-          elsif (bit_count >= fb_dlc_start_c.position and bit_count <= fb_dlc_stop_c.position) then
-            result.bit_type := dlc_bit;
           end if;
 
         when fd_extended =>
@@ -849,8 +843,6 @@ package body can_pkg is
           elsif (bit_count = fe_esi_c.position) then
             result.bit_type := esi_bit;
             result.polarity := fe_esi_c.polarity;
-          elsif (bit_count >= fe_dlc_start_c.position and bit_count <= fe_dlc_stop_c.position) then
-            result.bit_type := dlc_bit;
           end if;
 
         when unknown =>
