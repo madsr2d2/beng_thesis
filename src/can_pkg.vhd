@@ -123,18 +123,6 @@ package can_pkg is
   );
 
   -- MAC frame fields
-  type mac_frame_field_t is (
-    field_sof,
-    field_arbitration,
-    field_control,
-    field_data,
-    field_crc,
-    field_ack_slot,
-    field_ack_delimiter,
-    field_eof,
-    field_unknown
-  );
-
   -- CRC vector
   subtype crc_vector_t is std_logic_vector(crc_poly_21_vec_c'left downto 0);
 
@@ -210,7 +198,6 @@ package can_pkg is
   attribute fsm_encoding of can_format_t       : type is "one_hot";
   attribute fsm_encoding of can_node_type_t    : type is "one_hot";
   attribute fsm_encoding of frame_type_t       : type is "one_hot";
-  attribute fsm_encoding of mac_frame_field_t  : type is "one_hot";
   attribute fsm_encoding of tx_mac_fsm_state_t : type is "one_hot";
   attribute fsm_encoding of tx_mac_ser_state_t : type is "one_hot";
   attribute fsm_encoding of tx_mac_error_t     : type is "one_hot";
@@ -352,7 +339,7 @@ package can_pkg is
   function is_error_tx (
     tx_mac_fsm_state : tx_mac_fsm_state_t;
     mac_error_flag : error_flag_t;
-    frame_field : mac_frame_field_t;
+    bit_type : bit_type_t;
     sent_bit : std_logic;
     monitored_bit : std_logic
   ) return error_info_t;
@@ -396,12 +383,13 @@ package body can_pkg is
   function is_error_tx (
     tx_mac_fsm_state : tx_mac_fsm_state_t;
     mac_error_flag : error_flag_t;
-    frame_field : mac_frame_field_t;
+    bit_type : bit_type_t;
     sent_bit : std_logic;
     monitored_bit : std_logic
   ) return error_info_t is
 
     variable result : error_info_t;
+    variable is_arbitration_bit : boolean;
 
   begin
 
@@ -410,7 +398,7 @@ package body can_pkg is
     result.error_type := bit_error;
 
     -- Check for ACK error
-    if (frame_field = field_ack_slot) then
+    if (bit_type = ack_bit) then
       if (monitored_bit = recessive_bit_c) then
         result.is_error   := true;
         result.error_type := ack_error;
@@ -423,9 +411,15 @@ package body can_pkg is
       return result;
     end if;
 
+    -- Determine if this bit is in the arbitration phase
+    -- Arbitration phase includes: base_id, extended_id, rtr, ide, rrs, fdf, res bits
+    is_arbitration_bit := (bit_type = base_id_bit or bit_type = extended_id_bit or
+                           bit_type = rtr_bit or bit_type = ide_bit or
+                           bit_type = rrs_bit or bit_type = fdf_bit or bit_type = res_bit);
+
     -- Exception 1: In arbitration field, only check when sending dominant (ISO 11898-1 6.6.21.2)
     if (sent_bit /= monitored_bit) then
-      if (frame_field = field_arbitration) then
+      if (is_arbitration_bit) then
         if (sent_bit = dominant_bit_c) then
           result.is_error   := true;
           result.error_type := bit_error;
