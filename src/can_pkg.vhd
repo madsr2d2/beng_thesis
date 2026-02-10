@@ -720,9 +720,9 @@ package body can_pkg is
     -- =================================================================
     if (bit_count = sof_c) then
       result.bit_type := sof_bit;
-    elsif (bit_count >= data_start and bit_count <= data_stop) then
+    elsif (bit_count >= data_start and bit_count < data_start + data_bits) then
       result.bit_type := data_bit;
-    elsif (is_fd_format(mac_ser_to_fsm.frame_info.format) and bit_count >= sbc_start.position and bit_count <= sbc_stop.position) then
+    elsif (is_fd_format(mac_ser_to_fsm.frame_info.format) and bit_count >= sbc_start.position and bit_count < sbc_start.position + sbc_field_width_c) then
       -- Output SBC bits when in SBC region (CAN FD only)
       result.bit_type := sbs_bit;
       result.polarity := dominant when sbc(sbc'left - (bit_count - sbc_start.position)) = dominant_bit_c else recessive;
@@ -746,14 +746,14 @@ package body can_pkg is
     elsif (bit_count = ack_delim.position) then
       result.bit_type := ack_delimiter_bit;
       result.polarity := ack_delim.polarity;
-    elsif (bit_count >= eof_start.position and bit_count <= eof_end.position) then
+    elsif (bit_count >= eof_start.position and bit_count < eof_start.position + eof_field_width_c) then
       result.bit_type := eof_bit;
       result.polarity := eof_start.polarity;
     else
       -- Check format-specific bits (ID, control bits) using constants directly
       case mac_ser_to_fsm.frame_info.format is
         when cc_basic =>
-          if (bit_count >= cb_base_id_start_c.position and bit_count <= cb_base_id_stop_c.position) then
+          if (bit_count >= cb_base_id_start_c.position and bit_count < cb_base_id_start_c.position + base_id_width) then
             result.bit_type := base_id_bit;
             result.polarity := dominant when mac_ser_to_fsm.data = dominant_bit_c else recessive;
           elsif (bit_count = cb_rtr_c.position) then
@@ -768,10 +768,10 @@ package body can_pkg is
           end if;
 
         when cc_extended =>
-          if (bit_count >= ce_base_id_start_c.position and bit_count <= ce_base_id_stop_c.position) then
+          if (bit_count >= ce_base_id_start_c.position and bit_count < ce_base_id_start_c.position + base_id_width) then
             result.bit_type := base_id_bit;
             result.polarity := dominant when mac_ser_to_fsm.data = dominant_bit_c else recessive;
-          elsif (bit_count >= ce_extended_id_start_c.position and bit_count <= ce_extended_id_stop_c.position) then
+          elsif (bit_count >= ce_extended_id_start_c.position and bit_count < ce_extended_id_start_c.position + extended_id_width) then
             result.bit_type := extended_id_bit;
             result.polarity := dominant when mac_ser_to_fsm.data = dominant_bit_c else recessive;
           elsif (bit_count = ce_srr_c.position) then
@@ -792,7 +792,7 @@ package body can_pkg is
           end if;
 
         when fd_basic =>
-          if (bit_count >= fd_base_id_start_c.position and bit_count <= fd_base_id_stop_c.position) then
+          if (bit_count >= fd_base_id_start_c.position and bit_count < fd_base_id_start_c.position + base_id_width) then
             result.bit_type := base_id_bit;
             result.polarity := dominant when mac_ser_to_fsm.data = dominant_bit_c else recessive;
           elsif (bit_count = fb_rrs_c.position) then
@@ -816,10 +816,10 @@ package body can_pkg is
           end if;
 
         when fd_extended =>
-          if (bit_count >= fe_base_id_start_c.position and bit_count <= fe_base_id_stop_c.position) then
+          if (bit_count >= fe_base_id_start_c.position and bit_count < fe_base_id_start_c.position + base_id_width) then
             result.bit_type := base_id_bit;
             result.polarity := dominant when mac_ser_to_fsm.data = dominant_bit_c else recessive;
-          elsif (bit_count >= fe_extended_id_start_c.position and bit_count <= fe_extended_id_stop_c.position) then
+          elsif (bit_count >= fe_extended_id_start_c.position and bit_count < fe_extended_id_start_c.position + extended_id_width) then
             result.bit_type := extended_id_bit;
             result.polarity := dominant when mac_ser_to_fsm.data = dominant_bit_c else recessive;
           elsif (bit_count = fe_srr_c.position) then
