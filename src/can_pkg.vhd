@@ -10,52 +10,84 @@ package can_pkg is
   constant dominant_bit_c         : std_logic                     := '0';
   constant recessive_bit_c        : std_logic                     := '1';
   constant max_static_form_bits_c : integer                       := 8;
-  constant sof_bit_position_c     : integer                       := 0;
+  constant sof_c                  : integer                       := 0;
   constant crc_poly_15_vec_c      : std_logic_vector(15 downto 0) := x"C599";
   constant crc_poly_17_vec_c      : std_logic_vector(19 downto 0) := x"3685B";
   constant crc_poly_21_vec_c      : std_logic_vector(23 downto 0) := x"302899";
-  constant cc_basic_data_c        : integer                       := 19;
-  constant cc_extended_data_c     : integer                       := 39;
-  constant fd_basic_data_c        : integer                       := 22;
-  constant fd_extended_data_c     : integer                       := 41;
-  constant cc_basic_dlc_c         : integer                       := 15;
-  constant cc_extended_dlc_c      : integer                       := 35;
-  constant fd_basic_dlc_c         : integer                       := 18;
-  constant fd_extended_dlc_c      : integer                       := 37;
   constant dlc_max_decimal_value  : integer                       := 15;
   constant dlc_field_width_c      : integer                       := 4;
-  constant sbc_filed_width_c      : integer                       := 4;
+  constant sbc_field_width_c      : integer                       := 4;
   constant byte_width_c           : integer                       := 8;
   constant max_mac_frame_length_c : integer                       := 1024; -- TODO: Can we get by with 512?
+  constant base_id_width          : integer                       := 11;
+  constant extended_id_width      : integer                       := 18;
+  constant eof_field_width_c      : integer                       := 7;
 
-  -- can classic  form bit positions
-  constant cc_basic_rtr_c : integer := 12;
-  constant cc_basic_ide_c : integer := 13;
-  constant cc_basic_r0_c  : integer := 14;
+  -- Polarity type
+  type polarity_t is (
+    dominant,
+    recessive,
+    unknown
+  );
 
-  -- can extended form bit positions
-  constant cc_extended_srr_c : integer := 12;
-  constant cc_extended_ide_c : integer := 13;
-  constant cc_extended_rtr_c : integer := 32;
-  constant cc_extended_r1_c  : integer := 33;
-  constant cc_extended_r0_c  : integer := 34;
+  -- Bit type has a position and a polarity
+  type bit_t is record
+    position : integer;
+    polarity : polarity_t;
+  end record bit_t;
 
-  -- can FD basic form bit positions
-  constant fd_basic_rss_c : integer := 12;
-  constant fd_basic_ide_c : integer := 13;
-  constant fd_basic_fdf_c : integer := 14;
-  constant fd_basic_res_c : integer := 15;
-  constant fd_basic_brs_c : integer := 16;
-  constant fd_basic_esi_c : integer := 17;
+  -- CAN Classic base frame format
+  constant cb_base_id_start_c : bit_t := (sof_c + 1, dominant);
+  constant cb_base_id_stop_c  : bit_t := (cb_base_id_start_c.position + base_id_width - 1, unknown);
+  constant cb_rtr_c           : bit_t := (cb_base_id_stop_c.position + 1, unknown);
+  constant cb_ide_c           : bit_t := (cb_rtr_c.position + 1, dominant);
+  constant cb_r0_c            : bit_t := (cb_ide_c.position + 1, dominant);
+  constant cb_dlc_start_c     : bit_t := (cb_r0_c.position + 1, unknown);
+  constant cb_dlc_stop_c      : bit_t := (cb_dlc_start_c.position + dlc_field_width_c - 1, unknown);
+  constant cb_data_start_c    : bit_t := (cb_dlc_stop_c.position + 1, unknown);
 
-  -- can FD extended form bit positions
-  constant fd_extended_srr_c : integer := 12;
-  constant fd_extended_ide_c : integer := 13;
-  constant fd_extended_rrs_c : integer := 32;
-  constant fd_extended_fdf_c : integer := 33;
-  constant fd_extended_res_c : integer := 34;
-  constant fd_extended_brs_c : integer := 35;
-  constant fd_extended_esi_c : integer := 36;
+  -- CAN Classic extended frame format
+  constant ce_base_id_start_c     : bit_t := (sof_c + 1, unknown);
+  constant ce_base_id_stop_c      : bit_t := (ce_base_id_start_c.position + base_id_width - 1, unknown);
+  constant ce_srr_c               : bit_t := (ce_base_id_stop_c.position + 1, recessive);
+  constant ce_ide_c               : bit_t := (ce_srr_c.position + 1, recessive);
+  constant ce_extended_id_start_c : bit_t := (ce_ide_c.position + 1, unknown);
+  constant ce_extended_id_stop_c  : bit_t := (ce_extended_id_start_c.position + extended_id_width - 1, unknown);
+  constant ce_rtr_c               : bit_t := (ce_extended_id_stop_c.position + 1, unknown);
+  constant ce_r1_c                : bit_t := (ce_rtr_c.position + 1, dominant);
+  constant ce_r0_c                : bit_t := (ce_r1_c.position + 1, dominant);
+  constant ce_dlc_start_c         : bit_t := (ce_r0_c.position + 1, unknown);
+  constant ce_dlc_stop_c          : bit_t := (ce_dlc_start_c.position + dlc_field_width_c - 1, unknown);
+  constant ce_data_start_c        : bit_t := (ce_dlc_stop_c.position + 1, unknown);
+
+  -- FD base frame format
+  constant fd_base_id_start_c : bit_t := (sof_c + 1, unknown);
+  constant fd_base_id_stop_c  : bit_t := (fd_base_id_start_c.position + base_id_width - 1, unknown);
+  constant fb_rrs_c           : bit_t := (fd_base_id_stop_c.position + 1, dominant);
+  constant fb_ide_c           : bit_t := (fb_rrs_c.position + 1, dominant);
+  constant fb_fdf_c           : bit_t := (fb_ide_c.position + 1, recessive);
+  constant fb_res_c           : bit_t := (fb_fdf_c.position + 1, dominant);
+  constant fb_brs_c           : bit_t := (fb_res_c.position + 1, unknown);
+  constant fb_esi_c           : bit_t := (fb_brs_c.position + 1, unknown);
+  constant fb_dlc_start_c     : bit_t := (fb_esi_c.position + 1, unknown);
+  constant fb_dlc_stop_c      : bit_t := (fb_dlc_start_c.position + dlc_field_width_c - 1, unknown);
+  constant fb_data_start_c    : bit_t := (fb_dlc_stop_c.position + 1, unknown);
+
+  -- FD extended frame format
+  constant fe_base_id_start_c     : bit_t := (sof_c + 1, unknown);
+  constant fe_base_id_stop_c      : bit_t := (fe_base_id_start_c.position + base_id_width - 1, unknown);
+  constant fe_srr_c               : bit_t := (fe_base_id_stop_c.position + 1, recessive);
+  constant fe_ide_c               : bit_t := (fe_srr_c.position + 1, recessive);
+  constant fe_extended_id_start_c : bit_t := (fe_ide_c.position + 1, unknown);
+  constant fe_extended_id_stop_c  : bit_t := (fe_extended_id_start_c.position + extended_id_width - 1, unknown);
+  constant fe_rrs_c               : bit_t := (fe_extended_id_stop_c.position + 1, dominant);
+  constant fe_fdf_c               : bit_t := (fe_rrs_c.position + 1, recessive);
+  constant fe_res_c               : bit_t := (fe_fdf_c.position + 1, dominant);
+  constant fe_brs_c               : bit_t := (fe_res_c.position + 1, unknown);
+  constant fe_esi_c               : bit_t := (fe_brs_c.position + 1, unknown);
+  constant fe_dlc_start_c         : bit_t := (fe_esi_c.position + 1, unknown);
+  constant fe_dlc_stop_c          : bit_t := (fe_dlc_start_c.position + dlc_field_width_c - 1, unknown);
+  constant fe_data_start_c        : bit_t := (fe_dlc_stop_c.position + 1, unknown);
 
   -- LLC frame config bytes (byte 0 and byte 1) structure
   constant llc_frame_config_byte_0_format_start : integer := byte_width_c - 1;
@@ -103,15 +135,18 @@ package can_pkg is
     field_unknown
   );
 
+  -- CRC vector
+  subtype crc_vector_t is std_logic_vector(crc_poly_21_vec_c'left downto 0);
+
   -- MAC layer TX state type
-  type tx_mac_state_t is (
+  type tx_mac_fsm_state_t is (
     idle,
     transmitting_mac_frame,
     transmitting_error_flag
   );
 
-  -- LLC to MAC controller state type
-  type tx_mac_llc_ctrl_state_t is (
+  -- tx_mac_ser states
+  type tx_mac_ser_state_t is (
     load_config_byte_0,
     load_config_byte_1,
     load_llc_frame_byte,
@@ -125,7 +160,7 @@ package can_pkg is
   );
 
   -- MAC error flag type
-  type mac_error_flag_t is (
+  type error_flag_t is (
     active_error_flag,
     passive_error_flag
   );
@@ -139,20 +174,52 @@ package can_pkg is
     disturbed
   );
 
+  type bit_type_t is (
+    unknown,
+    -- CC bit types
+    stuff_bit,
+    active_error_flag_bit,
+    passive_error_flag_bit,
+    sof_bit,
+    base_id_bit,
+    extended_id_bit,
+    rtr_bit,
+    srr_bit,
+    ide_bit,
+    r0_bit,
+    r1_bit,
+    dlc_bit,
+    data_bit,
+    crc_bit,
+    crc_delimiter_bit,
+    ack_bit,
+    ack_delimiter_bit,
+    eof_bit,
+    -- FD bit type additions
+    rrs_bit,
+    fdf_bit,
+    res_bit,
+    brs_bit,
+    esi_bit,
+    sbs_bit,
+    fixed_stuff_bit
+  );
+
   -- Ensure one_hot encoding of all FSM state types
   attribute fsm_encoding : string;
-  attribute fsm_encoding of can_format_t            : type is "one_hot";
-  attribute fsm_encoding of can_node_type_t         : type is "one_hot";
-  attribute fsm_encoding of frame_type_t            : type is "one_hot";
-  attribute fsm_encoding of mac_frame_field_t       : type is "one_hot";
-  attribute fsm_encoding of tx_mac_state_t          : type is "one_hot";
-  attribute fsm_encoding of tx_mac_llc_ctrl_state_t : type is "one_hot";
-  attribute fsm_encoding of tx_mac_error_t          : type is "one_hot";
-  attribute fsm_encoding of mac_error_flag_t        : type is "one_hot";
-  attribute fsm_encoding of transfer_status_t       : type is "one_hot";
+  attribute fsm_encoding of can_format_t       : type is "one_hot";
+  attribute fsm_encoding of can_node_type_t    : type is "one_hot";
+  attribute fsm_encoding of frame_type_t       : type is "one_hot";
+  attribute fsm_encoding of mac_frame_field_t  : type is "one_hot";
+  attribute fsm_encoding of tx_mac_fsm_state_t : type is "one_hot";
+  attribute fsm_encoding of tx_mac_ser_state_t : type is "one_hot";
+  attribute fsm_encoding of tx_mac_error_t     : type is "one_hot";
+  attribute fsm_encoding of error_flag_t       : type is "one_hot";
+  attribute fsm_encoding of transfer_status_t  : type is "one_hot";
 
   -- Byte
-  subtype byte_t is std_logic_vector(byte_width_c - 1 downto 0);
+  subtype byte_t is std_logic_vector(byte_width_c - 1 downto 0
+  );
 
   -- Avalon-ST interface
   type avalon_st_source_t is record
@@ -166,8 +233,11 @@ package can_pkg is
     ready : std_logic;
   end record avalon_st_sink_t;
 
-  -- DLC
+  -- DLC (Data Length Code)
   subtype dlc_t is integer range 0 to dlc_max_decimal_value;
+
+  -- SBC (Stuff Bit Count)
+  subtype sbc_t is std_logic_vector(sbc_field_width_c - 1 downto 0);
 
   -- Record encapsulates the LLC frame info
   type llc_frame_info_t is record
@@ -184,22 +254,25 @@ package can_pkg is
     error_type : tx_mac_error_t;
   end record error_info_t;
 
-  -- Form bit entry
-  type form_bit_entry_t is record
-    position : integer;
-    polarity : std_logic;
-  end record form_bit_entry_t;
-
   -- Composite type for MAC frame bit info
-  type mac_frame_bit_info_t is record
-    is_form_bit : boolean;
-    polarity    : std_logic;
-    frame_field : mac_frame_field_t;
-    brs_enable  : boolean; -- Used to signal bit rate switch to PC layer
-  end record mac_frame_bit_info_t;
+  type mac_frame_bit_t is record
+    polarity : polarity_t;
+    bit_type : bit_type_t;
+  end record mac_frame_bit_t;
 
-  -- Static form bit table type
-  type form_bit_table_t is array (0 to max_static_form_bits_c - 1) of form_bit_entry_t;
+  -- tx_mac_ser to tx_mac_fsm interface
+  type tx_mac_ser_to_fsm_if_t is record
+    data       : std_logic;
+    valid      : std_logic;
+    frame_info : llc_frame_info_t;
+  end record tx_mac_ser_to_fsm_if_t;
+
+  -- tx_mac_fsm to tx_mac_ser interface
+  type tx_mac_fsm_to_ser_if_t is record
+    transfer_status  : transfer_status_t;
+    tx_mac_fsm_state : tx_mac_fsm_state_t;
+    ready            : std_logic;
+  end record tx_mac_fsm_to_ser_if_t;
 
   -- LLC to MAC interface
   type llc_to_mac_if_t is record
@@ -272,55 +345,13 @@ package can_pkg is
   end record shift_reg_out_t;
 
   -- =================================================================
-  -- Static form bit tables
-  -- =================================================================
-  constant cc_basic_static_form_bits : form_bit_table_t :=
-  (
-    0      => (position => sof_bit_position_c, polarity => dominant_bit_c), -- SOF
-    1      => (position => cc_basic_ide_c, polarity => dominant_bit_c),     -- IDE
-    2      => (position => cc_basic_r0_c, polarity => dominant_bit_c),      -- r0
-    others => (position => -1, polarity => recessive_bit_c)
-  );
-
-  constant cc_extended_static_form_bits : form_bit_table_t :=
-  (
-    0      => (position => sof_bit_position_c, polarity => dominant_bit_c), -- SOF
-    1      => (position => cc_extended_srr_c, polarity => recessive_bit_c), -- SRR
-    2      => (position => cc_extended_ide_c, polarity => recessive_bit_c), -- IDE
-    3      => (position => cc_extended_r1_c, polarity => dominant_bit_c),   -- r1
-    4      => (position => cc_extended_r0_c,  polarity => dominant_bit_c),  -- r0
-    others => (position => -1, polarity => recessive_bit_c)
-  );
-
-  constant fd_basic_static_form_bits : form_bit_table_t :=
-  (
-    0      => (position => sof_bit_position_c, polarity => dominant_bit_c), -- SOF
-    1      => (position => fd_basic_rss_c, polarity => dominant_bit_c),     -- RRS
-    2      => (position => fd_basic_ide_c, polarity => dominant_bit_c),     -- IDE
-    3      => (position => fd_basic_fdf_c, polarity => recessive_bit_c),    -- FDF
-    4      => (position => fd_basic_res_c,  polarity => dominant_bit_c),    -- RES
-    others => (position => -1, polarity => recessive_bit_c)
-  );
-
-  constant fd_extended_static_form_bits : form_bit_table_t :=
-  (
-    0      => (position => sof_bit_position_c, polarity => dominant_bit_c), -- SOF
-    1      => (position => fd_extended_srr_c, polarity => recessive_bit_c), -- SRR
-    2      => (position => fd_extended_ide_c, polarity => recessive_bit_c), -- IDE
-    3      => (position => fd_extended_rrs_c, polarity => dominant_bit_c),  -- RRS
-    4      => (position => fd_extended_fdf_c, polarity => recessive_bit_c), -- FDF
-    5      => (position => fd_extended_res_c, polarity => dominant_bit_c),  -- RES
-    others => (position => -1, polarity => recessive_bit_c)
-  );
-
-  -- =================================================================
   -- Function declarations
   -- =================================================================
 
-  -- Function return the error info on a monitored MAC frame bit
+  -- Function returns TX error_info_t
   function is_error_tx (
-    mac_layer_tx_state : tx_mac_state_t;
-    mac_error_flag : mac_error_flag_t;
+    tx_mac_fsm_state : tx_mac_fsm_state_t;
+    mac_error_flag : error_flag_t;
     frame_field : mac_frame_field_t;
     sent_bit : std_logic;
     monitored_bit : std_logic
@@ -342,15 +373,17 @@ package can_pkg is
     config_byte_1 : byte_t
   ) return llc_frame_info_t;
 
-  function tx_mac_frame_bit (
+  function get_next_frame_bit (
     bit_count    : integer;
-    can_format   : can_format_t;
-    frame_type   : frame_type_t;
-    dlc          : dlc_t;
-    brs_enable   : boolean;
-    esi_flag     : boolean;
-    previous_bit : std_logic
-  ) return mac_frame_bit_info_t;
+    -- From tx_mac_ser
+    mac_ser_to_fsm : tx_mac_ser_to_fsm_if_t;
+    previous_polarity : polarity_t;
+    -- From bit stuffer
+    stuff_bit : std_logic;
+    stuff_bit_valid : boolean;
+    sbc : sbc_t;
+    crc : crc_vector_t
+  ) return mac_frame_bit_t;
 
 end package can_pkg;
 
@@ -359,6 +392,54 @@ end package can_pkg;
 -- =================================================================
 
 package body can_pkg is
+
+  function is_error_tx (
+    tx_mac_fsm_state : tx_mac_fsm_state_t;
+    mac_error_flag : error_flag_t;
+    frame_field : mac_frame_field_t;
+    sent_bit : std_logic;
+    monitored_bit : std_logic
+  ) return error_info_t is
+
+    variable result : error_info_t;
+
+  begin
+
+    -- Default value
+    result.is_error   := false;
+    result.error_type := bit_error;
+
+    -- Check for ACK error
+    if (frame_field = field_ack_slot) then
+      if (monitored_bit = recessive_bit_c) then
+        result.is_error   := true;
+        result.error_type := ack_error;
+      end if;
+      return result;
+    end if;
+
+    -- Exception 2: Don't check during passive error flag transmission (ISO 11898-1 6.6.21.2)
+    if ((tx_mac_fsm_state = transmitting_error_flag) and (mac_error_flag = passive_error_flag)) then
+      return result;
+    end if;
+
+    -- Exception 1: In arbitration field, only check when sending dominant (ISO 11898-1 6.6.21.2)
+    if (sent_bit /= monitored_bit) then
+      if (frame_field = field_arbitration) then
+        if (sent_bit = dominant_bit_c) then
+          result.is_error   := true;
+          result.error_type := bit_error;
+        end if;
+      else
+        -- Everywhere else: check for mismatch
+        result.is_error   := true;
+        result.error_type := bit_error;
+      end if;
+    end if;
+
+    return result;
+
+  end function is_error_tx;
 
   function get_frame_info (
     config_byte_0 : byte_t;
@@ -397,55 +478,6 @@ package body can_pkg is
     return result;
 
   end function get_frame_info;
-
-  -- Function returns TX error_info_t
-  function is_error_tx (
-    mac_layer_tx_state : tx_mac_state_t;
-    mac_error_flag : mac_error_flag_t;
-    frame_field : mac_frame_field_t;
-    sent_bit : std_logic;
-    monitored_bit : std_logic
-  ) return error_info_t is
-
-    variable result : error_info_t;
-
-  begin
-
-    -- Default value
-    result.is_error   := false;
-    result.error_type := bit_error;
-
-    -- Check for ACK error
-    if (frame_field = field_ack_slot) then
-      if (monitored_bit = recessive_bit_c) then
-        result.is_error   := true;
-        result.error_type := ack_error;
-      end if;
-      return result;
-    end if;
-
-    -- Exception 2: Don't check during passive error flag transmission (ISO 11898-1 6.6.21.2)
-    if ((mac_layer_tx_state = transmitting_error_flag) and (mac_error_flag = passive_error_flag)) then
-      return result;
-    end if;
-
-    -- Exception 1: In arbitration field, only check when sending dominant (ISO 11898-1 6.6.21.2)
-    if (sent_bit /= monitored_bit) then
-      if (frame_field = field_arbitration) then
-        if (sent_bit = dominant_bit_c) then
-          result.is_error   := true;
-          result.error_type := bit_error;
-        end if;
-      else
-        -- Everywhere else: check for mismatch
-        result.is_error   := true;
-        result.error_type := bit_error;
-      end if;
-    end if;
-
-    return result;
-
-  end function is_error_tx;
 
   -- Function calculates the parity bit of a std_logic_vector
   function calc_parity (
@@ -539,22 +571,6 @@ package body can_pkg is
 
   end function get_crc_length;
 
-  -- Helper function to get data start position based on CAN format
-  function get_data_start_position (
-    can_format : can_format_t
-  ) return integer is
-  begin
-
-    case can_format is
-      when cc_basic => return cc_basic_data_c;
-      when cc_extended => return cc_extended_data_c;
-      when fd_basic => return fd_basic_data_c;
-      when fd_extended => return fd_extended_data_c;
-      when unknown => return 0;
-    end case;
-
-  end function get_data_start_position;
-
   -- Helper function to check if format is FD
   function is_fd_format (
     can_format : can_format_t
@@ -597,256 +613,265 @@ package body can_pkg is
 
   end function get_fixed_stuff_bit_count;
 
-  -- Helper to get control field start position
-  function get_control_start (
-    can_format : can_format_t
-  ) return integer is
-  begin
-
-    case can_format is
-      when cc_basic => return cc_basic_ide_c;
-      when cc_extended => return cc_extended_r1_c;
-      when fd_basic => return fd_basic_ide_c;
-      when fd_extended => return fd_extended_rrs_c;
-      when unknown => return 0;
-    end case;
-
-  end function get_control_start;
-
-  function tx_mac_frame_bit (
+  function get_next_frame_bit (
     bit_count    : integer;
-    can_format   : can_format_t;
-    frame_type   : frame_type_t;
-    dlc          : dlc_t;
-    brs_enable   : boolean;
-    esi_flag     : boolean;
-    previous_bit : std_logic
-  ) return mac_frame_bit_info_t is
+    mac_ser_to_fsm : tx_mac_ser_to_fsm_if_t;
+    previous_polarity : polarity_t;
+    -- From bit stuffer
+    stuff_bit : std_logic;
+    stuff_bit_valid : boolean;
+    sbc : sbc_t;
+    crc : crc_vector_t
+  ) return mac_frame_bit_t is
 
-    variable result                : mac_frame_bit_info_t;
-    variable static_table          : form_bit_table_t;
-    variable data_start_pos        : integer;
+    variable result                : mac_frame_bit_t;
+    variable data_start            : integer;
+    variable data_stop             : integer;
+    variable sbc_start             : bit_t;
+    variable sbc_stop              : bit_t;
     variable data_length           : integer;
     variable data_bits             : integer;
     variable crc_length            : integer;
     variable crc_field_length      : integer;
-    variable crc_delim_pos         : integer;
-    variable ack_slot_pos          : integer;
-    variable ack_delim_pos         : integer;
-    variable eof_start_pos         : integer;
-    variable eof_end_pos           : integer;
-    variable rtr_position          : integer;
-    variable rtr_polarity          : std_logic;
-    variable brs_position          : integer;
-    variable brs_polarity          : std_logic;
-    variable esi_position          : integer;
-    variable esi_polarity          : std_logic;
-    variable dlc_start_pos         : integer;
-    variable dlc_bit_index         : integer;
-    variable dlc_vector            : std_logic_vector(3 downto 0);
-    variable control_start_pos     : integer;
-    variable crc_start             : integer;
+    variable crc_delim             : bit_t;
+    variable ack_slot              : bit_t;
+    variable ack_delim             : bit_t;
+    variable eof_start             : bit_t;
+    variable eof_end               : bit_t;
+    variable dlc_vector            : std_logic_vector(dlc_field_width_c - 1 downto 0);
+    variable dlc_start             : integer;
+    variable crc_start             : bit_t;
     variable position_in_crc_field : integer;
     variable fixed_stuff_count     : integer;
 
   begin
 
-    -- Initialize return value
-    result.is_form_bit := false;
-    result.polarity    := '0';
-    result.frame_field := field_unknown;
-    result.brs_enable  := false;
+    result.polarity := unknown;
+    result.bit_type := unknown;
 
-    dlc_vector  := std_logic_vector(to_unsigned(dlc, 4));
-    data_length := dlc_to_data_length(dlc, can_format);
-
-    -- =================================================================
-    -- Calculate positions
-    -- =================================================================
-    control_start_pos := get_control_start(can_format);
-    data_start_pos    := get_data_start_position(can_format);
-    data_bits         := data_length * 8;
-    crc_start         := data_start_pos + data_bits;
-
-    -- CAN FD CRC fields contains SBC and fixed stuff bits
-    if is_fd_format(can_format) then
-      crc_length        := get_crc_length(can_format, data_length); -- Get CRC length
-      fixed_stuff_count := get_fixed_stuff_bit_count(sbc_filed_width_c + crc_length); -- Get fixed stiff bits count
-      crc_field_length  := sbc_filed_width_c + crc_length + fixed_stuff_count; -- Get CRC field length
-      crc_delim_pos     := crc_start + crc_field_length;
-    else
-      -- CAN Classic CRC field contains only CRC bits
-      crc_length       := get_crc_length(can_format, data_length);
-      crc_field_length := crc_length;  -- Just CRC, no fixed stuff bits
-      crc_delim_pos    := crc_start + crc_field_length;
+    -- Priority 1: Check for valid stuff bit from bit stuffer
+    if (stuff_bit_valid) then
+      result.bit_type := fixed_stuff_bit;
+      result.polarity := dominant when stuff_bit = dominant_bit_c else recessive;
+      return result;
     end if;
 
-    ack_slot_pos  := crc_delim_pos + 1;
-    ack_delim_pos := ack_slot_pos + 1;
-    eof_start_pos := ack_delim_pos + 1;
-    eof_end_pos   := eof_start_pos + 6;
+    dlc_vector  := std_logic_vector(to_unsigned(mac_ser_to_fsm.frame_info.dlc, 4));
+    data_length := dlc_to_data_length(mac_ser_to_fsm.frame_info.dlc, mac_ser_to_fsm.frame_info.format);
 
     -- =================================================================
-    -- Determine current mac frame field
+    -- Calculate dynamic positions based on data length and format
     -- =================================================================
-    if (bit_count = sof_bit_position_c) then
-      result.frame_field := field_sof;
-    elsif (bit_count >= 1 and bit_count < control_start_pos) then
-      result.frame_field := field_arbitration;
-    elsif (bit_count >= control_start_pos and bit_count < data_start_pos) then
-      result.frame_field := field_control;
-    elsif (bit_count >= data_start_pos and bit_count < crc_start) then
-      result.frame_field := field_data;
-    elsif (bit_count >= crc_start and bit_count < ack_slot_pos) then
-      result.frame_field := field_crc;
-    elsif (bit_count = ack_slot_pos) then
-      result.frame_field := field_ack_slot;
-    elsif (bit_count = ack_delim_pos) then
-      result.frame_field := field_ack_delimiter;
-    elsif (bit_count >= eof_start_pos and bit_count < eof_end_pos + 1) then
-      result.frame_field := field_eof;
-    else
-      result.frame_field := FIELD_UNKNOWN;
-    end if;
-
-    -- =================================================================
-    -- Select static table and positions
-    -- =================================================================
-    case can_format is
+    case mac_ser_to_fsm.frame_info.format is
       when cc_basic =>
-        static_table  := CC_BASIC_STATIC_FORM_BITS;
-        rtr_position  := cc_basic_rtr_c;
-        brs_position  := -1;
-        esi_position  := -1;
-        dlc_start_pos := cc_basic_dlc_c;
+        data_start := cb_data_start_c.position;
+        dlc_start  := cb_dlc_start_c.position;
       when cc_extended =>
-        static_table  := CC_EXTENDED_STATIC_FORM_BITS;
-        rtr_position  := cc_extended_rtr_c;
-        brs_position  := -1;
-        esi_position  := -1;
-        dlc_start_pos := cc_extended_dlc_c;
+        data_start := ce_data_start_c.position;
+        dlc_start  := ce_dlc_start_c.position;
       when fd_basic =>
-        static_table  := FD_BASIC_STATIC_FORM_BITS;
-        rtr_position  := -1;
-        brs_position  := fd_basic_brs_c;
-        esi_position  := fd_basic_esi_c;
-        dlc_start_pos := fd_basic_dlc_c;
+        data_start := fb_data_start_c.position;
+        dlc_start  := fb_dlc_start_c.position;
       when fd_extended =>
-        static_table  := FD_EXTENDED_STATIC_FORM_BITS;
-        rtr_position  := -1;
-        brs_position  := fd_extended_brs_c;
-        esi_position  := fd_extended_esi_c;
-        dlc_start_pos := fd_extended_dlc_c;
+        data_start := fe_data_start_c.position;
+        dlc_start  := fe_dlc_start_c.position;
       when unknown =>
-        static_table  := cc_basic_static_form_bits;
-        rtr_position  := -1;
-        brs_position  := -1;
-        esi_position  := -1;
-        dlc_start_pos := -1;
+        data_start := 0;
+        dlc_start  := 0;
     end case;
 
-    -- =================================================================
-    -- Set control bit polarities
-    -- =================================================================
-    case frame_type is
-      when DATA_FRAME => rtr_polarity := dominant_bit_c;
-      when REMOTE_FRAME => rtr_polarity := recessive_bit_c;
-    end case;
+    data_bits := data_length * byte_width_c;
+    data_stop := data_start + data_bits - 1;
 
-    brs_polarity := recessive_bit_c when brs_enable else dominant_bit_c;
-    esi_polarity := recessive_bit_c when esi_flag else dominant_bit_c;
-
-    -- =================================================================
-    -- Check control bits
-    -- =================================================================
-    if (rtr_position /= -1 and bit_count = rtr_position) then
-      result.is_form_bit := true;
-      result.polarity    := rtr_polarity;
-      return result;
+    -- CAN FD has SBC field after data, CAN Classic goes directly to CRC
+    if is_fd_format(mac_ser_to_fsm.frame_info.format) then
+      sbc_start.position := data_stop + 1;
+      sbc_start.polarity := unknown;
+      sbc_stop.position  := sbc_start.position + sbc_field_width_c - 1;
+      sbc_stop.polarity  := unknown;
+      crc_start.position := sbc_stop.position + 1;
+      crc_start.polarity := unknown;
+      crc_length         := get_crc_length(mac_ser_to_fsm.frame_info.format, data_length);
+      fixed_stuff_count  := get_fixed_stuff_bit_count(sbc_field_width_c + crc_length);
+      crc_field_length   := crc_length + fixed_stuff_count;
+      crc_delim.position := crc_start.position + crc_field_length;
+      crc_delim.polarity := recessive;
+    else
+      -- CAN Classic: no SBC field, CRC follows directly after data
+      crc_start.position := data_stop + 1;
+      crc_start.polarity := unknown;
+      crc_length         := get_crc_length(mac_ser_to_fsm.frame_info.format, data_length);
+      crc_field_length   := crc_length;
+      crc_delim.position := crc_start.position + crc_field_length;
+      crc_delim.polarity := recessive;
     end if;
 
-    if (brs_position /= -1 and bit_count = brs_position) then
-      result.is_form_bit := true;
-      result.polarity    := brs_polarity;
-      result.brs_enable  := true;
+    ack_slot.position  := crc_delim.position + 1;
+    ack_slot.polarity  := recessive;
+    ack_delim.position := ack_slot.position + 1;
+    ack_delim.polarity := recessive;
+    eof_start.position := ack_delim.position + 1;
+    eof_start.polarity := recessive;
+    eof_end.position   := eof_start.position + eof_field_width_c - 1;
+    eof_end.polarity   := recessive;
+
+    -- =================================================================
+    -- Determine bit type based on position and format using constants
+    -- =================================================================
+    if (bit_count = sof_c) then
+      result.bit_type := sof_bit;
+    elsif (bit_count >= data_start and bit_count <= data_stop) then
+      result.bit_type := data_bit;
+    elsif (is_fd_format(mac_ser_to_fsm.frame_info.format) and bit_count >= sbc_start.position and bit_count <= sbc_stop.position) then
+      -- Output SBC bits when in SBC region (CAN FD only)
+      result.bit_type := sbs_bit;
+      result.polarity := dominant when sbc(sbc'left - (bit_count - sbc_start.position)) = dominant_bit_c else recessive;
       return result;
-    end if;
-
-    if (esi_position /= -1 and bit_count = esi_position) then
-      result.is_form_bit := true;
-      result.polarity    := esi_polarity;
+    -- Output CRC bits when in CRC region
+    elsif (bit_count >= crc_start.position and bit_count < crc_delim.position) then
+      result.bit_type := crc_bit;
+      result.polarity := dominant when crc(crc'left - (bit_count - crc_start.position)) = dominant_bit_c else recessive;
       return result;
-    end if;
-
-    -- =================================================================
-    -- Check DLC field
-    -- =================================================================
-    if (bit_count >= dlc_start_pos and bit_count < dlc_start_pos + dlc_field_width_c) then
-      result.is_form_bit := true;
-      dlc_bit_index      := bit_count - dlc_start_pos;
-      result.polarity    := dlc_vector(3 - dlc_bit_index);
+    -- Output DLC bits when in DLC region (format-specific)
+    elsif (bit_count >= dlc_start and bit_count < dlc_start + dlc_field_width_c) then
+      result.bit_type := dlc_bit;
+      result.polarity := dominant when dlc_vector(dlc_vector'left - (bit_count - dlc_start)) = dominant_bit_c else recessive;
       return result;
+    elsif (bit_count = crc_delim.position) then
+      result.bit_type := crc_delimiter_bit;
+      result.polarity := crc_delim.polarity;
+    elsif (bit_count = ack_slot.position) then
+      result.bit_type := ack_bit;
+      result.polarity := ack_slot.polarity;
+    elsif (bit_count = ack_delim.position) then
+      result.bit_type := ack_delimiter_bit;
+      result.polarity := ack_delim.polarity;
+    elsif (bit_count >= eof_start.position and bit_count <= eof_end.position) then
+      result.bit_type := eof_bit;
+      result.polarity := eof_start.polarity;
+    else
+      -- Check format-specific bits (ID, control bits) using constants directly
+      case mac_ser_to_fsm.frame_info.format is
+        when cc_basic =>
+          if (bit_count >= cb_base_id_start_c.position and bit_count <= cb_base_id_stop_c.position) then
+            result.bit_type := base_id_bit;
+            result.polarity := dominant when mac_ser_to_fsm.data = dominant_bit_c else recessive;
+          elsif (bit_count = cb_rtr_c.position) then
+            result.bit_type := rtr_bit;
+            result.polarity := cb_rtr_c.polarity;
+          elsif (bit_count = cb_ide_c.position) then
+            result.bit_type := ide_bit;
+            result.polarity := cb_ide_c.polarity;
+          elsif (bit_count = cb_r0_c.position) then
+            result.bit_type := r0_bit;
+            result.polarity := cb_r0_c.polarity;
+          elsif (bit_count >= cb_dlc_start_c.position and bit_count <= cb_dlc_stop_c.position) then
+            result.bit_type := dlc_bit;
+          end if;
+
+        when cc_extended =>
+          if (bit_count >= ce_base_id_start_c.position and bit_count <= ce_base_id_stop_c.position) then
+            result.bit_type := base_id_bit;
+            result.polarity := dominant when mac_ser_to_fsm.data = dominant_bit_c else recessive;
+          elsif (bit_count >= ce_extended_id_start_c.position and bit_count <= ce_extended_id_stop_c.position) then
+            result.bit_type := extended_id_bit;
+            result.polarity := dominant when mac_ser_to_fsm.data = dominant_bit_c else recessive;
+          elsif (bit_count = ce_srr_c.position) then
+            result.bit_type := srr_bit;
+            result.polarity := ce_srr_c.polarity;
+          elsif (bit_count = ce_ide_c.position) then
+            result.bit_type := ide_bit;
+            result.polarity := ce_ide_c.polarity;
+          elsif (bit_count = ce_rtr_c.position) then
+            result.bit_type := rtr_bit;
+            result.polarity := ce_rtr_c.polarity;
+          elsif (bit_count = ce_r1_c.position) then
+            result.bit_type := r1_bit;
+            result.polarity := ce_r1_c.polarity;
+          elsif (bit_count = ce_r0_c.position) then
+            result.bit_type := r0_bit;
+            result.polarity := ce_r0_c.polarity;
+          elsif (bit_count >= ce_dlc_start_c.position and bit_count <= ce_dlc_stop_c.position) then
+            result.bit_type := dlc_bit;
+          end if;
+
+        when fd_basic =>
+          if (bit_count >= fd_base_id_start_c.position and bit_count <= fd_base_id_stop_c.position) then
+            result.bit_type := base_id_bit;
+            result.polarity := dominant when mac_ser_to_fsm.data = dominant_bit_c else recessive;
+          elsif (bit_count = fb_rrs_c.position) then
+            result.bit_type := rrs_bit;
+            result.polarity := fb_rrs_c.polarity;
+          elsif (bit_count = fb_ide_c.position) then
+            result.bit_type := ide_bit;
+            result.polarity := fb_ide_c.polarity;
+          elsif (bit_count = fb_fdf_c.position) then
+            result.bit_type := fdf_bit;
+            result.polarity := fb_fdf_c.polarity;
+          elsif (bit_count = fb_res_c.position) then
+            result.bit_type := res_bit;
+            result.polarity := fb_res_c.polarity;
+          elsif (bit_count = fb_brs_c.position) then
+            result.bit_type := brs_bit;
+            result.polarity := fb_brs_c.polarity;
+          elsif (bit_count = fb_esi_c.position) then
+            result.bit_type := esi_bit;
+            result.polarity := fb_esi_c.polarity;
+          elsif (bit_count >= fb_dlc_start_c.position and bit_count <= fb_dlc_stop_c.position) then
+            result.bit_type := dlc_bit;
+          end if;
+
+        when fd_extended =>
+          if (bit_count >= fe_base_id_start_c.position and bit_count <= fe_base_id_stop_c.position) then
+            result.bit_type := base_id_bit;
+            result.polarity := dominant when mac_ser_to_fsm.data = dominant_bit_c else recessive;
+          elsif (bit_count >= fe_extended_id_start_c.position and bit_count <= fe_extended_id_stop_c.position) then
+            result.bit_type := extended_id_bit;
+            result.polarity := dominant when mac_ser_to_fsm.data = dominant_bit_c else recessive;
+          elsif (bit_count = fe_srr_c.position) then
+            result.bit_type := srr_bit;
+            result.polarity := fe_srr_c.polarity;
+          elsif (bit_count = fe_ide_c.position) then
+            result.bit_type := ide_bit;
+            result.polarity := fe_ide_c.polarity;
+          elsif (bit_count = fe_rrs_c.position) then
+            result.bit_type := rrs_bit;
+            result.polarity := fe_rrs_c.polarity;
+          elsif (bit_count = fe_fdf_c.position) then
+            result.bit_type := fdf_bit;
+            result.polarity := fe_fdf_c.polarity;
+          elsif (bit_count = fe_res_c.position) then
+            result.bit_type := res_bit;
+            result.polarity := fe_res_c.polarity;
+          elsif (bit_count = fe_brs_c.position) then
+            result.bit_type := brs_bit;
+            result.polarity := fe_brs_c.polarity;
+          elsif (bit_count = fe_esi_c.position) then
+            result.bit_type := esi_bit;
+            result.polarity := fe_esi_c.polarity;
+          elsif (bit_count >= fe_dlc_start_c.position and bit_count <= fe_dlc_stop_c.position) then
+            result.bit_type := dlc_bit;
+          end if;
+
+        when unknown =>
+          result.bit_type := unknown;
+      end case;
     end if;
-
-    -- =================================================================
-    -- Check static form bits
-    -- =================================================================
-    for i in static_table'range loop
-
-      if (static_table(i).position = -1) then
-        exit;
-      end if;
-
-      if (bit_count = static_table(i).position) then
-        result.is_form_bit := true;
-        result.polarity    := static_table(i).polarity;
-        return result;
-      end if;
-
-    end loop;
 
     -- =================================================================
     -- Check for fixed stuff bits in CAN FD CRC field
     -- =================================================================
-    if (is_fd_format(can_format) and bit_count >= crc_start and bit_count < ack_slot_pos) then
-      position_in_crc_field := bit_count - crc_start;
+    if (is_fd_format(mac_ser_to_fsm.frame_info.format) and bit_count >= crc_start.position and bit_count < ack_slot.position) then
+      position_in_crc_field := bit_count - crc_start.position;
       if is_fixed_stuff_bit_position(position_in_crc_field) then
-        result.is_form_bit := true;
-        result.polarity    := not previous_bit;
+        result.bit_type := fixed_stuff_bit;
+        result.polarity := recessive when previous_polarity = dominant else dominant;
         return result;
       end if;
     end if;
 
-    -- =================================================================
-    -- Check dynamic form bits: ACK, ACK delimiter, CRC delimiter, EOF
-    -- =================================================================
-    if (bit_count = crc_delim_pos) then
-      result.is_form_bit := true;
-      result.polarity    := recessive_bit_c;
-      result.brs_enable  := false;
-      return result;
-    end if;
-
-    if (bit_count = ack_slot_pos) then
-      result.is_form_bit := true;
-      result.polarity    := recessive_bit_c;
-      return result;
-    end if;
-
-    if (bit_count = ack_delim_pos) then
-      result.is_form_bit := true;
-      result.polarity    := recessive_bit_c;
-      return result;
-    end if;
-
-    if (bit_count >= eof_start_pos and bit_count < eof_end_pos + 1) then
-      result.is_form_bit := true;
-      result.polarity    := recessive_bit_c;
-      return result;
-    end if;
-
     return result;
 
-  end function tx_mac_frame_bit;
+  end function get_next_frame_bit;
 
 end package body can_pkg;
