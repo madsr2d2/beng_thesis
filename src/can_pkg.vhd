@@ -7,21 +7,22 @@ package can_pkg is
   -- =================================================================
   -- Constants
   -- =================================================================
-  constant dominant_bit_c         : std_logic                     := '0';
-  constant recessive_bit_c        : std_logic                     := '1';
-  constant max_static_form_bits_c : integer                       := 8;
-  constant sof_c                  : integer                       := 0;
-  constant crc_poly_15_vec_c      : std_logic_vector(15 downto 0) := x"C599";
-  constant crc_poly_17_vec_c      : std_logic_vector(19 downto 0) := x"3685B";
-  constant crc_poly_21_vec_c      : std_logic_vector(23 downto 0) := x"302899";
-  constant dlc_max_decimal_value  : integer                       := 15;
-  constant dlc_field_width_c      : integer                       := 4;
-  constant sbc_field_width_c      : integer                       := 4;
-  constant byte_width_c           : integer                       := 8;
-  constant max_mac_frame_length_c : integer                       := 1024; -- TODO: Can we get by with 512?
-  constant base_id_width          : integer                       := 11;
-  constant extended_id_width      : integer                       := 18;
-  constant eof_field_width_c      : integer                       := 7;
+  constant dominant_bit_c                : std_logic                     := '0';
+  constant recessive_bit_c               : std_logic                     := '1';
+  constant sof_c                         : integer                       := 0;
+  constant crc_poly_15_vec_c             : std_logic_vector(15 downto 0) := x"C599";
+  constant crc_poly_17_vec_c             : std_logic_vector(19 downto 0) := x"3685B";
+  constant crc_poly_21_vec_c             : std_logic_vector(23 downto 0) := x"302899";
+  constant dlc_max_decimal_value         : integer                       := 15;
+  constant dlc_field_width_c             : integer                       := 4;
+  constant sbc_field_width_c             : integer                       := 4;
+  constant byte_width_c                  : integer                       := 8;
+  constant max_mac_frame_length_c        : integer                       := 1024; -- TODO: Can we get by with 512?
+  constant base_id_width_c               : integer                       := 11;
+  constant extended_id_width_c           : integer                       := 18;
+  constant eof_field_width_c             : integer                       := 7;
+  constant error_flag_width_c            : integer                       := 6;
+  constant transmitted_bits_fifo_depth_c : integer                       := 32;   -- TODO:: random number...
 
   -- Polarity type
   type polarity_t is (
@@ -38,7 +39,7 @@ package can_pkg is
 
   -- CAN Classic base frame format
   constant cb_base_id_start_c : bit_t := (sof_c + 1, dominant);
-  constant cb_base_id_stop_c  : bit_t := (cb_base_id_start_c.position + base_id_width - 1, unknown);
+  constant cb_base_id_stop_c  : bit_t := (cb_base_id_start_c.position + base_id_width_c - 1, unknown);
   constant cb_rtr_c           : bit_t := (cb_base_id_stop_c.position + 1, unknown);
   constant cb_ide_c           : bit_t := (cb_rtr_c.position + 1, dominant);
   constant cb_r0_c            : bit_t := (cb_ide_c.position + 1, dominant);
@@ -48,11 +49,11 @@ package can_pkg is
 
   -- CAN Classic extended frame format
   constant ce_base_id_start_c     : bit_t := (sof_c + 1, unknown);
-  constant ce_base_id_stop_c      : bit_t := (ce_base_id_start_c.position + base_id_width - 1, unknown);
+  constant ce_base_id_stop_c      : bit_t := (ce_base_id_start_c.position + base_id_width_c - 1, unknown);
   constant ce_srr_c               : bit_t := (ce_base_id_stop_c.position + 1, recessive);
   constant ce_ide_c               : bit_t := (ce_srr_c.position + 1, recessive);
   constant ce_extended_id_start_c : bit_t := (ce_ide_c.position + 1, unknown);
-  constant ce_extended_id_stop_c  : bit_t := (ce_extended_id_start_c.position + extended_id_width - 1, unknown);
+  constant ce_extended_id_stop_c  : bit_t := (ce_extended_id_start_c.position + extended_id_width_c - 1, unknown);
   constant ce_rtr_c               : bit_t := (ce_extended_id_stop_c.position + 1, unknown);
   constant ce_r1_c                : bit_t := (ce_rtr_c.position + 1, dominant);
   constant ce_r0_c                : bit_t := (ce_r1_c.position + 1, dominant);
@@ -62,7 +63,7 @@ package can_pkg is
 
   -- FD base frame format
   constant fd_base_id_start_c : bit_t := (sof_c + 1, unknown);
-  constant fd_base_id_stop_c  : bit_t := (fd_base_id_start_c.position + base_id_width - 1, unknown);
+  constant fd_base_id_stop_c  : bit_t := (fd_base_id_start_c.position + base_id_width_c - 1, unknown);
   constant fb_rrs_c           : bit_t := (fd_base_id_stop_c.position + 1, dominant);
   constant fb_ide_c           : bit_t := (fb_rrs_c.position + 1, dominant);
   constant fb_fdf_c           : bit_t := (fb_ide_c.position + 1, recessive);
@@ -75,11 +76,11 @@ package can_pkg is
 
   -- FD extended frame format
   constant fe_base_id_start_c     : bit_t := (sof_c + 1, unknown);
-  constant fe_base_id_stop_c      : bit_t := (fe_base_id_start_c.position + base_id_width - 1, unknown);
+  constant fe_base_id_stop_c      : bit_t := (fe_base_id_start_c.position + base_id_width_c - 1, unknown);
   constant fe_srr_c               : bit_t := (fe_base_id_stop_c.position + 1, recessive);
   constant fe_ide_c               : bit_t := (fe_srr_c.position + 1, recessive);
   constant fe_extended_id_start_c : bit_t := (fe_ide_c.position + 1, unknown);
-  constant fe_extended_id_stop_c  : bit_t := (fe_extended_id_start_c.position + extended_id_width - 1, unknown);
+  constant fe_extended_id_stop_c  : bit_t := (fe_extended_id_start_c.position + extended_id_width_c - 1, unknown);
   constant fe_rrs_c               : bit_t := (fe_extended_id_stop_c.position + 1, dominant);
   constant fe_fdf_c               : bit_t := (fe_rrs_c.position + 1, recessive);
   constant fe_res_c               : bit_t := (fe_fdf_c.position + 1, dominant);
@@ -122,15 +123,14 @@ package can_pkg is
     remote_frame
   );
 
-  -- MAC frame fields
   -- CRC vector
   subtype crc_vector_t is std_logic_vector(crc_poly_21_vec_c'left downto 0);
 
   -- MAC layer TX state type
   type tx_mac_fsm_state_t is (
     idle,
-    transmitting_mac_frame,
-    transmitting_error_flag
+    transmitting,
+    error
   );
 
   -- tx_mac_ser states
@@ -163,7 +163,6 @@ package can_pkg is
   );
 
   type bit_type_t is (
-    unknown,
     -- CC bit types
     stuff_bit,
     active_error_flag_bit,
@@ -190,7 +189,9 @@ package can_pkg is
     brs_bit,
     esi_bit,
     sbs_bit,
-    fixed_stuff_bit
+    fixed_stuff_bit,
+    --
+    unknown
   );
 
   -- Ensure one_hot encoding of all FSM state types
@@ -236,16 +237,19 @@ package can_pkg is
   end record llc_frame_info_t;
 
   -- error info
-  type error_info_t is record
+  type tx_mac_error_info_t is record
     is_error   : boolean;
     error_type : tx_mac_error_t;
-  end record error_info_t;
+  end record tx_mac_error_info_t;
 
   -- Composite type for MAC frame bit info
   type mac_frame_bit_t is record
     polarity : polarity_t;
     bit_type : bit_type_t;
   end record mac_frame_bit_t;
+
+  -- Transmitted bits FIFO
+  type transmitted_bits_fifo_t is array (0 to transmitted_bits_fifo_depth_c) of mac_frame_bit_t;
 
   -- tx_mac_ser to tx_mac_fsm interface
   type tx_mac_ser_to_fsm_if_t is record
@@ -335,15 +339,6 @@ package can_pkg is
   -- Function declarations
   -- =================================================================
 
-  -- Function returns TX error_info_t
-  function is_error_tx (
-    tx_mac_fsm_state : tx_mac_fsm_state_t;
-    mac_error_flag : error_flag_t;
-    bit_type : bit_type_t;
-    sent_bit : std_logic;
-    monitored_bit : std_logic
-  ) return error_info_t;
-
   -- Function calculates the parity bit for a std_logic_vector
   function calc_parity (
     v : std_logic_vector
@@ -354,7 +349,7 @@ package can_pkg is
     v : std_logic_vector
   ) return std_logic_vector;
 
-  -- Function converts the LLC frame configuration byte (byte 0) to frame_type_t
+  -- Function converts the LLC frame configuration bytes (byte 0 to 1) to llc_frame_info_t
   function get_frame_info (
     config_byte_0 : byte_t;
     config_byte_1 : byte_t
@@ -369,8 +364,32 @@ package can_pkg is
     stuff_bit : std_logic;
     stuff_bit_valid : boolean;
     sbc : sbc_t;
+    -- From CRC module
     crc : crc_vector_t
   ) return mac_frame_bit_t;
+
+  -- Function returns error information for transmitted bits
+  function is_error_tx (
+    tx_mac_fsm_state : tx_mac_fsm_state_t;
+    mac_error_flag : error_flag_t;
+    bit_type : bit_type_t;
+    sent_bit : std_logic;
+    monitored_bit : std_logic
+  ) return tx_mac_error_info_t;
+
+  -- =====================================================================
+  -- Transmitted Bits FIFO (Shift Register)
+  -- =====================================================================
+
+  -- Initialize FIFO to empty state (all bits unknown)
+  function fifo_init return transmitted_bits_fifo_t;
+
+  -- Push a new bit into FIFO (shifts all existing bits, new bit enters at end)
+  -- Index 0 = most recent bit, Index N = bit from N cycles ago
+  procedure fifo_push (
+    fifo : inout transmitted_bits_fifo_t;
+    bit  : in    mac_frame_bit_t
+  );
 
 end package can_pkg;
 
@@ -381,14 +400,15 @@ end package can_pkg;
 package body can_pkg is
 
   function is_error_tx (
+    -- mac_frame_bit: mac_frame_bit_t;
     tx_mac_fsm_state : tx_mac_fsm_state_t;
     mac_error_flag : error_flag_t;
     bit_type : bit_type_t;
     sent_bit : std_logic;
     monitored_bit : std_logic
-  ) return error_info_t is
+  ) return tx_mac_error_info_t is
 
-    variable result : error_info_t;
+    variable result             : tx_mac_error_info_t;
     variable is_arbitration_bit : boolean;
 
   begin
@@ -407,7 +427,7 @@ package body can_pkg is
     end if;
 
     -- Exception 2: Don't check during passive error flag transmission (ISO 11898-1 6.6.21.2)
-    if ((tx_mac_fsm_state = transmitting_error_flag) and (mac_error_flag = passive_error_flag)) then
+    if ((tx_mac_fsm_state = error) and (mac_error_flag = passive_error_flag)) then
       return result;
     end if;
 
@@ -747,7 +767,7 @@ package body can_pkg is
       -- Check format-specific bits (ID, control bits) using constants directly
       case mac_ser_to_fsm.frame_info.format is
         when cc_basic =>
-          if (bit_count >= cb_base_id_start_c.position and bit_count < cb_base_id_start_c.position + base_id_width) then
+          if (bit_count >= cb_base_id_start_c.position and bit_count < cb_base_id_start_c.position + base_id_width_c) then
             result.bit_type := base_id_bit;
             result.polarity := dominant when mac_ser_to_fsm.data = dominant_bit_c else recessive;
           elsif (bit_count = cb_rtr_c.position) then
@@ -762,10 +782,10 @@ package body can_pkg is
           end if;
 
         when cc_extended =>
-          if (bit_count >= ce_base_id_start_c.position and bit_count < ce_base_id_start_c.position + base_id_width) then
+          if (bit_count >= ce_base_id_start_c.position and bit_count < ce_base_id_start_c.position + base_id_width_c) then
             result.bit_type := base_id_bit;
             result.polarity := dominant when mac_ser_to_fsm.data = dominant_bit_c else recessive;
-          elsif (bit_count >= ce_extended_id_start_c.position and bit_count < ce_extended_id_start_c.position + extended_id_width) then
+          elsif (bit_count >= ce_extended_id_start_c.position and bit_count < ce_extended_id_start_c.position + extended_id_width_c) then
             result.bit_type := extended_id_bit;
             result.polarity := dominant when mac_ser_to_fsm.data = dominant_bit_c else recessive;
           elsif (bit_count = ce_srr_c.position) then
@@ -786,7 +806,7 @@ package body can_pkg is
           end if;
 
         when fd_basic =>
-          if (bit_count >= fd_base_id_start_c.position and bit_count < fd_base_id_start_c.position + base_id_width) then
+          if (bit_count >= fd_base_id_start_c.position and bit_count < fd_base_id_start_c.position + base_id_width_c) then
             result.bit_type := base_id_bit;
             result.polarity := dominant when mac_ser_to_fsm.data = dominant_bit_c else recessive;
           elsif (bit_count = fb_rrs_c.position) then
@@ -810,10 +830,10 @@ package body can_pkg is
           end if;
 
         when fd_extended =>
-          if (bit_count >= fe_base_id_start_c.position and bit_count < fe_base_id_start_c.position + base_id_width) then
+          if (bit_count >= fe_base_id_start_c.position and bit_count < fe_base_id_start_c.position + base_id_width_c) then
             result.bit_type := base_id_bit;
             result.polarity := dominant when mac_ser_to_fsm.data = dominant_bit_c else recessive;
-          elsif (bit_count >= fe_extended_id_start_c.position and bit_count < fe_extended_id_start_c.position + extended_id_width) then
+          elsif (bit_count >= fe_extended_id_start_c.position and bit_count < fe_extended_id_start_c.position + extended_id_width_c) then
             result.bit_type := extended_id_bit;
             result.polarity := dominant when mac_ser_to_fsm.data = dominant_bit_c else recessive;
           elsif (bit_count = fe_srr_c.position) then
@@ -859,5 +879,29 @@ package body can_pkg is
     return result;
 
   end function get_next_frame_bit;
+
+  -- =====================================================================
+  -- Transmitted Bits FIFO (Shift Register) Implementations
+  -- =====================================================================
+
+  function fifo_init return transmitted_bits_fifo_t is
+    variable fifo : transmitted_bits_fifo_t;
+  begin
+    fifo := (others => (polarity => unknown, bit_type => unknown));
+    return fifo;
+  end function fifo_init;
+
+  procedure fifo_push (
+    fifo : inout transmitted_bits_fifo_t;
+    bit  : in    mac_frame_bit_t
+  ) is
+  begin
+    -- Shift all bits left (positions 1 to end move to 0 to end-1)
+    for i in 0 to fifo'high - 1 loop
+      fifo(i) := fifo(i + 1);
+    end loop;
+    -- New bit enters at the end (most recent position)
+    fifo(fifo'high) := bit;
+  end procedure fifo_push;
 
 end package body can_pkg;
