@@ -21,7 +21,7 @@ end entity mac_tx;
 architecture rtl of mac_tx is
 
   -- mac_fsm state register
-  signal mac_layer_tx_state : tx_mac_state_t;
+  signal mac_layer_tx_state : tx_mac_fsm_state_t;
 
   -- Counts the transmitted MAC frame bits - excluding stuff bits
   signal mac_frame_bit_count : integer  range 0 to  max_mac_frame_length_c;
@@ -63,23 +63,15 @@ begin
         mac_layer_tx_state             <= idle;
         mac_frame_bit_count            <= 0;
         config_reg                     <= (others => '0');
-        mac_fsm_to_bs_fd.clk           <= clk;
-        mac_fsm_to_bs_fd.rst           <= rst;
         mac_fsm_to_bs_fd.data          <= '0';
         mac_fsm_to_bs_fd.data_valid    <= '0';
-        mac_fsm_to_crc.clk             <= clk;
-        mac_fsm_to_crc.rst             <= rst;
         mac_fsm_to_crc.shift           <= '0';
         mac_fsm_to_crc.data            <= '0';
         mac_fsm_to_crc.crc_poly_select <= (others => '0');
-        mac_fam_to_sr_a.clk            <= clk;
-        mac_fam_to_sr_a.rst            <= rst;
         mac_fam_to_sr_a.load           <= '0';
         mac_fam_to_sr_a.shift          <= '0';
         mac_fam_to_sr_a.data_in        <= (others => '0');
         mac_fam_to_sr_a.serial_in      <= '0';
-        mac_fam_to_sr_b.clk            <= clk;
-        mac_fam_to_sr_b.rst            <= rst;
         mac_fam_to_sr_b.load           <= '0';
         mac_fam_to_sr_b.shift          <= '0';
         mac_fam_to_sr_b.data_in        <= (others => '0');
@@ -89,11 +81,11 @@ begin
         case mac_layer_tx_state is
 
           when idle =>
-            if (llc_i.sop = '1') then
+            if (llc_i.avalon_st_source.sop = '1') then
             -- TODO: load config reg with the first byte from the LLC layer and go to transmitting_mac_frame state
             end if;
-          when transmitting_mac_frame =>
-          when transmitting_error_flag =>
+          when transmitting =>
+          when error =>
         end case;
 
       end if;
@@ -101,28 +93,29 @@ begin
 
   end process p_mac_fsm;
 
-  bit_stuffer_fd_inst : entity work.bit_stuffer_fd
-    port map (
-      bs_fd_i => mac_fsm_to_bs_fd,
-      bs_fd_o => bs_fd_to_mac_fsm
-    );
-
-  shift_reg_a_inst : entity work.shift_reg
-    port map (
-      sr_i => mac_fam_to_sr_a,
-      sr_o => sr_a_to_mac_fsm
-    );
-
-  shift_reg_b_inst : entity work.shift_reg
-    port map (
-      sr_i => mac_fam_to_sr_b,
-      sr_o => sr_b_to_mac_fsm
-    );
-
-  crc_fd_inst : entity work.crc_fd
-    port map (
-      crc_i => mac_fsm_to_crc,
-      crc_o => crc_to_mac_fsm
-    );
+-- TODO: Uncomment when modules are implemented
+-- bit_stuffer_fd_inst : entity work.bit_stuffer_fd
+--   port map (
+--     bs_fd_i => mac_fsm_to_bs_fd,
+--     bs_fd_o => bs_fd_to_mac_fsm
+--   );
+--
+-- shift_reg_a_inst : entity work.shift_reg
+--   port map (
+--     sr_i => mac_fam_to_sr_a,
+--     sr_o => sr_a_to_mac_fsm
+--   );
+--
+-- shift_reg_b_inst : entity work.shift_reg
+--   port map (
+--     sr_i => mac_fam_to_sr_b,
+--     sr_o => sr_b_to_mac_fsm
+--   );
+--
+-- crc_fd_inst : entity work.crc_fd
+--   port map (
+--     crc_i => mac_fsm_to_crc,
+--     crc_o => crc_to_mac_fsm
+--   );
 
 end architecture rtl;

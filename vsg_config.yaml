@@ -60,3 +60,20 @@ rule:
   # case_010: Insert blank line below end case
   case_010:
     disable: true
+
+  # procedure_200: Insert blank line above procedure declaration
+  procedure_200:
+    disable: true
+
+  # if_007: Remove blank line(s) before elsif
+  if_007:
+    disable: true
+
+  # if_010: Remove blank line(s) before else
+  if_010:
+    disable: true
+
+  # if_008: Remove blank line(s) before end if
+  if_008:
+    disable: true
+

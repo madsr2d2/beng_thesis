@@ -42,6 +42,9 @@ GHDL_SIM_OPT = --stop-time=$(STOP_TIME)
 GHWFILE = ${SIMDIR}/${TESTBENCHFILE}.ghw
 VCDFILE = ${SIMDIR}/${TESTBENCHFILE}.vcd
 
+GTKWAVE_DIR = gtk_wave
+GTKWFILE = ${GTKWAVE_DIR}/${TESTBENCHFILE}.gtkw
+
 WAVEFORM_VIEWER = gtkwave
 
 .PHONY: all compile run view clean
@@ -70,7 +73,12 @@ run:
 	@echo "Simulation finished. Waveform saved to $(GHWFILE)"
 
 view:
-	@$(WAVEFORM_VIEWER) $(GHWFILE) &
+	@if [ -f "$(GTKWFILE)" ]; then \
+		$(WAVEFORM_VIEWER) $(GHWFILE) $(GTKWFILE) & \
+	else \
+		echo "Warning: GTKWave config file not found at $(GTKWFILE)"; \
+		$(WAVEFORM_VIEWER) $(GHWFILE) & \
+	fi
 
 clean:
 	@rm -rf $(SIMDIR) OsvvmTemp_GHDL

@@ -1,0 +1,11 @@
+v 4
+file . "src/tx_mac_ser.vhd" "e51c5d1f0820ec511e22320645848c1c0ec70268" "20260209150251.503":
+  entity tx_mac_ser at 1( 0) + 0 on 13;
+  architecture rtl of tx_mac_ser at 21( 428) + 0 on 14;
+file . "src/can_pkg.vhd" "686051aa26a70b1b40dbc4e9a690e4cde8b22419" "20260211090345.958":
+  package can_pkg at 1( 0) + 0 on 24 body;
+  package body can_pkg at 400( 14445) + 0 on 25;
+file . "src/can_pkg_tb.vhd" "e454e8600fa104b8aefab772162227a8a3b050bc" "20260211090345.961":
+  package can_pkg_tb_pkg at 1( 0) + 0 on 26;
+  entity can_pkg_tb at 11( 178) + 0 on 27;
+  architecture tb of can_pkg_tb at 19( 321) + 0 on 28;

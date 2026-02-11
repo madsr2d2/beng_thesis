@@ -1,8 +1,0 @@
-INFO: [VRFC 10-163] Analyzing VHDL file "/home/madsr2d2/beng_thesis/src/can_pkg.vhd" into library xil_defaultlib
-INFO: [VRFC 10-163] Analyzing VHDL file "/home/madsr2d2/beng_thesis/src/tx_mac_llc_ctrl.vhd" into library xil_defaultlib
-INFO: [VRFC 10-3107] analyzing entity 'tx_mac_llc_ctrl'
-INFO: [VRFC 10-163] Analyzing VHDL file "/home/madsr2d2/beng_thesis/src/tx_mac_llc_ctrl_tb.vhd" into library xil_defaultlib
-ERROR: [VRFC 10-3728] suffix 'osvvmcontext' in the context reference does not denote a context declaration [/home/madsr2d2/beng_thesis/src/tx_mac_llc_ctrl_tb.vhd:6]
-INFO: [VRFC 10-3107] analyzing entity 'tx_mac_llc_ctrl_tb'
-ERROR: [VRFC 10-9458] unit 'tx_mac_llc_ctrl_tb' is ignored due to previous errors [/home/madsr2d2/beng_thesis/src/tx_mac_llc_ctrl_tb.vhd:9]
-INFO: [VRFC 10-8704] VHDL file '/home/madsr2d2/beng_thesis/src/tx_mac_llc_ctrl_tb.vhd' is ignored due to errors

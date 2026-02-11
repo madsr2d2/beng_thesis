@@ -21,7 +21,7 @@ architecture rtl of bit_stuffer_fd is
 begin
 
   -- Encodes the stuff bit count in Gray code with parity bit
-  p_stuff_bit_count_encode : process (bs_fd_i.clk) is
+  p_stuff_bit_count_encode : process (clk_i) is
 
     variable v_gray_bits  : std_logic_vector(2 downto 0);
     variable v_parity_bit : std_logic;
@@ -54,8 +54,8 @@ begin
   -- Bit stuffer FSM
   u_bit_stuffer : entity work.bit_stuffer
     port map (
-      clk               => bs_fd_i.clk,
-      rst               => bs_fd_i.rst,
+      clk               => clk_i,
+      rst               => rst_i,
       data_i            => bs_fd_i.data,
       valid_i           => bs_fd_i.data_valid,
       stuff_bit_o       => bs_fd_o.stuff_bit,
