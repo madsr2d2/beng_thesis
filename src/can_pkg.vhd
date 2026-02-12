@@ -231,6 +231,35 @@ package can_pkg is
     ready           : std_logic;         -- FSM ready to accept next bit/byte
   end record tx_mac_fsm_to_ser_if_t;
 
+  -- Frame-specific cached parameters (calculated once per frame)
+  type frame_params_t is record
+    format           : can_format_t;  -- CC_BASIC, CC_EXT, FD_BASIC, FD_EXT
+    dlc              : dlc_t;         -- Data Length Code (0-15)
+    data_start       : integer;       -- Position where data field starts
+    data_length      : integer;       -- Number of data bits
+    crc_start        : integer;       -- Position where CRC field starts
+    crc_length       : integer;       -- CRC field length (15, 17, or 21)
+    crc_delim_start  : integer;       -- CRC delimiter position
+    ack_start        : integer;       -- ACK field start
+    is_fd_frame      : boolean;       -- FD format flag
+    has_brs          : boolean;       -- Bit rate switch enabled
+    is_remote_frame  : boolean;       -- Remote frame flag
+  end record frame_params_t;
+
+  constant frame_params_reset_c : frame_params_t := (
+    format => unknown,
+    dlc => 0,
+    data_start => 0,
+    data_length => 0,
+    crc_start => 0,
+    crc_length => 0,
+    crc_delim_start => 0,
+    ack_start => 0,
+    is_fd_frame => false,
+    has_brs => false,
+    is_remote_frame => false
+  );
+
   type llc_to_mac_if_t is record
     avalon_st_source : avalon_st_source_t;
   end record llc_to_mac_if_t;
@@ -414,6 +443,8 @@ package can_pkg is
     -- From tx_mac_ser
     mac_ser_to_fsm : tx_mac_ser_to_fsm_if_t;
     previous_polarity : polarity_t;
+    -- Cached frame parameters
+    frame_params : frame_params_t;
     -- From bit stuffer
     stuff_bit_polarity : polarity_t;
     stuff_bit_valid : boolean;
@@ -449,6 +480,13 @@ package can_pkg is
     phase_seg2_fd : integer;
     pcs_to_pma_propagation_delay_ns : integer
   ) return boolean;
+
+  -- Calculate all frame-specific parameters once per frame
+  -- Avoids redundant calculations on every bit transmission
+  function calculate_frame_params (
+    config_byte_0 : byte_t;
+    config_byte_1 : byte_t
+  ) return frame_params_t;
 
 end package can_pkg;
 
@@ -737,6 +775,7 @@ package body can_pkg is
     bit_count    : position_t;
     mac_ser_to_fsm : tx_mac_ser_to_fsm_if_t;
     previous_polarity : polarity_t;
+    frame_params : frame_params_t;  -- Cached frame parameters (calculated once per frame)
     -- From bit stuffer
     stuff_bit_polarity : polarity_t;
     stuff_bit_valid : boolean;
@@ -1051,6 +1090,54 @@ package body can_pkg is
     fifo(0) := bit;
 
   end procedure fifo_push;
+
+  -- Calculate all frame-specific parameters once per frame
+  -- Avoids redundant calculations on every bit transmission
+  function calculate_frame_params (
+    config_byte_0 : byte_t;
+    config_byte_1 : byte_t
+  ) return frame_params_t is
+    variable result : frame_params_t;
+    variable frame_info : llc_frame_info_t;
+    variable data_length_v : integer;
+    variable data_start_v : position_t;
+  begin
+    -- Get frame info (format, DLC, flags)
+    frame_info := get_frame_info(config_byte_0, config_byte_1);
+
+    result.format := frame_info.format;
+    result.dlc := frame_info.dlc;
+    result.is_fd_frame := is_fd_format(frame_info.format);
+    result.has_brs := frame_info.brs_enable;
+    result.is_remote_frame := (frame_info.ftyp = remote_frame);
+
+    -- Calculate data length from DLC
+    data_length_v := dlc_to_data_length(frame_info.dlc, frame_info.format);
+    result.data_length := data_length_v;
+
+    -- Determine data start position based on format
+    case frame_info.format is
+      when cc_basic =>
+        data_start_v := cb_data_start_c.position;
+      when cc_extended =>
+        data_start_v := ce_data_start_c.position;
+      when fd_basic =>
+        data_start_v := fb_data_start_c.position;
+      when fd_extended =>
+        data_start_v := fe_data_start_c.position;
+      when others =>
+        data_start_v := 0;
+    end case;
+
+    -- Calculate field positions (only once per frame!)
+    result.data_start := data_start_v;
+    result.crc_start := result.data_start + data_length_v;
+    result.crc_length := get_crc_length(frame_info.format, data_length_v);
+    result.crc_delim_start := result.crc_start + result.crc_length;
+    result.ack_start := result.crc_delim_start + 1;
+
+    return result;
+  end function calculate_frame_params;
 
   function should_use_tdc (
     system_clock_freq : integer;

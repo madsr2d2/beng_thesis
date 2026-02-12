@@ -30,6 +30,9 @@ architecture rtl of tx_mac_ser is
   signal config_byte_reg_0 : byte_t;
   -- Config byte 1: DLC[7:4]
   signal config_byte_reg_1 : byte_t;
+  -- Cached frame parameters (calculated once per frame, reduces redundant calculations)
+  signal frame_params_reg : frame_params_t;
+  signal params_valid : std_logic;
 
 begin
 
@@ -48,6 +51,8 @@ begin
         tx_mac_fsm_o.valid         <= '0';
         state_reg                  <= load_config_byte_0;
         count                      <= llc_frame_buffer'left;
+        frame_params_reg           <= frame_params_reset_c;
+        params_valid               <= '0';
       else
         -- Defaults
         llc_o.avalon_st_sink.ready <= '0';
@@ -55,6 +60,8 @@ begin
         llc_o.transfer_status      <= tx_mac_fsm_i.transfer_status;
         tx_mac_fsm_o.frame_info    <= get_frame_info(config_byte_reg_0, config_byte_reg_1);
         state_reg                  <= state_reg;
+        frame_params_reg           <= frame_params_reg;
+        params_valid               <= params_valid;
 
         -- FSM
         case state_reg is
@@ -72,6 +79,9 @@ begin
             llc_o.avalon_st_sink.ready <= '1';
             if (llc_i.avalon_st_source.valid = '1' and llc_i.avalon_st_source.sop = '0') then
               config_byte_reg_1 <= llc_i.avalon_st_source.data;
+              -- Calculate frame parameters once (cached for all bits in this frame)
+              frame_params_reg  <= calculate_frame_params(config_byte_reg_0, llc_i.avalon_st_source.data);
+              params_valid      <= '1';
               state_reg         <= load_llc_frame_byte;
             end if;
 
@@ -90,8 +100,9 @@ begin
           when shift_out_bits =>
             -- Exit on transfer status change
             if (tx_mac_fsm_i.transfer_status /= ongoing) then
-              state_reg <= load_config_byte_0;
-              count     <= llc_frame_buffer'left;
+              state_reg    <= load_config_byte_0;
+              count        <= llc_frame_buffer'left;
+              params_valid <= '0';
             -- Output next bit when tx_mac_fsm is ready
             elsif (tx_mac_fsm_i.ready = '1') then
               if (count = 0) then
