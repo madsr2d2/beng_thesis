@@ -90,6 +90,8 @@ begin
             end if;
 
           when shift_out_bits =>
+            -- Not ready for LLC bytes while shifting bits (Avalon-ST protocol)
+            llc_o.avalon_st_sink.ready <= '0';
             -- Exit on transfer status change
             if (tx_mac_fsm_i.transfer_status /= ongoing) then
               state_reg <= load_config_byte_0;
