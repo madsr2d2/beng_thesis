@@ -11,6 +11,7 @@ architecture tb of get_next_mac_frame_bit_tb is
 begin
 
   test_process : process is
+
     variable config_byte_0   : byte_t;
     variable config_byte_1   : byte_t;
     variable frame_params    : frame_params_t;
@@ -19,14 +20,9 @@ begin
     variable crc_vec         : crc_vector_t;
     variable sbc_vec         : sbc_t;
     variable prev_polarity   : polarity_t;
-    variable bit_count       : position_t;
     variable test_count      : integer;
     variable pass_count      : integer;
-    variable format_name     : string(1 to 20);
     variable dlc_idx         : integer;
-    variable expected_bits   : integer;
-    variable prev_bit_name   : mac_frame_bit_name_t;
-    variable stuff_bit_valid : boolean;
 
   begin
 
@@ -59,8 +55,8 @@ begin
 
       -- Setup interface
       mac_ser_to_fsm.frame_params := frame_params;
-      mac_ser_to_fsm.data := dominant;
-      prev_polarity := dominant;
+      mac_ser_to_fsm.data         := dominant;
+      prev_polarity               := dominant;
 
       -- Verify key positions for CC Basic frame
       -- Position 0 should be SOF
@@ -88,6 +84,7 @@ begin
 
       pass_count := pass_count + 1;
     end loop;
+
     report "PASS: CC Basic format frame structure verified for all DLC (0-8)";
 
     -- =====================================================================
@@ -104,7 +101,7 @@ begin
       config_byte_0 := x"00";
       config_byte_1 := std_logic_vector(to_unsigned(dlc_idx, 4)) & "0000";
 
-      frame_params := calculate_frame_params(config_byte_0, config_byte_1);
+      frame_params                := calculate_frame_params(config_byte_0, config_byte_1);
       mac_ser_to_fsm.frame_params := frame_params;
 
       -- SOF at position 0
@@ -127,6 +124,7 @@ begin
 
       pass_count := pass_count + 1;
     end loop;
+
     report "PASS: CC Extended format frame structure verified for all DLC (0-8)";
 
     -- =====================================================================
@@ -143,7 +141,7 @@ begin
       config_byte_0 := x"C0";
       config_byte_1 := std_logic_vector(to_unsigned(dlc_idx, 4)) & "0000";
 
-      frame_params := calculate_frame_params(config_byte_0, config_byte_1);
+      frame_params                := calculate_frame_params(config_byte_0, config_byte_1);
       mac_ser_to_fsm.frame_params := frame_params;
 
       -- SOF at position 0
@@ -169,6 +167,7 @@ begin
 
       pass_count := pass_count + 1;
     end loop;
+
     report "PASS: FD Basic format frame structure verified for all DLC (0-15)";
 
     -- =====================================================================
@@ -185,7 +184,7 @@ begin
       config_byte_0 := x"E0";
       config_byte_1 := std_logic_vector(to_unsigned(dlc_idx, 4)) & "0000";
 
-      frame_params := calculate_frame_params(config_byte_0, config_byte_1);
+      frame_params                := calculate_frame_params(config_byte_0, config_byte_1);
       mac_ser_to_fsm.frame_params := frame_params;
 
       -- SOF at position 0
@@ -201,6 +200,7 @@ begin
 
       pass_count := pass_count + 1;
     end loop;
+
     report "PASS: FD Extended format frame structure verified for all DLC (0-15)";
 
     -- =====================================================================
@@ -213,9 +213,9 @@ begin
     test_count := test_count + 1;
 
     -- Test with CC Basic, DLC=8
-    config_byte_0 := x"28";
-    config_byte_1 := x"80";
-    frame_params := calculate_frame_params(config_byte_0, config_byte_1);
+    config_byte_0               := x"28";
+    config_byte_1               := x"80";
+    frame_params                := calculate_frame_params(config_byte_0, config_byte_1);
     mac_ser_to_fsm.frame_params := frame_params;
 
     -- Verify DLC field is within expected range
@@ -259,9 +259,9 @@ begin
     test_count := test_count + 1;
 
     -- Test FD with BRS enabled
-    config_byte_0 := x"E4";  -- FORMAT=111, BRS=1
-    config_byte_1 := x"80";
-    frame_params := calculate_frame_params(config_byte_0, config_byte_1);
+    config_byte_0               := x"E4";                                                                         -- FORMAT=111, BRS=1
+    config_byte_1               := x"80";
+    frame_params                := calculate_frame_params(config_byte_0, config_byte_1);
     mac_ser_to_fsm.frame_params := frame_params;
 
     assert frame_params.has_brs = true
@@ -278,9 +278,9 @@ begin
     test_count := test_count + 1;
 
     -- Test FD with ESI enabled
-    config_byte_0 := x"E8";  -- FORMAT=111, ESI=1
-    config_byte_1 := x"80";
-    frame_params := calculate_frame_params(config_byte_0, config_byte_1);
+    config_byte_0               := x"E8";                                                                         -- FORMAT=111, ESI=1
+    config_byte_1               := x"80";
+    frame_params                := calculate_frame_params(config_byte_0, config_byte_1);
     mac_ser_to_fsm.frame_params := frame_params;
 
     assert frame_params.esi_enable = true
@@ -297,9 +297,9 @@ begin
     test_count := test_count + 1;
 
     -- Test with remote frame
-    config_byte_0 := x"30";  -- FORMAT=001, FTYP=1 (remote)
-    config_byte_1 := x"80";
-    frame_params := calculate_frame_params(config_byte_0, config_byte_1);
+    config_byte_0               := x"30";                                                                         -- FORMAT=001, FTYP=1 (remote)
+    config_byte_1               := x"80";
+    frame_params                := calculate_frame_params(config_byte_0, config_byte_1);
     mac_ser_to_fsm.frame_params := frame_params;
 
     assert frame_params.is_remote_frame = true
