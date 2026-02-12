@@ -1056,10 +1056,10 @@ package body can_pkg is
   begin
     -- Extract frame format from config_byte_0[7:5]
     case config_byte_0(llc_frame_config_byte_0_format_start downto llc_frame_config_byte_0_format_end) is
-      when "000" => result.format := cc_basic;
-      when "100" => result.format := cc_extended;
-      when "010" => result.format := fd_basic;
-      when "110" => result.format := fd_extended;
+      when "001" => result.format := cc_basic;
+      when "000" => result.format := cc_extended;
+      when "110" => result.format := fd_basic;
+      when "111" => result.format := fd_extended;
       when others => result.format := unknown;
     end case;
 
