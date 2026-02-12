@@ -224,6 +224,7 @@ package can_pkg is
     crc_field_length    : integer;
     crc_delimiter_pos   : position_t;
     sbc_start           : position_t;
+    sbc_stop            : position_t;
 
     -- ACK and EOF fields
     ack_slot            : position_t;
@@ -289,6 +290,7 @@ package can_pkg is
     crc_field_length => 0,
     crc_delimiter_pos => 0,
     sbc_start => 0,
+    sbc_stop => 0,
     ack_slot => 0,
     ack_delimiter => 0,
     eof_start => 0,
@@ -852,7 +854,7 @@ package body can_pkg is
         end if;
       end if;
       -- If not a fixed stuff bit, extract CRC or SBC bit
-      if (mac_ser_to_fsm.frame_params.is_fd_frame and bit_count >= mac_ser_to_fsm.frame_params.sbc_start and bit_count < mac_ser_to_fsm.frame_params.sbc_start + sbc_field_width_c) then
+      if (mac_ser_to_fsm.frame_params.is_fd_frame and bit_count >= mac_ser_to_fsm.frame_params.sbc_start and bit_count < mac_ser_to_fsm.frame_params.sbc_stop) then
         result_v.bit_name := sbs_bit;
         result_v.polarity := bit_to_polarity(sbc(sbc'left - (bit_count - mac_ser_to_fsm.frame_params.sbc_start)));
       else
@@ -1064,11 +1066,13 @@ package body can_pkg is
     if (result.is_fd_frame) then
       sbc_start_v := result.crc_start;
       result.sbc_start := sbc_start_v;
-      result.crc_start := sbc_start_v + sbc_field_width_c;
+      result.sbc_stop := sbc_start_v + sbc_field_width_c;
+      result.crc_start := result.sbc_stop;
       fixed_stuff_count_v := get_fixed_stuff_bit_count(sbc_field_width_c + crc_length_v);
       crc_field_length_v := crc_length_v + fixed_stuff_count_v;
     else
       result.sbc_start := 0;
+      result.sbc_stop := 0;
       crc_field_length_v := crc_length_v;
     end if;
 
