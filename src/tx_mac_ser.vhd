@@ -61,7 +61,6 @@ begin
 
           when load_config_byte_0 =>
             -- Config byte 0: wait for valid data with SOP='1'
-            -- FSM manages ready signal based on its state
             llc_o.avalon_st_sink.ready <= '1';
             if (llc_i.avalon_st_source.valid = '1' and llc_i.avalon_st_source.sop = '1') then
               config_byte_reg_0 <= llc_i.avalon_st_source.data;
@@ -70,7 +69,6 @@ begin
 
           when load_config_byte_1 =>
             -- Config byte 1: wait for valid data with SOP='0'
-            -- FSM manages ready signal based on its state
             llc_o.avalon_st_sink.ready <= '1';
             if (llc_i.avalon_st_source.valid = '1' and llc_i.avalon_st_source.sop = '0') then
               config_byte_reg_1 <= llc_i.avalon_st_source.data;
@@ -79,7 +77,6 @@ begin
 
           when load_llc_frame_byte =>
             -- Data byte: wait for valid data with SOP='0'
-            -- FSM manages ready signal based on its state
             llc_o.avalon_st_sink.ready <= '1';
             -- Load byte and output MSB immediately (no wasted cycle)
             if (llc_i.avalon_st_source.valid = '1' and llc_i.avalon_st_source.sop = '0') then
@@ -90,8 +87,6 @@ begin
             end if;
 
           when shift_out_bits =>
-            -- Not ready for LLC bytes while shifting bits (Avalon-ST protocol)
-            llc_o.avalon_st_sink.ready <= '0';
             -- Exit on transfer status change
             if (tx_mac_fsm_i.transfer_status /= ongoing) then
               state_reg <= load_config_byte_0;
