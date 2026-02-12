@@ -27,6 +27,22 @@ package can_pkg is
   constant transmitted_bits_fifo_depth_c : integer                       := 32;   -- TODO:: random number...
   constant dlc_max_decimal_value         : integer                       := 15;
   constant max_data_bytes_c              : integer                       := 64;
+  constant tdc_bit_time_max_c            : integer                       := 1000; -- ISO 11898-1: 7.3.4
+
+  -- =================================================================
+  -- CAN FD Bit Timing Configuration (Table 13, ISO 11898-1)
+  -- =================================================================
+  constant system_clock_freq_c : integer                := 100_000_000; -- 100 MHz
+  constant prescalar_c         : integer range 1 to 32  := 1;
+  constant sync_seg_c          : integer                := 1;
+  constant prop_seg_c          : integer range 1 to 384 := 8;
+  constant prop_seg_fd_c       : integer range 1 to 128 := 4;
+  constant phase_seg1_c        : integer range 1 to 128 := 4;
+  constant phase_seg1_fd_c     : integer range 1 to 128 := 4;
+  constant phase_seg2_c        : integer range 1 to 128 := 4;
+  constant phase_seg2_fd_c     : integer range 1 to 128 := 4;
+  constant sjw_c               : integer range 1 to 128 := 4;
+  constant ssp_offset_c        : integer range 1 to 160 := 160;
 
   -- =================================================================
   -- Type declarations
@@ -422,6 +438,17 @@ package can_pkg is
     fifo : inout transmitted_bits_fifo_t;
     bit  : in    mac_frame_bit_t
   );
+
+  -- Determine if Transmitter Delay Compensation should be used (ISO 11898-1: 7.3.4)
+  function should_use_tdc (
+    system_clock_freq : integer;
+    prescalar : integer;
+    sync_seg : integer;
+    prop_seg_fd : integer;
+    phase_seg1_fd : integer;
+    phase_seg2_fd : integer;
+    pcs_to_pma_propagation_delay_ns : integer
+  ) return boolean;
 
 end package can_pkg;
 
@@ -1024,5 +1051,42 @@ package body can_pkg is
     fifo(0) := bit;
 
   end procedure fifo_push;
+
+  function should_use_tdc (
+    system_clock_freq : integer;
+    prescalar : integer;
+    sync_seg : integer;
+    prop_seg_fd : integer;
+    phase_seg1_fd : integer;
+    phase_seg2_fd : integer;
+    pcs_to_pma_propagation_delay_ns : integer
+  ) return boolean is
+
+    variable bit_time_tq   : integer;
+    variable early_bits_tq : integer;
+    variable tq_period_ns  : integer;
+
+  begin
+
+    -- Calculate time quantum counts (in clock periods)
+    bit_time_tq   := (sync_seg + prop_seg_fd + phase_seg1_fd + phase_seg2_fd) * prescalar;
+    early_bits_tq := (sync_seg + prop_seg_fd + phase_seg1_fd) * prescalar;
+
+    -- Calculate nanoseconds per time quantum: tq_ns = 1_000_000_000 / system_clock_freq
+    tq_period_ns := 1_000_000_000 / system_clock_freq;
+
+    -- Condition 1: SHOULD use TDC if bit_time <= tdc_bit_time_max_c (ISO 11898-1: 7.3.4)
+    if (bit_time_tq * tq_period_ns <= tdc_bit_time_max_c) then
+      return true;
+    end if;
+
+    -- Condition 2: NEEDS use TDC if early phase < pcs_to_pma_propagation_delay_ns
+    if (early_bits_tq * tq_period_ns < pcs_to_pma_propagation_delay_ns) then
+      return true;
+    end if;
+
+    return false;
+
+  end function should_use_tdc;
 
 end package body can_pkg;

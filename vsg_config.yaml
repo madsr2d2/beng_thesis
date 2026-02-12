@@ -14,8 +14,8 @@ rule:
     disable: true
 
   # instantiation_036: Add architecture identifier to entity instantiation
-  instantiation_036:
-    disable: true
+  # instantiation_036:
+  #   disable: true
 
   # loop_statement_201: Insert blank line below loop statement (e.g., after "for")
   loop_statement_201:

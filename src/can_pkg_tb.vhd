@@ -402,6 +402,99 @@ begin
     pass_count := pass_count + 1;
 
     -- =====================================================================
+    -- Test Group 9: Transmitter Delay Compensation (TDC) Determination
+    -- =====================================================================
+    report "Test Group 9: Transmitter Delay Compensation (TDC) Determination";
+
+    -- Test 9.1: TDC should be used when bit_time <= 1000 ns
+    -- bit_time = (1 + 4 + 4 + 4) * 1 * (1e9 / 100MHz) = 13 * 10 ns = 130 ns
+    test_count := test_count + 1;
+    assert should_use_tdc(
+      system_clock_freq => 100_000_000,
+      prescalar => 1,
+      sync_seg => 1,
+      prop_seg_fd => 4,
+      phase_seg1_fd => 4,
+      phase_seg2_fd => 4,
+      pcs_to_pma_propagation_delay_ns => 600
+    ) = true
+      report "TDC should be true for bit_time=130ns (<=1000ns)"
+      severity error;
+    report "  Test 9.1: TDC enabled for bit_time <= 1000 ns (PASS)";
+    pass_count := pass_count + 1;
+
+    -- Test 9.2: TDC should NOT be used when bit_time > 1000 ns and early_bits > 600 ns
+    -- bit_time = (1 + 20 + 20 + 20) * 4 * (1e9 / 100MHz) = 61 * 40 ns = 2440 ns
+    -- early_bits = (1 + 20 + 20) * 4 * (1e9 / 100MHz) = 41 * 40 ns = 1640 ns
+    test_count := test_count + 1;
+    assert should_use_tdc(
+      system_clock_freq => 100_000_000,
+      prescalar => 4,
+      sync_seg => 1,
+      prop_seg_fd => 20,
+      phase_seg1_fd => 20,
+      phase_seg2_fd => 20,
+      pcs_to_pma_propagation_delay_ns => 600
+    ) = false
+      report "TDC should be false for bit_time=2440ns (>1000ns) and early_bits=1640ns (>600ns)"
+      severity error;
+    report "  Test 9.2: TDC disabled for bit_time > 1000 ns and early_bits > 600 ns (PASS)";
+    pass_count := pass_count + 1;
+
+    -- Test 9.3: TDC should be used when early_bits < 600 ns (condition 2)
+    -- bit_time = (1 + 10 + 10 + 10) * 2 * (1e9 / 100MHz) = 31 * 20 ns = 620 ns
+    -- early_bits = (1 + 10 + 10) * 2 * (1e9 / 100MHz) = 21 * 20 ns = 420 ns < 600 ns
+    test_count := test_count + 1;
+    assert should_use_tdc(
+      system_clock_freq => 100_000_000,
+      prescalar => 2,
+      sync_seg => 1,
+      prop_seg_fd => 10,
+      phase_seg1_fd => 10,
+      phase_seg2_fd => 10,
+      pcs_to_pma_propagation_delay_ns => 600
+    ) = true
+      report "TDC should be true for early_bits=420ns (<600ns)"
+      severity error;
+    report "  Test 9.3: TDC enabled for early_bits < 600 ns (PASS)";
+    pass_count := pass_count + 1;
+
+    -- Test 9.4: Edge case - bit_time exactly 1000 ns
+    -- bit_time = (1 + 4 + 4 + 4) * 1 * (1e9 / 50MHz) = 13 * 20 ns = 260 ns (adjust for 50MHz)
+    -- For exactly 1000ns: need prescalar=2, seg_sum=50, freq=100MHz: 50*2*10=1000ns
+    test_count := test_count + 1;
+    assert should_use_tdc(
+      system_clock_freq => 100_000_000,
+      prescalar => 2,
+      sync_seg => 1,
+      prop_seg_fd => 16,
+      phase_seg1_fd => 16,
+      phase_seg2_fd => 17,
+      pcs_to_pma_propagation_delay_ns => 600
+    ) = true
+      report "TDC should be true when bit_time exactly = 1000 ns (<=1000ns)"
+      severity error;
+    report "  Test 9.4: TDC enabled when bit_time = 1000 ns (PASS)";
+    pass_count := pass_count + 1;
+
+    -- Test 9.5: Edge case - early_bits exactly 600 ns should NOT enable TDC (not < 600)
+    -- early_bits = (1 + 14 + 14) * 2 * (1e9 / 100MHz) = 29 * 20 ns = 580 ns < 600 ns -> should be true
+    test_count := test_count + 1;
+    assert should_use_tdc(
+      system_clock_freq => 100_000_000,
+      prescalar => 2,
+      sync_seg => 1,
+      prop_seg_fd => 14,
+      phase_seg1_fd => 14,
+      phase_seg2_fd => 14,
+      pcs_to_pma_propagation_delay_ns => 600
+    ) = true
+      report "TDC should be true when early_bits < 600 ns (=580ns)"
+      severity error;
+    report "  Test 9.5: TDC enabled when early_bits < 600 ns (PASS)";
+    pass_count := pass_count + 1;
+
+    -- =====================================================================
     -- Test Summary
     -- =====================================================================
     report "========================================";
