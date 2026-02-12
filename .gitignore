@@ -1,0 +1,40 @@
+# Project instructions (local only)
+CLAUDE.md
+
+# Simulation and build artifacts
+sim/
+work-obj*.cf
+*.o
+*.cf
+
+# GHDL output
+*.ghw
+*.vcd
+*.wave
+
+# GTKWave
+*.gtkw.bak
+
+# Mermaid rendering
+diagram.png
+*.html
+
+# Build artifacts
+OsvvmTemp_GHDL/
+
+# Editor files
+*.swp
+*.swo
+*~
+.DS_Store
+.vscode/
+.idea/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Temporary files
+*.tmp
+*.log
