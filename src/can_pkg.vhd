@@ -206,6 +206,22 @@ package can_pkg is
   -- Transmitted bits FIFO
   type transmitted_bits_fifo_t is array (transmitted_bits_fifo_depth_c - 1 downto 0) of mac_frame_bit_t;
 
+  -- Frame-specific cached parameters (calculated once per frame)
+  -- Defined here so interfaces can use it
+  type frame_params_t is record
+    format           : can_format_t;  -- CC_BASIC, CC_EXT, FD_BASIC, FD_EXT
+    dlc              : dlc_t;         -- Data Length Code (0-15)
+    data_start       : integer;       -- Position where data field starts
+    data_length      : integer;       -- Number of data bits
+    crc_start        : integer;       -- Position where CRC field starts
+    crc_length       : integer;       -- CRC field length (15, 17, or 21)
+    crc_delim_start  : integer;       -- CRC delimiter position
+    ack_start        : integer;       -- ACK field start
+    is_fd_frame      : boolean;       -- FD format flag
+    has_brs          : boolean;       -- Bit rate switch enabled
+    is_remote_frame  : boolean;       -- Remote frame flag
+  end record frame_params_t;
+
   -- =================================================================
   -- Interface types
   -- =================================================================
@@ -221,30 +237,17 @@ package can_pkg is
   end record avalon_st_sink_t;
 
   type tx_mac_ser_to_fsm_if_t is record
-    data       : polarity_t;       -- CAN polarity (MAC domain)
-    valid      : std_logic;        -- Data valid signal
-    frame_info : llc_frame_info_t; -- Frame configuration from LLC
+    data           : polarity_t;         -- CAN polarity (MAC domain)
+    valid          : std_logic;          -- Data valid signal
+    frame_info     : llc_frame_info_t;   -- Frame configuration from LLC
+    frame_params   : frame_params_t;     -- Cached frame parameters (no recalculation needed)
+    params_valid   : std_logic;          -- Frame params valid flag
   end record tx_mac_ser_to_fsm_if_t;
 
   type tx_mac_fsm_to_ser_if_t is record
     transfer_status : transfer_status_t; -- Transfer status (ongoing/transmitted/error)
     ready           : std_logic;         -- FSM ready to accept next bit/byte
   end record tx_mac_fsm_to_ser_if_t;
-
-  -- Frame-specific cached parameters (calculated once per frame)
-  type frame_params_t is record
-    format           : can_format_t;  -- CC_BASIC, CC_EXT, FD_BASIC, FD_EXT
-    dlc              : dlc_t;         -- Data Length Code (0-15)
-    data_start       : integer;       -- Position where data field starts
-    data_length      : integer;       -- Number of data bits
-    crc_start        : integer;       -- Position where CRC field starts
-    crc_length       : integer;       -- CRC field length (15, 17, or 21)
-    crc_delim_start  : integer;       -- CRC delimiter position
-    ack_start        : integer;       -- ACK field start
-    is_fd_frame      : boolean;       -- FD format flag
-    has_brs          : boolean;       -- Bit rate switch enabled
-    is_remote_frame  : boolean;       -- Remote frame flag
-  end record frame_params_t;
 
   constant frame_params_reset_c : frame_params_t := (
     format => unknown,

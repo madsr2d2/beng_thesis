@@ -49,6 +49,8 @@ begin
         llc_frame_buffer           <= (others => '0');
         tx_mac_fsm_o.data          <= dominant;
         tx_mac_fsm_o.valid         <= '0';
+        tx_mac_fsm_o.frame_params  <= frame_params_reset_c;
+        tx_mac_fsm_o.params_valid  <= '0';
         state_reg                  <= load_config_byte_0;
         count                      <= llc_frame_buffer'left;
         frame_params_reg           <= frame_params_reset_c;
@@ -59,6 +61,8 @@ begin
         tx_mac_fsm_o.valid         <= '0';
         llc_o.transfer_status      <= tx_mac_fsm_i.transfer_status;
         tx_mac_fsm_o.frame_info    <= get_frame_info(config_byte_reg_0, config_byte_reg_1);
+        tx_mac_fsm_o.frame_params  <= frame_params_reg;
+        tx_mac_fsm_o.params_valid  <= params_valid;
         state_reg                  <= state_reg;
         frame_params_reg           <= frame_params_reg;
         params_valid               <= params_valid;
@@ -78,11 +82,13 @@ begin
             -- Config byte 1: wait for valid data with SOP='0'
             llc_o.avalon_st_sink.ready <= '1';
             if (llc_i.avalon_st_source.valid = '1' and llc_i.avalon_st_source.sop = '0') then
-              config_byte_reg_1 <= llc_i.avalon_st_source.data;
+              config_byte_reg_1         <= llc_i.avalon_st_source.data;
               -- Calculate frame parameters once (cached for all bits in this frame)
-              frame_params_reg  <= calculate_frame_params(config_byte_reg_0, llc_i.avalon_st_source.data);
-              params_valid      <= '1';
-              state_reg         <= load_llc_frame_byte;
+              frame_params_reg          <= calculate_frame_params(config_byte_reg_0, llc_i.avalon_st_source.data);
+              tx_mac_fsm_o.frame_params <= calculate_frame_params(config_byte_reg_0, llc_i.avalon_st_source.data);
+              params_valid              <= '1';
+              tx_mac_fsm_o.params_valid <= '1';
+              state_reg                 <= load_llc_frame_byte;
             end if;
 
           when load_llc_frame_byte =>
