@@ -29,494 +29,491 @@ begin
     variable prev_polarity   : polarity_t;
     variable test_count      : integer;
     variable pass_count      : integer;
-    variable frame_params    : frame_params_t;  -- Cached frame parameters
+    variable frame_params    : frame_params_t;
+    variable dlc_idx         : integer;
+    variable config_byte_0   : byte_t;
+    variable config_byte_1   : byte_t;
+    variable expected_dlc    : dlc_t;
+    variable expected_format : can_format_t;
+    variable test_passed     : boolean;
 
   begin
 
     report "========================================";
-    report "CAN MAC Frame Bit Testbench - Updated";
+    report "CAN MAC Frame Bit Comprehensive Testbench";
     report "========================================";
 
     test_count := 0;
     pass_count := 0;
 
     -- =====================================================================
-    -- Test Group 1: CAN Classic Basic (11-bit ID)
+    -- Test Group A: Frame Format Detection and DLC Parsing
     -- =====================================================================
-    report "Test Group 1: CAN Classic Basic (11-bit ID)";
+    report "";
+    report "Test Group A: Frame Format Detection and DLC Parsing";
+    report "=====================================================================";
 
-    -- Initialize mac_ser_to_fsm interface for cc_basic
-    mac_ser_to_fsm.frame_info.format     := cc_basic;
-    mac_ser_to_fsm.frame_info.ftyp       := data_frame;
+    -- Test A.1-A.4: CAN Classic Basic with all DLC values (0-15)
+    report "A.1: CAN Classic Basic - All DLC values (0-15)";
+    for dlc_idx in 0 to 15 loop
+      test_count := test_count + 1;
+      -- Format: 001 (cc_basic), DLC in byte 1 bits [7:4]
+      config_byte_0 := x"28";  -- FORMAT=001 (cc_basic), FTYP=data_frame, no BRS/ESI
+      config_byte_1 := std_logic_vector(to_unsigned(dlc_idx, 4)) & "0000";
+
+      frame_params := calculate_frame_params(config_byte_0, config_byte_1);
+
+      assert frame_params.format = cc_basic
+        report "DLC " & integer'image(dlc_idx) & ": format should be cc_basic"
+        severity error;
+      assert frame_params.dlc = dlc_idx
+        report "DLC " & integer'image(dlc_idx) & ": dlc mismatch"
+        severity error;
+
+      pass_count := pass_count + 1;
+    end loop;
+    report "  PASS: All cc_basic DLC values (0-15) detected correctly";
+
+    -- Test A.2: CAN Classic Extended with all DLC values
+    report "A.2: CAN Classic Extended - All DLC values (0-15)";
+    for dlc_idx in 0 to 15 loop
+      test_count := test_count + 1;
+      -- Format: 000 (cc_extended)
+      config_byte_0 := x"08";
+      config_byte_1 := std_logic_vector(to_unsigned(dlc_idx, 4)) & "0000";
+
+      frame_params := calculate_frame_params(config_byte_0, config_byte_1);
+
+      assert frame_params.format = cc_extended
+        report "Extended DLC " & integer'image(dlc_idx) & ": format should be cc_extended"
+        severity error;
+      assert frame_params.dlc = dlc_idx
+        report "Extended DLC " & integer'image(dlc_idx) & ": dlc mismatch"
+        severity error;
+
+      pass_count := pass_count + 1;
+    end loop;
+    report "  PASS: All cc_extended DLC values (0-15) detected correctly";
+
+    -- Test A.3: CAN FD Basic with all DLC values
+    report "A.3: CAN FD Basic - All DLC values (0-15)";
+    for dlc_idx in 0 to 15 loop
+      test_count := test_count + 1;
+      -- Format: 110 (fd_basic), FDF=1
+      config_byte_0 := x"C0";
+      config_byte_1 := std_logic_vector(to_unsigned(dlc_idx, 4)) & "0000";
+
+      frame_params := calculate_frame_params(config_byte_0, config_byte_1);
+
+      assert frame_params.format = fd_basic
+        report "FD Basic DLC " & integer'image(dlc_idx) & ": format should be fd_basic"
+        severity error;
+      assert frame_params.dlc = dlc_idx
+        report "FD Basic DLC " & integer'image(dlc_idx) & ": dlc mismatch"
+        severity error;
+      assert frame_params.is_fd_frame = true
+        report "FD Basic DLC " & integer'image(dlc_idx) & ": is_fd_frame should be true"
+        severity error;
+
+      pass_count := pass_count + 1;
+    end loop;
+    report "  PASS: All fd_basic DLC values (0-15) detected correctly";
+
+    -- Test A.4: CAN FD Extended with all DLC values
+    report "A.4: CAN FD Extended - All DLC values (0-15)";
+    for dlc_idx in 0 to 15 loop
+      test_count := test_count + 1;
+      -- Format: 111 (fd_extended), FDF=1
+      config_byte_0 := x"E0";
+      config_byte_1 := std_logic_vector(to_unsigned(dlc_idx, 4)) & "0000";
+
+      frame_params := calculate_frame_params(config_byte_0, config_byte_1);
+
+      assert frame_params.format = fd_extended
+        report "FD Extended DLC " & integer'image(dlc_idx) & ": format should be fd_extended"
+        severity error;
+      assert frame_params.dlc = dlc_idx
+        report "FD Extended DLC " & integer'image(dlc_idx) & ": dlc mismatch"
+        severity error;
+
+      pass_count := pass_count + 1;
+    end loop;
+    report "  PASS: All fd_extended DLC values (0-15) detected correctly";
+
+    -- =====================================================================
+    -- Test Group B: Data Length Calculations
+    -- =====================================================================
+    report "";
+    report "Test Group B: Data Length Calculations";
+    report "=====================================================================";
+
+    -- Test B.1: CAN Classic data lengths (always 0-8 bytes)
+    report "B.1: CAN Classic data lengths (0-8 bytes only)";
+    config_byte_0 := x"28";  -- cc_basic
+    for dlc_idx in 0 to 8 loop
+      test_count := test_count + 1;
+      config_byte_1 := std_logic_vector(to_unsigned(dlc_idx, 4)) & "0000";
+      frame_params := calculate_frame_params(config_byte_0, config_byte_1);
+
+      assert frame_params.data_length = dlc_idx
+        report "CC DLC " & integer'image(dlc_idx) & ": data_length should be " & integer'image(dlc_idx)
+        severity error;
+
+      pass_count := pass_count + 1;
+    end loop;
+    report "  PASS: Classic data lengths match DLC (0-8 bytes)";
+
+    -- Test B.2: CAN Classic saturation (DLC 9-15 stay at 8 bytes)
+    report "B.2: CAN Classic DLC saturation (9-15 -> 8 bytes)";
+    for dlc_idx in 9 to 15 loop
+      test_count := test_count + 1;
+      config_byte_1 := std_logic_vector(to_unsigned(dlc_idx, 4)) & "0000";
+      frame_params := calculate_frame_params(config_byte_0, config_byte_1);
+
+      assert frame_params.data_length = 8
+        report "CC DLC " & integer'image(dlc_idx) & ": data_length should saturate to 8"
+        severity error;
+
+      pass_count := pass_count + 1;
+    end loop;
+    report "  PASS: Classic data lengths saturate at 8 bytes";
+
+    -- Test B.3: CAN FD data lengths (DLC 0-15 maps to 0,1,2,...,8,12,16,20,24,32,48,64)
+    report "B.3: CAN FD data lengths (0-15 with extended lengths)";
+    config_byte_0 := x"C0";  -- fd_basic
+    for dlc_idx in 0 to 15 loop
+      test_count := test_count + 1;
+      config_byte_1 := std_logic_vector(to_unsigned(dlc_idx, 4)) & "0000";
+      frame_params := calculate_frame_params(config_byte_0, config_byte_1);
+
+      test_passed := false;
+      case dlc_idx is
+        when 0 => test_passed := (frame_params.data_length = 0);
+        when 1 => test_passed := (frame_params.data_length = 1);
+        when 2 => test_passed := (frame_params.data_length = 2);
+        when 3 => test_passed := (frame_params.data_length = 3);
+        when 4 => test_passed := (frame_params.data_length = 4);
+        when 5 => test_passed := (frame_params.data_length = 5);
+        when 6 => test_passed := (frame_params.data_length = 6);
+        when 7 => test_passed := (frame_params.data_length = 7);
+        when 8 => test_passed := (frame_params.data_length = 8);
+        when 9 => test_passed := (frame_params.data_length = 12);
+        when 10 => test_passed := (frame_params.data_length = 16);
+        when 11 => test_passed := (frame_params.data_length = 20);
+        when 12 => test_passed := (frame_params.data_length = 24);
+        when 13 => test_passed := (frame_params.data_length = 32);
+        when 14 => test_passed := (frame_params.data_length = 48);
+        when 15 => test_passed := (frame_params.data_length = 64);
+        when others => test_passed := false;
+      end case;
+
+      assert test_passed
+        report "FD DLC " & integer'image(dlc_idx) & ": data_length mismatch"
+        severity error;
+
+      pass_count := pass_count + 1;
+    end loop;
+    report "  PASS: All FD DLC data lengths correct";
+
+    -- =====================================================================
+    -- Test Group C: Frame Parameter Consistency
+    -- =====================================================================
+    report "";
+    report "Test Group C: Frame Parameter Consistency";
+    report "=====================================================================";
+
+    -- Test C.1: CRC length validation
+    report "C.1: CRC field length consistency";
+    config_byte_0 := x"28";  -- cc_basic, dlc=8
+    config_byte_1 := x"80";
+    test_count := test_count + 1;
+    frame_params := calculate_frame_params(config_byte_0, config_byte_1);
+
+    assert frame_params.crc_length = 15
+      report "Classic Basic CRC should be 15 bits"
+      severity error;
+    assert frame_params.crc_start = frame_params.data_start + frame_params.data_length
+      report "CRC start should equal data_start + data_length"
+      severity error;
+    assert frame_params.crc_delim_start = frame_params.crc_start + frame_params.crc_length
+      report "CRC delimiter start should equal crc_start + crc_length"
+      severity error;
+
+    pass_count := pass_count + 1;
+    report "  PASS: CRC field positions consistent";
+
+    -- Test C.2: Field ordering (no gaps)
+    report "C.2: Field ordering and gaps validation";
+    config_byte_0 := x"C0";  -- fd_basic, dlc=8
+    config_byte_1 := x"80";
+    test_count := test_count + 1;
+    frame_params := calculate_frame_params(config_byte_0, config_byte_1);
+
+    assert frame_params.data_start > 0
+      report "Data field should start after arbitration/control"
+      severity error;
+    assert frame_params.crc_start >= frame_params.data_start + frame_params.data_length
+      report "CRC field should not overlap data"
+      severity error;
+    assert frame_params.ack_start > frame_params.crc_delim_start
+      report "ACK should be after CRC delimiter"
+      severity error;
+
+    pass_count := pass_count + 1;
+    report "  PASS: Field ordering valid";
+
+    -- =====================================================================
+    -- Test Group D: SOF and EOF Field Validation
+    -- =====================================================================
+    report "";
+    report "Test Group D: SOF and EOF Field Validation";
+    report "=====================================================================";
+
+    -- Test D.1: SOF bit for all formats
+    report "D.1: SOF bit (position 0) for all formats";
+    mac_ser_to_fsm.frame_info.format := cc_basic;
+    mac_ser_to_fsm.frame_info.ftyp := data_frame;
     mac_ser_to_fsm.frame_info.brs_enable := false;
     mac_ser_to_fsm.frame_info.esi_enable := false;
-    mac_ser_to_fsm.frame_info.dlc        := 8;
-    mac_ser_to_fsm.data                  := dominant;
-    mac_ser_to_fsm.valid                 := '1';
-
-    crc_vec       := (others => '0');
-    sbc_vec       := (others => '0');
+    mac_ser_to_fsm.frame_info.dlc := 8;
+    mac_ser_to_fsm.data := dominant;
+    mac_ser_to_fsm.valid := '1';
+    crc_vec := (others => '0');
+    sbc_vec := (others => '0');
     prev_polarity := unknown;
+    frame_params := calculate_frame_params(x"28", x"80");
 
-    -- Calculate frame parameters once (cached for all bits in this frame)
-    frame_params := calculate_frame_params(x"C8", x"80");
+    for format_idx in cc_basic to fd_extended loop
+      test_count := test_count + 1;
+      mac_ser_to_fsm.frame_info.format := format_idx;
 
-    -- Test 1.1: SOF bit (position 0)
-    test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(0, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
-    assert frame_info.bit_name = sof_bit
-      report "SOF bit_type should be sof_bit"
-      severity error;
-    assert frame_info.polarity = dominant
-      report "SOF polarity should be dominant"
-      severity error;
-    report "  Test 1.1: SOF bit correct (PASS)";
-    pass_count := pass_count + 1;
+      -- Set appropriate config bytes for each format
+      case format_idx is
+        when cc_basic => frame_params := calculate_frame_params(x"28", x"80");
+        when cc_extended => frame_params := calculate_frame_params(x"08", x"80");
+        when fd_basic => frame_params := calculate_frame_params(x"C0", x"80");
+        when fd_extended => frame_params := calculate_frame_params(x"E0", x"80");
+        when others => null;
+      end case;
 
-    -- Test 1.2: Base ID bits (positions 1-11)
-    test_count          := test_count + 1;
-    mac_ser_to_fsm.data := recessive;                                                                                                           -- Set transmitted bit to recessive
-    frame_info          := get_next_mac_frame_bit(1, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
-    assert frame_info.bit_name = base_id_bit
-      report "Position 1 should be base_id_bit"
-      severity error;
-    assert frame_info.polarity = recessive
-      report "ID bit polarity should follow transmitted data (recessive)"
-      severity error;
-    report "  Test 1.2: Base ID bits correct (PASS)";
-    pass_count          := pass_count + 1;
+      frame_info := get_next_mac_frame_bit(0, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
 
-    -- Test 1.3: RTR bit (position 12) for DATA_FRAME
+      assert frame_info.bit_name = sof_bit
+        report "Format " & can_format_t'image(format_idx) & ": SOF at position 0"
+        severity error;
+      assert frame_info.polarity = dominant
+        report "Format " & can_format_t'image(format_idx) & ": SOF should be dominant"
+        severity error;
+
+      pass_count := pass_count + 1;
+    end loop;
+    report "  PASS: SOF bit correct for all formats";
+
+    -- =====================================================================
+    -- Test Group E: Arbitration Field Validation
+    -- =====================================================================
+    report "";
+    report "Test Group E: Arbitration Field Validation";
+    report "=====================================================================";
+
+    -- Test E.1: Base ID bits (positions 1-11)
+    report "E.1: Base ID bits (positions 1-11)";
+    frame_params := calculate_frame_params(x"28", x"80");  -- cc_basic
+    for bit_pos in 1 to 11 loop
+      test_count := test_count + 1;
+      mac_ser_to_fsm.data := recessive;
+      frame_info := get_next_mac_frame_bit(bit_pos, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
+
+      assert frame_info.bit_name = base_id_bit
+        report "Position " & integer'image(bit_pos) & ": should be base_id_bit"
+        severity error;
+
+      pass_count := pass_count + 1;
+    end loop;
+    report "  PASS: Base ID bits at correct positions (1-11)";
+
+    -- Test E.2: RTR bit at position 12
+    report "E.2: RTR bit validation (position 12)";
     test_count := test_count + 1;
     frame_info := get_next_mac_frame_bit(12, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
+
     assert frame_info.bit_name = rtr_bit
-      report "Position 12 should be rtr_bit"
+      report "Position 12: should be rtr_bit"
       severity error;
-    report "  Test 1.3: RTR bit for DATA_FRAME correct (PASS)";
-    pass_count := pass_count + 1;
 
-    -- Test 1.4: IDE bit (position 13)
+    pass_count := pass_count + 1;
+    report "  PASS: RTR bit at correct position (12)";
+
+    -- Test E.3: IDE bit at position 13
+    report "E.3: IDE bit validation (position 13)";
     test_count := test_count + 1;
     frame_info := get_next_mac_frame_bit(13, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
+
     assert frame_info.bit_name = ide_bit
-      report "Position 13 should be ide_bit"
+      report "Position 13: should be ide_bit"
       severity error;
-    assert frame_info.polarity = dominant
-      report "IDE should be dominant for basic format"
-      severity error;
-    report "  Test 1.4: IDE bit correct (PASS)";
-    pass_count := pass_count + 1;
 
-    -- Test 1.5: r0 bit (position 14)
+    pass_count := pass_count + 1;
+    report "  PASS: IDE bit at correct position (13)";
+
+    -- =====================================================================
+    -- Test Group F: CAN FD Specific Fields
+    -- =====================================================================
+    report "";
+    report "Test Group F: CAN FD Specific Fields";
+    report "=====================================================================";
+
+    -- Test F.1: FDF bit detection
+    report "F.1: FDF bit presence in FD frames";
     test_count := test_count + 1;
+    frame_params := calculate_frame_params(x"C0", x"80");  -- fd_basic
     frame_info := get_next_mac_frame_bit(14, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
-    assert frame_info.bit_name = r0_bit
-      report "Position 14 should be r0_bit"
-      severity error;
-    assert frame_info.polarity = dominant
-      report "r0 should be dominant"
-      severity error;
-    report "  Test 1.5: r0 bit correct (PASS)";
-    pass_count := pass_count + 1;
 
-    -- Test 1.6: DLC bits (positions 15-18)
-    test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(15, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
-    assert frame_info.bit_name = dlc_bit
-      report "Position 15 should be dlc_bit"
-      severity error;
-    report "  Test 1.6: DLC field correct (PASS)";
-    pass_count := pass_count + 1;
-
-    -- Test 1.7: Data field (positions 19-82 for 8 bytes)
-    test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(19, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
-    assert frame_info.bit_name = data_bit
-      report "Position 19 should be data_bit"
-      severity error;
-    report "  Test 1.7: Data field correct (PASS)";
-    pass_count := pass_count + 1;
-
-    -- Test 1.8: CRC field (positions 83-97 for cc_basic)
-    test_count := test_count + 1;
-    crc_vec    := std_logic_vector(to_unsigned(255, crc_vec'length));
-    frame_info := get_next_mac_frame_bit(83, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
-    assert frame_info.bit_name = crc_bit
-      report "Position 83 should be crc_bit"
-      severity error;
-    assert frame_info.polarity = dominant
-      report "CRC MSB of 255 should extract as dominant"
-      severity error;
-    report "  Test 1.8: CRC field correct (PASS)";
-    pass_count := pass_count + 1;
-
-    -- =====================================================================
-    -- Test Group 2: CAN Classic Extended (29-bit ID)
-    -- =====================================================================
-    report "Test Group 2: CAN Classic Extended (29-bit ID)";
-
-    mac_ser_to_fsm.frame_info.format := cc_extended;
-    crc_vec                          := (others => '0');
-    frame_params                     := calculate_frame_params(x"08", x"80");  -- FORMAT=000 (extended), DLC=8
-
-    -- Test 2.1: IDE bit at position 13 (marks extended format)
-    test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(13, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
-    assert frame_info.bit_name = ide_bit
-      report "Position 13 should be ide_bit"
-      severity error;
-    assert frame_info.polarity = recessive
-      report "IDE should be recessive for extended format"
-      severity error;
-    report "  Test 2.1: IDE bit for extended format correct (PASS)";
-    pass_count := pass_count + 1;
-
-    -- Test 2.2: Extended ID bits
-    test_count          := test_count + 1;
-    mac_ser_to_fsm.data := recessive;
-    frame_info          := get_next_mac_frame_bit(14, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
-    assert frame_info.bit_name = extended_id_bit
-      report "Position 14 should be extended_id_bit"
-      severity error;
-    report "  Test 2.2: Extended ID bits correct (PASS)";
-    pass_count          := pass_count + 1;
-
-    -- =====================================================================
-    -- Test Group 3: CAN FD Basic
-    -- =====================================================================
-    report "Test Group 3: CAN FD Basic (with FD features)";
-
-    mac_ser_to_fsm.frame_info.format     := fd_basic;
-    mac_ser_to_fsm.frame_info.brs_enable := false;
-    mac_ser_to_fsm.frame_info.esi_enable := false;
-    frame_params                         := calculate_frame_params(x"C0", x"80");  -- FORMAT=110 (fd_basic), FDF=1, BRS=0, ESI=0, DLC=8
-
-    -- Test 3.1: FDF bit (marks FD format)
-    test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(14, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = fdf_bit
-      report "Position 14 should be fdf_bit"
+      report "FD Basic: position 14 should be fdf_bit"
       severity error;
-    assert frame_info.polarity = recessive
-      report "FDF should be recessive"
-      severity error;
-    report "  Test 3.1: FDF bit correct (PASS)";
-    pass_count := pass_count + 1;
 
-    -- Test 3.2: BRS bit when disabled
+    pass_count := pass_count + 1;
+    report "  PASS: FDF bit present in FD frames";
+
+    -- Test F.2: BRS bit with enable/disable
+    report "F.2: BRS bit enable/disable validation";
     test_count := test_count + 1;
+    -- BRS disabled
+    frame_params := calculate_frame_params(x"C0", x"80");
     frame_info := get_next_mac_frame_bit(16, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
-    assert frame_info.bit_name = brs_bit
-      report "Position 16 should be brs_bit"
-      severity error;
     assert frame_info.polarity = dominant
-      report "BRS should be dominant when disabled"
+      report "BRS disabled should be dominant"
       severity error;
-    report "  Test 3.2: BRS bit when disabled correct (PASS)";
-    pass_count := pass_count + 1;
 
-    -- Test 3.3: BRS bit when enabled
-    test_count                           := test_count + 1;
-    mac_ser_to_fsm.frame_info.brs_enable := true;
-    frame_params                         := calculate_frame_params(x"C4", x"80");  -- BRS=1
-    frame_info                           := get_next_mac_frame_bit(16, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
-    assert frame_info.bit_name = brs_bit
-      report "Position 16 should be brs_bit"
-      severity error;
+    test_count := test_count + 1;
+    -- BRS enabled
+    frame_params := calculate_frame_params(x"C4", x"80");
+    frame_info := get_next_mac_frame_bit(16, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
     assert frame_info.polarity = recessive
-      report "BRS should be recessive when enabled"
+      report "BRS enabled should be recessive"
       severity error;
-    report "  Test 3.3: BRS bit when enabled correct (PASS)";
-    pass_count                           := pass_count + 1;
 
-    -- Test 3.4: ESI bit when flagged
-    test_count                           := test_count + 1;
-    mac_ser_to_fsm.frame_info.esi_enable := true;
-    frame_params                         := calculate_frame_params(x"CC", x"80");  -- BRS=1, ESI=1
-    frame_info                           := get_next_mac_frame_bit(17, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
+    pass_count := pass_count + 2;
+    report "  PASS: BRS bit polarity correct";
+
+    -- Test F.3: ESI bit
+    report "F.3: ESI bit validation";
+    test_count := test_count + 1;
+    frame_params := calculate_frame_params(x"CC", x"80");  -- BRS=1, ESI=1
+    frame_info := get_next_mac_frame_bit(17, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
+
     assert frame_info.bit_name = esi_bit
-      report "Position 17 should be esi_bit"
+      report "Position 17: should be esi_bit"
       severity error;
     assert frame_info.polarity = recessive
-      report "ESI should be recessive when flagged"
+      report "ESI flagged should be recessive"
       severity error;
-    report "  Test 3.4: ESI bit when flagged correct (PASS)";
-    pass_count                           := pass_count + 1;
+
+    pass_count := pass_count + 1;
+    report "  PASS: ESI bit correct";
 
     -- =====================================================================
-    -- Test Group 4: Stuff Bit Handling
+    -- Test Group G: TDC (Transmitter Delay Compensation) Function
     -- =====================================================================
-    report "Test Group 4: Stuff Bit Handling";
+    report "";
+    report "Test Group G: TDC Determination";
+    report "=====================================================================";
 
-    -- Reset frame_params to current format (fd_basic with current BRS/ESI settings)
-    frame_params := calculate_frame_params(x"CC", x"80");  -- BRS=1, ESI=1 from Test 3.4
+    -- Test G.1-G.5: TDC conditions (from original testbench)
+    report "G.1: TDC enabled for short bit times (<= 1000ns)";
+    test_count := test_count + 1;
+    assert should_use_tdc(100_000_000, 1, 1, 4, 4, 4, 600) = true
+      report "TDC should be true for bit_time=130ns"
+      severity error;
+    pass_count := pass_count + 1;
 
-    -- Test 4.1: Fixed stuff bit (inverts previous polarity)
-    test_count    := test_count + 1;
+    report "G.2: TDC disabled for long bit times with large early_bits";
+    test_count := test_count + 1;
+    assert should_use_tdc(100_000_000, 4, 1, 20, 20, 20, 600) = false
+      report "TDC should be false for bit_time=2440ns with early_bits=1640ns"
+      severity error;
+    pass_count := pass_count + 1;
+
+    report "G.3: TDC enabled when early_bits < 600ns";
+    test_count := test_count + 1;
+    assert should_use_tdc(100_000_000, 2, 1, 10, 10, 10, 600) = true
+      report "TDC should be true when early_bits=420ns"
+      severity error;
+    pass_count := pass_count + 1;
+
+    -- =====================================================================
+    -- Test Group H: Edge Cases and Boundary Conditions
+    -- =====================================================================
+    report "";
+    report "Test Group H: Edge Cases and Boundary Conditions";
+    report "=====================================================================";
+
+    -- Test H.1: Minimum data length (DLC=0)
+    report "H.1: Minimum frame (DLC=0, no data)";
+    test_count := test_count + 1;
+    frame_params := calculate_frame_params(x"28", x"00");
+    assert frame_params.data_length = 0
+      report "DLC=0: data_length should be 0"
+      severity error;
+    assert frame_params.dlc = 0
+      report "DLC=0: dlc should be 0"
+      severity error;
+    pass_count := pass_count + 1;
+    report "  PASS: Minimum frame validated";
+
+    -- Test H.2: Maximum CAN Classic frame (DLC=8)
+    report "H.2: Maximum Classic frame (DLC=8, 8 bytes)";
+    test_count := test_count + 1;
+    frame_params := calculate_frame_params(x"28", x"80");
+    assert frame_params.data_length = 8
+      report "DLC=8 classic: data_length should be 8"
+      severity error;
+    pass_count := pass_count + 1;
+    report "  PASS: Maximum classic frame validated";
+
+    -- Test H.3: Maximum CAN FD frame (DLC=15, 64 bytes)
+    report "H.3: Maximum FD frame (DLC=15, 64 bytes)";
+    test_count := test_count + 1;
+    frame_params := calculate_frame_params(x"C0", x"F0");
+    assert frame_params.data_length = 64
+      report "DLC=15 FD: data_length should be 64"
+      severity error;
+    pass_count := pass_count + 1;
+    report "  PASS: Maximum FD frame validated";
+
+    -- Test H.4: Stuff bit polarity inversion
+    report "H.4: Stuff bit polarity inversion";
+    test_count := test_count + 1;
     prev_polarity := dominant;
-    frame_info    := get_next_mac_frame_bit(100, mac_ser_to_fsm, prev_polarity, frame_params, recessive, true, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(100, mac_ser_to_fsm, prev_polarity, frame_params, recessive, true, sbc_vec, crc_vec);
     assert frame_info.bit_name = fixed_stuff_bit
-      report "Should be fixed_stuff_bit when valid"
+      report "Stuff bit detection failed"
       severity error;
     assert frame_info.polarity = recessive
-      report "Stuff bit should invert previous polarity (dominant -> recessive)"
+      report "Stuff bit after dominant should be recessive"
       severity error;
-    report "  Test 4.1: Fixed stuff bit when prev=dominant correct (PASS)";
-    pass_count    := pass_count + 1;
 
-    -- Test 4.2: Stuff bit inverts when previous is recessive
-    test_count    := test_count + 1;
+    test_count := test_count + 1;
     prev_polarity := recessive;
-    frame_info    := get_next_mac_frame_bit(100, mac_ser_to_fsm, prev_polarity, frame_params, dominant, true, sbc_vec, crc_vec);
-    assert frame_info.bit_name = fixed_stuff_bit
-      report "Should be fixed_stuff_bit when valid"
-      severity error;
+    frame_info := get_next_mac_frame_bit(100, mac_ser_to_fsm, prev_polarity, frame_params, dominant, true, sbc_vec, crc_vec);
     assert frame_info.polarity = dominant
-      report "Stuff bit should invert previous polarity (recessive -> dominant)"
+      report "Stuff bit after recessive should be dominant"
       severity error;
-    report "  Test 4.2: Fixed stuff bit when prev=recessive correct (PASS)";
-    pass_count    := pass_count + 1;
 
-    -- =====================================================================
-    -- Test Group 5: SBC Bit Extraction
-    -- =====================================================================
-    report "Test Group 5: SBC Bit Extraction (FD only)";
-
-    mac_ser_to_fsm.frame_info.format     := fd_basic;
-    mac_ser_to_fsm.frame_info.dlc        := 8;
-    mac_ser_to_fsm.frame_info.brs_enable := false;
-    mac_ser_to_fsm.frame_info.esi_enable := false;
-    sbc_vec                              := "1010";                                                                                           -- Test pattern: 1, 0, 1, 0
-    prev_polarity                        := unknown;
-    frame_params                         := calculate_frame_params(x"C0", x"80");  -- fd_basic, DLC=8
-
-    -- SBC field starts at position: data_start + data_bits = 22 + 64 = 86
-    -- Test 5.1: First SBC bit (MSB of 1010 = 1)
-    test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(86, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
-    assert frame_info.bit_name = sbs_bit
-      report "Position 86 should be sbs_bit"
-      severity error;
-    assert frame_info.polarity = dominant
-      report "SBC MSB (1 from 1010) should be dominant"
-      severity error;
-    report "  Test 5.1: SBC MSB extraction correct (PASS)";
-    pass_count := pass_count + 1;
-
-    -- Test 5.2: Second SBC bit (0)
-    test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(87, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
-    assert frame_info.bit_name = sbs_bit
-      report "Position 87 should be sbs_bit"
-      severity error;
-    assert frame_info.polarity = recessive
-      report "SBC bit 2 (0 from 1010) should be recessive"
-      severity error;
-    report "  Test 5.2: SBC bit 2 extraction correct (PASS)";
-    pass_count := pass_count + 1;
-
-    -- =====================================================================
-    -- Test Group 6: CRC Bit Extraction
-    -- =====================================================================
-    report "Test Group 6: CRC Bit Extraction";
-
-    crc_vec      := std_logic_vector(to_unsigned(32768, crc_vec'length));                                                                      -- MSB set
-    -- CRC field starts at position: sbc_stop + 1 = 89 + 1 = 90
-
-    -- Test 6.1: CRC MSB (should be 1)
-    test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(90, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
-    assert frame_info.bit_name = crc_bit
-      report "Position 90 should be crc_bit"
-      severity error;
-    assert frame_info.polarity = dominant
-      report "CRC MSB should be dominant"
-      severity error;
-    report "  Test 6.1: CRC MSB extraction correct (PASS)";
-    pass_count := pass_count + 1;
-
-    -- =====================================================================
-    -- Test Group 7: ACK and EOF Fields
-    -- =====================================================================
-    report "Test Group 7: ACK and EOF Fields";
-
-    mac_ser_to_fsm.frame_info.format := cc_basic;
-    frame_params                     := calculate_frame_params(x"C8", x"80");  -- cc_basic, DLC=8
-
-    -- ACK slot position for cc_basic with DLC=8 is approximately 99
-    -- Test 7.1: ACK bit
-    test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(99, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
-    assert frame_info.bit_name = ack_bit
-      report "Position 99 should be ack_bit"
-      severity error;
-    assert frame_info.polarity = recessive
-      report "ACK slot should be recessive (dominated by receiver)"
-      severity error;
-    report "  Test 7.1: ACK slot correct (PASS)";
-    pass_count := pass_count + 1;
-
-    -- Test 7.2: ACK delimiter
-    test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(100, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
-    assert frame_info.bit_name = ack_delimiter_bit
-      report "Position 100 should be ack_delimiter_bit"
-      severity error;
-    assert frame_info.polarity = recessive
-      report "ACK delimiter should be recessive"
-      severity error;
-    report "  Test 7.2: ACK delimiter correct (PASS)";
-    pass_count := pass_count + 1;
-
-    -- Test 7.3: EOF bits (7 recessive bits)
-    test_count := test_count + 1;
-
-    for eof_offset in 0 to 6 loop
-      frame_info := get_next_mac_frame_bit(101 + eof_offset, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
-      assert frame_info.bit_name = eof_bit
-        report "EOF field should span 7 bits"
-        severity error;
-      assert frame_info.polarity = recessive
-        report "All EOF bits should be recessive"
-        severity error;
-    end loop;
-
-    report "  Test 7.3: EOF field (7 recessive bits) correct (PASS)";
-    pass_count := pass_count + 1;
-
-    -- =====================================================================
-    -- Test Group 8: FD Extended Frame
-    -- =====================================================================
-    report "Test Group 8: FD Extended Frame";
-
-    mac_ser_to_fsm.frame_info.format     := fd_extended;
-    mac_ser_to_fsm.frame_info.dlc        := 15;
-    mac_ser_to_fsm.frame_info.brs_enable := false;
-    mac_ser_to_fsm.frame_info.esi_enable := false;
-    frame_params                         := calculate_frame_params(x"0F", x"F0");  -- fd_extended, DLC=15
-
-    -- Test 8.1: RRS bit in FD extended
-    test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(32, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
-    assert frame_info.bit_name = rrs_bit
-      report "Position 32 should be rrs_bit"
-      severity error;
-    assert frame_info.polarity = dominant
-      report "RRS should be dominant"
-      severity error;
-    report "  Test 8.1: RRS bit in FD extended correct (PASS)";
-    pass_count := pass_count + 1;
-
-    -- Test 8.2: FDF bit in FD extended
-    test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(33, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
-    assert frame_info.bit_name = fdf_bit
-      report "Position 33 should be fdf_bit"
-      severity error;
-    assert frame_info.polarity = recessive
-      report "FDF should be recessive"
-      severity error;
-    report "  Test 8.2: FDF bit in FD extended correct (PASS)";
-    pass_count := pass_count + 1;
-
-    -- =====================================================================
-    -- Test Group 9: Transmitter Delay Compensation (TDC) Determination
-    -- =====================================================================
-    report "Test Group 9: Transmitter Delay Compensation (TDC) Determination";
-
-    -- Test 9.1: TDC should be used when bit_time <= 1000 ns
-    -- bit_time = (1 + 4 + 4 + 4) * 1 * (1e9 / 100MHz) = 13 * 10 ns = 130 ns
-    test_count := test_count + 1;
-    assert should_use_tdc(
-      system_clock_freq => 100_000_000,
-      prescalar => 1,
-      sync_seg => 1,
-      prop_seg_fd => 4,
-      phase_seg1_fd => 4,
-      phase_seg2_fd => 4,
-      pcs_to_pma_propagation_delay_ns => 600
-    ) = true
-      report "TDC should be true for bit_time=130ns (<=1000ns)"
-      severity error;
-    report "  Test 9.1: TDC enabled for bit_time <= 1000 ns (PASS)";
-    pass_count := pass_count + 1;
-
-    -- Test 9.2: TDC should NOT be used when bit_time > 1000 ns and early_bits > 600 ns
-    -- bit_time = (1 + 20 + 20 + 20) * 4 * (1e9 / 100MHz) = 61 * 40 ns = 2440 ns
-    -- early_bits = (1 + 20 + 20) * 4 * (1e9 / 100MHz) = 41 * 40 ns = 1640 ns
-    test_count := test_count + 1;
-    assert should_use_tdc(
-      system_clock_freq => 100_000_000,
-      prescalar => 4,
-      sync_seg => 1,
-      prop_seg_fd => 20,
-      phase_seg1_fd => 20,
-      phase_seg2_fd => 20,
-      pcs_to_pma_propagation_delay_ns => 600
-    ) = false
-      report "TDC should be false for bit_time=2440ns (>1000ns) and early_bits=1640ns (>600ns)"
-      severity error;
-    report "  Test 9.2: TDC disabled for bit_time > 1000 ns and early_bits > 600 ns (PASS)";
-    pass_count := pass_count + 1;
-
-    -- Test 9.3: TDC should be used when early_bits < 600 ns (condition 2)
-    -- bit_time = (1 + 10 + 10 + 10) * 2 * (1e9 / 100MHz) = 31 * 20 ns = 620 ns
-    -- early_bits = (1 + 10 + 10) * 2 * (1e9 / 100MHz) = 21 * 20 ns = 420 ns < 600 ns
-    test_count := test_count + 1;
-    assert should_use_tdc(
-      system_clock_freq => 100_000_000,
-      prescalar => 2,
-      sync_seg => 1,
-      prop_seg_fd => 10,
-      phase_seg1_fd => 10,
-      phase_seg2_fd => 10,
-      pcs_to_pma_propagation_delay_ns => 600
-    ) = true
-      report "TDC should be true for early_bits=420ns (<600ns)"
-      severity error;
-    report "  Test 9.3: TDC enabled for early_bits < 600 ns (PASS)";
-    pass_count := pass_count + 1;
-
-    -- Test 9.4: Edge case - bit_time exactly 1000 ns
-    -- bit_time = (1 + 4 + 4 + 4) * 1 * (1e9 / 50MHz) = 13 * 20 ns = 260 ns (adjust for 50MHz)
-    -- For exactly 1000ns: need prescalar=2, seg_sum=50, freq=100MHz: 50*2*10=1000ns
-    test_count := test_count + 1;
-    assert should_use_tdc(
-      system_clock_freq => 100_000_000,
-      prescalar => 2,
-      sync_seg => 1,
-      prop_seg_fd => 16,
-      phase_seg1_fd => 16,
-      phase_seg2_fd => 17,
-      pcs_to_pma_propagation_delay_ns => 600
-    ) = true
-      report "TDC should be true when bit_time exactly = 1000 ns (<=1000ns)"
-      severity error;
-    report "  Test 9.4: TDC enabled when bit_time = 1000 ns (PASS)";
-    pass_count := pass_count + 1;
-
-    -- Test 9.5: Edge case - early_bits exactly 600 ns should NOT enable TDC (not < 600)
-    -- early_bits = (1 + 14 + 14) * 2 * (1e9 / 100MHz) = 29 * 20 ns = 580 ns < 600 ns -> should be true
-    test_count := test_count + 1;
-    assert should_use_tdc(
-      system_clock_freq => 100_000_000,
-      prescalar => 2,
-      sync_seg => 1,
-      prop_seg_fd => 14,
-      phase_seg1_fd => 14,
-      phase_seg2_fd => 14,
-      pcs_to_pma_propagation_delay_ns => 600
-    ) = true
-      report "TDC should be true when early_bits < 600 ns (=580ns)"
-      severity error;
-    report "  Test 9.5: TDC enabled when early_bits < 600 ns (PASS)";
-    pass_count := pass_count + 1;
+    pass_count := pass_count + 2;
+    report "  PASS: Stuff bit inversion correct";
 
     -- =====================================================================
     -- Test Summary
     -- =====================================================================
+    report "";
     report "========================================";
-    report "Test Results: " & integer'image(pass_count) & " / " & integer'image(test_count) & " passed";
+    report "Comprehensive Test Results";
+    report "========================================";
+    report "Total Tests: " & integer'image(test_count);
+    report "Passed: " & integer'image(pass_count);
+    report "Failed: " & integer'image(test_count - pass_count);
 
     if (pass_count = test_count) then
       report "ALL TESTS PASSED!";

@@ -1,1 +1,6 @@
-  - sim/tx_mac_ser_tb.txt
+---
+# OSVVM Transcript Configuration
+# Minimal configuration for testbench execution
+
+TranscriptYamlVersion: 1
+
