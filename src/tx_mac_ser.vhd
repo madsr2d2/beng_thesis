@@ -44,7 +44,7 @@ begin
         config_byte_reg_0          <= (others => '0');
         config_byte_reg_1          <= (others => '0');
         llc_frame_buffer           <= (others => '0');
-        tx_mac_fsm_o.data          <= '0';
+        tx_mac_fsm_o.data          <= dominant;
         tx_mac_fsm_o.valid         <= '0';
         state_reg                  <= load_config_byte_0;
         count                      <= llc_frame_buffer'left;
@@ -97,7 +97,7 @@ begin
               -- Load byte and output MSB immediately (no wasted cycle)
               if (llc_i.avalon_st_source.valid = '1' and llc_i.avalon_st_source.sop = '0') then
                 llc_frame_buffer   <= llc_i.avalon_st_source.data;
-                tx_mac_fsm_o.data  <= llc_i.avalon_st_source.data(llc_i.avalon_st_source.data'left);
+                tx_mac_fsm_o.data  <= bit_to_polarity(llc_i.avalon_st_source.data(llc_i.avalon_st_source.data'left));
                 tx_mac_fsm_o.valid <= '1';
                 state_reg          <= shift_out_bits;
               end if;
@@ -117,7 +117,7 @@ begin
                 llc_o.avalon_st_sink.ready <= '1';
               else
                 -- Output [left-1]; MSB already sent on load
-                tx_mac_fsm_o.data  <= llc_frame_buffer(llc_frame_buffer'left - 1);
+                tx_mac_fsm_o.data  <= bit_to_polarity(llc_frame_buffer(llc_frame_buffer'left - 1));
                 tx_mac_fsm_o.valid <= '1';
                 llc_frame_buffer   <= llc_frame_buffer sll 1;
                 count              <= count - 1;

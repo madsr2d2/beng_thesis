@@ -50,7 +50,7 @@ begin
     mac_ser_to_fsm.frame_info.brs_enable := false;
     mac_ser_to_fsm.frame_info.esi_enable := false;
     mac_ser_to_fsm.frame_info.dlc        := 8;
-    mac_ser_to_fsm.data                  := '0';
+    mac_ser_to_fsm.data                  := dominant;
     mac_ser_to_fsm.valid                 := '1';
 
     crc_vec       := (others => '0');
@@ -71,7 +71,7 @@ begin
 
     -- Test 1.2: Base ID bits (positions 1-11)
     test_count          := test_count + 1;
-    mac_ser_to_fsm.data := '1';                                                                                                           -- Set transmitted bit to recessive
+    mac_ser_to_fsm.data := recessive;                                                                                                           -- Set transmitted bit to recessive
     frame_info          := get_next_mac_frame_bit(1, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = base_id_bit
       report "Position 1 should be base_id_bit"
@@ -168,7 +168,7 @@ begin
 
     -- Test 2.2: Extended ID bits
     test_count          := test_count + 1;
-    mac_ser_to_fsm.data := '1';
+    mac_ser_to_fsm.data := recessive;
     frame_info          := get_next_mac_frame_bit(14, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = extended_id_bit
       report "Position 14 should be extended_id_bit"

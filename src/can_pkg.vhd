@@ -221,9 +221,9 @@ package can_pkg is
   end record avalon_st_sink_t;
 
   type tx_mac_ser_to_fsm_if_t is record
-    data       : std_logic;
-    valid      : std_logic;
-    frame_info : llc_frame_info_t;
+    data       : polarity_t;        -- CAN polarity (MAC domain)
+    valid      : std_logic;         -- Data valid signal
+    frame_info : llc_frame_info_t;  -- Frame configuration from LLC
   end record tx_mac_ser_to_fsm_if_t;
 
   type tx_mac_fsm_to_ser_if_t is record
@@ -951,7 +951,7 @@ package body can_pkg is
     -- Base arbitration field
     elsif (bit_count >= base_id_start_v and bit_count < base_id_stop_v + 1) then
       result_v.bit_name := base_id_bit;
-      result_v.polarity := bit_to_polarity(mac_ser_to_fsm.data);
+      result_v.polarity := mac_ser_to_fsm.data;
     elsif (rtr_v.polarity /= unknown and bit_count = rtr_v.position) then
       result_v := (bit_name => rtr_bit, polarity => rtr_v.polarity);
     elsif (rrs_v.polarity /= unknown and bit_count = rrs_v.position) then
@@ -964,7 +964,7 @@ package body can_pkg is
       result_v := (bit_name => ide_bit, polarity => ide_v.polarity);
     elsif (extended_id_start_v > 0 and bit_count >= extended_id_start_v and bit_count < extended_id_stop_v + 1) then
       result_v.bit_name := extended_id_bit;
-      result_v.polarity := bit_to_polarity(mac_ser_to_fsm.data);
+      result_v.polarity := mac_ser_to_fsm.data;
 
     -- Control field
     elsif (r1_v.polarity /= unknown and bit_count = r1_v.position) then
@@ -987,7 +987,7 @@ package body can_pkg is
     -- Data field
     elsif (bit_count >= data_start_v and bit_count < data_start_v + data_bits_v) then
       result_v.bit_name := data_bit;
-      result_v.polarity := bit_to_polarity(mac_ser_to_fsm.data);
+      result_v.polarity := mac_ser_to_fsm.data;
 
     -- CRC field
     elsif (bit_count >= crc_start_v and bit_count < crc_delim_v) then
