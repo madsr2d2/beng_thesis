@@ -201,47 +201,47 @@ package can_pkg is
   -- Defined here so interfaces can use it
   type frame_params_t is record
     -- Frame type and control flags
-    format              : can_format_t;
-    dlc_vector          : std_logic_vector(dlc_field_width_c - 1 downto 0);
-    is_fd_frame         : boolean;
-    is_remote_frame     : boolean;
-    has_brs             : boolean;
-    esi_enable          : boolean;
+    format          : can_format_t;
+    dlc_vector      : std_logic_vector(dlc_field_width_c - 1 downto 0);
+    is_fd_frame     : boolean;
+    is_remote_frame : boolean;
+    has_brs         : boolean;
+    esi_enable      : boolean;
 
     -- Field boundaries (for frame layout)
-    data_start          : position_t;
-    data_stop           : position_t;
-    dlc_start           : position_t;
-    dlc_stop            : position_t;
-    base_id_start       : position_t;
-    base_id_stop        : position_t;
-    extended_id_start   : position_t;
-    extended_id_stop    : position_t;
+    data_start        : position_t;
+    data_stop         : position_t;
+    dlc_start         : position_t;
+    dlc_stop          : position_t;
+    base_id_start     : position_t;
+    base_id_stop      : position_t;
+    extended_id_start : position_t;
+    extended_id_stop  : position_t;
 
     -- CRC and SBC fields
-    crc_start           : position_t;
-    crc_stop            : position_t;
-    crc_delimiter       : position_t;
-    sbc_start           : position_t;
-    sbc_stop            : position_t;
+    crc_start     : position_t;
+    crc_stop      : position_t;
+    crc_delimiter : position_t;
+    sbc_start     : position_t;
+    sbc_stop      : position_t;
 
     -- ACK and EOF fields
-    ack_slot            : position_t;
-    ack_delimiter       : position_t;
-    eof_start           : position_t;
-    eof_stop            : position_t;
+    ack_slot      : position_t;
+    ack_delimiter : position_t;
+    eof_start     : position_t;
+    eof_stop      : position_t;
 
     -- Format-specific bit positions (with polarities resolved for BRS/ESI)
-    srr_bit             : bit_t;
-    ide_bit             : bit_t;
-    rtr_bit             : bit_t;
-    rrs_bit             : bit_t;
-    fdf_bit             : bit_t;
-    res_bit             : bit_t;
-    r0_bit              : bit_t;
-    r1_bit              : bit_t;
-    brs_bit             : bit_t;  -- Polarity resolved based on has_brs flag
-    esi_bit             : bit_t;  -- Polarity resolved based on esi_enable flag
+    srr_bit : bit_t;
+    ide_bit : bit_t;
+    rtr_bit : bit_t;
+    rrs_bit : bit_t;
+    fdf_bit : bit_t;
+    res_bit : bit_t;
+    r0_bit  : bit_t;
+    r1_bit  : bit_t;
+    brs_bit : bit_t; -- Polarity resolved based on has_brs flag
+    esi_bit : bit_t; -- Polarity resolved based on esi_enable flag
   end record frame_params_t;
 
   -- =================================================================
@@ -259,10 +259,10 @@ package can_pkg is
   end record avalon_st_sink_t;
 
   type tx_mac_ser_to_fsm_if_t is record
-    data         : polarity_t;      -- CAN polarity (MAC domain)
-    valid        : std_logic;       -- Data valid signal
-    frame_params : frame_params_t;  -- Cached frame parameters (all config info consolidated)
-    params_valid : std_logic;       -- Frame params valid flag
+    data         : polarity_t;     -- CAN polarity (MAC domain)
+    valid        : std_logic;      -- Data valid signal
+    frame_params : frame_params_t; -- Cached frame parameters (all config info consolidated)
+    params_valid : std_logic;      -- Frame params valid flag
   end record tx_mac_ser_to_fsm_if_t;
 
   type tx_mac_fsm_to_ser_if_t is record
@@ -270,40 +270,41 @@ package can_pkg is
     ready           : std_logic;         -- FSM ready to accept next bit/byte
   end record tx_mac_fsm_to_ser_if_t;
 
-  constant frame_params_reset_c : frame_params_t := (
-    format => unknown,
-    dlc_vector => (others => '0'),
-    is_fd_frame => false,
-    is_remote_frame => false,
-    has_brs => false,
-    esi_enable => false,
-    data_start => 0,
-    data_stop => 0,
-    dlc_start => 0,
-    dlc_stop => 0,
-    base_id_start => 0,
-    base_id_stop => 0,
+  constant frame_params_reset_c : frame_params_t :=
+  (
+    format            => unknown,
+    dlc_vector        => (others => '0'),
+    is_fd_frame       => false,
+    is_remote_frame   => false,
+    has_brs           => false,
+    esi_enable        => false,
+    data_start        => 0,
+    data_stop         => 0,
+    dlc_start         => 0,
+    dlc_stop          => 0,
+    base_id_start     => 0,
+    base_id_stop      => 0,
     extended_id_start => 0,
-    extended_id_stop => 0,
-    crc_start => 0,
-    crc_stop => 0,
-    crc_delimiter => 0,
-    sbc_start => 0,
-    sbc_stop => 0,
-    ack_slot => 0,
-    ack_delimiter => 0,
-    eof_start => 0,
-    eof_stop => 0,
-    srr_bit => unknown_bit_c,
-    ide_bit => unknown_bit_c,
-    rtr_bit => unknown_bit_c,
-    rrs_bit => unknown_bit_c,
-    fdf_bit => unknown_bit_c,
-    res_bit => unknown_bit_c,
-    r0_bit => unknown_bit_c,
-    r1_bit => unknown_bit_c,
-    brs_bit => unknown_bit_c,
-    esi_bit => unknown_bit_c
+    extended_id_stop  => 0,
+    crc_start         => 0,
+    crc_stop          => 0,
+    crc_delimiter     => 0,
+    sbc_start         => 0,
+    sbc_stop          => 0,
+    ack_slot          => 0,
+    ack_delimiter     => 0,
+    eof_start         => 0,
+    eof_stop          => 0,
+    srr_bit           => unknown_bit_c,
+    ide_bit           => unknown_bit_c,
+    rtr_bit           => unknown_bit_c,
+    rrs_bit           => unknown_bit_c,
+    fdf_bit           => unknown_bit_c,
+    res_bit           => unknown_bit_c,
+    r0_bit            => unknown_bit_c,
+    r1_bit            => unknown_bit_c,
+    brs_bit           => unknown_bit_c,
+    esi_bit           => unknown_bit_c
   );
 
   type llc_to_mac_if_t is record
@@ -480,7 +481,7 @@ package can_pkg is
   -- Function calculates the next bit to be transmitted
   function get_next_mac_frame_bit (
     bit_count    : position_t;
-    mac_ser_to_fsm : tx_mac_ser_to_fsm_if_t;  -- Contains frame_params
+    mac_ser_to_fsm : tx_mac_ser_to_fsm_if_t; -- Contains frame_params
     previous_polarity : polarity_t;
     stuff_bit_polarity : polarity_t;
     stuff_bit_valid : boolean;
@@ -778,8 +779,8 @@ package body can_pkg is
     crc : crc_vector_t
   ) return mac_frame_bit_t is
 
-    variable result_v : mac_frame_bit_t;
-    variable dlc_bit_index_v : position_t;
+    variable result_v                : mac_frame_bit_t;
+    variable dlc_bit_index_v         : position_t;
     variable position_in_crc_field_v : position_t;
 
   begin
@@ -843,7 +844,7 @@ package body can_pkg is
     elsif (bit_count >= mac_ser_to_fsm.frame_params.crc_start and bit_count < mac_ser_to_fsm.frame_params.crc_stop) then
       -- Check for fixed stuff bits in CAN FD (highest priority in CRC field)
       if (mac_ser_to_fsm.frame_params.is_fd_frame) then
-        position_in_crc_field_v := bit_count - mac_ser_to_fsm.frame_params.crc_start;
+        position_in_crc_field_v := bit_count - mac_ser_to_fsm.frame_params.sbc_start;
         if is_fixed_stuff_bit_position(position_in_crc_field_v) then
           result_v.bit_name := fixed_stuff_bit;
           result_v.polarity := recessive when previous_polarity = dominant else dominant;
@@ -856,7 +857,11 @@ package body can_pkg is
         result_v.polarity := bit_to_polarity(sbc(sbc'left - (bit_count - mac_ser_to_fsm.frame_params.sbc_start)));
       else
         result_v.bit_name := crc_bit;
-        result_v.polarity := bit_to_polarity(crc(crc'left - (bit_count - mac_ser_to_fsm.frame_params.crc_start)));
+        if ((bit_count - mac_ser_to_fsm.frame_params.crc_start) < crc'length) then
+          result_v.polarity := bit_to_polarity(crc(crc'left - (bit_count - mac_ser_to_fsm.frame_params.crc_start)));
+        else
+          result_v.polarity := unknown;
+        end if;
       end if;
     elsif (bit_count = mac_ser_to_fsm.frame_params.crc_delimiter) then
       result_v := crc_delimiter_bit_c;
@@ -909,20 +914,23 @@ package body can_pkg is
     config_byte_0 : byte_t;
     config_byte_1 : byte_t
   ) return frame_params_t is
-    variable result : frame_params_t;
-    variable data_length_v : integer;
-    variable data_start_v : position_t;
-    variable data_bits_v : integer;
-    variable has_brs_v : boolean;
-    variable is_remote_v : boolean;
-    variable crc_length_v : integer;
+
+    variable result              : frame_params_t;
+    variable data_length_v       : integer;
+    variable data_start_v        : position_t;
+    variable data_bits_v         : integer;
+    variable has_brs_v           : boolean;
+    variable is_remote_v         : boolean;
+    variable crc_length_v        : integer;
     variable fixed_stuff_count_v : integer;
-    variable crc_field_length_v : integer;
-    variable sbc_start_v : position_t;
-    variable rtr_polarity_v : polarity_t;
-    variable brs_polarity_v : polarity_t;
-    variable esi_polarity_v : polarity_t;
+    variable crc_field_length_v  : integer;
+    variable sbc_start_v         : position_t;
+    variable rtr_polarity_v      : polarity_t;
+    variable brs_polarity_v      : polarity_t;
+    variable esi_polarity_v      : polarity_t;
+
   begin
+
     -- Extract frame format from config_byte_0[7:5]
     case config_byte_0(llc_frame_config_byte_0_format_start downto llc_frame_config_byte_0_format_end) is
       when "001" => result.format := cc_basic;
@@ -936,12 +944,12 @@ package body can_pkg is
     result.dlc_vector := config_byte_1(llc_frame_config_byte_1_dlc_start downto llc_frame_config_byte_1_dlc_end);
 
     -- Extract flags from config_byte_0
-    has_brs_v := (config_byte_0(llc_frame_config_byte_0_brs) = '1');
+    has_brs_v   := (config_byte_0(llc_frame_config_byte_0_brs) = '1');
     is_remote_v := (config_byte_0(llc_frame_config_byte_0_ftyp) = '1');
 
-    result.is_fd_frame := is_fd_format(result.format);
-    result.has_brs := has_brs_v;
-    result.esi_enable := (config_byte_0(llc_frame_config_byte_0_esi) = '1');
+    result.is_fd_frame     := is_fd_format(result.format);
+    result.has_brs         := has_brs_v;
+    result.esi_enable      := (config_byte_0(llc_frame_config_byte_0_esi) = '1');
     result.is_remote_frame := is_remote_v;
 
     -- Determine frame-dependent polarities for control bits
@@ -951,103 +959,104 @@ package body can_pkg is
 
     -- Calculate data length from DLC vector
     data_length_v := dlc_to_data_length(dlc_t(to_integer(unsigned(result.dlc_vector))), result.format);
-    data_bits_v := data_length_v * byte_width_c;
+    data_bits_v   := data_length_v * byte_width_c;
 
     -- Populate field boundaries based on format
     case result.format is
       when cc_basic =>
-        data_start_v            := cb_data_start_c.position;
-        result.dlc_start        := cb_dlc_start_c.position;
-        result.base_id_start    := cb_base_id_start_c.position;
-        result.base_id_stop     := cb_base_id_start_c.position + base_id_width_c - 1;
+        data_start_v             := cb_data_start_c.position;
+        result.dlc_start         := cb_dlc_start_c.position;
+        result.base_id_start     := cb_base_id_start_c.position;
+        result.base_id_stop      := cb_base_id_start_c.position + base_id_width_c - 1;
         result.extended_id_start := 0;
-        result.extended_id_stop := 0;
-        result.rtr_bit          := (position => cb_rtr_c.position, polarity => rtr_polarity_v);
-        result.ide_bit          := cb_ide_c;
-        result.r0_bit           := cb_r0_c;
-        result.srr_bit          := unknown_bit_c;
-        result.rrs_bit          := unknown_bit_c;
-        result.fdf_bit          := unknown_bit_c;
-        result.res_bit          := unknown_bit_c;
-        result.r1_bit           := unknown_bit_c;
-        result.brs_bit          := unknown_bit_c;
-        result.esi_bit          := unknown_bit_c;
+        result.extended_id_stop  := 0;
+        result.rtr_bit           := (position => cb_rtr_c.position, polarity => rtr_polarity_v);
+        result.ide_bit           := cb_ide_c;
+        result.r0_bit            := cb_r0_c;
+        result.srr_bit           := unknown_bit_c;
+        result.rrs_bit           := unknown_bit_c;
+        result.fdf_bit           := unknown_bit_c;
+        result.res_bit           := unknown_bit_c;
+        result.r1_bit            := unknown_bit_c;
+        result.brs_bit           := unknown_bit_c;
+        result.esi_bit           := unknown_bit_c;
 
       when cc_extended =>
-        data_start_v            := ce_data_start_c.position;
-        result.dlc_start        := ce_dlc_start_c.position;
-        result.base_id_start    := ce_base_id_start_c.position;
-        result.base_id_stop     := ce_base_id_start_c.position + base_id_width_c - 1;
+        data_start_v             := ce_data_start_c.position;
+        result.dlc_start         := ce_dlc_start_c.position;
+        result.base_id_start     := ce_base_id_start_c.position;
+        result.base_id_stop      := ce_base_id_start_c.position + base_id_width_c - 1;
         result.extended_id_start := ce_extended_id_start_c.position;
-        result.extended_id_stop := ce_extended_id_start_c.position + extended_id_width_c - 1;
-        result.srr_bit          := ce_srr_c;
-        result.ide_bit          := ce_ide_c;
-        result.rtr_bit          := (position => ce_rtr_c.position, polarity => rtr_polarity_v);
-        result.r1_bit           := ce_r1_c;
-        result.r0_bit           := ce_r0_c;
-        result.rrs_bit          := unknown_bit_c;
-        result.fdf_bit          := unknown_bit_c;
-        result.res_bit          := unknown_bit_c;
-        result.brs_bit          := unknown_bit_c;
-        result.esi_bit          := unknown_bit_c;
+        result.extended_id_stop  := ce_extended_id_start_c.position + extended_id_width_c - 1;
+        result.srr_bit           := ce_srr_c;
+        result.ide_bit           := ce_ide_c;
+        result.rtr_bit           := (position => ce_rtr_c.position, polarity => rtr_polarity_v);
+        result.r1_bit            := ce_r1_c;
+        result.r0_bit            := ce_r0_c;
+        result.rrs_bit           := unknown_bit_c;
+        result.fdf_bit           := unknown_bit_c;
+        result.res_bit           := unknown_bit_c;
+        result.brs_bit           := unknown_bit_c;
+        result.esi_bit           := unknown_bit_c;
 
       when fd_basic =>
-        data_start_v            := fb_data_start_c.position;
-        result.dlc_start        := fb_dlc_start_c.position;
-        result.base_id_start    := fd_base_id_start_c.position;
-        result.base_id_stop     := fd_base_id_start_c.position + base_id_width_c - 1;
+        data_start_v             := fb_data_start_c.position;
+        result.dlc_start         := fb_dlc_start_c.position;
+        result.base_id_start     := fd_base_id_start_c.position;
+        result.base_id_stop      := fd_base_id_start_c.position + base_id_width_c - 1;
         result.extended_id_start := 0;
-        result.extended_id_stop := 0;
-        result.rrs_bit          := fb_rrs_c;
-        result.ide_bit          := fb_ide_c;
-        result.fdf_bit          := fb_fdf_c;
-        result.res_bit          := fb_res_c;
-        result.brs_bit          := (position => fb_brs_c.position, polarity => brs_polarity_v);
-        result.esi_bit          := (position => fb_esi_c.position, polarity => esi_polarity_v);
-        result.srr_bit          := unknown_bit_c;
-        result.rtr_bit          := unknown_bit_c;
-        result.r0_bit           := unknown_bit_c;
-        result.r1_bit           := unknown_bit_c;
+        result.extended_id_stop  := 0;
+        result.rrs_bit           := fb_rrs_c;
+        result.ide_bit           := fb_ide_c;
+        result.fdf_bit           := fb_fdf_c;
+        result.res_bit           := fb_res_c;
+        result.brs_bit           := (position => fb_brs_c.position, polarity => brs_polarity_v);
+        result.esi_bit           := (position => fb_esi_c.position, polarity => esi_polarity_v);
+        result.srr_bit           := unknown_bit_c;
+        result.rtr_bit           := unknown_bit_c;
+        result.r0_bit            := unknown_bit_c;
+        result.r1_bit            := unknown_bit_c;
 
       when fd_extended =>
-        data_start_v            := fe_data_start_c.position;
-        result.dlc_start        := fe_dlc_start_c.position;
-        result.base_id_start    := fe_base_id_start_c.position;
-        result.base_id_stop     := fe_base_id_start_c.position + base_id_width_c - 1;
+        data_start_v             := fe_data_start_c.position;
+        result.dlc_start         := fe_dlc_start_c.position;
+        result.base_id_start     := fe_base_id_start_c.position;
+        result.base_id_stop      := fe_base_id_start_c.position + base_id_width_c - 1;
         result.extended_id_start := fe_extended_id_start_c.position;
-        result.extended_id_stop := fe_extended_id_start_c.position + extended_id_width_c - 1;
-        result.srr_bit          := fe_srr_c;
-        result.ide_bit          := fe_ide_c;
-        result.rrs_bit          := fe_rrs_c;
-        result.fdf_bit          := fe_fdf_c;
-        result.res_bit          := fe_res_c;
-        result.brs_bit          := (position => fe_brs_c.position, polarity => brs_polarity_v);
-        result.esi_bit          := (position => fe_esi_c.position, polarity => esi_polarity_v);
-        result.rtr_bit          := unknown_bit_c;
-        result.r0_bit           := unknown_bit_c;
-        result.r1_bit           := unknown_bit_c;
+        result.extended_id_stop  := fe_extended_id_start_c.position + extended_id_width_c - 1;
+        result.srr_bit           := fe_srr_c;
+        result.ide_bit           := fe_ide_c;
+        result.rrs_bit           := fe_rrs_c;
+        result.fdf_bit           := fe_fdf_c;
+        result.res_bit           := fe_res_c;
+        result.brs_bit           := (position => fe_brs_c.position, polarity => brs_polarity_v);
+        result.esi_bit           := (position => fe_esi_c.position, polarity => esi_polarity_v);
+        result.rtr_bit           := unknown_bit_c;
+        result.r0_bit            := unknown_bit_c;
+        result.r1_bit            := unknown_bit_c;
 
       when others =>
-        data_start_v            := 0;
-        result.dlc_start        := 0;
-        result.base_id_start    := 0;
-        result.base_id_stop     := 0;
+        data_start_v             := 0;
+        result.dlc_start         := 0;
+        result.base_id_start     := 0;
+        result.base_id_stop      := 0;
         result.extended_id_start := 0;
-        result.extended_id_stop := 0;
-        result.rtr_bit          := unknown_bit_c;
-        result.ide_bit          := unknown_bit_c;
-        result.srr_bit          := unknown_bit_c;
-        result.rrs_bit          := unknown_bit_c;
-        result.fdf_bit          := unknown_bit_c;
-        result.res_bit          := unknown_bit_c;
-        result.r0_bit           := unknown_bit_c;
-        result.r1_bit           := unknown_bit_c;
-        result.brs_bit          := unknown_bit_c;
-        result.esi_bit          := unknown_bit_c;
+        result.extended_id_stop  := 0;
+        result.rtr_bit           := unknown_bit_c;
+        result.ide_bit           := unknown_bit_c;
+        result.srr_bit           := unknown_bit_c;
+        result.rrs_bit           := unknown_bit_c;
+        result.fdf_bit           := unknown_bit_c;
+        result.res_bit           := unknown_bit_c;
+        result.r0_bit            := unknown_bit_c;
+        result.r1_bit            := unknown_bit_c;
+        result.brs_bit           := unknown_bit_c;
+        result.esi_bit           := unknown_bit_c;
     end case;
 
     -- Calculate all data and CRC field positions
     result.data_start := data_start_v;
+
     if (data_bits_v > 0) then
       result.data_stop := data_start_v + data_bits_v - 1;
     else
@@ -1057,31 +1066,32 @@ package body can_pkg is
     -- DLC field boundaries
     result.dlc_stop := result.dlc_start + dlc_field_width_c;
 
-    crc_length_v := get_crc_length(result.format, data_length_v);
+    crc_length_v     := get_crc_length(result.format, data_length_v);
     result.crc_start := result.data_stop + 1;
 
     -- CAN FD has SBC field after data, CAN Classic goes directly to CRC
     if (result.is_fd_frame) then
-      sbc_start_v := result.crc_start;
-      result.sbc_start := sbc_start_v;
-      result.sbc_stop := sbc_start_v + sbc_field_width_c;
-      result.crc_start := result.sbc_stop;
+      sbc_start_v         := result.crc_start;
+      result.sbc_start    := sbc_start_v;
+      result.sbc_stop     := sbc_start_v + sbc_field_width_c;
+      result.crc_start    := result.sbc_stop;
       fixed_stuff_count_v := get_fixed_stuff_bit_count(sbc_field_width_c + crc_length_v);
-      crc_field_length_v := crc_length_v + fixed_stuff_count_v;
+      crc_field_length_v  := crc_length_v + fixed_stuff_count_v;
+      result.crc_stop     := result.crc_start + crc_field_length_v;
     else
-      result.sbc_start := 0;
-      result.sbc_stop := 0;
+      result.sbc_start   := 0;
+      result.sbc_stop    := 0;
       crc_field_length_v := crc_length_v;
+      result.crc_start   := result.data_stop + 1;
+      result.crc_stop    := result.crc_start + crc_length_v;
     end if;
-
-    result.crc_stop := result.crc_start + crc_field_length_v;
     result.crc_delimiter := result.crc_stop;
 
     -- ACK and EOF field positions
-    result.ack_slot := result.crc_delimiter + 1;
+    result.ack_slot      := result.crc_delimiter + 1;
     result.ack_delimiter := result.ack_slot + 1;
-    result.eof_start := result.ack_delimiter + 1;
-    result.eof_stop := result.eof_start + eof_field_width_c;
+    result.eof_start     := result.ack_delimiter + 1;
+    result.eof_stop      := result.eof_start + eof_field_width_c;
 
     return result;
 
