@@ -64,7 +64,6 @@ begin
     llc_i.avalon_st_source.eop    <= '0';
     tx_mac_fsm_i.ready            <= '0';
     tx_mac_fsm_i.transfer_status  <= transmitted;
-    tx_mac_fsm_i.tx_mac_fsm_state <= idle;
     wait for clk_period * 5;
 
     rst_i <= '0';
@@ -79,7 +78,6 @@ begin
     Print("-----------");
 
     tx_mac_fsm_i.transfer_status  <= ongoing;
-    tx_mac_fsm_i.tx_mac_fsm_state <= idle;
     wait for clk_period;
 
     -- Check that ready is asserted in idle state
@@ -151,7 +149,7 @@ begin
 
     -- Check first bit is loaded
     AlertIf(tx_mac_fsm_o.valid = '0', "ERROR: frame_bit_valid should be asserted", FAILURE);
-    AlertIf(tx_mac_fsm_o.data /= test_data(7), "ERROR: first bit should be " & to_string(test_data(7)) &
+    AlertIf(tx_mac_fsm_o.data /= bit_to_polarity(test_data(7)), "ERROR: first bit should be " & to_string(test_data(7)) &
             " but got " & to_string(tx_mac_fsm_o.data), FAILURE);
     Print("  Bit 0 (MSB): " & to_string(tx_mac_fsm_o.data) & " (Expected: " & to_string(test_data(7)) & ")");
 
@@ -165,7 +163,7 @@ begin
       tx_mac_fsm_i.ready <= '1';
       wait for clk_period;
       AlertIf(tx_mac_fsm_o.valid = '0', "ERROR: bit " & to_string(i) & " not valid", FAILURE);
-      AlertIf(tx_mac_fsm_o.data /= test_data(i), "ERROR: bit " & to_string(i) & " mismatch", FAILURE);
+      AlertIf(tx_mac_fsm_o.data /= bit_to_polarity(test_data(i)), "ERROR: bit " & to_string(i) & " mismatch", FAILURE);
       Print("  Bit " & to_string(7 - i) & ": " & to_string(tx_mac_fsm_o.data) & " (Expected: " & to_string(test_data(i)) & ")");
       bit_count          := bit_count + 1;
       tx_mac_fsm_i.ready <= '0';
@@ -189,7 +187,6 @@ begin
     wait for clk_period;
 
     tx_mac_fsm_i.transfer_status  <= ongoing;
-    tx_mac_fsm_i.tx_mac_fsm_state <= idle;
 
     -- Send config bytes
     llc_i.avalon_st_source.data  <= x"C0";
@@ -235,7 +232,7 @@ begin
 
       -- First bit (MSB) is sent during load transition
       AlertIf(tx_mac_fsm_o.valid = '0', "ERROR: First bit not valid for byte " & to_string(byte_idx), FAILURE);
-      AlertIf(tx_mac_fsm_o.data /= test_data(7), "ERROR: First bit (MSB) mismatch for byte " & to_string(byte_idx), FAILURE);
+      AlertIf(tx_mac_fsm_o.data /= bit_to_polarity(test_data(7)), "ERROR: First bit (MSB) mismatch for byte " & to_string(byte_idx), FAILURE);
 
       llc_i.avalon_st_source.valid <= '0';
       wait for clk_period;
@@ -245,7 +242,7 @@ begin
         tx_mac_fsm_i.ready <= '1';
         wait for clk_period;
         AlertIf(tx_mac_fsm_o.valid = '0', "ERROR: Bit not valid for byte " & to_string(byte_idx) & " bit " & to_string(bit_idx), FAILURE);
-        AlertIf(tx_mac_fsm_o.data /= test_data(bit_idx),
+        AlertIf(tx_mac_fsm_o.data /= bit_to_polarity(test_data(bit_idx)),
                 "ERROR: Bit mismatch for byte " & to_string(byte_idx) & " bit " & to_string(bit_idx) &
                 " (expected " & to_string(test_data(bit_idx)) & " got " & to_string(tx_mac_fsm_o.data) & ")", FAILURE);
         tx_mac_fsm_i.ready <= '0';
@@ -275,7 +272,6 @@ begin
     wait for clk_period;
 
     tx_mac_fsm_i.transfer_status  <= ongoing;
-    tx_mac_fsm_i.tx_mac_fsm_state <= idle;
 
     -- Send config bytes
     llc_i.avalon_st_source.data  <= x"FF";
@@ -335,7 +331,6 @@ begin
     wait for clk_period;
 
     tx_mac_fsm_i.transfer_status  <= ongoing;
-    tx_mac_fsm_i.tx_mac_fsm_state <= idle;
     wait for clk_period;
 
     -- Check ready is asserted in idle state
@@ -374,48 +369,9 @@ begin
     Print("PASS: Ready/Valid handshaking correct");
 
     -- =====================================================================
-    -- Test 6: FSM state-dependent ready logic
-    -- =====================================================================
-    Print("");
-    Print("Test 6: FSM state-dependent ready signal");
-    Print("-----------");
-
-    rst_i <= '1';
-    wait for clk_period * 2;
-    rst_i <= '0';
-    wait for clk_period;
-
-    -- Start in idle state
-    tx_mac_fsm_i.transfer_status  <= ongoing;
-    tx_mac_fsm_i.tx_mac_fsm_state <= idle;
-    wait for clk_period;
-
-    -- Verify ready is asserted when FSM is idle (config byte 0 state)
-    AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted when FSM is idle", FAILURE);
-    Print("  Ready asserted in idle state: PASS");
-
-    -- Send config byte 0
-    llc_i.avalon_st_source.data  <= x"AA";
-    llc_i.avalon_st_source.valid <= '1';
-    llc_i.avalon_st_source.sop   <= '1';
-    wait for clk_period;
-    llc_i.avalon_st_source.valid <= '0';
-    wait for clk_period;
-
-    -- Now change FSM state to transmitting_mac_frame (simulating unexpected FSM change)
-    -- This should trigger fail-fast reset to load_config_byte_0
-    tx_mac_fsm_i.tx_mac_fsm_state <= transmitting;
-    wait for clk_period;
-
-    AlertIf(llc_o.avalon_st_sink.ready = '1', "ERROR: ready should NOT be asserted when FSM is transmitting_mac_frame during config load", FAILURE);
-    Print("  Ready deasserted when FSM leaves idle state: PASS");
-
-    -- Return FSM to idle state (should restart from config byte 0 now)
-    tx_mac_fsm_i.tx_mac_fsm_state <= idle;
-    wait for clk_period;
-
-    AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted when FSM returns to idle (back in config byte 0)", FAILURE);
-    Print("  Ready re-asserted when FSM returns to idle: PASS");
+    -- Test 6 removed: FSM state-dependent ready logic was part of old architecture
+    -- New simplified architecture: FSM is responsible for managing its ready signal
+    -- Serializer no longer checks FSM state; it trusts the ready signal
 
     -- Send config bytes again after fail-fast recovery
     llc_i.avalon_st_source.data  <= x"22";
@@ -433,29 +389,11 @@ begin
     llc_i.avalon_st_source.valid <= '0';
     wait for clk_period;
 
-    -- Now in load_llc_frame_byte state, verify ready IS asserted when FSM is transmitting_mac_frame
-    tx_mac_fsm_i.tx_mac_fsm_state <= transmitting,;
-    wait for clk_period;
+    -- Removed: Old architecture checked FSM state in data load
+    -- New architecture: Serializer always asserts ready in load_llc_frame_byte state
+    -- FSM is responsible for managing when it can accept data via transfer_status signal
 
-    AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted when FSM is transmitting_mac_frame for data load", FAILURE);
-    Print("  Ready asserted for data load when FSM is transmitting: PASS");
-
-    -- Change FSM to a different state (not idle, not transmitting_mac_frame)
-    -- Simulate FSM in transmitting_error_flag state
-    tx_mac_fsm_i.tx_mac_fsm_state <= transmitting_error_flag;
-    wait for clk_period;
-
-    AlertIf(llc_o.avalon_st_sink.ready = '1', "ERROR: ready should NOT be asserted when FSM is transmitting_error_flag", FAILURE);
-    Print("  Ready deasserted when FSM is in transmitting_error_flag state: PASS");
-
-    -- Return FSM to idle
-    tx_mac_fsm_i.tx_mac_fsm_state <= idle;
-    wait for clk_period;
-
-    AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted when FSM returns to idle", FAILURE);
-    Print("  Ready re-asserted when FSM returns to idle: PASS");
-
-    Print("PASS: FSM state-dependent ready logic correct");
+    -- FSM state management is now delegated to the FSM itself via ready/transfer_status signals
 
     -- =====================================================================
     -- Test Summary

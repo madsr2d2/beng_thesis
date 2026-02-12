@@ -221,15 +221,14 @@ package can_pkg is
   end record avalon_st_sink_t;
 
   type tx_mac_ser_to_fsm_if_t is record
-    data       : polarity_t;        -- CAN polarity (MAC domain)
-    valid      : std_logic;         -- Data valid signal
-    frame_info : llc_frame_info_t;  -- Frame configuration from LLC
+    data       : polarity_t;       -- CAN polarity (MAC domain)
+    valid      : std_logic;        -- Data valid signal
+    frame_info : llc_frame_info_t; -- Frame configuration from LLC
   end record tx_mac_ser_to_fsm_if_t;
 
   type tx_mac_fsm_to_ser_if_t is record
-    transfer_status  : transfer_status_t;
-    tx_mac_fsm_state : tx_mac_fsm_state_t;
-    ready            : std_logic;
+    transfer_status : transfer_status_t;  -- Transfer status (ongoing/transmitted/error)
+    ready           : std_logic;          -- FSM ready to accept next bit/byte
   end record tx_mac_fsm_to_ser_if_t;
 
   type llc_to_mac_if_t is record

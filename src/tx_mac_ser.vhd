@@ -60,47 +60,33 @@ begin
         case state_reg is
 
           when load_config_byte_0 =>
-            -- Config byte 0 only accepted when tx_mac_fsm is idle
-            if (tx_mac_fsm_i.tx_mac_fsm_state /= idle) then
-              llc_o.avalon_st_sink.ready <= '0';
-              state_reg                  <= load_config_byte_0;
-            else
-              llc_o.avalon_st_sink.ready <= '1';
-              -- Avalon-ST handshake: wait for valid data with SOP='1'
-              if (llc_i.avalon_st_source.valid = '1' and llc_o.avalon_st_sink.ready = '1' and llc_i.avalon_st_source.sop = '1') then
-                config_byte_reg_0 <= llc_i.avalon_st_source.data;
-                state_reg         <= load_config_byte_1;
-              end if;
+            -- Config byte 0: wait for valid data with SOP='1'
+            -- FSM manages ready signal based on its state
+            llc_o.avalon_st_sink.ready <= '1';
+            if (llc_i.avalon_st_source.valid = '1' and llc_i.avalon_st_source.sop = '1') then
+              config_byte_reg_0 <= llc_i.avalon_st_source.data;
+              state_reg         <= load_config_byte_1;
             end if;
 
           when load_config_byte_1 =>
-            -- Config byte 1 only accepted when tx_mac_fsm is idle
-            if (tx_mac_fsm_i.tx_mac_fsm_state /= idle) then
-              llc_o.avalon_st_sink.ready <= '0';
-              state_reg                  <= load_config_byte_0;
-            else
-              llc_o.avalon_st_sink.ready <= '1';
-              -- Avalon-ST: expect SOP='0'
-              if (llc_i.avalon_st_source.valid = '1' and llc_o.avalon_st_sink.ready = '1' and llc_i.avalon_st_source.sop = '0') then
-                config_byte_reg_1 <= llc_i.avalon_st_source.data;
-                state_reg         <= load_llc_frame_byte;
-              end if;
+            -- Config byte 1: wait for valid data with SOP='0'
+            -- FSM manages ready signal based on its state
+            llc_o.avalon_st_sink.ready <= '1';
+            if (llc_i.avalon_st_source.valid = '1' and llc_i.avalon_st_source.sop = '0') then
+              config_byte_reg_1 <= llc_i.avalon_st_source.data;
+              state_reg         <= load_llc_frame_byte;
             end if;
 
           when load_llc_frame_byte =>
-            -- Data bytes accepted when idle or actively transmitting
-            if (tx_mac_fsm_i.tx_mac_fsm_state /= idle and tx_mac_fsm_i.tx_mac_fsm_state /= transmitting) then
-              llc_o.avalon_st_sink.ready <= '0';
-              state_reg                  <= load_config_byte_0;
-            else
-              llc_o.avalon_st_sink.ready <= '1';
-              -- Load byte and output MSB immediately (no wasted cycle)
-              if (llc_i.avalon_st_source.valid = '1' and llc_i.avalon_st_source.sop = '0') then
-                llc_frame_buffer   <= llc_i.avalon_st_source.data;
-                tx_mac_fsm_o.data  <= bit_to_polarity(llc_i.avalon_st_source.data(llc_i.avalon_st_source.data'left));
-                tx_mac_fsm_o.valid <= '1';
-                state_reg          <= shift_out_bits;
-              end if;
+            -- Data byte: wait for valid data with SOP='0'
+            -- FSM manages ready signal based on its state
+            llc_o.avalon_st_sink.ready <= '1';
+            -- Load byte and output MSB immediately (no wasted cycle)
+            if (llc_i.avalon_st_source.valid = '1' and llc_i.avalon_st_source.sop = '0') then
+              llc_frame_buffer   <= llc_i.avalon_st_source.data;
+              tx_mac_fsm_o.data  <= bit_to_polarity(llc_i.avalon_st_source.data(llc_i.avalon_st_source.data'left));
+              tx_mac_fsm_o.valid <= '1';
+              state_reg          <= shift_out_bits;
             end if;
 
           when shift_out_bits =>
