@@ -227,8 +227,8 @@ package can_pkg is
   end record tx_mac_ser_to_fsm_if_t;
 
   type tx_mac_fsm_to_ser_if_t is record
-    transfer_status : transfer_status_t;  -- Transfer status (ongoing/transmitted/error)
-    ready           : std_logic;          -- FSM ready to accept next bit/byte
+    transfer_status : transfer_status_t; -- Transfer status (ongoing/transmitted/error)
+    ready           : std_logic;         -- FSM ready to accept next bit/byte
   end record tx_mac_fsm_to_ser_if_t;
 
   type llc_to_mac_if_t is record

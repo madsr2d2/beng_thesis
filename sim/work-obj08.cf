@@ -1,31 +1,27 @@
 v 4
-file "/home/madsr2d2/beng_thesis/" "src/tx_mac_ser_tb.vhd" "5a44f81a3f341a4b6cde954fd4f69390c8096d26" "20260212202924.050":
-  entity tx_mac_ser_tb at 1( 0) + 0 on 320;
-  architecture tb of tx_mac_ser_tb at 12( 195) + 0 on 321;
-file "/home/madsr2d2/beng_thesis/" "./src/crc_fd.vhd" "05fa646c2f29a7e3bd17a63f9e1c0f7bb89d5d9e" "20260212202927.931":
-  entity crc_fd at 1( 0) + 0 on 335;
-  architecture rtl of crc_fd at 12( 198) + 0 on 336;
-file "/home/madsr2d2/beng_thesis/" "./src/bit_stuffer_fd.vhd" "d4462f4a22a8f97b806ba7a920a62e44075715df" "20260212202927.930":
-  entity bit_stuffer_fd at 1( 0) + 0 on 333;
-  architecture rtl of bit_stuffer_fd at 15( 312) + 0 on 334;
-file "/home/madsr2d2/beng_thesis/" "./src/tx_mac.vhd" "ad6733a7b337f326b1b4010064f85b7bde3a94fa" "20260212202927.929":
-  entity mac_tx at 1( 0) + 0 on 331;
-  architecture rtl of mac_tx at 21( 505) + 0 on 332;
-file "/home/madsr2d2/beng_thesis/" "./src/shift_reg.vhd" "ca441852ff168303c2f51cbd08b5b25e5e6d1e25" "20260212202927.928":
-  entity shift_reg at 1( 0) + 0 on 329;
-  architecture rtl of shift_reg at 12( 196) + 0 on 330;
-file "/home/madsr2d2/beng_thesis/" "./src/tx_mac_err.vhd" "8272fbbcc8d2dcf0a8566c472bc91ee96ff03681" "20260212202927.928":
-  entity tx_mac_err at 1( 0) + 0 on 328;
-file "/home/madsr2d2/beng_thesis/" "./src/tx_mac_ser.vhd" "d369e2e0d0b2e3249b363ca92af2f2ca0ef6c54b" "20260212202927.928":
-  entity tx_mac_ser at 1( 0) + 0 on 326;
-  architecture rtl of tx_mac_ser at 21( 428) + 0 on 327;
-file "/home/madsr2d2/beng_thesis/" "./src/bit_stuffer.vhd" "ae62c446e0765e8202ac8d23215ab167f4137c0a" "20260212202927.927":
-  entity bit_stuffer at 1( 0) + 0 on 324;
-  architecture rtl of bit_stuffer at 19( 357) + 0 on 325;
-file "/home/madsr2d2/beng_thesis/" "./src/can_pkg.vhd" "93c5a1215e480ad0b6692a7d7f0e2bf3dad676f6" "20260212202927.926":
-  package can_pkg at 1( 0) + 0 on 322 body;
-  package body can_pkg at 459( 18180) + 0 on 323;
-file "/home/madsr2d2/beng_thesis/" "src/can_pkg_tb.vhd" "9ce74ee8f34acb1ddd210d46fc082ebca3bc780d" "20260212202927.946":
-  package can_pkg_tb_pkg at 1( 0) + 0 on 337;
-  entity can_pkg_tb at 11( 178) + 0 on 338;
-  architecture tb of can_pkg_tb at 19( 321) + 0 on 339;
+file "/home/madsr2d2/beng_thesis/" "src/tx_mac_ser_tb.vhd" "5a44f81a3f341a4b6cde954fd4f69390c8096d26" "20260212210253.376":
+  entity tx_mac_ser_tb at 1( 0) + 0 on 26;
+  architecture tb of tx_mac_ser_tb at 12( 195) + 0 on 27;
+file "/home/madsr2d2/beng_thesis/" "./src/can_pkg.vhd" "15d0384ecec6fdee18fdb8f2b862b26d0f0fbc54" "20260212210253.274":
+  package can_pkg at 1( 0) + 0 on 11 body;
+  package body can_pkg at 459( 18178) + 0 on 12;
+file "/home/madsr2d2/beng_thesis/" "./src/bit_stuffer.vhd" "ae62c446e0765e8202ac8d23215ab167f4137c0a" "20260212210253.275":
+  entity bit_stuffer at 1( 0) + 0 on 13;
+  architecture rtl of bit_stuffer at 19( 357) + 0 on 14;
+file "/home/madsr2d2/beng_thesis/" "./src/tx_mac_ser.vhd" "a61c94a7f3c5e624f38d12977bc6fd6ae3e72020" "20260212210253.275":
+  entity tx_mac_ser at 1( 0) + 0 on 15;
+  architecture rtl of tx_mac_ser at 21( 428) + 0 on 16;
+file "/home/madsr2d2/beng_thesis/" "./src/tx_mac_err.vhd" "8272fbbcc8d2dcf0a8566c472bc91ee96ff03681" "20260212210253.276":
+  entity tx_mac_err at 1( 0) + 0 on 17;
+file "/home/madsr2d2/beng_thesis/" "./src/shift_reg.vhd" "ca441852ff168303c2f51cbd08b5b25e5e6d1e25" "20260212210253.276":
+  entity shift_reg at 1( 0) + 0 on 18;
+  architecture rtl of shift_reg at 12( 196) + 0 on 19;
+file "/home/madsr2d2/beng_thesis/" "./src/tx_mac.vhd" "ad6733a7b337f326b1b4010064f85b7bde3a94fa" "20260212210253.277":
+  entity mac_tx at 1( 0) + 0 on 20;
+  architecture rtl of mac_tx at 21( 505) + 0 on 21;
+file "/home/madsr2d2/beng_thesis/" "./src/bit_stuffer_fd.vhd" "d4462f4a22a8f97b806ba7a920a62e44075715df" "20260212210253.278":
+  entity bit_stuffer_fd at 1( 0) + 0 on 22;
+  architecture rtl of bit_stuffer_fd at 15( 312) + 0 on 23;
+file "/home/madsr2d2/beng_thesis/" "./src/crc_fd.vhd" "05fa646c2f29a7e3bd17a63f9e1c0f7bb89d5d9e" "20260212210253.279":
+  entity crc_fd at 1( 0) + 0 on 24;
+  architecture rtl of crc_fd at 12( 198) + 0 on 25;

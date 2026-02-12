@@ -76,14 +76,15 @@ begin
             end if;
 
           when load_llc_frame_byte =>
-            -- Data byte: wait for valid data with SOP='0'
             llc_o.avalon_st_sink.ready <= '1';
+            -- Data byte: wait for valid data with SOP='0'
             -- Load byte and output MSB immediately (no wasted cycle)
             if (llc_i.avalon_st_source.valid = '1' and llc_i.avalon_st_source.sop = '0') then
-              llc_frame_buffer   <= llc_i.avalon_st_source.data;
-              tx_mac_fsm_o.data  <= bit_to_polarity(llc_i.avalon_st_source.data(llc_i.avalon_st_source.data'left));
-              tx_mac_fsm_o.valid <= '1';
-              state_reg          <= shift_out_bits;
+              llc_frame_buffer           <= llc_i.avalon_st_source.data;
+              tx_mac_fsm_o.data          <= bit_to_polarity(llc_i.avalon_st_source.data(llc_i.avalon_st_source.data'left));
+              tx_mac_fsm_o.valid         <= '1';
+              state_reg                  <= shift_out_bits;
+              llc_o.avalon_st_sink.ready <= '0';
             end if;
 
           when shift_out_bits =>
