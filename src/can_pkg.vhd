@@ -478,16 +478,11 @@ package can_pkg is
   -- Function calculates the next bit to be transmitted
   function get_next_mac_frame_bit (
     bit_count    : position_t;
-    -- From tx_mac_ser
-    mac_ser_to_fsm : tx_mac_ser_to_fsm_if_t;
+    mac_ser_to_fsm : tx_mac_ser_to_fsm_if_t;  -- Contains frame_params
     previous_polarity : polarity_t;
-    -- Cached frame parameters
-    frame_params : frame_params_t;
-    -- From bit stuffer
     stuff_bit_polarity : polarity_t;
     stuff_bit_valid : boolean;
     sbc : sbc_t;
-    -- From CRC module
     crc : crc_vector_t
   ) return mac_frame_bit_t;
 
@@ -775,8 +770,6 @@ package body can_pkg is
     bit_count    : position_t;
     mac_ser_to_fsm : tx_mac_ser_to_fsm_if_t;
     previous_polarity : polarity_t;
-    frame_params : frame_params_t;  -- Fully cached frame parameters
-    -- From bit stuffer
     stuff_bit_polarity : polarity_t;
     stuff_bit_valid : boolean;
     sbc : sbc_t;
@@ -798,7 +791,7 @@ package body can_pkg is
       return result_v;
     end if;
 
-    dlc_vector_v := std_logic_vector(to_unsigned(frame_params.dlc, 4));
+    dlc_vector_v := std_logic_vector(to_unsigned(mac_ser_to_fsm.frame_params.dlc, 4));
 
     -- =================================================================
     -- Determine bit type based on position and format using CACHED values
@@ -807,51 +800,51 @@ package body can_pkg is
       result_v := sof_bit_c;
 
     -- Base arbitration field
-    elsif (bit_count >= frame_params.base_id_start and bit_count <= frame_params.base_id_stop) then
+    elsif (bit_count >= mac_ser_to_fsm.frame_params.base_id_start and bit_count <= mac_ser_to_fsm.frame_params.base_id_stop) then
       result_v.bit_name := base_id_bit;
       result_v.polarity := mac_ser_to_fsm.data;
-    elsif (frame_params.rtr_bit.polarity /= unknown and bit_count = frame_params.rtr_bit.position) then
-      result_v := (bit_name => rtr_bit, polarity => frame_params.rtr_bit.polarity);
-    elsif (frame_params.rrs_bit.polarity /= unknown and bit_count = frame_params.rrs_bit.position) then
-      result_v := (bit_name => rrs_bit, polarity => frame_params.rrs_bit.polarity);
+    elsif (mac_ser_to_fsm.frame_params.rtr_bit.polarity /= unknown and bit_count = mac_ser_to_fsm.frame_params.rtr_bit.position) then
+      result_v := (bit_name => rtr_bit, polarity => mac_ser_to_fsm.frame_params.rtr_bit.polarity);
+    elsif (mac_ser_to_fsm.frame_params.rrs_bit.polarity /= unknown and bit_count = mac_ser_to_fsm.frame_params.rrs_bit.position) then
+      result_v := (bit_name => rrs_bit, polarity => mac_ser_to_fsm.frame_params.rrs_bit.polarity);
 
     -- Extended arbitration field
-    elsif (frame_params.srr_bit.polarity /= unknown and bit_count = frame_params.srr_bit.position) then
-      result_v := (bit_name => srr_bit, polarity => frame_params.srr_bit.polarity);
-    elsif (frame_params.ide_bit.polarity /= unknown and bit_count = frame_params.ide_bit.position) then
-      result_v := (bit_name => ide_bit, polarity => frame_params.ide_bit.polarity);
-    elsif (frame_params.extended_id_start > 0 and bit_count >= frame_params.extended_id_start and bit_count <= frame_params.extended_id_stop) then
+    elsif (mac_ser_to_fsm.frame_params.srr_bit.polarity /= unknown and bit_count = mac_ser_to_fsm.frame_params.srr_bit.position) then
+      result_v := (bit_name => srr_bit, polarity => mac_ser_to_fsm.frame_params.srr_bit.polarity);
+    elsif (mac_ser_to_fsm.frame_params.ide_bit.polarity /= unknown and bit_count = mac_ser_to_fsm.frame_params.ide_bit.position) then
+      result_v := (bit_name => ide_bit, polarity => mac_ser_to_fsm.frame_params.ide_bit.polarity);
+    elsif (mac_ser_to_fsm.frame_params.extended_id_start > 0 and bit_count >= mac_ser_to_fsm.frame_params.extended_id_start and bit_count <= mac_ser_to_fsm.frame_params.extended_id_stop) then
       result_v.bit_name := extended_id_bit;
       result_v.polarity := mac_ser_to_fsm.data;
 
     -- Control field
-    elsif (frame_params.r1_bit.polarity /= unknown and bit_count = frame_params.r1_bit.position) then
-      result_v := (bit_name => r1_bit, polarity => frame_params.r1_bit.polarity);
-    elsif (frame_params.r0_bit.polarity /= unknown and bit_count = frame_params.r0_bit.position) then
-      result_v := (bit_name => r0_bit, polarity => frame_params.r0_bit.polarity);
-    elsif (frame_params.fdf_bit.polarity /= unknown and bit_count = frame_params.fdf_bit.position) then
-      result_v := (bit_name => fdf_bit, polarity => frame_params.fdf_bit.polarity);
-    elsif (frame_params.res_bit.polarity /= unknown and bit_count = frame_params.res_bit.position) then
-      result_v := (bit_name => res_bit, polarity => frame_params.res_bit.polarity);
-    elsif (frame_params.brs_bit.polarity /= unknown and bit_count = frame_params.brs_bit.position) then
-      result_v := (bit_name => brs_bit, polarity => frame_params.brs_bit.polarity);
-    elsif (frame_params.esi_bit.polarity /= unknown and bit_count = frame_params.esi_bit.position) then
-      result_v := (bit_name => esi_bit, polarity => frame_params.esi_bit.polarity);
-    elsif (bit_count >= frame_params.dlc_start and bit_count < frame_params.dlc_start + dlc_field_width_c) then
+    elsif (mac_ser_to_fsm.frame_params.r1_bit.polarity /= unknown and bit_count = mac_ser_to_fsm.frame_params.r1_bit.position) then
+      result_v := (bit_name => r1_bit, polarity => mac_ser_to_fsm.frame_params.r1_bit.polarity);
+    elsif (mac_ser_to_fsm.frame_params.r0_bit.polarity /= unknown and bit_count = mac_ser_to_fsm.frame_params.r0_bit.position) then
+      result_v := (bit_name => r0_bit, polarity => mac_ser_to_fsm.frame_params.r0_bit.polarity);
+    elsif (mac_ser_to_fsm.frame_params.fdf_bit.polarity /= unknown and bit_count = mac_ser_to_fsm.frame_params.fdf_bit.position) then
+      result_v := (bit_name => fdf_bit, polarity => mac_ser_to_fsm.frame_params.fdf_bit.polarity);
+    elsif (mac_ser_to_fsm.frame_params.res_bit.polarity /= unknown and bit_count = mac_ser_to_fsm.frame_params.res_bit.position) then
+      result_v := (bit_name => res_bit, polarity => mac_ser_to_fsm.frame_params.res_bit.polarity);
+    elsif (mac_ser_to_fsm.frame_params.brs_bit.polarity /= unknown and bit_count = mac_ser_to_fsm.frame_params.brs_bit.position) then
+      result_v := (bit_name => brs_bit, polarity => mac_ser_to_fsm.frame_params.brs_bit.polarity);
+    elsif (mac_ser_to_fsm.frame_params.esi_bit.polarity /= unknown and bit_count = mac_ser_to_fsm.frame_params.esi_bit.position) then
+      result_v := (bit_name => esi_bit, polarity => mac_ser_to_fsm.frame_params.esi_bit.polarity);
+    elsif (bit_count >= mac_ser_to_fsm.frame_params.dlc_start and bit_count < mac_ser_to_fsm.frame_params.dlc_start + dlc_field_width_c) then
       result_v.bit_name := dlc_bit;
-      dlc_bit_index_v   := dlc_vector_v'left - (bit_count - frame_params.dlc_start);
+      dlc_bit_index_v   := dlc_vector_v'left - (bit_count - mac_ser_to_fsm.frame_params.dlc_start);
       result_v.polarity := bit_to_polarity(dlc_vector_v(dlc_bit_index_v));
 
     -- Data field
-    elsif (bit_count >= frame_params.data_start and bit_count <= frame_params.data_stop) then
+    elsif (bit_count >= mac_ser_to_fsm.frame_params.data_start and bit_count <= mac_ser_to_fsm.frame_params.data_stop) then
       result_v.bit_name := data_bit;
       result_v.polarity := mac_ser_to_fsm.data;
 
     -- CRC field
-    elsif (bit_count >= frame_params.crc_start and bit_count < frame_params.crc_delimiter_pos) then
+    elsif (bit_count >= mac_ser_to_fsm.frame_params.crc_start and bit_count < mac_ser_to_fsm.frame_params.crc_delimiter_pos) then
       -- Check for fixed stuff bits in CAN FD (highest priority in CRC field)
-      if (frame_params.is_fd_frame) then
-        position_in_crc_field_v := bit_count - frame_params.crc_start;
+      if (mac_ser_to_fsm.frame_params.is_fd_frame) then
+        position_in_crc_field_v := bit_count - mac_ser_to_fsm.frame_params.crc_start;
         if is_fixed_stuff_bit_position(position_in_crc_field_v) then
           result_v.bit_name := fixed_stuff_bit;
           result_v.polarity := recessive when previous_polarity = dominant else dominant;
@@ -859,24 +852,24 @@ package body can_pkg is
         end if;
       end if;
       -- If not a fixed stuff bit, extract CRC or SBC bit
-      if (frame_params.is_fd_frame and bit_count >= frame_params.sbc_start and bit_count < frame_params.sbc_start + sbc_field_width_c) then
+      if (mac_ser_to_fsm.frame_params.is_fd_frame and bit_count >= mac_ser_to_fsm.frame_params.sbc_start and bit_count < mac_ser_to_fsm.frame_params.sbc_start + sbc_field_width_c) then
         result_v.bit_name := sbs_bit;
-        result_v.polarity := bit_to_polarity(sbc(sbc'left - (bit_count - frame_params.sbc_start)));
+        result_v.polarity := bit_to_polarity(sbc(sbc'left - (bit_count - mac_ser_to_fsm.frame_params.sbc_start)));
       else
         result_v.bit_name := crc_bit;
-        result_v.polarity := bit_to_polarity(crc(crc'left - (bit_count - frame_params.crc_start)));
+        result_v.polarity := bit_to_polarity(crc(crc'left - (bit_count - mac_ser_to_fsm.frame_params.crc_start)));
       end if;
-    elsif (bit_count = frame_params.crc_delimiter_pos) then
+    elsif (bit_count = mac_ser_to_fsm.frame_params.crc_delimiter_pos) then
       result_v := crc_delimiter_bit_c;
 
     -- ACK field
-    elsif (bit_count = frame_params.ack_slot) then
+    elsif (bit_count = mac_ser_to_fsm.frame_params.ack_slot) then
       result_v := tx_ack_bit_c;
-    elsif (bit_count = frame_params.ack_delimiter) then
+    elsif (bit_count = mac_ser_to_fsm.frame_params.ack_delimiter) then
       result_v := ack_delimiter_bit_c;
 
     -- EOF field
-    elsif (bit_count >= frame_params.eof_start and bit_count < frame_params.eof_start + eof_field_width_c) then
+    elsif (bit_count >= mac_ser_to_fsm.frame_params.eof_start and bit_count < mac_ser_to_fsm.frame_params.eof_start + eof_field_width_c) then
       result_v := eof_bit_c;
 
     end if;

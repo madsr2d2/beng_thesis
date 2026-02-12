@@ -290,7 +290,7 @@ begin
         when others => null;
       end case;
 
-      frame_info := get_next_mac_frame_bit(0, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
+      frame_info := get_next_mac_frame_bit(0, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
 
       assert frame_info.bit_name = sof_bit
         report "Format " & can_format_t'image(format_idx) & ": SOF at position 0"
@@ -316,7 +316,7 @@ begin
     for bit_pos in 1 to 11 loop
       test_count := test_count + 1;
       mac_ser_to_fsm.data := recessive;
-      frame_info := get_next_mac_frame_bit(bit_pos, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
+      frame_info := get_next_mac_frame_bit(bit_pos, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
 
       assert frame_info.bit_name = base_id_bit
         report "Position " & integer'image(bit_pos) & ": should be base_id_bit"
@@ -329,7 +329,7 @@ begin
     -- Test E.2: RTR bit at position 12
     report "E.2: RTR bit validation (position 12)";
     test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(12, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(12, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
 
     assert frame_info.bit_name = rtr_bit
       report "Position 12: should be rtr_bit"
@@ -341,7 +341,7 @@ begin
     -- Test E.3: IDE bit at position 13
     report "E.3: IDE bit validation (position 13)";
     test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(13, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(13, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
 
     assert frame_info.bit_name = ide_bit
       report "Position 13: should be ide_bit"
@@ -361,7 +361,7 @@ begin
     report "F.1: FDF bit presence in FD frames";
     test_count := test_count + 1;
     frame_params := calculate_frame_params(x"C0", x"80");  -- fd_basic
-    frame_info := get_next_mac_frame_bit(14, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(14, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
 
     assert frame_info.bit_name = fdf_bit
       report "FD Basic: position 14 should be fdf_bit"
@@ -375,7 +375,7 @@ begin
     test_count := test_count + 1;
     -- BRS disabled
     frame_params := calculate_frame_params(x"C0", x"80");
-    frame_info := get_next_mac_frame_bit(16, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(16, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.polarity = dominant
       report "BRS disabled should be dominant"
       severity error;
@@ -383,7 +383,7 @@ begin
     test_count := test_count + 1;
     -- BRS enabled
     frame_params := calculate_frame_params(x"C4", x"80");
-    frame_info := get_next_mac_frame_bit(16, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(16, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.polarity = recessive
       report "BRS enabled should be recessive"
       severity error;
@@ -395,7 +395,7 @@ begin
     report "F.3: ESI bit validation";
     test_count := test_count + 1;
     frame_params := calculate_frame_params(x"CC", x"80");  -- BRS=1, ESI=1
-    frame_info := get_next_mac_frame_bit(17, mac_ser_to_fsm, prev_polarity, frame_params, dominant, false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(17, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
 
     assert frame_info.bit_name = esi_bit
       report "Position 17: should be esi_bit"
@@ -480,7 +480,7 @@ begin
     report "H.4: Stuff bit polarity inversion";
     test_count := test_count + 1;
     prev_polarity := dominant;
-    frame_info := get_next_mac_frame_bit(100, mac_ser_to_fsm, prev_polarity, frame_params, recessive, true, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(100, mac_ser_to_fsm, prev_polarity, recessive, true, sbc_vec, crc_vec);
     assert frame_info.bit_name = fixed_stuff_bit
       report "Stuff bit detection failed"
       severity error;
@@ -490,7 +490,7 @@ begin
 
     test_count := test_count + 1;
     prev_polarity := recessive;
-    frame_info := get_next_mac_frame_bit(100, mac_ser_to_fsm, prev_polarity, frame_params, dominant, true, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(100, mac_ser_to_fsm, prev_polarity, dominant, true, sbc_vec, crc_vec);
     assert frame_info.polarity = dominant
       report "Stuff bit after recessive should be dominant"
       severity error;
