@@ -202,7 +202,7 @@ package can_pkg is
   type frame_params_t is record
     -- Frame type and control flags
     format              : can_format_t;
-    dlc                 : dlc_t;
+    dlc_vector          : std_logic_vector(dlc_field_width_c - 1 downto 0);
     is_fd_frame         : boolean;
     is_remote_frame     : boolean;
     has_brs             : boolean;
@@ -211,8 +211,8 @@ package can_pkg is
     -- Field boundaries (for frame layout)
     data_start          : position_t;
     data_stop           : position_t;
-    data_bits           : integer;
     dlc_start           : position_t;
+    dlc_stop            : position_t;
     base_id_start       : position_t;
     base_id_stop        : position_t;
     extended_id_start   : position_t;
@@ -220,9 +220,8 @@ package can_pkg is
 
     -- CRC and SBC fields
     crc_start           : position_t;
-    crc_length          : integer;
-    crc_field_length    : integer;
-    crc_delimiter_pos   : position_t;
+    crc_stop            : position_t;
+    crc_delimiter       : position_t;
     sbc_start           : position_t;
     sbc_stop            : position_t;
 
@@ -230,6 +229,7 @@ package can_pkg is
     ack_slot            : position_t;
     ack_delimiter       : position_t;
     eof_start           : position_t;
+    eof_stop            : position_t;
 
     -- Format-specific bit positions (with polarities resolved for BRS/ESI)
     srr_bit             : bit_t;
@@ -272,28 +272,28 @@ package can_pkg is
 
   constant frame_params_reset_c : frame_params_t := (
     format => unknown,
-    dlc => 0,
+    dlc_vector => (others => '0'),
     is_fd_frame => false,
     is_remote_frame => false,
     has_brs => false,
     esi_enable => false,
     data_start => 0,
     data_stop => 0,
-    data_bits => 0,
     dlc_start => 0,
+    dlc_stop => 0,
     base_id_start => 0,
     base_id_stop => 0,
     extended_id_start => 0,
     extended_id_stop => 0,
     crc_start => 0,
-    crc_length => 0,
-    crc_field_length => 0,
-    crc_delimiter_pos => 0,
+    crc_stop => 0,
+    crc_delimiter => 0,
     sbc_start => 0,
     sbc_stop => 0,
     ack_slot => 0,
     ack_delimiter => 0,
     eof_start => 0,
+    eof_stop => 0,
     srr_bit => unknown_bit_c,
     ide_bit => unknown_bit_c,
     rtr_bit => unknown_bit_c,
@@ -779,7 +779,6 @@ package body can_pkg is
   ) return mac_frame_bit_t is
 
     variable result_v : mac_frame_bit_t;
-    variable dlc_vector_v : std_logic_vector(dlc_field_width_c - 1 downto 0);
     variable dlc_bit_index_v : position_t;
     variable position_in_crc_field_v : position_t;
 
@@ -792,8 +791,6 @@ package body can_pkg is
       result_v := (polarity => stuff_bit_polarity, bit_name => stuff_bit);
       return result_v;
     end if;
-
-    dlc_vector_v := std_logic_vector(to_unsigned(mac_ser_to_fsm.frame_params.dlc, 4));
 
     -- =================================================================
     -- Determine bit type based on position and format using CACHED values
@@ -832,10 +829,10 @@ package body can_pkg is
       result_v := (bit_name => brs_bit, polarity => mac_ser_to_fsm.frame_params.brs_bit.polarity);
     elsif (mac_ser_to_fsm.frame_params.esi_bit.polarity /= unknown and bit_count = mac_ser_to_fsm.frame_params.esi_bit.position) then
       result_v := (bit_name => esi_bit, polarity => mac_ser_to_fsm.frame_params.esi_bit.polarity);
-    elsif (bit_count >= mac_ser_to_fsm.frame_params.dlc_start and bit_count < mac_ser_to_fsm.frame_params.dlc_start + dlc_field_width_c) then
+    elsif (bit_count >= mac_ser_to_fsm.frame_params.dlc_start and bit_count < mac_ser_to_fsm.frame_params.dlc_stop) then
       result_v.bit_name := dlc_bit;
-      dlc_bit_index_v   := dlc_vector_v'left - (bit_count - mac_ser_to_fsm.frame_params.dlc_start);
-      result_v.polarity := bit_to_polarity(dlc_vector_v(dlc_bit_index_v));
+      dlc_bit_index_v   := mac_ser_to_fsm.frame_params.dlc_vector'left - (bit_count - mac_ser_to_fsm.frame_params.dlc_start);
+      result_v.polarity := bit_to_polarity(mac_ser_to_fsm.frame_params.dlc_vector(dlc_bit_index_v));
 
     -- Data field
     elsif (bit_count >= mac_ser_to_fsm.frame_params.data_start and bit_count <= mac_ser_to_fsm.frame_params.data_stop) then
@@ -843,7 +840,7 @@ package body can_pkg is
       result_v.polarity := mac_ser_to_fsm.data;
 
     -- CRC field
-    elsif (bit_count >= mac_ser_to_fsm.frame_params.crc_start and bit_count < mac_ser_to_fsm.frame_params.crc_delimiter_pos) then
+    elsif (bit_count >= mac_ser_to_fsm.frame_params.crc_start and bit_count < mac_ser_to_fsm.frame_params.crc_stop) then
       -- Check for fixed stuff bits in CAN FD (highest priority in CRC field)
       if (mac_ser_to_fsm.frame_params.is_fd_frame) then
         position_in_crc_field_v := bit_count - mac_ser_to_fsm.frame_params.crc_start;
@@ -861,7 +858,7 @@ package body can_pkg is
         result_v.bit_name := crc_bit;
         result_v.polarity := bit_to_polarity(crc(crc'left - (bit_count - mac_ser_to_fsm.frame_params.crc_start)));
       end if;
-    elsif (bit_count = mac_ser_to_fsm.frame_params.crc_delimiter_pos) then
+    elsif (bit_count = mac_ser_to_fsm.frame_params.crc_delimiter) then
       result_v := crc_delimiter_bit_c;
 
     -- ACK field
@@ -871,7 +868,7 @@ package body can_pkg is
       result_v := ack_delimiter_bit_c;
 
     -- EOF field
-    elsif (bit_count >= mac_ser_to_fsm.frame_params.eof_start and bit_count < mac_ser_to_fsm.frame_params.eof_start + eof_field_width_c) then
+    elsif (bit_count >= mac_ser_to_fsm.frame_params.eof_start and bit_count < mac_ser_to_fsm.frame_params.eof_stop) then
       result_v := eof_bit_c;
 
     end if;
@@ -935,8 +932,8 @@ package body can_pkg is
       when others => result.format := unknown;
     end case;
 
-    -- Extract DLC from config_byte_1[7:4]
-    result.dlc := dlc_t(to_integer(unsigned(config_byte_1(llc_frame_config_byte_1_dlc_start downto llc_frame_config_byte_1_dlc_end))));
+    -- Extract DLC vector from config_byte_1[7:4] (raw 4-bit value)
+    result.dlc_vector := config_byte_1(llc_frame_config_byte_1_dlc_start downto llc_frame_config_byte_1_dlc_end);
 
     -- Extract flags from config_byte_0
     has_brs_v := (config_byte_0(llc_frame_config_byte_0_brs) = '1');
@@ -952,8 +949,8 @@ package body can_pkg is
     brs_polarity_v := recessive when result.has_brs else dominant;
     esi_polarity_v := recessive when result.esi_enable else dominant;
 
-    -- Calculate data length from DLC
-    data_length_v := dlc_to_data_length(result.dlc, result.format);
+    -- Calculate data length from DLC vector
+    data_length_v := dlc_to_data_length(dlc_t(to_integer(unsigned(result.dlc_vector))), result.format);
     data_bits_v := data_length_v * byte_width_c;
 
     -- Populate field boundaries based on format
@@ -1051,15 +1048,16 @@ package body can_pkg is
 
     -- Calculate all data and CRC field positions
     result.data_start := data_start_v;
-    result.data_bits := data_bits_v;
     if (data_bits_v > 0) then
       result.data_stop := data_start_v + data_bits_v - 1;
     else
       result.data_stop := data_start_v;
     end if;
 
+    -- DLC field boundaries
+    result.dlc_stop := result.dlc_start + dlc_field_width_c;
+
     crc_length_v := get_crc_length(result.format, data_length_v);
-    result.crc_length := crc_length_v;
     result.crc_start := result.data_stop + 1;
 
     -- CAN FD has SBC field after data, CAN Classic goes directly to CRC
@@ -1076,13 +1074,14 @@ package body can_pkg is
       crc_field_length_v := crc_length_v;
     end if;
 
-    result.crc_field_length := crc_field_length_v;
-    result.crc_delimiter_pos := result.crc_start + crc_field_length_v;
+    result.crc_stop := result.crc_start + crc_field_length_v;
+    result.crc_delimiter := result.crc_stop;
 
     -- ACK and EOF field positions
-    result.ack_slot := result.crc_delimiter_pos + 1;
+    result.ack_slot := result.crc_delimiter + 1;
     result.ack_delimiter := result.ack_slot + 1;
     result.eof_start := result.ack_delimiter + 1;
+    result.eof_stop := result.eof_start + eof_field_width_c;
 
     return result;
 

@@ -120,7 +120,7 @@ begin
     AlertIf(tx_mac_fsm_o.frame_params.is_remote_frame /= false, "ERROR: is_remote_frame should be false (data_frame)", FAILURE);
     AlertIf(tx_mac_fsm_o.frame_params.esi_enable /= true, "ERROR: ESI should be true (1)", FAILURE);
     AlertIf(tx_mac_fsm_o.frame_params.has_brs /= false, "ERROR: BRS should be false (0)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.dlc /= 5, "ERROR: DLC should be 5", FAILURE);
+    AlertIf(to_integer(unsigned(tx_mac_fsm_o.frame_params.dlc_vector)) /= 5, "ERROR: DLC should be 5", FAILURE);
     Print("    FORMAT: fd_extended [PASS]");
     Print("    FTYP: data_frame [PASS]");
     Print("    ESI: true [PASS]");
@@ -209,7 +209,7 @@ begin
     AlertIf(tx_mac_fsm_o.frame_params.is_remote_frame /= false, "ERROR: FTYP should be data_frame (0)", FAILURE);
     AlertIf(tx_mac_fsm_o.frame_params.esi_enable /= false, "ERROR: ESI should be false (0)", FAILURE);
     AlertIf(tx_mac_fsm_o.frame_params.has_brs /= false, "ERROR: BRS should be false (0)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.dlc /= 3, "ERROR: DLC should be 3", FAILURE);
+    AlertIf(to_integer(unsigned(tx_mac_fsm_o.frame_params.dlc_vector)) /= 3, "ERROR: DLC should be 3", FAILURE);
     Print("    FORMAT: fd_extended [PASS]");
     Print("    FTYP: data_frame [PASS]");
     Print("    ESI: false [PASS]");
@@ -293,7 +293,7 @@ begin
     AlertIf(tx_mac_fsm_o.frame_params.is_remote_frame /= true, "ERROR: FTYP should be remote_frame (1)", FAILURE);
     AlertIf(tx_mac_fsm_o.frame_params.esi_enable /= true, "ERROR: ESI should be true (1)", FAILURE);
     AlertIf(tx_mac_fsm_o.frame_params.has_brs /= true, "ERROR: BRS should be true (1)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.dlc /= 15, "ERROR: DLC should be 15", FAILURE);
+    AlertIf(to_integer(unsigned(tx_mac_fsm_o.frame_params.dlc_vector)) /= 15, "ERROR: DLC should be 15", FAILURE);
     Print("    FORMAT: unknown [PASS]");
     Print("    FTYP: remote_frame [PASS]");
     Print("    ESI: true [PASS]");
