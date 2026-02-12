@@ -249,13 +249,11 @@ package can_pkg is
   end record mac_to_pcs_if_t;
 
   -- PCS to MAC interface
-  -- PCS drives bus polarity and strobes to indicate when MAC should sample
+  -- PCS drives bus polarity continuously and sends strobes for sample timing
   type pcs_to_mac_if_t is record
     polarity : polarity_t; -- Current bus polarity (continuously driven)
-    sp       : std_logic; -- Sample Point strobe (pulse: MAC samples polarity at SP)
-    ssp      : std_logic; -- Secondary Sample Point strobe (pulse: MAC samples polarity at SSP)
-    valid    : std_logic; -- Data valid (strobes are valid)
-    ready    : std_logic; -- MAC ready to accept strobes
+    sp       : std_logic;  -- Sample Point strobe (pulse: MAC samples polarity at SP)
+    ssp      : std_logic;  -- Secondary Sample Point strobe (pulse: MAC samples polarity at SSP)
   end record pcs_to_mac_if_t;
 
   type mac_fsm_to_bs_fd_if_t is record
