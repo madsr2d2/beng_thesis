@@ -517,6 +517,11 @@ package can_pkg is
     pcs_to_pma_propagation_delay_ns : integer
   ) return boolean;
 
+  -- Helper function to check if position is a fixed stuff bit in CAN FD CRC field
+  function is_fixed_stuff_bit_position (
+    position_in_crc_field : integer
+  ) return boolean;
+
   -- Calculate all frame-specific parameters once per frame
   -- Avoids redundant calculations on every bit transmission
   function calculate_frame_params (
@@ -840,9 +845,10 @@ package body can_pkg is
       result_v.bit_name := data_bit;
       result_v.polarity := mac_ser_to_fsm.data;
 
-    -- CRC field
-    elsif (bit_count >= mac_ser_to_fsm.frame_params.crc_start and bit_count < mac_ser_to_fsm.frame_params.crc_stop) then
-      -- Check for fixed stuff bits in CAN FD (highest priority in CRC field)
+    -- CRC and SBC field (FD frames include SBC starting from sbc_start, Classic frames start from crc_start)
+    elsif ((mac_ser_to_fsm.frame_params.is_fd_frame and bit_count >= mac_ser_to_fsm.frame_params.sbc_start and bit_count < mac_ser_to_fsm.frame_params.crc_stop) or
+           (not mac_ser_to_fsm.frame_params.is_fd_frame and bit_count >= mac_ser_to_fsm.frame_params.crc_start and bit_count < mac_ser_to_fsm.frame_params.crc_stop)) then
+      -- Check for fixed stuff bits in CAN FD (highest priority in CRC/SBC field)
       if (mac_ser_to_fsm.frame_params.is_fd_frame) then
         position_in_crc_field_v := bit_count - mac_ser_to_fsm.frame_params.sbc_start;
         if is_fixed_stuff_bit_position(position_in_crc_field_v) then
