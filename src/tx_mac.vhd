@@ -13,8 +13,8 @@ entity mac_tx is
     llc_o : out   mac_to_llc_if_t;
 
     -- PCS interface (Physical Coding Sublayer)
-    pcs_i : in    pcs_mac_if_t;
-    pcs_o : out   mac_pcs_if_t
+    pcs_i : in    pcs_to_mac_if_t;    -- Measurements from PCS to MAC
+    pcs_o : out   mac_to_pcs_if_t     -- Frame bits from MAC to PCS
   );
 end entity mac_tx;
 

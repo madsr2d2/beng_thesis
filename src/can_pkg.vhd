@@ -241,19 +241,22 @@ package can_pkg is
     transfer_status : transfer_status_t;
   end record mac_to_llc_if_t;
 
-  type mac_pcs_if_t is record
-    mac_bit         : std_logic;
-    mac_bit_valid   : std_logic;
-    mac_bit_ready   : std_logic;
-    transmit_status : std_logic;
-    receive_status  : std_logic;
-  end record mac_pcs_if_t;
+  -- MAC to PCS (Physical Coding Sublayer) interface
+  type mac_to_pcs_if_t is record
+    frame_bit : mac_frame_bit_t; -- Bit with name/polarity for delay calculation
+    valid     : std_logic;       -- Frame bit data is valid
+    ready     : std_logic;       -- PCS ready to accept next bit
+  end record mac_to_pcs_if_t;
 
-  type pcs_mac_if_t is record
-    mac_bit       : std_logic;
-    mac_bit_valid : std_logic;
-    mac_bit_ready : std_logic;
-  end record pcs_mac_if_t;
+  -- PCS to MAC interface
+  -- PCS drives bus polarity and strobes to indicate when MAC should sample
+  type pcs_to_mac_if_t is record
+    polarity : polarity_t; -- Current bus polarity (continuously driven)
+    sp       : std_logic; -- Sample Point strobe (pulse: MAC samples polarity at SP)
+    ssp      : std_logic; -- Secondary Sample Point strobe (pulse: MAC samples polarity at SSP)
+    valid    : std_logic; -- Data valid (strobes are valid)
+    ready    : std_logic; -- MAC ready to accept strobes
+  end record pcs_to_mac_if_t;
 
   type mac_fsm_to_bs_fd_if_t is record
     data       : std_logic;
