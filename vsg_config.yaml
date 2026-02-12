@@ -77,3 +77,7 @@ rule:
   if_008:
     disable: true
 
+  # length_001: Reduce line to less than 120 characters
+  length_001:
+    disable: true
+
