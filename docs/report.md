@@ -267,7 +267,7 @@ title: "CAN Classic Basic Data Frame (max 8 bytes)"
 ---
 packet
 0: "SOF"
-1-11: "Base ID (11 bits)"
+1-11: "Base ID (ID(28) downto ID(18))"
 12: "RTR"
 13: "IDE"
 14: "R0"
