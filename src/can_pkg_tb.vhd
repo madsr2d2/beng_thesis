@@ -155,7 +155,7 @@ begin
       config_byte_1 := std_logic_vector(to_unsigned(dlc_idx, 4)) & "0000";
       frame_params := calculate_frame_params(config_byte_0, config_byte_1);
 
-      assert frame_params.data_length = dlc_idx
+      assert frame_params.data_bits = dlc_idx
         report "CC DLC " & integer'image(dlc_idx) & ": data_length should be " & integer'image(dlc_idx)
         severity error;
 
@@ -170,7 +170,7 @@ begin
       config_byte_1 := std_logic_vector(to_unsigned(dlc_idx, 4)) & "0000";
       frame_params := calculate_frame_params(config_byte_0, config_byte_1);
 
-      assert frame_params.data_length = 8
+      assert frame_params.data_bits = 8
         report "CC DLC " & integer'image(dlc_idx) & ": data_length should saturate to 8"
         severity error;
 
@@ -188,22 +188,22 @@ begin
 
       test_passed := false;
       case dlc_idx is
-        when 0 => test_passed := (frame_params.data_length = 0);
-        when 1 => test_passed := (frame_params.data_length = 1);
-        when 2 => test_passed := (frame_params.data_length = 2);
-        when 3 => test_passed := (frame_params.data_length = 3);
-        when 4 => test_passed := (frame_params.data_length = 4);
-        when 5 => test_passed := (frame_params.data_length = 5);
-        when 6 => test_passed := (frame_params.data_length = 6);
-        when 7 => test_passed := (frame_params.data_length = 7);
-        when 8 => test_passed := (frame_params.data_length = 8);
-        when 9 => test_passed := (frame_params.data_length = 12);
-        when 10 => test_passed := (frame_params.data_length = 16);
-        when 11 => test_passed := (frame_params.data_length = 20);
-        when 12 => test_passed := (frame_params.data_length = 24);
-        when 13 => test_passed := (frame_params.data_length = 32);
-        when 14 => test_passed := (frame_params.data_length = 48);
-        when 15 => test_passed := (frame_params.data_length = 64);
+        when 0 => test_passed := (frame_params.data_bits = 0);
+        when 1 => test_passed := (frame_params.data_bits = 1);
+        when 2 => test_passed := (frame_params.data_bits = 2);
+        when 3 => test_passed := (frame_params.data_bits = 3);
+        when 4 => test_passed := (frame_params.data_bits = 4);
+        when 5 => test_passed := (frame_params.data_bits = 5);
+        when 6 => test_passed := (frame_params.data_bits = 6);
+        when 7 => test_passed := (frame_params.data_bits = 7);
+        when 8 => test_passed := (frame_params.data_bits = 8);
+        when 9 => test_passed := (frame_params.data_bits = 12);
+        when 10 => test_passed := (frame_params.data_bits = 16);
+        when 11 => test_passed := (frame_params.data_bits = 20);
+        when 12 => test_passed := (frame_params.data_bits = 24);
+        when 13 => test_passed := (frame_params.data_bits = 32);
+        when 14 => test_passed := (frame_params.data_bits = 48);
+        when 15 => test_passed := (frame_params.data_bits = 64);
         when others => test_passed := false;
       end case;
 
@@ -232,10 +232,10 @@ begin
     assert frame_params.crc_length = 15
       report "Classic Basic CRC should be 15 bits"
       severity error;
-    assert frame_params.crc_start = frame_params.data_start + frame_params.data_length
+    assert frame_params.crc_start = frame_params.data_start + frame_params.data_bits
       report "CRC start should equal data_start + data_length"
       severity error;
-    assert frame_params.crc_delim_start = frame_params.crc_start + frame_params.crc_length
+    assert frame_params.crc_delimiter_pos = frame_params.crc_start + frame_params.crc_length
       report "CRC delimiter start should equal crc_start + crc_length"
       severity error;
 
@@ -252,10 +252,10 @@ begin
     assert frame_params.data_start > 0
       report "Data field should start after arbitration/control"
       severity error;
-    assert frame_params.crc_start >= frame_params.data_start + frame_params.data_length
+    assert frame_params.crc_start >= frame_params.data_start + frame_params.data_bits
       report "CRC field should not overlap data"
       severity error;
-    assert frame_params.ack_start > frame_params.crc_delim_start
+    assert frame_params.ack_slot > frame_params.crc_delimiter_pos
       report "ACK should be after CRC delimiter"
       severity error;
 
@@ -447,7 +447,7 @@ begin
     report "H.1: Minimum frame (DLC=0, no data)";
     test_count := test_count + 1;
     frame_params := calculate_frame_params(x"28", x"00");
-    assert frame_params.data_length = 0
+    assert frame_params.data_bits = 0
       report "DLC=0: data_length should be 0"
       severity error;
     assert frame_params.dlc = 0
@@ -460,7 +460,7 @@ begin
     report "H.2: Maximum Classic frame (DLC=8, 8 bytes)";
     test_count := test_count + 1;
     frame_params := calculate_frame_params(x"28", x"80");
-    assert frame_params.data_length = 8
+    assert frame_params.data_bits = 8
       report "DLC=8 classic: data_length should be 8"
       severity error;
     pass_count := pass_count + 1;
@@ -470,7 +470,7 @@ begin
     report "H.3: Maximum FD frame (DLC=15, 64 bytes)";
     test_count := test_count + 1;
     frame_params := calculate_frame_params(x"C0", x"F0");
-    assert frame_params.data_length = 64
+    assert frame_params.data_bits = 64
       report "DLC=15 FD: data_length should be 64"
       severity error;
     pass_count := pass_count + 1;
