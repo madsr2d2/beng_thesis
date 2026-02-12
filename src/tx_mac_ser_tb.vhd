@@ -112,15 +112,15 @@ begin
 
     Print("  Config byte 1 loaded: x""50""");
 
-    -- Verify frame_info extraction
+    -- Verify frame_params extraction
     -- Byte 0: x"C8" = 11001000 → FORMAT[7:5]=110(fd_extended), FTYP[4]=0, ESI[3]=1, BRS[2]=0
     -- Byte 1: x"50" = 01010000 → DLC[7:4]=0101=5
-    Print("  Verifying frame_info extraction:");
-    AlertIf(tx_mac_fsm_o.frame_info.format /= fd_extended, "ERROR: FORMAT should be fd_extended (110)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_info.ftyp /= data_frame, "ERROR: FTYP should be data_frame (0)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_info.esi_enable /= true, "ERROR: ESI should be true (1)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_info.brs_enable /= false, "ERROR: BRS should be false (0)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_info.dlc /= 5, "ERROR: DLC should be 5", FAILURE);
+    Print("  Verifying frame_params extraction:");
+    AlertIf(tx_mac_fsm_o.frame_params.format /= fd_extended, "ERROR: FORMAT should be fd_extended (110)", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.is_remote_frame /= false, "ERROR: is_remote_frame should be false (data_frame)", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.esi_enable /= true, "ERROR: ESI should be true (1)", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.has_brs /= false, "ERROR: BRS should be false (0)", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.dlc /= 5, "ERROR: DLC should be 5", FAILURE);
     Print("    FORMAT: fd_extended [PASS]");
     Print("    FTYP: data_frame [PASS]");
     Print("    ESI: true [PASS]");
@@ -205,11 +205,11 @@ begin
     -- Byte 0: x"C0" = 11000000 → FORMAT[7:5]=110, FTYP[4]=0, ESI[3]=0, BRS[2]=0
     -- Byte 1: x"30" = 00110000 → DLC[7:4]=0011=3
     Print("  Verifying frame_info extraction:");
-    AlertIf(tx_mac_fsm_o.frame_info.format /= fd_extended, "ERROR: FORMAT should be fd_extended (110)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_info.ftyp /= data_frame, "ERROR: FTYP should be data_frame (0)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_info.esi_enable /= false, "ERROR: ESI should be false (0)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_info.brs_enable /= false, "ERROR: BRS should be false (0)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_info.dlc /= 3, "ERROR: DLC should be 3", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.format /= fd_extended, "ERROR: FORMAT should be fd_extended (110)", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.is_remote_frame /= false, "ERROR: FTYP should be data_frame (0)", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.esi_enable /= false, "ERROR: ESI should be false (0)", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.has_brs /= false, "ERROR: BRS should be false (0)", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.dlc /= 3, "ERROR: DLC should be 3", FAILURE);
     Print("    FORMAT: fd_extended [PASS]");
     Print("    FTYP: data_frame [PASS]");
     Print("    ESI: false [PASS]");
@@ -289,11 +289,11 @@ begin
     -- Byte 0: x"FF" = 11111111 → FORMAT[7:5]=111, FTYP[4]=1, ESI[3]=1, BRS[2]=1
     -- Byte 1: x"F0" = 11110000 → DLC[7:4]=1111=15
     Print("  Verifying frame_info extraction:");
-    AlertIf(tx_mac_fsm_o.frame_info.format /= unknown, "ERROR: FORMAT should be unknown (111)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_info.ftyp /= remote_frame, "ERROR: FTYP should be remote_frame (1)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_info.esi_enable /= true, "ERROR: ESI should be true (1)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_info.brs_enable /= true, "ERROR: BRS should be true (1)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_info.dlc /= 15, "ERROR: DLC should be 15", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.format /= unknown, "ERROR: FORMAT should be unknown (111)", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.is_remote_frame /= true, "ERROR: FTYP should be remote_frame (1)", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.esi_enable /= true, "ERROR: ESI should be true (1)", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.has_brs /= true, "ERROR: BRS should be true (1)", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.dlc /= 15, "ERROR: DLC should be 15", FAILURE);
     Print("    FORMAT: unknown [PASS]");
     Print("    FTYP: remote_frame [PASS]");
     Print("    ESI: true [PASS]");

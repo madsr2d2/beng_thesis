@@ -174,15 +174,6 @@ package can_pkg is
   -- SBC (Stuff Bit Count)
   subtype sbc_t is std_logic_vector(sbc_field_width_c - 1 downto 0);
 
-  -- Record encapsulates the LLC frame info
-  type llc_frame_info_t is record
-    format     : can_format_t;
-    ftyp       : frame_type_t;
-    brs_enable : boolean;
-    esi_enable : boolean;
-    dlc        : dlc_t;
-  end record llc_frame_info_t;
-
   -- error info
   type tx_mac_error_info_t is record
     is_error   : boolean;
@@ -219,6 +210,7 @@ package can_pkg is
     ack_start        : integer;       -- ACK field start
     is_fd_frame      : boolean;       -- FD format flag
     has_brs          : boolean;       -- Bit rate switch enabled
+    esi_enable       : boolean;       -- Error State Indicator flag
     is_remote_frame  : boolean;       -- Remote frame flag
   end record frame_params_t;
 
@@ -237,11 +229,10 @@ package can_pkg is
   end record avalon_st_sink_t;
 
   type tx_mac_ser_to_fsm_if_t is record
-    data           : polarity_t;         -- CAN polarity (MAC domain)
-    valid          : std_logic;          -- Data valid signal
-    frame_info     : llc_frame_info_t;   -- Frame configuration from LLC
-    frame_params   : frame_params_t;     -- Cached frame parameters (no recalculation needed)
-    params_valid   : std_logic;          -- Frame params valid flag
+    data         : polarity_t;      -- CAN polarity (MAC domain)
+    valid        : std_logic;       -- Data valid signal
+    frame_params : frame_params_t;  -- Cached frame parameters (all config info consolidated)
+    params_valid : std_logic;       -- Frame params valid flag
   end record tx_mac_ser_to_fsm_if_t;
 
   type tx_mac_fsm_to_ser_if_t is record
@@ -260,6 +251,7 @@ package can_pkg is
     ack_start => 0,
     is_fd_frame => false,
     has_brs => false,
+    esi_enable => false,
     is_remote_frame => false
   );
 
@@ -434,12 +426,6 @@ package can_pkg is
     bit_val : std_logic
   ) return polarity_t;
 
-  -- Function converts the LLC frame configuration bytes (byte 0 to 1) to llc_frame_info_t
-  function get_frame_info (
-    config_byte_0 : byte_t;
-    config_byte_1 : byte_t
-  ) return llc_frame_info_t;
-
   -- Function calculates the next bit to be transmitted
   function get_next_mac_frame_bit (
     bit_count    : position_t;
@@ -461,7 +447,7 @@ package can_pkg is
     delay : integer range 0 to transmitted_bits_fifo_depth_c - 1;
     transmitted_bits_fifo : transmitted_bits_fifo_t;
     monitored_bit_polarity : polarity_t;
-    frame_info : llc_frame_info_t
+    frame_params : frame_params_t
   ) return observed_mac_frame_bit_info_t;
 
   -- Initialize FIFO to empty state (all bits unknown)
@@ -503,7 +489,7 @@ package body can_pkg is
     delay : integer range 0 to transmitted_bits_fifo_depth_c - 1;
     transmitted_bits_fifo : transmitted_bits_fifo_t;
     monitored_bit_polarity : polarity_t;
-    frame_info : llc_frame_info_t
+    frame_params : frame_params_t
   ) return observed_mac_frame_bit_info_t is
 
     variable result : observed_mac_frame_bit_info_t;
@@ -542,7 +528,7 @@ package body can_pkg is
     end if;
 
     -- Determine if this bit is in the arbitration phase (ISO 11898-1: Figure 2)
-    case frame_info.format is
+    case frame_params.format is
       when cc_basic =>
         is_arbitration_bit := (transmitted_bit.bit_name = base_id_bit or
                                transmitted_bit.bit_name = rtr_bit);
@@ -582,44 +568,6 @@ package body can_pkg is
     return result;
 
   end function get_observed_mac_frame_bit_info;
-
-  function get_frame_info (
-    config_byte_0 : byte_t;
-    config_byte_1 : byte_t
-  ) return llc_frame_info_t is
-
-    variable result : llc_frame_info_t;
-
-  begin
-
-    -- Get Error State Indicator (ESI)
-    result.esi_enable := true when config_byte_0(llc_frame_config_byte_0_esi) = '1' else false;
-    -- Get Bit rate switch (BRS)
-    result.brs_enable := true when config_byte_0(llc_frame_config_byte_0_brs) = '1' else false;
-    -- Get frame type (FTYP)
-    result.ftyp := remote_frame when config_byte_0(llc_frame_config_byte_0_ftyp) = '1' else data_frame;
-
-    -- Get frame format
-    case config_byte_0(llc_frame_config_byte_0_format_start downto llc_frame_config_byte_0_format_end) is
-      when "000" =>
-        result.format := cc_basic;
-      when "100" =>
-        result.format := cc_extended;
-      when "010" =>
-        result.format := fd_basic;
-      when "110" =>
-        result.format := fd_extended;
-      when others =>
-        result.format := unknown;
-    end case;
-
-    -- Get DLC
-    result.dlc := dlc_t(to_integer(unsigned(config_byte_1(llc_frame_config_byte_1_dlc_start downto llc_frame_config_byte_1_dlc_end))));
-
-    -- Get frame type
-    return result;
-
-  end function get_frame_info;
 
   -- Function calculates the parity bit of a std_logic_vector
   function calc_parity (
@@ -851,19 +799,19 @@ package body can_pkg is
       return result_v;
     end if;
 
-    dlc_vector_v := std_logic_vector(to_unsigned(mac_ser_to_fsm.frame_info.dlc, 4));
+    dlc_vector_v := std_logic_vector(to_unsigned(frame_params.dlc, 4));
     -- Note: For remote frames, data_bits_v = 0, so data field is skipped
-    data_length_v := dlc_to_data_length(mac_ser_to_fsm.frame_info.dlc, mac_ser_to_fsm.frame_info.format);
+    data_length_v := dlc_to_data_length(frame_params.dlc, frame_params.format);
 
     -- Determine frame-dependent polarities
-    rtr_polarity_v := recessive when mac_ser_to_fsm.frame_info.ftyp = remote_frame else dominant;
-    brs_polarity_v := recessive when mac_ser_to_fsm.frame_info.brs_enable else dominant;
-    esi_polarity_v := recessive when mac_ser_to_fsm.frame_info.esi_enable else dominant;
+    rtr_polarity_v := recessive when frame_params.is_remote_frame else dominant;
+    brs_polarity_v := recessive when frame_params.has_brs else dominant;
+    esi_polarity_v := recessive when frame_params.esi_enable else dominant;
 
     -- =================================================================
     -- Calculate dynamic positions based on data length and format
     -- =================================================================
-    case mac_ser_to_fsm.frame_info.format is
+    case frame_params.format is
       when cc_basic =>
         data_start_v        := cb_data_start_c.position;
         dlc_start_v         := cb_dlc_start_c.position;
@@ -961,11 +909,11 @@ package body can_pkg is
 
     data_bits_v := data_length_v * byte_width_c;
     data_stop_v := data_start_v + data_bits_v - 1;
-    is_fd_v     := is_fd_format(mac_ser_to_fsm.frame_info.format);
+    is_fd_v     := is_fd_format(frame_params.format);
 
     -- Calculate CRC field and delimiter position
     crc_start_v  := data_stop_v + 1;
-    crc_length_v := get_crc_length(mac_ser_to_fsm.frame_info.format, data_length_v);
+    crc_length_v := get_crc_length(frame_params.format, data_length_v);
 
     -- CAN FD has SBC field after data, CAN Classic goes directly to CRC
     if (is_fd_v) then
@@ -1101,25 +1049,38 @@ package body can_pkg is
     config_byte_1 : byte_t
   ) return frame_params_t is
     variable result : frame_params_t;
-    variable frame_info : llc_frame_info_t;
     variable data_length_v : integer;
     variable data_start_v : position_t;
+    variable has_brs_v : boolean;
+    variable is_remote_v : boolean;
   begin
-    -- Get frame info (format, DLC, flags)
-    frame_info := get_frame_info(config_byte_0, config_byte_1);
+    -- Extract frame format from config_byte_0[7:5]
+    case config_byte_0(llc_frame_config_byte_0_format_start downto llc_frame_config_byte_0_format_end) is
+      when "000" => result.format := cc_basic;
+      when "100" => result.format := cc_extended;
+      when "010" => result.format := fd_basic;
+      when "110" => result.format := fd_extended;
+      when others => result.format := unknown;
+    end case;
 
-    result.format := frame_info.format;
-    result.dlc := frame_info.dlc;
-    result.is_fd_frame := is_fd_format(frame_info.format);
-    result.has_brs := frame_info.brs_enable;
-    result.is_remote_frame := (frame_info.ftyp = remote_frame);
+    -- Extract DLC from config_byte_1[7:4]
+    result.dlc := dlc_t(to_integer(unsigned(config_byte_1(llc_frame_config_byte_1_dlc_start downto llc_frame_config_byte_1_dlc_end))));
+
+    -- Extract flags from config_byte_0
+    has_brs_v := (config_byte_0(llc_frame_config_byte_0_brs) = '1');
+    is_remote_v := (config_byte_0(llc_frame_config_byte_0_ftyp) = '1');
+
+    result.is_fd_frame := is_fd_format(result.format);
+    result.has_brs := has_brs_v;
+    result.esi_enable := (config_byte_0(llc_frame_config_byte_0_esi) = '1');
+    result.is_remote_frame := is_remote_v;
 
     -- Calculate data length from DLC
-    data_length_v := dlc_to_data_length(frame_info.dlc, frame_info.format);
+    data_length_v := dlc_to_data_length(result.dlc, result.format);
     result.data_length := data_length_v;
 
     -- Determine data start position based on format
-    case frame_info.format is
+    case result.format is
       when cc_basic =>
         data_start_v := cb_data_start_c.position;
       when cc_extended =>
@@ -1135,11 +1096,12 @@ package body can_pkg is
     -- Calculate field positions (only once per frame!)
     result.data_start := data_start_v;
     result.crc_start := result.data_start + data_length_v;
-    result.crc_length := get_crc_length(frame_info.format, data_length_v);
+    result.crc_length := get_crc_length(result.format, data_length_v);
     result.crc_delim_start := result.crc_start + result.crc_length;
-    result.ack_start := result.crc_delim_start + 1;
+    result.ack_start       := result.crc_delim_start + 1;
 
     return result;
+
   end function calculate_frame_params;
 
   function should_use_tdc (

@@ -60,7 +60,6 @@ begin
         llc_o.avalon_st_sink.ready <= '0';
         tx_mac_fsm_o.valid         <= '0';
         llc_o.transfer_status      <= tx_mac_fsm_i.transfer_status;
-        tx_mac_fsm_o.frame_info    <= get_frame_info(config_byte_reg_0, config_byte_reg_1);
         tx_mac_fsm_o.frame_params  <= frame_params_reg;
         tx_mac_fsm_o.params_valid  <= params_valid;
         state_reg                  <= state_reg;
