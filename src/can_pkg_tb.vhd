@@ -59,7 +59,7 @@ begin
 
     -- Test 1.1: SOF bit (position 0)
     test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(0, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(0, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = sof_bit
       report "SOF bit_type should be sof_bit"
       severity error;
@@ -71,8 +71,8 @@ begin
 
     -- Test 1.2: Base ID bits (positions 1-11)
     test_count          := test_count + 1;
-    mac_ser_to_fsm.data := '1';                                                                                                      -- Set transmitted bit to recessive
-    frame_info          := get_next_mac_frame_bit(1, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    mac_ser_to_fsm.data := '1';                                                                                                           -- Set transmitted bit to recessive
+    frame_info          := get_next_mac_frame_bit(1, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = base_id_bit
       report "Position 1 should be base_id_bit"
       severity error;
@@ -84,7 +84,7 @@ begin
 
     -- Test 1.3: RTR bit (position 12) for DATA_FRAME
     test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(12, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(12, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = rtr_bit
       report "Position 12 should be rtr_bit"
       severity error;
@@ -93,7 +93,7 @@ begin
 
     -- Test 1.4: IDE bit (position 13)
     test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(13, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(13, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = ide_bit
       report "Position 13 should be ide_bit"
       severity error;
@@ -105,7 +105,7 @@ begin
 
     -- Test 1.5: r0 bit (position 14)
     test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(14, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(14, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = r0_bit
       report "Position 14 should be r0_bit"
       severity error;
@@ -117,7 +117,7 @@ begin
 
     -- Test 1.6: DLC bits (positions 15-18)
     test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(15, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(15, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = dlc_bit
       report "Position 15 should be dlc_bit"
       severity error;
@@ -126,7 +126,7 @@ begin
 
     -- Test 1.7: Data field (positions 19-82 for 8 bytes)
     test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(19, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(19, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = data_bit
       report "Position 19 should be data_bit"
       severity error;
@@ -136,7 +136,7 @@ begin
     -- Test 1.8: CRC field (positions 83-97 for cc_basic)
     test_count := test_count + 1;
     crc_vec    := std_logic_vector(to_unsigned(255, crc_vec'length));
-    frame_info := get_next_mac_frame_bit(83, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(83, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = crc_bit
       report "Position 83 should be crc_bit"
       severity error;
@@ -156,7 +156,7 @@ begin
 
     -- Test 2.1: IDE bit at position 13 (marks extended format)
     test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(13, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(13, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = ide_bit
       report "Position 13 should be ide_bit"
       severity error;
@@ -169,7 +169,7 @@ begin
     -- Test 2.2: Extended ID bits
     test_count          := test_count + 1;
     mac_ser_to_fsm.data := '1';
-    frame_info          := get_next_mac_frame_bit(14, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    frame_info          := get_next_mac_frame_bit(14, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = extended_id_bit
       report "Position 14 should be extended_id_bit"
       severity error;
@@ -187,7 +187,7 @@ begin
 
     -- Test 3.1: FDF bit (marks FD format)
     test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(14, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(14, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = fdf_bit
       report "Position 14 should be fdf_bit"
       severity error;
@@ -199,7 +199,7 @@ begin
 
     -- Test 3.2: BRS bit when disabled
     test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(16, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(16, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = brs_bit
       report "Position 16 should be brs_bit"
       severity error;
@@ -212,7 +212,7 @@ begin
     -- Test 3.3: BRS bit when enabled
     test_count                           := test_count + 1;
     mac_ser_to_fsm.frame_info.brs_enable := true;
-    frame_info                           := get_next_mac_frame_bit(16, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    frame_info                           := get_next_mac_frame_bit(16, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = brs_bit
       report "Position 16 should be brs_bit"
       severity error;
@@ -225,7 +225,7 @@ begin
     -- Test 3.4: ESI bit when flagged
     test_count                           := test_count + 1;
     mac_ser_to_fsm.frame_info.esi_enable := true;
-    frame_info                           := get_next_mac_frame_bit(17, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    frame_info                           := get_next_mac_frame_bit(17, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = esi_bit
       report "Position 17 should be esi_bit"
       severity error;
@@ -243,7 +243,7 @@ begin
     -- Test 4.1: Fixed stuff bit (inverts previous polarity)
     test_count    := test_count + 1;
     prev_polarity := dominant;
-    frame_info    := get_next_mac_frame_bit(100, mac_ser_to_fsm, prev_polarity, '1', true, sbc_vec, crc_vec);
+    frame_info    := get_next_mac_frame_bit(100, mac_ser_to_fsm, prev_polarity, recessive, true, sbc_vec, crc_vec);
     assert frame_info.bit_name = fixed_stuff_bit
       report "Should be fixed_stuff_bit when valid"
       severity error;
@@ -256,7 +256,7 @@ begin
     -- Test 4.2: Stuff bit inverts when previous is recessive
     test_count    := test_count + 1;
     prev_polarity := recessive;
-    frame_info    := get_next_mac_frame_bit(100, mac_ser_to_fsm, prev_polarity, '0', true, sbc_vec, crc_vec);
+    frame_info    := get_next_mac_frame_bit(100, mac_ser_to_fsm, prev_polarity, dominant, true, sbc_vec, crc_vec);
     assert frame_info.bit_name = fixed_stuff_bit
       report "Should be fixed_stuff_bit when valid"
       severity error;
@@ -273,13 +273,13 @@ begin
 
     mac_ser_to_fsm.frame_info.format := fd_basic;
     mac_ser_to_fsm.frame_info.dlc    := 8;
-    sbc_vec                          := "1010";                                                                                      -- Test pattern: 1, 0, 1, 0
+    sbc_vec                          := "1010";                                                                                           -- Test pattern: 1, 0, 1, 0
     prev_polarity                    := unknown;
 
     -- SBC field starts at position: data_start + data_bits = 22 + 64 = 86
     -- Test 5.1: First SBC bit (MSB of 1010 = 1)
     test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(86, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(86, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = sbs_bit
       report "Position 86 should be sbs_bit"
       severity error;
@@ -291,7 +291,7 @@ begin
 
     -- Test 5.2: Second SBC bit (0)
     test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(87, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(87, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = sbs_bit
       report "Position 87 should be sbs_bit"
       severity error;
@@ -306,12 +306,12 @@ begin
     -- =====================================================================
     report "Test Group 6: CRC Bit Extraction";
 
-    crc_vec := std_logic_vector(to_unsigned(32768, crc_vec'length));                                                                 -- MSB set
+    crc_vec := std_logic_vector(to_unsigned(32768, crc_vec'length));                                                                      -- MSB set
     -- CRC field starts at position: sbc_stop + 1 = 89 + 1 = 90
 
     -- Test 6.1: CRC MSB (should be 1)
     test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(90, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(90, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = crc_bit
       report "Position 90 should be crc_bit"
       severity error;
@@ -331,7 +331,7 @@ begin
     -- ACK slot position for cc_basic with DLC=8 is approximately 99
     -- Test 7.1: ACK bit
     test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(99, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(99, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = ack_bit
       report "Position 99 should be ack_bit"
       severity error;
@@ -343,7 +343,7 @@ begin
 
     -- Test 7.2: ACK delimiter
     test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(100, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(100, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = ack_delimiter_bit
       report "Position 100 should be ack_delimiter_bit"
       severity error;
@@ -357,7 +357,7 @@ begin
     test_count := test_count + 1;
 
     for eof_offset in 0 to 6 loop
-      frame_info := get_next_mac_frame_bit(101 + eof_offset, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+      frame_info := get_next_mac_frame_bit(101 + eof_offset, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
       assert frame_info.bit_name = eof_bit
         report "EOF field should span 7 bits"
         severity error;
@@ -379,7 +379,7 @@ begin
 
     -- Test 8.1: RRS bit in FD extended
     test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(32, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(32, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = rrs_bit
       report "Position 32 should be rrs_bit"
       severity error;
@@ -391,7 +391,7 @@ begin
 
     -- Test 8.2: FDF bit in FD extended
     test_count := test_count + 1;
-    frame_info := get_next_mac_frame_bit(33, mac_ser_to_fsm, prev_polarity, '0', false, sbc_vec, crc_vec);
+    frame_info := get_next_mac_frame_bit(33, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
     assert frame_info.bit_name = fdf_bit
       report "Position 33 should be fdf_bit"
       severity error;

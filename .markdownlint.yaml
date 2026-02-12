@@ -1,0 +1,18 @@
+# Markdown linting configuration
+
+# Increase line length limit to 100 characters (more reasonable for modern editors)
+MD013:
+  line_length: 120
+
+# Require proper table formatting (spaces around pipes)
+MD060:
+  strict: true
+
+# Require language specification for code blocks
+MD040: true
+
+# Allow inline HTML (useful for formatting)
+MD033: false
+
+# Don't require blank lines around lists
+MD032: false
