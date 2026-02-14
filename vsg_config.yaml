@@ -41,6 +41,10 @@ rule:
   subtype_201:
     disable: true
 
+  # subtype_202: Insert blank line below subtype declaration
+  subtype_202:
+    disable: true
+
   # case_012: Move code after the => to the next line
   case_012:
     disable: true

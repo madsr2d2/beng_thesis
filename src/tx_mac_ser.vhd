@@ -103,24 +103,28 @@ begin
             end if;
 
           when shift_out_bits =>
+            -- Hold valid continuously while we have bits
+            tx_mac_fsm_o.valid <= '1';
+            tx_mac_fsm_o.data  <= bit_to_polarity(llc_frame_buffer(llc_frame_buffer'left));
+
             -- Exit on transfer status change
             if (tx_mac_fsm_i.transfer_status /= ongoing) then
-              state_reg    <= load_config_byte_0;
-              count        <= llc_frame_buffer'left;
-              params_valid <= '0';
-            -- Output next bit when tx_mac_fsm is ready
+              state_reg          <= load_config_byte_0;
+              count              <= llc_frame_buffer'left;
+              params_valid       <= '0';
+              tx_mac_fsm_o.valid <= '0';
+            -- Advance to next bit when tx_mac_fsm consumes current one
             elsif (tx_mac_fsm_i.ready = '1') then
               if (count = 0) then
                 -- All 8 bits sent (1 on load + 7 shifts), fetch next byte
                 state_reg                  <= load_llc_frame_byte;
                 count                      <= llc_frame_buffer'left;
                 llc_o.avalon_st_sink.ready <= '1';
+                tx_mac_fsm_o.valid         <= '0';
               else
-                -- Output [left-1]; MSB already sent on load
-                tx_mac_fsm_o.data  <= bit_to_polarity(llc_frame_buffer(llc_frame_buffer'left - 1));
-                tx_mac_fsm_o.valid <= '1';
-                llc_frame_buffer   <= llc_frame_buffer sll 1;
-                count              <= count - 1;
+                -- Shift to next bit; current MSB was consumed
+                llc_frame_buffer <= llc_frame_buffer sll 1;
+                count            <= count - 1;
               end if;
             end if;
 

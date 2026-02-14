@@ -1,0 +1,87 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Fri Feb 13 22:55:06 2026
+[*]
+[dumpfile] "/home/madsr2d2/beng_thesis/sim/tx_can_tb.ghw"
+[dumpfile_mtime] "Fri Feb 13 19:38:50 2026"
+[dumpfile_size] 222556
+[savefile] "/home/madsr2d2/beng_thesis/gtk_wave/tx_can_tb.gtkw"
+[timestart] 0
+[size] 1920 1121
+[pos] -27 -24
+*-25.598225 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.tx_can_tb.
+[treeopen] top.tx_can_tb.dut.
+[treeopen] top.tx_can_tb.dut.mac_tx_inst.tx_mac_fsm_inst.
+[treeopen] top.tx_can_tb.dut.tx_pcs_inst.
+[treeopen] top.tx_can_tb.dut.tx_pcs_inst.mac_to_pcs_i.
+[sst_width] 278
+[signals_width] 292
+[sst_expanded] 1
+[sst_vpaned_height] 422
+@28
+top.tx_can_tb.rst
+top.tx_can_tb.clk
+@800200
+-tx_pcs
+-pcs_internals
+@c00200
+-current_bit
+@420
+top.tx_can_tb.dut.tx_pcs_inst.current_bit.bit_name
+top.tx_can_tb.dut.tx_pcs_inst.current_bit.polarity
+@1401200
+-current_bit
+@420
+top.tx_can_tb.dut.tx_pcs_inst.data_phase_tq_count
+@28
+top.tx_can_tb.dut.tx_pcs_inst.ready_for_next_bit
+top.tx_can_tb.dut.tx_pcs_inst.ssp_strobe
+top.tx_can_tb.dut.tx_pcs_inst.sp_strobe
+top.tx_can_tb.dut.tx_pcs_inst.measurement_done
+@420
+top.tx_can_tb.dut.tx_pcs_inst.fifo_delay_index_reg
+top.tx_can_tb.dut.tx_pcs_inst.ssp_position_tq
+top.tx_can_tb.dut.tx_pcs_inst.measured_delay_tq
+top.tx_can_tb.dut.tx_pcs_inst.delay_counter
+top.tx_can_tb.dut.tx_pcs_inst.bit_tq_count
+top.tx_can_tb.dut.tx_pcs_inst.clk_count_data
+top.tx_can_tb.dut.tx_pcs_inst.clk_count_nom
+@28
+top.tx_can_tb.dut.tx_pcs_inst.data_tq_tick
+top.tx_can_tb.dut.tx_pcs_inst.nom_tq_tick
+@420
+top.tx_can_tb.dut.tx_pcs_inst.next_pcs_state
+top.tx_can_tb.dut.tx_pcs_inst.pcs_state
+top.tx_can_tb.dut.tx_pcs_inst.rx_bus_i
+top.tx_can_tb.dut.tx_pcs_inst.tx_bus_o
+@1000200
+-pcs_internals
+@800200
+-pcs_to_mac_o
+@420
+top.tx_can_tb.dut.tx_pcs_inst.pcs_to_mac_o.fifo_delay_index
+@28
+top.tx_can_tb.dut.tx_pcs_inst.pcs_to_mac_o.tdc_active
+@29
+top.tx_can_tb.dut.tx_pcs_inst.pcs_to_mac_o.ready
+@28
+top.tx_can_tb.dut.tx_pcs_inst.pcs_to_mac_o.ssp
+top.tx_can_tb.dut.tx_pcs_inst.pcs_to_mac_o.sp
+@420
+top.tx_can_tb.dut.tx_pcs_inst.pcs_to_mac_o.polarity
+@1000200
+-pcs_to_mac_o
+@800200
+-mac_to_pcs_i
+@420
+top.tx_can_tb.dut.tx_pcs_inst.mac_to_pcs_i.frame_bit.polarity
+top.tx_can_tb.dut.tx_pcs_inst.mac_to_pcs_i.frame_bit.bit_name
+@28
+top.tx_can_tb.dut.tx_pcs_inst.mac_to_pcs_i.data_request
+@1000200
+-mac_to_pcs_i
+-tx_pcs
+[pattern_trace] 1
+[pattern_trace] 0

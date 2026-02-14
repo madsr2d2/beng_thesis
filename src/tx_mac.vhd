@@ -1,3 +1,20 @@
+--------------------------------------------------------------------------------
+-- Title      : CAN MAC Transmitter Top-Level
+-- Project    : CAN Bus Transmitter
+--------------------------------------------------------------------------------
+-- File       : tx_mac.vhd
+-- Standard   : VHDL-2008
+--------------------------------------------------------------------------------
+-- Description: Top-level MAC transmitter wrapper. Instantiates and wires:
+--   - tx_mac_ser:    LLC byte serializer (LLC → polarity_t stream)
+--   - tx_mac_fsm:    Frame transmission FSM (coordinator)
+--   - bit_stuffer_fd: CAN FD bit stuffing with SBC generation
+--
+-- External interfaces:
+--   - LLC (Logical Link Control): Avalon-ST byte stream input
+--   - PCS (Physical Coding Sublayer): mac_frame_bit_t output + timing strobes
+--------------------------------------------------------------------------------
+
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
@@ -13,109 +30,69 @@ entity mac_tx is
     llc_o : out   mac_to_llc_if_t;
 
     -- PCS interface (Physical Coding Sublayer)
-    pcs_i : in    pcs_to_mac_if_t;    -- Measurements from PCS to MAC
-    pcs_o : out   mac_to_pcs_if_t     -- Frame bits from MAC to PCS
+    pcs_i : in    pcs_to_mac_if_t;
+    pcs_o : out   mac_to_pcs_if_t;
+
+    -- Fault Confinement Entity interface
+    fce_i : in    fce_to_mac_if_t;
+    fce_o : out   mac_to_fce_if_t
   );
 end entity mac_tx;
 
 architecture rtl of mac_tx is
 
-  -- mac_fsm state register
-  signal mac_layer_tx_state : tx_mac_fsm_state_t;
+  -- Internal signals: serializer <-> FSM
+  signal ser_to_fsm : tx_mac_ser_to_fsm_if_t;
+  signal fsm_to_ser : tx_mac_fsm_to_ser_if_t;
 
-  -- Counts the transmitted MAC frame bits - excluding stuff bits
-  signal mac_frame_bit_count : integer  range 0 to  max_mac_frame_length_c;
-
-  -- Holds the LLC frame config byte (byte 0)
-  signal config_reg : std_logic_vector(byte_width_c - 1 downto 0);
-
-  -- bs_fd interface
-  signal bs_fd_to_mac_fsm : bs_fd_to_mac_fsm_if_t;
-  signal mac_fsm_to_bs_fd : mac_fsm_to_bs_fd_if_t;
-
-  -- Shift register A interface (This shift register holds the LLC frame byte begin transmitted)
-  signal sr_a_to_mac_fsm : shift_reg_out_t;
-  signal mac_fam_to_sr_a : shift_reg_in_if_t;
-
-  -- Shift register B interface (This shift register holds the last 8 transmitted bits)
-  signal sr_b_to_mac_fsm : shift_reg_out_t;
-  signal mac_fam_to_sr_b : shift_reg_in_if_t;
-
-  -- CRC interface
-  signal crc_to_mac_fsm : crc_to_mac_fsm_if_t;
-  signal mac_fsm_to_crc : mac_fsm_to_crc_if_t;
-
--- TX bit
--- signal tx_bit : std_logic;
--- RX bit
--- signal rx_bit : std_logic;
+  -- Internal signals: FSM <-> bit stuffer FD
+  signal fsm_to_bs_fd : mac_fsm_to_bs_fd_if_t;
+  signal bs_fd_to_fsm : bs_fd_to_mac_fsm_if_t;
 
 begin
 
-  -- mac_fsm_to_bs_fd.data <= tx_bit;
+  -- =========================================================================
+  -- tx_mac_ser: LLC byte serializer
+  -- Converts Avalon-ST LLC bytes to serial polarity_t stream + frame_params
+  -- =========================================================================
+  tx_mac_ser_inst : entity work.tx_mac_ser
+    port map (
+      clk_i        => clk,
+      rst_i        => rst,
+      llc_i        => llc_i,
+      llc_o        => llc_o,
+      tx_mac_fsm_i => fsm_to_ser,
+      tx_mac_fsm_o => ser_to_fsm
+    );
 
-  -- Synchronous MAC FSM
-  p_mac_fsm : process (clk) is
-  begin
+  -- =========================================================================
+  -- tx_mac_fsm: Frame transmission FSM
+  -- Coordinates serializer, bit stuffer, and PCS
+  -- =========================================================================
+  tx_mac_fsm_inst : entity work.tx_mac_fsm
+    port map (
+      clk       => clk,
+      rst       => rst,
+      mac_ser_i => ser_to_fsm,
+      mac_ser_o => fsm_to_ser,
+      pcs_i     => pcs_i,
+      pcs_o     => pcs_o,
+      bs_fd_i   => bs_fd_to_fsm,
+      bs_fd_o   => fsm_to_bs_fd,
+      fce_i     => fce_i,
+      fce_o     => fce_o
+    );
 
-    if rising_edge(clk) then
-      if (rst = '1') then
-        mac_layer_tx_state             <= idle;
-        mac_frame_bit_count            <= 0;
-        config_reg                     <= (others => '0');
-        mac_fsm_to_bs_fd.data          <= '0';
-        mac_fsm_to_bs_fd.data_valid    <= '0';
-        mac_fsm_to_crc.shift           <= '0';
-        mac_fsm_to_crc.data            <= '0';
-        mac_fsm_to_crc.crc_poly_select <= (others => '0');
-        mac_fam_to_sr_a.load           <= '0';
-        mac_fam_to_sr_a.shift          <= '0';
-        mac_fam_to_sr_a.data_in        <= (others => '0');
-        mac_fam_to_sr_a.serial_in      <= '0';
-        mac_fam_to_sr_b.load           <= '0';
-        mac_fam_to_sr_b.shift          <= '0';
-        mac_fam_to_sr_b.data_in        <= (others => '0');
-        mac_fam_to_sr_b.serial_in      <= '0';
-      else
-
-        case mac_layer_tx_state is
-
-          when idle =>
-            if (llc_i.avalon_st_source.sop = '1') then
-            -- TODO: load config reg with the first byte from the LLC layer and go to transmitting_mac_frame state
-            end if;
-          when transmitting =>
-          when error =>
-        end case;
-
-      end if;
-    end if;
-
-  end process p_mac_fsm;
-
--- TODO: Uncomment when modules are implemented
--- bit_stuffer_fd_inst : entity work.bit_stuffer_fd
---   port map (
---     bs_fd_i => mac_fsm_to_bs_fd,
---     bs_fd_o => bs_fd_to_mac_fsm
---   );
---
--- shift_reg_a_inst : entity work.shift_reg
---   port map (
---     sr_i => mac_fam_to_sr_a,
---     sr_o => sr_a_to_mac_fsm
---   );
---
--- shift_reg_b_inst : entity work.shift_reg
---   port map (
---     sr_i => mac_fam_to_sr_b,
---     sr_o => sr_b_to_mac_fsm
---   );
---
--- crc_fd_inst : entity work.crc_fd
---   port map (
---     crc_i => mac_fsm_to_crc,
---     crc_o => crc_to_mac_fsm
---   );
+  -- =========================================================================
+  -- bit_stuffer_fd: CAN FD bit stuffing with SBC generation
+  -- Inserts stuff bits per CAN protocol rules
+  -- =========================================================================
+  bit_stuffer_fd_inst : entity work.bit_stuffer_fd
+    port map (
+      clk_i   => clk,
+      rst_i   => rst,
+      bs_fd_i => fsm_to_bs_fd,
+      bs_fd_o => bs_fd_to_fsm
+    );
 
 end architecture rtl;

@@ -207,8 +207,8 @@ begin
       test_count := test_count + 1;
       bits_verified := 0;
 
-      -- Config: FORMAT=001 (cc_basic), FTYP=0, no BRS/ESI
-      config_byte_0 := x"20";
+      -- Config: FORMAT=000 (cc_basic), FTYP=0, no BRS/ESI
+      config_byte_0 := x"00";
       config_byte_1 := std_logic_vector(to_unsigned(dlc_idx, 4)) & "0000";
 
       frame_params := calculate_frame_params(config_byte_0, config_byte_1);
@@ -218,7 +218,7 @@ begin
 
       -- Verify every bit position from SOF through EOF
       for bit_position in 0 to frame_params.eof_stop loop
-        frame_info := get_next_mac_frame_bit(bit_position, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
+        frame_info := get_next_mac_frame_bit(bit_position, mac_ser_to_fsm, prev_polarity, sbc_vec, crc_vec);
         expected_name := get_expected_bit_name(bit_position, cc_basic, frame_params);
 
         -- Verify correct bit type is returned
@@ -248,8 +248,8 @@ begin
       test_count := test_count + 1;
       bits_verified := 0;
 
-      -- Config: FORMAT=000 (cc_extended), FTYP=0, no BRS/ESI
-      config_byte_0 := x"00";
+      -- Config: FORMAT=100 (cc_extended), FTYP=0, no BRS/ESI
+      config_byte_0 := x"80";
       config_byte_1 := std_logic_vector(to_unsigned(dlc_idx, 4)) & "0000";
 
       frame_params := calculate_frame_params(config_byte_0, config_byte_1);
@@ -259,7 +259,7 @@ begin
 
       -- Verify every bit position
       for bit_position in 0 to frame_params.eof_stop loop
-        frame_info := get_next_mac_frame_bit(bit_position, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
+        frame_info := get_next_mac_frame_bit(bit_position, mac_ser_to_fsm, prev_polarity, sbc_vec, crc_vec);
         expected_name := get_expected_bit_name(bit_position, cc_extended, frame_params);
 
         assert frame_info.bit_name = expected_name
@@ -288,8 +288,8 @@ begin
       test_count := test_count + 1;
       bits_verified := 0;
 
-      -- Config: FORMAT=110 (fd_basic), FTYP=0, no BRS/ESI
-      config_byte_0 := x"C0";
+      -- Config: FORMAT=010 (fd_basic), FTYP=0, no BRS/ESI
+      config_byte_0 := x"40";
       config_byte_1 := std_logic_vector(to_unsigned(dlc_idx, 4)) & "0000";
 
       frame_params := calculate_frame_params(config_byte_0, config_byte_1);
@@ -299,7 +299,7 @@ begin
 
       -- Verify every bit position
       for bit_position in 0 to frame_params.eof_stop loop
-        frame_info := get_next_mac_frame_bit(bit_position, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
+        frame_info := get_next_mac_frame_bit(bit_position, mac_ser_to_fsm, prev_polarity, sbc_vec, crc_vec);
         expected_name := get_expected_bit_name(bit_position, fd_basic, frame_params);
 
         assert frame_info.bit_name = expected_name
@@ -328,8 +328,8 @@ begin
       test_count := test_count + 1;
       bits_verified := 0;
 
-      -- Config: FORMAT=111 (fd_extended), FTYP=0, no BRS/ESI
-      config_byte_0 := x"E0";
+      -- Config: FORMAT=110 (fd_extended), FTYP=0, no BRS/ESI
+      config_byte_0 := x"C0";
       config_byte_1 := std_logic_vector(to_unsigned(dlc_idx, 4)) & "0000";
 
       frame_params := calculate_frame_params(config_byte_0, config_byte_1);
@@ -339,7 +339,7 @@ begin
 
       -- Verify every bit position
       for bit_position in 0 to frame_params.eof_stop loop
-        frame_info := get_next_mac_frame_bit(bit_position, mac_ser_to_fsm, prev_polarity, dominant, false, sbc_vec, crc_vec);
+        frame_info := get_next_mac_frame_bit(bit_position, mac_ser_to_fsm, prev_polarity, sbc_vec, crc_vec);
         expected_name := get_expected_bit_name(bit_position, fd_extended, frame_params);
 
         assert frame_info.bit_name = expected_name

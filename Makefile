@@ -12,15 +12,17 @@ PACKAGES = $(shell find ./src -name "*package.vhd" -o -name "can_pkg.vhd" -size 
 ALL_MODULES = $(shell find ./src -name "*.vhd" ! -name "*package.vhd" ! -name "can_pkg.vhd" ! -name "*_tb.vhd" -size +0)
 
 # Separate modules into categories based on dependencies
-# mac_tx depends on all other modules, so it's compiled last
-MAC_TX = $(filter %mac_tx.vhd,$(ALL_MODULES))
-OTHER_MODULES = $(filter-out %mac_tx.vhd,$(ALL_MODULES))
+# tx_can depends on mac_tx, tx_llc, and tx_pcs — compiled last
+# mac_tx depends on all other MAC sub-modules — compiled second-to-last
+TX_CAN = $(filter %tx_can.vhd,$(ALL_MODULES))
+MAC_TX = $(filter %tx_mac.vhd,$(ALL_MODULES))
+OTHER_MODULES = $(filter-out %tx_mac.vhd %tx_can.vhd,$(ALL_MODULES))
 
 # Separate leaf modules (no dependencies on other design modules) from dependent modules
 LEAF_MODULES = $(filter-out %_fd.vhd,$(OTHER_MODULES))
 DEPENDENT_MODULES = $(filter %_fd.vhd,$(OTHER_MODULES))
 
-SRCFILES = $(PACKAGES) $(LEAF_MODULES) $(DEPENDENT_MODULES) $(MAC_TX)
+SRCFILES = $(PACKAGES) $(LEAF_MODULES) $(DEPENDENT_MODULES) $(MAC_TX) $(TX_CAN)
 VHDLEX = .vhd
 
 # OSVVM library path (where TCL build compiled it)
@@ -37,7 +39,7 @@ GHDL_CMD = ghdl
 GHDL_FLAGS = --std=08 --warn-no-vital-generic -P$(OSVVM_LIB_PATH) -P.
 
 SIMDIR = sim
-STOP_TIME = 2us
+STOP_TIME = 100us
 GHDL_SIM_OPT = --stop-time=$(STOP_TIME)
 GHWFILE = ${SIMDIR}/${TESTBENCHFILE}.ghw
 VCDFILE = ${SIMDIR}/${TESTBENCHFILE}.vcd

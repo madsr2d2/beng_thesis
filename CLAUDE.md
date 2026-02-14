@@ -15,7 +15,7 @@ This is a B.Eng thesis project implementing a **CAN (Controller Area Network) bu
 
 **Key Dependencies**: GHDL compiler, OSVVM libraries, VSG linter
 
-**Standards Reference**: `doc/ISO_11898_1_CAN_bus_link.pdf` (ISO 11898-1:2015)
+**Standards Reference**: `docs/md_out/ISO_11898_1_CAN_bus_link/ISO_11898_1_CAN_bus_link.md` (ISO 11898-1:2015) - searchable markdown version
 
 ---
 
@@ -36,7 +36,8 @@ src/                    # Design and testbench VHDL files
 └── crc_fd.vhd          # CRC calculation for CAN-FD
 
 gtk_wave/               # GTKWave configuration files
-doc/                    # Documentation and standards reference
+docs/                   # Documentation and standards reference
+├── md_out/              # Searchable markdown versions of standards (ISO 11898-1, etc.)
 OsvvmLibraries/         # OSVVM simulation framework (external)
 sim/                    # Generated simulation artifacts
 ```

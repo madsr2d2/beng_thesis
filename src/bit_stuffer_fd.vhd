@@ -30,7 +30,7 @@ begin
   begin
 
     if rising_edge(clk_i) then
-      if (rst_i = '1') then
+      if (rst_i = '1' or bs_fd_i.frame_reset = '1') then
         count_reg    <= (others => '0');
         bs_fd_o.sbc  <= (others => '0');
         v_gray_bits  := (others => '0');
@@ -55,7 +55,7 @@ begin
   u_bit_stuffer : entity work.bit_stuffer
     port map (
       clk               => clk_i,
-      rst               => rst_i,
+      rst               => rst_i or bs_fd_i.frame_reset,
       data_i            => bs_fd_i.data,
       valid_i           => bs_fd_i.data_valid,
       stuff_bit_o       => bs_fd_o.stuff_bit,

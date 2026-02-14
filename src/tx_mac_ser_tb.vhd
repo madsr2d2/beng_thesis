@@ -84,7 +84,7 @@ begin
     AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted in idle state", FAILURE);
 
     -- Send config byte 0 with SOP (Avalon-ST transfer)
-    llc_i.avalon_st_source.data  <= x"E8";                                                                                                           -- Config byte 0: 11101000 → FORMAT[7:5]=111(fd_extended), FTYP[4]=0, ESI[3]=1, BRS[2]=0
+    llc_i.avalon_st_source.data  <= x"C8";                                                                                                           -- Config byte 0: 11001000 → FORMAT[7:5]=110(fd_extended), FTYP[4]=0, ESI[3]=1, BRS[2]=0
     llc_i.avalon_st_source.valid <= '1';
     llc_i.avalon_st_source.sop   <= '1';
     llc_i.avalon_st_source.eop   <= '0';
@@ -94,7 +94,7 @@ begin
     llc_i.avalon_st_source.valid <= '0';
     wait for clk_period;
 
-    Print("  Config byte 0 loaded: x""E8""");
+    Print("  Config byte 0 loaded: x""C8""");
 
     -- Check that ready is still asserted (waiting for config byte 1)
     AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted waiting for config byte 1", FAILURE);
@@ -113,7 +113,7 @@ begin
     Print("  Config byte 1 loaded: x""50""");
 
     -- Verify frame_params extraction
-    -- Byte 0: x"E8" = 11101000 → FORMAT[7:5]=111(fd_extended), FTYP[4]=0, ESI[3]=1, BRS[2]=0
+    -- Byte 0: x"C8" = 11001000 → FORMAT[7:5]=110(fd_extended), FTYP[4]=0, ESI[3]=1, BRS[2]=0
     -- Byte 1: x"50" = 01010000 → DLC[7:4]=0101=5
     Print("  Verifying frame_params extraction:");
     AlertIf(tx_mac_fsm_o.frame_params.format /= fd_extended, "ERROR: FORMAT should be fd_extended (110)", FAILURE);
@@ -157,17 +157,18 @@ begin
     wait for clk_period;
 
     -- Shift out remaining 7 bits
+    -- Note: registered shift means the new bit appears one clock AFTER ready pulse
     bit_count := 0;
 
     for i in 6 downto 0 loop
       tx_mac_fsm_i.ready <= '1';
       wait for clk_period;
+      tx_mac_fsm_i.ready <= '0';
+      wait for clk_period;
       AlertIf(tx_mac_fsm_o.valid = '0', "ERROR: bit " & to_string(i) & " not valid", FAILURE);
       AlertIf(tx_mac_fsm_o.data /= bit_to_polarity(test_data(i)), "ERROR: bit " & to_string(i) & " mismatch", FAILURE);
       Print("  Bit " & to_string(7 - i) & ": " & to_string(tx_mac_fsm_o.data) & " (Expected: " & to_string(test_data(i)) & ")");
-      bit_count          := bit_count + 1;
-      tx_mac_fsm_i.ready <= '0';
-      wait for clk_period;
+      bit_count := bit_count + 1;
     end loop;
 
     AlertIf(bit_count /= 7, "ERROR: Expected 7 bits shifted, got " & to_string(bit_count), FAILURE);
@@ -189,7 +190,7 @@ begin
     tx_mac_fsm_i.transfer_status  <= ongoing;
 
     -- Send config bytes
-    llc_i.avalon_st_source.data  <= x"E0";
+    llc_i.avalon_st_source.data  <= x"C0";
     llc_i.avalon_st_source.valid <= '1';
     llc_i.avalon_st_source.sop   <= '1';
     wait for clk_period;
@@ -202,10 +203,10 @@ begin
     wait for clk_period;
 
     -- Verify frame_info extraction
-    -- Byte 0: x"E0" = 11100000 → FORMAT[7:5]=111, FTYP[4]=0, ESI[3]=0, BRS[2]=0
+    -- Byte 0: x"C0" = 11000000 → FORMAT[7:5]=110(fd_extended), FTYP[4]=0, ESI[3]=0, BRS[2]=0
     -- Byte 1: x"30" = 00110000 → DLC[7:4]=0011=3
     Print("  Verifying frame_info extraction:");
-    AlertIf(tx_mac_fsm_o.frame_params.format /= fd_extended, "ERROR: FORMAT should be fd_extended (111)", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.format /= fd_extended, "ERROR: FORMAT should be fd_extended (110)", FAILURE);
     AlertIf(tx_mac_fsm_o.frame_params.is_remote_frame /= false, "ERROR: FTYP should be data_frame (0)", FAILURE);
     AlertIf(tx_mac_fsm_o.frame_params.esi_enable /= false, "ERROR: ESI should be false (0)", FAILURE);
     AlertIf(tx_mac_fsm_o.frame_params.has_brs /= false, "ERROR: BRS should be false (0)", FAILURE);
@@ -238,15 +239,16 @@ begin
       wait for clk_period;
 
       -- Shift remaining 7 bits with validation
+      -- Note: registered shift means the new bit appears one clock AFTER ready pulse
       for bit_idx in 6 downto 0 loop
         tx_mac_fsm_i.ready <= '1';
+        wait for clk_period;
+        tx_mac_fsm_i.ready <= '0';
         wait for clk_period;
         AlertIf(tx_mac_fsm_o.valid = '0', "ERROR: Bit not valid for byte " & to_string(byte_idx) & " bit " & to_string(bit_idx), FAILURE);
         AlertIf(tx_mac_fsm_o.data /= bit_to_polarity(test_data(bit_idx)),
                 "ERROR: Bit mismatch for byte " & to_string(byte_idx) & " bit " & to_string(bit_idx) &
                 " (expected " & to_string(test_data(bit_idx)) & " got " & to_string(tx_mac_fsm_o.data) & ")", FAILURE);
-        tx_mac_fsm_i.ready <= '0';
-        wait for clk_period;
       end loop;
 
       -- Keep ready asserted one more cycle to allow count=0 transition back to load_llc_frame_byte
@@ -274,7 +276,7 @@ begin
     tx_mac_fsm_i.transfer_status  <= ongoing;
 
     -- Send config bytes
-    llc_i.avalon_st_source.data  <= x"5F";
+    llc_i.avalon_st_source.data  <= x"7F";
     llc_i.avalon_st_source.valid <= '1';
     llc_i.avalon_st_source.sop   <= '1';
     wait for clk_period;
@@ -286,10 +288,10 @@ begin
     wait for clk_period;
 
     -- Verify frame_info extraction
-    -- Byte 0: x"5F" = 01011111 → FORMAT[7:5]=010 (invalid), FTYP[4]=1, ESI[3]=1, BRS[2]=1
+    -- Byte 0: x"7F" = 01111111 → FORMAT[7:5]=011 (invalid), FTYP[4]=1, ESI[3]=1, BRS[2]=1
     -- Byte 1: x"F0" = 11110000 → DLC[7:4]=1111=15
     Print("  Verifying frame_info extraction:");
-    AlertIf(tx_mac_fsm_o.frame_params.format /= unknown, "ERROR: FORMAT should be unknown (010)", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.format /= unknown, "ERROR: FORMAT should be unknown (011)", FAILURE);
     AlertIf(tx_mac_fsm_o.frame_params.is_remote_frame /= true, "ERROR: FTYP should be remote_frame (1)", FAILURE);
     AlertIf(tx_mac_fsm_o.frame_params.esi_enable /= true, "ERROR: ESI should be true (1)", FAILURE);
     AlertIf(tx_mac_fsm_o.frame_params.has_brs /= true, "ERROR: BRS should be true (1)", FAILURE);

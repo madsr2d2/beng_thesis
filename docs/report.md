@@ -1,5 +1,36 @@
 # CAN Bus Implementation Report
 
+<!-- mtoc-start -->
+
+* [Overview](#overview)
+* [CAN Stack Architecture](#can-stack-architecture)
+* [Layer Descriptions](#layer-descriptions)
+  * [Application Layer](#application-layer)
+  * [Logical Link Control (LLC)](#logical-link-control-llc)
+  * [MAC Layer (Media Access Control)](#mac-layer-media-access-control)
+  * [Encoding & Protection Layer](#encoding--protection-layer)
+  * [Physical Layer](#physical-layer)
+* [Key Implementation Details](#key-implementation-details)
+  * [Frame Structure (ISO 11898-1 Section 8.2)](#frame-structure-iso-11898-1-section-82)
+  * [Bit Stuffing Algorithm (ISO 11898-1 Section 8.5.4)](#bit-stuffing-algorithm-iso-11898-1-section-854)
+  * [CRC Polynomials](#crc-polynomials)
+* [Testing Strategy](#testing-strategy)
+* [Compliance](#compliance)
+* [MAC Frame Bit Generation (`get_next_mac_frame_bit`)](#mac-frame-bit-generation-get_next_mac_frame_bit)
+  * [Function Algorithm](#function-algorithm)
+* [CAN Frame Structure Visualization](#can-frame-structure-visualization)
+  * [CAN Classic Basic Frame (ISO 11898-1 Section 8.2)](#can-classic-basic-frame-iso-11898-1-section-82)
+  * [CAN Classic Extended Frame (ISO 11898-1 Section 8.2)](#can-classic-extended-frame-iso-11898-1-section-82)
+  * [CAN FD Basic Frame (ISO 11898-1 Section 8.4)](#can-fd-basic-frame-iso-11898-1-section-84)
+* [TX Monitoring and Error Detection (`get_observed_mac_frame_bit_info`)](#tx-monitoring-and-error-detection-get_observed_mac_frame_bit_info)
+  * [Function Algorithm](#function-algorithm-1)
+* [Physical Coding Sublayer (`tx_pcs`)](#physical-coding-sublayer-tx_pcs)
+  * [ISO 11898-1 Requirements](#iso-11898-1-requirements)
+  * [FSM Design](#fsm-design)
+  * [FSM Behavior](#fsm-behavior)
+* [Future Work](#future-work)
+
+<!-- mtoc-end -->
 ## Overview
 
 This document outlines the architecture and implementation of a CAN (Controller Area Network)
@@ -69,73 +100,73 @@ incoming messages. It interfaces with the LLC layer through well-defined frame s
 ### Logical Link Control (LLC)
 
 The LLC layer is responsible for:
-- Frame type selection (data/remote frames)
-- Format selection (CAN 2.0 basic/extended, CAN-FD)
-- Configuration of frame parameters (DLC, flags, identifiers)
-- Passing formatted frames to the MAC layer
+* Frame type selection (data/remote frames)
+* Format selection (CAN 2.0 basic/extended, CAN-FD)
+* Configuration of frame parameters (DLC, flags, identifiers)
+* Passing formatted frames to the MAC layer
 
 ### MAC Layer (Media Access Control)
 
 The MAC layer handles:
-- **TX MAC Serializer** (`tx_mac_ser.vhd`): Converts 8-bit words into serial bit stream
-- **FSM Controller** (`tx_mac_fsm.vhd`): Manages transmission state machine
-- **Bit Shifter**: Implements shift register for bit-by-bit transmission
+* **TX MAC Serializer** (`tx_mac_ser.vhd`): Converts 8-bit words into serial bit stream
+* **FSM Controller** (`tx_mac_fsm.vhd`): Manages transmission state machine
+* **Bit Shifter**: Implements shift register for bit-by-bit transmission
 
 ### Encoding & Protection Layer
 
 This layer ensures data integrity through:
-- **Bit Stuffing** (`bit_stuffer.vhd`, `bit_stuffer_fd.vhd`): Inserts stuff bits after 5
+* **Bit Stuffing** (`bit_stuffer.vhd`, `bit_stuffer_fd.vhd`): Inserts stuff bits after 5
   consecutive bits of same polarity per ISO 11898-1 Section 8.5.2
-- **CRC Calculation** (`crc_fd.vhd`): Computes polynomial-based CRC (15-bit for CAN 2.0,
+* **CRC Calculation** (`crc_fd.vhd`): Computes polynomial-based CRC (15-bit for CAN 2.0,
   17/21-bit for CAN-FD)
-- **ACK Generation**: Encodes acknowledgment slot (1 recessive bit expected from receivers)
+* **ACK Generation**: Encodes acknowledgment slot (1 recessive bit expected from receivers)
 
 ### Physical Layer
 
 The physical layer provides:
-- Driver circuitry for CAN bus signaling
-- Dominant (0V, high current) and recessive (pull-up, low current) states
-- Interface to the actual CAN bus transmission medium
+* Driver circuitry for CAN bus signaling
+* Dominant (0V, high current) and recessive (pull-up, low current) states
+* Interface to the actual CAN bus transmission medium
 
 ## Key Implementation Details
 
 ### Frame Structure (ISO 11898-1 Section 8.2)
 
-- **SOF**: Start of Frame (1 bit, dominant)
-- **Arbitration Field**: ID (11/29 bits) + RTR + IDE
-- **Control Field**: Reserved bits + DLC + FD flags (CAN-FD only)
-- **Data Field**: 0-64 bytes (0-512 bits)
-- **CRC Field**: 15-21 bits + delimiter
-- **ACK Field**: 1 bit slot + delimiter
-- **EOF**: End of Frame (7 bits, recessive)
+* **SOF**: Start of Frame (1 bit, dominant)
+* **Arbitration Field**: ID (11/29 bits) + RTR + IDE
+* **Control Field**: Reserved bits + DLC + FD flags (CAN-FD only)
+* **Data Field**: 0-64 bytes (0-512 bits)
+* **CRC Field**: 15-21 bits + delimiter
+* **ACK Field**: 1 bit slot + delimiter
+* **EOF**: End of Frame (7 bits, recessive)
 
 ### Bit Stuffing Algorithm (ISO 11898-1 Section 8.5.4)
 
 After 5 consecutive bits of the same polarity, a complementary stuff bit is inserted:
-- **CAN 2.0**: Dynamic stuffing throughout frame (except CRC delimiter onwards)
-- **CAN-FD**: Fixed stuff bits at predefined positions in payload
+* **CAN 2.0**: Dynamic stuffing throughout frame (except CRC delimiter onwards)
+* **CAN-FD**: Fixed stuff bits at predefined positions in payload
 
 ### CRC Polynomials
 
-- **CAN 2.0**: x^15 + x^14 + x^10 + x^8 + x^7 + x^4 + x^3 + 1 (0xC599)
-- **CAN-FD 17-bit**: High bandwidth CRC
-- **CAN-FD 21-bit**: Maximum protection CRC
+* **CAN 2.0**: x^15 + x^14 + x^10 + x^8 + x^7 + x^4 + x^3 + 1 (0xC599)
+* **CAN-FD 17-bit**: High bandwidth CRC
+* **CAN-FD 21-bit**: Maximum protection CRC
 
 ## Testing Strategy
 
 Comprehensive testing includes:
-- Unit tests for each layer component
-- Integration tests for full frame transmission
-- Edge case testing (min/max DLC, various frame types)
-- Bit stuffing validation with various bit patterns
-- CRC correctness verification against reference implementations
+* Unit tests for each layer component
+* Integration tests for full frame transmission
+* Edge case testing (min/max DLC, various frame types)
+* Bit stuffing validation with various bit patterns
+* CRC correctness verification against reference implementations
 
 ## Compliance
 
 This implementation strictly adheres to:
-- **ISO 11898-1:2015** - CAN Data Link Layer and Physical Signaling
-- **CAN 2.0 Specification** - Classical CAN protocol
-- **CAN-FD Protocol** - Flexible Data Rate extensions
+* **ISO 11898-1:2015** - CAN Data Link Layer and Physical Signaling
+* **CAN 2.0 Specification** - Classical CAN protocol
+* **CAN-FD Protocol** - Flexible Data Rate extensions
 
 For detailed protocol specifications, refer to `ISO_11898_1_CAN_bus_link.pdf`.
 
@@ -232,30 +263,30 @@ The `get_next_mac_frame_bit` function generates the next bit in a CAN frame tran
    basic/extended), loads format-specific bit positions and control field constants.
 
 3. **Field Position Calculation** (Line 897-915): Calculates the position of each frame section:
-   - Data field start/stop
-   - CRC field start
-   - SBC field (CAN FD only)
-   - Fixed stuff bit positions (CAN FD only)
-   - ACK and EOF positions
+   * Data field start/stop
+   * CRC field start
+   * SBC field (CAN FD only)
+   * Fixed stuff bit positions (CAN FD only)
+   * ACK and EOF positions
 
 4. **Field Determination** (Line 920-996): Uses a cascading if-elsif chain to determine which field
    the current `bit_count` belongs to:
-   - **SOF**: Always dominant (line 920-921)
-   - **Arbitration**: Base ID bits + optional extended ID (line 923-939)
-   - **Control**: Format flags (RTR, SRR, IDE, R0, R1, FDF, RES, BRS, ESI) with frame-dependent polarities
-   - **DLC**: 4-bit data length code (line 954-957)
-   - **Data**: 0-512 bits of user payload (line 960-962)
-   - **CRC**: 15-21 bit CRC value with optional SBC and fixed stuff bits (line 965-982)
-   - **Delimiters & ACK**: CRC/ACK delimiters and ACK slot (recessive) (line 983-990)
-   - **EOF**: 7 recessive bits (line 993-994)
+   * **SOF**: Always dominant (line 920-921)
+   * **Arbitration**: Base ID bits + optional extended ID (line 923-939)
+   * **Control**: Format flags (RTR, SRR, IDE, R0, R1, FDF, RES, BRS, ESI) with frame-dependent polarities
+   * **DLC**: 4-bit data length code (line 954-957)
+   * **Data**: 0-512 bits of user payload (line 960-962)
+   * **CRC**: 15-21 bit CRC value with optional SBC and fixed stuff bits (line 965-982)
+   * **Delimiters & ACK**: CRC/ACK delimiters and ACK slot (recessive) (line 983-990)
+   * **EOF**: 7 recessive bits (line 993-994)
 
 5. **Polarity Extraction**: Extracts actual bit polarity from:
-   - **Input data**: Frame data for ID/data fields (via `mac_ser_to_fsm.data`)
-   - **DLC vector**: DLC field bits
-   - **CRC vector**: CRC field bits
-   - **SBC vector**: Sequence Bit Count field (CAN FD)
-   - **Previous polarity**: For fixed stuff bits (opposite of previous)
-   - **Constants**: For fixed-polarity bits (SOF, delimiters, format flags)
+   * **Input data**: Frame data for ID/data fields (via `mac_ser_to_fsm.data`)
+   * **DLC vector**: DLC field bits
+   * **CRC vector**: CRC field bits
+   * **SBC vector**: Sequence Bit Count field (CAN FD)
+   * **Previous polarity**: For fixed stuff bits (opposite of previous)
+   * **Constants**: For fixed-polarity bits (SOF, delimiters, format flags)
 
 ## CAN Frame Structure Visualization
 
@@ -392,28 +423,91 @@ The `get_observed_mac_frame_bit_info` function monitors transmitted bits for err
 2. **Get FIFO Entry** (Line 452-454): Extract the transmitted bit at the specified delay from FIFO and capture observed polarity.
 
 3. **ACK Bit Detection** (Line 457-466): Highest priority check - if transmitted bit is ACK:
-   - Monitored polarity = recessive? → ACK error, disturbed status, return
-   - Monitored polarity ≠ recessive? → ACK detected, transmitted status, return
+   * Monitored polarity = recessive? → ACK error, disturbed status, return
+   * Monitored polarity ≠ recessive? → ACK detected, transmitted status, return
 
 4. **Polarity Match Check** (Line 469-474): If polarities match → no event detected, return with ongoing status. Otherwise, set transfer_status to `disturbed` and continue.
 
 5. **Arbitration Phase Determination** (Line 477-497): Based on frame format, determine if this bit is in arbitration phase:
-   - **CC Basic**: Base ID bits or RTR bit
-   - **CC Extended**: Base ID, SRR, IDE, Extended ID, or RTR bits
-   - **FD Basic**: Base ID or RRS bits
-   - **FD Extended**: Base ID, SRR, IDE, or Extended ID bits
+   * **CC Basic**: Base ID bits or RTR bit
+   * **CC Extended**: Base ID, SRR, IDE, Extended ID, or RTR bits
+   * **FD Basic**: Base ID or RRS bits
+   * **FD Extended**: Base ID, SRR, IDE, or Extended ID bits
 
 6. **Event Type Resolution** (Line 500-512): With polarity mismatch confirmed:
-   - If arbitration bit:
-     - Transmitted dominant, observed recessive → bit_error
-     - Transmitted recessive, observed dominant → lost_arbitration (transfer_status = lost_arbitration)
-   - If non-arbitration bit:
-     - Any mismatch → bit_error
+   * If arbitration bit:
+     * Transmitted dominant, observed recessive → bit_error
+     * Transmitted recessive, observed dominant → lost_arbitration (transfer_status = lost_arbitration)
+   * If non-arbitration bit:
+     * Any mismatch → bit_error
+
+## Physical Coding Sublayer (`tx_pcs`)
+
+### ISO 11898-1 Requirements
+
+The Physical Coding Sublayer (PCS) is specified in ISO 11898-1:2024 Sections 7.2 and 7.3.4. Its responsibilities include:
+
+**Bit Timing (Section 7.3.1–7.3.3)**: Each bit period is divided into four segments — Sync_Seg, Prop_Seg, Phase_Seg1, and Phase_Seg2 — parameterized in multiples of a Time Quantum (TQ). The Sample Point (SP) is placed at the boundary between Phase_Seg1 and Phase_Seg2, providing sufficient propagation and settling time before sampling the bus. CAN FD frames use two independent bit rates: a nominal rate during arbitration and a faster data rate during the data phase.
+
+**Transmitter Delay Compensation (Section 7.3.4)**: At data bit rates, the transceiver's propagation delay can exceed the bit time itself. TDC addresses this by measuring the actual TX-to-RX loopback delay and positioning a Secondary Sample Point (SSP) accordingly. The measurement is performed once per frame at the recessive-to-dominant edge from the FDF bit to the res bit. A counter increments each minimum time quantum from when the transmitter drives dominant until dominant is detected at the receive input. The SSP position is then:
+
+> `ssp_position = measured_delay + ssp_offset`
+
+where `ssp_offset` is a statically configured parameter (ISO range: 0–127 minimum time quanta) that adds margin for signal settling after the measured delay. The offset must not exceed `data_bit_time` — otherwise the FIFO index would point at the wrong bit, defeating the purpose of the comparison. The implementation computes two values directly from this sum without storing intermediates: the per-bit SSP position `(delay + offset) mod data_bit_time` and the FIFO index `(delay + offset) / data_bit_time`, which tells the MAC how many bits back to compare in the transmitted bits FIFO. If the measured delay exceeds 1023 TQ (timeout), the node falls back to nominal bit timing without TDC.
+
+**Timing Model**: The PCS drives the bus continuously and generates SP/SSP strobes as single-cycle pulses. The MAC reacts to these strobes and has Phase_Seg2 to compute and present the next frame bit before the PCS latches it at the bit boundary. No explicit ready handshake is needed — the bit timing segments inherently provide the processing time.
+
+### FSM Design
+
+The PCS FSM is a Mealy machine where outputs depend on both state and input conditions.
+
+```mermaid
+---
+title: "TX PCS FSM — Mealy State Machine"
+---
+%%{init: {'flowchart': {'curve': 'linear'}, 'elk': {'algorithm': 'layered'}}}%%
+stateDiagram-v2
+  state "**idle**<br/>─────────<br/>• tx_bus ← recessive<br/>• sp/ssp ← 0" as idle
+
+  state "**transmitting_nominal**<br/>─────────<br/>• advance_bit_timing(nom_tq_tick, nom_bit_time)<br/>• sp_pulse at sp_position" as tx_nom
+
+  state "**measuring_delay**<br/>─────────<br/>• advance_bit_timing(nom_tq_tick, nom_bit_time)<br/>• sp_pulse at sp_position<br/>• delay_count++ on data_tq_tick<br/>• Latch (rx_bus = dominant):<br/>  ssp_position ← (delay + offset) mod data_bit_time<br/>  fifo_index ← (delay + offset) / data_bit_time" as measuring
+
+  state "**transmitting_data**<br/>─────────<br/>• advance_bit_timing(data_tq_tick, data_bit_time)<br/>• ssp_pulse at ssp_position" as tx_data
+
+  [*] --> idle
+
+  idle --> tx_nom : data_request = 1
+
+  tx_nom --> measuring : current_bit = res_bit
+  tx_nom --> idle : data_request = 0
+
+  measuring --> tx_data : rx_bus = dominant
+  measuring --> tx_nom : delay_count ≥ max_delay (timeout)
+  measuring --> idle : data_request = 0
+
+  tx_data --> tx_nom : current_bit = crc_delimiter
+  tx_data --> idle : data_request = 0
+```
+
+### FSM Behavior
+
+The `tx_pcs` FSM controls the CAN bit timing and TDC mechanism:
+
+1. **idle**: No transmission active. Waits for MAC to assert `data_request`, then loads the first frame bit and transitions to nominal transmission.
+
+2. **transmitting_nominal**: Calls `advance_bit_timing(nom_tq_tick, nom_bit_time)` to transmit at the nominal bit rate (arbitration phase). Generates SP pulses at `sp_position`. When `res_bit` is detected (only present in FD frames), transitions to delay measurement for TDC.
+
+3. **measuring_delay**: Calls `advance_bit_timing(nom_tq_tick, nom_bit_time)` for continued nominal timing. Simultaneously counts data-rate TQ ticks from TX dominant assertion until RX dominant is detected (loopback delay). The measurement is latched to compute the per-bit SSP position (`ssp_position = (delay + offset) mod data_bit_time`) and the FIFO index (`fifo_index = (delay + offset) / data_bit_time`). On timeout (delay ≥ 1023 TQ), falls back to nominal timing.
+
+4. **transmitting_data**: Calls `advance_bit_timing(data_tq_tick, data_bit_time)` to transmit at the faster data bit rate with TDC active. SSP pulses fire once per data-rate bit at the latched `ssp_position` for accurate bit monitoring. Exits back to nominal timing when the CRC delimiter is reached.
+
+The global `data_request = 0` transition returns any active state to idle when the MAC signals frame completion.
 
 ## Future Work
 
-- [ ] Remote frame transmission support (Section 8.3)
-- [ ] Error frame handling (Section 8.6)
-- [ ] Receiver implementation (RX path)
-- [ ] Arbitration logic for multi-master scenarios
-- [ ] Timing analysis and synchronization
+* [ ] Remote frame transmission support (Section 8.3)
+* [ ] Error frame handling (Section 8.6)
+* [ ] Receiver implementation (RX path)
+* [ ] Arbitration logic for multi-master scenarios
+* [ ] Timing analysis and synchronization
