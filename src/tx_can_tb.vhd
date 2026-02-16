@@ -51,12 +51,12 @@ architecture tb of tx_can_tb is
   signal llc_user_o : llc_to_llc_user_if_t;
   signal fce_i      : fce_to_mac_if_t;
   signal fce_o      : mac_to_fce_if_t;
-  signal tx_bus_o   : polarity_t;
-  signal rx_bus_i   : polarity_t;
+  signal tx_bus_o   : std_logic;
+  signal rx_bus_i   : std_logic;
 
   -- Bus model control
   signal inject_ack   : boolean := true;
-  signal bus_override  : polarity_t := recessive;
+  signal bus_override  : std_logic := recessive_bit_c;
   signal bus_override_en : boolean := false;
 
   -- Test tracking
@@ -80,7 +80,7 @@ begin
       data_prop_seg        => 4,
       data_phase_seg1      => 4,
       data_phase_seg2      => 4,
-      ssp_offset           => ssp_offset_c
+      ssp_offset           => 4
     )
     port map (
       clk        => clk,
@@ -107,7 +107,7 @@ begin
 
     -- Stuff bit tracking
     variable consecutive_count_v : integer := 0;
-    variable last_polarity_v     : polarity_t := recessive;
+    variable last_polarity_v     : std_logic := recessive_bit_c;
     variable frame_position_v    : integer := 0;
     variable is_stuff_bit_v      : boolean := false;
 
@@ -131,11 +131,11 @@ begin
     -- Main monitoring loop
     loop
       -- Wait for SOF (tx_bus goes dominant from recessive idle)
-      wait until tx_bus_o = dominant and tx_bus_o'event;
+      wait until tx_bus_o = dominant_bit_c and tx_bus_o'event;
 
       -- Reset tracking for new frame
       consecutive_count_v := 1;
-      last_polarity_v     := dominant;
+      last_polarity_v     := dominant_bit_c;
       frame_position_v    := 0; -- SOF = position 0
 
       -- Track each subsequent bit at nominal bit time boundaries
@@ -166,13 +166,13 @@ begin
         -- ACK injection: override bus to dominant at ACK slot position
         if (not is_stuff_bit_v and frame_position_v = params_v.ack_slot and inject_ack) then
           bus_override_en <= true;
-          bus_override    <= dominant;
+          bus_override    <= dominant_bit_c;
           wait for nom_bit_time_clk_c * clk_period_c;
           bus_override_en <= false;
           -- Continue tracking after ACK
           frame_position_v    := frame_position_v + 1;
           consecutive_count_v := 1;
-          last_polarity_v     := dominant;
+          last_polarity_v     := dominant_bit_c;
         end if;
 
         -- Exit loop when frame ends (past EOF)

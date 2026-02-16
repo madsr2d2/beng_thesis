@@ -177,11 +177,9 @@ begin
     variable crc_vec         : crc_vector_t;
     variable sbc_vec         : sbc_t;
     variable prev_polarity   : polarity_t;
-    variable bit_position    : position_t;
     variable test_count      : integer;
     variable pass_count      : integer;
     variable bits_verified   : integer;
-    variable dlc_idx         : integer;
     variable expected_name   : mac_frame_bit_name_t;
 
   begin
