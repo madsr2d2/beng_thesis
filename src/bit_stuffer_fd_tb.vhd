@@ -5,7 +5,9 @@ use ieee.numeric_std.all;
 library osvvm;
 context osvvm.OsvvmContext;
 
-use work.can_pkg.all;
+use work.can_types_pkg.all;
+  use work.can_protocol_pkg.all;
+  use work.can_timing_pkg.all;
 
 entity bit_stuffer_fd_tb is
 end entity bit_stuffer_fd_tb;

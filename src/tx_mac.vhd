@@ -7,8 +7,9 @@
 --------------------------------------------------------------------------------
 -- Description: Top-level MAC transmitter wrapper. Instantiates and wires:
 --   - tx_mac_ser:    LLC byte serializer (LLC → polarity_t stream)
---   - tx_mac_fsm:    Frame transmission FSM (coordinator)
+--   - tx_mac_fsm_v2: Frame transmission FSM (coordinator)
 --   - bit_stuffer_fd: CAN FD bit stuffing with SBC generation
+--   - crc_fd: CRC engine interface
 --
 -- External interfaces:
 --   - LLC (Logical Link Control): Avalon-ST byte stream input
@@ -18,7 +19,9 @@
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
-  use work.can_pkg.all;
+  use work.can_types_pkg.all;
+  use work.can_protocol_pkg.all;
+  use work.can_timing_pkg.all;
 
 entity mac_tx is
   port (
@@ -49,6 +52,10 @@ architecture rtl of mac_tx is
   signal fsm_to_bs_fd : mac_fsm_to_bs_fd_if_t;
   signal bs_fd_to_fsm : bs_fd_to_mac_fsm_if_t;
 
+  -- Internal signals: FSM <-> CRC
+  signal fsm_to_crc : mac_fsm_to_crc_if_t;
+  signal crc_to_fsm : crc_to_mac_fsm_if_t;
+
 begin
 
   -- =========================================================================
@@ -66,19 +73,21 @@ begin
     );
 
   -- =========================================================================
-  -- tx_mac_fsm: Frame transmission FSM
+  -- tx_mac_fsm_v2: Frame transmission FSM
   -- Coordinates serializer, bit stuffer, and PCS
   -- =========================================================================
-  tx_mac_fsm_inst : entity work.tx_mac_fsm
+  tx_mac_fsm_inst : entity work.tx_mac_fsm_v2
     port map (
-      clk       => clk,
-      rst       => rst,
+      clk_i     => clk,
+      rst_i     => rst,
       mac_ser_i => ser_to_fsm,
       mac_ser_o => fsm_to_ser,
       pcs_i     => pcs_i,
       pcs_o     => pcs_o,
       bs_fd_i   => bs_fd_to_fsm,
       bs_fd_o   => fsm_to_bs_fd,
+      crc_i     => crc_to_fsm,
+      crc_o     => fsm_to_crc,
       fce_i     => fce_i,
       fce_o     => fce_o
     );
@@ -93,6 +102,15 @@ begin
       rst_i   => rst,
       bs_fd_i => fsm_to_bs_fd,
       bs_fd_o => bs_fd_to_fsm
+    );
+
+  -- =========================================================================
+  -- crc_fd: CRC engine
+  -- =========================================================================
+  crc_fd_inst : entity work.crc_fd
+    port map (
+      crc_i => fsm_to_crc,
+      crc_o => crc_to_fsm
     );
 
 end architecture rtl;

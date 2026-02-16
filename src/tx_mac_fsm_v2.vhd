@@ -2,7 +2,9 @@
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
-  use work.can_pkg.all;
+  use work.can_types_pkg.all;
+  use work.can_protocol_pkg.all;
+  use work.can_timing_pkg.all;
 
 entity tx_mac_fsm_v2 is
   port (
@@ -107,7 +109,6 @@ begin
 
     variable next_bit_v           : mac_frame_bit_t;
     variable monitored_bit_info_v : observed_mac_frame_bit_info_t;
-    variable data_length_v        : integer;
 
     procedure transmit_bit (
       bit : in mac_frame_bit_t
@@ -247,6 +248,35 @@ begin
 
     end procedure emit_error_state_bit;
 
+    -- Prepare per-frame context while transmitting (status + CRC polynomial select).
+    procedure prepare_transmitting_frame_context is
+
+      variable data_length_v : integer;
+      variable crc_length_v  : integer;
+
+    begin
+
+      fce_o.transmitting <= '1';
+
+      data_length_v := dlc_to_data_length(
+                                          dlc_t(to_integer(unsigned(mac_ser_i.frame_params.dlc_vector))),
+                                          mac_ser_i.frame_params.format
+                                        );
+      crc_length_v  := get_crc_length(mac_ser_i.frame_params.format, data_length_v);
+
+      case crc_length_v is
+        when crc_15_length_c =>
+          crc_o.crc_poly_select <= "00";
+        when crc_17_length_c =>
+          crc_o.crc_poly_select <= "01";
+        when crc_21_length_c =>
+          crc_o.crc_poly_select <= "10";
+        when others =>
+          crc_o.crc_poly_select <= "11";
+      end case;
+
+    end procedure prepare_transmitting_frame_context;
+
   begin
 
     if rising_edge(clk_i) then
@@ -292,25 +322,7 @@ begin
             service_bus_quiet_state;
 
           when transmitting_frame =>
-            -- Signal FCE that we are transmitting frame
-            fce_o.transmitting <= '1';
-            -- Select CRC polynomial from frame format + payload length.
-            data_length_v := dlc_to_data_length(
-                                                dlc_t(to_integer(unsigned(mac_ser_i.frame_params.dlc_vector))),
-                                                mac_ser_i.frame_params.format
-                                              );
-            case mac_ser_i.frame_params.format is
-              when cc_basic | cc_extended =>
-                crc_o.crc_poly_select <= "00";                                                                  -- CRC-15
-              when fd_basic | fd_extended =>
-                if (data_length_v <= 16) then
-                  crc_o.crc_poly_select <= "01";                                                                -- CRC-17
-                else
-                  crc_o.crc_poly_select <= "10";                                                                -- CRC-21
-                end if;
-              when others =>
-                crc_o.crc_poly_select <= "11";                                                                  -- Invalid/unknown format
-            end case;
+            prepare_transmitting_frame_context;
 
             if (pcs_i.sp = '1' or pcs_i.ssp = '1') then
               -- Monitor bus bit

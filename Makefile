@@ -8,8 +8,8 @@
 
 # VHDL design files (excluding testbenches)
 # Automatically find all files, compile packages and leaf modules first
-PACKAGES = $(shell find ./src -name "*package.vhd" -o -name "can_pkg.vhd" -size +0)
-ALL_MODULES = $(shell find ./src -name "*.vhd" ! -name "*package.vhd" ! -name "can_pkg.vhd" ! -name "*_tb.vhd" -size +0)
+PACKAGES = $(shell find ./src \( -name "*package.vhd" -o -name "*_pkg.vhd" \) -size +0)
+ALL_MODULES = $(shell find ./src -name "*.vhd" ! -name "*package.vhd" ! -name "*_pkg.vhd" ! -name "can_pkg.vhd" ! -name "tx_mac_fsm.vhd" ! -name "*_tb.vhd" -size +0)
 
 # Separate modules into categories based on dependencies
 # tx_can depends on mac_tx, tx_llc, and tx_pcs — compiled last

@@ -1,6 +1,8 @@
 library ieee;
   use ieee.std_logic_1164.all;
-  use work.can_pkg.all;
+  use work.can_types_pkg.all;
+  use work.can_protocol_pkg.all;
+  use work.can_timing_pkg.all;
 
 entity bit_stuffer is
   port (

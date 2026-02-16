@@ -25,7 +25,9 @@ library ieee;
 library osvvm;
   use osvvm.RandomPkg.all;
   use osvvm.AlertLogPkg.all;
-  use work.can_pkg.all;
+  use work.can_types_pkg.all;
+  use work.can_protocol_pkg.all;
+  use work.can_timing_pkg.all;
 
 entity tx_pcs_tb is
 end entity tx_pcs_tb;

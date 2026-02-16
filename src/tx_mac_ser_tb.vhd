@@ -4,7 +4,9 @@ library ieee;
 
 library osvvm;
   context osvvm.osvvmcontext;
-  use work.can_pkg.all;
+  use work.can_types_pkg.all;
+  use work.can_protocol_pkg.all;
+  use work.can_timing_pkg.all;
 
 entity tx_mac_ser_tb is
 end entity tx_mac_ser_tb;
