@@ -28,11 +28,6 @@ architecture rtl of tx_mac_ser is
   signal count : integer range byte_t'left downto 0;
   -- Config byte 0: FORMAT[7:5], FTYP[4], ESI[3], BRS[2]
   signal config_byte_reg_0 : byte_t;
-  -- Config byte 1: DLC[7:4]
-  signal config_byte_reg_1 : byte_t;
-  -- Cached frame parameters (calculated once per frame, reduces redundant calculations)
-  signal frame_params_reg : frame_params_t;
-  signal params_valid : std_logic;
 
 begin
 
@@ -45,30 +40,20 @@ begin
       if (rst_i = '1') then
         llc_o.avalon_st_sink.ready <= '0';
         config_byte_reg_0          <= (others => '0');
-        config_byte_reg_1          <= (others => '0');
         llc_frame_buffer           <= (others => '0');
         tx_mac_fsm_o.data          <= dominant;
-        tx_mac_fsm_o.valid         <= '0';
+        tx_mac_fsm_o.valid         <= true;
         tx_mac_fsm_o.frame_params  <= frame_params_reset_c;
-        tx_mac_fsm_o.params_valid  <= '0';
         state_reg                  <= load_config_byte_0;
         count                      <= llc_frame_buffer'left;
-        frame_params_reg           <= frame_params_reset_c;
-        params_valid               <= '0';
       else
         -- Defaults
         llc_o.avalon_st_sink.ready <= '0';
-        tx_mac_fsm_o.valid         <= '0';
+        tx_mac_fsm_o.valid         <= true;
         llc_o.transfer_status      <= tx_mac_fsm_i.transfer_status;
-        tx_mac_fsm_o.frame_params  <= frame_params_reg;
-        tx_mac_fsm_o.params_valid  <= params_valid;
-        state_reg                  <= state_reg;
-        frame_params_reg           <= frame_params_reg;
-        params_valid               <= params_valid;
 
         -- FSM
         case state_reg is
-
           when load_config_byte_0 =>
             -- Config byte 0: wait for valid data with SOP='1'
             llc_o.avalon_st_sink.ready <= '1';
@@ -81,12 +66,8 @@ begin
             -- Config byte 1: wait for valid data with SOP='0'
             llc_o.avalon_st_sink.ready <= '1';
             if (llc_i.avalon_st_source.valid = '1' and llc_i.avalon_st_source.sop = '0') then
-              config_byte_reg_1         <= llc_i.avalon_st_source.data;
               -- Calculate frame parameters once (cached for all bits in this frame)
-              frame_params_reg          <= calculate_frame_params(config_byte_reg_0, llc_i.avalon_st_source.data);
               tx_mac_fsm_o.frame_params <= calculate_frame_params(config_byte_reg_0, llc_i.avalon_st_source.data);
-              params_valid              <= '1';
-              tx_mac_fsm_o.params_valid <= '1';
               state_reg                 <= load_llc_frame_byte;
             end if;
 
@@ -97,30 +78,29 @@ begin
             if (llc_i.avalon_st_source.valid = '1' and llc_i.avalon_st_source.sop = '0') then
               llc_frame_buffer           <= llc_i.avalon_st_source.data;
               tx_mac_fsm_o.data          <= bit_to_polarity(llc_i.avalon_st_source.data(llc_i.avalon_st_source.data'left));
-              tx_mac_fsm_o.valid         <= '1';
+              tx_mac_fsm_o.valid         <= true;
               state_reg                  <= shift_out_bits;
               llc_o.avalon_st_sink.ready <= '0';
             end if;
 
           when shift_out_bits =>
-            -- Hold valid continuously while we have bits
-            tx_mac_fsm_o.valid <= '1';
+            -- Hold valid while we have bits
+            tx_mac_fsm_o.valid <= true;
             tx_mac_fsm_o.data  <= bit_to_polarity(llc_frame_buffer(llc_frame_buffer'left));
 
             -- Exit on transfer status change
             if (tx_mac_fsm_i.transfer_status /= ongoing) then
               state_reg          <= load_config_byte_0;
               count              <= llc_frame_buffer'left;
-              params_valid       <= '0';
-              tx_mac_fsm_o.valid <= '0';
+              tx_mac_fsm_o.valid <= false;
             -- Advance to next bit when tx_mac_fsm consumes current one
-            elsif (tx_mac_fsm_i.ready = '1') then
+            elsif (tx_mac_fsm_i.ready = true) then
               if (count = 0) then
                 -- All 8 bits sent (1 on load + 7 shifts), fetch next byte
                 state_reg                  <= load_llc_frame_byte;
                 count                      <= llc_frame_buffer'left;
                 llc_o.avalon_st_sink.ready <= '1';
-                tx_mac_fsm_o.valid         <= '0';
+                tx_mac_fsm_o.valid         <= false;
               else
                 -- Shift to next bit; current MSB was consumed
                 llc_frame_buffer <= llc_frame_buffer sll 1;

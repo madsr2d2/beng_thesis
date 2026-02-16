@@ -7,84 +7,55 @@ entity bit_stuffer is
     clk : in    std_logic;
     rst : in    std_logic;
 
-    -- input data stream
+    -- Input data stream
     data_i  : in    polarity_t;
-    valid_i : in    std_logic;
+    valid_i : in    boolean;
 
-    -- Output data stream
+    -- Stuff bit indication (combinational, level-based)
     stuff_bit_o       : out   polarity_t;
-    stuff_bit_valid_o : out   std_logic
+    stuff_bit_valid_o : out   boolean
   );
 end entity bit_stuffer;
 
 architecture rtl of bit_stuffer is
 
-  type state_t is (idle, count_1, count_2, count_3, count_4, stuff);
-
-  signal state_reg    : state_t;
-  signal last_bit_reg : polarity_t;
+  signal consecutive_count : integer range 0 to 5;
+  signal last_polarity_reg : polarity_t;
 
 begin
 
-  p_fsm : process (clk) is
+  -- Combinational outputs: signal stuff bit needed when 5 consecutive detected
+  -- Level-based: stays high until the stuff bit is consumed (valid_i with count=5)
+  stuff_bit_valid_o <= true when consecutive_count >= 5 else
+                       false;
+  stuff_bit_o       <= dominant when last_polarity_reg = recessive else
+                       recessive;
+
+  p_count : process (clk) is
   begin
 
     if rising_edge(clk) then
       if (rst = '1') then
-        state_reg         <= idle;
-        last_bit_reg      <= dominant;
-        stuff_bit_o       <= dominant;
-        stuff_bit_valid_o <= '0';
-      else
-        state_reg         <= state_reg;
-        last_bit_reg      <= last_bit_reg;
-        stuff_bit_o       <= dominant;
-        stuff_bit_valid_o <= '0';
-
-        if (valid_i = '1') then
-          case state_reg is
-            when idle =>
-              last_bit_reg <= data_i;
-              state_reg    <= count_1;
-            when count_1 =>
-              if (data_i = last_bit_reg) then
-                state_reg <= count_2;
-              else
-                state_reg    <= count_1;
-                last_bit_reg <= data_i;
-              end if;
-            when count_2 =>
-              if (data_i = last_bit_reg) then
-                state_reg <= count_3;
-              else
-                state_reg    <= count_1;
-                last_bit_reg <= data_i;
-              end if;
-            when count_3 =>
-              if (data_i = last_bit_reg) then
-                state_reg <= count_4;
-              else
-                state_reg    <= count_1;
-                last_bit_reg <= data_i;
-              end if;
-            when count_4 =>
-              if (data_i = last_bit_reg) then
-                state_reg <= stuff;
-              else
-                state_reg    <= count_1;
-                last_bit_reg <= data_i;
-              end if;
-            when stuff =>
-              stuff_bit_o       <= dominant when last_bit_reg = recessive else recessive;
-              stuff_bit_valid_o <= '1';
-              state_reg         <= count_1;
-              last_bit_reg      <= data_i;
-            when others =>
-          end case;
+        consecutive_count <= 0;
+        last_polarity_reg <= dominant;
+      elsif (valid_i = true) then
+        if (consecutive_count >= 5) then
+          -- Stuff bit consumed: restart counting with new bit
+          consecutive_count <= 1;
+          last_polarity_reg <= data_i;
+        elsif (consecutive_count = 0) then
+          -- First bit after reset
+          consecutive_count <= 1;
+          last_polarity_reg <= data_i;
+        elsif (data_i = last_polarity_reg) then
+          consecutive_count <= consecutive_count + 1;
+        else
+          consecutive_count <= 1;
+          last_polarity_reg <= data_i;
         end if;
       end if;
     end if;
 
-  end process p_fsm;
+  end process p_count;
 
 end architecture rtl;

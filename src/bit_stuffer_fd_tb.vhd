@@ -13,7 +13,6 @@ end entity bit_stuffer_fd_tb;
 architecture tb of bit_stuffer_fd_tb is
 
   constant CLK_PERIOD : time := 10 ns;
-  constant RUN_TIME : time := 100 us;
 
   signal clk_i : std_logic := '0';
   signal rst_i : std_logic := '0';
@@ -21,13 +20,13 @@ architecture tb of bit_stuffer_fd_tb is
   signal bs_fd_o : bs_fd_to_mac_fsm_if_t;
 
   -- Signals for waveform viewing (unpacked from records)
-  signal tb_clk : std_logic;
-  signal tb_rst : std_logic;
-  signal tb_data_i : polarity_t;
-  signal tb_data_valid : std_logic;
-  signal tb_stuff_bit : polarity_t;
+  signal tb_clk             : std_logic;
+  signal tb_rst             : std_logic;
+  signal tb_data_i          : polarity_t;
+  signal tb_data_valid      : std_logic;
+  signal tb_stuff_bit       : polarity_t;
   signal tb_stuff_bit_valid : std_logic;
-  signal tb_sbc : std_logic_vector(3 downto 0);
+  signal tb_sbc             : std_logic_vector(3 downto 0);
 
 begin
 
@@ -35,13 +34,13 @@ begin
   clk_i <= not clk_i after CLK_PERIOD / 2;
 
   -- Unpack records to signals for waveform viewing
-  tb_clk <= clk_i;
-  tb_rst <= rst_i;
-  tb_data_i <= bs_fd_i.data;
-  tb_data_valid <= bs_fd_i.data_valid;
-  tb_stuff_bit <= bs_fd_o.stuff_bit;
+  tb_clk             <= clk_i;
+  tb_rst             <= rst_i;
+  tb_data_i          <= bs_fd_i.data;
+  tb_data_valid      <= bs_fd_i.data_valid;
+  tb_stuff_bit       <= bs_fd_o.data;
   tb_stuff_bit_valid <= bs_fd_o.stuff_bit_valid;
-  tb_sbc <= bs_fd_o.sbc;
+  tb_sbc             <= bs_fd_o.sbc;
 
   -- DUT instantiation
   u_dut : entity work.bit_stuffer_fd
@@ -54,11 +53,11 @@ begin
 
   -- Main test process
   main_tb_p : process
-    variable rnd_bit : RandomPType;
+    variable rnd_bit   : RandomPType;
     variable rnd_valid : RandomPType;
     variable random_polarity : polarity_t;
-    variable random_valid : boolean;
-    variable num_bits : integer;
+    variable random_valid    : boolean;
+    variable num_bits        : integer;
   begin
     -- Open transcript file for logging
     TranscriptOpen("sim/bit_stuffer_fd_tb.txt");
@@ -70,8 +69,7 @@ begin
     rnd_bit.InitSeed(rnd_bit'instance_name & to_string(now));
     rnd_valid.InitSeed(rnd_valid'instance_name & to_string(now));
 
-    -- Initialize test parameters
-    num_bits := 300;  -- Number of bits to send in each test pattern
+    num_bits := 300;
 
     -- Reset for a few cycles
     Print("Applying reset...");
@@ -86,44 +84,103 @@ begin
     wait for CLK_PERIOD;
     Print("Reset released");
 
-    -- Test 1: Send known patterns that trigger bit stuffing (5 consecutive identical bits)
-    Print("Sending pattern to trigger bit stuffing: dominant x10...");
-    for i in 0 to 9 loop
-      bs_fd_i.data <= dominant;
+    -- Test 1: Send 5 dominant bits → stuff_bit_valid should go high
+    Print("Test 1: 5 dominant bits triggers stuff bit...");
+    for i in 0 to 4 loop
+      bs_fd_i.data       <= dominant;
       bs_fd_i.data_valid <= '1';
       wait for CLK_PERIOD;
     end loop;
+    bs_fd_i.data_valid <= '0';
+    wait for CLK_PERIOD;
+    AffirmIfEqual(bs_fd_o.stuff_bit_valid, '1', "stuff_bit_valid should be '1' after 5 dominant");
+    AffirmIf(bs_fd_o.data = recessive, "stuff_bit should be recessive after 5 dominant");
 
-    Print("Sending pattern: recessive x10...");
-    for i in 0 to 9 loop
-      bs_fd_i.data <= recessive;
+    -- Feed the stuff bit back (as FSM would)
+    bs_fd_i.data       <= bs_fd_o.data;
+    bs_fd_i.data_valid <= '1';
+    wait for CLK_PERIOD;
+    bs_fd_i.data_valid <= '0';
+    wait for CLK_PERIOD;
+    AffirmIfEqual(bs_fd_o.stuff_bit_valid, '0', "stuff_bit_valid should clear after stuff bit consumed");
+    Print("  PASS: Stuff bit detection and consumption works");
+
+    -- Test 2: Verify SBC incremented after stuff bit
+    Print("Test 2: SBC counts stuff bits...");
+    AffirmIf(bs_fd_o.sbc /= "0000", "SBC should be non-zero after 1 stuff bit");
+    Print("  SBC after 1 stuff bit: " & to_hstring(bs_fd_o.sbc));
+
+    -- Test 3: Frame reset clears everything
+    Print("Test 3: Frame reset clears SBC...");
+    bs_fd_i.frame_reset <= '1';
+    wait for CLK_PERIOD;
+    bs_fd_i.frame_reset <= '0';
+    wait for CLK_PERIOD;
+    AffirmIfEqual(bs_fd_o.sbc, "0000", "SBC should be zero after frame reset");
+    AffirmIfEqual(bs_fd_o.stuff_bit_valid, '0', "stuff_bit_valid should be '0' after reset");
+    Print("  PASS: Frame reset clears SBC and stuff state");
+
+    -- Test 4: Alternating bits should not trigger stuffing
+    Print("Test 4: Alternating bits (no stuffing)...");
+    for i in 0 to 19 loop
+      if (i mod 2 = 0) then
+        bs_fd_i.data <= dominant;
+      else
+        bs_fd_i.data <= recessive;
+      end if;
       bs_fd_i.data_valid <= '1';
       wait for CLK_PERIOD;
+      AffirmIfEqual(bs_fd_o.stuff_bit_valid, '0',
+        "No stuffing for alternating bits at i=" & to_string(i));
     end loop;
+    bs_fd_i.data_valid <= '0';
+    Print("  PASS: Alternating bits produce no stuff bits");
 
-    -- Test 2: Random bit pattern with random valid signal
-    Print("Sending random bit pattern with variable valid timing...");
+    -- Test 5: Multiple stuff events with random patterns
+    Print("Test 5: Random bit patterns...");
+    bs_fd_i.frame_reset <= '1';
+    wait for CLK_PERIOD;
+    bs_fd_i.frame_reset <= '0';
+    wait for CLK_PERIOD;
+
     for i in 0 to num_bits loop
       random_polarity := dominant when rnd_bit.RandInt(0, 1) = 0 else recessive;
-      random_valid := rnd_valid.RandInt(0, 1) = 0;  -- ~50% chance of valid
+      random_valid    := rnd_valid.RandInt(0, 1) = 0;
 
-      bs_fd_i.data <= random_polarity;
+      bs_fd_i.data       <= random_polarity;
       bs_fd_i.data_valid <= '1' when random_valid else '0';
       wait for CLK_PERIOD;
+
+      -- If stuff bit detected, feed it back
+      if (bs_fd_o.stuff_bit_valid = '1') then
+        bs_fd_i.data       <= bs_fd_o.data;
+        bs_fd_i.data_valid <= '1';
+        wait for CLK_PERIOD;
+      end if;
     end loop;
 
-    -- Random burst of valid data
-    Print("Sending random burst...");
-    for i in 0 to num_bits loop
-      random_polarity := dominant when rnd_bit.RandInt(0, 1) = 0 else recessive;
-      bs_fd_i.data <= random_polarity;
+    -- Test 6: Continuous burst of same polarity
+    Print("Test 6: Continuous dominant burst...");
+    bs_fd_i.frame_reset <= '1';
+    wait for CLK_PERIOD;
+    bs_fd_i.frame_reset <= '0';
+    wait for CLK_PERIOD;
+
+    for i in 0 to 29 loop
+      if (bs_fd_o.stuff_bit_valid = '1') then
+        -- Feed stuff bit
+        bs_fd_i.data       <= bs_fd_o.data;
+        bs_fd_i.data_valid <= '1';
+        wait for CLK_PERIOD;
+      end if;
+      bs_fd_i.data       <= dominant;
       bs_fd_i.data_valid <= '1';
       wait for CLK_PERIOD;
     end loop;
+    bs_fd_i.data_valid <= '0';
 
     -- Stop and wait for cleanup
     Print("Test complete, waiting for outputs to settle...");
-    bs_fd_i.data_valid <= '0';
     wait for CLK_PERIOD * 20;
 
     Print("=== Bit Stuffer FD Testbench Finished ===");
@@ -133,16 +190,17 @@ begin
 
   end process main_tb_p;
 
-  -- Simple monitor - display stuff bits and Gray code with parity
+  -- Monitor process: display stuff bits and SBC
   monitor_p : process (clk_i)
     variable output_count : integer := 0;
   begin
     if rising_edge(clk_i) then
-      if bs_fd_o.stuff_bit_valid = '1' then
+      if bs_fd_o.stuff_bit_valid = '1' and bs_fd_i.data_valid = '1' then
         output_count := output_count + 1;
-        Print("Output #" & to_string(output_count) & ": " & polarity_t'image(bs_fd_o.stuff_bit) &
-              " Gray+Parity=" & to_hstring(bs_fd_o.sbc) &
-              " at time " & to_string(now));
+        Print("Stuff #" & to_string(output_count) &
+              ": " & polarity_t'image(bs_fd_o.data) &
+              " SBC=" & to_hstring(bs_fd_o.sbc) &
+              " at " & to_string(now));
       end if;
     end if;
   end process monitor_p;

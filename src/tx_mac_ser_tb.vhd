@@ -62,7 +62,7 @@ begin
     llc_i.avalon_st_source.valid  <= '0';
     llc_i.avalon_st_source.sop    <= '0';
     llc_i.avalon_st_source.eop    <= '0';
-    tx_mac_fsm_i.ready            <= '0';
+    tx_mac_fsm_i.ready            <= false;
     tx_mac_fsm_i.transfer_status  <= transmitted;
     wait for clk_period * 5;
 
@@ -148,7 +148,7 @@ begin
     wait for clk_period;
 
     -- Check first bit is loaded
-    AlertIf(tx_mac_fsm_o.valid = '0', "ERROR: frame_bit_valid should be asserted", FAILURE);
+    AlertIf(tx_mac_fsm_o.valid = false, "ERROR: frame_bit_valid should be asserted", FAILURE);
     AlertIf(tx_mac_fsm_o.data /= bit_to_polarity(test_data(7)), "ERROR: first bit should be " & to_string(test_data(7)) &
             " but got " & to_string(tx_mac_fsm_o.data), FAILURE);
     Print("  Bit 0 (MSB): " & to_string(tx_mac_fsm_o.data) & " (Expected: " & to_string(test_data(7)) & ")");
@@ -161,11 +161,11 @@ begin
     bit_count := 0;
 
     for i in 6 downto 0 loop
-      tx_mac_fsm_i.ready <= '1';
+      tx_mac_fsm_i.ready <= true;
       wait for clk_period;
-      tx_mac_fsm_i.ready <= '0';
+      tx_mac_fsm_i.ready <= false;
       wait for clk_period;
-      AlertIf(tx_mac_fsm_o.valid = '0', "ERROR: bit " & to_string(i) & " not valid", FAILURE);
+      AlertIf(tx_mac_fsm_o.valid = false, "ERROR: bit " & to_string(i) & " not valid", FAILURE);
       AlertIf(tx_mac_fsm_o.data /= bit_to_polarity(test_data(i)), "ERROR: bit " & to_string(i) & " mismatch", FAILURE);
       Print("  Bit " & to_string(7 - i) & ": " & to_string(tx_mac_fsm_o.data) & " (Expected: " & to_string(test_data(i)) & ")");
       bit_count := bit_count + 1;
@@ -232,7 +232,7 @@ begin
       Print("  Byte " & to_string(byte_idx) & ": " & to_hex_string(test_data));
 
       -- First bit (MSB) is sent during load transition
-      AlertIf(tx_mac_fsm_o.valid = '0', "ERROR: First bit not valid for byte " & to_string(byte_idx), FAILURE);
+      AlertIf(tx_mac_fsm_o.valid = false, "ERROR: First bit not valid for byte " & to_string(byte_idx), FAILURE);
       AlertIf(tx_mac_fsm_o.data /= bit_to_polarity(test_data(7)), "ERROR: First bit (MSB) mismatch for byte " & to_string(byte_idx), FAILURE);
 
       llc_i.avalon_st_source.valid <= '0';
@@ -241,20 +241,20 @@ begin
       -- Shift remaining 7 bits with validation
       -- Note: registered shift means the new bit appears one clock AFTER ready pulse
       for bit_idx in 6 downto 0 loop
-        tx_mac_fsm_i.ready <= '1';
+        tx_mac_fsm_i.ready <= true;
         wait for clk_period;
-        tx_mac_fsm_i.ready <= '0';
+        tx_mac_fsm_i.ready <= false;
         wait for clk_period;
-        AlertIf(tx_mac_fsm_o.valid = '0', "ERROR: Bit not valid for byte " & to_string(byte_idx) & " bit " & to_string(bit_idx), FAILURE);
+        AlertIf(tx_mac_fsm_o.valid = false, "ERROR: Bit not valid for byte " & to_string(byte_idx) & " bit " & to_string(bit_idx), FAILURE);
         AlertIf(tx_mac_fsm_o.data /= bit_to_polarity(test_data(bit_idx)),
                 "ERROR: Bit mismatch for byte " & to_string(byte_idx) & " bit " & to_string(bit_idx) &
                 " (expected " & to_string(test_data(bit_idx)) & " got " & to_string(tx_mac_fsm_o.data) & ")", FAILURE);
       end loop;
 
       -- Keep ready asserted one more cycle to allow count=0 transition back to load_llc_frame_byte
-      tx_mac_fsm_i.ready <= '1';
+      tx_mac_fsm_i.ready <= true;
       wait for clk_period;
-      tx_mac_fsm_i.ready <= '0';
+      tx_mac_fsm_i.ready <= false;
       wait for clk_period;
 
     end loop;
@@ -310,14 +310,14 @@ begin
     wait for clk_period;
 
     -- Start shifting, then change transfer status mid-transmission
-    tx_mac_fsm_i.ready <= '1';
+    tx_mac_fsm_i.ready <= true;
     wait for clk_period * 3;
 
     Print("  Changing transfer_status to transmitted mid-transmission...");
     tx_mac_fsm_i.transfer_status <= transmitted;
     wait for clk_period;
 
-    AlertIf(tx_mac_fsm_o.valid = '1', "ERROR: bit_valid should be deasserted after status change", FAILURE);
+    AlertIf(tx_mac_fsm_o.valid = true, "ERROR: bit_valid should be deasserted after status change", FAILURE);
     Print("PASS: Frame terminated correctly on status change");
 
     -- =====================================================================

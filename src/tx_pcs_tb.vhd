@@ -44,13 +44,13 @@ architecture test of tx_pcs_tb is
 
   -- DUT signals
   signal mac_to_pcs : mac_to_pcs_if_t := (
-    frame_bit    => (polarity => unknown, bit_name => unknown),
-    data_request => '0'
+    data    => (polarity => unknown, bit_name => unknown),
+    valid => false
   );
 
   signal pcs_to_mac : pcs_to_mac_if_t;
-  signal tx_bus     : polarity_t;
-  signal rx_bus     : polarity_t := recessive;  -- CAN bus idles recessive
+  signal tx_bus     : std_logic;
+  signal rx_bus     : std_logic := recessive_bit_c;  -- CAN bus idles recessive
 
   -- Test tracking
   -- (Using Log statements directly for test names)
@@ -105,8 +105,8 @@ begin
       num_clocks  : integer := 50  -- Default: one nominal bit time for current config
     ) is
     begin
-      mac_to_pcs.frame_bit    <= bit_to_send;
-      mac_to_pcs.data_request <= '1';  -- Stays high throughout frame
+      mac_to_pcs.data    <= bit_to_send;
+      mac_to_pcs.valid <= true;  -- Stays high throughout frame
       wait for num_clocks * clk_period;
     end procedure send_bit;
 
@@ -138,7 +138,7 @@ begin
     send_bit((polarity => dominant, bit_name => sof_bit));
 
     -- Verify TX bus output
-    AlertIf(tx_bus /= dominant, "SOF bit should be dominant on TX bus", ERROR);
+    AlertIf(tx_bus /= dominant_bit_c, "SOF bit should be dominant on TX bus", ERROR);
 
     Log("Test 1 PASSED", PASSED);
 
@@ -150,11 +150,11 @@ begin
 
     -- Send FDF bit (recessive)
     send_bit((polarity => recessive, bit_name => fdf_bit));
-    AlertIf(tx_bus /= recessive, "FDF bit should be recessive on TX bus", ERROR);
+    AlertIf(tx_bus /= recessive_bit_c, "FDF bit should be recessive on TX bus", ERROR);
 
     -- Send res bit (dominant) - this should trigger TDC measurement
     send_bit((polarity => dominant, bit_name => res_bit));
-    AlertIf(tx_bus /= dominant, "res bit should be dominant on TX bus", ERROR);
+    AlertIf(tx_bus /= dominant_bit_c, "res bit should be dominant on TX bus", ERROR);
 
     Log("Test 2 PASSED", PASSED);
 
@@ -165,8 +165,8 @@ begin
     Log("Test 3: TDC Delay Measurement", INFO);
 
     -- Reset to clean state for proper TDC test
-    mac_to_pcs.data_request <= '0';
-    mac_to_pcs.frame_bit    <= (polarity => unknown, bit_name => unknown);
+    mac_to_pcs.valid <= false;
+    mac_to_pcs.data    <= (polarity => unknown, bit_name => unknown);
     rst                     <= '1';
     wait for 5 * clk_period;
     rst <= '0';
@@ -180,8 +180,8 @@ begin
     send_bit((polarity => recessive, bit_name => fdf_bit), 100);
 
     -- Now set res bit — PCS will latch at next bit boundary
-    mac_to_pcs.frame_bit    <= (polarity => dominant, bit_name => res_bit);
-    mac_to_pcs.data_request <= '1';
+    mac_to_pcs.data    <= (polarity => dominant, bit_name => res_bit);
+    mac_to_pcs.valid <= true;
 
     -- Wait for TDC measurement to complete (fifo_delay_index becomes non-zero)
     for i in 1 to 300 loop
@@ -198,7 +198,7 @@ begin
             ERROR);
 
     -- Continue transmitting data-phase bits to verify SSP strobe fires
-    mac_to_pcs.frame_bit <= (polarity => dominant, bit_name => data_bit);
+    mac_to_pcs.data <= (polarity => dominant, bit_name => data_bit);
 
     -- Wait for SSP strobe (ssp_within_bit fires once per data bit)
     for i in 1 to 200 loop
@@ -212,7 +212,7 @@ begin
     wait for clk_period;
     AlertIf(pcs_to_mac.ssp /= '0', "SSP strobe should be single-cycle pulse", ERROR);
 
-    mac_to_pcs.data_request <= '0';
+    mac_to_pcs.valid <= false;
     wait for 10 * clk_period;
 
     Log("Test 3 PASSED", PASSED);
@@ -235,8 +235,8 @@ begin
     -- Send base_id bit and wait for SP strobe
     -- SP should occur at position 47 TQ (sync=1 + prop=23 + phase1=23)
     -- That's 47 * 2 = 94 clock cycles into the bit time
-    mac_to_pcs.frame_bit    <= (polarity => dominant, bit_name => base_id_bit);
-    mac_to_pcs.data_request <= '1';
+    mac_to_pcs.data    <= (polarity => dominant, bit_name => base_id_bit);
+    mac_to_pcs.valid <= true;
 
     -- Wait for SP strobe to appear (with timeout)
     for i in 1 to 200 loop
@@ -250,7 +250,7 @@ begin
     wait for clk_period;
     AlertIf(pcs_to_mac.sp /= '0', "SP strobe should be single-cycle pulse", ERROR);
 
-    mac_to_pcs.data_request <= '0';
+    mac_to_pcs.valid <= false;
     wait for 50 * clk_period;
 
     Log("Test 4 PASSED", PASSED);

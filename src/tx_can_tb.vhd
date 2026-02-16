@@ -96,7 +96,7 @@ begin
   rx_bus_i <= bus_override when bus_override_en else tx_bus_o;
 
   -- FCE: error-active node (not error-passive)
-  fce_i.error_passive <= '0';
+  fce_i.error_passive <= false;
 
   -- =========================================================================
   -- Bus Monitor Process: Tracks frame position and injects ACK

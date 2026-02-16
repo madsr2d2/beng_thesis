@@ -22,7 +22,7 @@
 --   idle -> transmitting_nominal              (data_request = '1')
 --   transmitting_nominal -> measuring_delay   (current_bit = res_bit)
 --   measuring_delay -> transmitting_data      (RX dominant detected)
---   measuring_delay -> transmitting_nominal   (timeout: delay_count >= max_delay)
+--   measuring_delay -> transmitting_nominal   (timeout: delay_count >= max_transmitter_delay_c)
 --   transmitting_data -> transmitting_nominal (crc_delimiter_bit detected)
 --   any non-idle -> idle                      (data_request = '0')
 --
@@ -42,21 +42,18 @@ entity tx_pcs is
   generic (
     -- Nominal bit timing (arbitration phase)
     nom_prescaler  : prescalar    := 2; -- Prescaler for nominal bit time
-    nom_sync_seg   : sync_seg     := 1; -- Always 1 TQ
-    nom_prop_seg   : nom_prop_seg := 8; -- Propagation segment
-    nom_phase_seg1 : phase_seg1   := 8; -- Phase segment 1
-    nom_phase_seg2 : phase_seg2   := 8; -- Phase segment 2
+    nom_sync_seg   : sync_seg     := 1;
+    nom_prop_seg   : nom_prop_seg := 8;
+    nom_phase_seg1 : phase_seg1   := 8;
+    nom_phase_seg2 : phase_seg2   := 8;
 
     -- Data bit timing (FD data phase)
     data_prescaler  : prescalar     := 1; -- Prescaler for data bit time (faster)
-    data_sync_seg   : sync_seg      := 1; -- Always 1 TQ
-    data_prop_seg   : data_prop_seg := 4; -- Propagation segment
-    data_phase_seg1 : phase_seg1    := 4; -- Phase segment 1
-    data_phase_seg2 : phase_seg2    := 4; -- Phase segment 2
-
-    -- TDC configuration: settling margin added to measured delay (ISO §7.3.4).
-    -- Must not exceed data_bit_time to avoid FIFO index pointing at the wrong bit.
-    ssp_offset : ssp_offset := 4
+    data_sync_seg   : sync_seg      := 1;
+    data_prop_seg   : data_prop_seg := 4;
+    data_phase_seg1 : phase_seg1    := 4;
+    data_phase_seg2 : phase_seg2    := 4;
+    ssp_offset      : ssp_offset    := 4
   );
   port (
     clk : in    std_logic;
@@ -83,10 +80,9 @@ architecture rtl of tx_pcs is
 
   -- Maximum transmitter delay: 255 t_q.min (SSP offset 160 + delay 95)
   -- ISO 11898-1:2015 Section 7.3.4
-  constant max_delay : integer := 255;
 
-  -- Maximum FIFO index: (max_delay + ssp_offset) / data_bit_time must fit in FIFO
-  constant max_fifo_index : integer := (max_delay + ssp_offset) / data_bit_time;
+  -- Maximum FIFO index: (max_transmitter_delay_c + ssp_offset) / data_bit_time must fit in FIFO
+  constant max_fifo_index : integer := (max_transmitter_delay_c + ssp_offset) / data_bit_time;
 
   -- FSM state
   signal state      : tx_pcs_fsm_state_t := idle;
@@ -105,7 +101,7 @@ architecture rtl of tx_pcs is
   signal current_bit : mac_frame_bit_t := (polarity => recessive, bit_name => unknown);
 
   -- TDC measurement signals
-  signal delay_count  : integer range 0 to max_delay                         := 0;
+  signal delay_count  : integer range 0 to max_transmitter_delay_c           := 0;
   signal ssp_position : integer range 0 to data_bit_time - 1                 := 0;
   signal fifo_index   : integer range 0 to transmitted_bits_fifo_depth_c - 1 := 0;
 
@@ -129,10 +125,10 @@ begin
     severity warning;
 
   -- Output assignments
-  pcs_to_mac_o.polarity   <= std_logic_to_polarity(rx_bus_i);
-  pcs_to_mac_o.sp         <= sp_pulse;
-  pcs_to_mac_o.ssp        <= ssp_pulse;
-  pcs_to_mac_o.fifo_index <= fifo_index;
+  pcs_to_mac_o.bus_polarity <= std_logic_to_polarity(rx_bus_i);
+  pcs_to_mac_o.sp           <= sp_pulse;
+  pcs_to_mac_o.ssp          <= ssp_pulse;
+  pcs_to_mac_o.fifo_index   <= fifo_index;
 
   tx_bus_o <= polarity_to_std_logic(current_bit.polarity);
   ------------------------------------------------------------------------------
@@ -187,7 +183,7 @@ begin
       if (tq_tick = '1') then
         if (tq_count >= bit_time - 1) then
           tq_count    <= 0;
-          current_bit <= mac_to_pcs_i.frame_bit;
+          current_bit <= mac_to_pcs_i.data;
         else
           tq_count <= tq_count + 1;
         end if;
@@ -225,8 +221,8 @@ begin
 
           when idle =>
             -- Wait for first bit request from MAC
-            if (mac_to_pcs_i.data_request = '1') then
-              current_bit <= mac_to_pcs_i.frame_bit;
+            if (mac_to_pcs_i.valid) then
+              current_bit <= mac_to_pcs_i.data;
               tq_count    <= 0;
             end if;
 
@@ -243,7 +239,7 @@ begin
             end if;
 
             -- Count delay from TX to RX detection (increment on data TQ ticks)
-            if (data_tq_tick = '1' and delay_count < max_delay) then
+            if (data_tq_tick = '1' and delay_count < max_transmitter_delay_c) then
               delay_count <= delay_count + 1;
             end if;
 
@@ -267,14 +263,14 @@ begin
     next_state <= state;
 
     -- Global: return to idle when MAC deasserts data_request (frame complete)
-    if (state /= idle and mac_to_pcs_i.data_request = '0') then
+    if (state /= idle and not mac_to_pcs_i.valid) then
       next_state <= idle;
     else
 
       case state is
 
         when idle =>
-          if (mac_to_pcs_i.data_request = '1') then
+          if (mac_to_pcs_i.valid) then
             next_state <= transmitting_nominal;
           end if;
 
@@ -291,7 +287,7 @@ begin
           end if;
 
           -- Timeout: abort TDC, fall back to nominal
-          if (delay_count >= max_delay) then
+          if (delay_count >= max_transmitter_delay_c) then
             next_state <= transmitting_nominal;
           end if;
 

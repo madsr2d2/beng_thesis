@@ -35,7 +35,7 @@ entity tx_can is
     data_prop_seg        : integer := 4;
     data_phase_seg1      : integer := 4;
     data_phase_seg2      : integer := 4;
-    ssp_offset           : integer := ssp_offset_c
+    ssp_offset           : ssp_offset := 4 
   );
   port (
     clk : in    std_logic;
@@ -50,8 +50,8 @@ entity tx_can is
     fce_o : out   mac_to_fce_if_t;
 
     -- Physical bus interface
-    tx_bus_o : out   polarity_t;
-    rx_bus_i : in    polarity_t
+    tx_bus_o : out   std_logic;
+    rx_bus_i : in    std_logic
   );
 end entity tx_can;
 

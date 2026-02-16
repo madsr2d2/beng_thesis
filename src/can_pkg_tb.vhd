@@ -271,7 +271,7 @@ begin
     -- Test D.1: SOF bit for all formats
     report "D.1: SOF bit (position 0) for all formats";
     mac_ser_to_fsm.data := dominant;
-    mac_ser_to_fsm.valid := '1';
+    mac_ser_to_fsm.valid := true;
     crc_vec := (others => '0');
     sbc_vec := (others => '0');
     prev_polarity := unknown;

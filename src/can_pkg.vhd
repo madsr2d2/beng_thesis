@@ -13,36 +13,43 @@ package can_pkg is
   -------------------------------------------------------------------
   -- Basic constants
   -------------------------------------------------------------------
-  constant dominant_bit_c                : std_logic                     := '0';
-  constant recessive_bit_c               : std_logic                     := '1';
-  constant sof_c                         : integer                       := 0;
-  constant crc_15_length_c               : integer                       := 15;
-  constant crc_17_length_c               : integer                       := 17;
-  constant crc_21_length_c               : integer                       := 21;
-  constant crc_poly_15_vec_c             : std_logic_vector(15 downto 0) := x"C599";
-  constant crc_poly_17_vec_c             : std_logic_vector(19 downto 0) := x"3685B";
-  constant crc_poly_21_vec_c             : std_logic_vector(23 downto 0) := x"302899";
-  constant dlc_field_width_c             : integer                       := 4;
-  constant sbc_field_width_c             : integer                       := 4;
-  constant byte_width_c                  : integer                       := 8;
-  constant max_mac_frame_length_c        : integer                       := 1024; -- TODO: Can we get by with 512?
-  constant base_id_width_c               : integer                       := 11;
-  constant extended_id_width_c           : integer                       := 18;
-  constant eof_field_width_c             : integer                       := 7;
-  constant error_flag_width_c            : integer                       := 6;
-  constant error_delimiter_width_c       : integer                       := 8;
-  constant intermission_width_c          : integer                       := 3;
-  constant suspend_transmission_width_c  : integer                       := 8;
-  constant transmitted_bits_fifo_depth_c : integer                       := 32;   -- TODO:: random number...
-  constant dlc_max_decimal_value         : integer                       := 15;
-  constant max_data_bytes_c              : integer                       := 64;
-  constant tdc_bit_time_max_c            : integer                       := 1000; -- ISO 11898-1: 7.3.4
+  constant dominant_bit_c    : std_logic                     := '0';
+  constant recessive_bit_c   : std_logic                     := '1';
+  constant sof_c             : integer                       := 0;
+  constant crc_15_length_c   : integer                       := 15;
+  constant crc_17_length_c   : integer                       := 17;
+  constant crc_21_length_c   : integer                       := 21;
+  constant crc_poly_15_vec_c : std_logic_vector(15 downto 0) := x"C599";
+  constant crc_poly_17_vec_c : std_logic_vector(19 downto 0) := x"3685B";
+  constant crc_poly_21_vec_c : std_logic_vector(23 downto 0) := x"302899";
+  constant dlc_field_width_c : integer                       := 4;
+  constant sbc_field_width_c : integer                       := 4;
+  constant byte_width_c      : integer                       := 8;
+
+  -- Max frame: FD extended, DLC 15 → eof_stop = 593. Rounded up with margin.
+  constant max_mac_frame_length_c       : integer := 640;
+  subtype  bit_count_t is integer range 0 to max_mac_frame_length_c;
+  constant base_id_width_c              : integer := 11;
+  constant extended_id_width_c          : integer := 18;
+  constant eof_field_width_c            : integer := 7;
+  constant error_flag_width_c           : integer := 6;
+  constant error_delimiter_width_c      : integer := 8;
+  constant bus_idle_condition_width_c   : integer := 11; -- ISO 11898-1: 3.34
+  constant intermission_width_c         : integer := 3;  -- ISO 11898-1: 6.6.7.2
+  constant suspend_transmission_width_c : integer := 8;  -- ISO 11898-1: 6.6.7.4
+  -- Circular TX history buffer depth used by MAC/PCS delay comparison logic.
+  -- Sized for current PCS defaults and guarded by runtime assertions in tx_pcs.
+  constant transmitted_bits_fifo_depth_c : integer := 32;
+  constant dlc_max_decimal_value         : integer := 15;
+  constant max_data_bytes_c              : integer := 64;
+  constant tdc_bit_time_max_c            : integer := 1000; -- ISO 11898-1: 7.3.4
 
   --------------------------------------------------------------------
   -- CAN FD Bit Timing Configuration (Table 13, ISO 11898-1)
   --------------------------------------------------------------------
 
-  constant system_clock_freq_c : integer := 100_000_000; -- 100 MHz --TODO: Don't think we actually need this for anything...
+  -- Default reference clock used by timing helper calculations and tests.
+  constant system_clock_freq_c : integer := 100_000_000; -- 100 MHz
   -- ISO 11898-1:2015 Section 7.3.3 Table 13
   subtype prescalar is integer range 1 to 32;
   subtype sync_seg is integer range 1 to 1;
@@ -51,7 +58,10 @@ package can_pkg is
   subtype phase_seg1 is integer range 1 to 128;
   subtype phase_seg2 is integer range 2 to 128;
   subtype sjw is integer range 1 to 128;
-  subtype ssp_offset is integer range 1 to 160;
+  -- TDC configuration: settling margin added to measured delay (ISO §7.3.4).
+  -- Must not exceed data_bit_time to avoid FIFO index pointing at the wrong bit.
+  subtype  ssp_offset is integer range 1 to 160;
+  constant max_transmitter_delay_c : integer := 255; -- ISO 11898-1: 7.3.4
 
   --------------------------------------------------------------------
   -- Type declarations
@@ -133,12 +143,13 @@ package can_pkg is
 
   -- MAC layer TX state type
   type tx_mac_fsm_state_t is (
-    idle,
-    transmitting,
-    error_flag,
-    error_delimiter,
+    bus_reintegration,
+    bus_idle,
     intermission,
-    suspend_transmission -- Error-passive transmitter waits 8 bit times (ISO 11898-1)
+    suspend_transmission, -- Error-passive transmitter waits 8 bit times (ISO 11898-1)
+    transmitting_frame,
+    transmitting_error_flag,
+    transmitting_overload_flag
   );
 
   -- tx_mac_ser states
@@ -208,7 +219,8 @@ package can_pkg is
     bit_name : mac_frame_bit_name_t;
   end record mac_frame_bit_t;
 
-  constant reset_mac_frame_bit_c : mac_frame_bit_t := (polarity => recessive, bit_name => unknown);
+  constant reset_mac_frame_bit_c   : mac_frame_bit_t := (polarity => recessive, bit_name => unknown);
+  constant unknown_mac_frame_bit_c : mac_frame_bit_t := (polarity => unknown, bit_name => unknown);
 
   -- TX monitoring info (unified monitoring function result)
   type observed_mac_frame_bit_info_t is record
@@ -218,8 +230,10 @@ package can_pkg is
     observed_polarity : polarity_t;
   end record observed_mac_frame_bit_info_t;
 
-  -- Transmitted bits FIFO
+  -- Transmitted bits FIFO (circular buffer)
   type transmitted_bits_fifo_t is array (transmitted_bits_fifo_depth_c - 1 downto 0) of mac_frame_bit_t;
+
+  subtype fifo_write_ptr_t is integer range 0 to transmitted_bits_fifo_depth_c - 1;
 
   -- Frame-specific cached parameters (calculated once per frame)
   -- Defined here so interfaces can use it
@@ -284,14 +298,13 @@ package can_pkg is
 
   type tx_mac_ser_to_fsm_if_t is record
     data         : polarity_t;     -- CAN polarity (MAC domain)
-    valid        : std_logic;      -- Data valid signal
+    valid        : boolean;        -- Data valid signal
     frame_params : frame_params_t; -- Cached frame parameters (all config info consolidated)
-    params_valid : std_logic;      -- Frame params valid flag
   end record tx_mac_ser_to_fsm_if_t;
 
   type tx_mac_fsm_to_ser_if_t is record
     transfer_status : transfer_status_t; -- Transfer status (ongoing/transmitted/error)
-    ready           : std_logic;         -- FSM ready to accept next bit/byte
+    ready           : boolean;           -- FSM ready to accept next bit/byte
   end record tx_mac_fsm_to_ser_if_t;
 
   constant frame_params_reset_c : frame_params_t :=
@@ -344,46 +357,42 @@ package can_pkg is
   -- MAC to PCS interface (ISO 11898-1:2024 Section 7.2 PCS Services)
   type mac_to_pcs_if_t is record
     -- PCS_Data.Request service (ISO 7.2.2)
-    frame_bit    : mac_frame_bit_t; -- Output_Unit: bit polarity + metadata
-    data_request : std_logic;       -- '1' = request PCS to transmit frame_bit
+    data  : mac_frame_bit_t;
+    valid : boolean; -- true = request PCS to transmit frame_bit
   end record mac_to_pcs_if_t;
 
   -- PCS to MAC interface (ISO 11898-1:2024 Section 7.2 PCS Services)
   -- PCS drives bus polarity continuously and sends strobes for sample timing
   type pcs_to_mac_if_t is record
     -- PCS_Data.Indicate service (ISO 7.2.3)
-    polarity : polarity_t; -- Current bus polarity (continuously driven)
-    sp       : std_logic;  -- Sample Point strobe (pulse: MAC samples polarity at SP)
-    ssp      : std_logic;  -- Secondary Sample Point strobe (pulse: MAC samples polarity at SSP)
+    bus_polarity : polarity_t; -- Current bus polarity (continuously driven)
+    sp           : std_logic;  -- Sample Point strobe (pulse: MAC samples polarity at SP)
+    ssp          : std_logic;  -- Secondary Sample Point strobe (pulse: MAC samples polarity at SSP)
 
     -- TDC measurement results (ISO 7.3.4)
     fifo_index : integer range 0 to transmitted_bits_fifo_depth_c - 1; -- FIFO index for bit comparison
   end record pcs_to_mac_if_t;
 
   type mac_fsm_to_bs_fd_if_t is record
-    data        : polarity_t;
-    data_valid  : std_logic;
-    frame_reset : std_logic; -- Pulse to reinitialize bit stuffer at frame start
+    data  : polarity_t; -- Bit polarity being transmitted
+    valid : boolean;    -- Pulse when a new bit is fed to bit stuffer
+    start : boolean;    -- Pulse to reinitialize bit stuffer at frame start
   end record mac_fsm_to_bs_fd_if_t;
 
   type bs_fd_to_mac_fsm_if_t is record
-    stuff_bit       : polarity_t;
-    stuff_bit_valid : std_logic;
-    sbc             : std_logic_vector(3 downto 0);
+    data  : polarity_t;                                       -- Polarity of required stuff bit
+    valid : boolean;                                          -- true when stuff bit insertion needed (level)
+    sbc   : std_logic_vector(sbc_field_width_c - 1 downto 0); -- Gray-coded stuff bit count with parity
   end record bs_fd_to_mac_fsm_if_t;
 
   type mac_fsm_to_crc_if_t is record
-    -- TODO: Remove clk and rst from the interface
-    clk             : std_logic;
-    rst             : std_logic;
     crc_poly_select : std_logic_vector(1 downto 0);
-    shift           : std_logic;
+    valid           : boolean;
     data            : std_logic;
   end record mac_fsm_to_crc_if_t;
 
   type crc_to_mac_fsm_if_t is record
-    data       : std_logic;
-    data_valid : std_logic;
+    crc : crc_vector_t;
   end record crc_to_mac_fsm_if_t;
 
   -- MAC to Fault Confinement Entity interface (ISO 11898-1 Table 16/17)
@@ -399,7 +408,7 @@ package can_pkg is
 
   -- Fault Confinement Entity to MAC interface
   type fce_to_mac_if_t is record
-    error_passive : std_logic; -- '1' = error-passive, '0' = error-active
+    error_passive : boolean; -- true = error-passive node, false = error-active node
   end record fce_to_mac_if_t;
 
   --------------------------------------------------------------------
@@ -483,8 +492,9 @@ package can_pkg is
   constant fe_dlc_stop_c          : bit_t := (fe_dlc_start_c.position + dlc_field_width_c - 1, unknown);
   constant fe_data_start_c        : bit_t := (fe_dlc_stop_c.position + 1, unknown);
 
-  -- LLC frame config bytes (byte 0 and byte 1) format
-  -- TODO: Add comments and reference here
+  -- LLC frame config bytes (byte 0 and byte 1) format.
+  -- byte0[7:5]=format, byte0[4]=ftyp, byte0[3]=esi, byte0[2]=brs
+  -- byte1[7:4]=dlc
   constant llc_frame_format_cb_encoding         : std_logic_vector(2 downto 0) := "000";
   constant llc_frame_format_ce_encoding         : std_logic_vector(2 downto 0) := "100";
   constant llc_frame_format_fb_encoding         : std_logic_vector(2 downto 0) := "010";
@@ -534,8 +544,9 @@ package can_pkg is
 
   -- Function monitors transmitted bits for errors, ACK issues, and arbitration loss
   function get_observed_mac_frame_bit_info (
-    delay : integer range 0 to transmitted_bits_fifo_depth_c - 1;
-    transmitted_bits_fifo : transmitted_bits_fifo_t;
+    fifo : transmitted_bits_fifo_t;
+    fifo_index : integer range 0 to transmitted_bits_fifo_depth_c - 1;
+    fifo_write_ptr : fifo_write_ptr_t;
     monitored_bit_polarity : polarity_t;
     frame_params : frame_params_t
   ) return observed_mac_frame_bit_info_t;
@@ -543,17 +554,18 @@ package can_pkg is
   -- Initialize FIFO to empty state (all bits unknown)
   function fifo_init return transmitted_bits_fifo_t;
 
-  -- Push a new bit into FIFO (shifts all existing bits, new bit enters at position 0)
-  procedure fifo_push (
-    fifo : inout transmitted_bits_fifo_t;
-    bit  : in    mac_frame_bit_t
+  -- Write a new bit into circular FIFO at write_ptr, then advance pointer
+  procedure fifo_write (
+    signal fifo           : inout transmitted_bits_fifo_t;
+    signal fifo_write_ptr : inout fifo_write_ptr_t;
+    next_bit              : in    mac_frame_bit_t
   );
 
   -- Determine if Transmitter Delay Compensation should be used (ISO 11898-1: 7.3.4)
   function should_use_tdc (
     system_clock_freq : integer;
-    prescalar : integer;
-    sync_seg : integer;
+    prescaler_cfg : integer;
+    sync_seg_cfg : integer;
     prop_seg_fd : integer;
     phase_seg1_fd : integer;
     phase_seg2_fd : integer;
@@ -576,6 +588,12 @@ package can_pkg is
   function dlc_to_data_length (
     dlc        : dlc_t;
     can_format : can_format_t
+  ) return integer;
+
+  -- Helper function to get CRC field width from frame format and payload length
+  function get_crc_length (
+    can_format  : can_format_t;
+    data_length : integer
   ) return integer;
 
   -- Calculate FIFO delay index from measured transmitter delay (ISO 7.3.4)
@@ -649,7 +667,7 @@ package body can_pkg is
       when dominant =>
         result_v := dominant_bit_c;
       when others =>
-        result_v := 'z';
+        result_v := 'X';
     end case;
 
     return result_v;
@@ -657,11 +675,11 @@ package body can_pkg is
   end function polarity_to_std_logic;
 
   function std_logic_to_polarity (
-    s : std_logic
+    p : std_logic
   ) return polarity_t is
   begin
 
-    case s is
+    case p is
       when recessive_bit_c =>
         return recessive;
       when dominant_bit_c =>
@@ -673,15 +691,16 @@ package body can_pkg is
   end function std_logic_to_polarity;
 
   function get_observed_mac_frame_bit_info (
-
-    delay : integer range 0 to transmitted_bits_fifo_depth_c - 1;
-    transmitted_bits_fifo : transmitted_bits_fifo_t;
+    fifo : transmitted_bits_fifo_t;
+    fifo_index : integer range 0 to transmitted_bits_fifo_depth_c - 1;
+    fifo_write_ptr : fifo_write_ptr_t;
     monitored_bit_polarity : polarity_t;
     frame_params : frame_params_t
   ) return observed_mac_frame_bit_info_t is
 
     variable result             : observed_mac_frame_bit_info_t;
     variable is_arbitration_bit : boolean;
+    variable read_index         : integer;
 
   begin
 
@@ -689,8 +708,12 @@ package body can_pkg is
     result.event_type      := none;
     result.transfer_status := ongoing;
 
+    -- Circular buffer indexing: most recent bit is at write_ptr - 1
+    -- delay=0 means current bit, delay=N means N bits ago
+    read_index := (fifo_write_ptr - 1 - fifo_index) mod transmitted_bits_fifo_depth_c;
+
     -- Get the transmitted bit at the specified delay from FIFO
-    result.expected_bit := transmitted_bits_fifo(delay);
+    result.expected_bit := fifo(read_index);
     -- Get monitored bit polarity
     result.observed_polarity := monitored_bit_polarity;
 
@@ -1171,25 +1194,27 @@ package body can_pkg is
 
   begin
 
-    fifo := (others => (polarity => unknown, bit_name => unknown));
+    fifo := (others => reset_mac_frame_bit_c);
     return fifo;
 
   end function fifo_init;
 
-  procedure fifo_push (
-    fifo : inout transmitted_bits_fifo_t;
-    bit  : in    mac_frame_bit_t
+  procedure fifo_write (
+    signal fifo           : inout transmitted_bits_fifo_t;
+    signal fifo_write_ptr : inout fifo_write_ptr_t;
+    next_bit              : in    mac_frame_bit_t
   ) is
   begin
 
-    -- Shift all bits left
-    for i in fifo'high downto 1 loop
-      fifo(i) := fifo(i - 1);
-    end loop;
+    fifo(fifo_write_ptr) <= next_bit;
 
-    fifo(0) := bit;
+    if (fifo_write_ptr = transmitted_bits_fifo_depth_c - 1) then
+      fifo_write_ptr <= 0;
+    else
+      fifo_write_ptr <= fifo_write_ptr + 1;
+    end if;
 
-  end procedure fifo_push;
+  end procedure fifo_write;
 
   -- Calculate FIFO delay index from measured transmitter delay (ISO 7.3.4)
   -- Converts delay in time quanta to FIFO index for bit-stream comparison
@@ -1406,8 +1431,8 @@ package body can_pkg is
 
   function should_use_tdc (
     system_clock_freq : integer;
-    prescalar : integer;
-    sync_seg : integer;
+    prescaler_cfg : integer;
+    sync_seg_cfg : integer;
     prop_seg_fd : integer;
     phase_seg1_fd : integer;
     phase_seg2_fd : integer;
@@ -1421,8 +1446,8 @@ package body can_pkg is
   begin
 
     -- Calculate time quantum counts (in clock periods)
-    bit_time_tq   := (sync_seg + prop_seg_fd + phase_seg1_fd + phase_seg2_fd) * prescalar;
-    early_bits_tq := (sync_seg + prop_seg_fd + phase_seg1_fd) * prescalar;
+    bit_time_tq   := (sync_seg_cfg + prop_seg_fd + phase_seg1_fd + phase_seg2_fd) * prescaler_cfg;
+    early_bits_tq := (sync_seg_cfg + prop_seg_fd + phase_seg1_fd) * prescaler_cfg;
 
     -- Calculate nanoseconds per time quantum: tq_ns = 1_000_000_000 / system_clock_freq
     tq_period_ns := 1_000_000_000 / system_clock_freq;

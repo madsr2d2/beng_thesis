@@ -24,10 +24,15 @@
   * [CAN FD Basic Frame (ISO 11898-1 Section 8.4)](#can-fd-basic-frame-iso-11898-1-section-84)
 * [TX Monitoring and Error Detection (`get_observed_mac_frame_bit_info`)](#tx-monitoring-and-error-detection-get_observed_mac_frame_bit_info)
   * [Function Algorithm](#function-algorithm-1)
-* [Physical Coding Sublayer (`tx_pcs`)](#physical-coding-sublayer-tx_pcs)
-  * [ISO 11898-1 Requirements](#iso-11898-1-requirements)
+* [MAC Serializer (`tx_mac_ser`)](#mac-serializer-tx_mac_ser)
+  * [Purpose](#purpose)
+  * [Interfaces](#interfaces)
   * [FSM Design](#fsm-design)
   * [FSM Behavior](#fsm-behavior)
+* [Physical Coding Sublayer (`tx_pcs`)](#physical-coding-sublayer-tx_pcs)
+  * [ISO 11898-1 Requirements](#iso-11898-1-requirements)
+  * [FSM Design](#fsm-design-1)
+  * [FSM Behavior](#fsm-behavior-1)
 * [Future Work](#future-work)
 
 <!-- mtoc-end -->
@@ -440,6 +445,57 @@ The `get_observed_mac_frame_bit_info` function monitors transmitted bits for err
      * Transmitted recessive, observed dominant → lost_arbitration (transfer_status = lost_arbitration)
    * If non-arbitration bit:
      * Any mismatch → bit_error
+
+## MAC Serializer (`tx_mac_ser`)
+
+### Purpose
+
+The MAC serializer bridges the LLC and MAC layers. It receives frame configuration and data as 8-bit Avalon-ST words from the LLC and converts them into a serial polarity stream for the MAC FSM. Frame parameters are calculated once from the two configuration bytes and cached for the entire frame, eliminating redundant combinational logic on every bit.
+
+### Interfaces
+
+* **LLC side** (`llc_to_mac_if_t` / `mac_to_llc_if_t`): Avalon-ST sink with `data`, `valid`, `sop`, `ready`, and `transfer_status`.
+* **FSM side** (`tx_mac_ser_to_fsm_if_t` / `tx_mac_fsm_to_ser_if_t`): Serial output with `data` (polarity_t), `valid`, `frame_params`, and backpressure via `ready` and `transfer_status`.
+
+### FSM Design
+
+The serializer is a Mealy machine with four states. The LLC presents two configuration bytes (SOP distinguishes the first) followed by data bytes. On each data byte, the MSB is output immediately to avoid a wasted cycle; the remaining 7 bits are shifted out one per clock when the FSM asserts `ready`.
+
+```mermaid
+---
+title: "TX MAC Serializer FSM — Mealy State Machine"
+---
+%%{init: {'flowchart': {'curve': 'linear'}, 'elk': {'algorithm': 'layered'}}}%%
+stateDiagram-v2
+  state "**load_config_byte_0**<br/>─────────<br/>• ready ← 1<br/>• Latch config byte 0 (FORMAT, FTYP, ESI, BRS)" as cfg0
+
+  state "**load_config_byte_1**<br/>─────────<br/>• ready ← 1<br/>• calculate_frame_params(cfg0, cfg1)<br/>• Cache frame_params" as cfg1
+
+  state "**load_llc_frame_byte**<br/>─────────<br/>• ready ← 1<br/>• Latch data byte into shift register<br/>• Output MSB immediately (valid ← 1)" as load
+
+  state "**shift_out_bits**<br/>─────────<br/>• valid ← 1<br/>• data ← MSB of shift register<br/>• On FSM ready: shift left, count--" as shift
+
+  [*] --> cfg0
+
+  cfg0 --> cfg1 : valid ∧ sop
+
+  cfg1 --> load : valid ∧ ¬sop
+
+  load --> shift : valid ∧ ¬sop
+
+  shift --> load : ready ∧ count = 0
+  shift --> cfg0 : transfer_status ≠ ongoing
+```
+
+### FSM Behavior
+
+1. **load_config_byte_0**: Asserts Avalon-ST ready and waits for the LLC to present config byte 0 with `sop = '1'`. Latches FORMAT, FTYP, ESI, and BRS fields into `config_byte_reg_0`.
+
+2. **load_config_byte_1**: Waits for config byte 1 with `sop = '0'`. On arrival, calls `calculate_frame_params()` with both config bytes to compute all frame layout positions (field boundaries, bit polarities, CRC parameters) once. The result is cached in `tx_mac_fsm_o.frame_params` for the duration of the frame.
+
+3. **load_llc_frame_byte**: Asserts ready and waits for a data byte. On arrival, latches the byte into the shift register and immediately outputs the MSB as a polarity (via `bit_to_polarity`), asserting `valid` in the same cycle. This zero-latency first-bit output avoids wasting a clock cycle per byte.
+
+4. **shift_out_bits**: Continuously drives `valid` and presents the shift register MSB. When the FSM consumes a bit (`ready = '1'`), the register shifts left and the count decrements. When `count = 0`, all 8 bits have been sent (1 on load + 7 shifts) and the FSM returns to `load_llc_frame_byte` for the next byte. If `transfer_status` changes from `ongoing` (frame complete or error), the FSM resets to `load_config_byte_0`.
 
 ## Physical Coding Sublayer (`tx_pcs`)
 
