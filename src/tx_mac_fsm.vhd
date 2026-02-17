@@ -234,8 +234,9 @@ begin
 
     end procedure service_bus_quiet_state;
 
-    -- Emit active error/overload flag then delimiter while in error states.
-    procedure transmit_error_flag is
+    -- Emit active error/overload flag (6 dominant) then delimiter (8 recessive),
+    -- and detect reactive overload at the last delimiter bit (ISO 6.6.21.3.2 b2).
+    procedure service_error_or_overload_flag is
     begin
 
       fce_o.transmitting        <= '1';
@@ -258,9 +259,15 @@ begin
         if (sample_strobe_detected_v and not error_sequence_complete_v) then
           bit_count <= bit_count + 1;
         end if;
+
+        -- Reactive overload: dominant at last bit of delimiter (ISO 6.6.21.3.2 b2)
+        if (sample_strobe_detected_v and error_sequence_complete_v
+            and pcs_i.bus_polarity = dominant) then
+          overload_condition <= true;
+        end if;
       end if;
 
-    end procedure transmit_error_flag;
+    end procedure service_error_or_overload_flag;
 
     -- Monitor the bus, react to events, and transmit the next bit on each strobe.
     procedure service_sample_strobe is
@@ -449,12 +456,7 @@ begin
             end if;
 
           when transmitting_error_flag | transmitting_overload_flag =>
-            transmit_error_flag;
-            -- Reactive overload: dominant at last bit of delimiter (ISO 6.6.21.3.2 b2)
-            if (sample_strobe_detected_v and error_sequence_complete_v
-                and pcs_i.bus_polarity = dominant) then
-              overload_condition <= true;
-            end if;
+            service_error_or_overload_flag;
 
           when others =>
         end case;
