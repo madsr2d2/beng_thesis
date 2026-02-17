@@ -139,6 +139,8 @@ begin
     variable sample_strobe_detected_v  : boolean;
     variable error_sequence_complete_v : boolean;
     variable state_entry_v             : boolean;
+    variable intermission_overload_v   : boolean; -- ISO 6.6.21.3.2 b1
+    variable delimiter_overload_v      : boolean; -- ISO 6.6.21.3.2 b2
 
     -- Transmit the given bit to the PCS, bit stuffer, CRC module, and FIFO as appropriate.
     procedure transmit_bit (
@@ -230,6 +232,10 @@ begin
           -- Dominant sample breaks bus-idle / intermission run length.
           bit_count <= 0;
         end if;
+
+        if (intermission_overload_v) then
+          overload_condition <= true;
+        end if;
       end if;
 
     end procedure service_bus_quiet_state;
@@ -249,7 +255,12 @@ begin
         bit_count <= 0;
       else
         if (bit_count < error_flag_width_c) then
-          next_bit_v := active_error_flag_bit_c;
+          -- Overload flags are always active; error flags depend on FCE state.
+          if (state = transmitting_error_flag and fce_i.error_passive) then
+            next_bit_v := passive_error_flag_bit_c;
+          else
+            next_bit_v := active_error_flag_bit_c;
+          end if;
         else
           next_bit_v := error_delimiter_bit_c;
         end if;
@@ -260,9 +271,7 @@ begin
           bit_count <= bit_count + 1;
         end if;
 
-        -- Reactive overload: dominant at last bit of delimiter (ISO 6.6.21.3.2 b2)
-        if (sample_strobe_detected_v and error_sequence_complete_v
-            and pcs_i.bus_polarity = dominant) then
+        if (delimiter_overload_v) then
           overload_condition <= true;
         end if;
       end if;
@@ -420,6 +429,12 @@ begin
         sample_strobe_detected_v  := pcs_i.sample_strobe = '1';
         error_sequence_complete_v := bit_count >= error_flag_width_c + error_delimiter_width_c - 1;
         state_entry_v             := prev_state /= state;
+        -- ISO 6.6.21.3.2 b1: dominant during first 2 bits of intermission
+        intermission_overload_v := sample_strobe_detected_v and state = intermission
+                                   and bit_count < 2 and pcs_i.bus_polarity = dominant;
+        -- ISO 6.6.21.3.2 b2: dominant at last bit of error/overload delimiter
+        delimiter_overload_v := sample_strobe_detected_v and error_sequence_complete_v
+                                and pcs_i.bus_polarity = dominant;
 
         -- Update states.
         prev_state <= state;
@@ -429,16 +444,8 @@ begin
         apply_defaults;
 
         case state is
-          when bus_reintegration | bus_idle =>
+          when bus_reintegration | intermission | bus_idle =>
             service_bus_quiet_state;
-
-          when intermission =>
-            service_bus_quiet_state;
-            -- Reactive overload: dominant during first 2 bits of intermission (ISO 6.6.21.3.2 b1)
-            if (sample_strobe_detected_v and not state_entry_v
-                and bit_count < 2 and pcs_i.bus_polarity = dominant) then
-              overload_condition <= true;
-            end if;
 
           when transmitting_frame =>
             -- Inform PCS and FCE that a frame is being transmitted.
