@@ -85,3 +85,7 @@ rule:
   length_001:
     disable: true
 
+  # if_031: Insert blank line above if statement
+  if_031:
+    disable: true
+

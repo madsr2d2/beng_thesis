@@ -1,8 +1,8 @@
 # Markdown linting configuration
 
-# Increase line length limit to 100 characters (more reasonable for modern editors)
+# Increase line length limit to 150 characters (more reasonable for modern editors)
 MD013:
-  line_length: 120
+  line_length: 150
 
 # Require proper table formatting (spaces around pipes)
 MD060:
@@ -16,3 +16,8 @@ MD033: false
 
 # Don't require blank lines around lists
 MD032: false
+
+MD004: 
+  style: "dash"
+MD007:
+  indent: 2

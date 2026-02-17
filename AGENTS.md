@@ -27,6 +27,10 @@ Run from repository root:
 Use VHDL-2008 (`ghdl --std=08`). Follow VSG (`vsg_config.yaml`) for style checks:
 - `vsg -c vsg_config.yaml -f src/can_pkg.vhd`
 
+Mandatory RTL optimization/style rules for HDL edits:
+- `.claude/agent_guides/vhdl_rtl_optimization_style_v1.md`
+- These rules are required for new RTL and refactors (counter gating, synthesis-friendly arithmetic, named guard predicates).
+
 Naming patterns:
 - Files/modules: snake_case (`tx_mac_fsm_v2.vhd`)
 - Testbenches: suffix `_tb.vhd`
@@ -49,3 +53,11 @@ PRs should include:
 - Files/modules impacted (for example `src/tx_pcs.vhd`, `src/tx_pcs_tb.vhd`)
 - Repro/verification commands run
 - Waveform screenshot or notes when timing/serialization behavior changes
+
+## Agent Diagram Style Guide
+For code-traceable Mermaid FSM diagrams, use:
+- `.claude/agent_guides/mermaid_fsm_detailed_trace_style_v1.md`
+- `.claude/agent_guides/mermaid_fsm_detail_levels_v1.md`
+
+This style requires strict fidelity to RTL state/transition logic and is the default for detailed FSM documentation in `docs/report.md`.
+Default detail level is `L2`. Use `L3` for code-trace verification diagrams.

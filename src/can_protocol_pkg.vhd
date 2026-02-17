@@ -85,6 +85,14 @@ package can_protocol_pkg is
     data_length : integer
   ) return integer;
 
+  -- Pack LLC frame ID field into canonical byte stream order ID3..ID0.
+  -- Extended formats use id(28 downto 0) in bits 31 downto 3.
+  -- Base formats use id(10 downto 0) in bits 31 downto 21.
+  function pack_llc_id_bytes (
+    id         : std_logic_vector(28 downto 0);
+    can_format : can_format_t
+  ) return std_logic_vector;
+
 end package can_protocol_pkg;
 
 package body can_protocol_pkg is
@@ -155,13 +163,12 @@ package body can_protocol_pkg is
     result.observed_polarity := monitored_bit_polarity;
 
     -- Check for ACK bit (ISO 11898-1: 6.6.21.2)
+    -- Only report positive ACK detection here. ACK error determination is deferred
+    -- to the FSM at the ACK delimiter, since a later sample may still see dominant.
     if (result.expected_bit.bit_name = ack_bit) then
-      if (monitored_bit_polarity = recessive) then
-        result.event_type      := ack_error;
-        result.transfer_status := disturbed;
-      else
+      if (monitored_bit_polarity = dominant) then
         result.event_type      := ack_detected;
-        result.transfer_status := transmitted;
+        result.transfer_status := ongoing;
       end if;
       return result;
     end if;
@@ -263,8 +270,10 @@ package body can_protocol_pkg is
 
     if (bit_val = dominant_bit_c) then
       result_v := dominant;
-    else
+    elsif (bit_val = recessive_bit_c) then
       result_v := recessive;
+    else
+      result_v := unknown;
     end if;
 
     return result_v;
@@ -840,5 +849,20 @@ package body can_protocol_pkg is
     return result;
 
   end function calculate_frame_params;
+
+  function pack_llc_id_bytes (
+    id         : std_logic_vector(28 downto 0);
+    can_format : can_format_t
+  ) return std_logic_vector is
+    variable result_v : std_logic_vector(31 downto 0);
+  begin
+    result_v := (others => '0');
+    if (can_format = cc_extended or can_format = fd_extended) then
+      result_v(31 downto 3) := id(28 downto 0);
+    else
+      result_v(31 downto 21) := id(10 downto 0);
+    end if;
+    return result_v;
+  end function pack_llc_id_bytes;
 
 end package body can_protocol_pkg;

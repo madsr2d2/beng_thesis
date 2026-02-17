@@ -30,6 +30,8 @@ architecture rtl of tx_mac_ser is
   signal count : integer range byte_t'left downto 0;
   -- Config byte 0: FORMAT[7:5], FTYP[4], ESI[3], BRS[2]
   signal config_byte_reg_0 : byte_t;
+  -- Registered transfer status from MAC FSM to LLC.
+  signal transfer_status_reg : transfer_status_t;
 
 begin
 
@@ -44,15 +46,21 @@ begin
         config_byte_reg_0          <= (others => '0');
         llc_frame_buffer           <= (others => '0');
         tx_mac_fsm_o.data          <= dominant;
-        tx_mac_fsm_o.valid         <= true;
+        tx_mac_fsm_o.valid         <= false;
         tx_mac_fsm_o.frame_params  <= frame_params_reset_c;
+        transfer_status_reg        <= ongoing;
         state_reg                  <= load_config_byte_0;
         count                      <= llc_frame_buffer'left;
       else
         -- Defaults
         llc_o.avalon_st_sink.ready <= '0';
-        tx_mac_fsm_o.valid         <= true;
-        llc_o.transfer_status      <= tx_mac_fsm_i.transfer_status;
+        tx_mac_fsm_o.valid         <= false;
+        llc_o.transfer_status      <= transfer_status_reg;
+        if (tx_mac_fsm_i.transfer_status /= ongoing) then
+          transfer_status_reg <= tx_mac_fsm_i.transfer_status;
+        elsif (state_reg = load_config_byte_0) then
+          transfer_status_reg <= ongoing;
+        end if;
 
         -- FSM
         case state_reg is
@@ -60,29 +68,43 @@ begin
             -- Config byte 0: wait for valid data with SOP='1'
             llc_o.avalon_st_sink.ready <= '1';
             if (llc_i.avalon_st_source.valid = '1' and llc_i.avalon_st_source.sop = '1') then
-              config_byte_reg_0 <= llc_i.avalon_st_source.data;
-              state_reg         <= load_config_byte_1;
+              config_byte_reg_0   <= llc_i.avalon_st_source.data;
+              transfer_status_reg <= ongoing;
+              state_reg           <= load_config_byte_1;
             end if;
 
           when load_config_byte_1 =>
             -- Config byte 1: wait for valid data with SOP='0'
             llc_o.avalon_st_sink.ready <= '1';
-            if (llc_i.avalon_st_source.valid = '1' and llc_i.avalon_st_source.sop = '0') then
-              -- Calculate frame parameters once (cached for all bits in this frame)
-              tx_mac_fsm_o.frame_params <= calculate_frame_params(config_byte_reg_0, llc_i.avalon_st_source.data);
-              state_reg                 <= load_llc_frame_byte;
+            if (llc_i.avalon_st_source.valid = '1') then
+              if (llc_i.avalon_st_source.sop = '1') then
+                -- Resync: treat unexpected SOP as start of a new frame.
+                config_byte_reg_0   <= llc_i.avalon_st_source.data;
+                transfer_status_reg <= ongoing;
+                state_reg           <= load_config_byte_1;
+              else
+                -- Calculate frame parameters once (cached for all bits in this frame)
+                tx_mac_fsm_o.frame_params <= calculate_frame_params(config_byte_reg_0, llc_i.avalon_st_source.data);
+                state_reg                 <= load_llc_frame_byte;
+              end if;
             end if;
 
           when load_llc_frame_byte =>
             llc_o.avalon_st_sink.ready <= '1';
             -- Data byte: wait for valid data with SOP='0'
             -- Load byte and output MSB immediately (no wasted cycle)
-            if (llc_i.avalon_st_source.valid = '1' and llc_i.avalon_st_source.sop = '0') then
-              llc_frame_buffer           <= llc_i.avalon_st_source.data;
-              tx_mac_fsm_o.data          <= bit_to_polarity(llc_i.avalon_st_source.data(llc_i.avalon_st_source.data'left));
-              tx_mac_fsm_o.valid         <= true;
-              state_reg                  <= shift_out_bits;
-              llc_o.avalon_st_sink.ready <= '0';
+            if (llc_i.avalon_st_source.valid = '1') then
+              if (llc_i.avalon_st_source.sop = '1') then
+                -- Resync: new frame started while waiting for payload byte.
+                config_byte_reg_0   <= llc_i.avalon_st_source.data;
+                transfer_status_reg <= ongoing;
+                state_reg           <= load_config_byte_1;
+              else
+                llc_frame_buffer   <= llc_i.avalon_st_source.data;
+                tx_mac_fsm_o.data  <= bit_to_polarity(llc_i.avalon_st_source.data(llc_i.avalon_st_source.data'left));
+                tx_mac_fsm_o.valid <= true;
+                state_reg          <= shift_out_bits;
+              end if;
             end if;
 
           when shift_out_bits =>

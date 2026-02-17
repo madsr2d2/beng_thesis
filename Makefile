@@ -7,9 +7,12 @@
 #  Note: OSVVM must be compiled first in OsvvmLibraries/osvvm
 
 # VHDL design files (excluding testbenches)
-# Automatically find all files, compile packages and leaf modules first
-PACKAGES = $(shell find ./src \( -name "*package.vhd" -o -name "*_pkg.vhd" \) -size +0)
-ALL_MODULES = $(shell find ./src -name "*.vhd" ! -name "*package.vhd" ! -name "*_pkg.vhd" ! -name "can_pkg.vhd" ! -name "tx_mac_fsm.vhd" ! -name "*_tb.vhd" -size +0)
+# Automatically find files deterministically and compile base packages first.
+PACKAGES_ALL = $(shell find ./src \( -name "*package.vhd" -o -name "*_pkg.vhd" \) -size +0 | sort)
+CAN_TYPES_PKG = $(filter %can_types_pkg.vhd,$(PACKAGES_ALL))
+OTHER_PACKAGES = $(filter-out %can_types_pkg.vhd,$(PACKAGES_ALL))
+PACKAGES = $(CAN_TYPES_PKG) $(OTHER_PACKAGES)
+ALL_MODULES = $(shell find ./src -name "*.vhd" ! -name "*package.vhd" ! -name "*_pkg.vhd" ! -name "can_pkg.vhd" ! -name "*_tb.vhd" ! -name "tx_mac_fsm_v2.vhd" -size +0 | sort)
 
 # Separate modules into categories based on dependencies
 # tx_can depends on mac_tx, tx_llc, and tx_pcs — compiled last
@@ -36,7 +39,7 @@ TESTBENCHPATH = $(TB_NOEXT)$(VHDLEX)
 
 # GHDL configuration
 GHDL_CMD = ghdl
-GHDL_FLAGS = --std=08 --warn-no-vital-generic -P$(OSVVM_LIB_PATH) -P.
+GHDL_FLAGS = --std=08 --warn-no-vital-generic --warn-no-hide -P$(OSVVM_LIB_PATH) -P.
 
 SIMDIR = sim
 STOP_TIME = 100us

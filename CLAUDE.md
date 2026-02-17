@@ -106,6 +106,17 @@ vsg -c vsg_config.yaml -f src/can_pkg.vhd
 - Disabled: `length_001` (allows lines up to 120 chars for long signal names)
 - Otherwise: Standard VHDL-2008 conventions apply
 
+## Mandatory RTL Optimization Rules
+
+For HDL implementation and refactor work, the following guide is mandatory:
+- `.claude/agent_guides/vhdl_rtl_optimization_style_v1.md`
+
+Required patterns from this guide:
+- Gate inactive counters/prescalers so they do not free-run when unused.
+- Avoid `% mod` in hot sequential datapath logic; prefer bounded compare/subtract style.
+- Use named local guard predicates in combinational FSM/control logic to reduce repeated conditions and improve traceability.
+- Use signals (not process variables) for state that must persist across clock cycles. Process variables that retain values between rising edges will synthesize to registers anyway — using a signal makes the register intent explicit and readable.
+
 ---
 
 ## Architecture & Interfaces

@@ -2,568 +2,437 @@
 
 <!-- mtoc-start -->
 
-* [Overview](#overview)
-* [CAN Stack Architecture](#can-stack-architecture)
-* [Layer Descriptions](#layer-descriptions)
-  * [Application Layer](#application-layer)
-  * [Logical Link Control (LLC)](#logical-link-control-llc)
-  * [MAC Layer (Media Access Control)](#mac-layer-media-access-control)
-  * [Encoding & Protection Layer](#encoding--protection-layer)
-  * [Physical Layer](#physical-layer)
-* [Key Implementation Details](#key-implementation-details)
-  * [Frame Structure (ISO 11898-1 Section 8.2)](#frame-structure-iso-11898-1-section-82)
-  * [Bit Stuffing Algorithm (ISO 11898-1 Section 8.5.4)](#bit-stuffing-algorithm-iso-11898-1-section-854)
-  * [CRC Polynomials](#crc-polynomials)
-* [Testing Strategy](#testing-strategy)
-* [Compliance](#compliance)
-* [MAC Frame Bit Generation (`get_next_mac_frame_bit`)](#mac-frame-bit-generation-get_next_mac_frame_bit)
-  * [Function Algorithm](#function-algorithm)
-* [CAN Frame Structure Visualization](#can-frame-structure-visualization)
-  * [CAN Classic Basic Frame (ISO 11898-1 Section 8.2)](#can-classic-basic-frame-iso-11898-1-section-82)
-  * [CAN Classic Extended Frame (ISO 11898-1 Section 8.2)](#can-classic-extended-frame-iso-11898-1-section-82)
-  * [CAN FD Basic Frame (ISO 11898-1 Section 8.4)](#can-fd-basic-frame-iso-11898-1-section-84)
-* [TX Monitoring and Error Detection (`get_observed_mac_frame_bit_info`)](#tx-monitoring-and-error-detection-get_observed_mac_frame_bit_info)
-  * [Function Algorithm](#function-algorithm-1)
-* [MAC Serializer (`tx_mac_ser`)](#mac-serializer-tx_mac_ser)
-  * [Purpose](#purpose)
-  * [Interfaces](#interfaces)
-  * [FSM Design](#fsm-design)
-  * [FSM Behavior](#fsm-behavior)
-* [Physical Coding Sublayer (`tx_pcs`)](#physical-coding-sublayer-tx_pcs)
-  * [ISO 11898-1 Requirements](#iso-11898-1-requirements)
-  * [FSM Design](#fsm-design-1)
-  * [FSM Behavior](#fsm-behavior-1)
-* [Future Work](#future-work)
+- [1. Overview](#1-overview)
+- [2. Current TX Architecture](#2-current-tx-architecture)
+- [3. Interface Summary](#3-interface-summary)
+  - [3.1 LLC User <-> LLC](#31-llc-user---llc)
+  - [3.2 LLC <-> MAC](#32-llc---mac)
+  - [3.3 MAC <-> PCS](#33-mac---pcs)
+- [4. LLC Frame Format (User Stream and LLC->MAC Stream)](#4-llc-frame-format-user-stream-and-llc-mac-stream)
+- [5. MAC Frame Format (Logical CAN Bitstream)](#5-mac-frame-format-logical-can-bitstream)
+  - [5.1 CAN Classic Base (logical bit fields)](#51-can-classic-base-logical-bit-fields)
+  - [5.2 CAN Classic Extended (logical bit fields)](#52-can-classic-extended-logical-bit-fields)
+  - [5.3 CAN FD Base (logical bit fields)](#53-can-fd-base-logical-bit-fields)
+  - [5.4 CAN FD Extended (logical bit fields)](#54-can-fd-extended-logical-bit-fields)
+- [6. State Diagrams](#6-state-diagrams)
+  - [6.1 `tx_llc` FSM](#61-tx_llc-fsm)
+  - [6.2 `tx_mac_ser` FSM](#62-tx_mac_ser-fsm)
+  - [6.3 `tx_mac_fsm` FSM](#63-tx_mac_fsm-fsm)
+  - [6.4 `tx_pcs` FSM](#64-tx_pcs-fsm)
+- [7. Verification Status](#7-verification-status)
+- [8. Known Gaps / Next Steps](#8-known-gaps--next-steps)
 
 <!-- mtoc-end -->
-## Overview
 
-This document outlines the architecture and implementation of a CAN (Controller Area Network)
-bus transmitter following the ISO 11898-1:2015 standard. The implementation includes the
-MAC layer serializer, bit stuffing logic, and CRC calculation for both CAN 2.0 and CAN-FD
-protocols.
+## 1. Overview
 
-## CAN Stack Architecture
+This report summarizes the current TX-side CAN/CAN-FD implementation status in this repository.
+The design targets ISO 11898-1 behavior for the transmitter pipeline:
 
-The CAN implementation is organized into distinct layers following the ISO/OSI model:
+`LLC user -> tx_llc -> tx_mac (serializer + FSM + CRC + stuffer) -> tx_pcs -> bus`
+
+The codebase is VHDL-2008 and uses GHDL + OSVVM for simulation.
+
+## 2. Current TX Architecture
+
+Diagram level: `L3`
 
 ```mermaid
-%%{init: {'flowchart': {'curve': 'linear'}, 'elk': {'algorithm': 'layered'}}}%%
-graph TD
-   subgraph APP["🔧 Application Layer"]
-      AppLogic["Application<br/>Logic"]
-   end
+flowchart LR
+  U["LLC User (Avalon-ST Source)"]
+  L["tx_llc\n(frame capture + replay)"]
+  S["tx_mac_ser\n(byte->bit serializer + frame_params decode)"]
+  F["tx_mac_fsm\narbitration/monitoring/error signaling"]
+  P["tx_pcs\nbit timing + TDC + sample_strobe"]
+  B["CAN Bus"]
 
-   subgraph LLC["📋 Logical Link Control"]
-      LLCCtrl["LLC Controller"]
-      FrameBuild["Frame Builder"]
-      LLCCtrl --> FrameBuild
-   end
-
-   subgraph MAC["🏗️ MAC Layer"]
-      TXMAC["TX MAC Serializer"]
-      FSM["Finite State Machine"]
-      BitShift["Bit Shifter Register"]
-      TXMAC --> FSM
-      FSM --> BitShift
-   end
-
-   subgraph ENC["🔐 Encoding & Protection"]
-      BitStuff["Bit Stuffing<br/>5-in-a-row Rule"]
-      CRC["CRC Calculator<br/>Polynomial"]
-      ACKGen["ACK Generator"]
-      BitStuff --> CRC
-      CRC --> ACKGen
-   end
-
-   subgraph PHY["📡 Physical Layer"]
-      PHYDriver["Physical Driver"]
-      BusInterface["CAN Bus<br/>Interface"]
-      PHYDriver --> BusInterface
-   end
-
-   AppLogic -->|Frame Data| LLCCtrl
-   FrameBuild -->|Formatted Frame| TXMAC
-   BitShift -->|Serial Bits| BitStuff
-   ACKGen -->|Frame with ACK| PHYDriver
-   BusInterface -->|Bit Stream| Network["CAN Bus"]
-
-   style APP fill:#e3f2fd
-   style LLC fill:#f3e5f5
-   style MAC fill:#fff3e0
-   style ENC fill:#e8f5e9
-   style PHY fill:#fce4ec
+  U --> L
+  L --> S
+  S --> F
+  F --> P
+  P --> B
+  B --> P
 ```
 
-## Layer Descriptions
+## 3. Interface Summary
 
-### Application Layer
+### 3.1 LLC User <-> LLC
 
-The application layer contains the business logic that generates CAN frames and processes
-incoming messages. It interfaces with the LLC layer through well-defined frame structures.
+- `llc_user_to_llc_if_t` now uses:
+  - `avalon_st_source` (`data`, `valid`, `sop`, `eop`)
+  - `abort_request`
+- `llc_to_llc_user_if_t` now uses:
+  - `avalon_st_sink.ready`
+  - `transfer_status`
 
-### Logical Link Control (LLC)
+This aligns the external user boundary with the same stream concept used inside LLC->MAC.
 
-The LLC layer is responsible for:
-* Frame type selection (data/remote frames)
-* Format selection (CAN 2.0 basic/extended, CAN-FD)
-* Configuration of frame parameters (DLC, flags, identifiers)
-* Passing formatted frames to the MAC layer
+### 3.2 LLC <-> MAC
 
-### MAC Layer (Media Access Control)
+- Avalon-ST stream: bytes buffered by `tx_llc`, replayed to `tx_mac_ser`.
+- MAC returns:
+  - backpressure (`ready`)
+  - transfer result (`ongoing`, `transmitted`, `disturbed`, `lost_arbitration`, `aborted`)
 
-The MAC layer handles:
-* **TX MAC Serializer** (`tx_mac_ser.vhd`): Converts 8-bit words into serial bit stream
-* **FSM Controller** (`tx_mac_fsm.vhd`): Manages transmission state machine
-* **Bit Shifter**: Implements shift register for bit-by-bit transmission
+### 3.3 MAC <-> PCS
 
-### Encoding & Protection Layer
+- MAC drives bit intent (`mac_frame_bit_t`) and `valid`.
+- PCS returns:
+  - observed `bus_polarity`
+  - effective `sample_strobe`
+  - effective `fifo_index` for delayed comparison.
 
-This layer ensures data integrity through:
-* **Bit Stuffing** (`bit_stuffer.vhd`, `bit_stuffer_fd.vhd`): Inserts stuff bits after 5
-  consecutive bits of same polarity per ISO 11898-1 Section 8.5.2
-* **CRC Calculation** (`crc_fd.vhd`): Computes polynomial-based CRC (15-bit for CAN 2.0,
-  17/21-bit for CAN-FD)
-* **ACK Generation**: Encodes acknowledgment slot (1 recessive bit expected from receivers)
+## 4. LLC Frame Format (User Stream and LLC->MAC Stream)
 
-### Physical Layer
+The canonical LLC stream format is byte oriented with:
 
-The physical layer provides:
-* Driver circuitry for CAN bus signaling
-* Dominant (0V, high current) and recessive (pull-up, low current) states
-* Interface to the actual CAN bus transmission medium
+- mandatory 6-byte header (`CFG0`, `CFG1`, `ID3`, `ID2`, `ID1`, `ID0`)
+- optional payload (`0..64` data bytes)
 
-## Key Implementation Details
-
-### Frame Structure (ISO 11898-1 Section 8.2)
-
-* **SOF**: Start of Frame (1 bit, dominant)
-* **Arbitration Field**: ID (11/29 bits) + RTR + IDE
-* **Control Field**: Reserved bits + DLC + FD flags (CAN-FD only)
-* **Data Field**: 0-64 bytes (0-512 bits)
-* **CRC Field**: 15-21 bits + delimiter
-* **ACK Field**: 1 bit slot + delimiter
-* **EOF**: End of Frame (7 bits, recessive)
-
-### Bit Stuffing Algorithm (ISO 11898-1 Section 8.5.4)
-
-After 5 consecutive bits of the same polarity, a complementary stuff bit is inserted:
-* **CAN 2.0**: Dynamic stuffing throughout frame (except CRC delimiter onwards)
-* **CAN-FD**: Fixed stuff bits at predefined positions in payload
-
-### CRC Polynomials
-
-* **CAN 2.0**: x^15 + x^14 + x^10 + x^8 + x^7 + x^4 + x^3 + 1 (0xC599)
-* **CAN-FD 17-bit**: High bandwidth CRC
-* **CAN-FD 21-bit**: Maximum protection CRC
-
-## Testing Strategy
-
-Comprehensive testing includes:
-* Unit tests for each layer component
-* Integration tests for full frame transmission
-* Edge case testing (min/max DLC, various frame types)
-* Bit stuffing validation with various bit patterns
-* CRC correctness verification against reference implementations
-
-## Compliance
-
-This implementation strictly adheres to:
-* **ISO 11898-1:2015** - CAN Data Link Layer and Physical Signaling
-* **CAN 2.0 Specification** - Classical CAN protocol
-* **CAN-FD Protocol** - Flexible Data Rate extensions
-
-For detailed protocol specifications, refer to `ISO_11898_1_CAN_bus_link.pdf`.
-
-## MAC Frame Bit Generation (`get_next_mac_frame_bit`)
-
-The core function responsible for generating each MAC frame bit follows a hierarchical decision flow:
+LLC frame packet layout (fixed byte chunks, max FD envelope):
 
 ```mermaid
----
-title: "MAC Frame Bit Generation Flow"
----
-%%{init: {'flowchart': {'curve': 'linear'}, 'elk': {'algorithm': 'layered'}}}%%
-stateDiagram-v2
-  state check_stuff_state <<choice>>
-  state select_fmt <<choice>>
-  state route_bit <<choice>>
-  state check_crc <<choice>>
-
-  state "Stuff Bit Valid?" as check_stuff
-  state "Return Stuff Bit" as ret_stuff
-  state "Get Frame Format" as extract
-  state "Calculate CC Basic specific bit positions" as setup_ccb
-  state "Calculate CC Extended specific bit positions" as setup_cce
-  state "Calculate FD Basic specific bit positions" as setup_fdb
-  state "Calculate FD Extended specific bit positions" as setup_fde
-  state "Calculate next bit type" as calc_pos
-  state "Return SOF bit" as ret_sof
-  state "Return next arbitration bit" as ret_arb
-  state "Return next control bit" as ret_ctrl
-  state "Return next DLC bit" as ret_dlc
-  state "Return next data bit" as ret_data
-  state "Return next fixed ftuff bit" as ret_fixed
-  state "Return next SBC bit" as ret_sbc
-  state "Return next CRC bit" as ret_crc
-  state "Return next delimiter bit" as ret_delim
-  state "Return next EOF bit" as ret_eof
-
-  [*] --> check_stuff
-
-  check_stuff --> check_stuff_state
-
-  check_stuff_state --> ret_stuff: valid
-  check_stuff_state --> extract: invalid
-
-  ret_stuff --> [*]
-
-  extract --> select_fmt
-
-  select_fmt --> setup_ccb: cc_basic
-  select_fmt --> setup_cce: cc_extended
-  select_fmt --> setup_fdb: fd_basic
-  select_fmt --> setup_fde: fd_extended
-
-  setup_ccb --> calc_pos
-  setup_cce --> calc_pos
-  setup_fdb --> calc_pos
-  setup_fde --> calc_pos
-
-  calc_pos --> route_bit
-
-  route_bit --> ret_sof: sof
-  route_bit --> ret_arb: arbitration
-  route_bit --> ret_ctrl: control
-  route_bit --> ret_dlc: dlc
-  route_bit --> ret_data: data
-  route_bit --> check_crc: crc
-  route_bit --> ret_delim: delim
-  route_bit --> ret_eof: eof
-
-  check_crc --> ret_fixed: fixed
-  check_crc --> ret_sbc: sbc
-  check_crc --> ret_crc: crc
-
-  ret_sof --> [*]
-  ret_arb --> [*]
-  ret_ctrl --> [*]
-  ret_dlc --> [*]
-  ret_data --> [*]
-  ret_fixed --> [*]
-  ret_sbc --> [*]
-  ret_crc --> [*]
-  ret_delim --> [*]
-  ret_eof --> [*]
+packet
++1: "C0"
++1: "C1"
++1: "ID0"
++1: "ID1"
++1: "ID2"
++1: "ID3"
++64: "D(0), ... D(63)"
 ```
 
-### Function Algorithm
+Legend: base-ID formats use `ID1:ID0`; extended-ID formats use `ID3:ID0`.
 
-The `get_next_mac_frame_bit` function generates the next bit in a CAN frame transmission. Key stages:
+<a id="cfg0"></a>
 
-1. **Stuff Bit Priority** (Line 780-783): Checks if the bit stuffer has a valid stuff bit to insert.
-   If yes, returns immediately with the complementary polarity.
+| b7        | b6        | b5        | b4   | b3  | b2  | b1       | b0       |
+| --------- | --------- | --------- | ---- | --- | --- | -------- | -------- |
+| FORMAT[2] | FORMAT[1] | FORMAT[0] | FTYP | ESI | BRS | Reserved | Reserved |
 
-2. **Frame Format Setup** (Line 797-891): Based on frame format (CAN Classic basic/extended or CAN FD
-   basic/extended), loads format-specific bit positions and control field constants.
+**Table 1**: Config Byte 0 bit layout (MSB-left, b7 to b0)
 
-3. **Field Position Calculation** (Line 897-915): Calculates the position of each frame section:
-   * Data field start/stop
-   * CRC field start
-   * SBC field (CAN FD only)
-   * Fixed stuff bit positions (CAN FD only)
-   * ACK and EOF positions
+<a id="cfg1"></a>
 
-4. **Field Determination** (Line 920-996): Uses a cascading if-elsif chain to determine which field
-   the current `bit_count` belongs to:
-   * **SOF**: Always dominant (line 920-921)
-   * **Arbitration**: Base ID bits + optional extended ID (line 923-939)
-   * **Control**: Format flags (RTR, SRR, IDE, R0, R1, FDF, RES, BRS, ESI) with frame-dependent polarities
-   * **DLC**: 4-bit data length code (line 954-957)
-   * **Data**: 0-512 bits of user payload (line 960-962)
-   * **CRC**: 15-21 bit CRC value with optional SBC and fixed stuff bits (line 965-982)
-   * **Delimiters & ACK**: CRC/ACK delimiters and ACK slot (recessive) (line 983-990)
-   * **EOF**: 7 recessive bits (line 993-994)
+`Config Byte 1` bit layout (MSB-left, `b7` to `b0`):
 
-5. **Polarity Extraction**: Extracts actual bit polarity from:
-   * **Input data**: Frame data for ID/data fields (via `mac_ser_to_fsm.data`)
-   * **DLC vector**: DLC field bits
-   * **CRC vector**: CRC field bits
-   * **SBC vector**: Sequence Bit Count field (CAN FD)
-   * **Previous polarity**: For fixed stuff bits (opposite of previous)
-   * **Constants**: For fixed-polarity bits (SOF, delimiters, format flags)
+| b7     | b6     | b5     | b4     | b3       | b2       | b1       | b0       |
+| ------ | ------ | ------ | ------ | -------- | -------- | -------- | -------- |
+| DLC[3] | DLC[2] | DLC[1] | DLC[0] | Reserved | Reserved | Reserved | Reserved |
 
-## CAN Frame Structure Visualization
+**Table 2**: Config Byte 1 bit layout (MSB-left, b7 to b0)
 
-### CAN Classic Basic Frame (ISO 11898-1 Section 8.2)
+Notes:
+
+- `sop='1'` on Config Byte 0.
+- The first 6 bytes are always present in every LLC frame.
+- `eop='1'` on final data byte, or on `ID0` when `DLC=0`.
+- `tx_llc` captures the full stream, then replays the same bytes for retries/re-arbitration.
+
+## 5. MAC Frame Format (Logical CAN Bitstream)
+
+The MAC/FSM emits the logical CAN frame using `frame_params` computed from the two config bytes.
+
+Bit-name polarity table (TX intent, shared across diagrams):
+
+| Bit Class                                        | Polarity  | Notes                                                   |
+| :----------------------------------------------- | :-------- | :------------------------------------------------------ |
+| EOF, CRCD, ACKD, SRR, FDF, ACK                   | Recessive | Protocol fixed recessive bits and the TX-side ACK slot. |
+| SOF, RES, R0, R1                                 | Dominant  | Protocol fixed dominant bits (includes reserved bits).  |
+| IDE, RTR/RRS, BRS, ESI, BID, DLC, DATA, CRC, SBC | Dependent | Determined by frame format, configuration, or payload.  |
+
+Use the table above for polarity semantics; packet diagrams below show field order and width only.
+
+### 5.1 CAN Classic Base (logical bit fields)
+
+Diagram level: `L3`
 
 ```mermaid
----
-title: "CAN Classic Basic Data Frame (max 8 bytes)"
----
 packet
 0: "SOF"
-1-11: "Base ID (ID(28) downto ID(18))"
+1-11: "BID11"
 12: "RTR"
 13: "IDE"
 14: "R0"
-15-18: "DLC (4 bits)"
-19-82: "Data Payload (0-8 bytes)"
-83-97: "CRC (15 bits)"
-98: "CRC Delim"
-99: "ACK Slot"
-100: "ACK Delim"
-101-107: "EOF (7 bits)"
+15-18: "DLC"
+19-82: "DATA (max span)"
+83-97: "CRC15"
+98: "CRCD"
+99: "ACK"
+100: "ACKD"
+101-107: "EOF"
 ```
 
-### CAN Classic Extended Frame (ISO 11898-1 Section 8.2)
+Legend: `BID11` = 11-bit base identifier, `CRCD` = CRC delimiter, `ACKD` = ACK delimiter.
+
+### 5.2 CAN Classic Extended (logical bit fields)
+
+Diagram level: `L3`
 
 ```mermaid
----
-title: "CAN Classic Extended Data Frame (max 8 bytes)"
----
 packet
 0: "SOF"
-1-11: "Base ID (11 bits)"
+1-11: "BID11"
 12: "SRR"
 13: "IDE"
-14-31: "Extended ID (18 bits)"
+14-31: "EID18"
 32: "RTR"
 33: "R1"
 34: "R0"
-35-38: "DLC (4 bits)"
-39-102: "Data Payload (0-8 bytes)"
-103-117: "CRC (15 bits)"
-118: "CRC Delim"
-119: "ACK Slot"
-120: "ACK Delim"
-121-127: "EOF (7 bits)"
+35-38: "DLC"
+39-102: "DATA (max span)"
+103-117: "CRC15"
+118: "CRCD"
+119: "ACK"
+120: "ACKD"
+121-127: "EOF"
 ```
 
-### CAN FD Basic Frame (ISO 11898-1 Section 8.4)
+Legend: `BID11` = 11-bit base identifier, `EID18` = 18-bit extended identifier, `SRR` = substitute remote request, `CRCD` = CRC delimiter, `ACKD` = ACK delimiter.
+
+### 5.3 CAN FD Base (logical bit fields)
+
+Diagram level: `L3`
 
 ```mermaid
----
-title: "CAN FD Basic Data Frame (max 64 bytes)"
----
 packet
 0: "SOF"
-1-11: "Base ID (11 bits)"
+1-11: "BID11"
 12: "RRS"
 13: "IDE"
 14: "FDF"
 15: "RES"
 16: "BRS"
 17: "ESI"
-18-21: "DLC (4 bits)"
-22-533: "Data Payload (0-64 bytes)"
-534-537: "SBC (4 bits)"
-538-558: "CRC (17/21 bits)"
-559: "CRC Delim"
-560: "ACK Slot"
-561: "ACK Delim"
-562-568: "EOF (7 bits)"
+18-21: "DLC"
+22-533: "DATA (max span)"
+534-554: "SBC+CRC (span)"
+555: "CRCD"
+556: "ACK"
+557: "ACKD"
+558-564: "EOF"
 ```
 
-## TX Monitoring and Error Detection (`get_observed_mac_frame_bit_info`)
+Legend: `BID11` = 11-bit base identifier, `SBC` = stuff-bit counter sequence, `CRCD` = CRC delimiter, `ACKD` = ACK delimiter.
 
-The core monitoring function that detects transmission errors, ACK issues, and arbitration loss by comparing expected vs. observed bit polarities:
+### 5.4 CAN FD Extended (logical bit fields)
+
+Diagram level: `L3`
+
+```mermaid
+packet
+0: "SOF"
+1-11: "BID11"
+12: "SRR"
+13: "IDE"
+14-31: "EID18"
+32: "RRS"
+33: "FDF"
+34: "RES"
+35: "BRS"
+36: "ESI"
+37-40: "DLC"
+41-552: "DATA (max span)"
+553-573: "SBC+CRC (span)"
+574: "CRCD"
+575: "ACK"
+576: "ACKD"
+577-583: "EOF"
+```
+
+Legend: `BID11` = 11-bit base identifier, `EID18` = 18-bit extended identifier, `SRR` = substitute remote request, `SBC` = stuff-bit counter sequence, `CRCD` = CRC delimiter, `ACKD` = ACK delimiter.
+
+## 6. State Diagrams
+
+### 6.1 `tx_llc` FSM
+
+Diagram level: `L3`
 
 ```mermaid
 ---
-title: "TX Bit Monitoring and Error Detection"
+title: "tx_llc FSM"
 ---
 %%{init: {'flowchart': {'curve': 'linear'}, 'elk': {'algorithm': 'layered'}}}%%
 stateDiagram-v2
-  state check_ack <<choice>>
-  state check_polarity <<choice>>
-  state resolve_error <<choice>>
+  state idle_start <<choice>>
+  state capture_decision <<choice>>
+  state result_decision <<choice>>
 
-  state "Initialize result" as init_result
-  state "Get FIFO bit and monitored polarity" as get_fifo
-  state "Return ACK error" as ret_ack_error
-  state "Return ACK detected" as ret_ack_detected
-  state "Return no event" as ret_no_event
-  state "Set transfer status disturbed" as set_disturbed
-  state "Determine arbitration bit by frame format" as determine_format
-  state "Return bit error" as ret_bit_error
-  state "Return lost arbitration error" as ret_lost_arb
+  state "**Idle**<br/>─────────<br/>• llc_user ready = 1<br/>• Reset capture/tx indices<br/>• Wait for SOP byte" as idle_s
+  state "**Capture Frame**<br/>─────────<br/>• llc_user ready = 1<br/>• Buffer incoming bytes<br/>• Abort allowed before MAC start" as capture_s
+  state "**Send Frame**<br/>─────────<br/>• Drive buffered Avalon-ST to MAC<br/>• Assert SOP/EOP at first/last byte<br/>• Arm MAC status when ongoing seen" as send_s
+  state "**Wait For Result**<br/>─────────<br/>• Wait for terminal MAC status<br/>• Retry or complete based on status<br/>• Enforce retransmission limit" as result_s
+  state "**Wait For Idle**<br/>─────────<br/>• Between retry attempts<br/>• Wait for MAC ready<br/>• Abort allowed" as wait_idle_s
 
-  [*] --> init_result
+  [*] --> idle_s: reset
 
-  init_result --> get_fifo
+  idle_s --> idle_start
+  idle_start --> capture_s: valid ∧ sop ∧ ¬eop
+  idle_start --> send_s: valid ∧ sop ∧ eop
 
-  get_fifo --> check_ack
+  capture_s --> capture_decision
+  capture_decision --> send_s: valid ∧ eop accepted
+  capture_decision --> idle_s: abort_request
+  capture_decision --> idle_s: capture_index overflow
 
-  check_ack --> ret_ack_error: monitored recessive
-  check_ack --> ret_ack_detected: monitored not recessive
-  check_ack --> check_polarity: not ACK bit
+  send_s --> result_s: last byte accepted by MAC
 
-  ret_ack_error --> [*]
-  ret_ack_detected --> [*]
+  result_s --> result_decision
+  result_decision --> idle_s: transfer_status = transmitted
+  result_decision --> idle_s: transfer_status = aborted
+  result_decision --> send_s: transfer_status = lost_arbitration
+  result_decision --> wait_idle_s: transfer_status = disturbed ∧ retx_count < retransmission_limit_c
+  result_decision --> idle_s: transfer_status = disturbed ∧ retx_count ≥ retransmission_limit_c
 
-  check_polarity --> ret_no_event: polarities match
-  check_polarity --> set_disturbed: polarities mismatch
-
-  ret_no_event --> [*]
-
-  set_disturbed --> determine_format
-
-  determine_format --> resolve_error
-
-  resolve_error --> ret_bit_error: arbitration + dominant transmitted
-  resolve_error --> ret_lost_arb: arbitration + recessive transmitted
-  resolve_error --> ret_bit_error: non-arbitration + mismatch
-
-  ret_bit_error --> [*]
-  ret_lost_arb --> [*]
+  wait_idle_s --> send_s: MAC ready for retry
+  wait_idle_s --> idle_s: abort_request
 ```
 
-### Function Algorithm
+### 6.2 `tx_mac_ser` FSM
 
-The `get_observed_mac_frame_bit_info` function monitors transmitted bits for errors (ISO 11898-1: 6.6.21.2). Key stages:
-
-1. **Initialization** (Line 448-449): Set event_type to `none` and transfer_status to `ongoing`.
-
-2. **Get FIFO Entry** (Line 452-454): Extract the transmitted bit at the specified delay from FIFO and capture observed polarity.
-
-3. **ACK Bit Detection** (Line 457-466): Highest priority check - if transmitted bit is ACK:
-   * Monitored polarity = recessive? → ACK error, disturbed status, return
-   * Monitored polarity ≠ recessive? → ACK detected, transmitted status, return
-
-4. **Polarity Match Check** (Line 469-474): If polarities match → no event detected, return with ongoing status. Otherwise, set transfer_status to `disturbed` and continue.
-
-5. **Arbitration Phase Determination** (Line 477-497): Based on frame format, determine if this bit is in arbitration phase:
-   * **CC Basic**: Base ID bits or RTR bit
-   * **CC Extended**: Base ID, SRR, IDE, Extended ID, or RTR bits
-   * **FD Basic**: Base ID or RRS bits
-   * **FD Extended**: Base ID, SRR, IDE, or Extended ID bits
-
-6. **Event Type Resolution** (Line 500-512): With polarity mismatch confirmed:
-   * If arbitration bit:
-     * Transmitted dominant, observed recessive → bit_error
-     * Transmitted recessive, observed dominant → lost_arbitration (transfer_status = lost_arbitration)
-   * If non-arbitration bit:
-     * Any mismatch → bit_error
-
-## MAC Serializer (`tx_mac_ser`)
-
-### Purpose
-
-The MAC serializer bridges the LLC and MAC layers. It receives frame configuration and data as 8-bit Avalon-ST words from the LLC and converts them into a serial polarity stream for the MAC FSM. Frame parameters are calculated once from the two configuration bytes and cached for the entire frame, eliminating redundant combinational logic on every bit.
-
-### Interfaces
-
-* **LLC side** (`llc_to_mac_if_t` / `mac_to_llc_if_t`): Avalon-ST sink with `data`, `valid`, `sop`, `ready`, and `transfer_status`.
-* **FSM side** (`tx_mac_ser_to_fsm_if_t` / `tx_mac_fsm_to_ser_if_t`): Serial output with `data` (polarity_t), `valid`, `frame_params`, and backpressure via `ready` and `transfer_status`.
-
-### FSM Design
-
-The serializer is a Mealy machine with four states. The LLC presents two configuration bytes (SOP distinguishes the first) followed by data bytes. On each data byte, the MSB is output immediately to avoid a wasted cycle; the remaining 7 bits are shifted out one per clock when the FSM asserts `ready`.
+Diagram level: `L3`
 
 ```mermaid
 ---
-title: "TX MAC Serializer FSM — Mealy State Machine"
+title: "tx_mac_ser FSM"
 ---
 %%{init: {'flowchart': {'curve': 'linear'}, 'elk': {'algorithm': 'layered'}}}%%
 stateDiagram-v2
-  state "**load_config_byte_0**<br/>─────────<br/>• ready ← 1<br/>• Latch config byte 0 (FORMAT, FTYP, ESI, BRS)" as cfg0
+  state cfg1_guard <<choice>>
+  state shift_guard <<choice>>
 
-  state "**load_config_byte_1**<br/>─────────<br/>• ready ← 1<br/>• calculate_frame_params(cfg0, cfg1)<br/>• Cache frame_params" as cfg1
+  state "**Load Config Byte 0**<br/>─────────<br/>• llc ready = 1<br/>• Wait for valid ∧ sop<br/>• Latch cfg0" as cfg0_s
+  state "**Load Config Byte 1**<br/>─────────<br/>• llc ready = 1<br/>• Wait for valid ∧ ¬sop<br/>• Compute frame_params(cfg0,cfg1)" as cfg1_s
+  state "**Load LLC Frame Byte**<br/>─────────<br/>• llc ready = 1<br/>• Latch byte into shifter<br/>• Emit MSB immediately (valid=true)" as data_s
+  state "**Shift Out Bits**<br/>─────────<br/>• valid = true<br/>• data = shifter MSB<br/>• Shift on fsm.ready" as shift_s
 
-  state "**load_llc_frame_byte**<br/>─────────<br/>• ready ← 1<br/>• Latch data byte into shift register<br/>• Output MSB immediately (valid ← 1)" as load
+  [*] --> cfg0_s
 
-  state "**shift_out_bits**<br/>─────────<br/>• valid ← 1<br/>• data ← MSB of shift register<br/>• On FSM ready: shift left, count--" as shift
+  cfg0_s --> cfg1_s: valid ∧ sop
 
-  [*] --> cfg0
+  cfg1_s --> cfg1_guard
+  cfg1_guard --> data_s: valid ∧ ¬sop
+  cfg1_guard --> cfg1_s: valid ∧ sop (resync)
 
-  cfg0 --> cfg1 : valid ∧ sop
+  data_s --> shift_s: valid ∧ ¬sop
 
-  cfg1 --> load : valid ∧ ¬sop
-
-  load --> shift : valid ∧ ¬sop
-
-  shift --> load : ready ∧ count = 0
-  shift --> cfg0 : transfer_status ≠ ongoing
+  shift_s --> shift_guard
+  shift_guard --> data_s: fsm.ready ∧ count = 0
+  shift_guard --> cfg0_s: ¬(transfer_status = ongoing)
 ```
 
-### FSM Behavior
+### 6.3 `tx_mac_fsm` FSM
 
-1. **load_config_byte_0**: Asserts Avalon-ST ready and waits for the LLC to present config byte 0 with `sop = '1'`. Latches FORMAT, FTYP, ESI, and BRS fields into `config_byte_reg_0`.
-
-2. **load_config_byte_1**: Waits for config byte 1 with `sop = '0'`. On arrival, calls `calculate_frame_params()` with both config bytes to compute all frame layout positions (field boundaries, bit polarities, CRC parameters) once. The result is cached in `tx_mac_fsm_o.frame_params` for the duration of the frame.
-
-3. **load_llc_frame_byte**: Asserts ready and waits for a data byte. On arrival, latches the byte into the shift register and immediately outputs the MSB as a polarity (via `bit_to_polarity`), asserting `valid` in the same cycle. This zero-latency first-bit output avoids wasting a clock cycle per byte.
-
-4. **shift_out_bits**: Continuously drives `valid` and presents the shift register MSB. When the FSM consumes a bit (`ready = '1'`), the register shifts left and the count decrements. When `count = 0`, all 8 bits have been sent (1 on load + 7 shifts) and the FSM returns to `load_llc_frame_byte` for the next byte. If `transfer_status` changes from `ongoing` (frame complete or error), the FSM resets to `load_config_byte_0`.
-
-## Physical Coding Sublayer (`tx_pcs`)
-
-### ISO 11898-1 Requirements
-
-The Physical Coding Sublayer (PCS) is specified in ISO 11898-1:2024 Sections 7.2 and 7.3.4. Its responsibilities include:
-
-**Bit Timing (Section 7.3.1–7.3.3)**: Each bit period is divided into four segments — Sync_Seg, Prop_Seg, Phase_Seg1, and Phase_Seg2 — parameterized in multiples of a Time Quantum (TQ). The Sample Point (SP) is placed at the boundary between Phase_Seg1 and Phase_Seg2, providing sufficient propagation and settling time before sampling the bus. CAN FD frames use two independent bit rates: a nominal rate during arbitration and a faster data rate during the data phase.
-
-**Transmitter Delay Compensation (Section 7.3.4)**: At data bit rates, the transceiver's propagation delay can exceed the bit time itself. TDC addresses this by measuring the actual TX-to-RX loopback delay and positioning a Secondary Sample Point (SSP) accordingly. The measurement is performed once per frame at the recessive-to-dominant edge from the FDF bit to the res bit. A counter increments each minimum time quantum from when the transmitter drives dominant until dominant is detected at the receive input. The SSP position is then:
-
-> `ssp_position = measured_delay + ssp_offset`
-
-where `ssp_offset` is a statically configured parameter (ISO range: 0–127 minimum time quanta) that adds margin for signal settling after the measured delay. The offset must not exceed `data_bit_time` — otherwise the FIFO index would point at the wrong bit, defeating the purpose of the comparison. The implementation computes two values directly from this sum without storing intermediates: the per-bit SSP position `(delay + offset) mod data_bit_time` and the FIFO index `(delay + offset) / data_bit_time`, which tells the MAC how many bits back to compare in the transmitted bits FIFO. If the measured delay exceeds 1023 TQ (timeout), the node falls back to nominal bit timing without TDC.
-
-**Timing Model**: The PCS drives the bus continuously and generates SP/SSP strobes as single-cycle pulses. The MAC reacts to these strobes and has Phase_Seg2 to compute and present the next frame bit before the PCS latches it at the bit boundary. No explicit ready handshake is needed — the bit timing segments inherently provide the processing time.
-
-### FSM Design
-
-The PCS FSM is a Mealy machine where outputs depend on both state and input conditions.
+Diagram level: `L3`
 
 ```mermaid
 ---
-title: "TX PCS FSM — Mealy State Machine"
+title: "tx_mac_fsm FSM"
 ---
 %%{init: {'flowchart': {'curve': 'linear'}, 'elk': {'algorithm': 'layered'}}}%%
 stateDiagram-v2
-  state "**idle**<br/>─────────<br/>• tx_bus ← recessive<br/>• sp/ssp ← 0" as idle
+  state tx_decision <<choice>>
 
-  state "**transmitting_nominal**<br/>─────────<br/>• advance_bit_timing(nom_tq_tick, nom_bit_time)<br/>• sp_pulse at sp_position" as tx_nom
+  state "**Bus Reintegration**<br/>─────────<br/>• pcs_o.valid = false<br/>• Monitor sampled bus recessive run<br/>• transfer_status = ongoing" as reintegration_s
+  state "**Bus Idle**<br/>─────────<br/>• pcs_o.valid = false<br/>• Wait for serializer valid<br/>• transfer_status = ongoing" as idle_s
+  state "**Intermission**<br/>─────────<br/>• pcs_o.valid = false<br/>• Count intermission samples<br/>• transfer_status = ongoing" as intermission_s
+  state "**Suspend Transmission**<br/>─────────<br/>• pcs_o.valid = false<br/>• Hold for suspend window<br/>• transfer_status = ongoing" as suspend_s
+  state "**Transmitting Frame**<br/>─────────<br/>• pcs_o.valid = true<br/>• Select CRC polynomial from frame_params<br/>• Emit next frame/stuff bit on sample_strobe<br/>• Monitor ACK/bit/arbitration events" as tx_s
+  state "**Transmitting Error Flag**<br/>─────────<br/>• pcs_o.valid = true<br/>• Send active error flag then delimiter<br/>• transfer_status = disturbed" as err_s
+  state "**Transmitting Overload Flag**<br/>─────────<br/>• pcs_o.valid = true<br/>• Reserved overload path (kept in type)<br/>• transfer_status = disturbed" as ovl_s
 
-  state "**measuring_delay**<br/>─────────<br/>• advance_bit_timing(nom_tq_tick, nom_bit_time)<br/>• sp_pulse at sp_position<br/>• delay_count++ on data_tq_tick<br/>• Latch (rx_bus = dominant):<br/>  ssp_position ← (delay + offset) mod data_bit_time<br/>  fifo_index ← (delay + offset) / data_bit_time" as measuring
+  [*] --> reintegration_s: reset
 
-  state "**transmitting_data**<br/>─────────<br/>• advance_bit_timing(data_tq_tick, data_bit_time)<br/>• ssp_pulse at ssp_position" as tx_data
+  reintegration_s --> idle_s: bit_count = bus_idle_condition_width - 1
 
-  [*] --> idle
+  idle_s --> tx_s: serializer valid
 
-  idle --> tx_nom : data_request = 1
+  tx_s --> tx_decision
+  tx_decision --> intermission_s: monitored event = lost_arbitration
+  tx_decision --> err_s: monitored event = bit_error
+  tx_decision --> err_s: monitored event = ack_error ∧ ¬ack_success_seen
+  tx_decision --> intermission_s: bit_count ≥ frame_params.eof_stop ∧ ack_success_seen
+  tx_decision --> err_s: bit_count ≥ frame_params.eof_stop ∧ ¬ack_result_known
 
-  tx_nom --> measuring : current_bit = res_bit
-  tx_nom --> idle : data_request = 0
+  err_s --> intermission_s: bit_count ≥ error_flag_width + error_delimiter_width - 1
 
-  measuring --> tx_data : rx_bus = dominant
-  measuring --> tx_nom : delay_count ≥ max_delay (timeout)
-  measuring --> idle : data_request = 0
+  ovl_s --> intermission_s: bit_count ≥ error_flag_width + error_delimiter_width - 1
+  note right of ovl_s
+    No active transition into overload in current RTL.
+    State is retained as reserved/placeholder.
+  end note
 
-  tx_data --> tx_nom : current_bit = crc_delimiter
-  tx_data --> idle : data_request = 0
+  intermission_s --> suspend_s: bit_count = intermission_width - 1 ∧ fce_i.error_passive ∧ was_previous_frame_tx
+  intermission_s --> idle_s: bit_count = intermission_width - 1 ∧ ¬(fce_i.error_passive ∧ was_previous_frame_tx)
+
+  suspend_s --> idle_s: bit_count = suspend_transmission_width - 1
 ```
 
-### FSM Behavior
+### 6.4 `tx_pcs` FSM
 
-The `tx_pcs` FSM controls the CAN bit timing and TDC mechanism:
+Diagram level: `L3`
 
-1. **idle**: No transmission active. Waits for MAC to assert `data_request`, then loads the first frame bit and transitions to nominal transmission.
+```mermaid
+---
+title: "tx_pcs FSM"
+---
+%%{init: {'flowchart': {'curve': 'linear'}, 'elk': {'algorithm': 'layered'}}}%%
+stateDiagram-v2
+  state nom_tdc_gate <<choice>>
+  state meas_outcome <<choice>>
 
-2. **transmitting_nominal**: Calls `advance_bit_timing(nom_tq_tick, nom_bit_time)` to transmit at the nominal bit rate (arbitration phase). Generates SP pulses at `sp_position`. When `res_bit` is detected (only present in FD frames), transitions to delay measurement for TDC.
+  state "**Idle**<br/>─────────<br/>• tx path inactive<br/>• Advance nominal timing and wait for frame_active_v<br/>• Latch first bit when frame starts" as idle_s
+  state "**Transmitting Nominal**<br/>─────────<br/>• Latch on nominal_bit_boundary_v<br/>• Advance nominal timing each nom_tq_tick<br/>• Monitor contract defaults to SP, fifo_index = 0" as nom_s
+  state "**Measuring Delay**<br/>─────────<br/>• Continue nominal timing and nominal-bit latching<br/>• Count TX→RX delay on data_tq_tick<br/>• On rx_dominant_v: latch ssp_position and fifo_index" as meas_s
+  state "**Transmitting Data**<br/>─────────<br/>• Latch on data_bit_boundary_v<br/>• Advance data timing each data_tq_tick<br/>• use_tdc_c selects SSP+fifo_index vs SP+0" as data_s
 
-3. **measuring_delay**: Calls `advance_bit_timing(nom_tq_tick, nom_bit_time)` for continued nominal timing. Simultaneously counts data-rate TQ ticks from TX dominant assertion until RX dominant is detected (loopback delay). The measurement is latched to compute the per-bit SSP position (`ssp_position = (delay + offset) mod data_bit_time`) and the FIFO index (`fifo_index = (delay + offset) / data_bit_time`). On timeout (delay ≥ 1023 TQ), falls back to nominal timing.
+  [*] --> idle_s: reset
 
-4. **transmitting_data**: Calls `advance_bit_timing(data_tq_tick, data_bit_time)` to transmit at the faster data bit rate with TDC active. SSP pulses fire once per data-rate bit at the latched `ssp_position` for accurate bit monitoring. Exits back to nominal timing when the CRC delimiter is reached.
+  idle_s --> nom_s: frame_active_v
 
-The global `data_request = 0` transition returns any active state to idle when the MAC signals frame completion.
+  nom_s --> idle_s: ¬frame_active_v
+  nom_s --> nom_tdc_gate
+  nom_tdc_gate --> meas_s: is_res_bit_v ∧ use_tdc_c
+  nom_tdc_gate --> data_s: is_res_bit_v ∧ ¬use_tdc_c
 
-## Future Work
+  meas_s --> idle_s: ¬frame_active_v
+  meas_s --> meas_outcome
+  meas_outcome --> data_s: rx_dominant_v
+  meas_outcome --> nom_s: tdc_timeout_v ∧ ¬rx_dominant_v
 
-* [ ] Remote frame transmission support (Section 8.3)
-* [ ] Error frame handling (Section 8.6)
-* [ ] Receiver implementation (RX path)
-* [ ] Arbitration logic for multi-master scenarios
-* [ ] Timing analysis and synchronization
+  data_s --> idle_s: ¬frame_active_v
+  data_s --> nom_s: is_crc_delim_v
+```
+
+Guard naming map (from `tx_pcs.next_state_logic`):
+
+- `frame_active_v`: `mac_to_pcs_i.valid`
+- `is_res_bit_v`: `current_bit.bit_name = res_bit`
+- `rx_dominant_v`: `rx_bus_i = dominant_bit_c`
+  ( `tdc_timeout_v`: `delay_count ≥ max_transmitter_delay_c`
+
+- `is_crc_delim_v`: `current_bit.bit_name = crc_delimiter_bit`
+  Sequential guard map (from `tx_pcs.pcs_fsm`):
+
+- `entering_measuring_delay_v`: `state /= measuring_delay ∧ next_state = measuring_delay`
+- `returning_to_idle_v`: `next_state = idle ∧ state /= idle`
+- `nominal_bit_boundary_v`: `nom_tq_tick = '1' ∧ tq_count ≥ nom_bit_time - 1`
+- `data_bit_boundary_v`: `data_tq_tick = '1' ∧ tq_count ≥ data_bit_time - 1`
+
+Output register note:
+
+- `sample_strobe` and `fifo_index` are registered in `monitor_output_reg` before driving `pcs_to_mac_o`.
+
+## 7. Verification Status
+
+Current regression status for key benches:
+
+- `tx_pcs_tb`: detailed PCS/TDC checks pass.
+- `tx_can_tb`: integrated transmit-path and retry/abort smoke tests pass.
+- `tx_can_protocol_tb`: protocol-structure checks (SOF, delimiters, EOF, frame length for CC base/extended) pass.
+
+## 8. Known Gaps / Next Steps
+
+1. Stream payload/content contract should be fully specified in one normative table (including ID carriage policy).
+2. `tx_can_protocol_tb` can be extended from structure checks to strict per-field bit-value scoreboarding.
+3. If ID carriage is moved into the canonical LLC stream, update serializer/model docs and diagrams accordingly.

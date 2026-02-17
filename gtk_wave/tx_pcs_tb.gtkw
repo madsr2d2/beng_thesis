@@ -1,92 +1,71 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Fri Feb 13 12:51:02 2026
+[*] Mon Feb 16 21:23:18 2026
 [*]
 [dumpfile] "/home/madsr2d2/beng_thesis/sim/tx_pcs_tb.ghw"
-[dumpfile_mtime] "Fri Feb 13 12:41:55 2026"
-[dumpfile_size] 5658
+[dumpfile_mtime] "Mon Feb 16 21:22:24 2026"
+[dumpfile_size] 73709
 [savefile] "/home/madsr2d2/beng_thesis/gtk_wave/tx_pcs_tb.gtkw"
-[timestart] 0
+[timestart] 19983000000
 [size] 1920 1121
 [pos] -27 -24
-*-28.087938 1499000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-28.087938 20975000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.tx_pcs_tb.
 [treeopen] top.tx_pcs_tb.dut.
 [treeopen] top.tx_pcs_tb.dut.mac_to_pcs_i.
 [sst_width] 278
-[signals_width] 206
+[signals_width] 230
 [sst_expanded] 1
 [sst_vpaned_height] 338
 @800200
--pcs_to_mac_if
-@420
-top.tx_pcs_tb.dut.pcs_to_mac_o.fifo_delay_index
-top.tx_pcs_tb.dut.pcs_to_mac_o.polarity
+-DUT
+-PCS_inrnals
 @28
-top.tx_pcs_tb.dut.pcs_to_mac_o.sp
-top.tx_pcs_tb.dut.pcs_to_mac_o.ssp
-top.tx_pcs_tb.dut.pcs_to_mac_o.tdc_active
-@1000200
--pcs_to_mac_if
-@800201
--mac_to_pcs_if
-@29
-top.tx_pcs_tb.dut.mac_to_pcs_i.d_receive
-top.tx_pcs_tb.dut.mac_to_pcs_i.d_transmit
-top.tx_pcs_tb.dut.mac_to_pcs_i.data_request
-@421
-top.tx_pcs_tb.dut.mac_to_pcs_i.frame_bit.bit_name
-top.tx_pcs_tb.dut.mac_to_pcs_i.frame_bit.polarity
-@29
-top.tx_pcs_tb.dut.mac_to_pcs_i.ready
-@1000201
--mac_to_pcs_if
-@800200
--clk_and_reset
-@28
-top.tx_pcs_tb.dut.rst
-top.tx_pcs_tb.dut.clk
-@1000200
--clk_and_reset
-@c00200
--pcs_to_bus
+top.tx_pcs_tb.dut.sample_strobe_r
+top.tx_pcs_tb.dut.sample_strobe_comb
+top.tx_pcs_tb.dut.ssp_pulse
+top.tx_pcs_tb.dut.sp_pulse
 @420
-top.tx_pcs_tb.dut.rx_bus_i
-top.tx_pcs_tb.dut.tx_bus_o
-@1401200
--pcs_to_bus
-@800200
--pcs_internal_signals
-@420
-top.tx_pcs_tb.dut.sp_position
-top.tx_pcs_tb.dut.current_bit_time
-top.tx_pcs_tb.dut.use_data_timing
-@28
-top.tx_pcs_tb.dut.ssp_strobe
-top.tx_pcs_tb.dut.sp_strobe
-@420
-top.tx_pcs_tb.dut.fifo_delay_index_reg
-top.tx_pcs_tb.dut.ssp_position_tq
-top.tx_pcs_tb.dut.measured_delay_tq
-top.tx_pcs_tb.dut.delay_counter
-top.tx_pcs_tb.dut.bit_tq_count
+top.tx_pcs_tb.dut.effective_fifo_index_r
+top.tx_pcs_tb.dut.effective_fifo_index_comb
+top.tx_pcs_tb.dut.fifo_index
+top.tx_pcs_tb.dut.ssp_position
+top.tx_pcs_tb.dut.delay_count
+top.tx_pcs_tb.dut.tq_count
 top.tx_pcs_tb.dut.clk_count_data
 top.tx_pcs_tb.dut.clk_count_nom
 @28
 top.tx_pcs_tb.dut.data_tq_tick
 top.tx_pcs_tb.dut.nom_tq_tick
 @420
-top.tx_pcs_tb.dut.next_pcs_state
-top.tx_pcs_tb.dut.pcs_state
+top.tx_pcs_tb.dut.next_state
+top.tx_pcs_tb.dut.state
+@28
+top.tx_pcs_tb.dut.rx_bus_i
+top.tx_pcs_tb.dut.tx_bus_o
+top.tx_pcs_tb.dut.rst
+top.tx_pcs_tb.dut.clk
 @1000200
--pcs_internal_signals
-@c00200
--current_bit
+-PCS_inrnals
+@800200
+-PCS_to_MAC
 @420
-top.tx_pcs_tb.dut.current_bit.bit_name
-top.tx_pcs_tb.dut.current_bit.polarity
-@1401200
--current_bit
+top.tx_pcs_tb.dut.pcs_to_mac_o.bus_polarity
+top.tx_pcs_tb.dut.pcs_to_mac_o.fifo_index
+@28
+top.tx_pcs_tb.dut.pcs_to_mac_o.sample_strobe
+@1000200
+-PCS_to_MAC
+@800200
+-MAC_to_PCS
+@421
+top.tx_pcs_tb.dut.mac_to_pcs_i.data.bit_name
+@420
+top.tx_pcs_tb.dut.mac_to_pcs_i.data.polarity
+top.tx_pcs_tb.dut.mac_to_pcs_i.valid
+@1000200
+-MAC_to_PCS
+-DUT
 [pattern_trace] 1
 [pattern_trace] 0

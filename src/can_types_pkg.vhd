@@ -366,11 +366,14 @@ package can_types_pkg is
   type pcs_to_mac_if_t is record
     -- PCS_Data.Indicate service (ISO 7.2.3)
     bus_polarity : polarity_t; -- Current bus polarity (continuously driven)
-    sp           : std_logic;  -- Sample Point strobe (pulse: MAC samples polarity at SP)
-    ssp          : std_logic;  -- Secondary Sample Point strobe (pulse: MAC samples polarity at SSP)
+    -- Effective sample strobe selected by PCS timing rules:
+    -- nominal/arbitration fields use SP; FD data-field monitoring may use SSP.
+    sample_strobe : std_logic;
 
     -- TDC measurement results (ISO 7.3.4)
-    fifo_index : integer range 0 to transmitted_bits_fifo_depth_c - 1; -- FIFO index for bit comparison
+    -- Effective FIFO index for sample_strobe-aligned comparison.
+    -- Nominal/arbitration fields use index 0.
+    fifo_index : integer range 0 to transmitted_bits_fifo_depth_c - 1;
   end record pcs_to_mac_if_t;
 
   type mac_fsm_to_bs_fd_if_t is record
@@ -520,25 +523,23 @@ package can_types_pkg is
     data   : std_logic_vector(max_data_bytes_c * 8 - 1 downto 0); -- Max 64 bytes
   end record llc_frame_t;
 
-  -- LLC user -> tx_llc interface (frame + request/confirm handshake)
+  -- LLC user -> tx_llc interface (Avalon-ST frame stream + control)
   type llc_user_to_llc_if_t is record
-    frame         : llc_frame_t;
-    tx_request    : std_logic; -- Pulse: request transmission
-    abort_request : std_logic; -- Pulse: abort pending transmission
+    avalon_st_source : avalon_st_source_t;
+    abort_request    : std_logic; -- Pulse: abort pending transmission
   end record llc_user_to_llc_if_t;
 
-  -- tx_llc -> LLC user interface
+  -- tx_llc -> LLC user interface (Avalon-ST backpressure + status)
   type llc_to_llc_user_if_t is record
+    avalon_st_sink  : avalon_st_sink_t; -- ready='1' when LLC can accept input bytes
     transfer_status : transfer_status_t; -- Current status
-    tx_ready        : std_logic;         -- '1' = LLC can accept new frame
   end record llc_to_llc_user_if_t;
 
   -- tx_llc FSM states
   type tx_llc_state_t is (
-    idle,            -- Waiting for tx_request
-    send_config_0,   -- Streaming config byte 0 (sop='1')
-    send_config_1,   -- Streaming config byte 1
-    send_data,       -- Streaming data bytes
+    idle,            -- Waiting for user SOP
+    capture_frame,   -- Capturing full user frame into LLC buffer
+    send_frame,      -- Streaming buffered frame to MAC
     wait_for_result, -- Waiting for MAC transfer_status
     wait_for_idle    -- Waiting for bus idle before re-arbitration/retransmission
   );

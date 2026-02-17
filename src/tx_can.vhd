@@ -37,7 +37,9 @@ entity tx_can is
     data_prop_seg        : integer := 4;
     data_phase_seg1      : integer := 4;
     data_phase_seg2      : integer := 4;
-    ssp_offset           : ssp_offset := 4 
+    ssp_offset_cfg       : work.can_types_pkg.ssp_offset := 4;
+    system_clock_freq_hz : integer := 100_000_000;
+    pcs_to_pma_propagation_delay_ns : integer := 600
   );
   port (
     clk : in    std_logic;
@@ -115,7 +117,9 @@ begin
       data_prop_seg        => data_prop_seg,
       data_phase_seg1      => data_phase_seg1,
       data_phase_seg2      => data_phase_seg2,
-      ssp_offset           => ssp_offset
+      ssp_offset           => ssp_offset_cfg,
+      system_clock_freq_hz => system_clock_freq_hz,
+      pcs_to_pma_propagation_delay_ns => pcs_to_pma_propagation_delay_ns
     )
     port map (
       clk          => clk,

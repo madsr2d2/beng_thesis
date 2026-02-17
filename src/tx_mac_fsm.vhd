@@ -1,27 +1,3 @@
---------------------------------------------------------------------------------
--- Title      : CAN MAC Transmit FSM
--- Project    : CAN Bus Transmitter
---------------------------------------------------------------------------------
--- File       : tx_mac_fsm.vhd
--- Standard   : VHDL-2008
---------------------------------------------------------------------------------
--- Description: Central coordinator for CAN frame transmission. Bridges:
---   - tx_mac_ser (serializer): provides raw data as polarity_t + frame_params
---   - bit_stuffer_fd: detects stuff bits, outputs SBC (Gray+parity encoded)
---   - tx_pcs (physical layer): transmits bits with correct timing
---
--- PCS synchronization model:
---   The FSM always keeps the NEXT bit prepared on pcs_o.frame_bit.
---   PCS latches frame_bit at each bit boundary and pulses sp.
---   On sp: the prepared bit has been sampled; FSM pushes it to FIFO
---   and prepares the next bit.
---
--- Design notes:
---   - Stuff bit detection is delegated to bit_stuffer_fd (single responsibility).
---     The FSM reads stuff_bit_valid (level) to decide what to prepare next.
---   - Circular buffer FIFO: only 1 entry written per push (O(1) vs O(n) shift).
---   - SP strobe handling consolidated into a single block per state.
---------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;
@@ -32,8 +8,8 @@ library ieee;
 
 entity tx_mac_fsm is
   port (
-    clk : in    std_logic;
-    rst : in    std_logic;
+    clk_i : in    std_logic;
+    rst_i : in    std_logic;
 
     -- Serializer interface
     mac_ser_i : in    tx_mac_ser_to_fsm_if_t;
@@ -47,6 +23,10 @@ entity tx_mac_fsm is
     bs_fd_i : in    bs_fd_to_mac_fsm_if_t;
     bs_fd_o : out   mac_fsm_to_bs_fd_if_t;
 
+    -- CRC interface
+    crc_i : in    crc_to_mac_fsm_if_t;
+    crc_o : out   mac_fsm_to_crc_if_t;
+
     -- Fault Confinement Entity interface (ISO 11898-1 Table 16/17)
     fce_i : in    fce_to_mac_if_t;
     fce_o : out   mac_to_fce_if_t
@@ -55,379 +35,432 @@ end entity tx_mac_fsm;
 
 architecture rtl of tx_mac_fsm is
 
-  -- FSM state register
-  signal mac_state : tx_mac_fsm_state_t; -- TODO: We need a waiting_on_bus_idle state. The fsm should enter this state when in has lost arbitration or completed a frame/error flag
-  -- TODO: Or maybe better an bus_is_idle process that sets the bus_is_idle flag when the bus has been observed idle.
-
-  -- Shared counter: frame bit position during transmitting, error/delimiter bit count otherwise
-  signal bit_count : integer range 0 to max_mac_frame_length_c;
-
-  -- Transmitted bits circular FIFO for bus monitoring
-  signal transmitted_bits_fifo : transmitted_bits_fifo_t;
-  signal fifo_write_ptr        : fifo_write_ptr_t;
-
-  -- Previous polarity for stuff bit context
-  signal previous_polarity : polarity_t;
-
-  -- CRC register (placeholder zeros — CRC module not yet implemented)
-  signal crc_reg : crc_vector_t;
-
-  -- SBC from bit stuffer
-  signal sbc_reg : sbc_t;
-
-  -- ACK received flag
-  signal ack_received : boolean;
-
-  -- Prepared bit: the next bit sitting on pcs_o.frame_bit waiting to be consumed
-  signal prepared_bit : mac_frame_bit_t;
-  signal bit_prepared : boolean;
-
-  -- Flag to detect EOF was the last prepared bit (check after PCS consumes it)
-  signal eof_pending : boolean;
+  signal bit_count                     : bit_count_t;
+  signal state                         : tx_mac_fsm_state_t;
+  signal next_state                    : tx_mac_fsm_state_t;
+  signal fifo                          : transmitted_bits_fifo_t;
+  signal fifo_write_ptr                : fifo_write_ptr_t;
+  signal last_transmitted_bit_polarity : polarity_t;
+  signal monitored_bit_event           : tx_mac_monitor_event_t;
+  signal was_previous_frame_tx         : boolean;
+  signal ack_success_seen              : boolean;
+  signal bit_count_monitored           : boolean;
+  signal prev_state                    : tx_mac_fsm_state_t;
+  signal overload_condition            : boolean;
 
 begin
 
-  p_mac_fsm : process (clk) is
+  next_state_logic : process (all) is
 
-    variable frame_bit_v   : mac_frame_bit_t;
-    variable observation_v : observed_mac_frame_bit_info_t;
-    variable fifo_v        : transmitted_bits_fifo_t;
-    variable write_ptr_v   : fifo_write_ptr_t;
+    -- Guards
+    variable bus_is_idle_v                : boolean;
+    variable intermission_ended_v         : boolean;
+    variable must_suspend_transmission_v  : boolean;
+    variable suspend_transmission_ended_v : boolean;
+    variable error_detected_v             : boolean;
+    variable frame_transmitted_v          : boolean;
+    variable error_flag_ended_v           : boolean;
 
   begin
 
-    if rising_edge(clk) then
-      if (rst = '1') then
-        mac_state             <= bus_idle;
-        bit_count             <= 0;
-        transmitted_bits_fifo <= fifo_init;
-        fifo_write_ptr        <= 0;
-        previous_polarity     <= dominant;
-        crc_reg               <= (others => '0');
-        sbc_reg               <= (others => '0');
-        ack_received          <= false;
-        bit_prepared          <= false;
-        prepared_bit          <= (polarity => unknown, bit_name => unknown);
-        eof_pending           <= false;
+    if (rst_i = '1') then
+      next_state <= bus_reintegration;
+    else
+      -- Evaluate guards
+      bus_is_idle_v                := (bit_count = bus_idle_condition_width_c - 1);
+      intermission_ended_v         := (bit_count = intermission_width_c - 1);
+      must_suspend_transmission_v  := fce_i.error_passive and was_previous_frame_tx; -- ISO 11898-1 6.6.7.4
+      suspend_transmission_ended_v := (bit_count = suspend_transmission_width_c - 1);
+      error_detected_v             := (monitored_bit_event = bit_error or monitored_bit_event = ack_error);
+      frame_transmitted_v          := bit_count = mac_ser_i.frame_params.eof_stop;
+      error_flag_ended_v           := bit_count = error_flag_width_c + error_delimiter_width_c - 1;
 
-        mac_ser_o.transfer_status <= ongoing;
-        mac_ser_o.ready           <= '0';
+      -- Default
+      next_state <= state;
 
-        pcs_o.frame_bit    <= (polarity => unknown, bit_name => unknown);
-        pcs_o.data_request <= '0';
+    end if;
 
-        bs_fd_o.data        <= dominant;
-        bs_fd_o.data_valid  <= '0';
-        bs_fd_o.frame_reset <= '0';
+    -- Next logic FSM
+    case state is
+      when bus_reintegration =>
+        if (bus_is_idle_v) then
+          next_state <= bus_idle;
+        end if;
 
-        fce_o.transmitting             <= '0';
-        fce_o.error                    <= '0';
-        fce_o.primary_error            <= '0';
-        fce_o.sending_error_flag       <= '0';
-        fce_o.counters_unchanged       <= '0';
-        fce_o.error_delimiter_too_late <= '0';
-        fce_o.successful_transfer      <= '0';
+      when intermission =>
+        if (overload_condition) then
+          next_state <= transmitting_overload_flag;
+        elsif (intermission_ended_v) then
+          if (must_suspend_transmission_v) then
+            next_state <= suspend_transmission;
+          else
+            next_state <= bus_idle;
+          end if;
+        end if;
+
+      when suspend_transmission =>
+        if (suspend_transmission_ended_v) then
+          next_state <= bus_idle;
+        end if;
+
+      when bus_idle =>
+        if (mac_ser_i.valid) then
+          next_state <= transmitting_frame;
+        end if;
+
+      when transmitting_frame =>
+        if (monitored_bit_event = lost_arbitration) then
+          next_state <= intermission;
+        elsif (error_detected_v) then
+          next_state <= transmitting_error_flag;
+        elsif (frame_transmitted_v) then
+          next_state <= intermission;
+        end if;
+
+      when transmitting_error_flag | transmitting_overload_flag =>
+        if (overload_condition) then
+          next_state <= transmitting_overload_flag;
+        elsif (error_flag_ended_v) then
+          next_state <= intermission;
+        end if;
+
+      when others =>
+    end case;
+
+  end process next_state_logic;
+
+  output_logic : process (clk_i) is
+
+    variable next_bit_v           : mac_frame_bit_t;
+    variable monitored_bit_info_v : observed_mac_frame_bit_info_t;
+
+    -- Guards
+    variable frame_transmitted_v       : boolean;
+    variable sample_strobe_detected_v  : boolean;
+    variable error_sequence_complete_v : boolean;
+    variable state_entry_v             : boolean;
+
+    -- Transmit the given bit to the PCS, bit stuffer, CRC module, and FIFO as appropriate.
+    procedure transmit_bit (
+      bit : in mac_frame_bit_t
+    ) is
+
+      -- Guards
+      variable serializer_sourced_v : boolean;
+      variable crc_eligible_v       : boolean;
+
+    begin
+
+      serializer_sourced_v := bit.bit_name = base_id_bit or
+                              bit.bit_name = extended_id_bit or
+                              bit.bit_name = data_bit;
+      crc_eligible_v       := bit_count < mac_ser_i.frame_params.crc_start and
+                              bit.bit_name /= fixed_stuff_bit;
+
+      -- Send the bit to the PCS
+      pcs_o.valid <= true;
+      pcs_o.data  <= bit;
+
+      -- Send bit to bit stuffer
+      if (bit_count < mac_ser_i.frame_params.crc_stop) then
+        bs_fd_o.valid <= true;
+        bs_fd_o.data  <= bit.polarity;
       else
-        -- Defaults: clear one-shot signals
-        mac_ser_o.ready     <= '0';
-        bs_fd_o.data_valid  <= '0';
-        bs_fd_o.frame_reset <= '0';
+        bs_fd_o.valid <= false;
+      end if;
 
-        fce_o.error                    <= '0';
-        fce_o.primary_error            <= '0';
-        fce_o.counters_unchanged       <= '0';
-        fce_o.error_delimiter_too_late <= '0';
-        fce_o.successful_transfer      <= '0';
+      -- Push the bit to the fifo
+      fifo_write(fifo => fifo, fifo_write_ptr=> fifo_write_ptr, next_bit => bit);
 
-        sbc_reg <= bs_fd_i.sbc;
+      -- Update last_transmitted_bit_polarity
+      last_transmitted_bit_polarity <= bit.polarity;
 
-        case mac_state is
+      if (bit.bit_name /= stuff_bit) then
+        bit_count           <= bit_count + 1;
+        bit_count_monitored <= false;
+        if (serializer_sourced_v) then
+          mac_ser_o.ready <= true;
+        end if;
+        if (crc_eligible_v) then
+          crc_o.valid <= true;
+          crc_o.data  <= polarity_to_std_logic(bit.polarity);
+        end if;
+      end if;
 
-          -- =================================================================
-          -- IDLE
-          -- =================================================================
-          when bus_idle =>
-            bit_count             <= 0;
-            transmitted_bits_fifo <= fifo_init;
-            fifo_write_ptr        <= 0;
-            previous_polarity     <= dominant;
-            bit_prepared          <= false;
-            eof_pending           <= false;
+    end procedure transmit_bit;
 
-            ack_received              <= false;
-            crc_reg                   <= (others => '0');
-            sbc_reg                   <= (others => '0');
-            pcs_o.data_request        <= '0';
-            mac_ser_o.transfer_status <= ongoing;
-            fce_o.transmitting        <= '0';
-            fce_o.sending_error_flag  <= '0';
+    -- Apply defaults.
+    procedure apply_defaults is
+    begin
 
-            if (mac_ser_i.valid = '1') then
-              mac_state <= transmitting_frame;
+      mac_ser_o.ready           <= false;
+      mac_ser_o.transfer_status <= ongoing;
+      monitored_bit_event       <= none;
 
-              bs_fd_o.frame_reset <= '1';
+      bs_fd_o.data  <= recessive;
+      bs_fd_o.valid <= false;
+      bs_fd_o.start <= false;
 
-              -- Get SOF (bit_count=0)
-              frame_bit_v := get_next_mac_frame_bit(
-                bit_count         => 0,
-                mac_ser_to_fsm    => mac_ser_i,
-                previous_polarity => dominant,
-                sbc               => (others => '0'),
-                crc               => (others => '0')
-              );
+      crc_o.valid <= false;
+      crc_o.data  <= '0';
 
-              -- Put SOF on frame_bit for PCS to latch on idle->transmitting
-              pcs_o.frame_bit    <= frame_bit_v;
-              pcs_o.data_request <= '1';
-              prepared_bit       <= frame_bit_v;
-              previous_polarity  <= frame_bit_v.polarity;
+      fce_o.transmitting             <= '0';
+      fce_o.error                    <= '0';
+      fce_o.primary_error            <= '0';
+      fce_o.sending_error_flag       <= '0';
+      fce_o.counters_unchanged       <= '0';
+      fce_o.error_delimiter_too_late <= '0';
+      fce_o.successful_transfer      <= '0';
 
-              -- Feed SOF to bit stuffer
-              bs_fd_o.data       <= frame_bit_v.polarity;
-              bs_fd_o.data_valid <= '1';
+      overload_condition <= false;
 
-              -- Push SOF to FIFO
-              fifo_v                := fifo_init;
-              write_ptr_v           := 0;
-              fifo_write(fifo_v, write_ptr_v, frame_bit_v);
-              transmitted_bits_fifo <= fifo_v;
-              fifo_write_ptr        <= write_ptr_v;
+    end procedure apply_defaults;
 
-              bit_count    <= 1;
-              bit_prepared <= false;
+    -- Shared behavior for bus_reintegration/intermission/bus_idle.
+    procedure service_bus_quiet_state is
+    begin
 
-            end if;
+      if (state_entry_v) then
+        -- Reset bit_count
+        bit_count <= 0;
+      elsif (sample_strobe_detected_v) then
+        if (pcs_i.bus_polarity = recessive) then
+          bit_count <= bit_count + 1;
+        else
+          -- Dominant sample breaks bus-idle / intermission run length.
+          bit_count <= 0;
+        end if;
+      end if;
 
-          -- =================================================================
-          -- TRANSMITTING
-          -- =================================================================
-          when transmitting_frame =>
-            fce_o.transmitting <= '1';
+    end procedure service_bus_quiet_state;
 
-            -- ---------------------------------------------------------------
-            -- SP strobe: monitoring + FIFO push + EOF check + trigger next
-            -- ---------------------------------------------------------------
-            if (pcs_i.sp = '1') then
-              -- 1. SP monitoring (error/ACK/arbitration)
-              observation_v := get_observed_mac_frame_bit_info(
-                                                               fifo_index                  => 0,
-                                                               fifo_index  => transmitted_bits_fifo,
-                                                               fifo_write_ptr              => fifo_write_ptr,
-                                                               monitored_bit_polarity => pcs_i.bus_polarity,
-                                                               frame_params           => mac_ser_i.frame_params
-                                                             );
+    -- Emit active error/overload flag then delimiter while in error states.
+    procedure transmit_error_flag is
+    begin
 
-              case observation_v.event_type is
-                when bit_error =>
-                  mac_state   <= transmitting_error_flag;
-                  bit_count   <= 0;
-                  fce_o.error <= '1';
-                when lost_arbitration =>
-                  mac_ser_o.transfer_status <= lost_arbitration;
-                  mac_state                 <= bus_idle;
-                when ack_detected =>
-                  ack_received <= true;
-                when ack_error =>
-                  mac_state   <= transmitting_error_flag;
-                  bit_count   <= 0;
-                  fce_o.error <= '1';
-                when none =>
-                  null;
-              end case;
+      fce_o.transmitting        <= '1';
+      fce_o.sending_error_flag  <= '1';
+      fce_o.error               <= '1';
+      mac_ser_o.transfer_status <= disturbed;
+      pcs_o.valid               <= true;
 
-              -- 2. Push consumed bit to FIFO
-              fifo_v                := transmitted_bits_fifo;
-              write_ptr_v           := fifo_write_ptr;
-              fifo_write(fifo_v, write_ptr_v, prepared_bit);
-              transmitted_bits_fifo <= fifo_v;
-              fifo_write_ptr        <= write_ptr_v;
+      if (state_entry_v) then
+        bit_count <= 0;
+      else
+        if (bit_count < error_flag_width_c) then
+          next_bit_v := active_error_flag_bit_c;
+        else
+          next_bit_v := error_delimiter_bit_c;
+        end if;
 
-              -- 3. EOF completion check
-              if (eof_pending) then
-                if (ack_received) then
-                  mac_ser_o.transfer_status <= transmitted;
-                  fce_o.successful_transfer <= '1';
-                else
-                  mac_ser_o.transfer_status <= disturbed;
-                end if;
-                pcs_o.data_request <= '0';
-                mac_state          <= bus_idle;
-              end if;
+        pcs_o.data <= next_bit_v;
 
-              -- 4. Trigger prepare of next bit
-              bit_prepared <= false;
-            end if;
+        if (sample_strobe_detected_v and not error_sequence_complete_v) then
+          bit_count <= bit_count + 1;
+        end if;
+      end if;
 
-            -- ---------------------------------------------------------------
-            -- SSP monitoring (data phase with TDC)
-            -- ---------------------------------------------------------------
-            if (pcs_i.ssp = '1') then
-              observation_v := get_observed_mac_frame_bit_info(
-                                                               fifo_index                  => pcs_i.fifo_index,
-                                                               fifo_index  => transmitted_bits_fifo,
-                                                               fifo_write_ptr              => fifo_write_ptr,
-                                                               monitored_bit_polarity => pcs_i.bus_polarity,
-                                                               frame_params           => mac_ser_i.frame_params
-                                                             );
+    end procedure transmit_error_flag;
 
-              if (observation_v.event_type = bit_error) then
-                mac_state   <= transmitting_error_flag;
-                bit_count   <= 0;
-                fce_o.error <= '1';
-              end if;
-            end if;
+    -- Monitor the bus, react to events, and transmit the next bit on each strobe.
+    procedure service_sample_strobe is
+    begin
 
-            -- ---------------------------------------------------------------
-            -- Prepare next bit (runs once after idle transition or SP strobe)
-            -- Checks bit_stuffer_fd for stuff bit requirement
-            -- ---------------------------------------------------------------
-            if (not bit_prepared and not eof_pending) then
-              if (bs_fd_i.stuff_bit_valid = '1') then
-                -- STUFF BIT: bit stuffer detected 5 consecutive same-polarity
-                frame_bit_v := (polarity => bs_fd_i.stuff_bit, bit_name => stuff_bit);
+      -- Monitor bus once per bit position.
+      if (not bit_count_monitored) then
+        monitored_bit_info_v      := get_observed_mac_frame_bit_info(
+                                                                     fifo => fifo, fifo_index => pcs_i.fifo_index,
+                                                                     fifo_write_ptr => fifo_write_ptr,
+                                                                     monitored_bit_polarity => pcs_i.bus_polarity,
+                                                                     frame_params => mac_ser_i.frame_params
+                                                                   );
+        mac_ser_o.transfer_status <= monitored_bit_info_v.transfer_status;
+        monitored_bit_event       <= monitored_bit_info_v.event_type;
+        bit_count_monitored       <= true;
+      else
+        monitored_bit_info_v.event_type := none;
+      end if;
 
-                pcs_o.frame_bit   <= frame_bit_v;
-                prepared_bit      <= frame_bit_v;
-                previous_polarity <= frame_bit_v.polarity;
-                bit_prepared      <= true;
+      -- React to monitored event.
+      case monitored_bit_info_v.event_type is
+        when lost_arbitration =>
+          was_previous_frame_tx <= false;
 
-                -- Feed stuff bit back to bit stuffer (resets its counter)
-                bs_fd_o.data       <= bs_fd_i.stuff_bit;
-                bs_fd_o.data_valid <= '1';
+        when ack_detected =>
+          was_previous_frame_tx <= true;
+          ack_success_seen      <= true;
 
-              else
-                -- REAL FRAME BIT
-                frame_bit_v := get_next_mac_frame_bit(
-                                                      bit_count         => bit_count,
-                                                      mac_ser_to_fsm    => mac_ser_i,
-                                                      previous_polarity => previous_polarity,
-                                                      sbc               => sbc_reg,
-                                                      crc               => crc_reg
-                                                    );
+        when bit_error =>
+          was_previous_frame_tx     <= true;
+          fce_o.error               <= '1';
+          mac_ser_o.transfer_status <= disturbed;
 
-                pcs_o.frame_bit   <= frame_bit_v;
-                prepared_bit      <= frame_bit_v;
-                previous_polarity <= frame_bit_v.polarity;
+        when none =>
+          -- ISO 11898-1 6.6.21.2 e): no dominant level in ACK slot is ACK error.
+          if (bit_count = mac_ser_i.frame_params.ack_delimiter and (not ack_success_seen)) then
+            mac_ser_o.transfer_status <= disturbed;
+            monitored_bit_event       <= ack_error;
+            was_previous_frame_tx     <= true;
+          elsif (bs_fd_i.valid and bit_count < mac_ser_i.frame_params.crc_stop) then
+            next_bit_v := (polarity => bs_fd_i.data, bit_name => stuff_bit);
+            transmit_bit(next_bit_v);
+          else
+            next_bit_v := get_next_mac_frame_bit(
+                                                 bit_count => bit_count,
+                                                 mac_ser_to_fsm => mac_ser_i,
+                                                 previous_polarity => last_transmitted_bit_polarity,
+                                                 sbc => bs_fd_i.sbc,
+                                                 crc => crc_i.crc
+                                               );
+            transmit_bit(next_bit_v);
+          end if;
 
-                -- Feed to bit stuffer for consecutive tracking
-                bs_fd_o.data       <= frame_bit_v.polarity;
-                bs_fd_o.data_valid <= '1';
+        when others =>
+          null;
 
-                -- Only consume serializer data for data field
-                if (frame_bit_v.bit_name = data_bit) then
-                  mac_ser_o.ready <= '1';
-                end if;
+      end case;
 
-                bit_count    <= bit_count + 1;
-                bit_prepared <= true;
+    end procedure service_sample_strobe;
 
-                -- Mark EOF pending (frame complete after PCS consumes last EOF bit)
-                if (bit_count >= mac_ser_i.frame_params.eof_stop - 1) then
-                  eof_pending <= true;
-                end if;
+    -- One-time initialization when a new frame transmission begins.
+    procedure initialize_frame_transmission is
 
-              end if;
-            end if;
+      variable data_length_v : integer;
+      variable crc_length_v  : integer;
 
-          -- =================================================================
-          -- ERROR FLAG
-          -- =================================================================
-          when transmitting_error_flag =>
-            fce_o.transmitting       <= '1';
-            fce_o.sending_error_flag <= '1';
+    begin
 
-            if (fce_i.error_passive = '1') then
-              pcs_o.frame_bit <= passive_error_flag_bit_c;
-            else
-              pcs_o.frame_bit <= active_error_flag_bit_c;
-            end if;
-            pcs_o.data_request <= '1';
+      bit_count           <= 0;
+      fifo                <= fifo_init;
+      fifo_write_ptr      <= 0;
+      ack_success_seen    <= false;
+      bit_count_monitored <= false;
+      bs_fd_o.start       <= true;
 
-            if (pcs_i.sp = '1' and fce_i.error_passive = '0' and pcs_i.bus_polarity = dominant) then
-              fce_o.primary_error <= '1';
-            end if;
+      -- Select CRC polynomial based on frame format and data length.
+      data_length_v := dlc_to_data_length(
+                                          dlc_t(to_integer(unsigned(mac_ser_i.frame_params.dlc_vector))),
+                                          mac_ser_i.frame_params.format
+                                        );
+      crc_length_v  := get_crc_length(mac_ser_i.frame_params.format, data_length_v);
 
-            if (pcs_i.sp = '1') then
-              if (bit_count >= error_flag_width_c - 1) then
-                bit_count <= 0;
-                mac_state <= error_delimiter;
-              else
-                bit_count <= bit_count + 1;
-              end if;
-            end if;
+      case crc_length_v is
+        when crc_15_length_c =>
+          crc_o.crc_poly_select <= "00";
+        when crc_17_length_c =>
+          crc_o.crc_poly_select <= "01";
+        when crc_21_length_c =>
+          crc_o.crc_poly_select <= "10";
+        when others =>
+          crc_o.crc_poly_select <= "11";
+      end case;
 
-          -- =================================================================
-          -- ERROR DELIMITER
-          -- =================================================================
-          when error_delimiter =>
-            fce_o.transmitting       <= '1';
-            fce_o.sending_error_flag <= '0';
-            pcs_o.frame_bit          <= error_delimiter_bit_c;
-            pcs_o.data_request       <= '1';
+    end procedure initialize_frame_transmission;
 
-            if (pcs_i.sp = '1' and pcs_i.bus_polarity = dominant) then
-              fce_o.error_delimiter_too_late <= '1';
-            end if;
+    -- Apply reset values to all signals and outputs.
+    procedure apply_reset is
+    begin
 
-            if (pcs_i.sp = '1') then
-              if (bit_count >= error_delimiter_width_c - 1) then
-                bit_count <= 0;
-                mac_state <= intermission;
-              else
-                bit_count <= bit_count + 1;
-              end if;
-            end if;
+      state          <= bus_reintegration;
+      bit_count      <= 0;
+      fifo_write_ptr <= 0;
+      fifo           <= fifo_init;
+      next_bit_v     := reset_mac_frame_bit_c;
+      -- TODO: We are missing this reset type
+      -- observed_bit_info_v           := reset_observed_mac_frame_bit_info_c;
+      last_transmitted_bit_polarity <= pcs_i.bus_polarity;
+      monitored_bit_event           <= none;
+      was_previous_frame_tx         <= false;
+      ack_success_seen              <= false;
+      bit_count_monitored           <= false;
+      prev_state                    <= bus_reintegration;
+      overload_condition            <= false;
 
-          -- =================================================================
-          -- INTERMISSION
-          -- =================================================================
+      pcs_o.valid <= false;
+      pcs_o.data  <= reset_mac_frame_bit_c;
+
+      mac_ser_o.ready           <= false;
+      mac_ser_o.transfer_status <= ongoing;
+
+      bs_fd_o.data  <= recessive;
+      bs_fd_o.valid <= false;
+      bs_fd_o.start <= false;
+
+      crc_o.valid           <= false;
+      crc_o.data            <= '0';
+      crc_o.crc_poly_select <= "00";
+
+      fce_o.transmitting             <= '0';
+      fce_o.error                    <= '0';
+      fce_o.primary_error            <= '0';
+      fce_o.sending_error_flag       <= '0';
+      fce_o.counters_unchanged       <= '0';
+      fce_o.error_delimiter_too_late <= '0';
+      fce_o.successful_transfer      <= '0';
+
+    end procedure apply_reset;
+
+  begin
+
+    -- Output logic FSM
+    if rising_edge(clk_i) then
+      if (rst_i = '1') then
+        -- Set reset values.
+        apply_reset;
+      else
+        -- Evaluate guards.
+        frame_transmitted_v       := bit_count = mac_ser_i.frame_params.eof_stop;
+        sample_strobe_detected_v  := pcs_i.sample_strobe = '1';
+        error_sequence_complete_v := bit_count >= error_flag_width_c + error_delimiter_width_c - 1;
+        state_entry_v             := prev_state /= state;
+
+        -- Update states.
+        prev_state <= state;
+        state      <= next_state;
+
+        -- Set defaults.
+        apply_defaults;
+
+        case state is
+          when bus_reintegration | bus_idle =>
+            service_bus_quiet_state;
+
           when intermission =>
-            fce_o.transmitting       <= '1';
-            fce_o.sending_error_flag <= '0';
-            pcs_o.frame_bit          <= intermission_bit_c;
-            pcs_o.data_request       <= '1';
-
-            if (pcs_i.sp = '1') then
-              if (bit_count >= intermission_width_c - 1) then
-                if (fce_i.error_passive = '1') then
-                  bit_count <= 0;
-                  mac_state <= suspend_transmission;
-                else
-                  mac_ser_o.transfer_status <= disturbed;
-                  pcs_o.data_request        <= '0';
-                  mac_state                 <= bus_idle;
-                end if;
-              else
-                bit_count <= bit_count + 1;
-              end if;
+            service_bus_quiet_state;
+            -- Reactive overload: dominant during first 2 bits of intermission (ISO 6.6.21.3.2 b1)
+            if (sample_strobe_detected_v and not state_entry_v
+                and bit_count < 2 and pcs_i.bus_polarity = dominant) then
+              overload_condition <= true;
             end if;
 
-          -- =================================================================
-          -- SUSPEND TRANSMISSION
-          -- =================================================================
-          when suspend_transmission =>
-            fce_o.transmitting       <= '1';
-            fce_o.sending_error_flag <= '0';
-            pcs_o.frame_bit          <= intermission_bit_c;
-            pcs_o.data_request       <= '1';
+          when transmitting_frame =>
+            -- Inform PCS and FCE that a frame is being transmitted.
+            fce_o.transmitting <= '1';
+            pcs_o.valid        <= true;
 
-            if (pcs_i.sp = '1') then
-              if (bit_count >= suspend_transmission_width_c - 1) then
-                mac_ser_o.transfer_status <= disturbed;
-                pcs_o.data_request        <= '0';
-                mac_state                 <= bus_idle;
-              else
-                bit_count <= bit_count + 1;
-              end if;
+            if (state_entry_v) then
+              initialize_frame_transmission;
+            elsif (frame_transmitted_v) then
+              mac_ser_o.transfer_status <= transmitted;
+              was_previous_frame_tx     <= true;
+              fce_o.successful_transfer <= '1';
+            elsif (sample_strobe_detected_v) then
+              service_sample_strobe;
+            end if;
+
+          when transmitting_error_flag | transmitting_overload_flag =>
+            transmit_error_flag;
+            -- Reactive overload: dominant at last bit of delimiter (ISO 6.6.21.3.2 b2)
+            if (sample_strobe_detected_v and error_sequence_complete_v
+                and pcs_i.bus_polarity = dominant) then
+              overload_condition <= true;
             end if;
 
           when others =>
-            mac_state <= bus_idle;
-
         end case;
       end if;
     end if;
 
-  end process p_mac_fsm;
+  end process output_logic;
 
 end architecture rtl;

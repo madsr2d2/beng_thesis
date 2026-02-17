@@ -7,7 +7,7 @@
 --------------------------------------------------------------------------------
 -- Description: Top-level MAC transmitter wrapper. Instantiates and wires:
 --   - tx_mac_ser:    LLC byte serializer (LLC → polarity_t stream)
---   - tx_mac_fsm_v2: Frame transmission FSM (coordinator)
+--   - tx_mac_fsm: Frame transmission FSM (coordinator)
 --   - bit_stuffer_fd: CAN FD bit stuffing with SBC generation
 --   - crc_fd: CRC engine interface
 --
@@ -73,10 +73,10 @@ begin
     );
 
   -- =========================================================================
-  -- tx_mac_fsm_v2: Frame transmission FSM
+  -- tx_mac_fsm: Frame transmission FSM
   -- Coordinates serializer, bit stuffer, and PCS
   -- =========================================================================
-  tx_mac_fsm_inst : entity work.tx_mac_fsm_v2
+  tx_mac_fsm_inst : entity work.tx_mac_fsm
     port map (
       clk_i     => clk,
       rst_i     => rst,
