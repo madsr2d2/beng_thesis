@@ -350,13 +350,24 @@ begin
 
     end procedure transmit_stuff_bit;
 
-    -- Handle transmission of standard protocol bits
+    -- Pre-computes the bit at (bit_count + 1) for registered output alignment.
+    -- After registration in state_update, pcs_o.data holds the correct bit for
+    -- the upcoming bit time. All position checks within this procedure use
+    -- prepare_position_v (= bit_count + 1), NOT bit_count.
+    --
+    -- Contrast with transmit_stuff_bit and transmit_frame_bit which operate
+    -- at the current bit_count (the position on the wire being monitored).
     procedure transmit_normal_bit is
+
+      variable prepare_position_v : bit_count_t;
+
     begin
+
+      prepare_position_v := bit_count + 1;
 
       -- Calculate NEXT position for registered output alignment
       next_bit_v := get_next_mac_frame_bit(
-                                           bit_count         => bit_count + 1,
+                                           bit_count         => prepare_position_v,
                                            mac_ser_to_fsm    => mac_ser_i,
                                            previous_polarity => last_transmitted_bit_polarity,
                                            sbc               => bs_fd_i.sbc,
@@ -380,7 +391,7 @@ begin
 
       -- Increment logical bit counter on non-stuff bits
       if (next_bit_v.bit_name /= stuff_bit) then
-        next_bit_count <= bit_count + 1;
+        next_bit_count <= prepare_position_v;
 
         -- Request data from serializer for data-driven fields
         serializer_sourced_v := next_bit_v.bit_name = base_id_bit or
@@ -391,7 +402,7 @@ begin
         end if;
 
         -- ISO 11898-1: 10.6.3 - Logical bits fed to CRC
-        crc_cc_eligible_v := (bit_count + 1) < mac_ser_i.frame_params.crc_start and
+        crc_cc_eligible_v := prepare_position_v < mac_ser_i.frame_params.crc_start and
                              next_bit_v.bit_name /= fixed_stuff_bit;
         if (crc_cc_eligible_v) then
           next_crc_o.valid <= true;
@@ -399,10 +410,17 @@ begin
         end if;
       end if;
 
-      -- Feed bit stuffer
-      if (dynamic_stuff_eligible_v) then
-        next_bs_fd_o.valid <= true;
-        next_bs_fd_o.data  <= next_bit_v.polarity;
+      -- Feed bit stuffer (prepare_position_v: the bit being prepared is within the dynamic stuff region)
+      if (mac_ser_i.frame_params.is_fd_frame) then
+        if (prepare_position_v < mac_ser_i.frame_params.sbc_start) then
+          next_bs_fd_o.valid <= true;
+          next_bs_fd_o.data  <= next_bit_v.polarity;
+        end if;
+      else
+        if (prepare_position_v < mac_ser_i.frame_params.crc_stop) then
+          next_bs_fd_o.valid <= true;
+          next_bs_fd_o.data  <= next_bit_v.polarity;
+        end if;
       end if;
 
     end procedure transmit_normal_bit;
@@ -511,7 +529,7 @@ begin
           if (not error_sequence_complete_v) then
             next_bit_count <= bit_count + 1;
 
-            -- ISO 11898-1: 12.1.4.3 - Primary error: dominant detected during error flag
+            -- ISO 11898-1: 8.1.3.3 Table 16 - Primary error: dominant detected during error flag
             if (bit_count < error_flag_width_c and pcs_i.bus_polarity = dominant) then
               next_fce_o.primary_error <= true;
             end if;
@@ -525,7 +543,7 @@ begin
           -- ISO 11898-1: 12.1.4.3 - Error delimiter too late (8+ dominant bits)
           if (bit_count >= error_flag_width_c) then
             if (pcs_i.bus_polarity = dominant) then
-              if (dominant_run_count = 7) then
+              if (dominant_run_count = 7) then -- TODO: Add a constant for this
                 next_fce_o.error_delimiter_too_late <= true;
                 next_dominant_run_count             <= 0;
               else
