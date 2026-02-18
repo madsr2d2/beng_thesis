@@ -1,28 +1,31 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Wed Feb 18 15:39:13 2026
+[*] Wed Feb 18 22:06:24 2026
 [*]
 [dumpfile] "/home/madsr2d2/beng_thesis/sim/tx_can_tb.ghw"
-[dumpfile_mtime] "Wed Feb 18 15:13:19 2026"
-[dumpfile_size] 904385
+[dumpfile_mtime] "Wed Feb 18 22:06:05 2026"
+[dumpfile_size] 969590
 [savefile] "/home/madsr2d2/beng_thesis/gtk_wave/tx_can_tb.gtkw"
-[timestart] 75550000000
+[timestart] 436580900000
 [size] 1920 1121
 [pos] -27 -24
-*-31.656593 89995000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-26.656593 436915000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.tx_can_tb.
+[treeopen] top.tx_can_tb.debug_mac_to_pcs.
 [treeopen] top.tx_can_tb.dut.
 [treeopen] top.tx_can_tb.dut.mac_to_pcs.
 [treeopen] top.tx_can_tb.dut.mac_tx_inst.
+[treeopen] top.tx_can_tb.dut.mac_tx_inst.ser_to_fsm.
+[treeopen] top.tx_can_tb.dut.mac_tx_inst.ser_to_fsm.frame_params.
 [treeopen] top.tx_can_tb.dut.mac_tx_inst.tx_mac_fsm_inst.mac_ser_i.
 [treeopen] top.tx_can_tb.dut.mac_tx_inst.tx_mac_fsm_inst.pcs_o.
 [treeopen] top.tx_can_tb.dut.tx_llc_inst.mac_i.
 [treeopen] top.tx_can_tb.dut.tx_llc_inst.mac_o.avalon_st_source.
 [treeopen] top.tx_can_tb.dut.tx_pcs_inst.mac_to_pcs_i.
-[sst_width] 40
-[signals_width] 270
-[sst_expanded] 0
+[sst_width] 278
+[signals_width] 357
+[sst_expanded] 1
 [sst_vpaned_height] 422
 @c00200
 -TB_internals
@@ -56,21 +59,24 @@ top.tx_can_tb.current_test_id
 top.tx_can_tb.rx_bus_i
 [color] 5
 top.tx_can_tb.tx_bus_o
+@420
+top.tx_can_tb.dut.mac_tx_inst.ser_to_fsm.frame_params.format
 @800200
 -MAC_to_PCS
+@421
+top.tx_can_tb.debug_mac_to_pcs.data.bit_name
 @420
-top.tx_can_tb.dut.mac_to_pcs.data.bit_name
-top.tx_can_tb.dut.mac_to_pcs.data.polarity
-top.tx_can_tb.dut.mac_to_pcs.valid
+top.tx_can_tb.debug_mac_to_pcs.data.polarity
+top.tx_can_tb.debug_mac_to_pcs.valid
 @1000200
 -MAC_to_PCS
 @800200
 -PCS_to_MAC
-@29
-top.tx_can_tb.dut.mac_tx_inst.tx_mac_fsm_inst.pcs_i.sample_strobe
 @420
-top.tx_can_tb.dut.mac_tx_inst.tx_mac_fsm_inst.pcs_i.bus_polarity
-top.tx_can_tb.dut.mac_tx_inst.tx_mac_fsm_inst.pcs_i.fifo_index
+top.tx_can_tb.debug_pcs_to_mac.bus_polarity
+top.tx_can_tb.debug_pcs_to_mac.fifo_index
+@28
+top.tx_can_tb.debug_pcs_to_mac.sample_strobe
 @1000200
 -PCS_to_MAC
 -TB

@@ -224,14 +224,6 @@ begin
     procedure process_quiet_phases is
     begin
 
-      -- Assign semantic constant per state for waveform debugging
-      case state is
-        when intermission => next_pcs_o.data <= intermission_bit_c;
-        when suspend_transmission => next_pcs_o.data <= suspend_transmission_bit_c;
-        when bus_idle => next_pcs_o.data <= idle_bit_c;
-        when others => next_pcs_o.data <= reset_mac_frame_bit_c;
-      end case;
-
       if (state_entry_v) then
         next_bit_count <= 0;
 
@@ -255,6 +247,16 @@ begin
           next_overload_condition <= true;
         end if;
       end if;
+
+      -- Assign semantic constant per state for waveform debugging.
+      -- This override ensures the bit_name is correct for debugging even
+      -- during the cycle where the reset constant was applied.
+      case state is
+        when intermission => next_pcs_o.data <= intermission_bit_c;
+        when suspend_transmission => next_pcs_o.data <= suspend_transmission_bit_c;
+        when bus_idle => next_pcs_o.data <= idle_bit_c;
+        when others => next_pcs_o.data <= reset_mac_frame_bit_c;
+      end case;
 
       -- Reset overload chain counter when reaching bus_idle (new frame opportunity)
       if (state = bus_idle) then
@@ -453,6 +455,8 @@ begin
         when ack_detected =>
           next_was_previous_frame_tx <= true;
           next_ack_success_seen      <= true;
+          -- Fix: ensure bit counter advances to the next field (delimiter)
+          transmit_normal_bit;
 
         when bit_error =>
           next_was_previous_frame_tx     <= true;
@@ -460,8 +464,10 @@ begin
           next_mac_ser_o.transfer_status <= disturbed;
 
         when none =>
-          -- ISO 11898-1: 6.6.21.2 - ACK error detected at ACK slot; error flag starts at following bit
-          if (bit_count = mac_ser_i.frame_params.ack_slot and (not ack_success_seen)) then
+          -- ISO 11898-1: 12.1.4.3 - ACK error reported at ACK delimiter boundary.
+          -- We monitor the slot; if no dominant bit was seen by the time we reach
+          -- the delimiter index, we signal the error.
+          if (bit_count = mac_ser_i.frame_params.ack_delimiter and (not ack_success_seen)) then
             next_mac_ser_o.transfer_status <= disturbed;
             next_monitored_bit_event       <= ack_error;
             next_was_previous_frame_tx     <= true;

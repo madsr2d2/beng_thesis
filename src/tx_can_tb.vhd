@@ -62,6 +62,10 @@ architecture tb of tx_can_tb is
   signal tx_bus_o   : std_logic;
   signal rx_bus_i   : std_logic;
 
+  -- Debug signals from DUT
+  signal debug_mac_to_pcs : mac_to_pcs_if_t;
+  signal debug_pcs_to_mac : pcs_to_mac_if_t;
+
   -- Bus model control
   signal inject_ack   : boolean := true;
   signal bus_override_monitor    : std_logic := recessive_bit_c;
@@ -72,8 +76,8 @@ architecture tb of tx_can_tb is
   -- Test tracking
   signal test_done : boolean := false;
   -- Waveform marker for active test:
-  -- 0=idle/reset, 1..10=test id, 11=done.
-  signal current_test_id : integer range 0 to 11 := 0;
+  -- 0=idle/reset, 1..11=test id, 12=done.
+  signal current_test_id : integer range 0 to 12 := 0;
   signal enable_bitstream_check : boolean := false;
   signal bitstream_check_done   : boolean := false;
   constant test_idle_c : integer := 0;
@@ -87,7 +91,8 @@ architecture tb of tx_can_tb is
   constant test_8_c    : integer := 8;
   constant test_9_c    : integer := 9;
   constant test_10_c   : integer := 10;
-  constant test_done_c : integer := 11;
+  constant test_11_c   : integer := 11;
+  constant test_done_c : integer := 12;
   signal monitor_frame_params : frame_params_t := frame_params_reset_c;
 
   -- FSM state observation via VHDL-2008 external name
@@ -126,7 +131,9 @@ begin
       fce_i      => fce_i,
       fce_o      => fce_o,
       tx_bus_o   => tx_bus_o,
-      rx_bus_i   => rx_bus_i
+      rx_bus_i   => rx_bus_i,
+      debug_mac_to_pcs_o => debug_mac_to_pcs,
+      debug_pcs_to_mac_o => debug_pcs_to_mac
     );
 
   -- Bus model: loopback with optional ACK injection and test override
@@ -501,6 +508,25 @@ begin
       end loop;
       Alert(alert_id, test_name & ": bitstream checker TIMEOUT after " & time'image(timeout));
     end procedure wait_for_bitstream_check;
+
+    -- Helper: wait until bit_name reaches target with timeout
+    procedure wait_for_fsm_bit_name (
+      name      : mac_frame_bit_name_t;
+      timeout   : time;
+      test_name : string
+    ) is
+      variable start_time : time;
+    begin
+      start_time := now;
+      while (now - start_time < timeout) loop
+        wait until rising_edge(clk);
+        if (debug_mac_to_pcs.valid and debug_mac_to_pcs.data.bit_name = name) then
+          return;
+        end if;
+      end loop;
+      Alert(alert_id, test_name & ": wait_for_fsm_bit_name TIMEOUT for " & 
+            mac_frame_bit_name_t'image(name) & " at " & time'image(timeout));
+    end procedure wait_for_fsm_bit_name;
 
     -- Helper: wait until bus shows SOF (dominant) with timeout
     procedure wait_for_sof (
@@ -958,6 +984,50 @@ begin
     AffirmIf(alert_id,
       llc_user_o.avalon_st_sink.ready = '1',
       "Test 10: tx_ready high after recovery");
+
+    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+
+    -- =======================================================================
+    -- Test 11: FD Overlapping ACK (dominant during delimiter only)
+    -- ISO 11898-1: 6.6.11.6
+    -- =======================================================================
+    current_test_id <= test_11_c;
+    Log(alert_id, "Test 11: FD Overlapping ACK slot (dominant during delimiter only)");
+    
+    -- Turn off automatic ACK injection
+    inject_ack <= false; 
+    
+    setup_default_frame(frame_v);
+    frame_v.format := fd_basic;
+    wait until rising_edge(clk);
+    monitor_frame_params <= frame_to_params(frame_v);
+    wait until rising_edge(clk);
+
+    submit_frame(frame_v);
+
+    -- Wait for the sample strobe of the bit BEFORE the delimiter (ACK slot)
+    while (true) loop
+      wait until rising_edge(clk);
+      if (debug_pcs_to_mac.sample_strobe = '1') then
+        -- Wait 1 cycle for FSM to register the transition to the next bit name
+        wait until rising_edge(clk);
+        if (debug_mac_to_pcs.data.bit_name = ack_delimiter_bit) then
+          exit;
+        end if;
+      end if;
+    end loop;
+
+    -- Now we are at the very start of the ACK delimiter bit interval.
+    -- Inject dominant to simulate the FD overlapping ACK requirement.
+    bus_override_test    <= dominant_bit_c;
+    bus_override_test_en <= true;
+    
+    -- Hold for one nominal bit time
+    wait for nom_bit_time_clk_c * clk_period_c;
+    bus_override_test_en <= false;
+
+    -- Frame should complete successfully (ACK accepted from delimiter)
+    wait_for_completion(100 us, transmitted, "Test 11");
 
     wait for 20 * nom_bit_time_clk_c * clk_period_c;
 

@@ -55,7 +55,11 @@ entity tx_can is
 
     -- Physical bus interface
     tx_bus_o : out   std_logic;
-    rx_bus_i : in    std_logic
+    rx_bus_i : in    std_logic;
+
+    -- Debug interface (monitoring internal MAC/PCS handshake)
+    debug_mac_to_pcs_o : out   mac_to_pcs_if_t;
+    debug_pcs_to_mac_o : out   pcs_to_mac_if_t
   );
 end entity tx_can;
 
@@ -129,5 +133,9 @@ begin
       tx_bus_o     => tx_bus_o,
       rx_bus_i     => rx_bus_i
     );
+
+  -- Wire debug ports
+  debug_mac_to_pcs_o <= mac_to_pcs;
+  debug_pcs_to_mac_o <= pcs_to_mac;
 
 end architecture rtl;

@@ -165,12 +165,21 @@ package body can_protocol_pkg is
     -- Check for ACK bit (ISO 11898-1: 6.6.21.2)
     -- Only report positive ACK detection here. ACK error determination is deferred
     -- to the FSM at the ACK delimiter, since a later sample may still see dominant.
+    --
+    -- ISO 6.6.11.6: In FD frames, nodes shall accept an up to two bit long dominant
+    -- phase of overlapping ACK slot bits as a valid ACK.
     if (result.expected_bit.bit_name = ack_bit) then
       if (monitored_bit_polarity = dominant) then
         result.event_type      := ack_detected;
         result.transfer_status := ongoing;
       end if;
       return result;
+    elsif (frame_params.is_fd_frame and result.expected_bit.bit_name = ack_delimiter_bit) then
+      if (monitored_bit_polarity = dominant) then
+        result.event_type      := ack_detected;
+        result.transfer_status := ongoing;
+        return result;
+      end if;
     end if;
 
     -- Return if no polarity mismatch

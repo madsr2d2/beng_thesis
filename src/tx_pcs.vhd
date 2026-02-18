@@ -371,8 +371,9 @@ begin
           end if;
 
         when transmitting_data =>
-          -- Exit data phase when CRC delimiter detected (PCS derives phase from bit_name)
-          if (is_crc_delim_v) then
+          -- ISO 11898-1: 6.6.11.6 - Exit FD data phase at the sample point of the CRC delimiter bit.
+          -- The sample point itself is still part of the data phase.
+          if (is_crc_delim_v and sample_strobe = '1') then
             next_state <= transmitting_nominal;
           end if;
 
@@ -387,29 +388,32 @@ begin
   ------------------------------------------------------------------------------
   monitor_select : process (all) is
 
-    variable in_data_phase_v    : boolean;
-    variable is_data_or_stuff_v : boolean;
+    variable in_data_phase_v   : boolean;
+    variable is_ssp_required_v : boolean;
 
   begin
 
-    in_data_phase_v    := (state = transmitting_data);
-    is_data_or_stuff_v := (current_bit.bit_name = data_bit or current_bit.bit_name = stuff_bit);
+    in_data_phase_v := (state = transmitting_data);
 
-    -- Default to nominal-phase monitoring.
+    -- ISO 11898-1:2015 Section 7.3.4 - SSP is used for bit error detection in the FD data phase.
+    -- This includes ESI, DLC, Data, and the CRC sequence (logical and stuff bits).
+    is_ssp_required_v := current_bit.bit_name = data_bit or
+                         current_bit.bit_name = stuff_bit or
+                         current_bit.bit_name = fixed_stuff_bit or
+                         current_bit.bit_name = sbs_bit or
+                         current_bit.bit_name = esi_bit or
+                         current_bit.bit_name = dlc_bit or
+                         current_bit.bit_name = crc_bit;
+
+    -- Default to primary sample point.
     sample_strobe        <= sp_pulse;
     effective_fifo_index <= 0;
 
-    if (in_data_phase_v) then
-      -- ISO intent: SSP monitoring is used in FD data field only when TDC is active.
-      if (is_data_or_stuff_v) then
-        if (use_tdc_c) then
-          sample_strobe        <= ssp_pulse;
-          effective_fifo_index <= fifo_index;
-        else
-          -- No TDC: compare at primary sample point with zero additional delay.
-          sample_strobe        <= sp_pulse;
-          effective_fifo_index <= 0;
-        end if;
+    if (in_data_phase_v and use_tdc_c) then
+      if (is_ssp_required_v) then
+        -- Map the effective strobe to the secondary sample point for monitoring.
+        sample_strobe        <= ssp_pulse;
+        effective_fifo_index <= fifo_index;
       end if;
     end if;
 
@@ -458,15 +462,15 @@ begin
             end if;
 
           when transmitting_data =>
+            -- Always generate primary SP pulse at data bit rate
+            if (data_tq_tick = '1' and tq_count = data_sp_position - 1) then
+              sp_pulse <= '1';
+            end if;
+
             if (use_tdc_c) then
-              -- Generate SSP pulse once per data bit at the computed position within each bit.
+              -- Also generate SSP pulse at the computed position
               if (data_tq_tick = '1' and tq_count = ssp_position) then
                 ssp_pulse <= '1';
-              end if;
-            else
-              -- No TDC: use data-phase primary sample point.
-              if (data_tq_tick = '1' and tq_count = data_sp_position - 1) then
-                sp_pulse <= '1';
               end if;
             end if;
 
