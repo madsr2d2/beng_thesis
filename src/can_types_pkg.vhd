@@ -450,24 +450,24 @@ package can_types_pkg is
 
   -- MAC to Fault Confinement Entity interface (ISO 11898-1 Table 16/17)
   type mac_to_fce_if_t is record
-    transmitting             : std_logic; -- Node is currently transmitting
-    error                    : std_logic; -- Error detected (pulse)
-    primary_error            : std_logic; -- Dominant bit after error flag (pulse)
-    sending_error_flag       : std_logic; -- Currently sending error/overload flag
-    counters_unchanged       : std_logic; -- Exception: don't update counters
-    error_delimiter_too_late : std_logic; -- 8+ dominant bits after error flag
-    successful_transfer      : std_logic; -- Frame completed successfully (pulse)
+    transmitting             : boolean; -- Node is currently transmitting
+    error                    : boolean; -- Error detected (pulse)
+    primary_error            : boolean; -- Dominant bit after error flag (pulse)
+    sending_error_flag       : boolean; -- Currently sending error/overload flag
+    counters_unchanged       : boolean; -- Exception: don't update counters
+    error_delimiter_too_late : boolean; -- 8+ dominant bits after error flag
+    successful_transfer      : boolean; -- Frame completed successfully (pulse)
   end record mac_to_fce_if_t;
 
   constant mac_to_fce_if_reset_c : mac_to_fce_if_t :=
   (
-    transmitting             => '0',
-    error                    => '0',
-    primary_error            => '0',
-    sending_error_flag       => '0',
-    counters_unchanged       => '0',
-    error_delimiter_too_late => '0',
-    successful_transfer      => '0'
+    transmitting             => false,
+    error                    => false,
+    primary_error            => false,
+    sending_error_flag       => false,
+    counters_unchanged       => false,
+    error_delimiter_too_late => false,
+    successful_transfer      => false
   );
 
   -- Fault Confinement Entity to MAC interface

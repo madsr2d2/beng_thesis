@@ -853,7 +853,7 @@ begin
 
     -- fce_o.sending_error_flag should be asserted
     AffirmIf(alert_id,
-      fce_o.sending_error_flag = '1',
+      fce_o.sending_error_flag = true,
       "Test 9: sending_error_flag asserted during error flag transmission");
 
     -- Wait for FSM to return to bus_idle (error flag -> delimiter -> intermission -> idle)
@@ -928,7 +928,7 @@ begin
       "Test 10: FSM entered transmitting_overload_flag");
 
     AffirmIf(alert_id,
-      fce_o.sending_error_flag = '1',
+      fce_o.sending_error_flag = true,
       "Test 10: sending_error_flag asserted during overload flag transmission");
 
     -- Wait for FSM to return to bus_idle (overload flag -> intermission -> idle)
