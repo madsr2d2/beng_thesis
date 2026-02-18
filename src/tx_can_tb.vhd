@@ -17,6 +17,8 @@
 --   6. Successful FD Extended transmission
 --   7. Retransmission limit exceeded (7 attempts, no ACK)
 --   8. FD format pressure smoke (repeated FD basic/extended submissions)
+--   9. Bit error triggers error flag and retransmission
+--  10. Dominant during intermission triggers overload flag
 --------------------------------------------------------------------------------
 
 library ieee;
@@ -62,14 +64,16 @@ architecture tb of tx_can_tb is
 
   -- Bus model control
   signal inject_ack   : boolean := true;
-  signal bus_override  : std_logic := recessive_bit_c;
-  signal bus_override_en : boolean := false;
+  signal bus_override_monitor    : std_logic := recessive_bit_c;
+  signal bus_override_monitor_en : boolean := false;
+  signal bus_override_test       : std_logic := recessive_bit_c;
+  signal bus_override_test_en    : boolean := false;
 
   -- Test tracking
   signal test_done : boolean := false;
   -- Waveform marker for active test:
-  -- 0=idle/reset, 1..8=test id, 9=done.
-  signal current_test_id : integer range 0 to 9 := 0;
+  -- 0=idle/reset, 1..10=test id, 11=done.
+  signal current_test_id : integer range 0 to 11 := 0;
   signal enable_bitstream_check : boolean := false;
   signal bitstream_check_done   : boolean := false;
   constant test_idle_c : integer := 0;
@@ -81,8 +85,13 @@ architecture tb of tx_can_tb is
   constant test_6_c    : integer := 6;
   constant test_7_c    : integer := 7;
   constant test_8_c    : integer := 8;
-  constant test_done_c : integer := 9;
+  constant test_9_c    : integer := 9;
+  constant test_10_c   : integer := 10;
+  constant test_done_c : integer := 11;
   signal monitor_frame_params : frame_params_t := frame_params_reset_c;
+
+  -- FSM state observation via VHDL-2008 external name
+  signal fsm_state : tx_mac_fsm_state_t;
 
   -- Bitstream capture buffers (raw bus stream can include stuffed bits)
   constant max_raw_bits_c : integer := max_mac_frame_length_c * 2;
@@ -120,14 +129,19 @@ begin
       rx_bus_i   => rx_bus_i
     );
 
-  -- Bus model: loopback with optional ACK injection and override
-  -- rx_bus_i follows tx_bus_o (loopback) unless overridden
-  rx_bus_i <= bus_override when bus_override_en else tx_bus_o;
+  -- Bus model: loopback with optional ACK injection and test override
+  -- Test override takes priority over monitor override
+  rx_bus_i <= bus_override_test    when bus_override_test_en else
+              bus_override_monitor when bus_override_monitor_en else
+              tx_bus_o;
 
   -- FCE: error-active node (not error-passive)
   fce_i.error_passive <= false;
   transfer_status_dbg <= llc_user_o.transfer_status;
   tx_ready_dbg        <= llc_user_o.avalon_st_sink.ready;
+
+  -- VHDL-2008 external name for FSM state observation
+  fsm_state <= << signal dut.mac_tx_inst.tx_mac_fsm_inst.state : tx_mac_fsm_state_t >>;
 
   -- =========================================================================
   -- Bus Monitor Process: Tracks frame position and injects ACK
@@ -167,6 +181,10 @@ begin
 
     -- Main monitoring loop
     loop
+      -- Wait for reset release before looking for SOF
+      if (rst = '1') then
+        wait until rst = '0';
+      end if;
       -- Wait for SOF (tx_bus goes dominant from recessive idle)
       wait until tx_bus_o = dominant_bit_c and tx_bus_o'event;
 
@@ -184,7 +202,7 @@ begin
       check_this_frame_v  := enable_bitstream_check;
       ack_inject_hold_bits_v := 0;
       ack_schedule_reported_v := false;
-      bus_override_en <= false;
+      bus_override_monitor_en <= false;
 
       if (check_this_frame_v) then
         bitstream_check_done <= false;
@@ -195,15 +213,19 @@ begin
         if (raw_bit_count_v >= max_raw_bits_c) then
           exit;
         end if;
+        -- Exit for loop on reset so bus_monitor can re-sync on next SOF
+        if (rst = '1') then
+          exit;
+        end if;
         -- Apply pending ACK override for this upcoming bit interval.
         if (ack_inject_hold_bits_v > 0) then
           if (not ack_schedule_reported_v) then
             ack_schedule_reported_v := true;
           end if;
-          bus_override_en <= true;
-          bus_override    <= dominant_bit_c;
+          bus_override_monitor_en <= true;
+          bus_override_monitor    <= dominant_bit_c;
         else
-          bus_override_en <= false;
+          bus_override_monitor_en <= false;
         end if;
 
         -- Wait one nominal bit time
@@ -239,7 +261,7 @@ begin
         end if;
 
         if (ack_inject_hold_bits_v > 0) then
-          bus_override_en <= false;
+          bus_override_monitor_en <= false;
           ack_inject_hold_bits_v := ack_inject_hold_bits_v - 1;
         end if;
 
@@ -496,6 +518,25 @@ begin
       end loop;
       Alert(alert_id, test_name & ": SOF TIMEOUT after " & time'image(timeout));
     end procedure wait_for_sof;
+
+    -- Helper: wait until FSM enters target state with timeout
+    procedure wait_for_fsm_state (
+      target    : tx_mac_fsm_state_t;
+      timeout   : time;
+      test_name : string
+    ) is
+      variable start_time : time;
+    begin
+      start_time := now;
+      while (now - start_time < timeout) loop
+        wait until rising_edge(clk);
+        if (fsm_state = target) then
+          return;
+        end if;
+      end loop;
+      Alert(alert_id, test_name & ": FSM state TIMEOUT waiting for "
+        & tx_mac_fsm_state_t'image(target) & " after " & time'image(timeout));
+    end procedure wait_for_fsm_state;
 
   begin
 
@@ -761,6 +802,164 @@ begin
       wait_for_sof(140 us, "Test 8");
       wait for 10 * clk_period_c;
     end loop;
+
+    -- =======================================================================
+    -- Test 9: Bit error triggers error flag and recovery
+    -- =======================================================================
+    current_test_id <= test_9_c;
+    Log(alert_id, "Test 9: Bit error triggers error flag and recovery");
+
+    -- Reset to start clean (wide pulse so bus_monitor catches it)
+    rst <= '1';
+    wait for 2 * nom_bit_time_clk_c * clk_period_c;
+    wait until rising_edge(clk);
+    rst <= '0';
+    llc_user_i.avalon_st_source.valid <= '0';
+    llc_user_i.abort_request <= '0';
+    wait until rising_edge(clk);
+    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+
+    inject_ack <= false; -- No ACK needed; error occurs before ACK slot
+    setup_default_frame(frame_v);
+    wait until rising_edge(clk);
+    monitor_frame_params <= frame_to_params(frame_v);
+    wait until rising_edge(clk);
+
+    -- Submit CC Basic frame (DLC=1)
+    submit_frame(frame_v);
+
+    -- Wait for SOF
+    wait_for_sof(100 us, "Test 9");
+
+    -- Wait ~25 bit times to get into data field (past arbitration + control)
+    wait for 25 * nom_bit_time_clk_c * clk_period_c;
+
+    -- Inject bit error: override rx_bus with opposite polarity of tx_bus
+    -- for 1 bit time so MAC sees mismatch at sample point
+    if (tx_bus_o = dominant_bit_c) then
+      bus_override_test <= recessive_bit_c;
+    else
+      bus_override_test <= dominant_bit_c;
+    end if;
+    bus_override_test_en <= true;
+    wait for nom_bit_time_clk_c * clk_period_c;
+    bus_override_test_en <= false;
+
+    -- FSM should enter error flag state
+    wait_for_fsm_state(transmitting_error_flag, 20 us, "Test 9");
+    AffirmIf(alert_id,
+      fsm_state = transmitting_error_flag,
+      "Test 9: FSM entered transmitting_error_flag");
+
+    -- fce_o.sending_error_flag should be asserted
+    AffirmIf(alert_id,
+      fce_o.sending_error_flag = '1',
+      "Test 9: sending_error_flag asserted during error flag transmission");
+
+    -- Wait for FSM to return to bus_idle (error flag -> delimiter -> intermission -> idle)
+    wait_for_fsm_state(bus_idle, 100 us, "Test 9 recovery");
+
+    -- Reset to cleanly recover (wide pulse so bus_monitor catches it)
+    rst <= '1';
+    wait for 2 * nom_bit_time_clk_c * clk_period_c;
+    wait until rising_edge(clk);
+    rst <= '0';
+    llc_user_i.avalon_st_source.valid <= '0';
+    llc_user_i.abort_request <= '0';
+    wait until rising_edge(clk);
+    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+
+    -- Verify recovery: submit a new frame with ACK and confirm transmitted
+    inject_ack <= true;
+    setup_default_frame(frame_v);
+    wait until rising_edge(clk);
+    monitor_frame_params <= frame_to_params(frame_v);
+    wait until rising_edge(clk);
+
+    submit_frame(frame_v);
+    wait_for_completion(100 us, transmitted, "Test 9 recovery frame");
+
+    wait for 2 * clk_period_c;
+    AffirmIf(alert_id,
+      llc_user_o.avalon_st_sink.ready = '1',
+      "Test 9: tx_ready high after recovery");
+
+    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+
+    -- =======================================================================
+    -- Test 10: Dominant during intermission triggers overload flag
+    -- =======================================================================
+    current_test_id <= test_10_c;
+    Log(alert_id, "Test 10: Dominant during intermission triggers overload flag");
+
+    -- Reset to start clean (wide pulse so bus_monitor catches it)
+    rst <= '1';
+    wait for 2 * nom_bit_time_clk_c * clk_period_c;
+    wait until rising_edge(clk);
+    rst <= '0';
+    llc_user_i.avalon_st_source.valid <= '0';
+    llc_user_i.abort_request <= '0';
+    wait until rising_edge(clk);
+    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+
+    inject_ack <= true;
+    setup_default_frame(frame_v);
+    wait until rising_edge(clk);
+    monitor_frame_params <= frame_to_params(frame_v);
+    wait until rising_edge(clk);
+
+    -- Submit CC Basic frame and wait for successful completion
+    submit_frame(frame_v);
+    wait_for_completion(100 us, transmitted, "Test 10 first frame");
+
+    -- FSM enters intermission after EOF
+    wait_for_fsm_state(intermission, 20 us, "Test 10 intermission");
+
+    -- Override bus with dominant during first 2 bits of intermission
+    bus_override_test    <= dominant_bit_c;
+    bus_override_test_en <= true;
+    wait for nom_bit_time_clk_c * clk_period_c;
+    bus_override_test_en <= false;
+
+    -- FSM should enter overload flag state
+    wait_for_fsm_state(transmitting_overload_flag, 20 us, "Test 10");
+    AffirmIf(alert_id,
+      fsm_state = transmitting_overload_flag,
+      "Test 10: FSM entered transmitting_overload_flag");
+
+    AffirmIf(alert_id,
+      fce_o.sending_error_flag = '1',
+      "Test 10: sending_error_flag asserted during overload flag transmission");
+
+    -- Wait for FSM to return to bus_idle (overload flag -> intermission -> idle)
+    wait_for_fsm_state(bus_idle, 100 us, "Test 10 recovery");
+
+    -- Reset to cleanly recover before second frame (wide pulse so bus_monitor catches it)
+    rst <= '1';
+    wait for 2 * nom_bit_time_clk_c * clk_period_c;
+    wait until rising_edge(clk);
+    rst <= '0';
+    llc_user_i.avalon_st_source.valid <= '0';
+    llc_user_i.abort_request <= '0';
+    wait until rising_edge(clk);
+    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+
+    -- Verify recovery: submit a second frame with ACK
+    inject_ack <= true;
+    setup_default_frame(frame_v);
+    wait until rising_edge(clk);
+    monitor_frame_params <= frame_to_params(frame_v);
+    wait until rising_edge(clk);
+
+    submit_frame(frame_v);
+    wait_for_completion(100 us, transmitted, "Test 10 second frame");
+
+    wait for 2 * clk_period_c;
+    AffirmIf(alert_id,
+      llc_user_o.avalon_st_sink.ready = '1',
+      "Test 10: tx_ready high after recovery");
+
+    wait for 20 * nom_bit_time_clk_c * clk_period_c;
 
     -- =======================================================================
     -- Done

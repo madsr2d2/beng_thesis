@@ -840,6 +840,18 @@ package body can_protocol_pkg is
 
     result.crc_delimiter := result.crc_stop;
 
+    -- Determine CRC polynomial selection (00=CRC15, 01=CRC17, 10=CRC21)
+    case crc_length_v is
+      when crc_15_length_c =>
+        result.crc_poly_select := "00";
+      when crc_17_length_c =>
+        result.crc_poly_select := "01";
+      when crc_21_length_c =>
+        result.crc_poly_select := "10";
+      when others =>
+        result.crc_poly_select := "11";
+    end case;
+
     -- ACK and EOF field positions
     result.ack_slot      := result.crc_delimiter + 1;
     result.ack_delimiter := result.ack_slot + 1;

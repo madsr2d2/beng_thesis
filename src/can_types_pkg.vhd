@@ -67,10 +67,16 @@ package can_types_pkg is
   -- Type declarations
   --------------------------------------------------------------------
   type mac_frame_bit_name_t is (
-    -- CC bit types
-    stuff_bit,
+    -- Flag bits
     active_error_flag_bit,
     passive_error_flag_bit,
+    overload_flag_bit,
+    -- Inter-frame spacing bits
+    intermission_bit,
+    suspend_transmission_bit,
+    idle_bit,
+    -- CC bit types
+    stuff_bit,
     sof_bit,
     base_id_bit,
     extended_id_bit,
@@ -87,15 +93,14 @@ package can_types_pkg is
     ack_delimiter_bit,
     eof_bit,
     -- FD bit type additions
+    fixed_stuff_bit,
     rrs_bit,
     fdf_bit,
     res_bit,
     brs_bit,
     esi_bit,
     sbs_bit,
-    fixed_stuff_bit,
     error_delimiter_bit,
-    intermission_bit,
     --
     unknown
   );
@@ -230,6 +235,14 @@ package can_types_pkg is
     observed_polarity : polarity_t;
   end record observed_mac_frame_bit_info_t;
 
+  constant reset_observed_mac_frame_bit_info_c : observed_mac_frame_bit_info_t :=
+  (
+    event_type        => none,
+    transfer_status   => ongoing,
+    expected_bit      => reset_mac_frame_bit_c,
+    observed_polarity => recessive
+  );
+
   -- Transmitted bits FIFO (circular buffer)
   type transmitted_bits_fifo_t is array (transmitted_bits_fifo_depth_c - 1 downto 0) of mac_frame_bit_t;
 
@@ -269,6 +282,9 @@ package can_types_pkg is
     eof_start     : position_t;
     eof_stop      : position_t;
 
+    -- CRC configuration
+    crc_poly_select : std_logic_vector(1 downto 0);
+
     -- Format-specific bit positions (with polarities resolved for BRS/ESI)
     srr_bit : bit_t;
     ide_bit : bit_t;
@@ -296,17 +312,6 @@ package can_types_pkg is
     ready : std_logic;
   end record avalon_st_sink_t;
 
-  type tx_mac_ser_to_fsm_if_t is record
-    data         : polarity_t;     -- CAN polarity (MAC domain)
-    valid        : boolean;        -- Data valid signal
-    frame_params : frame_params_t; -- Cached frame parameters (all config info consolidated)
-  end record tx_mac_ser_to_fsm_if_t;
-
-  type tx_mac_fsm_to_ser_if_t is record
-    transfer_status : transfer_status_t; -- Transfer status (ongoing/transmitted/error)
-    ready           : boolean;           -- FSM ready to accept next bit/byte
-  end record tx_mac_fsm_to_ser_if_t;
-
   constant frame_params_reset_c : frame_params_t :=
   (
     format            => unknown,
@@ -332,6 +337,7 @@ package can_types_pkg is
     ack_delimiter     => 0,
     eof_start         => 0,
     eof_stop          => 0,
+    crc_poly_select   => "00",
     srr_bit           => unknown_bit_c,
     ide_bit           => unknown_bit_c,
     rtr_bit           => unknown_bit_c,
@@ -342,6 +348,30 @@ package can_types_pkg is
     r1_bit            => unknown_bit_c,
     brs_bit           => unknown_bit_c,
     esi_bit           => unknown_bit_c
+  );
+
+  type tx_mac_ser_to_fsm_if_t is record
+    data         : polarity_t;     -- CAN polarity (MAC domain)
+    valid        : boolean;        -- Data valid signal
+    frame_params : frame_params_t; -- Cached frame parameters (all config info consolidated)
+  end record tx_mac_ser_to_fsm_if_t;
+
+  constant tx_mac_ser_to_fsm_if_reset_c : tx_mac_ser_to_fsm_if_t :=
+  (
+    data         => dominant,
+    valid        => false,
+    frame_params => frame_params_reset_c
+  );
+
+  type tx_mac_fsm_to_ser_if_t is record
+    transfer_status : transfer_status_t;
+    ready           : boolean;
+  end record tx_mac_fsm_to_ser_if_t;
+
+  constant tx_mac_fsm_to_ser_if_reset_c : tx_mac_fsm_to_ser_if_t :=
+  (
+    transfer_status => ongoing,
+    ready           => false
   );
 
   type llc_to_mac_if_t is record
@@ -360,6 +390,12 @@ package can_types_pkg is
     data  : mac_frame_bit_t;
     valid : boolean; -- true = request PCS to transmit frame_bit
   end record mac_to_pcs_if_t;
+
+  constant mac_to_pcs_if_reset_c : mac_to_pcs_if_t :=
+  (
+    data  => reset_mac_frame_bit_c,
+    valid => false
+  );
 
   -- PCS to MAC interface (ISO 11898-1:2024 Section 7.2 PCS Services)
   -- PCS drives bus polarity continuously and sends strobes for sample timing
@@ -382,6 +418,13 @@ package can_types_pkg is
     start : boolean;    -- Pulse to reinitialize bit stuffer at frame start
   end record mac_fsm_to_bs_fd_if_t;
 
+  constant mac_fsm_to_bs_fd_if_reset_c : mac_fsm_to_bs_fd_if_t :=
+  (
+    data  => recessive,
+    valid => false,
+    start => false
+  );
+
   type bs_fd_to_mac_fsm_if_t is record
     data  : polarity_t;                                       -- Polarity of required stuff bit
     valid : boolean;                                          -- true when stuff bit insertion needed (level)
@@ -393,6 +436,13 @@ package can_types_pkg is
     valid           : boolean;
     data            : std_logic;
   end record mac_fsm_to_crc_if_t;
+
+  constant mac_fsm_to_crc_if_reset_c : mac_fsm_to_crc_if_t :=
+  (
+    crc_poly_select => (others => '0'),
+    valid           => false,
+    data            => '0'
+  );
 
   type crc_to_mac_fsm_if_t is record
     crc : crc_vector_t;
@@ -408,6 +458,17 @@ package can_types_pkg is
     error_delimiter_too_late : std_logic; -- 8+ dominant bits after error flag
     successful_transfer      : std_logic; -- Frame completed successfully (pulse)
   end record mac_to_fce_if_t;
+
+  constant mac_to_fce_if_reset_c : mac_to_fce_if_t :=
+  (
+    transmitting             => '0',
+    error                    => '0',
+    primary_error            => '0',
+    sending_error_flag       => '0',
+    counters_unchanged       => '0',
+    error_delimiter_too_late => '0',
+    successful_transfer      => '0'
+  );
 
   -- Fault Confinement Entity to MAC interface
   type fce_to_mac_if_t is record
@@ -432,15 +493,18 @@ package can_types_pkg is
   -- CAN frame formats (ISO 11898-1: Figure 2)
   --------------------------------------------------------------------
   -- Common bits
-  constant active_error_flag_bit_c  : mac_frame_bit_t := (dominant, active_error_flag_bit);
-  constant passive_error_flag_bit_c : mac_frame_bit_t := (recessive, passive_error_flag_bit);
-  constant eof_bit_c                : mac_frame_bit_t := (recessive, eof_bit);
-  constant sof_bit_c                : mac_frame_bit_t := (dominant, sof_bit);
-  constant tx_ack_bit_c             : mac_frame_bit_t := (recessive, ack_bit);
-  constant ack_delimiter_bit_c      : mac_frame_bit_t := (recessive, ack_delimiter_bit);
-  constant crc_delimiter_bit_c      : mac_frame_bit_t := (recessive, crc_delimiter_bit);
-  constant error_delimiter_bit_c    : mac_frame_bit_t := (recessive, error_delimiter_bit);
-  constant intermission_bit_c       : mac_frame_bit_t := (recessive, intermission_bit);
+  constant active_error_flag_bit_c    : mac_frame_bit_t := (dominant, active_error_flag_bit);
+  constant passive_error_flag_bit_c   : mac_frame_bit_t := (recessive, passive_error_flag_bit);
+  constant eof_bit_c                  : mac_frame_bit_t := (recessive, eof_bit);
+  constant sof_bit_c                  : mac_frame_bit_t := (dominant, sof_bit);
+  constant tx_ack_bit_c               : mac_frame_bit_t := (recessive, ack_bit);
+  constant ack_delimiter_bit_c        : mac_frame_bit_t := (recessive, ack_delimiter_bit);
+  constant crc_delimiter_bit_c        : mac_frame_bit_t := (recessive, crc_delimiter_bit);
+  constant error_delimiter_bit_c      : mac_frame_bit_t := (recessive, error_delimiter_bit);
+  constant intermission_bit_c         : mac_frame_bit_t := (recessive, intermission_bit);
+  constant overload_flag_bit_c        : mac_frame_bit_t := (dominant,  overload_flag_bit);
+  constant suspend_transmission_bit_c : mac_frame_bit_t := (recessive, suspend_transmission_bit);
+  constant idle_bit_c                 : mac_frame_bit_t := (recessive, idle_bit);
 
   -- CAN Classic base frame format
   constant cb_base_id_start_c : bit_t := (sof_c + 1, dominant);
@@ -531,7 +595,7 @@ package can_types_pkg is
 
   -- tx_llc -> LLC user interface (Avalon-ST backpressure + status)
   type llc_to_llc_user_if_t is record
-    avalon_st_sink  : avalon_st_sink_t; -- ready='1' when LLC can accept input bytes
+    avalon_st_sink  : avalon_st_sink_t;  -- ready='1' when LLC can accept input bytes
     transfer_status : transfer_status_t; -- Current status
   end record llc_to_llc_user_if_t;
 

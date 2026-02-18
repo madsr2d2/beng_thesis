@@ -2,30 +2,33 @@
 #  @brief GHDL/OSVVM makefile for testbench simulation
 #
 #  Usage: make TB=src/my_tb
-#  Example: make TB=src/bit_stuffer_tb
+#  Example: make TB=src/tx_can_tb
 #
 #  Note: OSVVM must be compiled first in OsvvmLibraries/osvvm
 
-# VHDL design files (excluding testbenches)
-# Automatically find files deterministically and compile base packages first.
-PACKAGES_ALL = $(shell find ./src \( -name "*package.vhd" -o -name "*_pkg.vhd" \) -size +0 | sort)
-CAN_TYPES_PKG = $(filter %can_types_pkg.vhd,$(PACKAGES_ALL))
-OTHER_PACKAGES = $(filter-out %can_types_pkg.vhd,$(PACKAGES_ALL))
-PACKAGES = $(CAN_TYPES_PKG) $(OTHER_PACKAGES)
-ALL_MODULES = $(shell find ./src -name "*.vhd" ! -name "*package.vhd" ! -name "*_pkg.vhd" ! -name "can_pkg.vhd" ! -name "*_tb.vhd" ! -name "tx_mac_fsm_v2.vhd" -size +0 | sort)
+# Project source files in strict dependency order
+# 1. Packages
+PACKAGES = \
+	src/can_types_pkg.vhd \
+	src/can_protocol_pkg.vhd \
+	src/can_timing_pkg.vhd
 
-# Separate modules into categories based on dependencies
-# tx_can depends on mac_tx, tx_llc, and tx_pcs — compiled last
-# mac_tx depends on all other MAC sub-modules — compiled second-to-last
-TX_CAN = $(filter %tx_can.vhd,$(ALL_MODULES))
-MAC_TX = $(filter %tx_mac.vhd,$(ALL_MODULES))
-OTHER_MODULES = $(filter-out %tx_mac.vhd %tx_can.vhd,$(ALL_MODULES))
+# 2. Components and Sub-modules
+COMPONENTS = \
+	src/bit_stuffer.vhd \
+	src/bit_stuffer_fd.vhd \
+	src/crc_fd.vhd \
+	src/tx_mac_ser.vhd \
+	src/tx_mac_fsm.vhd
 
-# Separate leaf modules (no dependencies on other design modules) from dependent modules
-LEAF_MODULES = $(filter-out %_fd.vhd,$(OTHER_MODULES))
-DEPENDENT_MODULES = $(filter %_fd.vhd,$(OTHER_MODULES))
+# 3. Layer wrappers and Top-level
+LAYERS = \
+	src/tx_mac.vhd \
+	src/tx_pcs.vhd \
+	src/tx_llc.vhd \
+	src/tx_can.vhd
 
-SRCFILES = $(PACKAGES) $(LEAF_MODULES) $(DEPENDENT_MODULES) $(MAC_TX) $(TX_CAN)
+SRCFILES = $(PACKAGES) $(COMPONENTS) $(LAYERS)
 VHDLEX = .vhd
 
 # OSVVM library path (where TCL build compiled it)
@@ -42,10 +45,9 @@ GHDL_CMD = ghdl
 GHDL_FLAGS = --std=08 --warn-no-vital-generic --warn-no-hide -P$(OSVVM_LIB_PATH) -P.
 
 SIMDIR = sim
-STOP_TIME = 100us
+STOP_TIME ?= 100us
 GHDL_SIM_OPT = --stop-time=$(STOP_TIME)
 GHWFILE = ${SIMDIR}/${TESTBENCHFILE}.ghw
-VCDFILE = ${SIMDIR}/${TESTBENCHFILE}.vcd
 
 GTKWAVE_DIR = gtk_wave
 GTKWFILE = ${GTKWAVE_DIR}/${TESTBENCHFILE}.gtkw
@@ -67,8 +69,12 @@ compile:
 	fi
 	@mkdir -p $(SIMDIR)
 	@cp -r OsvvmLibraries/osvvm/OsvvmTemp_GHDL . 2>/dev/null || true
-	@echo "Compiling design and testbench..."
-	@$(GHDL_CMD) -a $(GHDL_FLAGS) --workdir=$(SIMDIR) --work=work $(SRCFILES)
+	@echo "Compiling design..."
+	@for file in $(SRCFILES); do \
+		echo "  Analyzing $$file"; \
+		$(GHDL_CMD) -a $(GHDL_FLAGS) --workdir=$(SIMDIR) --work=work $$file || exit 1; \
+	done
+	@echo "Compiling testbench $(TESTBENCHPATH)..."
 	@$(GHDL_CMD) -a $(GHDL_FLAGS) --workdir=$(SIMDIR) --work=work $(TESTBENCHPATH)
 	@echo "Elaborating $(TESTBENCHFILE)..."
 	@$(GHDL_CMD) -m $(GHDL_FLAGS) --workdir=$(SIMDIR) --work=work $(TESTBENCHFILE)
