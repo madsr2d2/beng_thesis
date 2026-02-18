@@ -22,122 +22,254 @@ end entity tx_mac_ser;
 
 architecture rtl of tx_mac_ser is
 
-  -- Frame buffer for serialization
-  signal llc_frame_buffer : byte_t;
-  -- State register: load config bytes → load data bytes → shift bits
-  signal state_reg : tx_mac_ser_state_t;
-  -- Remaining bits to shift (7..0, counting down)
-  signal count : integer range byte_t'left downto 0;
-  -- Config byte 0: FORMAT[7:5], FTYP[4], ESI[3], BRS[2]
-  signal config_byte_reg_0 : byte_t;
-  -- Registered transfer status from MAC FSM to LLC.
+  ---------------------------------------------------------------------------
+  -- Registered state signals (driven by state_update)
+  ---------------------------------------------------------------------------
+  signal state_reg           : tx_mac_ser_state_t;
+  signal count               : integer range byte_t'left downto 0;
+  signal llc_frame_buffer    : byte_t;
+  signal config_byte_reg_0   : byte_t;
   signal transfer_status_reg : transfer_status_t;
+
+  ---------------------------------------------------------------------------
+  -- Combinational next-cycle signals (driven by output_logic)
+  ---------------------------------------------------------------------------
+  signal next_state           : tx_mac_ser_state_t;
+  signal next_count           : integer range byte_t'left downto 0;
+  signal next_frame_buffer    : byte_t;
+  signal next_config_byte_0   : byte_t;
+  signal next_transfer_status : transfer_status_t;
+
+  -- Intermediate signals for registered outputs
+  signal next_llc_o        : mac_to_llc_if_t;
+  signal next_tx_mac_fsm_o : tx_mac_ser_to_fsm_if_t;
 
 begin
 
-  -- Serializer FSM: loads frame config and data bytes, then shifts bits to tx_mac_fsm
-  -- Avalon-ST protocol: config byte 0 has SOP='1', all others have SOP='0'
-  tx_mac_llc_ctrl_p : process (clk_i) is
+  ---------------------------------------------------------------------------
+  -- Process 1: next_state_logic (combinational)
+  ---------------------------------------------------------------------------
+  next_state_logic : process (all) is
+
+    -- Named guard variables (RTL guide Rule 3)
+    variable llc_valid_v        : boolean;
+    variable llc_sop_v          : boolean;
+    variable fsm_consumed_bit_v : boolean;
+    variable fsm_finished_v     : boolean;
+    variable byte_finished_v    : boolean;
+
+  begin
+
+    -- Evaluate guards
+    llc_valid_v        := llc_i.avalon_st_source.valid = '1';
+    llc_sop_v          := llc_i.avalon_st_source.sop = '1';
+    fsm_consumed_bit_v := tx_mac_fsm_i.ready;
+    fsm_finished_v     := tx_mac_fsm_i.transfer_status /= ongoing;
+    byte_finished_v    := count = 0;
+
+    -- Default: hold current state
+    next_state <= state_reg;
+
+    case state_reg is
+      when load_config_byte_0 =>
+        if (llc_valid_v and llc_sop_v) then
+          next_state <= load_config_byte_1;
+        end if;
+
+      when load_config_byte_1 =>
+        if (llc_valid_v) then
+          if (llc_sop_v) then
+            next_state <= load_config_byte_1;                      -- Resync
+          else
+            next_state <= load_llc_frame_byte;
+          end if;
+        end if;
+
+      when load_llc_frame_byte =>
+        if (llc_valid_v) then
+          if (llc_sop_v) then
+            next_state <= load_config_byte_1;                      -- Resync
+          else
+            next_state <= shift_out_bits;
+          end if;
+        end if;
+
+      when shift_out_bits =>
+        if (fsm_finished_v) then
+          next_state <= load_config_byte_0;
+        elsif (fsm_consumed_bit_v) then
+          if (byte_finished_v) then
+            next_state <= load_llc_frame_byte;
+          end if;
+        end if;
+
+      when others =>
+        null;
+    end case;
+
+  end process next_state_logic;
+
+  ---------------------------------------------------------------------------
+  -- Process 2: output_logic (combinational Mealy)
+  ---------------------------------------------------------------------------
+  output_logic : process (all) is
+
+    -- Named guards
+    variable llc_valid_v        : boolean;
+    variable llc_sop_v          : boolean;
+    variable fsm_consumed_bit_v : boolean;
+    variable fsm_finished_v     : boolean;
+
+    -------------------------------------------------------------------------
+    -- Local procedures for state logic abstraction
+    -------------------------------------------------------------------------
+
+    -- Handle configuration and handshake with LLC
+    procedure report_status_to_llc is
+    begin
+
+      -- Default: hold registered status
+      next_llc_o.transfer_status <= transfer_status_reg;
+
+      -- Update status from MAC FSM feedback
+      if (tx_mac_fsm_i.transfer_status /= ongoing) then
+        next_llc_o.transfer_status <= tx_mac_fsm_i.transfer_status;
+        next_transfer_status       <= tx_mac_fsm_i.transfer_status;
+      elsif (state_reg = load_config_byte_0) then
+        -- Reset status when starting or waiting for a new frame
+        next_llc_o.transfer_status <= ongoing;
+        next_transfer_status       <= ongoing;
+      end if;
+
+      -- Drive ready based on state
+      case state_reg is
+        when load_config_byte_0 | load_config_byte_1 | load_llc_frame_byte =>
+          next_llc_o.avalon_st_sink.ready <= '1';
+        when others =>
+          next_llc_o.avalon_st_sink.ready <= '0';
+      end case;
+
+    end procedure report_status_to_llc;
+
+    -- Handle bit shifting and handshaking with MAC FSM
+    procedure manage_serialization is
+    begin
+
+      case state_reg is
+        when load_llc_frame_byte =>
+          if (llc_valid_v and not llc_sop_v) then
+            -- Load byte and present MSB immediately
+            next_frame_buffer       <= llc_i.avalon_st_source.data;
+            next_tx_mac_fsm_o.data  <= bit_to_polarity(llc_i.avalon_st_source.data(byte_t'left));
+            next_tx_mac_fsm_o.valid <= true;
+            next_count              <= byte_t'left;
+          end if;
+
+        when shift_out_bits =>
+          -- Hold valid while we have bits remaining
+          next_tx_mac_fsm_o.valid <= true;
+          next_tx_mac_fsm_o.data  <= bit_to_polarity(llc_frame_buffer(byte_t'left));
+
+          if (fsm_finished_v) then
+            next_tx_mac_fsm_o.valid <= false;
+            next_count              <= byte_t'left;
+          elsif (fsm_consumed_bit_v) then
+            if (count = 0) then
+              -- Byte finished, prepare for next fetch
+              next_tx_mac_fsm_o.valid <= false;
+              next_count              <= byte_t'left;
+            else
+              -- Shift to next bit
+              next_frame_buffer <= llc_frame_buffer sll 1;
+              next_count        <= count - 1;
+            end if;
+          end if;
+
+        when others =>
+          null;
+      end case;
+
+    end procedure manage_serialization;
+
+    -- Handle configuration capture and frame param calculation
+    procedure manage_config_capture is
+    begin
+
+      if (llc_valid_v) then
+        if (state_reg = load_config_byte_0 and llc_sop_v) then
+          next_config_byte_0   <= llc_i.avalon_st_source.data;
+          next_transfer_status <= ongoing;
+        elsif (state_reg = load_config_byte_1) then
+          if (llc_sop_v) then
+            next_config_byte_0 <= llc_i.avalon_st_source.data; -- Resync
+          else
+            -- Calculate and cache parameters once at start of frame
+            next_tx_mac_fsm_o.frame_params <= calculate_frame_params(config_byte_reg_0, llc_i.avalon_st_source.data);
+          end if;
+        end if;
+      end if;
+
+    end procedure manage_config_capture;
+
+  begin
+
+    -- Evaluate guards
+    llc_valid_v        := llc_i.avalon_st_source.valid = '1';
+    llc_sop_v          := llc_i.avalon_st_source.sop = '1';
+    fsm_consumed_bit_v := tx_mac_fsm_i.ready;
+    fsm_finished_v     := tx_mac_fsm_i.transfer_status /= ongoing;
+
+    -------------------------------------------------------------------------
+    -- Output defaults: hold current registered values
+    -------------------------------------------------------------------------
+    next_count           <= count;
+    next_frame_buffer    <= llc_frame_buffer;
+    next_config_byte_0   <= config_byte_reg_0;
+    next_transfer_status <= transfer_status_reg;
+
+    next_llc_o        <= llc_o;
+    next_tx_mac_fsm_o <= tx_mac_fsm_o;
+
+    -- Clear pulse/level control signals
+    next_tx_mac_fsm_o.valid <= false;
+
+    -------------------------------------------------------------------------
+    -- Logic evaluation
+    -------------------------------------------------------------------------
+    report_status_to_llc;
+    manage_config_capture;
+    manage_serialization;
+
+  end process output_logic;
+
+  ---------------------------------------------------------------------------
+  -- Process 3: state_update (clocked)
+  ---------------------------------------------------------------------------
+  state_update : process (clk_i) is
   begin
 
     if rising_edge(clk_i) then
       if (rst_i = '1') then
-        llc_o.avalon_st_sink.ready <= '0';
-        config_byte_reg_0          <= (others => '0');
-        llc_frame_buffer           <= (others => '0');
-        tx_mac_fsm_o.data          <= dominant;
-        tx_mac_fsm_o.valid         <= false;
-        tx_mac_fsm_o.frame_params  <= frame_params_reset_c;
-        transfer_status_reg        <= ongoing;
-        state_reg                  <= load_config_byte_0;
-        count                      <= llc_frame_buffer'left;
+        state_reg           <= load_config_byte_0;
+        count               <= byte_t'left;
+        llc_frame_buffer    <= (others => '0');
+        config_byte_reg_0   <= (others => '0');
+        transfer_status_reg <= ongoing;
+
+        llc_o        <= mac_to_llc_if_reset_c;
+        tx_mac_fsm_o <= tx_mac_ser_to_fsm_if_reset_c;
       else
-        -- Defaults
-        llc_o.avalon_st_sink.ready <= '0';
-        tx_mac_fsm_o.valid         <= false;
-        llc_o.transfer_status      <= transfer_status_reg;
-        if (tx_mac_fsm_i.transfer_status /= ongoing) then
-          transfer_status_reg <= tx_mac_fsm_i.transfer_status;
-        elsif (state_reg = load_config_byte_0) then
-          transfer_status_reg <= ongoing;
-        end if;
+        state_reg           <= next_state;
+        count               <= next_count;
+        llc_frame_buffer    <= next_frame_buffer;
+        config_byte_reg_0   <= next_config_byte_0;
+        transfer_status_reg <= next_transfer_status;
 
-        -- FSM
-        case state_reg is
-          when load_config_byte_0 =>
-            -- Config byte 0: wait for valid data with SOP='1'
-            llc_o.avalon_st_sink.ready <= '1';
-            if (llc_i.avalon_st_source.valid = '1' and llc_i.avalon_st_source.sop = '1') then
-              config_byte_reg_0   <= llc_i.avalon_st_source.data;
-              transfer_status_reg <= ongoing;
-              state_reg           <= load_config_byte_1;
-            end if;
-
-          when load_config_byte_1 =>
-            -- Config byte 1: wait for valid data with SOP='0'
-            llc_o.avalon_st_sink.ready <= '1';
-            if (llc_i.avalon_st_source.valid = '1') then
-              if (llc_i.avalon_st_source.sop = '1') then
-                -- Resync: treat unexpected SOP as start of a new frame.
-                config_byte_reg_0   <= llc_i.avalon_st_source.data;
-                transfer_status_reg <= ongoing;
-                state_reg           <= load_config_byte_1;
-              else
-                -- Calculate frame parameters once (cached for all bits in this frame)
-                tx_mac_fsm_o.frame_params <= calculate_frame_params(config_byte_reg_0, llc_i.avalon_st_source.data);
-                state_reg                 <= load_llc_frame_byte;
-              end if;
-            end if;
-
-          when load_llc_frame_byte =>
-            llc_o.avalon_st_sink.ready <= '1';
-            -- Data byte: wait for valid data with SOP='0'
-            -- Load byte and output MSB immediately (no wasted cycle)
-            if (llc_i.avalon_st_source.valid = '1') then
-              if (llc_i.avalon_st_source.sop = '1') then
-                -- Resync: new frame started while waiting for payload byte.
-                config_byte_reg_0   <= llc_i.avalon_st_source.data;
-                transfer_status_reg <= ongoing;
-                state_reg           <= load_config_byte_1;
-              else
-                llc_frame_buffer   <= llc_i.avalon_st_source.data;
-                tx_mac_fsm_o.data  <= bit_to_polarity(llc_i.avalon_st_source.data(llc_i.avalon_st_source.data'left));
-                tx_mac_fsm_o.valid <= true;
-                state_reg          <= shift_out_bits;
-              end if;
-            end if;
-
-          when shift_out_bits =>
-            -- Hold valid while we have bits
-            tx_mac_fsm_o.valid <= true;
-            tx_mac_fsm_o.data  <= bit_to_polarity(llc_frame_buffer(llc_frame_buffer'left));
-
-            -- Exit on transfer status change
-            if (tx_mac_fsm_i.transfer_status /= ongoing) then
-              state_reg          <= load_config_byte_0;
-              count              <= llc_frame_buffer'left;
-              tx_mac_fsm_o.valid <= false;
-            -- Advance to next bit when tx_mac_fsm consumes current one
-            elsif (tx_mac_fsm_i.ready = true) then
-              if (count = 0) then
-                -- All 8 bits sent (1 on load + 7 shifts), fetch next byte
-                state_reg                  <= load_llc_frame_byte;
-                count                      <= llc_frame_buffer'left;
-                llc_o.avalon_st_sink.ready <= '1';
-                tx_mac_fsm_o.valid         <= false;
-              else
-                -- Shift to next bit; current MSB was consumed
-                llc_frame_buffer <= llc_frame_buffer sll 1;
-                count            <= count - 1;
-              end if;
-            end if;
-
-          when others =>
-
-        end case;
+        llc_o        <= next_llc_o;
+        tx_mac_fsm_o <= next_tx_mac_fsm_o;
       end if;
     end if;
 
-  end process tx_mac_llc_ctrl_p;
+  end process state_update;
 
 end architecture rtl;

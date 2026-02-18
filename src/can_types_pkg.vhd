@@ -383,6 +383,11 @@ package can_types_pkg is
     transfer_status : transfer_status_t;
   end record mac_to_llc_if_t;
 
+  constant mac_to_llc_if_reset_c : mac_to_llc_if_t := (
+    avalon_st_sink  => (ready => '0'),
+    transfer_status => ongoing
+  );
+
   -- MAC to PCS (Physical Coding Sublayer) interface
   -- MAC to PCS interface (ISO 11898-1:2024 Section 7.2 PCS Services)
   type mac_to_pcs_if_t is record
@@ -411,6 +416,13 @@ package can_types_pkg is
     -- Nominal/arbitration fields use index 0.
     fifo_index : integer range 0 to transmitted_bits_fifo_depth_c - 1;
   end record pcs_to_mac_if_t;
+
+  constant pcs_to_mac_if_reset_c : pcs_to_mac_if_t :=
+  (
+    bus_polarity  => recessive,
+    sample_strobe => '0',
+    fifo_index    => 0
+  );
 
   type mac_fsm_to_bs_fd_if_t is record
     data  : polarity_t; -- Bit polarity being transmitted
