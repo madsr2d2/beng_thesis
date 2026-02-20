@@ -398,18 +398,6 @@ architecture testbench of tx_error_detection_tb is
     result := (temp / 65536) mod max_val;
   end procedure random_integer;
 
-  -- Helper: Calculate max DLC for frame format
-  function get_max_dlc (format : can_format_t) return integer is
-  begin
-    case format is
-      when cc_basic | cc_extended =>
-        return 8;  -- CAN Classic: max 8 bytes
-      when fd_basic | fd_extended =>
-        return 64; -- CAN-FD: max 64 bytes
-      when others =>
-        return 8;
-    end case;
-  end function get_max_dlc;
 
   procedure send_frame (
     signal llc_i : out llc_user_to_llc_if_t;
@@ -418,8 +406,6 @@ architecture testbench of tx_error_detection_tb is
     format : in can_format_t := cc_basic;
     brs : in boolean := false;
     esi : in boolean := false;
-    base_id : in std_logic_vector(10 downto 0) := "10101010101";  -- 0x555
-    extended_id : in std_logic_vector(28 downto 0) := (others => '0');
     rtr : in boolean := false;
     random_frame : in boolean := false;
     seed_in : in integer := 42
@@ -513,8 +499,10 @@ architecture testbench of tx_error_detection_tb is
 
       -- Generate all-zero data bytes
       random_data_bytes := (others => '0');
-      random_base_id := base_id;
-      random_extended_id := extended_id;
+
+      -- Use fixed default IDs for deterministic frames
+      random_base_id := "10101010101";  -- 0x555
+      random_extended_id := (others => '0');
 
       -- Get actual data length from DLC using protocol package function
       actual_data_len := dlc_to_data_length(dlc_t(dlc), format);
@@ -1093,19 +1081,19 @@ architecture testbench of tx_error_detection_tb is
     -- Iteration 1: Random CC Basic frame
     log("  [ITERATION 1] Generating random CC Basic frame", ALWAYS);
     send_frame(llc_i, clk, 1, cc_basic, false, false,
-               "11111111111", (others => '0'), false, true, seed);
+               false, true, seed);
     wait for 100 us;
 
     -- Iteration 2: Random FD Basic frame
     log("  [ITERATION 2] Generating random FD Basic frame", ALWAYS);
     send_frame(llc_i, clk, 8, fd_basic, false, false,
-               "11111111111", (others => '0'), false, true, seed);
+               false, true, seed);
     wait for 100 us;
 
     -- Iteration 3: Random CC Extended frame
     log("  [ITERATION 3] Generating random CC Extended frame", ALWAYS);
     send_frame(llc_i, clk, 4, cc_extended, false, false,
-               "11111111111", (others => '0'), false, true, seed);
+               false, true, seed);
     wait for 100 us;
 
     test_duration := now - test_start_time;
