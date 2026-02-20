@@ -381,6 +381,8 @@ architecture testbench of tx_error_detection_tb is
     variable brs_flag : boolean;
     variable esi_flag : boolean;
     variable rv : RandomPType;
+    variable byte_high : integer;
+    variable byte_low : integer;
   begin
     -- Initialize OSVVM random number generator with seed
     rv.InitSeed(seed_in);
@@ -412,7 +414,10 @@ architecture testbench of tx_error_detection_tb is
 
       if (not rtr_flag) then
         for i in 0 to data_len - 1 loop
-          frame.data(8*(i+1)-1 downto 8*i) := std_logic_vector(to_unsigned(rv.RandInt(0, 255), 8));
+          -- Calculate byte bit range: byte i is at bits [8*(i+1)-1 downto 8*i]
+          byte_high := 8 * (i + 1) - 1;
+          byte_low := 8 * i;
+          frame.data(byte_high downto byte_low) := std_logic_vector(to_unsigned(rv.RandInt(0, 255), 8));
         end loop;
       end if;
 
