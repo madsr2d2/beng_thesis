@@ -376,7 +376,6 @@ architecture testbench of tx_error_detection_tb is
     variable rtr : boolean;
     variable brs : boolean;
     variable esi : boolean;
-    variable i : integer;
     variable rng : RandomPType;
   begin
     -- Initialize OSVVM random number generator with seed
