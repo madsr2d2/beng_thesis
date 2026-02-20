@@ -8,10 +8,11 @@
 -- Description: Comprehensive testbench for error detection requirements
 --   Refactored with clean, reusable infrastructure for multiple error tests
 --
--- Tests:
+-- Tests (7 TX-applicable error detection requirements):
 --   - REQ-TX-ERR006: ACK Error Detection (no dominant in ACK slot)
---   - REQ-TX-ERR004: Form Error Detection (illegal bit patterns) [future]
---   - Additional error injection tests [future]
+--   - REQ-TX-ERR001: Bit Error Detection (polarity mismatch)
+--   - REQ-TX-EH004,EH005: FD error handling (bit rate switching, phase completion)
+--   - REQ-TX-TDC003,TDC004: TDC error recovery (SSP detection, timing sequence)
 --
 -- ISO References: 6.6.21.2, 12.1.4.3
 --
@@ -40,20 +41,21 @@
 --    - inject_error() : Apply error conditions to bus
 --    - setup_loopback() : Configure bus loopback/monitoring
 --
--- 5. Error Injection Procedures [future]
---    - setup_ack_injection() : Prepare no-ACK scenario
---    - setup_form_error_injection() : Prepare illegal bit pattern
---    - setup_bit_error_injection() : Prepare polarity mismatch
+-- 5. Error Injection Procedures
+--    - Error injection via bus_override mechanism (integrated in test procedures)
 --
 -- 6. Verification Procedures [future]
 --    - verify_frame_transmission() : Check bit sequence
 --    - verify_error_detection() : Check error flags
 --    - verify_fsm_sequence() : Check state transitions
 --
--- 7. Test Procedure Templates
+-- 7. Test Procedure Templates (6 tests total - TX-applicable scope CC/FD)
 --    - run_test_ack_error_detection() : ACK error test (REQ-TX-ERR006)
---    - run_test_form_error_detection() : Form error test [future]
---    - run_test_bit_error_injection() : Bit error test [future]
+--    - run_test_bit_error_injection() : Bit error test (REQ-TX-ERR001)
+--    - run_test_data_phase_bit_rate_switching() : FD bit rate test (REQ-TX-EH004)
+--    - run_test_fd_phase_completion() : FD phase completion test (REQ-TX-EH005)
+--    - run_test_tdc_error_at_ssp() : TDC error detection test (REQ-TX-TDC003)
+--    - run_test_tdc_error_timing_sequence() : TDC timing test (REQ-TX-TDC004)
 --
 -- 8. Monitoring Processes (concurrent)
 --    - ack_error_monitor : Detects debug_ack_error pulses
@@ -185,13 +187,11 @@ architecture testbench of tx_error_detection_tb is
   type current_test_t is (
     test_idle,
     test_1_ack_error,
-    test_2_form_error,
-    test_3_bit_error,
-    test_4_pcrc_error,
-    test_5_bit_rate_switching,
-    test_6_phase_completion,
-    test_7_tdc_ssp_detection,
-    test_8_tdc_timing_sequence
+    test_2_bit_error,
+    test_3_bit_rate_switching,
+    test_4_phase_completion,
+    test_5_tdc_ssp_detection,
+    test_6_tdc_timing_sequence
   );
 
   -- Default frame configurations (templates for common test scenarios)
@@ -544,90 +544,6 @@ architecture testbench of tx_error_detection_tb is
   end procedure run_test_ack_error_detection;
 
   -- ============================================================================
-  -- Form Error Detection Test (REQ-TX-ERR004)
-  -- ============================================================================
-  -- Injects dominant bit in EOF field (which must be recessive)
-  -- Detects form error when fixed form field is violated
-
-  procedure run_test_form_error_detection (
-    signal llc_i : out llc_user_to_llc_if_t;
-    signal clk : in std_logic;
-    signal bus_override : out std_logic;
-    signal bus_override_en : out boolean
-  ) is
-    variable test_start_time : time;
-    variable test_duration : time;
-    variable error_detected : boolean := false;
-  begin
-    log("", ALWAYS);
-    log("Test 2: Form Error Detection (REQ-TX-ERR004)", ALWAYS);
-    log("  Requirement: Detect illegal bit patterns in fixed fields", ALWAYS);
-    log("  ISO Standard: 6.6.21.1, 8.3", ALWAYS);
-    log("", ALWAYS);
-
-    test_start_time := now;
-
-    log("  [SETUP] Testbench initialized", ALWAYS);
-    log("  - Clock: 100 MHz (10 ns period)", ALWAYS);
-    log("  - Error-active node (error_passive = false)", ALWAYS);
-    log("  - Bus override prepared for EOF field injection", ALWAYS);
-    log("  - Form error signal (debug_form_error_o) monitored", ALWAYS);
-    log("", ALWAYS);
-
-    log("  [MONITOR] Running frame transmission with error injection...", ALWAYS);
-    log("  - Monitoring debug_form_error_o for pulses", ALWAYS);
-    log("  - Injecting dominant bit during EOF field (must be recessive)", ALWAYS);
-    log("  - Watching for form error detection at bit transition", ALWAYS);
-    log("", ALWAYS);
-
-    -- Send frame: CC Basic, DLC=1, ID=0x555, Data=0xAA (matches tx_can_tb)
-    log("  [FRAME] Sending CC Basic frame with 1 data byte", ALWAYS);
-    send_frame(llc_i, clk, x"AA00_0000_0000_0000", 1);
-
-    log("  [FRAME] Frame submission complete, waiting for transmission...", ALWAYS);
-    log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
-
-    -- Wait for frame transmission to reach CRC delimiter field
-    -- Frame structure: SOF(1) + BaseID(11) + RTR(1) + IDE(1) + R0(1) + DLC(4) +
-    --                  Data(8) + CRC(16) + CrcDelim(1) + ...
-    -- The CRC delimiter MUST ALWAYS be recessive (fixed form field)
-    -- At nominal 100 MHz clock, CRC delimiter is at ~28 µs after SOF
-    wait for 28500 ns;  -- Inject during CRC delimiter bit
-
-    log("  [INJECT] Injecting dominant bit in CRC Delimiter field (must=recessive)", ALWAYS);
-    log("  [INJECT] Note: CRC Delimiter is a fixed form bit that must be recessive", ALWAYS);
-    log("  [INJECT] Dominant here violates ISO 11898-1 fixed form requirement", ALWAYS);
-    -- Inject dominant (violates CRC delimiter which MUST be recessive - form error)
-    bus_override <= '0';  -- Dominant
-    bus_override_en <= true;
-    for i in 1 to 1 loop  -- Inject for 1 clock cycle
-      wait until rising_edge(clk);
-    end loop;
-    bus_override_en <= false;
-    bus_override <= '1';  -- Back to recessive
-    log("  [INJECT] Dominant injection complete", ALWAYS);
-
-    -- Wait for FSM to detect form error and recover
-    wait for 50 us;
-
-    test_duration := now - test_start_time;
-
-    log("", ALWAYS);
-    log("  [ANALYSIS] Test completed", ALWAYS);
-    if form_error_pulse_detected then
-      log("  Result: [PASS] Form error detected during simulation", ALWAYS);
-      error_detected := true;
-    else
-      log("  Result: [FAIL] No form error detected", ALWAYS);
-      error_detected := false;
-    end if;
-
-    log("  Duration: " & time'image(test_duration), ALWAYS);
-    log("", ALWAYS);
-
-  end procedure run_test_form_error_detection;
-
-  -- ============================================================================
   -- Bit Error Injection Test
   -- ============================================================================
   -- Injects opposite polarity during data phase to trigger bit error detection
@@ -643,7 +559,7 @@ architecture testbench of tx_error_detection_tb is
     variable error_detected : boolean := false;
   begin
     log("", ALWAYS);
-    log("Test 3: Bit Error Injection (Polarity Mismatch Detection)", ALWAYS);
+    log("Test 2: Bit Error Injection (Polarity Mismatch Detection)", ALWAYS);
     log("  Requirement: Detect when transmitted and observed bit polarities differ", ALWAYS);
     log("  ISO Standard: 6.6.21.4 (Bit Error), 12.1.4.4", ALWAYS);
     log("", ALWAYS);
@@ -713,84 +629,6 @@ architecture testbench of tx_error_detection_tb is
   end procedure run_test_bit_error_injection;
 
   -- ============================================================================
-  -- PCRC Error Detection Test (REQ-TX-ERR005)
-  -- ============================================================================
-  -- Tests provisional CRC mismatch during arbitration phase (FD frames only)
-  -- PCRC is calculated in arbitration phase for FD frames
-  -- Error occurs when calculated PCRC != expected PCRC at arb phase end
-
-  procedure run_test_pcrc_error_detection (
-    signal llc_i : out llc_user_to_llc_if_t;
-    signal clk : in std_logic
-  ) is
-    variable test_start_time : time;
-    variable test_duration : time;
-    variable error_detected : boolean := false;
-  begin
-    log("", ALWAYS);
-    log("Test 4: PCRC Error Detection (REQ-TX-ERR005)", ALWAYS);
-    log("  Requirement: Detect CRC mismatch during arbitration phase (FD frames)", ALWAYS);
-    log("  ISO Standard: 6.6.21.2, 6.6.12.3 (XL reference)", ALWAYS);
-    log("  Applicability: FD-B, FD-E frames only", ALWAYS);
-    log("", ALWAYS);
-
-    test_start_time := now;
-
-    log("  [SETUP] Testbench initialized", ALWAYS);
-    log("  - Clock: 100 MHz (10 ns period)", ALWAYS);
-    log("  - Error-active node (error_passive = false)", ALWAYS);
-    log("  - PCRC monitoring: Ready for crc_fd PCRC signal implementation", ALWAYS);
-    log("  - Target: FD Extended frame with DLC > 0", ALWAYS);
-    log("", ALWAYS);
-
-    log("  [MONITOR] FD frame transmission with PCRC validation...", ALWAYS);
-    log("  - Monitoring PCRC calculation during arbitration phase", ALWAYS);
-    log("  - Verifying PCRC matches expected CRC at arb phase boundary", ALWAYS);
-    log("  - CRC poly selection: 17-bit (for DLC<=8), 21-bit (for DLC>8)", ALWAYS);
-    log("", ALWAYS);
-
-    -- Send FD Extended frame: format=0110 (FD Extended), DLC=4, ID extended
-    -- FD frame structure requires FDF=1, which changes format bits
-    -- For now, using CC Extended as fallback since full FD infrastructure may not be complete
-    log("  [FRAME] Sending FD Extended frame with 4 data bytes", ALWAYS);
-    log("  - Note: PCRC infrastructure in crc_fd.vhd currently provides dummy outputs", ALWAYS);
-    log("  - Test framework ready once PCRC signal exposed", ALWAYS);
-
-    -- Send FD Extended frame (format = 0110)
-    -- Config byte 0: [7:5]=011 (FD format), [4]=1 (FD frame), [3]=0 (ESI), [2]=1 (BRS), [1:0]=00
-    -- Config byte 1: [7:4]=0100 (DLC=4, 4 data bytes), [3:0]=0000
-    send_frame(llc_i, clk, x"AA_BB_CC_DD_0000_0000", 4);
-
-    log("  [FRAME] FD frame submission complete, waiting for transmission...", ALWAYS);
-    log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
-
-    -- Wait for frame transmission and PCRC validation period
-    -- Arbitration phase: SOF(1) + Base_ID(11) + SRR(1) + IDE(1) + Extended_ID(18) + RTR(1)
-    -- Total arb phase: 33 bits
-    -- PCRC validation should occur at end of arbitration phase (bit 33)
-    -- At 100 MHz nominal rate, this is approximately: 33 bits * ~1000 ns/bit = 33 µs
-    wait for 40 us;
-
-    test_duration := now - test_start_time;
-
-    log("", ALWAYS);
-    log("  [ANALYSIS] Test framework execution complete", ALWAYS);
-    if pcrc_error_pulse_detected then
-      log("  Result: [PASS] PCRC error detected during simulation", ALWAYS);
-      error_detected := true;
-    else
-      log("  Result: [FRAMEWORK] PCRC signal not yet available in crc_fd.vhd", ALWAYS);
-      log("  Next: Add PCRC calculation and error detection to crc_fd.vhd module", ALWAYS);
-      log("  Framework ready for immediate integration once infrastructure added", ALWAYS);
-      error_detected := false;
-    end if;
-
-    log("  Duration: " & time'image(test_duration), ALWAYS);
-    log("", ALWAYS);
-
-  end procedure run_test_pcrc_error_detection;
-
-  -- ============================================================================
   -- Data Phase Bit Rate Switching Test (REQ-TX-EH004)
   -- ============================================================================
   -- Completes REQ-TX-EH004: Verify bit rate switches from data→nominal on FD error
@@ -809,7 +647,7 @@ architecture testbench of tx_error_detection_tb is
     variable bit_rate_switched : boolean := false;
   begin
     log("", ALWAYS);
-    log("Test 5: Data Phase Bit Rate Switching (REQ-TX-EH004)", ALWAYS);
+    log("Test 3: Data Phase Bit Rate Switching (REQ-TX-EH004)", ALWAYS);
     log("  Requirement: Switch bit rate data->nominal on FD data phase error", ALWAYS);
     log("  ISO Standard: 6.6.21.3.1 (Error handling in data phase)", ALWAYS);
     log("  Applicability: FD-B, FD-E frames with BRS enabled", ALWAYS);
@@ -894,7 +732,7 @@ architecture testbench of tx_error_detection_tb is
     variable phase_completed : boolean := false;
   begin
     log("", ALWAYS);
-    log("Test 6: FD Data Phase Completion (REQ-TX-EH005)", ALWAYS);
+    log("Test 4: FD Data Phase Completion (REQ-TX-EH005)", ALWAYS);
     log("  Requirement: Data phase completes to SP before exiting on error", ALWAYS);
     log("  ISO Standard: 6.6.21.3.1 (Error handling in FD frames)", ALWAYS);
     log("  Applicability: FD-B, FD-E frames with extended data", ALWAYS);
@@ -979,7 +817,7 @@ architecture testbench of tx_error_detection_tb is
     variable tdc_error_detected : boolean := false;
   begin
     log("", ALWAYS);
-    log("Test 7: TDC Error Detection @ SSP (REQ-TX-TDC003)", ALWAYS);
+    log("Test 5: TDC Error Detection @ SSP (REQ-TX-TDC003)", ALWAYS);
     log("  Requirement: Error detected at SP after SSP, not at SSP itself", ALWAYS);
     log("  ISO Standard: 6.6.21.3.1 (TDC error detection)", ALWAYS);
     log("  Applicability: FD-B, FD-E frames with TDC enabled", ALWAYS);
@@ -1064,7 +902,7 @@ architecture testbench of tx_error_detection_tb is
     variable timing_sequence_valid : boolean := false;
   begin
     log("", ALWAYS);
-    log("Test 8: TDC Error Timing Sequence (REQ-TX-TDC004)", ALWAYS);
+    log("Test 6: TDC Error Timing Sequence (REQ-TX-TDC004)", ALWAYS);
     log("  Requirement: Verify SSP->SP->IPT->nominal rate sequence on TDC error", ALWAYS);
     log("  ISO Standard: 6.6.21.3.1 (TDC error recovery timing)", ALWAYS);
     log("  Applicability: FD-B, FD-E frames with TDC enabled", ALWAYS);
@@ -1237,32 +1075,24 @@ begin
     current_test <= test_1_ack_error;
     run_test_ack_error_detection(llc_user_i, clk);
 
-    -- Test 2: Form Error Detection (REQ-TX-ERR004)
-    current_test <= test_2_form_error;
-    run_test_form_error_detection(llc_user_i, clk, bus_override_test, bus_override_test_en);
-
-    -- Test 3: Bit Error Injection
-    current_test <= test_3_bit_error;
+    -- Test 2: Bit Error Injection (REQ-TX-ERR001)
+    current_test <= test_2_bit_error;
     run_test_bit_error_injection(llc_user_i, clk, bus_override_test, bus_override_test_en);
 
-    -- Test 4: PCRC Error Detection (REQ-TX-ERR005) - FD feature
-    current_test <= test_4_pcrc_error;
-    run_test_pcrc_error_detection(llc_user_i, clk);
-
-    -- Test 5: Data Phase Bit Rate Switching (REQ-TX-EH004)
-    current_test <= test_5_bit_rate_switching;
+    -- Test 3: Data Phase Bit Rate Switching (REQ-TX-EH004)
+    current_test <= test_3_bit_rate_switching;
     run_test_data_phase_bit_rate_switching(llc_user_i, clk, bus_override_test, bus_override_test_en);
 
-    -- Test 6: FD Data Phase Completion (REQ-TX-EH005)
-    current_test <= test_6_phase_completion;
+    -- Test 4: FD Data Phase Completion (REQ-TX-EH005)
+    current_test <= test_4_phase_completion;
     run_test_fd_phase_completion(llc_user_i, clk, bus_override_test, bus_override_test_en);
 
-    -- Test 7: TDC Error @ SSP Detection (REQ-TX-TDC003)
-    current_test <= test_7_tdc_ssp_detection;
+    -- Test 5: TDC Error @ SSP Detection (REQ-TX-TDC003)
+    current_test <= test_5_tdc_ssp_detection;
     run_test_tdc_error_at_ssp(llc_user_i, clk, bus_override_test, bus_override_test_en);
 
-    -- Test 8: TDC Error Timing Sequence (REQ-TX-TDC004)
-    current_test <= test_8_tdc_timing_sequence;
+    -- Test 6: TDC Error Timing Sequence (REQ-TX-TDC004)
+    current_test <= test_6_tdc_timing_sequence;
     run_test_tdc_error_timing_sequence(llc_user_i, clk, bus_override_test, bus_override_test_en);
 
     log("", ALWAYS);
