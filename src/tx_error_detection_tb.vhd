@@ -194,6 +194,17 @@ architecture testbench of tx_error_detection_tb is
     test_6_tdc_timing_sequence
   );
 
+  -- Helper functions to pack config records to std_logic_vector
+  function config_byte_0_to_slv (cfg : llc_config_byte_0_t) return std_logic_vector is
+  begin
+    return cfg.format & cfg.ftyp & cfg.esi & cfg.brs & cfg.unused;
+  end function config_byte_0_to_slv;
+
+  function config_byte_1_to_slv (cfg : llc_config_byte_1_t) return std_logic_vector is
+  begin
+    return cfg.dlc & cfg.unused;
+  end function config_byte_1_to_slv;
+
   -- Default frame configurations (templates for common test scenarios)
   constant frame_cc_basic_default_c : frame_config_t := (
     format     => cc_basic,
@@ -363,10 +374,6 @@ architecture testbench of tx_error_detection_tb is
   ) return llc_frame_t is
     variable frame : llc_frame_t;
     variable format_v : std_logic_vector(2 downto 0);
-    variable ftyp_v : std_logic;
-    variable brs_bit : std_logic;
-    variable esi_bit : std_logic;
-    variable dlc_v : std_logic_vector(3 downto 0);
     variable unified_id : std_logic_vector(28 downto 0);
     variable dlc_val : integer;
     variable data_len : integer;
@@ -378,8 +385,7 @@ architecture testbench of tx_error_detection_tb is
     -- Initialize OSVVM random number generator with seed
     rv.InitSeed(seed_in);
 
-    -- Initialize frame fields
-    frame.format := format;
+    -- Initialize frame data field
     frame.data := (others => '0');
 
     -- Determine frame parameters based on random_frame flag
@@ -437,39 +443,8 @@ architecture testbench of tx_error_detection_tb is
       data_len := 0;
     end if;
 
-    -- Populate llc_frame_t record fields
-    frame.id := unified_id;
-    frame.ftyp := '1' when rtr_flag else '0';
-    frame.brs := '1' when brs_flag else '0';
-    frame.esi := '1' when esi_flag else '0';
-    frame.dlc := std_logic_vector(to_unsigned(dlc_val, 4));
-
-    log("[CFG] Generated LLC frame: Format=" & can_format_t'image(format) &
-        " DLC=" & integer'image(dlc_val) & " DataLen=" & integer'image(data_len) &
-        " RTR=" & boolean'image(rtr_flag) &
-        " BRS=" & boolean'image(brs_flag) &
-        " ESI=" & boolean'image(esi_flag) &
-        " ID=0x" & to_hstring(unified_id(28 downto 24)) &
-        to_hstring(unified_id(23 downto 16)) &
-        to_hstring(unified_id(15 downto 8)) &
-        to_hstring(unified_id(7 downto 0)), ALWAYS);
-
-    return frame;
-  end function generate_llc_frame;
-
-  procedure send_frame (
-    signal llc_i : out llc_user_to_llc_if_t;
-    signal clk : in std_logic;
-    frame : in llc_frame_t
-  ) is
-    variable config_0 : std_logic_vector(7 downto 0);
-    variable config_1 : std_logic_vector(7 downto 0);
-    variable id_packed : std_logic_vector(31 downto 0);
-    variable data_len : integer;
-    variable format_v : std_logic_vector(2 downto 0);
-  begin
-    -- Map format to bit pattern using protocol package constants
-    case frame.format is
+    -- Map format to encoding
+    case format is
       when cc_basic =>
         format_v := llc_frame_format_cb_encoding_c;
       when cc_extended =>
@@ -482,18 +457,50 @@ architecture testbench of tx_error_detection_tb is
         format_v := llc_frame_format_cb_encoding_c;
     end case;
 
-    -- Construct config byte 0: [7:5]=Format, [4]=FTYP, [3]=ESI, [2]=BRS, [1:0]=00
-    config_0 := format_v & frame.ftyp & frame.esi & frame.brs & "00";
+    -- Populate config_byte_0 record
+    frame.config_0.format := format_v;
+    frame.config_0.ftyp := '1' when rtr_flag else '0';
+    frame.config_0.esi := '1' when esi_flag else '0';
+    frame.config_0.brs := '1' when brs_flag else '0';
+    frame.config_0.unused := "00";
 
-    -- Construct config byte 1: [7:4]=DLC, [3:0]=0000
-    config_1 := frame.dlc & "0000";
+    -- Populate config_byte_1 record
+    frame.config_1.dlc := std_logic_vector(to_unsigned(dlc_val, 4));
+    frame.config_1.unused := "0000";
 
-    -- Pack ID bytes using protocol package function
-    id_packed := pack_llc_id_bytes(frame.id, frame.format);
+    -- Populate ID field using protocol package function
+    frame.id := pack_llc_id_bytes(unified_id, format);
+
+    log("[CFG] Generated LLC frame: Format=" & can_format_t'image(format) &
+        " DLC=" & integer'image(dlc_val) & " DataLen=" & integer'image(data_len) &
+        " RTR=" & boolean'image(rtr_flag) &
+        " BRS=" & boolean'image(brs_flag) &
+        " ESI=" & boolean'image(esi_flag) &
+        " ID=0x" & to_hstring(frame.id(31 downto 24)) &
+        to_hstring(frame.id(23 downto 16)) &
+        to_hstring(frame.id(15 downto 8)) &
+        to_hstring(frame.id(7 downto 0)), ALWAYS);
+
+    return frame;
+  end function generate_llc_frame;
+
+  procedure send_frame (
+    signal llc_i : out llc_user_to_llc_if_t;
+    signal clk : in std_logic;
+    frame : in llc_frame_t
+  ) is
+    variable config_0 : std_logic_vector(7 downto 0);
+    variable config_1 : std_logic_vector(7 downto 0);
+    variable data_len : integer;
+  begin
+    -- Convert config records to bytes using helper functions
+    config_0 := config_byte_0_to_slv(frame.config_0);
+    config_1 := config_byte_1_to_slv(frame.config_1);
 
     -- Calculate data length from DLC
-    data_len := dlc_to_data_length(dlc_t(to_integer(unsigned(frame.dlc))), frame.format);
-    if frame.ftyp = '1' then  -- RTR frame
+    data_len := dlc_to_data_length(dlc_t(to_integer(unsigned(frame.config_1.dlc))),
+                                   can_format_t'val(to_integer(unsigned(frame.config_0.format))));
+    if frame.config_0.ftyp = '1' then  -- RTR frame
       data_len := 0;
     end if;
 
@@ -518,7 +525,7 @@ architecture testbench of tx_error_detection_tb is
     end loop;
 
     -- Send ID bytes (id3, id2, id1, id0)
-    llc_i.avalon_st_source.data <= id_packed(31 downto 24);
+    llc_i.avalon_st_source.data <= frame.id(31 downto 24);
     llc_i.avalon_st_source.sop <= '0';
     llc_i.avalon_st_source.eop <= '0';
     llc_i.avalon_st_source.valid <= '1';
@@ -527,7 +534,7 @@ architecture testbench of tx_error_detection_tb is
       exit when llc_user_o.avalon_st_sink.ready = '1';
     end loop;
 
-    llc_i.avalon_st_source.data <= id_packed(23 downto 16);
+    llc_i.avalon_st_source.data <= frame.id(23 downto 16);
     llc_i.avalon_st_source.sop <= '0';
     llc_i.avalon_st_source.eop <= '0';
     llc_i.avalon_st_source.valid <= '1';
@@ -536,7 +543,7 @@ architecture testbench of tx_error_detection_tb is
       exit when llc_user_o.avalon_st_sink.ready = '1';
     end loop;
 
-    llc_i.avalon_st_source.data <= id_packed(15 downto 8);
+    llc_i.avalon_st_source.data <= frame.id(15 downto 8);
     llc_i.avalon_st_source.sop <= '0';
     llc_i.avalon_st_source.eop <= '0';
     llc_i.avalon_st_source.valid <= '1';
@@ -545,7 +552,7 @@ architecture testbench of tx_error_detection_tb is
       exit when llc_user_o.avalon_st_sink.ready = '1';
     end loop;
 
-    llc_i.avalon_st_source.data <= id_packed(7 downto 0);
+    llc_i.avalon_st_source.data <= frame.id(7 downto 0);
     llc_i.avalon_st_source.sop <= '0';
     llc_i.avalon_st_source.eop <= '0' when data_len > 0 else '1';  -- EOP if no data (RTR or no data)
     llc_i.avalon_st_source.valid <= '1';

@@ -1,8 +1,13 @@
---------------------------------------------------------------------
--- can_pkg.vhd
--- CAN/CAN-FD protocol definitions and utilities per ISO 11898-1:2015.
--- Types, constants, frame structure functions, and bit timing config.
---------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- Title      : CAN Bus Types and Constants
+-- Project    : CAN Bus Transmitter
+--------------------------------------------------------------------------------
+-- File       : can_types_pkg.vhd
+-- Standard   : VHDL-2008
+--------------------------------------------------------------------------------
+-- Description: Centralized type and constant definitions for the CAN/CAN-FD
+--              transmitter design per ISO 11898-1:2015.
+--------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;
@@ -10,9 +15,9 @@ library ieee;
 
 package can_types_pkg is
 
-  -------------------------------------------------------------------
-  -- Basic constants
-  -------------------------------------------------------------------
+  ---------------------------------------------------------------------------
+  -- Protocol Constants
+  ---------------------------------------------------------------------------
   constant dominant_bit_c    : std_logic                     := '0';
   constant recessive_bit_c   : std_logic                     := '1';
   constant sof_c             : integer                       := 0;
@@ -44,9 +49,9 @@ package can_types_pkg is
   constant max_data_bytes_c              : integer := 64;
   constant tdc_bit_time_max_c            : integer := 1000; -- ISO 11898-1: 7.3.4
 
-  --------------------------------------------------------------------
-  -- CAN FD Bit Timing Configuration (Table 13, ISO 11898-1)
-  --------------------------------------------------------------------
+  ---------------------------------------------------------------------------
+  -- Bit Timing Configuration (ISO 11898-1 Table 13)
+  ---------------------------------------------------------------------------
 
   -- Default reference clock used by timing helper calculations and tests.
   constant system_clock_freq_c : integer := 100_000_000; -- 100 MHz
@@ -63,9 +68,9 @@ package can_types_pkg is
   subtype  ssp_offset is integer range 1 to 160;
   constant max_transmitter_delay_c : integer := 255; -- ISO 11898-1: 7.3.4
 
-  --------------------------------------------------------------------
-  -- Type declarations
-  --------------------------------------------------------------------
+  ---------------------------------------------------------------------------
+  -- Basic Enumerations and Records
+  ---------------------------------------------------------------------------
   type mac_frame_bit_name_t is (
     -- Flag bits
     active_error_flag_bit,
@@ -146,6 +151,10 @@ package can_types_pkg is
   -- CRC vector
   subtype crc_vector_t is std_logic_vector(crc_poly_21_vec_c'left downto 0);
 
+  ---------------------------------------------------------------------------
+  -- FSM State Types
+  ---------------------------------------------------------------------------
+
   -- MAC layer TX state type
   type tx_mac_fsm_state_t is (
     bus_reintegration,
@@ -172,6 +181,17 @@ package can_types_pkg is
     transmitting_nominal, -- Transmitting at nominal bit rate (arbitration phase)
     transmitting_data     -- Transmitting at data bit rate (FD data phase with TDC)
   );
+
+  -- Sample strobe type indicator (ISO 11898-1:2024 7.3.4)
+  -- Distinguishes between primary and secondary sample points for TDC error handling
+  type strobe_type_t is (
+    sp_strobe, -- Primary Sample Point (used in arbitration phase and non-TDC data)
+    ssp_strobe -- Secondary Sample Point (used in TDC-enabled data phase, ISO 7.3.4)
+  );
+
+  ---------------------------------------------------------------------------
+  -- Status and Event Types
+  ---------------------------------------------------------------------------
 
   -- MAC frame error type
   type tx_mac_error_t is (
@@ -298,9 +318,10 @@ package can_types_pkg is
     esi_bit : bit_t; -- Polarity resolved based on esi_enable flag
   end record frame_params_t;
 
-  --------------------------------------------------------------------
-  -- Interface types
-  --------------------------------------------------------------------
+  ---------------------------------------------------------------------------
+  -- Interface Types and Reset Constants
+  ---------------------------------------------------------------------------
+
   type avalon_st_source_t is record
     data  : byte_t;
     valid : std_logic;
@@ -383,7 +404,8 @@ package can_types_pkg is
     transfer_status : transfer_status_t;
   end record mac_to_llc_if_t;
 
-  constant mac_to_llc_if_reset_c : mac_to_llc_if_t := (
+  constant mac_to_llc_if_reset_c : mac_to_llc_if_t :=
+  (
     avalon_st_sink  => (ready => '0'),
     transfer_status => ongoing
   );
@@ -410,6 +432,9 @@ package can_types_pkg is
     -- Effective sample strobe selected by PCS timing rules:
     -- nominal/arbitration fields use SP; FD data-field monitoring may use SSP.
     sample_strobe : std_logic;
+    -- Strobe type indicator for ISO 6.6.21.3.1 TDC error handling
+    -- Distinguishes between primary (SP) and secondary (SSP) sample points
+    strobe_type : strobe_type_t;
 
     -- TDC measurement results (ISO 7.3.4)
     -- Effective FIFO index for sample_strobe-aligned comparison.
@@ -421,6 +446,7 @@ package can_types_pkg is
   (
     bus_polarity  => recessive,
     sample_strobe => '0',
+    strobe_type   => sp_strobe,
     fifo_index    => 0
   );
 
@@ -442,6 +468,13 @@ package can_types_pkg is
     valid : boolean;                                          -- true when stuff bit insertion needed (level)
     sbc   : std_logic_vector(sbc_field_width_c - 1 downto 0); -- Gray-coded stuff bit count with parity
   end record bs_fd_to_mac_fsm_if_t;
+
+  constant bs_fd_to_mac_fsm_if_reset_c : bs_fd_to_mac_fsm_if_t :=
+  (
+    data  => recessive,
+    valid => false,
+    sbc   => (others => '0')
+  );
 
   type mac_fsm_to_crc_if_t is record
     crc_poly_select : std_logic_vector(1 downto 0);
@@ -574,10 +607,10 @@ package can_types_pkg is
   -- LLC frame config bytes (byte 0 and byte 1) format.
   -- byte0[7:5]=format, byte0[4]=ftyp, byte0[3]=esi, byte0[2]=brs
   -- byte1[7:4]=dlc
-  constant llc_frame_format_cb_encoding         : std_logic_vector(2 downto 0) := "000";
-  constant llc_frame_format_ce_encoding         : std_logic_vector(2 downto 0) := "100";
-  constant llc_frame_format_fb_encoding         : std_logic_vector(2 downto 0) := "010";
-  constant llc_frame_format_fe_encoding         : std_logic_vector(2 downto 0) := "110";
+  constant llc_frame_format_cb_encoding_c       : std_logic_vector(2 downto 0) := "000";
+  constant llc_frame_format_ce_encoding_c       : std_logic_vector(2 downto 0) := "100";
+  constant llc_frame_format_fb_encoding_c       : std_logic_vector(2 downto 0) := "010";
+  constant llc_frame_format_fe_encoding_c       : std_logic_vector(2 downto 0) := "110";
   constant llc_frame_config_byte_0_format_start : integer                      := byte_width_c - 1;
   constant llc_frame_config_byte_0_format_end   : integer                      := llc_frame_config_byte_0_format_start - 2;
   constant llc_frame_config_byte_0_ftyp         : integer                      := llc_frame_config_byte_0_format_end - 1;
@@ -588,15 +621,28 @@ package can_types_pkg is
   -- LLC layer types (ISO 11898-1 Section 6.4)
   --------------------------------------------------------------------
 
-  -- LLC frame as seen by the LLC user (application-facing)
+  -- LLC Config Byte 0 structure: [7:5]=Format, [4]=FTYP (RTR), [3]=ESI, [2]=BRS, [1:0]=00
+  type llc_config_byte_0_t is record
+    format : std_logic_vector(2 downto 0);  -- [7:5] Format encoding (cc_basic/extended, fd_basic/extended)
+    ftyp   : std_logic;                     -- [4] Frame type: '1'=remote, '0'=data
+    esi    : std_logic;                     -- [3] Error state indicator (FD only)
+    brs    : std_logic;                     -- [2] Bit rate switch (FD only)
+    unused : std_logic_vector(1 downto 0);  -- [1:0] Reserved (always '0')
+  end record llc_config_byte_0_t;
+
+  -- LLC Config Byte 1 structure: [7:4]=DLC, [3:0]=0000
+  type llc_config_byte_1_t is record
+    dlc    : std_logic_vector(3 downto 0);  -- [7:4] Data length code
+    unused : std_logic_vector(3 downto 0);  -- [3:0] Reserved (always '0')
+  end record llc_config_byte_1_t;
+
+  -- LLC frame as transmitted (matches Avalon-ST byte sequence)
+  -- Byte sequence: [config_0, config_1, id[31:24], id[23:16], id[15:8], id[7:0], data[0..63]]
   type llc_frame_t is record
-    id     : std_logic_vector(28 downto 0);                       -- 29-bit identifier (11 or 29 bits used)
-    format : can_format_t;                                        -- cc_basic/cc_extended/fd_basic/fd_extended
-    ftyp   : std_logic;                                           -- Frame type: '1'=remote, '0'=data
-    brs    : std_logic;                                           -- Bit rate switch (FD only)
-    esi    : std_logic;                                           -- Error state indicator (FD only)
-    dlc    : std_logic_vector(3 downto 0);                        -- Data length code
-    data   : std_logic_vector(max_data_bytes_c * 8 - 1 downto 0); -- Max 64 bytes
+    config_0 : llc_config_byte_0_t;                                 -- Config byte 0 (format, FTYP, ESI, BRS)
+    config_1 : llc_config_byte_1_t;                                 -- Config byte 1 (DLC)
+    id       : std_logic_vector(31 downto 0);                       -- 4-byte packed ID (format-dependent layout)
+    data     : std_logic_vector(max_data_bytes_c * 8 - 1 downto 0); -- Up to 64 data bytes
   end record llc_frame_t;
 
   -- LLC user -> tx_llc interface (Avalon-ST frame stream + control)
