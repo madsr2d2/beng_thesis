@@ -417,105 +417,97 @@ architecture testbench of tx_error_detection_tb is
     variable brs_bit : std_logic;
     variable esi_bit : std_logic;
     variable dlc_v : std_logic_vector(3 downto 0);
-    variable rtr_bit : std_logic;
     variable id3_v, id2_v, id1_v, id0_v : std_logic_vector(7 downto 0);
-    variable random_dlc : integer;
-    variable random_rtr : integer;
-    variable random_brs : integer;
-    variable random_esi : integer;
-    variable random_data_bytes : std_logic_vector(63 downto 0);
-    variable random_base_id : std_logic_vector(10 downto 0);
-    variable random_extended_id : std_logic_vector(28 downto 0);
-    variable actual_dlc : integer;
-    variable actual_data_len : integer;
-    variable actual_format : can_format_t;
-    variable actual_rtr : boolean;
-    variable actual_brs : boolean;
-    variable actual_esi : boolean;
+    variable temp : integer;
+    variable data_bytes : std_logic_vector(63 downto 0);
+    variable base_id : std_logic_vector(10 downto 0);
+    variable extended_id : std_logic_vector(28 downto 0);
+    variable dlc_val : integer;
+    variable data_len : integer;
+    variable is_rtr : boolean;
+    variable is_brs : boolean;
+    variable is_esi : boolean;
     variable seed : integer;
-    variable data_byte : integer;
+    variable i : integer;
   begin
     -- Initialize seed from input parameter
     seed := seed_in;
 
-    -- Determine actual frame parameters based on random_frame flag
+    -- Determine frame parameters based on random_frame flag
     if (random_frame) then
       -- Generate random frame configuration
-      actual_format := format;  -- Keep format deterministic for now
-
       -- Random DLC based on format
-      if (actual_format = cc_basic or actual_format = cc_extended) then
-        random_integer(seed, 9, random_dlc);  -- 0-8 for CC
-        actual_dlc := random_dlc;
+      if (format = cc_basic or format = cc_extended) then
+        random_integer(seed, 9, temp);  -- 0-8 for CC
+        dlc_val := temp;
       else
-        random_integer(seed, 16, random_dlc);  -- 0-15 for FD (DLC encoding)
-        actual_dlc := random_dlc;
+        random_integer(seed, 16, temp);  -- 0-15 for FD (DLC encoding)
+        dlc_val := temp;
       end if;
 
-      random_integer(seed, 2, random_rtr);
-      actual_rtr := random_rtr = 1;
+      random_integer(seed, 2, temp);
+      is_rtr := temp = 1;
 
-      random_integer(seed, 2, random_brs);
-      actual_brs := random_brs = 1;
+      random_integer(seed, 2, temp);
+      is_brs := temp = 1;
 
-      random_integer(seed, 2, random_esi);
-      actual_esi := random_esi = 1;
+      random_integer(seed, 2, temp);
+      is_esi := temp = 1;
 
       -- Generate random base ID (11-bit)
-      random_integer(seed, 2048, random_dlc);  -- 0-2047 (11-bit range)
-      random_base_id := std_logic_vector(to_unsigned(random_dlc, 11));
+      random_integer(seed, 2048, temp);  -- 0-2047 (11-bit range)
+      base_id := std_logic_vector(to_unsigned(temp, 11));
 
       -- Generate random extended ID (29-bit)
-      random_integer(seed, 536870912, random_dlc);  -- 0-536870911 (29-bit range)
-      random_extended_id := std_logic_vector(to_unsigned(random_dlc, 29));
+      random_integer(seed, 536870912, temp);  -- 0-536870911 (29-bit range)
+      extended_id := std_logic_vector(to_unsigned(temp, 29));
 
       -- Generate random data bytes (for non-RTR frames)
       -- Get actual data length from DLC using protocol package function
-      actual_data_len := dlc_to_data_length(dlc_t(actual_dlc), actual_format);
+      data_len := dlc_to_data_length(dlc_t(dlc_val), format);
 
-      if (not actual_rtr) then
+      if (not is_rtr) then
         for i in 0 to 7 loop
-          random_integer(seed, 256, data_byte);
-          random_data_bytes(8*(i+1)-1 downto 8*i) := std_logic_vector(to_unsigned(data_byte, 8));
+          random_integer(seed, 256, temp);
+          data_bytes(8*(i+1)-1 downto 8*i) := std_logic_vector(to_unsigned(temp, 8));
         end loop;
       else
-        random_data_bytes := (others => '0');
+        data_bytes := (others => '0');
       end if;
 
-      log("[RANDOM] Generated random frame: Format=" & can_format_t'image(actual_format) &
-          " DLC=" & integer'image(actual_dlc) &
-          " DataLen=" & integer'image(actual_data_len) &
-          " RTR=" & boolean'image(actual_rtr) &
-          " BRS=" & boolean'image(actual_brs) &
-          " BaseID=0x" & to_hstring(random_base_id(10 downto 8)) & to_hstring(random_base_id(7 downto 0)), ALWAYS);
+      log("[RANDOM] Generated random frame: Format=" & can_format_t'image(format) &
+          " DLC=" & integer'image(dlc_val) &
+          " DataLen=" & integer'image(data_len) &
+          " RTR=" & boolean'image(is_rtr) &
+          " BRS=" & boolean'image(is_brs) &
+          " BaseID=0x" & to_hstring(base_id(10 downto 8)) & to_hstring(base_id(7 downto 0)), ALWAYS);
 
     else
       -- Use deterministic parameters
-      actual_dlc := dlc;
-      actual_rtr := rtr;
-      actual_brs := brs;
-      actual_esi := esi;
-      actual_format := format;
+      dlc_val := dlc;
+      is_rtr := rtr;
+      is_brs := brs;
+      is_esi := esi;
 
       -- Generate all-zero data bytes
-      random_data_bytes := (others => '0');
+      data_bytes := (others => '0');
 
       -- Use fixed default IDs for deterministic frames
-      random_base_id := "10101010101";  -- 0x555
-      random_extended_id := (others => '0');
+      base_id := "10101010101";  -- 0x555
+      extended_id := (others => '0');
 
       -- Get actual data length from DLC using protocol package function
-      actual_data_len := dlc_to_data_length(dlc_t(dlc), format);
+      data_len := dlc_to_data_length(dlc_t(dlc), format);
     end if;
 
-    -- Calculate actual data length for transmission (0 for RTR frames)
-    if (actual_rtr) then
-      actual_data_len := 0;
+    -- Set data length to 0 for RTR frames
+    if (is_rtr) then
+      data_len := 0;
     end if;
 
     -- Map format to bit pattern
     -- Config byte 0: [7:5]=Format, [4]=FTYP (encodes RTR), [3]=ESI, [2]=BRS, [1:0]=00
-    case actual_format is
+    case format is
       when cc_basic =>
         format_v := "000";
       when cc_extended =>
@@ -529,23 +521,23 @@ architecture testbench of tx_error_detection_tb is
     end case;
 
     -- FTYP encodes RTR: 1=remote frame, 0=data frame
-    ftyp_v := '1' when actual_rtr else '0';
+    ftyp_v := '1' when is_rtr else '0';
 
     -- Set BRS and ESI bits
-    brs_bit := '1' when actual_brs else '0';
-    esi_bit := '1' when actual_esi else '0';
+    brs_bit := '1' when is_brs else '0';
+    esi_bit := '1' when is_esi else '0';
 
     -- Construct config byte 0 with FTYP encoding RTR
     config_0_v := format_v & ftyp_v & esi_bit & brs_bit & "00";
 
     -- Construct config byte 1 with DLC only (no RTR bit - it's encoded in FTYP)
-    dlc_v := std_logic_vector(to_unsigned(actual_dlc, 4));
+    dlc_v := std_logic_vector(to_unsigned(dlc_val, 4));
     config_1_v := dlc_v & "0000";
 
     log("[CFG] Config bytes set: cfg0=" & to_hstring(config_0_v) &
-        " cfg1=" & to_hstring(config_1_v) & " (Format=" & can_format_t'image(actual_format) &
-        " DLC=" & integer'image(actual_dlc) & " DataLen=" & integer'image(actual_data_len) &
-        " RTR=" & boolean'image(actual_rtr) & ")", ALWAYS);
+        " cfg1=" & to_hstring(config_1_v) & " (Format=" & can_format_t'image(format) &
+        " DLC=" & integer'image(dlc_val) & " DataLen=" & integer'image(data_len) &
+        " RTR=" & boolean'image(is_rtr) & ")", ALWAYS);
 
     -- Send config byte 0 (sop='1', eop='0')
     llc_i.avalon_st_source.data <= config_0_v;
@@ -568,16 +560,16 @@ architecture testbench of tx_error_detection_tb is
     end loop;
 
     -- Pack and send ID bytes based on format
-    if (actual_format = cc_extended or actual_format = fd_extended) then
-      pack_extended_id(random_extended_id, id3_v, id2_v, id1_v, id0_v);
-      log("[ID] Extended ID=0x" & to_hstring(random_extended_id(28 downto 24)) &
-          to_hstring(random_extended_id(23 downto 16)) &
-          to_hstring(random_extended_id(15 downto 8)) &
-          to_hstring(random_extended_id(7 downto 0)), ALWAYS);
+    if (format = cc_extended or format = fd_extended) then
+      pack_extended_id(extended_id, id3_v, id2_v, id1_v, id0_v);
+      log("[ID] Extended ID=0x" & to_hstring(extended_id(28 downto 24)) &
+          to_hstring(extended_id(23 downto 16)) &
+          to_hstring(extended_id(15 downto 8)) &
+          to_hstring(extended_id(7 downto 0)), ALWAYS);
     else
-      pack_base_id(random_base_id, id3_v, id2_v, id1_v, id0_v);
-      log("[ID] Base ID=0x" & to_hstring(random_base_id(10 downto 8)) &
-          to_hstring(random_base_id(7 downto 0)), ALWAYS);
+      pack_base_id(base_id, id3_v, id2_v, id1_v, id0_v);
+      log("[ID] Base ID=0x" & to_hstring(base_id(10 downto 8)) &
+          to_hstring(base_id(7 downto 0)), ALWAYS);
     end if;
 
     -- Send ID bytes (id3, id2, id1, id0)
@@ -610,7 +602,7 @@ architecture testbench of tx_error_detection_tb is
 
     llc_i.avalon_st_source.data <= id0_v;
     llc_i.avalon_st_source.sop <= '0';
-    llc_i.avalon_st_source.eop <= '0' when actual_data_len > 0 else '1';  -- EOP if no data (RTR or no data)
+    llc_i.avalon_st_source.eop <= '0' when data_len > 0 else '1';  -- EOP if no data (RTR or no data)
     llc_i.avalon_st_source.valid <= '1';
     loop
       wait until rising_edge(clk);
@@ -618,11 +610,11 @@ architecture testbench of tx_error_detection_tb is
     end loop;
 
     -- Send data bytes (skipped for RTR frames)
-    if (actual_data_len > 0) then
-      for i in 0 to actual_data_len - 1 loop
-        llc_i.avalon_st_source.data <= random_data_bytes(8*(i+1)-1 downto 8*i);
+    if (data_len > 0) then
+      for i in 0 to data_len - 1 loop
+        llc_i.avalon_st_source.data <= data_bytes(8*(i+1)-1 downto 8*i);
         llc_i.avalon_st_source.sop <= '0';
-        llc_i.avalon_st_source.eop <= '1' when i = actual_data_len - 1 else '0';
+        llc_i.avalon_st_source.eop <= '1' when i = data_len - 1 else '0';
         llc_i.avalon_st_source.valid <= '1';
         loop
           wait until rising_edge(clk);
