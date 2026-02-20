@@ -353,7 +353,6 @@ architecture testbench of tx_error_detection_tb is
   procedure send_frame (
     signal llc_i : out llc_user_to_llc_if_t;
     signal clk : in std_logic;
-    dlc : in integer := 1;
     format : in can_format_t := cc_basic;
     brs_default : in boolean := false;
     esi_default : in boolean := false;
@@ -419,8 +418,8 @@ architecture testbench of tx_error_detection_tb is
           to_hstring(unified_id(15 downto 8)) & to_hstring(unified_id(7 downto 0)), ALWAYS);
 
     else
-      -- Use deterministic parameters
-      dlc_val := dlc;
+      -- Use deterministic parameters (default DLC = 1)
+      dlc_val := 1;
       rtr := rtr_default;
       brs := brs_default;
       esi := esi_default;
@@ -432,7 +431,7 @@ architecture testbench of tx_error_detection_tb is
       unified_id := std_logic_vector(to_unsigned(16#555#, 29));
 
       -- Get actual data length from DLC using protocol package function
-      data_len := dlc_to_data_length(dlc_t(dlc), format);
+      data_len := dlc_to_data_length(dlc_t(dlc_val), format);
     end if;
 
     -- Set data length to 0 for RTR frames
@@ -594,7 +593,7 @@ architecture testbench of tx_error_detection_tb is
 
     -- Send frame: CC Basic, DLC=1, ID=0x555, Data=zeros
     log("  [FRAME] Sending CC Basic frame with 1 data byte", ALWAYS);
-    send_frame(llc_i, clk, 1, cc_basic, false, false);
+    send_frame(llc_i, clk, cc_basic, false, false);
 
     log("  [FRAME] Frame submission complete, waiting for transmission...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
@@ -657,7 +656,7 @@ architecture testbench of tx_error_detection_tb is
 
     -- Send frame: CC Basic, DLC=1, ID=0x555, Data=zeros
     log("  [FRAME] Sending CC Basic frame with 1 data byte", ALWAYS);
-    send_frame(llc_i, clk, 1, cc_basic, false, false);
+    send_frame(llc_i, clk, cc_basic, false, false);
 
     log("  [FRAME] Frame submission complete, waiting for transmission...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
@@ -747,7 +746,7 @@ architecture testbench of tx_error_detection_tb is
     -- Send FD Basic frame: format=010 (FD Basic), DLC=4, BRS=recessive (enables data phase)
     log("  [FRAME] Sending FD Basic frame with 4 data bytes and BRS enabled", ALWAYS);
     log("  - Data phase bit time will be shorter than nominal phase", ALWAYS);
-    send_frame(llc_i, clk, 4, fd_basic, true, false);
+    send_frame(llc_i, clk, fd_basic, true, false);
 
     log("  [FRAME] FD frame submission complete, waiting for bit rate transition...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
@@ -832,7 +831,7 @@ architecture testbench of tx_error_detection_tb is
     -- Send FD Extended frame: 8 data bytes for extended data phase
     log("  [FRAME] Sending FD Extended frame with 8 data bytes", ALWAYS);
     log("  - Frame: format=FD Extended, DLC=8, BRS=recessive", ALWAYS);
-    send_frame(llc_i, clk, 8, fd_extended, true, false);
+    send_frame(llc_i, clk, fd_extended, true, false);
 
     log("  [FRAME] FD frame submission complete, waiting for data phase...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
@@ -917,7 +916,7 @@ architecture testbench of tx_error_detection_tb is
     -- Send FD Extended frame with TDC
     log("  [FRAME] Sending FD Extended frame with 4 data bytes (TDC enabled)", ALWAYS);
     log("  - Frame: format=FD Extended, DLC=4, BRS=recessive", ALWAYS);
-    send_frame(llc_i, clk, 4, fd_extended, true, false);
+    send_frame(llc_i, clk, fd_extended, true, false);
 
     log("  [FRAME] FD frame submission complete, waiting for data phase...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
@@ -998,19 +997,19 @@ architecture testbench of tx_error_detection_tb is
 
     -- Iteration 1: Random CC Basic frame
     log("  [ITERATION 1] Generating random CC Basic frame", ALWAYS);
-    send_frame(llc_i, clk, 1, cc_basic, false, false,
+    send_frame(llc_i, clk, cc_basic, false, false,
                false, true, seed);
     wait for 100 us;
 
     -- Iteration 2: Random FD Basic frame
     log("  [ITERATION 2] Generating random FD Basic frame", ALWAYS);
-    send_frame(llc_i, clk, 8, fd_basic, false, false,
+    send_frame(llc_i, clk, fd_basic, false, false,
                false, true, seed);
     wait for 100 us;
 
     -- Iteration 3: Random CC Extended frame
     log("  [ITERATION 3] Generating random CC Extended frame", ALWAYS);
-    send_frame(llc_i, clk, 4, cc_extended, false, false,
+    send_frame(llc_i, clk, cc_extended, false, false,
                false, true, seed);
     wait for 100 us;
 
@@ -1064,7 +1063,7 @@ architecture testbench of tx_error_detection_tb is
     -- Send FD Extended frame with extended data for complete TDC sequence
     log("  [FRAME] Sending FD Extended frame with 8 data bytes (full TDC sequence)", ALWAYS);
     log("  - Frame: format=FD Extended, DLC=8, BRS=recessive", ALWAYS);
-    send_frame(llc_i, clk, 8, fd_extended, true, false);
+    send_frame(llc_i, clk, fd_extended, true, false);
 
     log("  [FRAME] FD frame submission complete, waiting for data phase...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
