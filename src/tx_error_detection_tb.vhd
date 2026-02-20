@@ -287,7 +287,6 @@ architecture testbench of tx_error_detection_tb is
   signal ack_error_pulse_detected : boolean := false;
   signal form_error_pulse_detected : boolean := false;
   signal bit_error_pulse_detected : boolean := false;
-  signal pcrc_error_pulse_detected : boolean := false;
   signal test_cycle_counter : integer := 0;
   signal sample_point_counter : integer := 0;
   signal test_complete : boolean := false;
@@ -301,8 +300,6 @@ architecture testbench of tx_error_detection_tb is
 
   -- Debug: track FSM state (via force-accessible)
   signal fsm_state : tx_mac_fsm_state_t;
-  signal last_fsm_state : tx_mac_fsm_state_t;
-  signal fsm_monitored_event : tx_mac_monitor_event_t;
 
   -- Test helpers
   -- ============================================================================
@@ -1035,7 +1032,6 @@ begin
 
   -- Force-accessible access to FSM internals (VHDL 2008)
   fsm_state <= << signal dut.mac_tx_inst.tx_mac_fsm_inst.state : tx_mac_fsm_state_t >>;
-  fsm_monitored_event <= << signal dut.mac_tx_inst.tx_mac_fsm_inst.monitored_bit_event : tx_mac_monitor_event_t >>;
 
   -- ============================================================================
   -- SECTION 8: Monitoring Processes (concurrent)
@@ -1134,15 +1130,6 @@ begin
         bit_error_pulse_detected <= true;
       end if;
 
-      -- NOTE: PCRC is out of scope of this TX CAN module. PCRC is related to XL frames and this implementation only covers CB, CE, FB and FE formats. 
-      -- Monitor PCRC error detection
-      -- NOTE: PCRC error signal not yet exposed in tx_mac_fsm.vhd debug outputs
-      -- Once crc_fd.vhd implements PCRC signal (debug_pcrc_error_o), update here:
-      -- if debug_pcrc_error then
-      --   pcrc_error_pulse_detected <= true;
-      --   log("[PULSE] PCRC ERROR DETECTED ...", ALWAYS);
-      -- end if;
-      -- For now, test framework is ready; detection will activate when signal available
 
       -- Track frame progression for diagnostics
       if debug_pcs_to_mac.sample_strobe = '1' then
@@ -1157,28 +1144,5 @@ begin
     end if;
   end process error_monitor;
 
-  -- Sample point counter for waveform debugging
-  sample_monitor : process (clk) is
-  begin
-    if rising_edge(clk) then
-      if debug_pcs_to_mac.sample_strobe = '1' then
-        sample_point_counter <= sample_point_counter + 1;
-      end if;
-    end if;
-  end process sample_monitor;
-
-  -- FSM state transition monitor
-  fsm_state_monitor : process (clk) is
-  begin
-    if rising_edge(clk) then
-      if (fsm_state /= last_fsm_state) then
-        log("[FSM] State transition at sample " & integer'image(sample_point_counter) &
-            ": " & tx_mac_fsm_state_t'image(last_fsm_state) & " -> " &
-            tx_mac_fsm_state_t'image(fsm_state) &
-            ", event=" & tx_mac_monitor_event_t'image(fsm_monitored_event), ALWAYS);
-        last_fsm_state <= fsm_state;
-      end if;
-    end if;
-  end process fsm_state_monitor;
 
 end architecture testbench;
