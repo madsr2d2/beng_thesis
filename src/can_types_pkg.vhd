@@ -639,6 +639,7 @@ package can_types_pkg is
   -- LLC frame as transmitted (matches Avalon-ST byte sequence)
   -- Byte sequence: [config_0, config_1, id[31:24], id[23:16], id[15:8], id[7:0], data[0..63]]
   type llc_frame_t is record
+    format   : can_format_t;                                        -- Frame format (for lookups)
     config_0 : llc_config_byte_0_t;                                 -- Config byte 0 (format, FTYP, ESI, BRS)
     config_1 : llc_config_byte_1_t;                                 -- Config byte 1 (DLC)
     id       : std_logic_vector(31 downto 0);                       -- 4-byte packed ID (format-dependent layout)

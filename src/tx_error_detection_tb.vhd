@@ -387,7 +387,8 @@ architecture testbench of tx_error_detection_tb is
     -- Initialize OSVVM random number generator with seed
     rv.InitSeed(seed_in);
 
-    -- Initialize frame data field
+    -- Initialize frame fields
+    frame.format := format;
     frame.data := (others => '0');
 
     -- Determine frame parameters based on random_frame flag
@@ -414,7 +415,6 @@ architecture testbench of tx_error_detection_tb is
 
       if (not rtr_flag) then
         for i in 0 to data_len - 1 loop
-          -- Calculate byte bit range: byte i is at bits [8*(i+1)-1 downto 8*i]
           byte_high := 8 * (i + 1) - 1;
           byte_low := 8 * i;
           frame.data(byte_high downto byte_low) := std_logic_vector(to_unsigned(rv.RandInt(0, 255), 8));
@@ -503,8 +503,7 @@ architecture testbench of tx_error_detection_tb is
     config_1 := config_byte_1_to_slv(frame.config_1);
 
     -- Calculate data length from DLC
-    data_len := dlc_to_data_length(dlc_t(to_integer(unsigned(frame.config_1.dlc))),
-                                   can_format_t'val(to_integer(unsigned(frame.config_0.format))));
+    data_len := dlc_to_data_length(dlc_t(to_integer(unsigned(frame.config_1.dlc))), frame.format);
     if frame.config_0.ftyp = '1' then  -- RTR frame
       data_len := 0;
     end if;
