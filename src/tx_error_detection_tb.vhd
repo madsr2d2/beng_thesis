@@ -355,9 +355,9 @@ architecture testbench of tx_error_detection_tb is
     signal clk : in std_logic;
     dlc : in integer := 1;
     format : in can_format_t := cc_basic;
-    brs : in boolean := false;
-    esi : in boolean := false;
-    rtr : in boolean := false;
+    brs_default : in boolean := false;
+    esi_default : in boolean := false;
+    rtr_default : in boolean := false;
     random_frame : in boolean := false;
     seed_in : in integer := 42
   ) is
@@ -373,9 +373,10 @@ architecture testbench of tx_error_detection_tb is
     variable unified_id : std_logic_vector(28 downto 0);
     variable dlc_val : integer;
     variable data_len : integer;
-    variable is_rtr : boolean;
-    variable is_brs : boolean;
-    variable is_esi : boolean;
+    variable rtr : boolean;
+    variable brs : boolean;
+    variable esi : boolean;
+    variable i : integer;
     variable rng : RandomPType;
   begin
     -- Initialize OSVVM random number generator with seed
@@ -391,9 +392,9 @@ architecture testbench of tx_error_detection_tb is
         dlc_val := rng.Uniform(0, 15);  -- 0-15 for FD (DLC encoding)
       end if;
 
-      is_rtr := rng.Uniform(0, 1) = 1;
-      is_brs := rng.Uniform(0, 1) = 1;
-      is_esi := rng.Uniform(0, 1) = 1;
+      rtr := rng.Uniform(0, 1) = 1;
+      brs := rng.Uniform(0, 1) = 1;
+      esi := rng.Uniform(0, 1) = 1;
 
       -- Generate random ID (29-bit for unified packing)
       unified_id := std_logic_vector(to_unsigned(rng.Uniform(0, 536870911), 29));
@@ -402,7 +403,7 @@ architecture testbench of tx_error_detection_tb is
       -- Get actual data length from DLC using protocol package function
       data_len := dlc_to_data_length(dlc_t(dlc_val), format);
 
-      if (not is_rtr) then
+      if (not rtr) then
         for i in 0 to 7 loop
           data_bytes(8*(i+1)-1 downto 8*i) := std_logic_vector(to_unsigned(rng.Uniform(0, 255), 8));
         end loop;
@@ -413,17 +414,17 @@ architecture testbench of tx_error_detection_tb is
       log("[RANDOM] Generated random frame: Format=" & can_format_t'image(format) &
           " DLC=" & integer'image(dlc_val) &
           " DataLen=" & integer'image(data_len) &
-          " RTR=" & boolean'image(is_rtr) &
-          " BRS=" & boolean'image(is_brs) &
+          " RTR=" & boolean'image(rtr) &
+          " BRS=" & boolean'image(brs) &
           " ID=0x" & to_hstring(unified_id(28 downto 24)) & to_hstring(unified_id(23 downto 16)) &
           to_hstring(unified_id(15 downto 8)) & to_hstring(unified_id(7 downto 0)), ALWAYS);
 
     else
       -- Use deterministic parameters
       dlc_val := dlc;
-      is_rtr := rtr;
-      is_brs := brs;
-      is_esi := esi;
+      rtr := rtr_default;
+      brs := brs_default;
+      esi := esi_default;
 
       -- Generate all-zero data bytes
       data_bytes := (others => '0');
@@ -436,7 +437,7 @@ architecture testbench of tx_error_detection_tb is
     end if;
 
     -- Set data length to 0 for RTR frames
-    if (is_rtr) then
+    if (rtr) then
       data_len := 0;
     end if;
 
@@ -444,23 +445,23 @@ architecture testbench of tx_error_detection_tb is
     -- Config byte 0: [7:5]=Format, [4]=FTYP (encodes RTR), [3]=ESI, [2]=BRS, [1:0]=00
     case format is
       when cc_basic =>
-        format_v := llc_frame_format_cb_encoding;
+        format_v := llc_frame_format_cb_encoding_c;
       when cc_extended =>
-        format_v := llc_frame_format_ce_encoding;
+        format_v := llc_frame_format_ce_encoding_c;
       when fd_basic =>
-        format_v := llc_frame_format_fb_encoding;
+        format_v := llc_frame_format_fb_encoding_c;
       when fd_extended =>
-        format_v := llc_frame_format_fe_encoding;
+        format_v := llc_frame_format_fe_encoding_c;
       when others =>
-        format_v := llc_frame_format_cb_encoding;
+        format_v := llc_frame_format_cb_encoding_c;
     end case;
 
     -- FTYP encodes RTR: 1=remote frame, 0=data frame
-    ftyp_v := '1' when is_rtr else '0';
+    ftyp_v := '1' when rtr else '0';
 
     -- Set BRS and ESI bits
-    brs_bit := '1' when is_brs else '0';
-    esi_bit := '1' when is_esi else '0';
+    brs_bit := '1' when brs else '0';
+    esi_bit := '1' when esi else '0';
 
     -- Construct config byte 0 with FTYP encoding RTR
     config_0_v := format_v & ftyp_v & esi_bit & brs_bit & "00";
@@ -472,7 +473,7 @@ architecture testbench of tx_error_detection_tb is
     log("[CFG] Config bytes set: cfg0=" & to_hstring(config_0_v) &
         " cfg1=" & to_hstring(config_1_v) & " (Format=" & can_format_t'image(format) &
         " DLC=" & integer'image(dlc_val) & " DataLen=" & integer'image(data_len) &
-        " RTR=" & boolean'image(is_rtr) & ")", ALWAYS);
+        " RTR=" & boolean'image(rtr) & ")", ALWAYS);
 
     -- Send config byte 0 (sop='1', eop='0')
     llc_i.avalon_st_source.data <= config_0_v;
