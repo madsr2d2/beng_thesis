@@ -514,36 +514,33 @@ architecture testbench of tx_error_detection_tb is
     end if;
 
     -- Map format to bit pattern
-    -- Config byte 0: [7:5]=Format, [4]=FTYP, [3]=ESI, [2]=BRS, [1:0]=00
+    -- Config byte 0: [7:5]=Format, [4]=FTYP (encodes RTR), [3]=ESI, [2]=BRS, [1:0]=00
     case actual_format is
       when cc_basic =>
         format_v := "000";
-        ftyp_v := '0';
       when cc_extended =>
         format_v := "100";
-        ftyp_v := '0';
       when fd_basic =>
         format_v := "010";
-        ftyp_v := '1';
       when fd_extended =>
         format_v := "110";
-        ftyp_v := '1';
       when others =>
         format_v := "000";
-        ftyp_v := '0';
     end case;
+
+    -- FTYP encodes RTR: 1=remote frame, 0=data frame
+    ftyp_v := '1' when actual_rtr else '0';
 
     -- Set BRS and ESI bits
     brs_bit := '1' when actual_brs else '0';
     esi_bit := '1' when actual_esi else '0';
-    rtr_bit := '1' when actual_rtr else '0';
 
-    -- Construct config byte 0 (RTR bit added)
+    -- Construct config byte 0 with FTYP encoding RTR
     config_0_v := format_v & ftyp_v & esi_bit & brs_bit & "00";
 
-    -- Construct config byte 1 with DLC (encoded) and RTR
+    -- Construct config byte 1 with DLC only (no RTR bit - it's encoded in FTYP)
     dlc_v := std_logic_vector(to_unsigned(actual_dlc, 4));
-    config_1_v := dlc_v & "000" & rtr_bit;
+    config_1_v := dlc_v & "0000";
 
     log("[CFG] Config bytes set: cfg0=" & to_hstring(config_0_v) &
         " cfg1=" & to_hstring(config_1_v) & " (Format=" & can_format_t'image(actual_format) &
