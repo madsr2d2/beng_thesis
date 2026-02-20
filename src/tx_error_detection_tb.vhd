@@ -34,7 +34,6 @@
 --    - init_test_result() : Initialize test tracking record
 --    - log_test_start() : Log test name and ID
 --    - log_test_result() : Log pass/fail with duration
---    - wait_for_sample_strobe() : Utility for frame monitoring
 --
 -- 4. Frame Building Procedures
 --    - send_frame() : Generic frame transmission (any format)
@@ -344,22 +343,6 @@ architecture testbench of tx_error_detection_tb is
       log("  Errors: " & integer'image(result.errors), ALWAYS);
     end if;
   end procedure log_test_result;
-
-  -- Wait for sample strobe (utility for frame monitoring)
-  procedure wait_for_sample_strobe (
-    signal clk : in std_logic;
-    signal sp : in std_logic;
-    cycles : in integer
-  ) is
-    variable count : integer := 0;
-  begin
-    for i in 1 to cycles loop
-      wait until rising_edge(clk);
-      while sp = '0' loop
-        wait until rising_edge(clk);
-      end loop;
-    end loop;
-  end procedure wait_for_sample_strobe;
 
   -- ============================================================================
   -- SECTION 4: Frame Building Procedures
