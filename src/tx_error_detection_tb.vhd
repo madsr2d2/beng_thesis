@@ -369,18 +369,50 @@ architecture testbench of tx_error_detection_tb is
     signal llc_i : out llc_user_to_llc_if_t;
     signal clk : in std_logic;
     frame_data : in std_logic_vector(63 downto 0);
-    data_len : in integer
+    data_len : in integer;
+    format : in can_format_t := cc_basic;
+    dlc : in integer := 1;
+    brs : in boolean := false;
+    esi : in boolean := false
   ) is
     variable config_0_v : std_logic_vector(7 downto 0);
     variable config_1_v : std_logic_vector(7 downto 0);
+    variable format_v : std_logic_vector(2 downto 0);
+    variable ftyp_v : std_logic;
+    variable brs_bit : std_logic;
+    variable esi_bit : std_logic;
+    variable dlc_v : std_logic_vector(3 downto 0);
   begin
+    -- Map format to bit pattern
     -- Config byte 0: [7:5]=Format, [4]=FTYP, [3]=ESI, [2]=BRS, [1:0]=00
-    -- For CC Basic: Format="000", FTYP='0' (not FD), ESI='0', BRS='0'
-    config_0_v := "000" & '0' & '0' & '0' & "00";
+    case format is
+      when cc_basic =>
+        format_v := "000";
+        ftyp_v := '0';
+      when cc_extended =>
+        format_v := "100";
+        ftyp_v := '0';
+      when fd_basic =>
+        format_v := "010";
+        ftyp_v := '1';
+      when fd_extended =>
+        format_v := "110";
+        ftyp_v := '1';
+      when others =>
+        format_v := "000";
+        ftyp_v := '0';
+    end case;
 
-    -- Config byte 1: [7:4]=DLC, [3:0]=0000
-    -- DLC=1 (0x1), so byte is "0001_0000" = 0x10
-    config_1_v := "0001" & "0000";  -- DLC=1 (to match tx_can_tb default), reserved=0000
+    -- Set BRS and ESI bits
+    brs_bit := '1' when brs else '0';
+    esi_bit := '1' when esi else '0';
+
+    -- Construct config byte 0
+    config_0_v := format_v & ftyp_v & esi_bit & brs_bit & "00";
+
+    -- Construct config byte 1 with DLC
+    dlc_v := std_logic_vector(to_unsigned(dlc, 4));
+    config_1_v := dlc_v & "0000";
 
     log("[CFG] Config bytes set: cfg0=" & to_hstring(config_0_v) &
         " cfg1=" & to_hstring(config_1_v), ALWAYS);
@@ -513,9 +545,9 @@ architecture testbench of tx_error_detection_tb is
     log("  - Tracking sample strobe synchronization", ALWAYS);
     log("", ALWAYS);
 
-    -- Send frame: CC Basic, DLC=1, ID=0x555, Data=0xAA (matches tx_can_tb)
+    -- Send frame: CC Basic, DLC=1, ID=0x555, Data=0xAA
     log("  [FRAME] Sending CC Basic frame with 1 data byte", ALWAYS);
-    send_frame(llc_i, clk, x"AA00_0000_0000_0000", 1);
+    send_frame(llc_i, clk, x"AA00_0000_0000_0000", 1, cc_basic, 1, false, false);
 
     log("  [FRAME] Frame submission complete, waiting for transmission...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
@@ -576,9 +608,9 @@ architecture testbench of tx_error_detection_tb is
     log("  - Watching for FSM error response", ALWAYS);
     log("", ALWAYS);
 
-    -- Send frame: CC Basic, DLC=1, ID=0x555, Data=0xAA (matches tx_can_tb)
+    -- Send frame: CC Basic, DLC=1, ID=0x555, Data=0xAA
     log("  [FRAME] Sending CC Basic frame with 1 data byte (0xAA)", ALWAYS);
-    send_frame(llc_i, clk, x"AA00_0000_0000_0000", 1);
+    send_frame(llc_i, clk, x"AA00_0000_0000_0000", 1, cc_basic, 1, false, false);
 
     log("  [FRAME] Frame submission complete, waiting for transmission...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
@@ -668,7 +700,7 @@ architecture testbench of tx_error_detection_tb is
     -- Send FD Basic frame: format=010 (FD Basic), DLC=4, BRS=recessive (enables data phase)
     log("  [FRAME] Sending FD Basic frame with 4 data bytes and BRS enabled", ALWAYS);
     log("  - Data phase bit time will be shorter than nominal phase", ALWAYS);
-    send_frame(llc_i, clk, x"AA_BB_CC_DD_0000_0000", 4);
+    send_frame(llc_i, clk, x"AA_BB_CC_DD_0000_0000", 4, fd_basic, 4, true, false);
 
     log("  [FRAME] FD frame submission complete, waiting for bit rate transition...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
@@ -753,7 +785,7 @@ architecture testbench of tx_error_detection_tb is
     -- Send FD Extended frame: 8 data bytes for extended data phase
     log("  [FRAME] Sending FD Extended frame with 8 data bytes", ALWAYS);
     log("  - Frame: format=FD Extended, DLC=8, BRS=recessive", ALWAYS);
-    send_frame(llc_i, clk, x"AA_BB_CC_DD_EE_FF_00_11", 8);
+    send_frame(llc_i, clk, x"AA_BB_CC_DD_EE_FF_00_11", 8, fd_extended, 8, true, false);
 
     log("  [FRAME] FD frame submission complete, waiting for data phase...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
@@ -838,7 +870,7 @@ architecture testbench of tx_error_detection_tb is
     -- Send FD Extended frame with TDC
     log("  [FRAME] Sending FD Extended frame with 4 data bytes (TDC enabled)", ALWAYS);
     log("  - Frame: format=FD Extended, DLC=4, BRS=recessive", ALWAYS);
-    send_frame(llc_i, clk, x"AA_BB_CC_DD_0000_0000", 4);
+    send_frame(llc_i, clk, x"AA_BB_CC_DD_0000_0000", 4, fd_extended, 4, true, false);
 
     log("  [FRAME] FD frame submission complete, waiting for data phase...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
@@ -924,7 +956,7 @@ architecture testbench of tx_error_detection_tb is
     -- Send FD Extended frame with extended data for complete TDC sequence
     log("  [FRAME] Sending FD Extended frame with 8 data bytes (full TDC sequence)", ALWAYS);
     log("  - Frame: format=FD Extended, DLC=8, BRS=recessive", ALWAYS);
-    send_frame(llc_i, clk, x"AA_BB_CC_DD_EE_FF_00_11", 8);
+    send_frame(llc_i, clk, x"AA_BB_CC_DD_EE_FF_00_11", 8, fd_extended, 8, true, false);
 
     log("  [FRAME] FD frame submission complete, waiting for data phase...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
