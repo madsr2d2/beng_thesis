@@ -127,6 +127,7 @@ library ieee;
 
 library osvvm;
   use osvvm.AlertLogPkg.all;
+  use osvvm.RandomPkg.all;
 
 entity tx_error_detection_tb is
   generic (
@@ -349,21 +350,6 @@ architecture testbench of tx_error_detection_tb is
   -- ============================================================================
 
 
-  -- Helper: Simple PRNG using linear congruential generator
-  procedure random_integer (
-    seed : inout integer;
-    max_val : in integer;
-    result : out integer
-  ) is
-    variable temp : integer;
-  begin
-    -- Linear congruential generator: seed = (seed * a + c) mod m
-    temp := (seed * 1103515245 + 12345) mod 2147483648;
-    seed := temp;
-    result := (temp / 65536) mod max_val;
-  end procedure random_integer;
-
-
   procedure send_frame (
     signal llc_i : out llc_user_to_llc_if_t;
     signal clk : in std_logic;
@@ -383,7 +369,6 @@ architecture testbench of tx_error_detection_tb is
     variable esi_bit : std_logic;
     variable dlc_v : std_logic_vector(3 downto 0);
     variable id_packed : std_logic_vector(31 downto 0);
-    variable temp : integer;
     variable data_bytes : std_logic_vector(63 downto 0);
     variable unified_id : std_logic_vector(28 downto 0);
     variable dlc_val : integer;
@@ -391,36 +376,28 @@ architecture testbench of tx_error_detection_tb is
     variable is_rtr : boolean;
     variable is_brs : boolean;
     variable is_esi : boolean;
-    variable seed : integer;
     variable i : integer;
+    variable rng : RandomPType;
   begin
-    -- Initialize seed from input parameter
-    seed := seed_in;
+    -- Initialize OSVVM random number generator with seed
+    rng.InitSeed(seed_in);
 
     -- Determine frame parameters based on random_frame flag
     if (random_frame) then
       -- Generate random frame configuration
       -- Random DLC based on format
       if (format = cc_basic or format = cc_extended) then
-        random_integer(seed, 9, temp);  -- 0-8 for CC
-        dlc_val := temp;
+        dlc_val := rng.Uniform(0, 8);  -- 0-8 for CC
       else
-        random_integer(seed, 16, temp);  -- 0-15 for FD (DLC encoding)
-        dlc_val := temp;
+        dlc_val := rng.Uniform(0, 15);  -- 0-15 for FD (DLC encoding)
       end if;
 
-      random_integer(seed, 2, temp);
-      is_rtr := temp = 1;
-
-      random_integer(seed, 2, temp);
-      is_brs := temp = 1;
-
-      random_integer(seed, 2, temp);
-      is_esi := temp = 1;
+      is_rtr := rng.Uniform(0, 1) = 1;
+      is_brs := rng.Uniform(0, 1) = 1;
+      is_esi := rng.Uniform(0, 1) = 1;
 
       -- Generate random ID (29-bit for unified packing)
-      random_integer(seed, 536870912, temp);  -- 0-536870911 (29-bit range)
-      unified_id := std_logic_vector(to_unsigned(temp, 29));
+      unified_id := std_logic_vector(to_unsigned(rng.Uniform(0, 536870911), 29));
 
       -- Generate random data bytes (for non-RTR frames)
       -- Get actual data length from DLC using protocol package function
@@ -428,8 +405,7 @@ architecture testbench of tx_error_detection_tb is
 
       if (not is_rtr) then
         for i in 0 to 7 loop
-          random_integer(seed, 256, temp);
-          data_bytes(8*(i+1)-1 downto 8*i) := std_logic_vector(to_unsigned(temp, 8));
+          data_bytes(8*(i+1)-1 downto 8*i) := std_logic_vector(to_unsigned(rng.Uniform(0, 255), 8));
         end loop;
       else
         data_bytes := (others => '0');
