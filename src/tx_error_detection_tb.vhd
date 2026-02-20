@@ -348,41 +348,6 @@ architecture testbench of tx_error_detection_tb is
   -- SECTION 4: Frame Building Procedures
   -- ============================================================================
 
-  -- Helper: Pack 11-bit base ID into 4 ID bytes (id3, id2, id1, id0)
-  procedure pack_base_id (
-    base_id : in std_logic_vector(10 downto 0);
-    id3 : out std_logic_vector(7 downto 0);
-    id2 : out std_logic_vector(7 downto 0);
-    id1 : out std_logic_vector(7 downto 0);
-    id0 : out std_logic_vector(7 downto 0)
-  ) is
-  begin
-    -- 11-bit ID layout: [10:3]=id1 byte, [2:0] merged with id0
-    -- id3 = 0x00 (unused for basic)
-    -- id2 = 0x00 (unused for basic)
-    -- id1 = base_id[10:3] (8 bits)
-    -- id0 = base_id[2:0] << 5 (lower 3 bits in upper positions of id0 byte)
-    id3 := x"00";
-    id2 := x"00";
-    id1 := base_id(10 downto 3);
-    id0 := base_id(2 downto 0) & "00000";
-  end procedure pack_base_id;
-
-  -- Helper: Pack 29-bit extended ID into 4 ID bytes
-  procedure pack_extended_id (
-    extended_id : in std_logic_vector(28 downto 0);
-    id3 : out std_logic_vector(7 downto 0);
-    id2 : out std_logic_vector(7 downto 0);
-    id1 : out std_logic_vector(7 downto 0);
-    id0 : out std_logic_vector(7 downto 0)
-  ) is
-  begin
-    -- 29-bit extended ID packed across 4 bytes
-    id3 := extended_id(28 downto 21);
-    id2 := extended_id(20 downto 13);
-    id1 := extended_id(12 downto 5);
-    id0 := extended_id(4 downto 0) & "000";
-  end procedure pack_extended_id;
 
   -- Helper: Simple PRNG using linear congruential generator
   procedure random_integer (
@@ -417,11 +382,10 @@ architecture testbench of tx_error_detection_tb is
     variable brs_bit : std_logic;
     variable esi_bit : std_logic;
     variable dlc_v : std_logic_vector(3 downto 0);
-    variable id3_v, id2_v, id1_v, id0_v : std_logic_vector(7 downto 0);
+    variable id_packed : std_logic_vector(31 downto 0);
     variable temp : integer;
     variable data_bytes : std_logic_vector(63 downto 0);
-    variable base_id : std_logic_vector(10 downto 0);
-    variable extended_id : std_logic_vector(28 downto 0);
+    variable unified_id : std_logic_vector(28 downto 0);
     variable dlc_val : integer;
     variable data_len : integer;
     variable is_rtr : boolean;
@@ -454,13 +418,9 @@ architecture testbench of tx_error_detection_tb is
       random_integer(seed, 2, temp);
       is_esi := temp = 1;
 
-      -- Generate random base ID (11-bit)
-      random_integer(seed, 2048, temp);  -- 0-2047 (11-bit range)
-      base_id := std_logic_vector(to_unsigned(temp, 11));
-
-      -- Generate random extended ID (29-bit)
+      -- Generate random ID (29-bit for unified packing)
       random_integer(seed, 536870912, temp);  -- 0-536870911 (29-bit range)
-      extended_id := std_logic_vector(to_unsigned(temp, 29));
+      unified_id := std_logic_vector(to_unsigned(temp, 29));
 
       -- Generate random data bytes (for non-RTR frames)
       -- Get actual data length from DLC using protocol package function
@@ -480,7 +440,8 @@ architecture testbench of tx_error_detection_tb is
           " DataLen=" & integer'image(data_len) &
           " RTR=" & boolean'image(is_rtr) &
           " BRS=" & boolean'image(is_brs) &
-          " BaseID=0x" & to_hstring(base_id(10 downto 8)) & to_hstring(base_id(7 downto 0)), ALWAYS);
+          " ID=0x" & to_hstring(unified_id(28 downto 24)) & to_hstring(unified_id(23 downto 16)) &
+          to_hstring(unified_id(15 downto 8)) & to_hstring(unified_id(7 downto 0)), ALWAYS);
 
     else
       -- Use deterministic parameters
@@ -492,9 +453,8 @@ architecture testbench of tx_error_detection_tb is
       -- Generate all-zero data bytes
       data_bytes := (others => '0');
 
-      -- Use fixed default IDs for deterministic frames
-      base_id := "10101010101";  -- 0x555
-      extended_id := (others => '0');
+      -- Use fixed default ID for deterministic frames (0x555 for base_id, padded to 29-bit)
+      unified_id := std_logic_vector(to_unsigned(16#555#, 29));
 
       -- Get actual data length from DLC using protocol package function
       data_len := dlc_to_data_length(dlc_t(dlc), format);
@@ -559,21 +519,15 @@ architecture testbench of tx_error_detection_tb is
       exit when llc_user_o.avalon_st_sink.ready = '1';
     end loop;
 
-    -- Pack and send ID bytes based on format
-    if (format = cc_extended or format = fd_extended) then
-      pack_extended_id(extended_id, id3_v, id2_v, id1_v, id0_v);
-      log("[ID] Extended ID=0x" & to_hstring(extended_id(28 downto 24)) &
-          to_hstring(extended_id(23 downto 16)) &
-          to_hstring(extended_id(15 downto 8)) &
-          to_hstring(extended_id(7 downto 0)), ALWAYS);
-    else
-      pack_base_id(base_id, id3_v, id2_v, id1_v, id0_v);
-      log("[ID] Base ID=0x" & to_hstring(base_id(10 downto 8)) &
-          to_hstring(base_id(7 downto 0)), ALWAYS);
-    end if;
+    -- Pack ID bytes using protocol package function
+    id_packed := pack_llc_id_bytes(unified_id, format);
+    log("[ID] ID=0x" & to_hstring(unified_id(28 downto 24)) &
+        to_hstring(unified_id(23 downto 16)) &
+        to_hstring(unified_id(15 downto 8)) &
+        to_hstring(unified_id(7 downto 0)), ALWAYS);
 
     -- Send ID bytes (id3, id2, id1, id0)
-    llc_i.avalon_st_source.data <= id3_v;
+    llc_i.avalon_st_source.data <= id_packed(31 downto 24);
     llc_i.avalon_st_source.sop <= '0';
     llc_i.avalon_st_source.eop <= '0';
     llc_i.avalon_st_source.valid <= '1';
@@ -582,7 +536,7 @@ architecture testbench of tx_error_detection_tb is
       exit when llc_user_o.avalon_st_sink.ready = '1';
     end loop;
 
-    llc_i.avalon_st_source.data <= id2_v;
+    llc_i.avalon_st_source.data <= id_packed(23 downto 16);
     llc_i.avalon_st_source.sop <= '0';
     llc_i.avalon_st_source.eop <= '0';
     llc_i.avalon_st_source.valid <= '1';
@@ -591,7 +545,7 @@ architecture testbench of tx_error_detection_tb is
       exit when llc_user_o.avalon_st_sink.ready = '1';
     end loop;
 
-    llc_i.avalon_st_source.data <= id1_v;
+    llc_i.avalon_st_source.data <= id_packed(15 downto 8);
     llc_i.avalon_st_source.sop <= '0';
     llc_i.avalon_st_source.eop <= '0';
     llc_i.avalon_st_source.valid <= '1';
@@ -600,7 +554,7 @@ architecture testbench of tx_error_detection_tb is
       exit when llc_user_o.avalon_st_sink.ready = '1';
     end loop;
 
-    llc_i.avalon_st_source.data <= id0_v;
+    llc_i.avalon_st_source.data <= id_packed(7 downto 0);
     llc_i.avalon_st_source.sop <= '0';
     llc_i.avalon_st_source.eop <= '0' when data_len > 0 else '1';  -- EOP if no data (RTR or no data)
     llc_i.avalon_st_source.valid <= '1';
