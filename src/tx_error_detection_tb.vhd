@@ -411,53 +411,11 @@ architecture testbench of tx_error_detection_tb is
     end case;
   end function get_max_dlc;
 
-  -- Helper: Convert CC data length (bytes) to DLC encoding
-  function cc_bytes_to_dlc (bytes : integer) return integer is
-  begin
-    -- CC: 0-8 bytes map directly to DLC 0-8
-    if (bytes < 0) then return 0;
-    elsif (bytes > 8) then return 8;
-    else return bytes;
-    end if;
-  end function cc_bytes_to_dlc;
-
-  -- Helper: Convert FD data length (bytes) to DLC encoding
-  function fd_bytes_to_dlc (bytes : integer) return integer is
-  begin
-    -- FD DLC encoding:
-    -- 0-8 bytes: DLC = bytes (0-8)
-    -- 12 bytes: DLC = 9
-    -- 16 bytes: DLC = 10
-    -- 20 bytes: DLC = 11
-    -- 24 bytes: DLC = 12
-    -- 32 bytes: DLC = 13
-    -- 48 bytes: DLC = 14
-    -- 64 bytes: DLC = 15
-    if (bytes <= 8) then
-      return bytes;
-    elsif (bytes <= 12) then
-      return 9;
-    elsif (bytes <= 16) then
-      return 10;
-    elsif (bytes <= 20) then
-      return 11;
-    elsif (bytes <= 24) then
-      return 12;
-    elsif (bytes <= 32) then
-      return 13;
-    elsif (bytes <= 48) then
-      return 14;
-    else
-      return 15;  -- 64 bytes
-    end if;
-  end function fd_bytes_to_dlc;
-
   procedure send_frame (
     signal llc_i : out llc_user_to_llc_if_t;
     signal clk : in std_logic;
-    data_len : in integer := 1;
-    format : in can_format_t := cc_basic;
     dlc : in integer := 1;
+    format : in can_format_t := cc_basic;
     brs : in boolean := false;
     esi : in boolean := false;
     base_id : in std_logic_vector(10 downto 0) := "10101010101";  -- 0x555
@@ -482,9 +440,7 @@ architecture testbench of tx_error_detection_tb is
     variable random_data_bytes : std_logic_vector(63 downto 0);
     variable random_base_id : std_logic_vector(10 downto 0);
     variable random_extended_id : std_logic_vector(28 downto 0);
-    variable max_dlc : integer;
     variable actual_dlc : integer;
-    variable actual_dlc_encoded : integer;
     variable actual_data_len : integer;
     variable actual_format : can_format_t;
     variable actual_rtr : boolean;
@@ -507,17 +463,7 @@ architecture testbench of tx_error_detection_tb is
         actual_dlc := random_dlc;
       else
         random_integer(seed, 16, random_dlc);  -- 0-15 for FD (DLC encoding)
-        -- Map DLC encoding to byte count for random generation
-        case random_dlc is
-          when 0 to 8 => actual_dlc := random_dlc;
-          when 9 => actual_dlc := 12;
-          when 10 => actual_dlc := 16;
-          when 11 => actual_dlc := 20;
-          when 12 => actual_dlc := 24;
-          when 13 => actual_dlc := 32;
-          when 14 => actual_dlc := 48;
-          when others => actual_dlc := 64;
-        end case;
+        actual_dlc := random_dlc;
       end if;
 
       random_integer(seed, 2, random_rtr);
@@ -538,6 +484,9 @@ architecture testbench of tx_error_detection_tb is
       random_extended_id := std_logic_vector(to_unsigned(random_dlc, 29));
 
       -- Generate random data bytes (for non-RTR frames)
+      -- Get actual data length from DLC using protocol package function
+      actual_data_len := dlc_to_data_length(dlc_t(actual_dlc), actual_format);
+
       if (not actual_rtr) then
         for i in 0 to 7 loop
           random_integer(seed, 256, data_byte);
@@ -549,36 +498,31 @@ architecture testbench of tx_error_detection_tb is
 
       log("[RANDOM] Generated random frame: Format=" & can_format_t'image(actual_format) &
           " DLC=" & integer'image(actual_dlc) &
+          " DataLen=" & integer'image(actual_data_len) &
           " RTR=" & boolean'image(actual_rtr) &
           " BRS=" & boolean'image(actual_brs) &
           " BaseID=0x" & to_hstring(random_base_id(10 downto 8)) & to_hstring(random_base_id(7 downto 0)), ALWAYS);
 
     else
       -- Use deterministic parameters
-      actual_dlc := data_len;
+      actual_dlc := dlc;
       actual_rtr := rtr;
       actual_brs := brs;
       actual_esi := esi;
       actual_format := format;
 
-      -- Generate all-zero data bytes (or could use zeros for deterministic)
+      -- Generate all-zero data bytes
       random_data_bytes := (others => '0');
       random_base_id := base_id;
       random_extended_id := extended_id;
+
+      -- Get actual data length from DLC using protocol package function
+      actual_data_len := dlc_to_data_length(dlc_t(dlc), format);
     end if;
 
-    -- Calculate actual data length (0 for RTR frames)
+    -- Calculate actual data length for transmission (0 for RTR frames)
     if (actual_rtr) then
       actual_data_len := 0;
-    else
-      actual_data_len := actual_dlc;
-    end if;
-
-    -- Encode DLC according to format
-    if (actual_format = cc_basic or actual_format = cc_extended) then
-      actual_dlc_encoded := cc_bytes_to_dlc(actual_dlc);
-    else
-      actual_dlc_encoded := fd_bytes_to_dlc(actual_dlc);
     end if;
 
     -- Map format to bit pattern
@@ -610,12 +554,12 @@ architecture testbench of tx_error_detection_tb is
     config_0_v := format_v & ftyp_v & esi_bit & brs_bit & "00";
 
     -- Construct config byte 1 with DLC (encoded) and RTR
-    dlc_v := std_logic_vector(to_unsigned(actual_dlc_encoded, 4));
+    dlc_v := std_logic_vector(to_unsigned(actual_dlc, 4));
     config_1_v := dlc_v & "000" & rtr_bit;
 
     log("[CFG] Config bytes set: cfg0=" & to_hstring(config_0_v) &
         " cfg1=" & to_hstring(config_1_v) & " (Format=" & can_format_t'image(actual_format) &
-        " DataLen=" & integer'image(actual_dlc) & " EncodedDLC=" & integer'image(actual_dlc_encoded) &
+        " DLC=" & integer'image(actual_dlc) & " DataLen=" & integer'image(actual_data_len) &
         " RTR=" & boolean'image(actual_rtr) & ")", ALWAYS);
 
     -- Send config byte 0 (sop='1', eop='0')
@@ -744,7 +688,7 @@ architecture testbench of tx_error_detection_tb is
 
     -- Send frame: CC Basic, DLC=1, ID=0x555, Data=zeros
     log("  [FRAME] Sending CC Basic frame with 1 data byte", ALWAYS);
-    send_frame(llc_i, clk, 1, cc_basic, 1, false, false);
+    send_frame(llc_i, clk, 1, cc_basic, false, false);
 
     log("  [FRAME] Frame submission complete, waiting for transmission...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
@@ -807,7 +751,7 @@ architecture testbench of tx_error_detection_tb is
 
     -- Send frame: CC Basic, DLC=1, ID=0x555, Data=zeros
     log("  [FRAME] Sending CC Basic frame with 1 data byte", ALWAYS);
-    send_frame(llc_i, clk, 1, cc_basic, 1, false, false);
+    send_frame(llc_i, clk, 1, cc_basic, false, false);
 
     log("  [FRAME] Frame submission complete, waiting for transmission...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
@@ -897,7 +841,7 @@ architecture testbench of tx_error_detection_tb is
     -- Send FD Basic frame: format=010 (FD Basic), DLC=4, BRS=recessive (enables data phase)
     log("  [FRAME] Sending FD Basic frame with 4 data bytes and BRS enabled", ALWAYS);
     log("  - Data phase bit time will be shorter than nominal phase", ALWAYS);
-    send_frame(llc_i, clk, 4, fd_basic, 4, true, false);
+    send_frame(llc_i, clk, 4, fd_basic, true, false);
 
     log("  [FRAME] FD frame submission complete, waiting for bit rate transition...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
@@ -982,7 +926,7 @@ architecture testbench of tx_error_detection_tb is
     -- Send FD Extended frame: 8 data bytes for extended data phase
     log("  [FRAME] Sending FD Extended frame with 8 data bytes", ALWAYS);
     log("  - Frame: format=FD Extended, DLC=8, BRS=recessive", ALWAYS);
-    send_frame(llc_i, clk, 8, fd_extended, 8, true, false);
+    send_frame(llc_i, clk, 8, fd_extended, true, false);
 
     log("  [FRAME] FD frame submission complete, waiting for data phase...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
@@ -1067,7 +1011,7 @@ architecture testbench of tx_error_detection_tb is
     -- Send FD Extended frame with TDC
     log("  [FRAME] Sending FD Extended frame with 4 data bytes (TDC enabled)", ALWAYS);
     log("  - Frame: format=FD Extended, DLC=4, BRS=recessive", ALWAYS);
-    send_frame(llc_i, clk, 4, fd_extended, 4, true, false);
+    send_frame(llc_i, clk, 4, fd_extended, true, false);
 
     log("  [FRAME] FD frame submission complete, waiting for data phase...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
@@ -1148,19 +1092,19 @@ architecture testbench of tx_error_detection_tb is
 
     -- Iteration 1: Random CC Basic frame
     log("  [ITERATION 1] Generating random CC Basic frame", ALWAYS);
-    send_frame(llc_i, clk, 1, cc_basic, 1, false, false,
+    send_frame(llc_i, clk, 1, cc_basic, false, false,
                "11111111111", (others => '0'), false, true, seed);
     wait for 100 us;
 
     -- Iteration 2: Random FD Basic frame
     log("  [ITERATION 2] Generating random FD Basic frame", ALWAYS);
-    send_frame(llc_i, clk, 8, fd_basic, 8, false, false,
+    send_frame(llc_i, clk, 8, fd_basic, false, false,
                "11111111111", (others => '0'), false, true, seed);
     wait for 100 us;
 
     -- Iteration 3: Random CC Extended frame
     log("  [ITERATION 3] Generating random CC Extended frame", ALWAYS);
-    send_frame(llc_i, clk, 4, cc_extended, 4, false, false,
+    send_frame(llc_i, clk, 4, cc_extended, false, false,
                "11111111111", (others => '0'), false, true, seed);
     wait for 100 us;
 
@@ -1214,7 +1158,7 @@ architecture testbench of tx_error_detection_tb is
     -- Send FD Extended frame with extended data for complete TDC sequence
     log("  [FRAME] Sending FD Extended frame with 8 data bytes (full TDC sequence)", ALWAYS);
     log("  - Frame: format=FD Extended, DLC=8, BRS=recessive", ALWAYS);
-    send_frame(llc_i, clk, 8, fd_extended, 8, true, false);
+    send_frame(llc_i, clk, 8, fd_extended, true, false);
 
     log("  [FRAME] FD frame submission complete, waiting for data phase...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
