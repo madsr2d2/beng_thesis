@@ -411,7 +411,7 @@ architecture testbench of tx_error_detection_tb is
       data_len := dlc_to_data_length(dlc_t(dlc_val), format);
 
       if (not rtr_flag) then
-        for i in 0 to 7 loop
+        for i in 0 to data_len - 1 loop
           frame.data(8*(i+1)-1 downto 8*i) := std_logic_vector(to_unsigned(rv.RandInt(0, 255), 8));
         end loop;
       end if;
