@@ -376,7 +376,6 @@ architecture testbench of tx_error_detection_tb is
     variable is_rtr : boolean;
     variable is_brs : boolean;
     variable is_esi : boolean;
-    variable i : integer;
     variable rng : RandomPType;
   begin
     -- Initialize OSVVM random number generator with seed
@@ -441,19 +440,19 @@ architecture testbench of tx_error_detection_tb is
       data_len := 0;
     end if;
 
-    -- Map format to bit pattern
+    -- Map format to bit pattern using protocol package constants
     -- Config byte 0: [7:5]=Format, [4]=FTYP (encodes RTR), [3]=ESI, [2]=BRS, [1:0]=00
     case format is
       when cc_basic =>
-        format_v := "000";
+        format_v := llc_frame_format_cb_encoding;
       when cc_extended =>
-        format_v := "100";
+        format_v := llc_frame_format_ce_encoding;
       when fd_basic =>
-        format_v := "010";
+        format_v := llc_frame_format_fb_encoding;
       when fd_extended =>
-        format_v := "110";
+        format_v := llc_frame_format_fe_encoding;
       when others =>
-        format_v := "000";
+        format_v := llc_frame_format_cb_encoding;
     end case;
 
     -- FTYP encodes RTR: 1=remote frame, 0=data frame
