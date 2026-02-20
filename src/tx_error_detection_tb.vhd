@@ -376,27 +376,27 @@ architecture testbench of tx_error_detection_tb is
     variable rtr : boolean;
     variable brs : boolean;
     variable esi : boolean;
-    variable rng : RandomPType;
+    variable rv : RandomPType;
   begin
     -- Initialize OSVVM random number generator with seed
-    rng.InitSeed(seed_in);
+    rv.InitSeed(seed_in);
 
     -- Determine frame parameters based on random_frame flag
     if (random_frame) then
       -- Generate random frame configuration
       -- Random DLC based on format
       if (format = cc_basic or format = cc_extended) then
-        dlc_val := rng.Uniform(0, 8);  -- 0-8 for CC
+        dlc_val := rv.RandInt(0, 8);  -- 0-8 for CC
       else
-        dlc_val := rng.Uniform(0, 15);  -- 0-15 for FD (DLC encoding)
+        dlc_val := rv.RandInt(0, 15);  -- 0-15 for FD (DLC encoding)
       end if;
 
-      rtr := rng.Uniform(0, 1) = 1;
-      brs := rng.Uniform(0, 1) = 1;
-      esi := rng.Uniform(0, 1) = 1;
+      rtr := rv.RandInt(0, 1) = 1;
+      brs := rv.RandInt(0, 1) = 1;
+      esi := rv.RandInt(0, 1) = 1;
 
       -- Generate random ID (29-bit for unified packing)
-      unified_id := std_logic_vector(to_unsigned(rng.Uniform(0, 536870911), 29));
+      unified_id := std_logic_vector(to_unsigned(rv.RandInt(0, 536870911), 29));
 
       -- Generate random data bytes (for non-RTR frames)
       -- Get actual data length from DLC using protocol package function
@@ -404,7 +404,7 @@ architecture testbench of tx_error_detection_tb is
 
       if (not rtr) then
         for i in 0 to 7 loop
-          data_bytes(8*(i+1)-1 downto 8*i) := std_logic_vector(to_unsigned(rng.Uniform(0, 255), 8));
+          data_bytes(8*(i+1)-1 downto 8*i) := std_logic_vector(to_unsigned(rv.RandInt(0, 255), 8));
         end loop;
       else
         data_bytes := (others => '0');
