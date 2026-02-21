@@ -183,12 +183,13 @@ begin
             if (use_tdc_c) then
               -- With TDC: measure delay in measuring_delay state until RX dominant detected
               next_state <= measuring_delay;
+            else
+              -- Without TDC: still stay in nominal, will transition at BRS SP
+              null;
             end if;
-            -- Without TDC: stay in transmitting_nominal, transition at ESI SP instead
-          elsif (current_bit.bit_name = esi_bit and sample_strobe_v) then
-            -- ISO 11898-1: Transition to data phase at ESI SP (after BRS sampling at nominal rate)
-            -- BRS is fully transmitted and sampled at nominal rate
-            -- ESI (first data-phase bit) transitions to data rate at ESI sample point
+          elsif (current_bit.bit_name = brs_bit and sample_strobe_v) then
+            -- ISO 11898-1: Transition to data phase at BRS sample point (after nominal sampling)
+            -- BRS is sampled at nominal SP; data phase starts immediately after
             next_state <= transmitting_data;
           end if;
 
