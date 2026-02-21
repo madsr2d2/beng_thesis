@@ -370,9 +370,9 @@ begin
       end if;
 
       -- Effective strobe selection (ISO 11898-1: 6.6.21.3.1 TDC)
-      -- ESI is first bit of FD data phase after BRS; must use SSP with TDC delay
-      is_ssp_required_v := current_bit.bit_name = esi_bit or
-                           current_bit.bit_name = data_bit or
+      -- ESI is control bit (transmitted at nominal rate), NOT data-phase payload
+      -- Only actual data/CRC/SBC (counted) bits use SSP with TDC delay
+      is_ssp_required_v := current_bit.bit_name = data_bit or
                            current_bit.bit_name = stuff_bit or
                            current_bit.bit_name = fixed_stuff_bit or
                            current_bit.bit_name = sbs_bit or
