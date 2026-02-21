@@ -183,10 +183,8 @@ begin
             if (use_tdc_c) then
               -- With TDC: measure delay in measuring_delay state until RX dominant detected
               next_state <= measuring_delay;
-            else
-              -- Without TDC: still stay in nominal, will transition at BRS SP
-              null;
             end if;
+            -- Without TDC: stay in transmitting_nominal
           elsif (current_bit.bit_name = brs_bit and sample_strobe_v) then
             -- ISO 11898-1: Transition to data phase at BRS sample point (after nominal sampling)
             -- BRS is sampled at nominal SP; data phase starts immediately after
@@ -194,10 +192,13 @@ begin
           end if;
 
         when measuring_delay =>
-          -- Measurement complete when RX detects dominant (ISO 11898-1: 7.3.4)
-          if (rx_dominant_v) then
+          -- Continue TDC measurement through BRS at nominal rate
+          -- Delay measurement happens asynchronously; don't transition until BRS SP
+          if (current_bit.bit_name = brs_bit and sample_strobe_v) then
+            -- BRS SP reached: now transition to data phase with measured TDC
             next_state <= transmitting_data;
           elsif (tdc_timeout_v) then
+            -- Timeout during measurement: abort TDC, return to nominal
             next_state <= transmitting_nominal;
           end if;
 
