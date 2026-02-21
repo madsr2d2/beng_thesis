@@ -96,6 +96,11 @@ architecture rtl of tx_mac_fsm is
   signal next_crc_o     : mac_fsm_to_crc_if_t;
   signal next_fce_o     : mac_to_fce_if_t;
 
+  -- Debug signals for test visibility
+  signal ack_error_detected     : boolean;  -- Pulses when ACK error is detected
+  signal form_error_detected    : boolean;  -- Pulses when form error is detected (placeholder)
+  signal data_phase_exit_strobe : boolean;  -- Pulses when data phase exits at SP
+
 begin
 
   ---------------------------------------------------------------------------
@@ -111,8 +116,14 @@ begin
     variable error_detected_v             : boolean;
     variable frame_transmitted_v          : boolean;
     variable error_flag_ended_v           : boolean;
+    variable sample_strobe_v              : boolean;
+    variable state_entry_v                : boolean;
 
   begin
+
+    -- Evaluate basic guards
+    sample_strobe_v := pcs_i.sample_strobe = '1';
+    state_entry_v   := prev_state /= state;
 
     -- Evaluate guards
     bus_is_idle_v        := (bit_count = bus_idle_condition_width_c - 1);
@@ -132,7 +143,7 @@ begin
     else
       case state is
         when bus_reintegration =>
-          -- ISO 11898-1: 12.1.4.4 - Integration complete after 128 occurrences of 11 recessive bits
+          -- ISO 11898-1: 6.6.7.5 - Integration complete after 11 consecutive recessive bits
           if (bus_is_idle_v) then
             next_state <= bus_idle;
           end if;
@@ -161,7 +172,7 @@ begin
           end if;
 
         when bus_idle =>
-          if (mac_ser_i.valid) then
+          if (mac_ser_i.valid and sample_strobe_v) then
             next_state <= transmitting_frame;
           end if;
 
@@ -231,13 +242,18 @@ begin
         next_pcs_o <= mac_to_pcs_if_reset_c;
         next_fce_o <= mac_to_fce_if_reset_c;
 
-        -- Reset transfer_status once we reach bus_idle (ready for next frame)
+        -- Clear terminal status from previous frame to allow Serializer to reset
+        next_mac_ser_o.transfer_status <= ongoing;
+
+        -- Reset all handshake signals once we reach bus_idle
         if (state = bus_idle) then
           next_mac_ser_o <= tx_mac_fsm_to_ser_if_reset_c;
         end if;
       elsif (sample_strobe_v) then
         if (pcs_i.bus_polarity = recessive) then
-          next_bit_count <= bit_count + 1;
+          if (bit_count < bit_count_t'high) then
+            next_bit_count <= bit_count + 1;
+          end if;
         else
           -- Dominant sample breaks run length (e.g. during integration)
           next_bit_count <= 0;
@@ -387,9 +403,11 @@ begin
       next_bit_count_monitored           <= false;
       next_last_transmitted_bit_polarity <= next_bit_v.polarity;
 
-      -- Send to PCS
-      next_pcs_o.valid <= true;
-      next_pcs_o.data  <= next_bit_v;
+      -- Send to PCS only if bit is valid (not beyond frame end)
+      if (next_bit_v.bit_name /= unknown) then
+        next_pcs_o.valid <= true;
+        next_pcs_o.data  <= next_bit_v;
+      end if;
 
       -- Increment logical bit counter on non-stuff bits
       if (next_bit_v.bit_name /= stuff_bit) then
@@ -450,7 +468,8 @@ begin
       -- React to monitored event (ISO 11898-1: 10.5 / 12.1.4)
       case monitored_bit_info_v.event_type is
         when lost_arbitration =>
-          next_was_previous_frame_tx <= false;
+          next_was_previous_frame_tx     <= false;
+          next_mac_ser_o.transfer_status <= lost_arbitration;
 
         when ack_detected =>
           next_was_previous_frame_tx <= true;
@@ -472,6 +491,7 @@ begin
             next_monitored_bit_event       <= ack_error;
             next_was_previous_frame_tx     <= true;
             next_ack_error_caused_flag     <= true;
+            ack_error_detected <= true;  -- Debug signal: pulse on ACK error detection
 
           -- Dynamic stuff bit check (ISO 11898-1: 10.6.2)
           elsif (bs_fd_i.valid and dynamic_stuff_eligible_v) then
@@ -577,6 +597,11 @@ begin
     end procedure process_error_flag_transmission;
 
   begin
+
+    -- Debug signal defaults (pulses only when errors detected)
+    ack_error_detected     <= false;
+    form_error_detected    <= false;
+    data_phase_exit_strobe <= false;
 
     -- Per-cycle defaults
     next_bit_v           := reset_mac_frame_bit_c;
@@ -704,9 +729,17 @@ begin
         fce_o     <= mac_to_fce_if_reset_c;
       else
         -- Register all next-cycle values
-        state                         <= next_state;
-        prev_state                    <= state;
-        bit_count                     <= next_bit_count;
+        state      <= next_state;
+        prev_state <= state;
+
+        -- Ensure bit_count is reset to 0 on the very first cycle of a new state.
+        -- This prevents next_state_logic from seeing a stale count from the previous state.
+        if (state /= next_state) then
+          bit_count <= 0;
+        else
+          bit_count <= next_bit_count;
+        end if;
+
         fifo                          <= next_fifo;
         fifo_write_ptr                <= next_fifo_write_ptr;
         last_transmitted_bit_polarity <= next_last_transmitted_bit_polarity;

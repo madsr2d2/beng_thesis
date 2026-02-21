@@ -150,7 +150,6 @@ begin
 
     -- Named guard variables (RTL guide Rule 3)
     variable frame_active_v  : boolean;
-    variable is_res_bit_v    : boolean;
     variable rx_dominant_v   : boolean;
     variable tdc_timeout_v   : boolean;
     variable is_crc_delim_v  : boolean;
@@ -160,7 +159,6 @@ begin
 
     -- Evaluate guards
     frame_active_v  := mac_to_pcs_i.valid;
-    is_res_bit_v    := (current_bit.bit_name = res_bit);
     rx_dominant_v   := (rx_bus_i = dominant_bit_c);
     tdc_timeout_v   := (delay_count >= max_transmitter_delay_c);
     is_crc_delim_v  := (current_bit.bit_name = crc_delimiter_bit);
@@ -180,13 +178,16 @@ begin
           end if;
 
         when transmitting_nominal =>
-          -- Start TDC measurement when res bit detected (ISO 11898-1: 10.4.2.4)
-          if (is_res_bit_v) then
+          -- ISO 11898-1: 7.3.4 - Trigger TDC measurement at res bit (FDF->res edge)
+          if (current_bit.bit_name = res_bit and sample_strobe_v) then
             if (use_tdc_c) then
               next_state <= measuring_delay;
             else
               next_state <= transmitting_data;
             end if;
+          elsif (current_bit.bit_name = brs_bit and sample_strobe_v) then
+            -- If no TDC or measurement already done, transition to data phase at BRS SP
+            next_state <= transmitting_data;
           end if;
 
         when measuring_delay =>
@@ -368,20 +369,23 @@ begin
         end if;
       end if;
 
-      -- Effective strobe selection
-      is_ssp_required_v := current_bit.bit_name = data_bit or
+      -- Effective strobe selection (ISO 11898-1: 6.6.21.3.1 TDC)
+      -- ESI is first bit of FD data phase after BRS; must use SSP with TDC delay
+      is_ssp_required_v := current_bit.bit_name = esi_bit or
+                           current_bit.bit_name = data_bit or
                            current_bit.bit_name = stuff_bit or
                            current_bit.bit_name = fixed_stuff_bit or
                            current_bit.bit_name = sbs_bit or
-                           current_bit.bit_name = esi_bit or
                            current_bit.bit_name = dlc_bit or
                            current_bit.bit_name = crc_bit;
 
       next_pcs_to_mac_o.sample_strobe <= sp_pulse_v;
+      next_pcs_to_mac_o.strobe_type   <= sp_strobe;
       next_pcs_to_mac_o.fifo_index    <= 0;
 
       if (state = transmitting_data and use_tdc_c and is_ssp_required_v) then
         next_pcs_to_mac_o.sample_strobe <= ssp_pulse_v;
+        next_pcs_to_mac_o.strobe_type   <= ssp_strobe;
         next_pcs_to_mac_o.fifo_index    <= fifo_index;
       end if;
 

@@ -277,13 +277,13 @@ begin
     begin
       case frame.format is
         when cc_basic =>
-          config_0_v := llc_frame_format_cb_encoding & frame.ftyp & frame.esi & frame.brs & "00";
+          config_0_v := llc_frame_format_cb_encoding_c & frame.ftyp & frame.esi & frame.brs & "00";
         when cc_extended =>
-          config_0_v := llc_frame_format_ce_encoding & frame.ftyp & frame.esi & frame.brs & "00";
+          config_0_v := llc_frame_format_ce_encoding_c & frame.ftyp & frame.esi & frame.brs & "00";
         when fd_basic =>
-          config_0_v := llc_frame_format_fb_encoding & frame.ftyp & frame.esi & frame.brs & "00";
+          config_0_v := llc_frame_format_fb_encoding_c & frame.ftyp & frame.esi & frame.brs & "00";
         when fd_extended =>
-          config_0_v := llc_frame_format_fe_encoding & frame.ftyp & frame.esi & frame.brs & "00";
+          config_0_v := llc_frame_format_fe_encoding_c & frame.ftyp & frame.esi & frame.brs & "00";
         when others =>
           config_0_v := (others => '0');
       end case;
@@ -372,9 +372,9 @@ begin
 
       case frame.format is
         when cc_basic =>
-          config_0_v := llc_frame_format_cb_encoding & frame.ftyp & frame.esi & frame.brs & "00";
+          config_0_v := llc_frame_format_cb_encoding_c & frame.ftyp & frame.esi & frame.brs & "00";
         when cc_extended =>
-          config_0_v := llc_frame_format_ce_encoding & frame.ftyp & frame.esi & frame.brs & "00";
+          config_0_v := llc_frame_format_ce_encoding_c & frame.ftyp & frame.esi & frame.brs & "00";
         when others =>
           config_0_v := (others => '0');
       end case;

@@ -10,10 +10,6 @@
 --   - tx_mac_fsm: Frame transmission FSM (coordinator)
 --   - bit_stuffer_fd: CAN FD bit stuffing with SBC generation
 --   - crc_fd: CRC engine interface
---
--- External interfaces:
---   - LLC (Logical Link Control): Avalon-ST byte stream input
---   - PCS (Physical Coding Sublayer): mac_frame_bit_t output + timing strobes
 --------------------------------------------------------------------------------
 
 library ieee;
@@ -38,21 +34,31 @@ entity mac_tx is
 
     -- Fault Confinement Entity interface
     fce_i : in    fce_to_mac_if_t;
-    fce_o : out   mac_to_fce_if_t
+    fce_o : out   mac_to_fce_if_t;
+
+    -- Debug interface (monitoring internal MAC/PCS handshake)
+    debug_mac_to_pcs_o  : out mac_to_pcs_if_t;
+    debug_pcs_to_mac_o  : out pcs_to_mac_if_t;
+    debug_ack_error_o   : out boolean;
+    debug_form_error_o  : out boolean;
+    debug_data_exit_o   : out boolean
   );
 end entity mac_tx;
 
 architecture rtl of mac_tx is
 
-  -- Internal signals: serializer <-> FSM
+  ---------------------------------------------------------------------------
+  -- Internal signals
+  ---------------------------------------------------------------------------
+  -- Serializer <-> FSM
   signal ser_to_fsm : tx_mac_ser_to_fsm_if_t;
   signal fsm_to_ser : tx_mac_fsm_to_ser_if_t;
 
-  -- Internal signals: FSM <-> bit stuffer FD
+  -- FSM <-> bit stuffer FD
   signal fsm_to_bs_fd : mac_fsm_to_bs_fd_if_t;
   signal bs_fd_to_fsm : bs_fd_to_mac_fsm_if_t;
 
-  -- Internal signals: FSM <-> CRC
+  -- FSM <-> CRC
   signal fsm_to_crc : mac_fsm_to_crc_if_t;
   signal crc_to_fsm : crc_to_mac_fsm_if_t;
 
@@ -109,8 +115,19 @@ begin
   -- =========================================================================
   crc_fd_inst : entity work.crc_fd
     port map (
+      clk_i => clk,
+      rst_i => rst,
       crc_i => fsm_to_crc,
       crc_o => crc_to_fsm
     );
+
+  -- Wire debug ports
+  debug_mac_to_pcs_o <= pcs_o;
+  debug_pcs_to_mac_o <= pcs_i;
+
+  -- Access FSM debug signals via force-accessible attributes (VHDL 2008)
+  debug_ack_error_o  <= << signal tx_mac_fsm_inst.ack_error_detected : boolean >>;
+  debug_form_error_o <= << signal tx_mac_fsm_inst.form_error_detected : boolean >>;
+  debug_data_exit_o  <= << signal tx_mac_fsm_inst.data_phase_exit_strobe : boolean >>;
 
 end architecture rtl;

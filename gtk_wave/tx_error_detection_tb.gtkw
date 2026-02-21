@@ -1,19 +1,22 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Fri Feb 20 21:05:18 2026
+[*] Sat Feb 21 00:26:35 2026
 [*]
 [dumpfile] "/home/madsr2d2/beng_thesis/sim/tx_error_detection_tb.ghw"
-[dumpfile_mtime] "Fri Feb 20 21:04:26 2026"
-[dumpfile_size] 1530614
+[dumpfile_mtime] "Sat Feb 21 00:20:56 2026"
+[dumpfile_size] 2176963
 [savefile] "/home/madsr2d2/beng_thesis/gtk_wave/tx_error_detection_tb.gtkw"
-[timestart] 0
+[timestart] 174235000000
 [size] 1920 1121
 [pos] -27 -24
-*-31.868557 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-28.868557 175625000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.tx_error_detection_tb.
 [treeopen] top.tx_error_detection_tb.debug_mac_to_pcs.
+[treeopen] top.tx_error_detection_tb.dut.
+[treeopen] top.tx_error_detection_tb.dut.mac_tx_inst.
 [treeopen] top.tx_error_detection_tb.dut.mac_tx_inst.tx_mac_fsm_inst.
+[treeopen] top.tx_error_detection_tb.dut.mac_tx_inst.tx_mac_fsm_inst.next_pcs_o.
 [treeopen] top.tx_error_detection_tb.dut.tx_llc_inst.
 [sst_width] 278
 [signals_width] 478
@@ -29,9 +32,10 @@ top.tx_error_detection_tb.debug_mac_to_pcs.data.bit_name
 top.tx_error_detection_tb.debug_pcs_to_mac.sample_strobe
 @420
 top.tx_error_detection_tb.debug_pcs_to_mac.strobe_type
+@29
+top.tx_error_detection_tb.tx_bus
 @28
 top.tx_error_detection_tb.rx_bus
-top.tx_error_detection_tb.tx_bus
 @420
 top.tx_error_detection_tb.debug_pcs_to_mac.bus_polarity
 top.tx_error_detection_tb.dut.fce_o.transmitting
@@ -39,7 +43,8 @@ top.tx_error_detection_tb.dut.mac_tx_inst.tx_mac_fsm_inst.state
 top.tx_error_detection_tb.debug_ack_error
 top.tx_error_detection_tb.debug_form_error
 top.tx_error_detection_tb.debug_ack_error
-@421
 top.tx_error_detection_tb.current_test
+top.tx_error_detection_tb.dut.mac_tx_inst.tx_mac_fsm_inst.monitored_bit_event
+top.tx_error_detection_tb.dut.mac_tx_inst.tx_mac_fsm_inst.next_pcs_o.data.bit_name
 [pattern_trace] 1
 [pattern_trace] 0

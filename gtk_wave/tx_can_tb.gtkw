@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Wed Feb 18 22:06:24 2026
+[*] Thu Feb 19 03:12:14 2026
 [*]
 [dumpfile] "/home/madsr2d2/beng_thesis/sim/tx_can_tb.ghw"
-[dumpfile_mtime] "Wed Feb 18 22:06:05 2026"
-[dumpfile_size] 969590
+[dumpfile_mtime] "Thu Feb 19 03:11:44 2026"
+[dumpfile_size] 1478528
 [savefile] "/home/madsr2d2/beng_thesis/gtk_wave/tx_can_tb.gtkw"
-[timestart] 436580900000
+[timestart] 544116000000
 [size] 1920 1121
 [pos] -27 -24
-*-26.656593 436915000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-27.656593 544635000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.tx_can_tb.
 [treeopen] top.tx_can_tb.debug_mac_to_pcs.
@@ -18,6 +18,7 @@
 [treeopen] top.tx_can_tb.dut.mac_tx_inst.
 [treeopen] top.tx_can_tb.dut.mac_tx_inst.ser_to_fsm.
 [treeopen] top.tx_can_tb.dut.mac_tx_inst.ser_to_fsm.frame_params.
+[treeopen] top.tx_can_tb.dut.mac_tx_inst.tx_mac_fsm_inst.
 [treeopen] top.tx_can_tb.dut.mac_tx_inst.tx_mac_fsm_inst.mac_ser_i.
 [treeopen] top.tx_can_tb.dut.mac_tx_inst.tx_mac_fsm_inst.pcs_o.
 [treeopen] top.tx_can_tb.dut.tx_llc_inst.mac_i.
@@ -63,9 +64,8 @@ top.tx_can_tb.tx_bus_o
 top.tx_can_tb.dut.mac_tx_inst.ser_to_fsm.frame_params.format
 @800200
 -MAC_to_PCS
-@421
-top.tx_can_tb.debug_mac_to_pcs.data.bit_name
 @420
+top.tx_can_tb.debug_mac_to_pcs.data.bit_name
 top.tx_can_tb.debug_mac_to_pcs.data.polarity
 top.tx_can_tb.debug_mac_to_pcs.valid
 @1000200
@@ -75,7 +75,7 @@ top.tx_can_tb.debug_mac_to_pcs.valid
 @420
 top.tx_can_tb.debug_pcs_to_mac.bus_polarity
 top.tx_can_tb.debug_pcs_to_mac.fifo_index
-@28
+@29
 top.tx_can_tb.debug_pcs_to_mac.sample_strobe
 @1000200
 -PCS_to_MAC
@@ -93,7 +93,6 @@ top.tx_can_tb.dut.clk
 -LLC
 -LLC_internals
 @420
-top.tx_can_tb.dut.tx_llc_inst.llc_state
 top.tx_can_tb.dut.tx_llc_inst.retx_count
 @1401200
 -LLC_internals
@@ -147,9 +146,6 @@ top.tx_can_tb.dut.mac_tx_inst.tx_mac_fsm_inst.pcs_i.bus_polarity
 @c00200
 -PCS
 -PCS_internals
-@28
-top.tx_can_tb.dut.tx_pcs_inst.ssp_pulse
-top.tx_can_tb.dut.tx_pcs_inst.sp_pulse
 @420
 top.tx_can_tb.dut.tx_pcs_inst.fifo_index
 top.tx_can_tb.dut.tx_pcs_inst.ssp_position
@@ -157,10 +153,6 @@ top.tx_can_tb.dut.tx_pcs_inst.delay_count
 top.tx_can_tb.dut.tx_pcs_inst.tq_count
 top.tx_can_tb.dut.tx_pcs_inst.clk_count_data
 top.tx_can_tb.dut.tx_pcs_inst.clk_count_nom
-@28
-top.tx_can_tb.dut.tx_pcs_inst.data_tq_tick
-top.tx_can_tb.dut.tx_pcs_inst.nom_tq_tick
-@420
 top.tx_can_tb.dut.tx_pcs_inst.next_state
 top.tx_can_tb.dut.tx_pcs_inst.state
 @1401200
@@ -248,5 +240,7 @@ top.tx_can_tb.dut.mac_tx_inst.tx_mac_fsm_inst.mac_ser_i.frame_params.is_fd_frame
 top.tx_can_tb.dut.mac_tx_inst.tx_mac_fsm_inst.mac_ser_i.frame_params.format
 @1401200
 -SER_to_MAC_FSM_frame_params
+@420
+top.tx_can_tb.dut.mac_tx_inst.tx_mac_fsm_inst.monitored_bit_event
 [pattern_trace] 1
 [pattern_trace] 0

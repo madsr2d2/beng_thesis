@@ -15,7 +15,6 @@ PACKAGES = \
 
 # 2. Components and Sub-modules
 COMPONENTS = \
-	src/bit_stuffer.vhd \
 	src/bit_stuffer_fd.vhd \
 	src/crc_fd.vhd \
 	src/tx_mac_ser.vhd \

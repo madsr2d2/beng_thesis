@@ -3,6 +3,19 @@
 -- Protocol algorithms and frame helpers for CAN/CAN-FD.
 --------------------------------------------------------------------
 
+--------------------------------------------------------------------------------
+-- Title      : CAN Bus Protocol Logic and Calculations
+-- Project    : CAN Bus Transmitter
+--------------------------------------------------------------------------------
+-- File       : can_protocol_pkg.vhd
+-- Standard   : VHDL-2008
+--------------------------------------------------------------------------------
+-- Description: Core protocol logic for the CAN/CAN-FD transmitter. Implements
+--              frame layout calculation, bitstream modeling, and SBC encoding.
+--
+-- Protocol references: ISO 11898-1:2015
+--------------------------------------------------------------------------------
+
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
@@ -10,92 +23,116 @@ library ieee;
 
 package can_protocol_pkg is
 
-  function polarity_to_std_logic (
-    p : polarity_t
-  ) return std_logic;
+  ---------------------------------------------------------------------------
+  -- Field Layout and Parameter Calculation
+  ---------------------------------------------------------------------------
+  
+  -- Calculate all frame-specific parameters once per frame.
+  function calculate_frame_params (
+    config_byte_0 : byte_t;
+    config_byte_1 : byte_t
+  ) return frame_params_t;
 
-  function std_logic_to_polarity (
-    p : std_logic
-  ) return polarity_t;
+  -- Convert DLC to actual data length in bytes per ISO 11898-1 Table 10.
+  function dlc_to_data_length (
+    dlc        : dlc_t;
+    can_format : can_format_t
+  ) return integer;
 
-  -- Function calculates the parity bit for a std_logic_vector
-  function calc_parity (
-    v : std_logic_vector
-  ) return std_logic;
+  -- Get CRC field width from frame format and payload length per ISO 11898-1.
+  function get_crc_length (
+    can_format  : can_format_t;
+    data_length : integer
+  ) return integer;
 
-  -- Function Gray encodes a std_logic_vector
+  ---------------------------------------------------------------------------
+  -- Bitstream Modeling and Extraction
+  ---------------------------------------------------------------------------
+  
+  -- Calculates the next logical bit to be transmitted per protocol state.
+  function get_next_mac_frame_bit (
+    bit_count         : position_t;
+    mac_ser_to_fsm    : tx_mac_ser_to_fsm_if_t;
+    previous_polarity : polarity_t;
+    sbc               : sbc_t;
+    crc               : crc_vector_t
+  ) return mac_frame_bit_t;
+
+  -- Monitors transmitted bits for errors, ACK issues, and arbitration loss.
+  function get_observed_mac_frame_bit_info (
+    fifo                   : transmitted_bits_fifo_t;
+    fifo_index             : integer range 0 to transmitted_bits_fifo_depth_c - 1;
+    fifo_write_ptr         : fifo_write_ptr_t;
+    monitored_bit_polarity : polarity_t;
+    frame_params           : frame_params_t
+  ) return observed_mac_frame_bit_info_t;
+
+  ---------------------------------------------------------------------------
+  -- Arithmetic and Encoding Utilities
+  ---------------------------------------------------------------------------
+  
+  -- Calculates circular FIFO index for SSP-aligned monitoring (ISO 7.3.4).
+  function calculate_fifo_delay_index (
+    delay_with_offset : integer;
+    data_bit_time     : integer
+  ) return integer;
+
+  -- Standard Gray encoder for SBC field.
   function to_gray (
     v : std_logic_vector
   ) return std_logic_vector;
 
-  -- Convert std_logic bit value to polarity enumeration
-  function bit_to_polarity (
-    bit_val : std_logic
-  ) return polarity_t;
+  -- Parity bit generator for SBC field.
+  function calc_parity (
+    v : std_logic_vector
+  ) return std_logic;
 
-  -- Function calculates the next bit to be transmitted
-  function get_next_mac_frame_bit (
-    bit_count    : position_t;
-    mac_ser_to_fsm : tx_mac_ser_to_fsm_if_t; -- Contains frame_params
-    previous_polarity : polarity_t;
-    sbc : sbc_t;
-    crc : crc_vector_t
-  ) return mac_frame_bit_t;
+  -- Converters between polarity domain and std_logic domain.
+  function polarity_to_std_logic (p : polarity_t) return std_logic;
+  function std_logic_to_polarity (s : std_logic) return polarity_t;
+  function bit_to_polarity (bit_val : std_logic) return polarity_t;
 
-  -- Function monitors transmitted bits for errors, ACK issues, and arbitration loss
-  function get_observed_mac_frame_bit_info (
-    fifo : transmitted_bits_fifo_t;
-    fifo_index : integer range 0 to transmitted_bits_fifo_depth_c - 1;
-    fifo_write_ptr : fifo_write_ptr_t;
-    monitored_bit_polarity : polarity_t;
-    frame_params : frame_params_t
-  ) return observed_mac_frame_bit_info_t;
+  -- Pack LLC frame ID field into canonical byte stream order ID3..ID0.
+  function pack_llc_id_bytes (
+    id         : std_logic_vector(28 downto 0);
+    can_format : can_format_t
+  ) return std_logic_vector;
 
-  -- Initialize FIFO to empty state (all bits unknown)
+  ---------------------------------------------------------------------------
+  -- Helper and Initialization functions
+  ---------------------------------------------------------------------------
   function fifo_init return transmitted_bits_fifo_t;
 
-  -- Write a new bit into circular FIFO at write_ptr, then advance pointer
   procedure fifo_write (
     signal fifo           : inout transmitted_bits_fifo_t;
     signal fifo_write_ptr : inout fifo_write_ptr_t;
     next_bit              : in    mac_frame_bit_t
   );
 
-  -- Helper function to check if position is a fixed stuff bit in CAN FD CRC field
   function is_fixed_stuff_bit_position (
     position_in_crc_field : integer
   ) return boolean;
 
-  -- Calculate all frame-specific parameters once per frame
-  -- Avoids redundant calculations on every bit transmission
-  function calculate_frame_params (
-    config_byte_0 : byte_t;
-    config_byte_1 : byte_t
-  ) return frame_params_t;
-
-  -- Convert DLC to actual data length in bytes (exposed for tx_llc use)
-  function dlc_to_data_length (
-    dlc        : dlc_t;
-    can_format : can_format_t
-  ) return integer;
-
-  -- Helper function to get CRC field width from frame format and payload length
-  function get_crc_length (
-    can_format  : can_format_t;
-    data_length : integer
-  ) return integer;
-
-  -- Pack LLC frame ID field into canonical byte stream order ID3..ID0.
-  -- Extended formats use id(28 downto 0) in bits 31 downto 3.
-  -- Base formats use id(10 downto 0) in bits 31 downto 21.
-  function pack_llc_id_bytes (
-    id         : std_logic_vector(28 downto 0);
-    can_format : can_format_t
-  ) return std_logic_vector;
-
 end package can_protocol_pkg;
 
 package body can_protocol_pkg is
+
+  function calculate_fifo_delay_index (
+    delay_with_offset : integer;
+    data_bit_time     : integer
+  ) return integer is
+    variable index : integer;
+  begin
+    -- Integer division: number of complete data bit times in delay
+    index := delay_with_offset / data_bit_time;
+
+    -- Clamp to FIFO depth
+    if (index >= transmitted_bits_fifo_depth_c) then
+      index := transmitted_bits_fifo_depth_c - 1;
+    end if;
+
+    return index;
+  end function calculate_fifo_delay_index;
 
   function polarity_to_std_logic (
     p : polarity_t
@@ -120,11 +157,11 @@ package body can_protocol_pkg is
   end function polarity_to_std_logic;
 
   function std_logic_to_polarity (
-    p : std_logic
+    s : std_logic
   ) return polarity_t is
   begin
 
-    case p is
+    case s is
       when recessive_bit_c =>
         return recessive;
       when dominant_bit_c =>
@@ -566,6 +603,11 @@ package body can_protocol_pkg is
     found  := false;
     result := (polarity => unknown, bit_name => unknown);
 
+    -- Beyond frame end - no valid bits
+    if (bit_count >= frame_params.eof_stop) then
+      return;
+    end if;
+
     if (bit_count = frame_params.crc_delimiter) then
       result := crc_delimiter_bit_c;
       found  := true;
@@ -694,10 +736,10 @@ package body can_protocol_pkg is
 
     -- Extract frame format from config_byte_0[7:5]
     case config_byte_0(llc_frame_config_byte_0_format_start downto llc_frame_config_byte_0_format_end) is
-      when llc_frame_format_cb_encoding => result.format := cc_basic;
-      when llc_frame_format_ce_encoding => result.format := cc_extended;
-      when llc_frame_format_fb_encoding => result.format := fd_basic;
-      when llc_frame_format_fe_encoding => result.format := fd_extended;
+      when llc_frame_format_cb_encoding_c => result.format := cc_basic;
+      when llc_frame_format_ce_encoding_c => result.format := cc_extended;
+      when llc_frame_format_fb_encoding_c => result.format := fd_basic;
+      when llc_frame_format_fe_encoding_c => result.format := fd_extended;
       when others => result.format := unknown;
     end case;
 
@@ -720,6 +762,12 @@ package body can_protocol_pkg is
 
     -- Calculate data length from DLC vector
     data_length_v := dlc_to_data_length(dlc_t(to_integer(unsigned(result.dlc_vector))), result.format);
+    
+    -- ISO 11898-1: 6.6.10.1 - Remote frames shall not contain a Data field
+    if (result.is_remote_frame) then
+      data_length_v := 0;
+    end if;
+
     data_bits_v   := data_length_v * byte_width_c;
 
     -- Populate field boundaries based on format
