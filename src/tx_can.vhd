@@ -31,6 +31,7 @@ entity tx_can is
     data_phase_seg1                 : integer := 4;
     data_phase_seg2                 : integer := 4;
     ssp_offset_cfg                  : ssp_offset := 4;
+    tdc_enable_cfg                  : boolean := true;
     system_clock_freq_hz            : integer := 100_000_000;
     pcs_to_pma_propagation_delay_ns : integer := 600
   );
@@ -144,6 +145,7 @@ begin
       data_phase_seg1      => data_phase_seg1,
       data_phase_seg2      => data_phase_seg2,
       ssp_offset           => ssp_offset_cfg,
+      tdc_enable           => tdc_enable_cfg,
       system_clock_freq_hz => system_clock_freq_hz,
       pcs_to_pma_propagation_delay_ns => pcs_to_pma_propagation_delay_ns
     )

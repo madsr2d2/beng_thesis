@@ -71,12 +71,6 @@ package can_protocol_pkg is
   -- Arithmetic and Encoding Utilities
   ---------------------------------------------------------------------------
   
-  -- Calculates circular FIFO index for SSP-aligned monitoring (ISO 7.3.4).
-  function calculate_fifo_delay_index (
-    delay_with_offset : integer;
-    data_bit_time     : integer
-  ) return integer;
-
   -- Standard Gray encoder for SBC field.
   function to_gray (
     v : std_logic_vector
@@ -116,23 +110,6 @@ package can_protocol_pkg is
 end package can_protocol_pkg;
 
 package body can_protocol_pkg is
-
-  function calculate_fifo_delay_index (
-    delay_with_offset : integer;
-    data_bit_time     : integer
-  ) return integer is
-    variable index : integer;
-  begin
-    -- Integer division: number of complete data bit times in delay
-    index := delay_with_offset / data_bit_time;
-
-    -- Clamp to FIFO depth
-    if (index >= transmitted_bits_fifo_depth_c) then
-      index := transmitted_bits_fifo_depth_c - 1;
-    end if;
-
-    return index;
-  end function calculate_fifo_delay_index;
 
   function polarity_to_std_logic (
     p : polarity_t

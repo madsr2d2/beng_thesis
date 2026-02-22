@@ -41,8 +41,8 @@ architecture test of tx_pcs_tb is
   signal rst : std_logic := '1';
   signal test_done : boolean := false;
   -- Waveform marker for active test:
-  -- 0=idle/reset, 1..11=test id, 12=done.
-  signal current_test_id : integer range 0 to 12 := 0;
+  -- 0=idle/reset, 1..12=test id, 13=done.
+  signal current_test_id : integer range 0 to 13 := 0;
   constant test_idle_c : integer := 0;
   constant test_1_c    : integer := 1;
   constant test_2_c    : integer := 2;
@@ -55,7 +55,8 @@ architecture test of tx_pcs_tb is
   constant test_9_c    : integer := 9;
   constant test_10_c   : integer := 10;
   constant test_11_c   : integer := 11;
-  constant test_done_c : integer := 12;
+  constant test_12_c   : integer := 12;
+  constant test_done_c : integer := 13;
 
   ------------------------------------------------------------------------------
   -- DUT configuration constants
@@ -77,6 +78,8 @@ architecture test of tx_pcs_tb is
   constant data_bit_time_tq_c  : integer := data_sync_seg_c + data_prop_seg_c + data_phase_seg1_c + data_phase_seg2_c;
   constant nom_bit_time_clk_c  : integer := nom_bit_time_tq_c * nom_prescaler_c;
   constant data_bit_time_clk_c : integer := data_bit_time_tq_c * data_prescaler_c;
+  constant data_prescaler_ps2_c : prescalar := 2;
+  constant data_bit_time_clk_ps2_c : integer := data_bit_time_tq_c * data_prescaler_ps2_c;
 
   ------------------------------------------------------------------------------
   -- Loopback setup (simulated TX->RX delay for TDC)
@@ -84,6 +87,9 @@ architecture test of tx_pcs_tb is
   constant loopback_delay_clocks_c : integer := 50;
   constant loopback_delay_c        : time    := loopback_delay_clocks_c * clk_period_c;
   constant expected_fifo_index_c   : integer := (loopback_delay_clocks_c + ssp_offset_c) / data_bit_time_tq_c;
+  constant delay_with_offset_tq_ps2_c : integer :=
+    (loopback_delay_clocks_c + (ssp_offset_c * data_prescaler_ps2_c) + 1 + data_prescaler_ps2_c - 1) / data_prescaler_ps2_c;
+  constant expected_fifo_index_ps2_c : integer := delay_with_offset_tq_ps2_c / data_bit_time_tq_c;
   constant no_tdc_system_clock_freq_c : integer := 1_000_000;
   constant no_tdc_pma_delay_ns_c      : integer := 10;
 
@@ -110,6 +116,13 @@ architecture test of tx_pcs_tb is
   signal pcs_to_mac_no_tdc : pcs_to_mac_if_t;
   signal tx_bus_no_tdc     : std_logic;
   signal rx_bus_no_tdc     : std_logic := recessive_bit_c;
+  signal mac_to_pcs_ps2 : mac_to_pcs_if_t := (
+    data  => unknown_mac_frame_bit_c,
+    valid => false
+  );
+  signal pcs_to_mac_ps2 : pcs_to_mac_if_t;
+  signal tx_bus_ps2     : std_logic;
+  signal rx_bus_ps2     : std_logic := recessive_bit_c;
 
 begin
 
@@ -134,6 +147,12 @@ begin
     wait on tx_bus_no_tdc;
     rx_bus_no_tdc <= transport tx_bus_no_tdc after loopback_delay_c;
   end process loopback_no_tdc_proc;
+
+  loopback_ps2_proc : process is
+  begin
+    wait on tx_bus_ps2;
+    rx_bus_ps2 <= transport tx_bus_ps2 after loopback_delay_c;
+  end process loopback_ps2_proc;
 
   ------------------------------------------------------------------------------
   -- DUT
@@ -186,6 +205,29 @@ begin
       rx_bus_i     => rx_bus_no_tdc
     );
 
+  dut_ps2 : entity work.tx_pcs
+    generic map (
+      nom_prescaler   => nom_prescaler_c,
+      nom_sync_seg    => nom_sync_seg_c,
+      nom_prop_seg    => nom_prop_seg_c,
+      nom_phase_seg1  => nom_phase_seg1_c,
+      nom_phase_seg2  => nom_phase_seg2_c,
+      data_prescaler  => data_prescaler_ps2_c,
+      data_sync_seg   => data_sync_seg_c,
+      data_prop_seg   => data_prop_seg_c,
+      data_phase_seg1 => data_phase_seg1_c,
+      data_phase_seg2 => data_phase_seg2_c,
+      ssp_offset      => ssp_offset_c
+    )
+    port map (
+      clk          => clk,
+      rst          => rst,
+      mac_to_pcs_i => mac_to_pcs_ps2,
+      pcs_to_mac_o => pcs_to_mac_ps2,
+      tx_bus_o     => tx_bus_ps2,
+      rx_bus_i     => rx_bus_ps2
+    );
+
   ------------------------------------------------------------------------------
   -- Main test process
   ------------------------------------------------------------------------------
@@ -207,6 +249,8 @@ begin
       mac_to_pcs.data <= unknown_mac_frame_bit_c;
       mac_to_pcs_no_tdc.valid <= false;
       mac_to_pcs_no_tdc.data <= unknown_mac_frame_bit_c;
+      mac_to_pcs_ps2.valid <= false;
+      mac_to_pcs_ps2.data <= unknown_mac_frame_bit_c;
       wait_clocks(5);
       rst <= '0';
       wait_clocks(2);
@@ -244,6 +288,22 @@ begin
       mac_to_pcs_no_tdc.data <= unknown_mac_frame_bit_c;
     end procedure stop_frame_no_tdc;
 
+    procedure send_bit_ps2 (
+      bit_to_send : mac_frame_bit_t;
+      hold_clocks : positive := nom_bit_time_clk_c
+    ) is
+    begin
+      mac_to_pcs_ps2.data <= bit_to_send;
+      mac_to_pcs_ps2.valid <= true;
+      wait_clocks(hold_clocks);
+    end procedure send_bit_ps2;
+
+    procedure stop_frame_ps2 is
+    begin
+      mac_to_pcs_ps2.valid <= false;
+      mac_to_pcs_ps2.data <= unknown_mac_frame_bit_c;
+    end procedure stop_frame_ps2;
+
     procedure wait_for_sample_pulse_no_tdc (
       max_cycles    : positive;
       variable seen : out boolean;
@@ -260,6 +320,23 @@ begin
       end loop;
       AlertIf(not seen, msg, ERROR);
     end procedure wait_for_sample_pulse_no_tdc;
+
+    procedure wait_for_sample_pulse_ps2 (
+      max_cycles    : positive;
+      variable seen : out boolean;
+      constant msg  : string
+    ) is
+    begin
+      seen := false;
+      for i in 1 to max_cycles loop
+        wait until rising_edge(clk);
+        if (pcs_to_mac_ps2.sample_strobe = '1') then
+          seen := true;
+          exit;
+        end if;
+      end loop;
+      AlertIf(not seen, msg, ERROR);
+    end procedure wait_for_sample_pulse_ps2;
 
     procedure assert_next_sample_period_no_tdc (
       expected_cycles : positive;
@@ -289,6 +366,35 @@ begin
               " cycles, got " & integer'image(period) & ")",
               ERROR);
     end procedure assert_next_sample_period_no_tdc;
+
+    procedure assert_next_sample_period_ps2 (
+      expected_cycles : positive;
+      search_window   : positive;
+      constant msg    : string
+    ) is
+      variable first_seen  : boolean;
+      variable second_seen : boolean;
+      variable period      : integer := 0;
+    begin
+      wait_for_sample_pulse_ps2(search_window, first_seen, msg & " (first pulse missing)");
+
+      second_seen := false;
+      period := 0;
+      for i in 1 to search_window loop
+        wait until rising_edge(clk);
+        period := period + 1;
+        if (pcs_to_mac_ps2.sample_strobe = '1') then
+          second_seen := true;
+          exit;
+        end if;
+      end loop;
+
+      AlertIf(not second_seen, msg & " (second pulse missing)", ERROR);
+      AlertIf(period /= expected_cycles,
+              msg & " (expected " & integer'image(expected_cycles) &
+              " cycles, got " & integer'image(period) & ")",
+              ERROR);
+    end procedure assert_next_sample_period_ps2;
 
     procedure wait_for_sample_pulse (
       max_cycles    : positive;
@@ -674,6 +780,40 @@ begin
     wait_clocks(nom_bit_time_clk_c);
 
     Log("Test 11 PASSED", PASSED);
+
+    ----------------------------------------------------------------------------
+    -- Test 12: TDC measurement with data_prescaler = 2
+    ----------------------------------------------------------------------------
+    current_test_id <= test_12_c;
+    Log("Test 12: TDC measurement with data_prescaler=2", INFO);
+
+    reset_dut;
+    send_bit_ps2((polarity => dominant, bit_name => sof_bit));
+    send_bit_ps2((polarity => recessive, bit_name => fdf_bit), nom_bit_time_clk_c * 2);
+    send_bit_ps2((polarity => dominant, bit_name => res_bit), nom_bit_time_clk_c * 3);
+    send_bit_ps2((polarity => recessive, bit_name => brs_bit), nom_bit_time_clk_c * 2);
+    send_bit_ps2((polarity => dominant, bit_name => data_bit), data_bit_time_clk_ps2_c * 5);
+
+    wait_for_sample_pulse_ps2(
+      max_cycles => 3 * nom_bit_time_clk_c,
+      seen       => pulse_seen,
+      msg        => "Prescaler=2 DUT did not generate data-phase sample pulse"
+    );
+    AlertIf(pcs_to_mac_ps2.fifo_index /= expected_fifo_index_ps2_c,
+            "Unexpected FIFO index for prescaler=2. Expected " &
+            integer'image(expected_fifo_index_ps2_c) & ", got " &
+            integer'image(pcs_to_mac_ps2.fifo_index),
+            ERROR);
+    assert_next_sample_period_ps2(
+      expected_cycles => data_bit_time_clk_ps2_c,
+      search_window   => nom_bit_time_clk_c * 3,
+      msg             => "Prescaler=2 DUT data-phase sample cadence"
+    );
+
+    stop_frame_ps2;
+    wait_clocks(nom_bit_time_clk_c);
+
+    Log("Test 12 PASSED", PASSED);
 
     ----------------------------------------------------------------------------
     -- Summary

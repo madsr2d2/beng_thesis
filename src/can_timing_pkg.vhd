@@ -28,6 +28,12 @@ package can_timing_pkg is
     pcs_to_pma_propagation_delay_ns : integer
   ) return boolean;
 
+  -- Calculates circular FIFO index for SSP-aligned monitoring (ISO 7.3.4).
+  function calculate_fifo_delay_index (
+    delay_with_offset : integer;
+    data_bit_time     : integer
+  ) return integer;
+
 end package can_timing_pkg;
 
 package body can_timing_pkg is
@@ -68,5 +74,22 @@ package body can_timing_pkg is
     return false;
 
   end function should_use_tdc;
+
+  function calculate_fifo_delay_index (
+    delay_with_offset : integer;
+    data_bit_time     : integer
+  ) return integer is
+    variable index : integer;
+  begin
+    -- Integer division: number of complete data bit times in delay
+    index := delay_with_offset / data_bit_time;
+
+    -- Clamp to FIFO depth
+    if (index >= transmitted_bits_fifo_depth_c) then
+      index := transmitted_bits_fifo_depth_c - 1;
+    end if;
+
+    return index;
+  end function calculate_fifo_delay_index;
 
 end package body can_timing_pkg;

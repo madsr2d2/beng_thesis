@@ -62,6 +62,7 @@ architecture rtl of tx_mac_fsm is
   signal ack_success_seen              : boolean;
   signal bit_count_monitored           : boolean;
   signal overload_condition            : boolean;
+  signal ssp_error_pending             : boolean;
 
   -- Fault confinement tracking
   signal ack_error_caused_flag     : boolean;
@@ -84,6 +85,7 @@ architecture rtl of tx_mac_fsm is
   signal next_ack_success_seen              : boolean;
   signal next_bit_count_monitored           : boolean;
   signal next_overload_condition            : boolean;
+  signal next_ssp_error_pending             : boolean;
   signal next_ack_error_caused_flag         : boolean;
   signal next_dominant_seen_during_flag     : boolean;
   signal next_dominant_run_count            : integer range 0 to 15;
@@ -241,6 +243,7 @@ begin
         -- Deactivate transmit levels on entry to quiet states
         next_pcs_o <= mac_to_pcs_if_reset_c;
         next_fce_o <= mac_to_fce_if_reset_c;
+        next_ssp_error_pending <= false;
 
         -- Clear terminal status from previous frame to allow Serializer to reset
         next_mac_ser_o.transfer_status <= ongoing;
@@ -304,6 +307,7 @@ begin
       next_fifo_write_ptr            <= 0;
       next_ack_success_seen          <= false;
       next_bit_count_monitored       <= false;
+      next_ssp_error_pending         <= false;
       next_ack_error_caused_flag     <= false;
       next_dominant_seen_during_flag <= false;
       next_dominant_run_count        <= 0;
@@ -447,7 +451,19 @@ begin
 
     -- Handle bit transmission and monitoring (sample strobe logic)
     procedure transmit_frame_bit is
+      variable confirm_ssp_error_at_sp_v : boolean;
     begin
+      confirm_ssp_error_at_sp_v := ssp_error_pending and (pcs_i.strobe_type = sp_strobe);
+
+      if (confirm_ssp_error_at_sp_v) then
+        -- ISO 7.3.4: react to SSP-detected bit error at the subsequent SP.
+        next_was_previous_frame_tx     <= true;
+        next_fce_o.error               <= true;
+        next_mac_ser_o.transfer_status <= disturbed;
+        next_monitored_bit_event       <= bit_error;
+        next_ssp_error_pending         <= false;
+        return;
+      end if;
 
       -- Monitor bus once per bit position (one-shot alignment)
       if (not bit_count_monitored) then
@@ -478,9 +494,15 @@ begin
           transmit_normal_bit;
 
         when bit_error =>
-          next_was_previous_frame_tx     <= true;
-          next_fce_o.error               <= true;
-          next_mac_ser_o.transfer_status <= disturbed;
+          if (pcs_i.strobe_type = ssp_strobe) then
+            -- ISO 7.3.4: ignore SSP bit error immediately and defer reaction to SP.
+            next_ssp_error_pending <= true;
+            transmit_normal_bit;
+          else
+            next_was_previous_frame_tx     <= true;
+            next_fce_o.error               <= true;
+            next_mac_ser_o.transfer_status <= disturbed;
+          end if;
 
         when none =>
           -- ISO 11898-1: 12.1.4.3 - ACK error reported at ACK delimiter boundary.
@@ -658,6 +680,7 @@ begin
     next_was_previous_frame_tx         <= was_previous_frame_tx;
     next_ack_success_seen              <= ack_success_seen;
     next_bit_count_monitored           <= bit_count_monitored;
+    next_ssp_error_pending             <= ssp_error_pending;
     next_ack_error_caused_flag         <= ack_error_caused_flag;
     next_dominant_seen_during_flag     <= dominant_seen_during_flag;
     next_dominant_run_count            <= dominant_run_count;
@@ -716,6 +739,7 @@ begin
         ack_success_seen              <= false;
         bit_count_monitored           <= false;
         overload_condition            <= false;
+        ssp_error_pending             <= false;
         ack_error_caused_flag         <= false;
         dominant_seen_during_flag     <= false;
         dominant_run_count            <= 0;
@@ -748,6 +772,7 @@ begin
         ack_success_seen              <= next_ack_success_seen;
         bit_count_monitored           <= next_bit_count_monitored;
         overload_condition            <= next_overload_condition;
+        ssp_error_pending             <= next_ssp_error_pending;
         ack_error_caused_flag         <= next_ack_error_caused_flag;
         dominant_seen_during_flag     <= next_dominant_seen_during_flag;
         dominant_run_count            <= next_dominant_run_count;
