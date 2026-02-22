@@ -1,40 +1,41 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Sat Feb 21 00:26:35 2026
+[*] Sat Feb 21 21:32:31 2026
 [*]
 [dumpfile] "/home/madsr2d2/beng_thesis/sim/tx_error_detection_tb.ghw"
-[dumpfile_mtime] "Sat Feb 21 00:20:56 2026"
-[dumpfile_size] 2176963
+[dumpfile_mtime] "Sat Feb 21 21:26:50 2026"
+[dumpfile_size] 2188201
 [savefile] "/home/madsr2d2/beng_thesis/gtk_wave/tx_error_detection_tb.gtkw"
-[timestart] 174235000000
+[timestart] 175629900000
 [size] 1920 1121
 [pos] -27 -24
-*-28.868557 175625000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-26.868557 176185000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.tx_error_detection_tb.
-[treeopen] top.tx_error_detection_tb.debug_mac_to_pcs.
 [treeopen] top.tx_error_detection_tb.dut.
-[treeopen] top.tx_error_detection_tb.dut.mac_tx_inst.
-[treeopen] top.tx_error_detection_tb.dut.mac_tx_inst.tx_mac_fsm_inst.
 [treeopen] top.tx_error_detection_tb.dut.mac_tx_inst.tx_mac_fsm_inst.next_pcs_o.
 [treeopen] top.tx_error_detection_tb.dut.tx_llc_inst.
+[treeopen] top.tx_error_detection_tb.dut.tx_pcs_inst.
 [sst_width] 278
-[signals_width] 478
+[signals_width] 363
 [sst_expanded] 1
 [sst_vpaned_height] 338
+@800200
+-tb
 @28
 top.tx_error_detection_tb.rst
 top.tx_error_detection_tb.clk
 @420
 top.tx_error_detection_tb.current_test
 top.tx_error_detection_tb.debug_mac_to_pcs.data.bit_name
+top.tx_error_detection_tb.debug_mac_to_pcs.data.polarity
 @28
 top.tx_error_detection_tb.debug_pcs_to_mac.sample_strobe
 @420
+top.tx_error_detection_tb.debug_pcs_to_mac.fifo_index
 top.tx_error_detection_tb.debug_pcs_to_mac.strobe_type
-@29
-top.tx_error_detection_tb.tx_bus
 @28
+top.tx_error_detection_tb.tx_bus
 top.tx_error_detection_tb.rx_bus
 @420
 top.tx_error_detection_tb.debug_pcs_to_mac.bus_polarity
@@ -46,5 +47,19 @@ top.tx_error_detection_tb.debug_ack_error
 top.tx_error_detection_tb.current_test
 top.tx_error_detection_tb.dut.mac_tx_inst.tx_mac_fsm_inst.monitored_bit_event
 top.tx_error_detection_tb.dut.mac_tx_inst.tx_mac_fsm_inst.next_pcs_o.data.bit_name
+@1000200
+-tb
+@800200
+-PCS
+@420
+top.tx_error_detection_tb.dut.tx_pcs_inst.tq_count
+top.tx_error_detection_tb.dut.tx_pcs_inst.next_ssp_position
+@421
+top.tx_error_detection_tb.dut.tx_pcs_inst.ssp_position
+@420
+top.tx_error_detection_tb.dut.tx_pcs_inst.current_bit.bit_name
+top.tx_error_detection_tb.dut.tx_pcs_inst.state
+@1000200
+-PCS
 [pattern_trace] 1
 [pattern_trace] 0

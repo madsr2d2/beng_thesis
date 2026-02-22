@@ -467,6 +467,9 @@ begin
     -- Keep res bit active long enough for delayed RX edge to arrive.
     send_bit((polarity => dominant, bit_name => res_bit), nom_bit_time_clk_c * 3);
 
+    -- Transition bit (required by updated PCS state machine)
+    send_bit((polarity => recessive, bit_name => brs_bit), nom_bit_time_clk_c * 2);
+
     -- Move into data field; monitor should switch to SSP once state is transmitting_data.
     send_bit((polarity => dominant, bit_name => data_bit), data_bit_time_clk_c * 5);
 
@@ -512,17 +515,22 @@ begin
     Log("Test 5 PASSED", PASSED);
 
     ----------------------------------------------------------------------------
-    -- Test 6: Non data/stuff bits in data phase use nominal monitor contract
+    -- Test 6: Data phase bits (including CRC) use SSP monitoring
     ----------------------------------------------------------------------------
     current_test_id <= test_6_c;
-    Log("Test 6: SP monitoring outside data/stuff in data state", INFO);
+    Log("Test 6: SSP monitoring for CRC field", INFO);
 
     send_bit((polarity => dominant, bit_name => crc_bit), data_bit_time_clk_c * 4);
 
-    AlertIf(pcs_to_mac.fifo_index /= 0, "CRC field monitoring should use FIFO index 0", ERROR);
-    assert_no_sample_pulse(
-      max_cycles => nom_bit_time_clk_c * 2,
-      msg        => "No monitor strobes expected for non-data/stuff bits in transmitting_data"
+    AlertIf(pcs_to_mac.fifo_index /= expected_fifo_index_c,
+            "CRC field monitoring should use TDC FIFO index",
+            ERROR);
+
+    assert_sample_period_n_times(
+      expected_cycles => data_bit_time_clk_c,
+      num_periods     => 2,
+      search_window   => nom_bit_time_clk_c * 2,
+      msg             => "SSP cadence in CRC field"
     );
 
     Log("Test 6 PASSED", PASSED);
@@ -643,8 +651,9 @@ begin
     reset_dut;
     send_bit_no_tdc((polarity => dominant, bit_name => sof_bit));
     send_bit_no_tdc((polarity => recessive, bit_name => fdf_bit), nom_bit_time_clk_c * 2);
-    -- With TDC disabled, res bit transitions directly to data phase (no measurement state).
-    send_bit_no_tdc((polarity => dominant, bit_name => res_bit), nom_bit_time_clk_c * 2);
+    -- With TDC disabled, res bit transitions to brs_bit at nominal rate.
+    send_bit_no_tdc((polarity => dominant, bit_name => res_bit), nom_bit_time_clk_c);
+    send_bit_no_tdc((polarity => recessive, bit_name => brs_bit), nom_bit_time_clk_c);
     send_bit_no_tdc((polarity => dominant, bit_name => data_bit), data_bit_time_clk_c * 5);
 
     wait_for_sample_pulse_no_tdc(

@@ -219,6 +219,18 @@ package body can_protocol_pkg is
       end if;
     end if;
 
+    -- Skip error monitoring for control bits with predetermined polarity
+    -- ESI, BRS, FDF, res, RRS have fixed polarity and shouldn't trigger errors
+    -- (polarity conflicts only occur in arbitration field per ISO 11898-1)
+    if (result.expected_bit.bit_name = esi_bit or
+        result.expected_bit.bit_name = brs_bit or
+        result.expected_bit.bit_name = fdf_bit or
+        result.expected_bit.bit_name = res_bit or
+        result.expected_bit.bit_name = rrs_bit) then
+      -- These control bits have predetermined polarity, no need to check
+      return result;
+    end if;
+
     -- Return if no polarity mismatch
     if (result.expected_bit.polarity = monitored_bit_polarity) then
       return result;

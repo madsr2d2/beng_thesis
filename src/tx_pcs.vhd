@@ -19,18 +19,17 @@
 --   - Bus monitoring (RX input for loopback and delay measurement)
 --
 -- FSM State Transitions:
---   idle -> transmitting_nominal              (data_request = '1')
---   transmitting_nominal -> measuring_delay   (current_bit = res_bit)
---   measuring_delay -> transmitting_data      (RX dominant detected)
---   measuring_delay -> transmitting_nominal   (timeout: delay_count >= max_transmitter_delay_c)
---   transmitting_data -> transmitting_nominal (crc_delimiter_bit detected)
---   any non-idle -> idle                      (data_request = '0')
+--   idle -> transmitting_nominal              (mac_to_pcs_i.valid = '1')
+--   transmitting_nominal -> measuring_delay   (FDF sample point, TDC enabled)
+--   measuring_delay -> transmitting_data      (BRS bit boundary)
+--   measuring_delay -> transmitting_nominal   (TDC timeout)
+--   transmitting_data -> transmitting_nominal (CRC delimiter sample point)
+--   any non-idle -> idle                      (mac_to_pcs_i.valid = '0')
 --
 -- Timing model:
---   data_request: MAC holds high throughout the entire frame (frame active)
---   SP/SSP strobes: MAC reacts to sample point strobes and has PHASE_SEG2
---   to compute and present the next frame_bit before the bit boundary
---   PCS latches frame_bit at each bit boundary
+--   MAC holds valid high throughout the frame. PCS generates SP/SSP strobes;
+--   MAC reacts within PHASE_SEG2 to present the next frame_bit before the
+--   bit boundary, where PCS latches it.
 --------------------------------------------------------------------------------
 
 library ieee;
@@ -43,14 +42,14 @@ library ieee;
 entity tx_pcs is
   generic (
     -- Nominal bit timing (arbitration phase)
-    nom_prescaler  : prescalar    := 2; -- Prescaler for nominal bit time
+    nom_prescaler  : prescalar    := 2;
     nom_sync_seg   : sync_seg     := 1;
     nom_prop_seg   : nom_prop_seg := 8;
     nom_phase_seg1 : phase_seg1   := 8;
     nom_phase_seg2 : phase_seg2   := 8;
 
     -- Data bit timing (FD data phase)
-    data_prescaler  : prescalar     := 1; -- Prescaler for data bit time (faster)
+    data_prescaler  : prescalar     := 1;
     data_sync_seg   : sync_seg      := 1;
     data_prop_seg   : data_prop_seg := 4;
     data_phase_seg1 : phase_seg1    := 4;
@@ -64,15 +63,11 @@ entity tx_pcs is
     clk : in    std_logic;
     rst : in    std_logic;
 
-    -- MAC to PCS interface (receive frame bits from MAC)
     mac_to_pcs_i : in    mac_to_pcs_if_t;
-
-    -- PCS to MAC interface (send timing strobes and FIFO index to MAC)
     pcs_to_mac_o : out   pcs_to_mac_if_t;
 
-    -- Bus interface (physical layer)
-    tx_bus_o : out   std_logic; -- Transmitted bit to bus
-    rx_bus_i : in    std_logic  -- Received bit from bus (only for monitoring in TX side)
+    tx_bus_o : out   std_logic;
+    rx_bus_i : in    std_logic
   );
 end entity tx_pcs;
 
@@ -93,20 +88,27 @@ architecture rtl of tx_pcs is
                                                         pcs_to_pma_propagation_delay_ns => pcs_to_pma_propagation_delay_ns
                                                       );
 
-  -- Maximum FIFO index: (max_transmitter_delay_c + ssp_offset) / data_bit_time must fit in FIFO
-  constant max_fifo_index : integer := (max_transmitter_delay_c + ssp_offset) / data_bit_time;
+  -- Pipeline compensation for TDC measurement.
+  -- The physical TX pipeline is 2 cycles (MAC pcs_o + PCS tx_bus_o), but
+  -- the registered edge detector (rx_rising_edge_reg) adds 1 cycle of
+  -- latency to the capture, absorbing one pipeline cycle. Net compensation = 1.
+  constant tx_pipeline_comp_c : integer := 1;
+
+  constant max_fifo_index : integer := (max_transmitter_delay_c + ssp_offset + tx_pipeline_comp_c) / data_bit_time;
 
   ---------------------------------------------------------------------------
   -- Registered signals (driven by state_update)
   ---------------------------------------------------------------------------
-  signal state          : tx_pcs_fsm_state_t;
-  signal clk_count_nom  : integer range 0 to nom_prescaler - 1;
-  signal clk_count_data : integer range 0 to data_prescaler - 1;
-  signal tq_count       : integer range 0 to nom_bit_time;
-  signal current_bit    : mac_frame_bit_t;
-  signal delay_count    : integer range 0 to max_transmitter_delay_c;
-  signal ssp_position   : integer range 0 to data_bit_time - 1;
-  signal fifo_index     : integer range 0 to transmitted_bits_fifo_depth_c - 1;
+  signal state              : tx_pcs_fsm_state_t;
+  signal clk_count_nom      : integer range 0 to nom_prescaler - 1;
+  signal clk_count_data     : integer range 0 to data_prescaler - 1;
+  signal tq_count           : integer range 0 to nom_bit_time;
+  signal current_bit        : mac_frame_bit_t;
+  signal delay_count        : integer range 0 to max_transmitter_delay_c;
+  signal ssp_position       : integer range 0 to data_bit_time - 1;
+  signal fifo_index         : integer range 0 to transmitted_bits_fifo_depth_c - 1;
+  signal prev_rx_bus        : std_logic;
+  signal rx_rising_edge_reg : boolean;
 
   ---------------------------------------------------------------------------
   -- Combinational next-cycle signals (driven by output_logic)
@@ -120,13 +122,11 @@ architecture rtl of tx_pcs is
   signal next_ssp_position   : integer range 0 to data_bit_time - 1;
   signal next_fifo_index     : integer range 0 to transmitted_bits_fifo_depth_c - 1;
 
-  -- Intermediate signals for registered outputs
   signal next_pcs_to_mac_o : pcs_to_mac_if_t;
   signal next_tx_bus_o     : std_logic;
 
 begin
 
-  -- Validate generic constraints at elaboration time
   assert ssp_offset <= data_bit_time
     report "ssp_offset (" & integer'image(ssp_offset) &
            ") exceeds data_bit_time (" & integer'image(data_bit_time) &
@@ -148,26 +148,25 @@ begin
   ---------------------------------------------------------------------------
   next_state_logic : process (all) is
 
-    -- Named guard variables (RTL guide Rule 3)
-    variable frame_active_v  : boolean;
-    variable rx_dominant_v   : boolean;
-    variable tdc_timeout_v   : boolean;
-    variable is_crc_delim_v  : boolean;
-    variable sample_strobe_v : boolean;
+    variable frame_active_v         : boolean;
+    variable tdc_timeout_v          : boolean;
+    variable is_crc_delim_v         : boolean;
+    variable sample_strobe_v        : boolean;
+    variable nom_tq_tick_v          : boolean;
+    variable nominal_bit_boundary_v : boolean;
 
   begin
 
-    -- Evaluate guards
+    nom_tq_tick_v          := (clk_count_nom = nom_prescaler - 1);
+    nominal_bit_boundary_v := nom_tq_tick_v and (tq_count = nom_bit_time - 1);
+
     frame_active_v  := mac_to_pcs_i.valid;
-    rx_dominant_v   := (rx_bus_i = dominant_bit_c);
     tdc_timeout_v   := (delay_count >= max_transmitter_delay_c);
     is_crc_delim_v  := (current_bit.bit_name = crc_delimiter_bit);
     sample_strobe_v := next_pcs_to_mac_o.sample_strobe = '1';
 
-    -- Default: stay in current state
     next_state <= state;
 
-    -- Global: return to idle when MAC deasserts data_request (frame complete)
     if (state /= idle and not frame_active_v) then
       next_state <= idle;
     else
@@ -178,32 +177,24 @@ begin
           end if;
 
         when transmitting_nominal =>
-          -- ISO 11898-1: 7.3.4 - Trigger TDC measurement at res bit (FDF->res edge)
-          if (current_bit.bit_name = res_bit and sample_strobe_v) then
+          -- Enter measuring_delay at FDF SP; counter resets at FDF→res boundary
+          if (current_bit.bit_name = fdf_bit and sample_strobe_v) then
             if (use_tdc_c) then
-              -- With TDC: measure delay in measuring_delay state until RX dominant detected
               next_state <= measuring_delay;
             end if;
-            -- Without TDC: stay in transmitting_nominal
-          elsif (current_bit.bit_name = brs_bit and sample_strobe_v) then
-            -- ISO 11898-1: Transition to data phase at BRS sample point (after nominal sampling)
-            -- BRS is sampled at nominal SP; data phase starts immediately after
+          elsif (current_bit.bit_name = brs_bit and nominal_bit_boundary_v) then
             next_state <= transmitting_data;
           end if;
 
         when measuring_delay =>
-          -- Continue TDC measurement through BRS at nominal rate
-          -- Delay measurement happens asynchronously; don't transition until BRS SP
-          if (current_bit.bit_name = brs_bit and sample_strobe_v) then
-            -- BRS SP reached: now transition to data phase with measured TDC
+          if (current_bit.bit_name = brs_bit and nominal_bit_boundary_v) then
             next_state <= transmitting_data;
           elsif (tdc_timeout_v) then
-            -- Timeout during measurement: abort TDC, return to nominal
             next_state <= transmitting_nominal;
           end if;
 
         when transmitting_data =>
-          -- ISO 11898-1: 6.6.11.6 - Exit FD data phase at the sample point of the CRC delimiter bit.
+          -- ISO 11898-1: 6.6.11.6
           if (is_crc_delim_v and sample_strobe_v) then
             next_state <= transmitting_nominal;
           end if;
@@ -220,30 +211,21 @@ begin
   ---------------------------------------------------------------------------
   output_logic : process (all) is
 
-    -- Temporary variables for pulse generation
     variable nom_tq_tick_v  : boolean;
     variable data_tq_tick_v : boolean;
     variable sp_pulse_v     : std_logic;
     variable ssp_pulse_v    : std_logic;
 
-    -- Named guards
     variable nominal_bit_boundary_v : boolean;
     variable data_bit_boundary_v    : boolean;
-    variable rx_dominant_v          : boolean;
     variable is_ssp_required_v      : boolean;
 
-    -------------------------------------------------------------------------
-    -- Local procedures for datapath abstraction
-    -------------------------------------------------------------------------
-
-    -- Generate Time Quantum (TQ) ticks based on prescalers
     procedure generate_tq_ticks is
     begin
 
       nom_tq_tick_v  := false;
       data_tq_tick_v := false;
 
-      -- Nominal TQ tick
       if (clk_count_nom = nom_prescaler - 1) then
         nom_tq_tick_v      := true;
         next_clk_count_nom <= 0;
@@ -251,7 +233,6 @@ begin
         next_clk_count_nom <= clk_count_nom + 1;
       end if;
 
-      -- Data TQ tick
       if (state = measuring_delay or state = transmitting_data) then
         if (clk_count_data = data_prescaler - 1) then
           data_tq_tick_v      := true;
@@ -265,19 +246,16 @@ begin
 
     end procedure generate_tq_ticks;
 
-    -- Manage bit-level timing and data latching
     procedure manage_bit_timing is
     begin
 
-      -- Evaluate guards
-      nominal_bit_boundary_v := (nom_tq_tick_v and tq_count >= nom_bit_time - 1);
-      data_bit_boundary_v    := (data_tq_tick_v and tq_count >= data_bit_time - 1);
+      nominal_bit_boundary_v := (nom_tq_tick_v and tq_count = nom_bit_time - 1);
+      data_bit_boundary_v    := (data_tq_tick_v and tq_count = data_bit_time - 1);
 
       case state is
         when idle =>
-          -- Maintain nominal timing in idle for bus monitoring
           if (nom_tq_tick_v) then
-            if (tq_count >= nom_bit_time - 1) then
+            if (tq_count = nom_bit_time - 1) then
               next_tq_count <= 0;
             else
               next_tq_count <= tq_count + 1;
@@ -309,7 +287,14 @@ begin
 
     end procedure manage_bit_timing;
 
-    -- Perform Transmitter Delay Compensation measurement
+    -- TDC measurement (ISO 11898-1: 7.3.4)
+    --
+    -- Timeline:
+    --   FDF SP           → enter measuring_delay
+    --   FDF→res boundary → reset delay_count (TX dominant edge reference)
+    --   +2 clocks        → tx_bus_o goes dominant (registration pipeline)
+    --   +propagation     → rx_bus_i goes dominant
+    --   RX rising edge   → latch TDCV, compute SSP = TDCV + TDCO
     procedure perform_tdc_measurement is
 
       variable delay_with_offset_v : integer;
@@ -317,18 +302,21 @@ begin
 
     begin
 
-      -- Evaluate guard
-      rx_dominant_v := (rx_bus_i = dominant_bit_c);
-
       if (state = measuring_delay) then
-        -- Count delay from TX to RX detection
         if (data_tq_tick_v and delay_count < max_transmitter_delay_c) then
           next_delay_count <= delay_count + 1;
         end if;
 
-        -- Latch measurement results on dominant edge
-        if (rx_dominant_v) then
-          delay_with_offset_v := delay_count + ssp_offset;
+        -- Reset at FDF→res boundary (TX dominant edge reference point)
+        if (nominal_bit_boundary_v and current_bit.bit_name = fdf_bit) then
+          next_delay_count <= 0;
+        end if;
+
+        -- Latch on registered RX recessive→dominant edge.
+        -- Edge detection is registered in state_update to avoid a delta-cycle
+        -- race; the 1-clock latency is compensated by tx_pipeline_comp_c.
+        if (rx_rising_edge_reg) then
+          delay_with_offset_v := delay_count + ssp_offset + tx_pipeline_comp_c;
           next_fifo_index     <= calculate_fifo_delay_index(delay_with_offset_v, data_bit_time);
 
           ssp_position_v := delay_with_offset_v;
@@ -341,21 +329,14 @@ begin
         end if;
       end if;
 
-      -- Reset logic
-      if (state /= measuring_delay and next_state = measuring_delay) then
-        next_delay_count <= 0;
-      end if;
-
     end procedure perform_tdc_measurement;
 
-    -- Generate primary and secondary sample points
     procedure select_effective_strobe is
     begin
 
       sp_pulse_v  := '0';
       ssp_pulse_v := '0';
 
-      -- Primary SP generation
       if (state = transmitting_data) then
         if (data_tq_tick_v and tq_count = data_sp_position - 1) then
           sp_pulse_v := '1';
@@ -366,17 +347,15 @@ begin
         end if;
       end if;
 
-      -- Secondary SP generation (ISO 7.3.4)
       if (state = transmitting_data and use_tdc_c) then
         if (data_tq_tick_v and tq_count = ssp_position) then
           ssp_pulse_v := '1';
         end if;
       end if;
 
-      -- Effective strobe selection (ISO 11898-1: 6.6.21.3.1 TDC)
-      -- ESI is control bit (transmitted at nominal rate), NOT data-phase payload
-      -- Only actual data/CRC/SBC (counted) bits use SSP with TDC delay
-      is_ssp_required_v := current_bit.bit_name = data_bit or
+      -- Data-phase bits use SSP when TDC is active
+      is_ssp_required_v := current_bit.bit_name = esi_bit or
+                           current_bit.bit_name = data_bit or
                            current_bit.bit_name = stuff_bit or
                            current_bit.bit_name = fixed_stuff_bit or
                            current_bit.bit_name = sbs_bit or
@@ -397,9 +376,7 @@ begin
 
   begin
 
-    -------------------------------------------------------------------------
-    -- Output defaults: hold current registered value
-    -------------------------------------------------------------------------
+    -- Defaults: hold current values
     next_clk_count_nom  <= clk_count_nom;
     next_clk_count_data <= clk_count_data;
     next_tq_count       <= tq_count;
@@ -411,25 +388,15 @@ begin
     next_pcs_to_mac_o <= pcs_to_mac_o;
     next_tx_bus_o     <= tx_bus_o;
 
-    -- Continuously drive bus polarity (unregistered)
+    -- Bus polarity passthrough (combinational, not registered)
     next_pcs_to_mac_o.bus_polarity <= std_logic_to_polarity(rx_bus_i);
 
-    -------------------------------------------------------------------------
-    -- Logic evaluation
-    -------------------------------------------------------------------------
     generate_tq_ticks;
     manage_bit_timing;
     perform_tdc_measurement;
     select_effective_strobe;
 
-    -- Continuous output drive
     next_tx_bus_o <= polarity_to_std_logic(current_bit.polarity);
-
-    -- Reset TDC on return to idle
-    if (state /= idle and next_state = idle) then
-      next_current_bit <= reset_mac_frame_bit_c;
-      next_fifo_index  <= 0;
-    end if;
 
   end process output_logic;
 
@@ -441,26 +408,30 @@ begin
 
     if rising_edge(clk) then
       if (rst = '1') then
-        state          <= idle;
-        clk_count_nom  <= 0;
-        clk_count_data <= 0;
-        tq_count       <= 0;
-        current_bit    <= reset_mac_frame_bit_c;
-        delay_count    <= 0;
-        ssp_position   <= 0;
-        fifo_index     <= 0;
+        state              <= idle;
+        clk_count_nom      <= 0;
+        clk_count_data     <= 0;
+        tq_count           <= 0;
+        current_bit        <= reset_mac_frame_bit_c;
+        delay_count        <= 0;
+        ssp_position       <= 0;
+        fifo_index         <= 0;
+        prev_rx_bus        <= '1';                                                           -- recessive
+        rx_rising_edge_reg <= false;
 
         pcs_to_mac_o <= pcs_to_mac_if_reset_c;
-        tx_bus_o     <= '1'; -- recessive
+        tx_bus_o     <= '1';                                                                 -- recessive
       else
-        state          <= next_state;
-        clk_count_nom  <= next_clk_count_nom;
-        clk_count_data <= next_clk_count_data;
-        tq_count       <= next_tq_count;
-        current_bit    <= next_current_bit;
-        delay_count    <= next_delay_count;
-        ssp_position   <= next_ssp_position;
-        fifo_index     <= next_fifo_index;
+        state              <= next_state;
+        clk_count_nom      <= next_clk_count_nom;
+        clk_count_data     <= next_clk_count_data;
+        tq_count           <= next_tq_count;
+        current_bit        <= next_current_bit;
+        delay_count        <= next_delay_count;
+        ssp_position       <= next_ssp_position;
+        fifo_index         <= next_fifo_index;
+        prev_rx_bus        <= rx_bus_i;
+        rx_rising_edge_reg <= (prev_rx_bus = recessive_bit_c and rx_bus_i = dominant_bit_c);
 
         pcs_to_mac_o <= next_pcs_to_mac_o;
         tx_bus_o     <= next_tx_bus_o;

@@ -276,6 +276,7 @@ architecture testbench of tx_error_detection_tb is
   signal rx_bus : std_logic := '1';  -- Recessive by default
   signal bus_override_test : std_logic := '1';  -- Test injection signal
   signal bus_override_test_en : boolean := false;  -- Enable test override
+  signal passive_rx_bus       : std_logic := '1'; -- Passive receiver ACK
 
   -- Debug interface
   signal debug_mac_to_pcs : mac_to_pcs_if_t;
@@ -1202,12 +1203,16 @@ begin
   -- ============================================================================
   -- SECTION 9: Architecture Connections
   -- ============================================================================
+  -- Passive receiver model: Provides ACK dominant for all tests except Test 1
+  -- This prevents retransmissions and allows sequential testing
+  passive_rx_bus <= dominant_bit_c when (debug_mac_to_pcs.data.bit_name = ack_bit and
+                                         current_test /= test_1_ack_error) else
+                    recessive_bit_c;
+
   -- Bus model: loopback with configurable propagation delay and test injection
-  -- Priority: test override > delayed loopback
-  -- Propagation delay: Simulates transceiver and cabling round-trip delay
-  -- Note: propagation_delay_c = ~80 ns (1 nominal bit time at 1 Mbps)
-  --       PCS uses full pcs_to_pma_propagation_delay for TDC compensation
+  -- Priority: test override > passive receiver (ACK) > delayed loopback
   rx_bus <= bus_override_test when bus_override_test_en else
+            passive_rx_bus when (debug_mac_to_pcs.data.bit_name = ack_bit and current_test /= test_1_ack_error) else
             tx_bus after propagation_delay_c;
 
   -- Force-accessible access to FSM internals (VHDL 2008)
