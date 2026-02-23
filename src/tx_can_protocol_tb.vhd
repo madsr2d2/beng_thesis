@@ -40,11 +40,11 @@ architecture tb of tx_can_protocol_tb is
   ------------------------------------------------------------------------------
   -- Timing constants (match tx_can defaults)
   ------------------------------------------------------------------------------
-  constant nom_prescaler_c  : integer := 2;
+  constant nom_prescaler_c  : integer := 4;
   constant nom_sync_seg_c   : integer := 1;
-  constant nom_prop_seg_c   : integer := 8;
-  constant nom_phase_seg1_c : integer := 8;
-  constant nom_phase_seg2_c : integer := 8;
+  constant nom_prop_seg_c   : integer := 24;
+  constant nom_phase_seg1_c : integer := 15;
+  constant nom_phase_seg2_c : integer := 10;
   constant nom_bit_time_tq_c : integer := nom_sync_seg_c + nom_prop_seg_c + nom_phase_seg1_c + nom_phase_seg2_c;
   constant nom_bit_time_clk_c : integer := nom_bit_time_tq_c * nom_prescaler_c;
 
@@ -83,19 +83,6 @@ begin
   clk <= not clk after clk_period_c / 2 when not test_done;
 
   dut : entity work.tx_can
-    generic map (
-      nom_prescaler  => nom_prescaler_c,
-      nom_sync_seg   => nom_sync_seg_c,
-      nom_prop_seg   => nom_prop_seg_c,
-      nom_phase_seg1 => nom_phase_seg1_c,
-      nom_phase_seg2 => nom_phase_seg2_c,
-      data_prescaler => 1,
-      data_sync_seg  => 1,
-      data_prop_seg  => 4,
-      data_phase_seg1 => 4,
-      data_phase_seg2 => 4,
-      ssp_offset_cfg => 4
-    )
     port map (
       clk        => clk,
       rst        => rst,

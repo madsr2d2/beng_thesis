@@ -59,21 +59,6 @@ begin
 
   -- Instantiate DUT
   dut : entity work.tx_can
-    generic map (
-      nom_prescaler                   => 2,
-      nom_sync_seg                    => 1,
-      nom_prop_seg                    => 8,
-      nom_phase_seg1                  => 8,
-      nom_phase_seg2                  => 8,
-      data_prescaler                  => 1,
-      data_sync_seg                   => 1,
-      data_prop_seg                   => 4,
-      data_phase_seg1                 => 4,
-      data_phase_seg2                 => 4,
-      ssp_offset_cfg                  => 4,
-      system_clock_freq_hz            => 100_000_000,
-      pcs_to_pma_propagation_delay_ns => 600
-    )
     port map (
       clk                => clk,
       rst                => rst,

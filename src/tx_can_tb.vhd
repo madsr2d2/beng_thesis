@@ -41,16 +41,16 @@ architecture tb of tx_can_tb is
   signal clk : std_logic := '0';
   signal rst : std_logic := '1';
 
-  -- Bit timing generics (matching tx_can defaults)
-  constant nom_prescaler_c  : integer := 2;
+  -- Bit timing constants (matching tx_can defaults)
+  constant nom_prescaler_c  : integer := 4;
   constant nom_sync_seg_c   : integer := 1;
-  constant nom_prop_seg_c   : integer := 8;
-  constant nom_phase_seg1_c : integer := 8;
-  constant nom_phase_seg2_c : integer := 8;
+  constant nom_prop_seg_c   : integer := 24;
+  constant nom_phase_seg1_c : integer := 15;
+  constant nom_phase_seg2_c : integer := 10;
   constant nom_bit_time_tq_c : integer := nom_sync_seg_c + nom_prop_seg_c + nom_phase_seg1_c + nom_phase_seg2_c;
-  constant nom_bit_time_clk_c : integer := nom_bit_time_tq_c * nom_prescaler_c; -- 50 clocks
-  constant nom_sp_tq_c : integer := nom_sync_seg_c + nom_prop_seg_c + nom_phase_seg1_c; -- 17 TQ
-  constant nom_sp_clk_c : integer := nom_sp_tq_c * nom_prescaler_c; -- 34 clocks
+  constant nom_bit_time_clk_c : integer := nom_bit_time_tq_c * nom_prescaler_c; -- 200 clocks
+  constant nom_sp_tq_c : integer := nom_sync_seg_c + nom_prop_seg_c + nom_phase_seg1_c; -- 40 TQ
+  constant nom_sp_clk_c : integer := nom_sp_tq_c * nom_prescaler_c; -- 160 clocks
 
   -- DUT signals
   signal llc_user_i : llc_user_to_llc_if_t;
@@ -113,19 +113,6 @@ begin
 
   -- DUT instantiation
   dut : entity work.tx_can
-    generic map (
-      nom_prescaler        => nom_prescaler_c,
-      nom_sync_seg         => nom_sync_seg_c,
-      nom_prop_seg         => nom_prop_seg_c,
-      nom_phase_seg1       => nom_phase_seg1_c,
-      nom_phase_seg2       => nom_phase_seg2_c,
-      data_prescaler       => 1,
-      data_sync_seg        => 1,
-      data_prop_seg        => 4,
-      data_phase_seg1      => 4,
-      data_phase_seg2      => 4,
-      ssp_offset_cfg       => 4
-    )
     port map (
       clk        => clk,
       rst        => rst,

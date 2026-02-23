@@ -41,20 +41,23 @@ library ieee;
 
 entity tx_pcs is
   generic (
-    -- Nominal bit timing (arbitration phase)
-    nom_prescaler  : prescalar    := 2;
+    -- detect ACK error at end of ACK-slot observation window.
+    -- Default 100 MHz profile:
+    --   Nominal phase: 500 kbit/s, SP = 80% (50 TQ @ 40 ns)
+    nom_prescaler  : prescalar    := 4;
     nom_sync_seg   : sync_seg     := 1;
-    nom_prop_seg   : nom_prop_seg := 8;
-    nom_phase_seg1 : phase_seg1   := 8;
-    nom_phase_seg2 : phase_seg2   := 8;
+    nom_prop_seg   : nom_prop_seg := 24;
+    nom_phase_seg1 : phase_seg1   := 15;
+    nom_phase_seg2 : phase_seg2   := 10;
 
-    -- Data bit timing (FD data phase)
-    data_prescaler  : prescalar     := 1;
+    -- Data phase: 2 Mbit/s, SP = 76% (25 TQ @ 20 ns)
+    -- data_prescaler is constrained to 1 or 2 when TDC is used (ISO 7.3.4).
+    data_prescaler  : prescalar     := 2;
     data_sync_seg   : sync_seg      := 1;
-    data_prop_seg   : data_prop_seg := 4;
-    data_phase_seg1 : phase_seg1    := 4;
-    data_phase_seg2 : phase_seg2    := 4;
-    ssp_offset      : ssp_offset    := 4;
+    data_prop_seg   : data_prop_seg := 8;
+    data_phase_seg1 : phase_seg1    := 10;
+    data_phase_seg2 : phase_seg2    := 6;
+    ssp_offset      : ssp_offset    := 1;
     tdc_enable      : boolean       := true;
     -- Inputs to should_use_tdc() policy (ISO 7.3.4).
     system_clock_freq_hz            : integer := 100_000_000;

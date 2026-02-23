@@ -105,6 +105,7 @@
 --    - debug_mac_to_pcs.data.polarity : Bit being transmitted (D/R)
 --    - debug_pcs_to_mac.polarity : Bus state (loopback observation)
 --    - debug_pcs_to_mac.sample_strobe : Sample point timing
+--    - error_injection_flag : High exactly when TB forces a polarity mismatch
 --    - debug_ack_error : Pulses when ACK error detected
 --    - fsm_state : FSM state transitions (force-accessible)
 --
@@ -141,9 +142,9 @@ entity tx_error_detection_tb is
     data_prescaler                  : integer := 1;
     data_sync_seg                   : integer := 1;
     data_prop_seg                   : integer := 4;
-    data_phase_seg1                 : integer := 4;
-    data_phase_seg2                 : integer := 4;
-    ssp_offset_cfg                  : ssp_offset := 4;
+    data_phase_seg1                 : integer := 8;
+    data_phase_seg2                 : integer := 6;
+    ssp_offset_cfg                  : ssp_offset := 1;
     system_clock_freq_hz            : integer := 100_000_000;
     pcs_to_pma_propagation_delay_ns : integer := 600
   );
@@ -258,9 +259,10 @@ architecture testbench of tx_error_detection_tb is
 
   -- Testbench generics converted to internal constants
   constant clk_period : time := 1 ns * (1_000_000_000 / system_clock_freq_hz);
-  -- Bus propagation delay: Simulates transceiver and cabling round-trip
-  -- ~80 ns ≈ 1 nominal bit time at standard CAN rates (1 Mbps)
-  constant propagation_delay_c : time := 80 ns;
+  -- Bus propagation delay used by loopback model.
+  -- 600 ns at 100 MHz yields a measured delay large enough to exercise
+  -- non-zero FIFO index selection in TDC monitor path.
+  constant propagation_delay_c : time := 600 ns;
 
   -- Clock and reset
   signal clk : std_logic := '0';
@@ -279,6 +281,7 @@ architecture testbench of tx_error_detection_tb is
   signal rx_bus : std_logic := '1';  -- Recessive by default
   signal bus_override_test : std_logic := '1';  -- Test injection signal
   signal bus_override_test_en : boolean := false;  -- Enable test override
+  signal error_injection_flag : std_logic := '0'; -- High while TB actively injects a bus mismatch
   signal passive_rx_bus       : std_logic := '1'; -- Passive receiver ACK
 
   -- Debug interface
@@ -662,12 +665,14 @@ architecture testbench of tx_error_detection_tb is
     signal llc_i : out llc_user_to_llc_if_t;
     signal clk : in std_logic;
     signal bus_override : out std_logic;
-    signal bus_override_en : out boolean
+    signal bus_override_en : out boolean;
+    signal error_injection_o : out std_logic
   ) is
     variable test_start_time : time;
     variable test_duration : time;
     variable error_detected : boolean := false;
     variable frame : llc_frame_t;
+    variable injected_v : boolean := false;
   begin
     log("", ALWAYS);
     log("Test 2: Bit Error Injection (Polarity Mismatch Detection)", ALWAYS);
@@ -676,6 +681,7 @@ architecture testbench of tx_error_detection_tb is
     log("", ALWAYS);
 
     test_start_time := now;
+    error_injection_o <= '0';
 
     log("  [SETUP] Testbench initialized", ALWAYS);
     log("  - Clock: 100 MHz (10 ns period)", ALWAYS);
@@ -698,24 +704,31 @@ architecture testbench of tx_error_detection_tb is
     log("  [FRAME] Frame submission complete, waiting for transmission...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
 
-    -- Wait for frame transmission to reach data phase
-    -- Frame structure: SOF(1) + BaseID(11) + RTR(1) + IDE(1) + R0(1) + DLC(4) +
-    --                  Data(8 bytes) + ...
-    -- At nominal 100 MHz, data phase starts ~16 µs after SOF
-    wait for 16500 ns;  -- Inject during first data byte
+    -- Deterministic injection point: first dominant data bit at sample strobe.
+    for i in 1 to 40000 loop
+      wait until rising_edge(clk);
+      if (debug_pcs_to_mac.sample_strobe = '1' and
+          pcs_current_bit.bit_name = data_bit and
+          tx_bus = dominant_bit_c) then
+        injected_v := true;
+        exit;
+      end if;
+    end loop;
 
     log("  [INJECT] Injecting recessive (opposite of transmitted dominant)", ALWAYS);
     log("  [INJECT] Target: First bit of data byte (0xAA = 1010_1010, MSB=1=dominant)", ALWAYS);
     log("  [INJECT] Polarity mismatch will trigger bit error detection", ALWAYS);
 
-    -- Inject recessive (opposite polarity)
-    bus_override <= '1';  -- Recessive (opposite of the dominant data bit)
-    bus_override_en <= true;
-    for i in 1 to 1 loop  -- Inject for 1 clock cycle
+    if injected_v then
+      -- Inject recessive (opposite polarity)
+      bus_override <= '1';  -- Recessive (opposite of the dominant data bit)
+      error_injection_o <= '1';
+      bus_override_en <= true;
       wait until rising_edge(clk);
-    end loop;
-    bus_override_en <= false;
-    bus_override <= '1';  -- Back to recessive (safe state)
+      bus_override_en <= false;
+      error_injection_o <= '0';
+      bus_override <= '1';  -- Back to recessive (safe state)
+    end if;
 
     log("  [INJECT] Opposite polarity injection complete", ALWAYS);
 
@@ -751,13 +764,15 @@ architecture testbench of tx_error_detection_tb is
     signal llc_i : out llc_user_to_llc_if_t;
     signal clk : in std_logic;
     signal bus_override : out std_logic;
-    signal bus_override_en : out boolean
+    signal bus_override_en : out boolean;
+    signal error_injection_o : out std_logic
   ) is
     variable test_start_time : time;
     variable test_duration : time;
     variable error_detected : boolean := false;
     variable bit_rate_switched : boolean := false;
     variable frame : llc_frame_t;
+    variable injected_v : boolean := false;
   begin
     log("", ALWAYS);
     log("Test 3: Data Phase Bit Rate Switching (REQ-TX-EH004)", ALWAYS);
@@ -767,6 +782,7 @@ architecture testbench of tx_error_detection_tb is
     log("", ALWAYS);
 
     test_start_time := now;
+    error_injection_o <= '0';
 
     log("  [SETUP] Testbench initialized", ALWAYS);
     log("  - Clock: 100 MHz (10 ns period)", ALWAYS);
@@ -790,25 +806,31 @@ architecture testbench of tx_error_detection_tb is
     log("  [FRAME] FD frame submission complete, waiting for bit rate transition...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
 
-    -- Wait for frame transmission to reach data phase
-    -- FD Basic frame: SOF(1) + Base_ID(11) + SRR(1) + IDE(1) + r1(1) + DLC(4) +
-    --                 res(1) + BRS(1) + ESI(1) + CRC(variable) +
-    -- Nominal phase ends at BRS bit; data phase starts after BRS SP
-    -- At 100 MHz nominal, arbitration + control ~= 23 µs before data phase
-    wait for 24 us;  -- Wait for BRS bit and data phase entry
+    -- Deterministic injection point: first data-phase sample strobe.
+    for i in 1 to 80000 loop
+      wait until rising_edge(clk);
+      if (debug_current_bit_rate = '1' and
+          debug_pcs_to_mac.sample_strobe = '1' and
+          pcs_current_bit.bit_name = data_bit) then
+        injected_v := true;
+        exit;
+      end if;
+    end loop;
 
     log("  [INJECT] Injecting bit error during data phase (higher bit rate active)", ALWAYS);
     log("  [INJECT] Target: First data byte, polarity mismatch", ALWAYS);
     log("  [INJECT] Expected result: Bit rate switches nominal BEFORE error flag output", ALWAYS);
 
-    -- Inject recessive (opposite polarity) during data phase
-    bus_override <= '1';  -- Recessive (opposite of dominant data bit)
-    bus_override_en <= true;
-    for i in 1 to 1 loop  -- Inject for 1 clock cycle
+    if injected_v then
+      -- Inject opposite polarity during data phase
+      bus_override <= not tx_bus;
+      error_injection_o <= '1';
+      bus_override_en <= true;
       wait until rising_edge(clk);
-    end loop;
-    bus_override_en <= false;
-    bus_override <= '1';  -- Back to recessive
+      bus_override_en <= false;
+      error_injection_o <= '0';
+      bus_override <= '1';  -- Back to recessive
+    end if;
 
     log("  [INJECT] Bit error injection complete", ALWAYS);
 
@@ -839,12 +861,15 @@ architecture testbench of tx_error_detection_tb is
     signal llc_i : out llc_user_to_llc_if_t;
     signal clk : in std_logic;
     signal bus_override : out std_logic;
-    signal bus_override_en : out boolean
+    signal bus_override_en : out boolean;
+    signal error_injection_o : out std_logic
   ) is
     variable test_start_time : time;
     variable test_duration : time;
     variable phase_completed : boolean := false;
     variable frame : llc_frame_t;
+    variable injected_v : boolean := false;
+    variable data_bit_count_v : integer := 0;
   begin
     log("", ALWAYS);
     log("Test 4: FD Data Phase Completion (REQ-TX-EH005)", ALWAYS);
@@ -854,6 +879,7 @@ architecture testbench of tx_error_detection_tb is
     log("", ALWAYS);
 
     test_start_time := now;
+    error_injection_o <= '0';
 
     log("  [SETUP] Testbench initialized", ALWAYS);
     log("  - Clock: 100 MHz (10 ns period)", ALWAYS);
@@ -877,24 +903,34 @@ architecture testbench of tx_error_detection_tb is
     log("  [FRAME] FD frame submission complete, waiting for data phase...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
 
-    -- Wait for frame transmission to reach mid-data phase
-    -- FD Extended: SOF(1) + Base_ID(11) + SRR(1) + IDE(1) + Extended_ID(18) + RTR(1) +
-    --              FDF(1) + res(1) + BRS(1) + DLC(4) + Data(64) + ...
-    -- Data phase starts after BRS SP; total to mid-data (byte 4) ~= 40 µs
-    wait for 42 us;
+    -- Deterministic injection point: mid-data phase (around byte 4).
+    for i in 1 to 120000 loop
+      wait until rising_edge(clk);
+      if (debug_current_bit_rate = '1' and
+          debug_pcs_to_mac.sample_strobe = '1' and
+          pcs_current_bit.bit_name = data_bit) then
+        data_bit_count_v := data_bit_count_v + 1;
+        if (data_bit_count_v >= 25 and tx_bus = dominant_bit_c) then
+          injected_v := true;
+          exit;
+        end if;
+      end if;
+    end loop;
 
     log("  [INJECT] Injecting bit error during mid-data phase (byte 4)", ALWAYS);
     log("  [INJECT] Requirement: Phase must complete current SP, not exit immediately", ALWAYS);
     log("  [INJECT] Expected: Data phase continues to next SP before transitioning", ALWAYS);
 
-    -- Inject recessive (opposite polarity) during data phase
-    bus_override <= '1';  -- Recessive (opposite of dominant data bit)
-    bus_override_en <= true;
-    for i in 1 to 1 loop  -- Inject for 1 clock cycle
+    if injected_v then
+      -- Inject recessive (opposite polarity) during data phase
+      bus_override <= '1';  -- Recessive (opposite of dominant data bit)
+      error_injection_o <= '1';
+      bus_override_en <= true;
       wait until rising_edge(clk);
-    end loop;
-    bus_override_en <= false;
-    bus_override <= '1';  -- Back to recessive
+      bus_override_en <= false;
+      error_injection_o <= '0';
+      bus_override <= '1';  -- Back to recessive
+    end if;
 
     log("  [INJECT] Bit error injection complete", ALWAYS);
 
@@ -926,12 +962,14 @@ architecture testbench of tx_error_detection_tb is
     signal llc_i : out llc_user_to_llc_if_t;
     signal clk : in std_logic;
     signal bus_override : out std_logic;
-    signal bus_override_en : out boolean
+    signal bus_override_en : out boolean;
+    signal error_injection_o : out std_logic
   ) is
     variable test_start_time : time;
     variable test_duration : time;
     variable tdc_error_detected : boolean := false;
     variable frame : llc_frame_t;
+    variable injected_v : boolean := false;
   begin
     log("", ALWAYS);
     log("Test 5: TDC Error Detection @ SSP (REQ-TX-TDC003)", ALWAYS);
@@ -941,6 +979,7 @@ architecture testbench of tx_error_detection_tb is
     log("", ALWAYS);
 
     test_start_time := now;
+    error_injection_o <= '0';
 
     log("  [SETUP] Testbench initialized", ALWAYS);
     log("  - Clock: 100 MHz (10 ns period)", ALWAYS);
@@ -964,24 +1003,33 @@ architecture testbench of tx_error_detection_tb is
     log("  [FRAME] FD frame submission complete, waiting for data phase...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
 
-    -- Wait for frame transmission to reach data phase where TDC applies
-    -- TDC is measured at res bit and SSP is configured for data phase
-    -- Nominal data phase entry: ~24 µs, SSP offset typically 4-8 tq into bit
-    -- For TDC error test, wait ~28 µs to reach first SSP-eligible position
-    wait for 30 us;
+    -- Deterministic injection point: SSP sample in data-rate phase.
+    for i in 1 to 120000 loop
+      wait until rising_edge(clk);
+      if (debug_current_bit_rate = '1' and
+          debug_pcs_to_mac.sample_strobe = '1' and
+          debug_strobe_type = ssp_strobe and
+          pcs_current_bit.bit_name = data_bit and
+          tx_bus = dominant_bit_c) then
+        injected_v := true;
+        exit;
+      end if;
+    end loop;
 
     log("  [INJECT] Injecting bit error at SSP position (data phase)", ALWAYS);
     log("  [INJECT] SSP should sample, SP should confirm error in next bit", ALWAYS);
     log("  [INJECT] Expected: Error flagged at SP, not at SSP", ALWAYS);
 
-    -- Inject recessive (opposite polarity) during SSP window
-    bus_override <= '1';  -- Recessive (opposite of dominant data bit)
-    bus_override_en <= true;
-    for i in 1 to 1 loop  -- Inject for 1 clock cycle at SSP
+    if injected_v then
+      -- Inject recessive (opposite polarity) during SSP window
+      bus_override <= '1';  -- Recessive (opposite of dominant data bit)
+      error_injection_o <= '1';
+      bus_override_en <= true;
       wait until rising_edge(clk);
-    end loop;
-    bus_override_en <= false;
-    bus_override <= '1';  -- Back to recessive
+      bus_override_en <= false;
+      error_injection_o <= '0';
+      bus_override <= '1';  -- Back to recessive
+    end if;
 
     log("  [INJECT] Bit error injection complete at SSP", ALWAYS);
 
@@ -1075,12 +1123,14 @@ architecture testbench of tx_error_detection_tb is
     signal llc_i : out llc_user_to_llc_if_t;
     signal clk : in std_logic;
     signal bus_override : out std_logic;
-    signal bus_override_en : out boolean
+    signal bus_override_en : out boolean;
+    signal error_injection_o : out std_logic
   ) is
     variable test_start_time : time;
     variable test_duration : time;
     variable timing_sequence_valid : boolean := false;
     variable frame : llc_frame_t;
+    variable injected_v : boolean := false;
   begin
     log("", ALWAYS);
     log("Test 6: TDC Error Timing Sequence (REQ-TX-TDC004)", ALWAYS);
@@ -1114,9 +1164,18 @@ architecture testbench of tx_error_detection_tb is
     log("  [FRAME] FD frame submission complete, waiting for data phase...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & transfer_status_t'image(llc_user_o.transfer_status), ALWAYS);
 
-    -- Wait for frame to reach data phase where full TDC timing applies
-    -- Total to mid-data phase with TDC: ~35 µs
-    wait for 37 us;
+    -- Deterministic injection point: SSP sample in data-rate phase.
+    for i in 1 to 160000 loop
+      wait until rising_edge(clk);
+      if (debug_current_bit_rate = '1' and
+          debug_pcs_to_mac.sample_strobe = '1' and
+          debug_strobe_type = ssp_strobe and
+          pcs_current_bit.bit_name = data_bit and
+          tx_bus = dominant_bit_c) then
+        injected_v := true;
+        exit;
+      end if;
+    end loop;
 
     log("  [INJECT] Injecting TDC error during data phase", ALWAYS);
     log("  [INJECT] Timing sequence to observe:", ALWAYS);
@@ -1125,14 +1184,18 @@ architecture testbench of tx_error_detection_tb is
     log("  [INJECT]   3. IPT activation (inter-phase transition)", ALWAYS);
     log("  [INJECT]   4. Bit rate switches nominal (before error flag)", ALWAYS);
 
-    -- Inject bit error during data phase (at SSP-equivalent timing)
-    bus_override <= '1';  -- Recessive (mismatch)
-    bus_override_en <= true;
-    for i in 1 to 2 loop  -- Hold for 2 cycles to span multiple strobes
-      wait until rising_edge(clk);
-    end loop;
-    bus_override_en <= false;
-    bus_override <= '1';  -- Back to recessive
+    if injected_v then
+      -- Inject bit error during data phase (at SSP-equivalent timing)
+      bus_override <= '1';  -- Recessive (mismatch)
+      error_injection_o <= '1';
+      bus_override_en <= true;
+      for i in 1 to 2 loop  -- Hold for 2 cycles to span multiple strobes
+        wait until rising_edge(clk);
+      end loop;
+      bus_override_en <= false;
+      error_injection_o <= '0';
+      bus_override <= '1';  -- Back to recessive
+    end if;
 
     log("  [INJECT] TDC error injection complete", ALWAYS);
 
@@ -1166,7 +1229,8 @@ architecture testbench of tx_error_detection_tb is
     signal llc_i : out llc_user_to_llc_if_t;
     signal clk : in std_logic;
     signal bus_override : out std_logic;
-    signal bus_override_en : out boolean
+    signal bus_override_en : out boolean;
+    signal error_injection_o : out std_logic
   ) is
     variable test_start_time : time;
     variable test_duration : time;
@@ -1196,6 +1260,7 @@ architecture testbench of tx_error_detection_tb is
     -- Keep normal loopback/ACK behavior and inject one deliberate mismatch
     -- only during FD data phase.
     bus_override_en <= false;
+    error_injection_o <= '0';
     bus_override <= recessive_bit_c;
 
     -- Send FD frame and force a data-phase bit error
@@ -1209,10 +1274,12 @@ architecture testbench of tx_error_detection_tb is
       -- Default: no override (normal delayed loopback and passive ACK model).
       if (inject_hold_cycles_v > 0) then
         bus_override_en <= true;
+        error_injection_o <= '1';
         bus_override    <= recessive_bit_c;
         inject_hold_cycles_v := inject_hold_cycles_v - 1;
       else
         bus_override_en <= false;
+        error_injection_o <= '0';
         bus_override    <= recessive_bit_c;
       end if;
 
@@ -1233,6 +1300,7 @@ architecture testbench of tx_error_detection_tb is
       if (inject_armed_v and (not injected_v) and
           debug_pcs_to_mac.sample_strobe = '1' and tx_bus = dominant_bit_c) then
         bus_override_en      <= true;
+        error_injection_o    <= '1';
         bus_override         <= recessive_bit_c;
         inject_hold_cycles_v := 20;
         injected_v := true;
@@ -1266,6 +1334,7 @@ architecture testbench of tx_error_detection_tb is
     end loop;
 
     bus_override_en <= false;
+    error_injection_o <= '0';
     bus_override <= recessive_bit_c;
 
     AlertIf(not injected_v,
@@ -1311,21 +1380,6 @@ begin
 
   -- Instantiate DUT
   dut : entity work.tx_can
-    generic map (
-      nom_prescaler                   => nom_prescaler,
-      nom_sync_seg                    => nom_sync_seg,
-      nom_prop_seg                    => nom_prop_seg,
-      nom_phase_seg1                  => nom_phase_seg1,
-      nom_phase_seg2                  => nom_phase_seg2,
-      data_prescaler                  => data_prescaler,
-      data_sync_seg                   => data_sync_seg,
-      data_prop_seg                   => data_prop_seg,
-      data_phase_seg1                 => data_phase_seg1,
-      data_phase_seg2                 => data_phase_seg2,
-      ssp_offset_cfg                  => ssp_offset_cfg,
-      system_clock_freq_hz            => system_clock_freq_hz,
-      pcs_to_pma_propagation_delay_ns => pcs_to_pma_propagation_delay_ns
-    )
     port map (
       clk                => clk,
       rst                => rst,
@@ -1401,6 +1455,7 @@ begin
 
     fce_i.error_passive <= false;  -- Error-active node
     llc_user_i.avalon_st_source.valid <= '0';
+    error_injection_flag <= '0';
 
     log("  [INIT] Reset sequence complete", ALWAYS);
     log("  [INIT] Fault Confinement Entity set to Error-Active mode", ALWAYS);
@@ -1413,27 +1468,27 @@ begin
 
     -- Test 2: Bit Error Injection (REQ-TX-ERR001)
     current_test <= test_2_bit_error;
-    run_test_bit_error_injection(llc_user_i, clk, bus_override_test, bus_override_test_en);
+    run_test_bit_error_injection(llc_user_i, clk, bus_override_test, bus_override_test_en, error_injection_flag);
 
     -- Test 3: Data Phase Bit Rate Switching (REQ-TX-EH004)
     current_test <= test_3_bit_rate_switching;
-    run_test_data_phase_bit_rate_switching(llc_user_i, clk, bus_override_test, bus_override_test_en);
+    run_test_data_phase_bit_rate_switching(llc_user_i, clk, bus_override_test, bus_override_test_en, error_injection_flag);
 
     -- Test 4: FD Data Phase Completion (REQ-TX-EH005)
     current_test <= test_4_phase_completion;
-    run_test_fd_phase_completion(llc_user_i, clk, bus_override_test, bus_override_test_en);
+    run_test_fd_phase_completion(llc_user_i, clk, bus_override_test, bus_override_test_en, error_injection_flag);
 
     -- Test 7: FD EF first-bit defer until nominal timing (REQ-TX-EH008)
     current_test <= test_7_fd_ef_first_bit_defer;
-    run_test_fd_error_flag_first_bit_deferred(llc_user_i, clk, bus_override_test, bus_override_test_en);
+    run_test_fd_error_flag_first_bit_deferred(llc_user_i, clk, bus_override_test, bus_override_test_en, error_injection_flag);
 
     -- Test 5: TDC Error @ SSP Detection (REQ-TX-TDC003)
     current_test <= test_5_tdc_ssp_detection;
-    run_test_tdc_error_at_ssp(llc_user_i, clk, bus_override_test, bus_override_test_en);
+    run_test_tdc_error_at_ssp(llc_user_i, clk, bus_override_test, bus_override_test_en, error_injection_flag);
 
     -- Test 6: TDC Error Timing Sequence (REQ-TX-TDC004)
     current_test <= test_6_tdc_timing_sequence;
-    run_test_tdc_error_timing_sequence(llc_user_i, clk, bus_override_test, bus_override_test_en);
+    run_test_tdc_error_timing_sequence(llc_user_i, clk, bus_override_test, bus_override_test_en, error_injection_flag);
 
     -- Test 8: Constraint Random Verification (CRV)
     current_test <= test_idle;

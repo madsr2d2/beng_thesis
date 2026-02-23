@@ -20,17 +20,18 @@ library ieee;
 
 entity tx_can is
   generic (
-    nom_prescaler                   : integer := 2;
+    -- Keep top-level defaults aligned with tx_pcs defaults (100 MHz profile).
+    nom_prescaler                   : integer := 4;
     nom_sync_seg                    : integer := 1;
-    nom_prop_seg                    : integer := 8;
-    nom_phase_seg1                  : integer := 8;
-    nom_phase_seg2                  : integer := 8;
-    data_prescaler                  : integer := 1;
+    nom_prop_seg                    : integer := 24;
+    nom_phase_seg1                  : integer := 15;
+    nom_phase_seg2                  : integer := 10;
+    data_prescaler                  : integer := 2;
     data_sync_seg                   : integer := 1;
-    data_prop_seg                   : integer := 4;
-    data_phase_seg1                 : integer := 4;
-    data_phase_seg2                 : integer := 4;
-    ssp_offset_cfg                  : ssp_offset := 4;
+    data_prop_seg                   : integer := 8;
+    data_phase_seg1                 : integer := 10;
+    data_phase_seg2                 : integer := 6;
+    ssp_offset_cfg                  : ssp_offset := 1;
     tdc_enable_cfg                  : boolean := true;
     system_clock_freq_hz            : integer := 100_000_000;
     pcs_to_pma_propagation_delay_ns : integer := 600

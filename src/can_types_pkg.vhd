@@ -623,17 +623,17 @@ package can_types_pkg is
 
   -- LLC Config Byte 0 structure: [7:5]=Format, [4]=FTYP (RTR), [3]=ESI, [2]=BRS, [1:0]=00
   type llc_config_byte_0_t is record
-    format : std_logic_vector(2 downto 0);  -- [7:5] Format encoding (cc_basic/extended, fd_basic/extended)
-    ftyp   : std_logic;                     -- [4] Frame type: '1'=remote, '0'=data
-    esi    : std_logic;                     -- [3] Error state indicator (FD only)
-    brs    : std_logic;                     -- [2] Bit rate switch (FD only)
-    unused : std_logic_vector(1 downto 0);  -- [1:0] Reserved (always '0')
+    format : std_logic_vector(2 downto 0); -- [7:5] Format encoding (cc_basic/extended, fd_basic/extended)
+    ftyp   : std_logic;                    -- [4] Frame type: '1'=remote, '0'=data
+    esi    : std_logic;                    -- [3] Error state indicator (FD only)
+    brs    : std_logic;                    -- [2] Bit rate switch (FD only)
+    unused : std_logic_vector(1 downto 0); -- [1:0] Reserved (always '0')
   end record llc_config_byte_0_t;
 
   -- LLC Config Byte 1 structure: [7:4]=DLC, [3:0]=0000
   type llc_config_byte_1_t is record
-    dlc    : std_logic_vector(3 downto 0);  -- [7:4] Data length code
-    unused : std_logic_vector(3 downto 0);  -- [3:0] Reserved (always '0')
+    dlc    : std_logic_vector(3 downto 0); -- [7:4] Data length code
+    unused : std_logic_vector(3 downto 0); -- [3:0] Reserved (always '0')
   end record llc_config_byte_1_t;
 
   -- LLC frame as transmitted (matches Avalon-ST byte sequence)
