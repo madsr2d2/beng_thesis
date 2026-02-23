@@ -413,6 +413,40 @@ begin
       AlertIf(not seen, msg, ERROR);
     end procedure wait_for_sample_pulse;
 
+    procedure wait_for_ssp_sample_pulse (
+      max_cycles    : positive;
+      variable seen : out boolean;
+      constant msg  : string
+    ) is
+    begin
+      seen := false;
+      for i in 1 to max_cycles loop
+        wait until rising_edge(clk);
+        if (pcs_to_mac.sample_strobe = '1' and pcs_to_mac.strobe_type = ssp_strobe) then
+          seen := true;
+          exit;
+        end if;
+      end loop;
+      AlertIf(not seen, msg, ERROR);
+    end procedure wait_for_ssp_sample_pulse;
+
+    procedure wait_for_ssp_sample_pulse_ps2 (
+      max_cycles    : positive;
+      variable seen : out boolean;
+      constant msg  : string
+    ) is
+    begin
+      seen := false;
+      for i in 1 to max_cycles loop
+        wait until rising_edge(clk);
+        if (pcs_to_mac_ps2.sample_strobe = '1' and pcs_to_mac_ps2.strobe_type = ssp_strobe) then
+          seen := true;
+          exit;
+        end if;
+      end loop;
+      AlertIf(not seen, msg, ERROR);
+    end procedure wait_for_ssp_sample_pulse_ps2;
+
     procedure assert_no_sample_pulse (
       max_cycles : positive;
       constant msg : string
@@ -490,6 +524,76 @@ begin
         assert_next_sample_period(expected_cycles, search_window, msg & " #" & integer'image(k));
       end loop;
     end procedure assert_sample_period_n_times;
+
+    procedure assert_next_ssp_sample_period (
+      expected_cycles : positive;
+      search_window   : positive;
+      constant msg    : string
+    ) is
+      variable first_seen  : boolean;
+      variable second_seen : boolean;
+      variable period      : integer := 0;
+    begin
+      wait_for_ssp_sample_pulse(search_window, first_seen, msg & " (first SSP pulse missing)");
+
+      second_seen := false;
+      period := 0;
+      for i in 1 to search_window loop
+        wait until rising_edge(clk);
+        period := period + 1;
+        if (pcs_to_mac.sample_strobe = '1' and pcs_to_mac.strobe_type = ssp_strobe) then
+          second_seen := true;
+          exit;
+        end if;
+      end loop;
+
+      AlertIf(not second_seen, msg & " (second SSP pulse missing)", ERROR);
+      AlertIf(period /= expected_cycles,
+              msg & " (expected " & integer'image(expected_cycles) &
+              " cycles, got " & integer'image(period) & ")",
+              ERROR);
+    end procedure assert_next_ssp_sample_period;
+
+    procedure assert_ssp_sample_period_n_times (
+      expected_cycles : positive;
+      num_periods     : positive;
+      search_window   : positive;
+      constant msg    : string
+    ) is
+    begin
+      for k in 1 to num_periods loop
+        assert_next_ssp_sample_period(expected_cycles, search_window, msg & " #" & integer'image(k));
+      end loop;
+    end procedure assert_ssp_sample_period_n_times;
+
+    procedure assert_next_ssp_sample_period_ps2 (
+      expected_cycles : positive;
+      search_window   : positive;
+      constant msg    : string
+    ) is
+      variable first_seen  : boolean;
+      variable second_seen : boolean;
+      variable period      : integer := 0;
+    begin
+      wait_for_ssp_sample_pulse_ps2(search_window, first_seen, msg & " (first SSP pulse missing)");
+
+      second_seen := false;
+      period := 0;
+      for i in 1 to search_window loop
+        wait until rising_edge(clk);
+        period := period + 1;
+        if (pcs_to_mac_ps2.sample_strobe = '1' and pcs_to_mac_ps2.strobe_type = ssp_strobe) then
+          second_seen := true;
+          exit;
+        end if;
+      end loop;
+
+      AlertIf(not second_seen, msg & " (second SSP pulse missing)", ERROR);
+      AlertIf(period /= expected_cycles,
+              msg & " (expected " & integer'image(expected_cycles) &
+              " cycles, got " & integer'image(period) & ")",
+              ERROR);
+    end procedure assert_next_ssp_sample_period_ps2;
 
     function is_data_monitor_bit (
       bit_name : mac_frame_bit_name_t
@@ -579,7 +683,7 @@ begin
     -- Move into data field; monitor should switch to SSP once state is transmitting_data.
     send_bit((polarity => dominant, bit_name => data_bit), data_bit_time_clk_c * 5);
 
-    wait_for_sample_pulse(3 * nom_bit_time_clk_c, pulse_seen, "Data phase sample pulse not observed");
+    wait_for_ssp_sample_pulse(3 * nom_bit_time_clk_c, pulse_seen, "Data phase SSP pulse not observed");
     AlertIf(not is_data_monitor_bit(mac_to_pcs.data.bit_name),
             "Test setup error: expected data/stuff monitor bit",
             FAILURE);
@@ -591,7 +695,7 @@ begin
             integer'image(pcs_to_mac.fifo_index),
             ERROR);
 
-    assert_sample_period_n_times(
+    assert_ssp_sample_period_n_times(
       expected_cycles => data_bit_time_clk_c,
       num_periods     => 3,
       search_window   => nom_bit_time_clk_c * 2,
@@ -608,10 +712,11 @@ begin
 
     send_bit((polarity => recessive, bit_name => stuff_bit), data_bit_time_clk_c * 4);
 
+    wait_for_ssp_sample_pulse(2 * data_bit_time_clk_c, pulse_seen, "Stuff-bit SSP pulse not observed");
     AlertIf(pcs_to_mac.fifo_index /= expected_fifo_index_c,
             "Stuff-bit monitoring should keep TDC FIFO index",
             ERROR);
-    assert_sample_period_n_times(
+    assert_ssp_sample_period_n_times(
       expected_cycles => data_bit_time_clk_c,
       num_periods     => 2,
       search_window   => nom_bit_time_clk_c * 2,
@@ -628,11 +733,12 @@ begin
 
     send_bit((polarity => dominant, bit_name => crc_bit), data_bit_time_clk_c * 4);
 
+    wait_for_ssp_sample_pulse(2 * data_bit_time_clk_c, pulse_seen, "CRC-field SSP pulse not observed");
     AlertIf(pcs_to_mac.fifo_index /= expected_fifo_index_c,
             "CRC field monitoring should use TDC FIFO index",
             ERROR);
 
-    assert_sample_period_n_times(
+    assert_ssp_sample_period_n_times(
       expected_cycles => data_bit_time_clk_c,
       num_periods     => 2,
       search_window   => nom_bit_time_clk_c * 2,
@@ -794,20 +900,20 @@ begin
     send_bit_ps2((polarity => recessive, bit_name => brs_bit), nom_bit_time_clk_c * 2);
     send_bit_ps2((polarity => dominant, bit_name => data_bit), data_bit_time_clk_ps2_c * 5);
 
-    wait_for_sample_pulse_ps2(
+    wait_for_ssp_sample_pulse_ps2(
       max_cycles => 3 * nom_bit_time_clk_c,
       seen       => pulse_seen,
-      msg        => "Prescaler=2 DUT did not generate data-phase sample pulse"
+      msg        => "Prescaler=2 DUT did not generate data-phase SSP pulse"
     );
     AlertIf(pcs_to_mac_ps2.fifo_index /= expected_fifo_index_ps2_c,
             "Unexpected FIFO index for prescaler=2. Expected " &
             integer'image(expected_fifo_index_ps2_c) & ", got " &
             integer'image(pcs_to_mac_ps2.fifo_index),
             ERROR);
-    assert_next_sample_period_ps2(
+    assert_next_ssp_sample_period_ps2(
       expected_cycles => data_bit_time_clk_ps2_c,
       search_window   => nom_bit_time_clk_c * 3,
-      msg             => "Prescaler=2 DUT data-phase sample cadence"
+      msg             => "Prescaler=2 DUT data-phase SSP cadence"
     );
 
     stop_frame_ps2;

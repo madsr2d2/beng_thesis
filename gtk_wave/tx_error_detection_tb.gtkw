@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Sat Feb 21 21:32:31 2026
+[*] Sun Feb 22 22:53:32 2026
 [*]
 [dumpfile] "/home/madsr2d2/beng_thesis/sim/tx_error_detection_tb.ghw"
-[dumpfile_mtime] "Sat Feb 21 21:26:50 2026"
-[dumpfile_size] 2188201
+[dumpfile_mtime] "Sun Feb 22 22:50:16 2026"
+[dumpfile_size] 935005
 [savefile] "/home/madsr2d2/beng_thesis/gtk_wave/tx_error_detection_tb.gtkw"
-[timestart] 175629900000
+[timestart] 352829900000
 [size] 1920 1121
 [pos] -27 -24
-*-26.868557 176185000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-26.868557 353085000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.tx_error_detection_tb.
 [treeopen] top.tx_error_detection_tb.dut.
@@ -54,11 +54,13 @@ top.tx_error_detection_tb.dut.mac_tx_inst.tx_mac_fsm_inst.next_pcs_o.data.bit_na
 @420
 top.tx_error_detection_tb.dut.tx_pcs_inst.tq_count
 top.tx_error_detection_tb.dut.tx_pcs_inst.next_ssp_position
-@421
 top.tx_error_detection_tb.dut.tx_pcs_inst.ssp_position
-@420
+top.tx_error_detection_tb.dut.tx_pcs_inst.tdc_armed
+top.tx_error_detection_tb.dut.tx_pcs_inst.delay_count_clk
 top.tx_error_detection_tb.dut.tx_pcs_inst.current_bit.bit_name
 top.tx_error_detection_tb.dut.tx_pcs_inst.state
+@421
+top.tx_error_detection_tb.dut.tx_pcs_inst.current_bit.bit_name
 @1000200
 -PCS
 [pattern_trace] 1

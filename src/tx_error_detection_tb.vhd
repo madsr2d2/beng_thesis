@@ -8,10 +8,11 @@
 -- Description: Comprehensive testbench for error detection requirements
 --   Refactored with clean, reusable infrastructure for multiple error tests
 --
--- Tests (7 TX-applicable error detection requirements):
+-- Tests (8 TX-applicable error detection requirements):
 --   - REQ-TX-ERR006: ACK Error Detection (no dominant in ACK slot)
 --   - REQ-TX-ERR001: Bit Error Detection (polarity mismatch)
 --   - REQ-TX-EH004,EH005: FD error handling (bit rate switching, phase completion)
+--   - REQ-TX-EH008: FD error handling (defer first EF bit until nominal timing)
 --   - REQ-TX-TDC003,TDC004: TDC error recovery (SSP detection, timing sequence)
 --
 -- ISO References: 6.6.21.2, 12.1.4.3
@@ -48,11 +49,12 @@
 --    - verify_error_detection() : Check error flags
 --    - verify_fsm_sequence() : Check state transitions
 --
--- 7. Test Procedure Templates (6 tests total - TX-applicable scope CC/FD)
+-- 7. Test Procedure Templates (7 deterministic tests + 1 CRV)
 --    - run_test_ack_error_detection() : ACK error test (REQ-TX-ERR006)
 --    - run_test_bit_error_injection() : Bit error test (REQ-TX-ERR001)
 --    - run_test_data_phase_bit_rate_switching() : FD bit rate test (REQ-TX-EH004)
 --    - run_test_fd_phase_completion() : FD phase completion test (REQ-TX-EH005)
+--    - run_test_fd_error_flag_first_bit_deferred() : FD EF defer test (REQ-TX-EH008)
 --    - run_test_tdc_error_at_ssp() : TDC error detection test (REQ-TX-TDC003)
 --    - run_test_tdc_error_timing_sequence() : TDC timing test (REQ-TX-TDC004)
 --
@@ -191,7 +193,8 @@ architecture testbench of tx_error_detection_tb is
     test_3_bit_rate_switching,
     test_4_phase_completion,
     test_5_tdc_ssp_detection,
-    test_6_tdc_timing_sequence
+    test_6_tdc_timing_sequence,
+    test_7_fd_ef_first_bit_defer
   );
 
   -- Helper functions to pack config records to std_logic_vector
@@ -293,6 +296,7 @@ architecture testbench of tx_error_detection_tb is
   signal debug_phase_seg2_active : boolean;
   signal debug_error_at_ssp : boolean;
   signal debug_error_at_sp : boolean;
+  signal pcs_current_bit : mac_frame_bit_t;
 
   -- Test state tracking
   signal current_test : current_test_t := test_idle;  -- Visible in waveform for test identification
@@ -1153,6 +1157,156 @@ architecture testbench of tx_error_detection_tb is
 
   end procedure run_test_tdc_error_timing_sequence;
 
+  -- ============================================================================
+  -- FD Error-Flag First-Bit Defer Test (REQ-TX-EH008)
+  -- ============================================================================
+  -- Verifies that, after an FD data-phase error, the first error-flag bit is
+  -- transmitted only after timing has returned to nominal.
+  procedure run_test_fd_error_flag_first_bit_deferred (
+    signal llc_i : out llc_user_to_llc_if_t;
+    signal clk : in std_logic;
+    signal bus_override : out std_logic;
+    signal bus_override_en : out boolean
+  ) is
+    variable test_start_time : time;
+    variable test_duration : time;
+    variable frame : llc_frame_t;
+    variable ef_req_seen_v : boolean := false;
+    variable pcs_ef_seen_v : boolean := false;
+    variable injected_v : boolean := false;
+    variable inject_armed_v : boolean := false;
+    variable inject_hold_cycles_v : integer := 0;
+    variable saw_crc_delim_before_ef_req_v : boolean := false;
+    variable saw_ack_before_ef_req_v       : boolean := false;
+    variable ef_req_cycle_v : integer := 0;
+    variable pcs_ef_cycle_v : integer := 0;
+    variable ef_dom_count_v : integer := 0;
+    variable ef_delim_seen_v : boolean := false;
+    variable bit_rate_at_pcs_ef_v : std_logic := '1';
+    variable pcs_state_at_pcs_ef_v : tx_pcs_fsm_state_t := idle;
+  begin
+    log("", ALWAYS);
+    log("Test 7: FD EF First Bit Deferred Until Nominal (REQ-TX-EH008)", ALWAYS);
+    log("  Requirement: First EF bit in FD error handling is sent only after nominal timing handover", ALWAYS);
+    log("  ISO Standard: 6.6.21.3.1", ALWAYS);
+    log("", ALWAYS);
+
+    test_start_time := now;
+
+    -- Keep normal loopback/ACK behavior and inject one deliberate mismatch
+    -- only during FD data phase.
+    bus_override_en <= false;
+    bus_override <= recessive_bit_c;
+
+    -- Send FD frame and force a data-phase bit error
+    frame := generate_llc_frame(fd_basic, true, false, false);
+    send_frame(llc_i, clk, frame);
+
+    -- Observe request and actual PCS EF first-bit transmission.
+    for i in 1 to 120000 loop
+      wait until rising_edge(clk);
+
+      -- Default: no override (normal delayed loopback and passive ACK model).
+      if (inject_hold_cycles_v > 0) then
+        bus_override_en <= true;
+        bus_override    <= recessive_bit_c;
+        inject_hold_cycles_v := inject_hold_cycles_v - 1;
+      else
+        bus_override_en <= false;
+        bus_override    <= recessive_bit_c;
+      end if;
+
+      if (debug_current_bit_rate = '1') then
+        inject_armed_v := true;
+      end if;
+
+      if (not ef_req_seen_v) then
+        if (pcs_current_bit.bit_name = crc_delimiter_bit) then
+          saw_crc_delim_before_ef_req_v := true;
+        elsif (pcs_current_bit.bit_name = ack_bit) then
+          saw_ack_before_ef_req_v := true;
+        end if;
+      end if;
+
+      -- Inject a short recessive override window during data phase so at least
+      -- one dominant data-phase sample is observed as a mismatch.
+      if (inject_armed_v and (not injected_v) and
+          debug_pcs_to_mac.sample_strobe = '1' and tx_bus = dominant_bit_c) then
+        bus_override_en      <= true;
+        bus_override         <= recessive_bit_c;
+        inject_hold_cycles_v := 20;
+        injected_v := true;
+      end if;
+
+      if (not ef_req_seen_v) and debug_mac_to_pcs.valid and debug_current_bit_rate = '1' and
+         (debug_mac_to_pcs.data.bit_name = active_error_flag_bit or
+          debug_mac_to_pcs.data.bit_name = passive_error_flag_bit) then
+        ef_req_seen_v  := true;
+        ef_req_cycle_v := i;
+      end if;
+
+      if ef_req_seen_v and (not pcs_ef_seen_v) and
+         (pcs_current_bit.bit_name = active_error_flag_bit or
+          pcs_current_bit.bit_name = passive_error_flag_bit) then
+        pcs_ef_seen_v := true;
+        pcs_ef_cycle_v := i;
+        bit_rate_at_pcs_ef_v := debug_current_bit_rate;
+        pcs_state_at_pcs_ef_v := debug_tdc_state;
+      end if;
+
+      if pcs_ef_seen_v and debug_pcs_to_mac.sample_strobe = '1' and debug_strobe_type = sp_strobe then
+        if (pcs_current_bit.bit_name = active_error_flag_bit or
+            pcs_current_bit.bit_name = passive_error_flag_bit) then
+          ef_dom_count_v := ef_dom_count_v + 1;
+        elsif (pcs_current_bit.bit_name = error_delimiter_bit) then
+          ef_delim_seen_v := true;
+          exit;
+        end if;
+      end if;
+    end loop;
+
+    bus_override_en <= false;
+    bus_override <= recessive_bit_c;
+
+    AlertIf(not injected_v,
+            "Did not inject the planned data-phase mismatch",
+            ERROR);
+    AlertIf(not ef_req_seen_v,
+            "Did not observe error-flag request while still in FD data-rate context",
+            ERROR);
+    AlertIf(saw_crc_delim_before_ef_req_v or saw_ack_before_ef_req_v,
+            "Error-flag request occurred after leaving data phase (not a data-phase error)",
+            ERROR);
+    AlertIf(not pcs_ef_seen_v,
+            "Did not observe PCS transmitting first error-flag bit",
+            ERROR);
+
+    if (ef_req_seen_v and pcs_ef_seen_v) then
+      AlertIf(pcs_ef_cycle_v < ef_req_cycle_v,
+              "PCS transmitted first error-flag bit before EF request",
+              ERROR);
+      AlertIf(bit_rate_at_pcs_ef_v /= '0',
+              "First error-flag bit must be transmitted with nominal timing active",
+              ERROR);
+      AlertIf(pcs_state_at_pcs_ef_v = transmitting_data,
+              "PCS still in transmitting_data when first error-flag bit was transmitted",
+              ERROR);
+      AlertIf(not ef_delim_seen_v,
+              "Did not observe error delimiter after first error-flag bit",
+              ERROR);
+      AlertIf(ef_dom_count_v /= error_flag_width_c,
+              "Dominant error-flag width mismatch. Expected " &
+              integer'image(error_flag_width_c) & ", got " &
+              integer'image(ef_dom_count_v),
+              ERROR);
+    end if;
+
+    wait for 20 us;
+    test_duration := now - test_start_time;
+    log("  Duration: " & time'image(test_duration), ALWAYS);
+    log("", ALWAYS);
+  end procedure run_test_fd_error_flag_first_bit_deferred;
+
 begin
 
   -- Instantiate DUT
@@ -1217,6 +1371,7 @@ begin
 
   -- Force-accessible access to FSM internals (VHDL 2008)
   fsm_state <= << signal dut.mac_tx_inst.tx_mac_fsm_inst.state : tx_mac_fsm_state_t >>;
+  pcs_current_bit <= << signal dut.tx_pcs_inst.current_bit : mac_frame_bit_t >>;
 
   -- ============================================================================
   -- SECTION 8: Monitoring Processes (concurrent)
@@ -1268,6 +1423,10 @@ begin
     current_test <= test_4_phase_completion;
     run_test_fd_phase_completion(llc_user_i, clk, bus_override_test, bus_override_test_en);
 
+    -- Test 7: FD EF first-bit defer until nominal timing (REQ-TX-EH008)
+    current_test <= test_7_fd_ef_first_bit_defer;
+    run_test_fd_error_flag_first_bit_deferred(llc_user_i, clk, bus_override_test, bus_override_test_en);
+
     -- Test 5: TDC Error @ SSP Detection (REQ-TX-TDC003)
     current_test <= test_5_tdc_ssp_detection;
     run_test_tdc_error_at_ssp(llc_user_i, clk, bus_override_test, bus_override_test_en);
@@ -1276,7 +1435,7 @@ begin
     current_test <= test_6_tdc_timing_sequence;
     run_test_tdc_error_timing_sequence(llc_user_i, clk, bus_override_test, bus_override_test_en);
 
-    -- Test 7: Constraint Random Verification (CRV)
+    -- Test 8: Constraint Random Verification (CRV)
     current_test <= test_idle;
     run_test_constraint_random_verification(llc_user_i, clk);
 

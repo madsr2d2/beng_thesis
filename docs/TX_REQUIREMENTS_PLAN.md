@@ -81,6 +81,7 @@ This requirements plan document contains a comprehensive table of all TX-side re
 | REQ-TX-EH003                             | Error Handling  | Arbitration phase error: send EF immediately                                          | 6.6.21.3.1         | CC-B, CC-E, FD-B, FD-E    | Verified       | T7             | C        | tx_mac_fsm     | EF triggered at arb error                              | SIM          | REQ-TX-EH001    | Stuff errors in arb                                                |
 | REQ-TX-EH004                             | Error Handling  | Data phase error (FD): switch bit rate back to nominal before EF                      | 6.6.21.3.1         | FD-B, FD-E                | Diagnostic     | T3             | C        | tx_pcs         | Bit time switches data→nominal                         | WAVE         | REQ-TX-BIT002   | Test 3 implemented - requires waveform inspection for verification |
 | REQ-TX-EH005                             | Error Handling  | FD data phase error: complete phase after SP where error detected                     | 6.6.21.3.1         | FD-B, FD-E                | Diagnostic     | T4             | H        | tx_pcs         | Data phase finishes at SP                              | SIM          |                 | FD only - Test 4 diagnostic (waveform inspection)                  |
+| REQ-TX-EH008                             | Error Handling  | FD data-phase error: defer first EF bit until nominal timing is active                | 6.6.21.3.1         | FD-B, FD-E                | Verified       | T7             | H        | tx_pcs         | First EF bit appears only after nominal-rate handover  | SIM          | REQ-TX-EH004    | Explicit assertion-based check in `tx_error_detection_tb`          |
 | REQ-TX-EH006                             | Error Handling  | Error delimiter: 8 recessive bits after error flag                                    | 6.6.5.3            | CC-B, CC-E, FD-B, FD-E    | Implemented    | None           | H        | tx_mac_fsm     | Delimiter format correct                               | SIM          | REQ-TX-EH001    | Follows error flag                                                 |
 | REQ-TX-EH007                             | Error Handling  | Intermission after error: 3 recessive bits before next frame                          | 6.6.7.2            | CC-B, CC-E, FD-B, FD-E    | Implemented    | None           | M        | tx_mac_fsm     | Intermission timing                                    | SIM          |                 | Recovery sequence                                                  |
 | **TRANSMITTER DELAY COMPENSATION (TDC)** |                 |                                                                                       |                    |                           |                |                |          |                |                                                        |              |                 |                                                                    |
@@ -109,7 +110,7 @@ This requirements plan document contains a comprehensive table of all TX-side re
 - **Bit Stuffing & Validation**: 4 requirements
 - **CRC Generation & Handling**: 6 requirements
 - **Error Detection**: 6 requirements
-- **Error Handling & Recovery**: 7 requirements
+- **Error Handling & Recovery**: 8 requirements
 - **Transmitter Delay Compensation**: 5 requirements
 - **Frame Completion & State Management**: 6 requirements
 
@@ -145,10 +146,11 @@ This requirements plan document contains a comprehensive table of all TX-side re
 2. ✅ **REQ-TX-ERR001** - Bit Error Detection - VERIFIED (Test 2: polarity mismatch)
 3. 📊 **REQ-TX-EH004** - Data Phase Bit Rate Switching - DIAGNOSTIC (Test 3: waveform inspection)
 4. 📊 **REQ-TX-EH005** - FD Data Phase Completion - DIAGNOSTIC (Test 4: waveform inspection)
-5. 📊 **REQ-TX-TDC003** - TDC Error @ SSP - DIAGNOSTIC (Test 5: waveform inspection)
-6. 📊 **REQ-TX-TDC004** - TDC Timing Sequence - DIAGNOSTIC (Test 6: multi-signal analysis)
-7. 🚫 **REQ-TX-ERR004** - Form Error Detection - NOT APPLICABLE (RX-side responsibility per ISO 6.6.21.3.1)
-8. 🚫 **REQ-TX-ERR005** - PCRC Error Detection - NOT APPLICABLE (XL frames only, out of scope)
+5. ✅ **REQ-TX-EH008** - First EF Bit Deferred Until Nominal - VERIFIED (Test 7: assertion-based)
+6. 📊 **REQ-TX-TDC003** - TDC Error @ SSP - DIAGNOSTIC (Test 5: waveform inspection)
+7. 📊 **REQ-TX-TDC004** - TDC Timing Sequence - DIAGNOSTIC (Test 6: multi-signal analysis)
+8. 🚫 **REQ-TX-ERR004** - Form Error Detection - NOT APPLICABLE (RX-side responsibility per ISO 6.6.21.3.1)
+9. 🚫 **REQ-TX-ERR005** - PCRC Error Detection - NOT APPLICABLE (XL frames only, out of scope)
 
 ### Achievement
 

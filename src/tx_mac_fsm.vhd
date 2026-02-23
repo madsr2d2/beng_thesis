@@ -450,9 +450,21 @@ begin
     end procedure transmit_normal_bit;
 
     -- Handle bit transmission and monitoring (sample strobe logic)
+    procedure preload_first_error_flag_bit is
+    begin
+      next_pcs_o.valid <= true;
+      if (fce_i.error_passive) then
+        next_pcs_o.data <= passive_error_flag_bit_c;
+      else
+        next_pcs_o.data <= active_error_flag_bit_c;
+      end if;
+    end procedure preload_first_error_flag_bit;
+
     procedure transmit_frame_bit is
       variable confirm_ssp_error_at_sp_v : boolean;
+      variable is_ssp_strobe_v           : boolean;
     begin
+      is_ssp_strobe_v := (pcs_i.strobe_type = ssp_strobe);
       confirm_ssp_error_at_sp_v := ssp_error_pending and (pcs_i.strobe_type = sp_strobe);
 
       if (confirm_ssp_error_at_sp_v) then
@@ -462,6 +474,8 @@ begin
         next_mac_ser_o.transfer_status <= disturbed;
         next_monitored_bit_event       <= bit_error;
         next_ssp_error_pending         <= false;
+        -- Preload first EF bit so PCS can latch it at the immediate next boundary.
+        preload_first_error_flag_bit;
         return;
       end if;
 
@@ -474,11 +488,24 @@ begin
                                                                           monitored_bit_polarity => pcs_i.bus_polarity,
                                                                           frame_params           => mac_ser_i.frame_params
                                                                         );
-        next_mac_ser_o.transfer_status <= monitored_bit_info_v.transfer_status;
-        next_monitored_bit_event       <= monitored_bit_info_v.event_type;
+        if (is_ssp_strobe_v) then
+          -- SSP is monitor-only: defer reaction to subsequent SP.
+          next_monitored_bit_event <= none;
+        else
+          next_mac_ser_o.transfer_status <= monitored_bit_info_v.transfer_status;
+          next_monitored_bit_event       <= monitored_bit_info_v.event_type;
+        end if;
         next_bit_count_monitored       <= true;
       else
         monitored_bit_info_v.event_type := none;
+      end if;
+
+      if (is_ssp_strobe_v) then
+        if (monitored_bit_info_v.event_type = bit_error) then
+          -- ISO 7.3.4: detect at SSP, react at subsequent SP.
+          next_ssp_error_pending <= true;
+        end if;
+        return;
       end if;
 
       -- React to monitored event (ISO 11898-1: 10.5 / 12.1.4)
@@ -494,15 +521,10 @@ begin
           transmit_normal_bit;
 
         when bit_error =>
-          if (pcs_i.strobe_type = ssp_strobe) then
-            -- ISO 7.3.4: ignore SSP bit error immediately and defer reaction to SP.
-            next_ssp_error_pending <= true;
-            transmit_normal_bit;
-          else
-            next_was_previous_frame_tx     <= true;
-            next_fce_o.error               <= true;
-            next_mac_ser_o.transfer_status <= disturbed;
-          end if;
+          next_was_previous_frame_tx     <= true;
+          next_fce_o.error               <= true;
+          next_mac_ser_o.transfer_status <= disturbed;
+          preload_first_error_flag_bit;
 
         when none =>
           -- ISO 11898-1: 12.1.4.3 - ACK error reported at ACK delimiter boundary.
@@ -514,6 +536,7 @@ begin
             next_was_previous_frame_tx     <= true;
             next_ack_error_caused_flag     <= true;
             ack_error_detected <= true;  -- Debug signal: pulse on ACK error detection
+            preload_first_error_flag_bit;
 
           -- Dynamic stuff bit check (ISO 11898-1: 10.6.2)
           elsif (bs_fd_i.valid and dynamic_stuff_eligible_v) then
@@ -573,7 +596,7 @@ begin
 
         next_pcs_o.data <= next_bit_v;
 
-        if (sample_strobe_v) then
+        if (sample_strobe_v and pcs_i.strobe_type = sp_strobe) then
           if (not error_sequence_complete_v) then
             next_bit_count <= bit_count + 1;
 
