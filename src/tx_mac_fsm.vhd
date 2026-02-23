@@ -86,21 +86,18 @@ begin
     variable v_tx_bit             : mac_frame_bit_t;
     variable v_monitored_bit_info : observed_mac_frame_bit_info_t;
 
-    -- Named guard variables (RTL guide Rule 3)
+    -- Named guard variables
     variable frame_transmitted_v          : boolean;
     variable sample_strobe_v              : boolean;
     variable error_sequence_complete_v    : boolean;
     variable state_entry_v                : boolean;
-    variable dynamic_stuff_eligible_v     : boolean;
-    variable crc_fd_stuff_eligible_v      : boolean;
-    variable serializer_sourced_v         : boolean;
-    variable crc_cc_eligible_v            : boolean;
     variable bus_is_idle_v                : boolean;
     variable intermission_ended_v         : boolean;
     variable must_suspend_transmission_v  : boolean;
     variable suspend_transmission_ended_v : boolean;
     variable error_detected_v             : boolean;
     variable error_flag_ended_v           : boolean;
+    variable sp_sample_strobe_v           : boolean;
 
     -- Registered next-value variables
     variable v_state                         : tx_mac_fsm_state_t;
@@ -125,8 +122,9 @@ begin
     variable v_crc_o     : mac_fsm_to_crc_if_t;
     variable v_fce_o     : mac_to_fce_if_t;
 
-    -- Handle quiet phases: reintegration, intermission, suspend, idle
-    procedure process_quiet_phases is
+    -- Handles logic common to quiet states:
+    -- entry-side interface reset/deassertion and SP-based idle-run counting.
+    procedure process_quiet_phase_common is
     begin
 
       if (state_entry_v) then
@@ -135,45 +133,24 @@ begin
         v_fce_o             := mac_to_fce_if_reset_c;
         v_ssp_error_pending := false;
 
-        -- Clear terminal status from previous frame to allow Serializer to reset
+        -- Clear terminal transfer status when entering any quiet state.
         v_mac_ser_o.transfer_status := ongoing;
 
-        -- Reset all handshake signals once we reach bus_idle
-        if (state = bus_idle) then
-          v_mac_ser_o := tx_mac_fsm_to_ser_if_reset_c;
-        end if;
-
-      elsif (sample_strobe_v) then
+      elsif (sp_sample_strobe_v) then
         if (pcs_i.bus_polarity = recessive) then
           if (bit_count < bit_count_t'high) then
             v_bit_count := bit_count + 1;
           end if;
         else
-          -- Dominant sample breaks run length (e.g. during integration)
+          -- Dominant sample breaks run length
           v_bit_count := 0;
-          -- ISO 11898-1: 10.4.4.3 condition b) - dominant detected during first
-          -- two intermission bits triggers overload handling.
-          if (state = intermission and bit_count < 2) then
-            v_overload_condition := true;
-          end if;
         end if;
       end if;
 
-      -- Assign semantic constant per quiet state for waveform readability.
-      if (state = intermission) then
-        v_pcs_o.data := intermission_bit_c;
-      elsif (state = suspend_transmission) then
-        v_pcs_o.data := suspend_transmission_bit_c;
-      elsif (state = bus_idle) then
-        v_pcs_o.data := idle_bit_c;
-      else
-        -- bus_reintegration
-        v_pcs_o.data := reset_mac_frame_bit_c;
-      end if;
+    end procedure process_quiet_phase_common;
 
-    end procedure process_quiet_phases;
-
-    -- Initialize frame transmission (state entry logic)
+    -- Initializes a new frame transmission on state entry:
+    -- resets datapath helpers, seeds SOF, primes FIFO/CRC, and asserts TX control outputs.
     procedure initialize_frame_transmission is
     begin
 
@@ -224,8 +201,13 @@ begin
 
     end procedure initialize_frame_transmission;
 
-    -- Handle insertion of a dynamic stuff bit
+    -- Transmits an inserted dynamic stuff bit:
+    -- writes FIFO history, drives PCS output, updates stuffer recursion and FD CRC feed.
     procedure transmit_stuff_bit is
+
+      variable dynamic_stuff_eligible_v : boolean;
+      variable crc_fd_stuff_eligible_v  : boolean;
+
     begin
 
       v_tx_bit := (polarity => bs_fd_i.data, bit_name => stuff_bit);
@@ -246,6 +228,12 @@ begin
       v_pcs_o.data  := v_tx_bit;
 
       -- Feed bit stuffer (recursive loop)
+      if (mac_ser_i.frame_params.is_fd_frame) then
+        dynamic_stuff_eligible_v := bit_count < mac_ser_i.frame_params.sbc_start;
+      else
+        dynamic_stuff_eligible_v := bit_count < mac_ser_i.frame_params.crc_stop;
+      end if;
+
       if (dynamic_stuff_eligible_v) then
         v_bs_fd_o.valid := true;
         v_bs_fd_o.data  := v_tx_bit.polarity;
@@ -261,10 +249,13 @@ begin
 
     end procedure transmit_stuff_bit;
 
-    -- Pre-computes the bit at (bit_count + 1) for registered output alignment.
+    -- Transmits the next non-stuff frame bit:
+    -- computes bit(bit_count+1), updates FIFO/bit_count, and drives serializer/CRC/stuffer handshakes.
     procedure transmit_normal_bit is
 
-      variable prepare_position_v : bit_count_t;
+      variable prepare_position_v   : bit_count_t;
+      variable serializer_sourced_v : boolean;
+      variable crc_cc_eligible_v    : boolean;
 
     begin
 
@@ -332,12 +323,21 @@ begin
 
     end procedure transmit_normal_bit;
 
+    -- Monitors the observed bus bit and decides frame progression:
+    -- handles SSP->SP deferred error reaction, arbitration/ACK/error events, and chooses normal vs stuff bit.
     procedure transmit_frame_bit is
 
-      variable react_ssp_error_at_sp_v : boolean;
-      variable error_flag_bit_v        : mac_frame_bit_t;
+      variable react_ssp_error_at_sp_v  : boolean;
+      variable error_flag_bit_v         : mac_frame_bit_t;
+      variable dynamic_stuff_eligible_v : boolean;
 
     begin
+
+      if (mac_ser_i.frame_params.is_fd_frame) then
+        dynamic_stuff_eligible_v := bit_count < mac_ser_i.frame_params.sbc_start;
+      else
+        dynamic_stuff_eligible_v := bit_count < mac_ser_i.frame_params.crc_stop;
+      end if;
 
       react_ssp_error_at_sp_v := ssp_error_pending and (pcs_i.strobe_type = sp_strobe);
       if (fce_i.error_passive) then
@@ -426,17 +426,18 @@ begin
 
     end procedure transmit_frame_bit;
 
-    -- Handle error and overload flag transmission
-    procedure process_error_flag_transmission is
+    -- Handles behavior shared by active/passive error-flag and overload-flag states:
+    -- flag/delimiter serialization, delimiter-dominant run tracking, and reactive overload trigger.
+    procedure process_flag_transmission (
+      constant flag_bit_c                       : in mac_frame_bit_t;
+      constant track_error_delimiter_too_late_c : in boolean
+    ) is
 
-      variable is_overload_state_v     : boolean;
-      variable in_flag_field_v         : boolean;
-      variable in_delimiter_field_v    : boolean;
-      variable passive_ack_exception_v : boolean;
+      variable in_flag_field_v       : boolean;
+      variable in_delimiter_field_v  : boolean;
+      variable track_delimiter_run_v : boolean;
 
     begin
-
-      is_overload_state_v := (state = transmitting_overload_flag);
 
       v_fce_o.error               := true;
       v_mac_ser_o.transfer_status := disturbed;
@@ -452,73 +453,36 @@ begin
         v_dominant_run_count        := 0;
 
         -- Initialize first bit of flag
-        if (is_overload_state_v) then
-          v_pcs_o.data := overload_flag_bit_c;
-        elsif (fce_i.error_passive) then
-          v_pcs_o.data := passive_error_flag_bit_c;
-        else
-          v_pcs_o.data := active_error_flag_bit_c;
-        end if;
+        v_pcs_o.data := flag_bit_c;
       else
         in_flag_field_v      := (bit_count < error_flag_width_c);
         in_delimiter_field_v := not in_flag_field_v;
 
         -- Select flag or delimiter bit based on progress (ISO 11898-1: 6.6.5 / 6.6.6).
         if (in_flag_field_v) then
-          if (is_overload_state_v) then
-            v_tx_bit := overload_flag_bit_c;
-          elsif (fce_i.error_passive) then
-            v_tx_bit := passive_error_flag_bit_c;
-          else
-            v_tx_bit := active_error_flag_bit_c;
-          end if;
+          v_tx_bit := flag_bit_c;
         else
           v_tx_bit := error_delimiter_bit_c;
         end if;
 
         v_pcs_o.data := v_tx_bit;
 
-        if (sample_strobe_v and pcs_i.strobe_type = sp_strobe) then
+        if (sp_sample_strobe_v) then
           if (not error_sequence_complete_v) then
             v_bit_count := bit_count + 1;
           end if;
 
-          -- ISO 11898-1: 8.1.3.3 Table 16 - Primary_error:
-          -- dominant detected after sending an error flag.
-          if (in_flag_field_v and pcs_i.bus_polarity = dominant) then
-            v_fce_o.primary_error := true;
-          end if;
-
-          -- ISO 11898-1: 8.1.4.2 rule c), Exception 1 applies only to
-          -- ACK-error caused passive EF. Track dominant seen in passive
-          -- error FLAG field (not delimiter).
-          passive_ack_exception_v := (state = transmitting_error_flag and
-                                      fce_i.error_passive and
-                                      ack_error_caused_flag);
-          if (passive_ack_exception_v and in_flag_field_v and pcs_i.bus_polarity = dominant) then
-            v_dominant_seen_during_flag := true;
-          end if;
-
           -- ISO 11898-1: 8.1.3.3 Table 16 (Error_delimiter_too_late) and
-          -- 8.1.4.2 rule f): track dominant run during delimiter handling.
-          if (in_delimiter_field_v) then
-            if (pcs_i.bus_polarity = dominant) then
-              if (dominant_run_count = delimiter_dominant_run_limit_c) then
-                v_fce_o.error_delimiter_too_late := true;
-                v_dominant_run_count             := 0;
-              else
-                v_dominant_run_count := dominant_run_count + 1;
-              end if;
-            else
+          -- 8.1.4.2 rule f): applies to error-flag delimiter handling.
+          track_delimiter_run_v := track_error_delimiter_too_late_c and in_delimiter_field_v;
+          if (track_delimiter_run_v) then
+            if (pcs_i.bus_polarity = recessive) then
               v_dominant_run_count := 0;
-            end if;
-          end if;
-
-          -- ISO 11898-1: 8.1.4.2 rule c), Exception 1:
-          -- passive transmitter ACK error without dominant seen in passive EF.
-          if (error_sequence_complete_v) then
-            if (fce_i.error_passive and ack_error_caused_flag and not dominant_seen_during_flag) then
-              v_fce_o.counters_unchanged := true;
+            elsif (dominant_run_count = delimiter_dominant_run_limit_c) then
+              v_fce_o.error_delimiter_too_late := true;
+              v_dominant_run_count             := 0;
+            else
+              v_dominant_run_count := dominant_run_count + 1;
             end if;
           end if;
 
@@ -530,7 +494,55 @@ begin
         end if;
       end if;
 
-    end procedure process_error_flag_transmission;
+    end procedure process_flag_transmission;
+
+    -- Asserts FCE `primary_error` for dominant samples during the error-flag field at SP.
+    procedure apply_primary_error_guard is
+
+      variable primary_error_condition_v : boolean;
+
+    begin
+
+      primary_error_condition_v := sp_sample_strobe_v and
+                                   bit_count < error_flag_width_c and
+                                   pcs_i.bus_polarity = dominant;
+      -- ISO 11898-1: 8.1.3.3 Table 16 - Primary_error:
+      -- dominant detected while sending an error flag.
+      if (primary_error_condition_v) then
+        v_fce_o.primary_error := true;
+      end if;
+
+    end procedure apply_primary_error_guard;
+
+    -- Applies ACK-error passive EF exception bookkeeping:
+    -- tracks dominant seen in passive EF and raises counters_unchanged at sequence end when allowed.
+    procedure apply_passive_ack_exception is
+
+      variable passive_ack_exception_window_v : boolean;
+      variable passive_ack_dominant_in_flag_v : boolean;
+      variable passive_ack_no_dominant_end_v  : boolean;
+
+    begin
+
+      passive_ack_exception_window_v := sp_sample_strobe_v and ack_error_caused_flag;
+      passive_ack_dominant_in_flag_v := passive_ack_exception_window_v and
+                                        bit_count < error_flag_width_c and
+                                        pcs_i.bus_polarity = dominant;
+      passive_ack_no_dominant_end_v  := passive_ack_exception_window_v and
+                                        error_sequence_complete_v and
+                                        not dominant_seen_during_flag;
+
+      -- ISO 11898-1: 8.1.4.2 rule c), Exception 1:
+      -- passive transmitter ACK error without dominant seen in passive EF.
+      if (passive_ack_dominant_in_flag_v) then
+        v_dominant_seen_during_flag := true;
+      end if;
+
+      if (passive_ack_no_dominant_end_v) then
+        v_fce_o.counters_unchanged := true;
+      end if;
+
+    end procedure apply_passive_ack_exception;
 
   begin
 
@@ -575,6 +587,7 @@ begin
         -- Evaluate guards
         frame_transmitted_v          := bit_count = mac_ser_i.frame_params.eof_stop;
         sample_strobe_v              := pcs_i.sample_strobe = '1';
+        sp_sample_strobe_v           := sample_strobe_v and pcs_i.strobe_type = sp_strobe;
         error_sequence_complete_v    := bit_count >= error_flag_width_c + error_delimiter_width_c - 1;
         state_entry_v                := prev_state /= state;
         bus_is_idle_v                := (bit_count = bus_idle_condition_width_c - 1);
@@ -583,13 +596,6 @@ begin
         suspend_transmission_ended_v := (bit_count = suspend_transmission_width_c - 1);
         error_detected_v             := (monitored_bit_event = bit_error or monitored_bit_event = ack_error);
         error_flag_ended_v           := bit_count = error_flag_width_c + error_delimiter_width_c - 1;
-
-        -- Dynamic stuff bits apply to different regions for CC vs FD
-        if (mac_ser_i.frame_params.is_fd_frame) then
-          dynamic_stuff_eligible_v := bit_count < mac_ser_i.frame_params.sbc_start;
-        else
-          dynamic_stuff_eligible_v := bit_count < mac_ser_i.frame_params.crc_stop;
-        end if;
 
         ---------------------------------------------------------------------
         -- Defaults: hold current registered values
@@ -628,13 +634,20 @@ begin
         ---------------------------------------------------------------------
         case state is
           when bus_reintegration =>
-            process_quiet_phases;
+            process_quiet_phase_common;
+            v_pcs_o.data := bus_integration_bit_c;
             if (bus_is_idle_v) then
               v_state := bus_idle;
             end if;
 
           when intermission =>
-            process_quiet_phases;
+            process_quiet_phase_common;
+            v_pcs_o.data := intermission_bit_c;
+            -- ISO 11898-1: 10.4.4.3 condition b) - dominant detected during first
+            -- two intermission bits triggers overload handling.
+            if (sp_sample_strobe_v and pcs_i.bus_polarity = dominant and bit_count < 2) then
+              v_overload_condition := true;
+            end if;
             if (overload_condition) then
               v_state := transmitting_overload_flag;
             elsif (intermission_ended_v) then
@@ -646,7 +659,8 @@ begin
             end if;
 
           when suspend_transmission =>
-            process_quiet_phases;
+            process_quiet_phase_common;
+            v_pcs_o.data := suspend_transmission_bit_c;
             if (overload_condition) then
               v_state := transmitting_overload_flag;
             elsif (suspend_transmission_ended_v) then
@@ -654,8 +668,13 @@ begin
             end if;
 
           when bus_idle =>
-            process_quiet_phases;
-            if (mac_ser_i.valid and sample_strobe_v) then
+            process_quiet_phase_common;
+            v_pcs_o.data := idle_bit_c;
+            if (state_entry_v) then
+              -- Reset all handshake signals once we reach bus_idle.
+              v_mac_ser_o := tx_mac_fsm_to_ser_if_reset_c;
+            end if;
+            if (mac_ser_i.valid and sp_sample_strobe_v) then
               v_state := transmitting_frame;
             end if;
 
@@ -673,13 +692,36 @@ begin
             if (monitored_bit_event = lost_arbitration) then
               v_state := intermission;
             elsif (error_detected_v) then
-              v_state := transmitting_error_flag;
+              if (fce_i.error_passive) then
+                v_state := transmitting_passive_error_flag;
+              else
+                v_state := transmitting_active_error_flag;
+              end if;
             elsif (frame_transmitted_v) then
               v_state := intermission;
             end if;
 
-          when transmitting_error_flag | transmitting_overload_flag =>
-            process_error_flag_transmission;
+          when transmitting_active_error_flag =>
+            process_flag_transmission(active_error_flag_bit_c, true);
+            apply_primary_error_guard;
+            if (overload_condition) then
+              v_state := transmitting_overload_flag;
+            elsif (error_flag_ended_v) then
+              v_state := intermission;
+            end if;
+
+          when transmitting_passive_error_flag =>
+            process_flag_transmission(passive_error_flag_bit_c, true);
+            apply_primary_error_guard;
+            apply_passive_ack_exception;
+            if (overload_condition) then
+              v_state := transmitting_overload_flag;
+            elsif (error_flag_ended_v) then
+              v_state := intermission;
+            end if;
+
+          when transmitting_overload_flag =>
+            process_flag_transmission(overload_flag_bit_c, false);
             if (overload_condition) then
               v_state := transmitting_overload_flag;
             elsif (error_flag_ended_v) then

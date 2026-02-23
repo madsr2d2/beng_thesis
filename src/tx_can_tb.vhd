@@ -792,12 +792,12 @@ begin
     wait_for_sample_strobe(50 us, "Test 9 data SP");
     inject_bit_error("Test 9");
 
-    -- FSM should enter error flag state
-    wait_for_fsm_state(transmitting_error_flag, 20 us, "Test 9");
+    -- FSM should enter active error flag state
+    wait_for_fsm_state(transmitting_active_error_flag, 20 us, "Test 9");
     wait until rising_edge(clk); -- Wait for registered fce_o
     AffirmIf(alert_id,
-      fsm_state = transmitting_error_flag,
-      "Test 9: FSM entered transmitting_error_flag");
+      fsm_state = transmitting_active_error_flag,
+      "Test 9: FSM entered transmitting_active_error_flag");
 
     -- fce_o.sending_error_flag should be asserted
     AffirmIf(alert_id,

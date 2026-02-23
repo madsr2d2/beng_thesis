@@ -77,6 +77,7 @@ package can_types_pkg is
     passive_error_flag_bit,
     overload_flag_bit,
     -- Inter-frame spacing bits
+    bus_integration_bit,
     intermission_bit,
     suspend_transmission_bit,
     idle_bit,
@@ -162,7 +163,8 @@ package can_types_pkg is
     intermission,
     suspend_transmission, -- Error-passive transmitter waits 8 bit times (ISO 11898-1)
     transmitting_frame,
-    transmitting_error_flag,
+    transmitting_active_error_flag,
+    transmitting_passive_error_flag,
     transmitting_overload_flag
   );
 
@@ -546,6 +548,7 @@ package can_types_pkg is
   constant ack_delimiter_bit_c        : mac_frame_bit_t := (recessive, ack_delimiter_bit);
   constant crc_delimiter_bit_c        : mac_frame_bit_t := (recessive, crc_delimiter_bit);
   constant error_delimiter_bit_c      : mac_frame_bit_t := (recessive, error_delimiter_bit);
+  constant bus_integration_bit_c      : mac_frame_bit_t := (recessive, bus_integration_bit);
   constant intermission_bit_c         : mac_frame_bit_t := (recessive, intermission_bit);
   constant overload_flag_bit_c        : mac_frame_bit_t := (dominant,  overload_flag_bit);
   constant suspend_transmission_bit_c : mac_frame_bit_t := (recessive, suspend_transmission_bit);

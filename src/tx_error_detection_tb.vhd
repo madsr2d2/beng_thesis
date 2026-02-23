@@ -1527,9 +1527,9 @@ begin
             integer'image(sample_point_counter), ALWAYS);
       end if;
 
-      -- Note: Bit error may not have dedicated signal; may be detected via FSM state change
-      -- Monitoring FSM transitions to transmitting_error_flag indicates error detection
-      if fsm_state = transmitting_error_flag then
+      -- Note: Bit error may not have dedicated signal; infer via error-flag states.
+      if (fsm_state = transmitting_active_error_flag or
+          fsm_state = transmitting_passive_error_flag) then
         bit_error_pulse_detected <= true;
       end if;
 
