@@ -728,8 +728,6 @@ begin
               v_state := intermission;
             end if;
 
-          when others =>
-            null;
         end case;
 
         -- Register all next-cycle values

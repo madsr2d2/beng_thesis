@@ -48,7 +48,7 @@ begin
   u_dut : entity work.bit_stuffer_fd
     port map (
       clk_i   => clk_i,
-      rst_i   => rst_i,
+      reset_i   => rst_i,
       bs_fd_i => bs_fd_i,
       bs_fd_o => bs_fd_o
     );

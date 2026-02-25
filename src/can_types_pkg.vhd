@@ -6,7 +6,7 @@
 -- Standard   : VHDL-2008
 --------------------------------------------------------------------------------
 -- Description: Centralized type and constant definitions for the CAN/CAN-FD
---              transmitter design per ISO 11898-1:2015.
+--              transmitter design per ISO 11899-1:2015.
 --------------------------------------------------------------------------------
 
 library ieee;
@@ -31,7 +31,7 @@ package can_types_pkg is
   constant sbc_field_width_c : integer                       := 4;
   constant byte_width_c      : integer                       := 8;
 
-  -- Max frame: FD extended, DLC 15 → eof_stop = 593. Rounded up with margin.
+  -- Max frame: FD extended, DLC 15 → eof_stop = 593.
   constant max_mac_frame_length_c       : integer := 640;
   subtype  bit_count_t is integer range 0 to max_mac_frame_length_c;
   constant base_id_width_c              : integer := 11;
@@ -42,8 +42,6 @@ package can_types_pkg is
   constant bus_idle_condition_width_c   : integer := 11; -- ISO 11898-1: 3.34
   constant intermission_width_c         : integer := 3;  -- ISO 11898-1: 6.6.7.2
   constant suspend_transmission_width_c : integer := 8;  -- ISO 11898-1: 6.6.7.4
-  -- Circular TX history buffer depth used by MAC/PCS delay comparison logic.
-  -- Sized for current PCS defaults and guarded by runtime assertions in tx_pcs.
   constant transmitted_bits_fifo_depth_c : integer := 32;
   constant dlc_max_decimal_value         : integer := 15;
   constant max_data_bytes_c              : integer := 64;
@@ -161,7 +159,7 @@ package can_types_pkg is
     bus_reintegration,
     bus_idle,
     intermission,
-    suspend_transmission, -- Error-passive transmitter waits 8 bit times (ISO 11898-1)
+    suspend_transmission,
     transmitting_frame,
     transmitting_active_error_flag,
     transmitting_passive_error_flag,
