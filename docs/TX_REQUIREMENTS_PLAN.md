@@ -23,9 +23,10 @@ This requirements plan document contains a comprehensive table of all TX-side re
 
 ## Requirements Table
 
-| Req ID                                   | Module          | Description                                                                           | ISO Reference      | Applicability             | Status         | Test(s)        | Priority | Component      | Acceptance Criteria                                    | Verification | Dependencies    | Notes                                                              |
-| ---------------------------------------- | --------------- | ------------------------------------------------------------------------------------- | ------------------ | ------------------------- | -------------- | -------------- | -------- | -------------- | ------------------------------------------------------ | ------------ | --------------- | ------------------------------------------------------------------ |
-| **FRAME FORMAT & STRUCTURE**             |                 |                                                                                       |                    |                           |                |                |          |                |                                                        |              |                 |                                                                    |
+| Req ID | Module | Description | ISO Reference | Applicability | Status | Test(s) | Priority | Component | Acceptance Criteria |
+| Verification | Dependencies | Notes |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| **FRAME FORMAT & STRUCTURE** ||||||||                                                        |              |                 |                                                                    |
 | REQ-TX-F001                              | Frame Format    | SOF shall be 1 dominant bit marking frame start                                       | 6.6.8              | CC-B, CC-E, FD-B, FD-E    | Verified       | T1, T4, T5     | C        | tx_mac_fsm     | SOF always dominant, exactly 1 bit                     | WAVE         |                 | Every frame starts with SOF                                        |
 | REQ-TX-F002                              | Frame Format    | Frame shall contain SOF, arbitration, control, data (optional), CRC, ACK, EOF         | 6.6.9              | CC-B, CC-E, FD-B, FD-E    | Verified       | T1             | C        | tx_mac_ser     | All fields present in correct order                    | ASSERT       | REQ-TX-F001     | Field ordering critical                                            |
 | REQ-TX-F003                              | Frame Format    | DLC field shall match LLC DLC value                                                   | 6.6.10.3, Table 5  | CC-B, CC-E, FD-B, FD-E    | Verified       | T1             | C        | tx_mac_ser     | DLC encoded correctly per table                        | CVRG         |                 | Maps to data length                                                |
@@ -118,14 +119,14 @@ This requirements plan document contains a comprehensive table of all TX-side re
 
 ### By Status
 
-| Status         | Count | Coverage | Notes                                                                         |
-| -------------- | ----- | -------- | ----------------------------------------------------------------------------- |
-| Verified       | 30    | 52%      | 2 core error detection tests complete (ACK + Bit error)                       |
-| Implemented    | 18    | 31%      | Unchanged                                                                     |
-| Diagnostic     | 4     | 7%       | 4 tests requiring waveform inspection (Tests 3-6)                             |
-| Partially      | 1     | 2%       | Unchanged                                                                     |
-| Not Applicable | 3     | 5%       | REQ-TX-ERR004 (RX-side), REQ-TX-ERR005/CRC006 (XL frames out of scope)        |
-| Not Started    | 3     | 5%       | Remaining implementation items                                                |
+| Status         | Count | Coverage | Notes                                                                  |
+| -------------- | ----- | -------- | ---------------------------------------------------------------------- |
+| Verified       | 30    | 52%      | 2 core error detection tests complete (ACK + Bit error)                |
+| Implemented    | 18    | 31%      | Unchanged                                                              |
+| Diagnostic     | 4     | 7%       | 4 tests requiring waveform inspection (Tests 3-6)                      |
+| Partially      | 1     | 2%       | Unchanged                                                              |
+| Not Applicable | 3     | 5%       | REQ-TX-ERR004 (RX-side), REQ-TX-ERR005/CRC006 (XL frames out of scope) |
+| Not Started    | 3     | 5%       | Remaining implementation items                                         |
 
 ### By Priority
 

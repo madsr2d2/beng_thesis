@@ -39,9 +39,9 @@
 
 | Phase | Name | Weeks | Description |
 |:------|:-----|:------|:------------|
-| 1 | Planning | 1 to 2 | Requirements plan, verification plan |
-| 2 | Implementation & Testing | 3 to 12 | VHDL implementation, testbenches, Python tools |
-| 3 | Report & Presentation | 13 to 15 | Write report, create and rehearse presentation |
+| 1 | Planning | 1 to 2 | Requirements plan, verification plan. |
+| 2 | Implementation & Testing | 3 to 12 | VHDL implementation, testbenches, Python tools. |
+| 3 | Report & Presentation | 13 to 15 | Write report, create and rehearse presentation. |
 
 ---
 
@@ -51,9 +51,9 @@
 
 | Task | Status |
 |:------|:--------|
-| Environment and toolchain setup | Done |
-| Create project plan (this document) | Done |
-| Create requirements plan (IDs, ISO refs, acceptance criteria) | |
+| Environment and toolchain setup. | Done |
+| Create project plan (this document). | Done |
+| Create requirements plan (IDs, ISO refs, acceptance criteria). | |
 
 **Milestone**: Requirements plan complete.
 
@@ -62,10 +62,10 @@
 
 | Task | Status |
 |:------|:--------|
-| Create verification plan | |
-| VHDL implementation per requirements plan | |
-| Module level testbenches | |
-| Design documentation (ongoing) | |
+| Create verification plan. | |
+| VHDL implementation per requirements plan. | |
+| Module level testbenches. | |
+| Design documentation (ongoing). | |
 
 **Milestone**: Verification plan complete.
 
@@ -74,9 +74,9 @@
 
 | Task | Status |
 |:------|:--------|
-| VHDL implementation per requirements plan | |
-| Module level testbenches | |
-| Design documentation (ongoing) | |
+| VHDL implementation per requirements plan. | |
+| Module level testbenches. | |
+| Design documentation (ongoing). | |
 
 **Milestone**: Core implementation complete. Python reference model ready.
 
@@ -85,10 +85,10 @@
 
 | Task | Status |
 |:------|:--------|
-| Python test framework setup | |
-| Develop and validate Python reference model | |
-| Integration testing | |
-| Design documentation (ongoing) | |
+| Python test framework setup. | |
+| Develop and validate Python reference model. | |
+| Integration testing. | |
+| Design documentation (ongoing). | |
 
 **Milestone**: Python reference model. Integration tests passing.
 
@@ -97,9 +97,9 @@
 
 | Task | Status |
 |:------|:--------|
-| Regression testing | |
-| Python cross validation | |
-| Design documentation (ongoing) | |
+| Regression testing. | |
+| Python cross validation. | |
+| Design documentation (ongoing). | |
 
 **Milestone**: Full test coverage.
 
@@ -108,8 +108,8 @@
 
 | Task | Status |
 |:------|:--------|
-| Final test coverage and verification | |
-| Design documentation (ongoing) | |
+| Final test coverage and verification. | |
+| Design documentation (ongoing). | |
 
 **Milestone**: Implementation and verification complete.
 
@@ -118,7 +118,7 @@
 
 | Task | Status |
 |:------|:--------|
-| Write thesis report | |
+| Write thesis report. | |
 
 **Milestone**: First draft complete.
 
@@ -127,8 +127,8 @@
 
 | Task | Status |
 |:------|:--------|
-| Revise and polish thesis report | |
-| Create presentation slide deck | |
+| Revise and polish thesis report. | |
+| Create presentation slide deck. | |
 
 **Milestone**: Report near-final. Presentation draft exists.
 
@@ -137,9 +137,9 @@
 
 | Task | Status |
 |:------|:--------|
-| Finalize slides and demo | |
-| Final thesis report polish | |
-| Submit thesis report and source code | |
+| Finalize slides and demo. | |
+| Final thesis report polish. | |
+| Submit thesis report and source code. | |
 
 **Milestone**: All deliverables submitted. Defense-ready.
 
@@ -176,6 +176,7 @@ gantt
     Report near final                       :milestone, m8, after w13, 0d
     Final polish & submission               :w15, after w13, 5d
     All deliverables submitted              :milestone, m9, after w15, 0d
+    Wife due date                           :crit, milestone, m10, 2026-05-27, 0d
 ```
 
 ---
@@ -184,7 +185,8 @@ gantt
 
 | Risk | Mitigation |
 |:-----|:-----------|
-| Implementation takes longer than planned | Start early (week 2); requirements plan sets clear scope |
-| Report takes longer than estimated | Collect screenshots and notes during implementation phase |
-| Verification reveals design issues late | Develop verification plan in week 2; test continuously |
-| Python tools take too long | Tight scope: CRC reference, frame generator, stuff bit check only |
+| Implementation takes longer than planned. | Start early (week 2); requirements plan sets clear scope. |
+| Report takes longer than estimated. | Collect screenshots and notes during implementation phase. |
+| Verification reveals design issues late. | Develop verification plan in week 2; test continuously. |
+| Python tools take too long. | Tight scope: CRC reference, frame generator, stuff bit check only. |
+| Pregnancy or family emergencies may impact the project timeline. | Maintain flexibility in the schedule and communicate proactively with supervisors. |
