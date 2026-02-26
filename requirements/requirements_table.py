@@ -1,53 +1,25 @@
 """
-requirements_table.py  —  View and filter CAN requirements from TOML
+requirements_table.py  --  Export CAN requirements from TOML to HTML or Markdown
 
 Usage:
-    python requirements_table.py
-    python requirements_table.py --status Verified
-    python requirements_table.py --status Implemented --status Diagnostic
-    python requirements_table.py --format FB
-    python requirements_table.py --cat ERR
+    python requirements_table.py                              # saves requirements.html
+    python requirements_table.py --html out.html
+    python requirements_table.py --markdown out.md
+    python requirements_table.py --cat ERR --html err.html
+    python requirements_table.py --status Verified --markdown verified.md
     python requirements_table.py --cat FRM --status Verified
-    python requirements_table.py --side RX
+    python requirements_table.py --format FB
+    python requirements_table.py --side TX
     python requirements_table.py --priority H
     python requirements_table.py --search "bit rate"
 """
 
 import argparse
 import tomllib
+import re
 import pandas as pd
-from rich.console import Console
-from rich.table import Table
-from rich import box
-from rich.text import Text
 
-# -- Colour scheme --
-
-STATUS_COLORS = {
-    "Verified":       "bold green",
-    "Implemented":    "yellow",
-    "Diagnostic":     "orange1",
-    "Partially":      "dark_orange",
-    "Not Applicable": "grey50",
-    "Not Started":    "bold red",
-    "":               "grey50",
-}
-
-PRIORITY_COLORS = {
-    "C": "bold green",
-    "H": "yellow",
-    "M": "grey70",
-    "":  "grey50",
-}
-
-CATEGORY_COLORS = {
-    "FRM": "bold cyan",
-    "TMG": "bold blue",
-    "ERR": "bold red",
-    "CRC": "bold magenta",
-}
-
-# -- TOML -> DataFrame --
+# -- TOML -> DataFrame ---------------------------------------------------------
 
 def load_toml(path: str) -> pd.DataFrame:
     with open(path, "rb") as f:
@@ -55,32 +27,29 @@ def load_toml(path: str) -> pd.DataFrame:
 
     rows = []
     for req_id, fields in raw["requirements"].items():
-        # Parse ID into components
-        import re
         m = re.match(r'([A-Z]+)(\d+)(TX|RX|SYS)', req_id)
         cat  = m.group(1) if m else ""
-        num  = m.group(2) if m else ""
         side = m.group(3) if m else ""
 
         rows.append({
-            "id":                 req_id,
-            "cat":                cat,
-            "side":               side,
-            "description":        fields.get("description", ""),
-            "iso_reference":      fields.get("iso_reference", ""),
-            "format":             "/".join(fields.get("format", [])),
-            "status":             fields.get("status", ""),
-            "priority":           fields.get("priority", ""),
-            "tests":              fields.get("tests", ""),
-            "acceptance_criteria":fields.get("acceptance_criteria", ""),
-            "verification":       fields.get("verification", ""),
-            "dependencies":       ", ".join(fields.get("dependencies", [])),
-            "notes":              fields.get("notes", ""),
+            "id":                  req_id,
+            "cat":                 cat,
+            "side":                side,
+            "description":         fields.get("description", ""),
+            "iso_reference":       fields.get("iso_reference", ""),
+            "format":              "/".join(fields.get("format", [])),
+            "status":              fields.get("status", ""),
+            "priority":            fields.get("priority", ""),
+            "tests":               fields.get("tests", ""),
+            "acceptance_criteria": fields.get("acceptance_criteria", ""),
+            "verification":        fields.get("verification", ""),
+            "dependencies":        ", ".join(fields.get("dependencies", [])),
+            "notes":               fields.get("notes", ""),
         })
 
     return pd.DataFrame(rows)
 
-# -- Filtering --
+# -- Filtering -----------------------------------------------------------------
 
 def apply_filters(df: pd.DataFrame, args) -> pd.DataFrame:
     if args.status:
@@ -102,148 +71,162 @@ def apply_filters(df: pd.DataFrame, args) -> pd.DataFrame:
         df = df[mask]
     return df
 
-# -- Rich display --
+# -- HTML export ---------------------------------------------------------------
 
-def truncate(s: str, n: int) -> str:
-    return s if len(s) <= n else s[:n-1] + "…"
+EXPORT_COLS = ["id", "description", "iso_reference", "format", "status",
+               "priority", "tests", "acceptance_criteria", "verification",
+               "dependencies", "notes"]
 
-def styled(text: str, style: str) -> Text:
-    t = Text(text)
-    t.stylize(style)
-    return t
+STATUS_CSS = {
+    "Verified":       "color: #2ecc71; font-weight: bold",
+    "Implemented":    "color: #f39c12",
+    "Diagnostic":     "color: #e67e22",
+    "Partially":      "color: #e67e22",
+    "Not Applicable": "color: #95a5a6",
+    "Not Started":    "color: #e74c3c; font-weight: bold",
+}
+PRIORITY_CSS = {
+    "C": "color: #2ecc71; font-weight: bold",
+    "H": "color: #f39c12",
+    "M": "color: #95a5a6",
+}
+CAT_CSS = {
+    "FRM": "color: #00bcd4; font-weight: bold",
+    "TMG": "color: #3f51b5; font-weight: bold",
+    "ERR": "color: #e74c3c; font-weight: bold",
+    "CRC": "color: #9c27b0; font-weight: bold",
+}
 
-def display_table(df: pd.DataFrame, console: Console):
-    table = Table(
-        box=box.ROUNDED,
-        show_header=True,
-        header_style="bold white on grey23",
-        highlight=True,
-        expand=False,
-        padding=(0, 1),
+def export_html(df: pd.DataFrame, path: str):
+    out = df[EXPORT_COLS].fillna("").copy()
+
+    def style_status(val):
+        return STATUS_CSS.get(val, "")
+
+    def style_priority(val):
+        return PRIORITY_CSS.get(val, "")
+
+    def style_id(val):
+        m = re.match(r'([A-Z]+)', str(val))
+        return CAT_CSS.get(m.group(1) if m else "", "")
+
+    styled = (
+        out.style
+        .map(style_status,   subset=["status"])
+        .map(style_priority, subset=["priority"])
+        .map(style_id,       subset=["id"])
+        .set_table_styles([
+            {"selector": "table",
+             "props": "border-collapse: collapse; width: 100%; font-family: monospace; "
+                      "font-size: 13px; background: #1e1e1e; color: #d4d4d4;"},
+            {"selector": "thead tr th",
+             "props": "background: #2d2d2d; color: #ffffff; padding: 8px 12px; "
+                      "text-align: left; border-bottom: 2px solid #444; "
+                      "white-space: nowrap; position: sticky; top: 0; z-index: 1; "
+                      "cursor: pointer; user-select: none;"},
+            {"selector": "td",
+             "props": "padding: 6px 12px; border-bottom: 1px solid #333; vertical-align: top;"},
+            {"selector": "tbody tr:hover",
+             "props": "background: #2a2a2a;"},
+        ])
+        .set_properties(**{"white-space": "normal", "word-wrap": "break-word"})
+        .set_properties(subset=["id", "iso_reference", "format", "status",
+                                 "priority", "tests", "verification"],
+                        **{"white-space": "nowrap"})
     )
 
-    table.add_column("ID",          style="bold", width=12, no_wrap=True)
-    table.add_column("Description", width=50,  no_wrap=True)
-    table.add_column("Fmt",         width=11,  no_wrap=True)
-    table.add_column("Status",      width=15,  no_wrap=True)
-    table.add_column("P",           width=3,   justify="center", no_wrap=True)
-    table.add_column("Tests",       width=12,  no_wrap=True)
-    table.add_column("Verif",       width=6,   justify="center", no_wrap=True)
-    table.add_column("Deps",        width=16,  no_wrap=True)
-    table.add_column("Notes",       width=28,  no_wrap=True)
+    table_html = styled.to_html()
+    html = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>CAN Requirements</title>
+  <style>
+    body {{ margin: 0; padding: 16px; background: #1e1e1e; color: #d4d4d4; }}
+    h1   {{ font-family: monospace; font-size: 16px; color: #888; margin-bottom: 12px; }}
+    .wrap {{ overflow-x: auto; }}
+    th.asc::after  {{ content: " ▲"; font-size: 10px; }}
+    th.desc::after {{ content: " ▼"; font-size: 10px; }}
+    th:hover {{ background: #3a3a3a !important; }}
+  </style>
+</head>
+<body>
+  <h1>CAN Requirements &mdash; {len(out)} rows</h1>
+  <div class="wrap">
+    {table_html}
+  </div>
+  <script>
+    const table = document.querySelector("table");
+    const headers = table.querySelectorAll("th");
+    let sortCol = -1, sortAsc = true;
+    headers.forEach((th, col) => {{
+      th.addEventListener("click", () => {{
+        const tbody = table.querySelector("tbody");
+        const rows  = Array.from(tbody.querySelectorAll("tr"));
+        sortAsc = sortCol === col ? !sortAsc : true;
+        sortCol = col;
+        rows.sort((a, b) => {{
+          const av = a.cells[col]?.innerText.trim() || "";
+          const bv = b.cells[col]?.innerText.trim() || "";
+          return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+        }});
+        rows.forEach(r => tbody.appendChild(r));
+        headers.forEach(h => h.classList.remove("asc", "desc"));
+        th.classList.add(sortAsc ? "asc" : "desc");
+      }});
+    }});
+  </script>
+</body>
+</html>"""
 
-    prev_cat = None
-    for _, row in df.iterrows():
-        # Section divider when category changes
-        if row["cat"] != prev_cat:
-            cat_label = {
-                "FRM": "Frame / Arbitration / Control",
-                "TMG": "Bit Timing & TDC",
-                "ERR": "Error Detection & Handling",
-                "CRC": "CRC Generation",
-            }.get(row["cat"], row["cat"])
-            color = CATEGORY_COLORS.get(row["cat"], "white")
-            table.add_section()
-            # Empty divider row with category label
-            table.add_row(
-                styled(f"── {cat_label} ──", color),
-                "", "", "", "", "", "", "", "",
-            )
-            table.add_section()
-            prev_cat = row["cat"]
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(html)
 
-        status_style  = STATUS_COLORS.get(row["status"], "white")
-        priority_style = PRIORITY_COLORS.get(row["priority"], "white")
-        cat_style     = CATEGORY_COLORS.get(row["cat"], "white")
+# -- Markdown export -----------------------------------------------------------
 
-        table.add_row(
-            styled(row["id"], cat_style),
-            truncate(row["description"], 44),
-            row["format"],
-            styled(row["status"], status_style),
-            styled(row["priority"], priority_style),
-            row["tests"] or "",
-            row["verification"] or "",
-            truncate(row["dependencies"], 14),
-            truncate(row["notes"], 24),
-        )
+def export_markdown(df: pd.DataFrame, path: str):
+    out = df[EXPORT_COLS].fillna("")
+    header = "| " + " | ".join(out.columns) + " |"
+    sep    = "| " + " | ".join(["---"] * len(out.columns)) + " |"
+    rows   = ["| " + " | ".join(str(v) for v in row) + " |"
+              for _, row in out.iterrows()]
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join([header, sep] + rows))
 
-    console.print(table)
-
-def display_summary(df: pd.DataFrame, console: Console):
-    total = len(df)
-    console.print(f"\n[bold]Total:[/bold] {total} requirements\n")
-
-    # Status breakdown
-    status_counts = df["status"].value_counts()
-    console.print("[bold]By status:[/bold]")
-    for status, count in status_counts.items():
-        color = STATUS_COLORS.get(status, "white")
-        pct = 100 * count / total if total else 0
-        bar = "█" * int(pct / 2)
-        console.print(f"  [{color}]{status:<16}[/{color}]  {count:>3}  {pct:>5.1f}%  {bar}")
-
-    # Category breakdown
-    console.print("\n[bold]By category:[/bold]")
-    for cat, grp in df.groupby("cat"):
-        color = CATEGORY_COLORS.get(cat, "white")
-        sides = grp["side"].value_counts().to_dict()
-        side_str = "  ".join(f"{s}:{n}" for s, n in sorted(sides.items()))
-        console.print(f"  [{color}]{cat}[/{color}]  {len(grp):>3} reqs   {side_str}")
-
-# -- CLI --
+# -- CLI -----------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="View CAN requirements from TOML")
-    parser.add_argument("--toml",     default="requirements.toml", help="Path to TOML file")
+    parser = argparse.ArgumentParser(description="Export CAN requirements from TOML")
+    parser.add_argument("--toml",     default="requirements.toml")
     parser.add_argument("--status",   action="append", help="Filter by status (repeatable)")
     parser.add_argument("--format",   help="Filter by format code e.g. FB")
     parser.add_argument("--cat",      help="Filter by category: FRM, TMG, ERR, CRC")
     parser.add_argument("--side",     help="Filter by side: TX or RX")
     parser.add_argument("--priority", help="Filter by priority: C, H, M")
     parser.add_argument("--search",   help="Search description/notes/acceptance criteria")
-    parser.add_argument("--summary",  action="store_true", help="Show summary stats only")
-    parser.add_argument("--html",     metavar="FILE",      help="Save output as HTML e.g. requirements.html")
-    parser.add_argument("--markdown", metavar="FILE",      help="Save output as markdown table e.g. requirements.md")
+    parser.add_argument("--html",     metavar="FILE", nargs="?", const="requirements.html",
+                        help="Save as HTML (default: requirements.html)")
+    parser.add_argument("--markdown", metavar="FILE",
+                        help="Save as markdown e.g. requirements.md")
     args = parser.parse_args()
-
-    import io
-    export_only = bool(args.markdown and not args.html)
-    console = Console()
-    html_console = Console(record=True, file=io.StringIO()) if args.html else None
 
     df = load_toml(args.toml)
     df = apply_filters(df, args)
 
     if df.empty:
-        console.print("[bold red]No requirements match the given filters.[/bold red]")
+        print("No requirements match the given filters.")
         return
 
-    if not args.summary and not export_only:
-        display_table(df, console)
-        if html_console:
-            display_table(df, html_console)
-            display_summary(df, html_console)
-
-    if not export_only:
-        display_summary(df, console)
+    # Default to HTML if no output flag given
+    if not args.html and not args.markdown:
+        args.html = "requirements.html"
 
     if args.html:
-        html_console.save_html(args.html)
+        export_html(df, args.html)
         print(f"Saved to {args.html}")
 
     if args.markdown:
-        export_cols = ["id", "description", "iso_reference", "format", "status",
-                       "priority", "tests", "acceptance_criteria", "verification",
-                       "dependencies", "notes"]
-        out = df[export_cols].fillna("")
-        header = "| " + " | ".join(out.columns) + " |"
-        sep    = "| " + " | ".join(["---"] * len(out.columns)) + " |"
-        rows   = ["| " + " | ".join(str(v) for v in row) + " |"
-                  for _, row in out.iterrows()]
-        md = "\n".join([header, sep] + rows)
-        with open(args.markdown, "w", encoding="utf-8") as f:
-            f.write(md)
+        export_markdown(df, args.markdown)
         print(f"Saved to {args.markdown}")
 
 if __name__ == "__main__":
