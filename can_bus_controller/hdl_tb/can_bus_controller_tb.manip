@@ -1,0 +1,35 @@
+
+set fpga_family "none"
+# ---------------------------------------------------------------------------- #
+# Sim Library
+# ---------------------------------------------------------------------------- #
+set_global_assignment -name SOURCE_TCL_SCRIPT_FILE [file join $abs_path "modules/common_tb_pkgs.manip"]
+set_global_assignment -name SOURCE_TCL_SCRIPT_FILE [file join $abs_path "modules/simlib/tb_modules/scoreboards/hdl_src/eth_st_scoreboard_p.manip"]
+
+# ---------------------------------------------------------------------------- #
+# Packages
+# ---------------------------------------------------------------------------- #
+
+
+# ---------------------------------------------------------------------------- #
+# register
+# ---------------------------------------------------------------------------- #
+
+
+# ---------------------------------------------------------------------------- #
+# Sub Modules
+# ---------------------------------------------------------------------------- #
+set_global_assignment -name SOURCE_TCL_SCRIPT_FILE [file join $abs_path "modules/simlib/verification_components/can_bus_vc/hdl_src/can_bus_vc.manip"]
+
+# ---------------------------------------------------------------------------- #
+# Module Files
+# ---------------------------------------------------------------------------- #
+set_global_assignment -name SOURCE_TCL_SCRIPT_FILE [file join $abs_path "modules/ip_lib/can_bus_controller/hdl_src/can_bus_controller.manip"]
+
+# ---------------------------------------------------------------------------- #
+# TB
+# ---------------------------------------------------------------------------- #
+set_global_assignment -name VHDL_FILE              [file join $abs_path "modules/ip_lib/can_bus_controller/hdl_tb/can_bus_controller_tb.vhd"]
+
+
+# eof
