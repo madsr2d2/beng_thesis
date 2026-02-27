@@ -117,80 +117,150 @@ ISO 11898-1:2015 CAN system requirements are tracked in `requirements/requiremen
 - **Verification Strategy & Status**: verification method (WAVE/CVRG/SIM/ASSERT), status (verified/implemented/unverified/diagnostic)
 - **Simulation/Formal subsections**: test coverage tracking (empty by default)
 
-### ⚠️ IMPORTANT: Use yq for ALL TOML Manipulation
+### ⚠️ IMPORTANT: Use Python for ALL TOML Manipulation
 
-**NEVER edit `requirements.toml` directly.** Use `yq` exclusively for all queries and updates. This ensures consistent structure and prevents corruption.
+**NEVER edit `requirements.toml` directly.** Use Python with `tomllib` for all queries and updates. This ensures consistent structure and prevents corruption.
 
 ### Querying Requirements
 
-Use **yq** (standard TOML query tool) for all interactions:
+Use **Python with `tomllib`** for all queries:
 
 **Filter by category:**
-```bash
-yq '.requirements | with_entries(select(.value.category=="FRM")) | from_entries' requirements/requirements.toml
+```python
+import tomllib
+with open('requirements/requirements.toml', 'rb') as f:
+    data = tomllib.load(f)
+frm_reqs = {k: v for k, v in data['requirements'].items() if v.get('category') == 'FRM'}
+for req_id, req in frm_reqs.items():
+    print(f"{req_id}: {req['description']}")
 ```
 
 **Filter by side (TX or RX):**
-```bash
-yq '.requirements | with_entries(select(.value.side=="RX")) | from_entries' requirements/requirements.toml
+```python
+import tomllib
+with open('requirements/requirements.toml', 'rb') as f:
+    data = tomllib.load(f)
+rx_reqs = {k: v for k, v in data['requirements'].items() if v.get('side') == 'RX'}
+print(f"Found {len(rx_reqs)} RX requirements")
 ```
 
 **Find by ID:**
-```bash
-yq '.requirements."001"' requirements/requirements.toml
+```python
+import tomllib
+with open('requirements/requirements.toml', 'rb') as f:
+    data = tomllib.load(f)
+req = data['requirements'].get('001')
+if req:
+    print(f"ID 001: {req['description']}")
 ```
 
 **Search by description:**
-```bash
-yq '.requirements | with_entries(select(.value.description | contains("CRC"))) | from_entries' requirements/requirements.toml
+```python
+import tomllib
+with open('requirements/requirements.toml', 'rb') as f:
+    data = tomllib.load(f)
+matches = {k: v for k, v in data['requirements'].items()
+           if 'CRC' in v.get('description', '')}
+for req_id, req in matches.items():
+    print(f"{req_id}: {req['description']}")
 ```
 
 **Filter by status:**
-```bash
-yq '.requirements | with_entries(select(.value.status=="verified")) | from_entries' requirements/requirements.toml
+```python
+import tomllib
+with open('requirements/requirements.toml', 'rb') as f:
+    data = tomllib.load(f)
+verified = {k: v for k, v in data['requirements'].items()
+            if v.get('status') == 'verified'}
+print(f"{len(verified)} verified requirements")
 ```
 
 **Get high-priority unverified requirements:**
-```bash
-yq '.requirements | with_entries(select(.value.priority=="C" and .value.status!="verified")) | from_entries' requirements/requirements.toml
+```python
+import tomllib
+with open('requirements/requirements.toml', 'rb') as f:
+    data = tomllib.load(f)
+unverified_critical = {k: v for k, v in data['requirements'].items()
+                       if v.get('priority') == 'C' and v.get('status') != 'verified'}
+for req_id, req in unverified_critical.items():
+    print(f"{req_id} ({req['category']}): {req['description']}")
 ```
 
 **Count by category and side:**
-```bash
-yq '.requirements | map([.category, .side]) | group_by(.) | map({key: .[0], count: length})' requirements/requirements.toml
+```python
+import tomllib
+from collections import defaultdict
+with open('requirements/requirements.toml', 'rb') as f:
+    data = tomllib.load(f)
+counts = defaultdict(int)
+for req in data['requirements'].values():
+    counts[(req.get('category'), req.get('side'))] += 1
+for (cat, side), count in sorted(counts.items()):
+    print(f"{cat}/{side}: {count}")
 ```
 
 **Filter by format (CB, CE, FB, FE):**
-```bash
-yq '.requirements | with_entries(select(.value.format[] == "FB")) | from_entries' requirements/requirements.toml
+```python
+import tomllib
+with open('requirements/requirements.toml', 'rb') as f:
+    data = tomllib.load(f)
+fb_reqs = {k: v for k, v in data['requirements'].items()
+           if 'FB' in v.get('format', [])}
+print(f"Found {len(fb_reqs)} FB (FD Basic) requirements")
 ```
 
 ### Updating Requirements
 
-**ALWAYS preview first, then use `-i` to persist:**
+Use Python to read, modify, and write back:
 
 **Change status of a single requirement:**
-```bash
-# Preview first (no -i flag)
-yq '.requirements."001".status = "implemented"' requirements/requirements.toml
+```python
+import tomllib
 
-# Persist if correct
-yq '.requirements."001".status = "implemented"' requirements/requirements.toml -i
+# Read
+with open('requirements/requirements.toml', 'rb') as f:
+    data = tomllib.load(f)
+
+# Modify
+data['requirements']['001']['status'] = 'implemented'
+
+# Write back
+import json
+with open('requirements/requirements.toml', 'w') as f:
+    # Convert back to TOML format (or use custom serializer)
+    # For now, use inline TOML editing or consider tomli_w package
 ```
 
 **Bulk update all FRM requirements:**
-```bash
-yq '(.requirements | with_entries(select(.value.category=="FRM"))[].value).priority = "H"' requirements/requirements.toml -i
+```python
+import tomllib
+
+with open('requirements/requirements.toml', 'rb') as f:
+    data = tomllib.load(f)
+
+# Update all FRM requirements
+for req in data['requirements'].values():
+    if req.get('category') == 'FRM':
+        req['priority'] = 'H'
+
+# Write back (use regex or tomli_w)
 ```
 
-**Set verification method for RX error detection:**
-```bash
-yq '(.requirements | with_entries(select(.value.category=="ERR" and .value.side=="RX"))[].value).verification = "SIM"' requirements/requirements.toml -i
-```
+**Mark requirements as verified by category:**
+```python
+import tomllib
+import re
 
-**Update status for verified requirements:**
-```bash
-yq '(.requirements | with_entries(select(.value.status=="verified"))[].value).verification_method = ["simulation", "formal"]' requirements/requirements.toml -i
+with open('requirements/requirements.toml', 'r') as f:
+    content = f.read()
+
+# Use regex to find and update status values for specific category
+# Example: Mark all CRC requirements as verified
+pattern = r'(\[requirements\.\d+\].*?category = "CRC".*?status = )"[^"]*"'
+updated = re.sub(pattern, r'\1"verified"', content, flags=re.DOTALL)
+
+with open('requirements/requirements.toml', 'w') as f:
+    f.write(updated)
 ```
 
 ### Exporting Requirements as Tables
@@ -209,11 +279,12 @@ python requirements/requirements_table.py --toml requirements/requirements.toml 
 
 ### Key Points
 
-- **NEVER edit requirements.toml directly** — use yq exclusively
-- **File is machine-generated**: Structure is preserved by yq commands only
-- **Always preview first**: Run query without `-i` to see results before modifying
-- **Add `-i` to persist changes**: `-i` flag writes modifications back to file
-- **ID format**: Strictly numeric (001–123), with metadata in TOML fields
+- **NEVER edit requirements.toml directly** — use Python (`tomllib`) exclusively
+- **Python is reliable**: Built-in library available in Python 3.11+, works reliably with TOML
+- **Use tomllib for reading**: `tomllib.load()` for queries and analysis
+- **Use regex for bulk updates**: For simple bulk modifications, regex with file I/O is faster
+- **Consider tomli_w for complex writes**: For complex updates, use `tomli_w` package to serialize back to TOML
+- **ID format**: Strictly numeric (001–123), with metadata in TOML fields (category, side, status, etc.)
 - **Table export**: Use `requirements_table.py` for formatted HTML/Markdown output
 
 ### Makefile Details
