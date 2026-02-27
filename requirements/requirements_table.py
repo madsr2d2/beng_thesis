@@ -1,15 +1,16 @@
 """
-requirements_table.py  --  Export CAN requirements from TOML to HTML or Markdown tables
-
-For filtering/searching requirements, use yq instead (see CLAUDE.md)
+requirements_table.py  --  Manage CAN requirements TOML file
 
 Usage:
     python requirements_table.py                              # saves requirements.html
     python requirements_table.py --html out.html
     python requirements_table.py --markdown out.md
+    python requirements_table.py --renumber                   # renumber IDs sequentially
+    python requirements_table.py --delete 011                 # delete requirement and renumber
 """
 
 import argparse
+import re
 import tomllib
 import pandas as pd
 
@@ -200,13 +201,101 @@ def export_markdown(df: pd.DataFrame, path: str):
         f.write("\n".join([header, sep] + rows))
 
 
+# -- Renumber / Delete ---------------------------------------------------------
+
+
+def renumber(path: str):
+    """Renumber requirement IDs to be sequential (001, 002, ...) preserving order."""
+    with open(path, "r") as f:
+        lines = f.readlines()
+
+    # Split into header (before first [requirements.) and body
+    header_end = 0
+    for i, line in enumerate(lines):
+        if re.match(r"\[requirements\.\d{3}\]", line):
+            header_end = i
+            break
+
+    header = lines[:header_end]
+
+    # Split body into groups: each starts at a top-level [requirements.NNN] line
+    groups = []
+    current = []
+    for line in lines[header_end:]:
+        if re.match(r"\[requirements\.\d{3}\]\s*$", line) and current:
+            groups.append(current)
+            current = [line]
+        else:
+            current.append(line)
+    if current:
+        groups.append(current)
+
+    # Renumber each group sequentially
+    new_lines = header[:]
+    for new_idx, group in enumerate(groups, start=1):
+        new_id = f"{new_idx:03d}"
+        m = re.match(r"\[requirements\.(\d{3})\]", group[0])
+        old_id = m.group(1)
+        for line in group:
+            line = re.sub(
+                rf"\[requirements\.{re.escape(old_id)}([\].])",
+                rf"[requirements.{new_id}\1",
+                line,
+            )
+            new_lines.append(line)
+
+    with open(path, "w") as f:
+        f.writelines(new_lines)
+
+    # Update the ID range in the header comment
+    _update_header_id_range(path, len(groups))
+
+    return len(groups)
+
+
+def delete_requirement(path: str, req_id: str):
+    """Delete a requirement by ID and renumber remaining requirements."""
+    req_id = req_id.zfill(3)
+
+    with open(path, "r") as f:
+        content = f.read()
+
+    # Remove the requirement block (main + simulation + formal sub-tables)
+    pattern = rf"\[requirements\.{re.escape(req_id)}\]\n.*?(?=\[requirements\.(?!{re.escape(req_id)}[\].])|$)"
+    new_content = re.sub(pattern, "", content, flags=re.DOTALL)
+
+    if new_content == content:
+        print(f"Requirement {req_id} not found")
+        return
+
+    with open(path, "w") as f:
+        f.write(new_content)
+
+    count = renumber(path)
+    print(f"Deleted requirement {req_id}, renumbered to 001-{count:03d}")
+
+
+def _update_header_id_range(path: str, count: int):
+    """Update the ID range comment in the file header."""
+    with open(path, "r") as f:
+        content = f.read()
+
+    content = re.sub(
+        r"Unique numeric ID \(\d+-\d+\)",
+        f"Unique numeric ID (001-{count:03d})",
+        content,
+    )
+
+    with open(path, "w") as f:
+        f.write(content)
+
+
 # -- CLI -----------------------------------------------------------------------
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Export CAN requirements from TOML to formatted tables",
-        epilog="For filtering/searching, use: yq '.requirements | select(.category==\"FRM\")' requirements.toml"
+        description="Manage CAN requirements: export tables, renumber, delete",
     )
     parser.add_argument("--toml", default="requirements.toml", help="Path to TOML file")
     parser.add_argument(
@@ -219,7 +308,22 @@ def main():
     parser.add_argument(
         "--markdown", metavar="FILE", help="Save as Markdown table"
     )
+    parser.add_argument(
+        "--renumber", action="store_true", help="Renumber IDs sequentially"
+    )
+    parser.add_argument(
+        "--delete", metavar="ID", help="Delete requirement by ID and renumber"
+    )
     args = parser.parse_args()
+
+    if args.delete:
+        delete_requirement(args.toml, args.delete)
+        return
+
+    if args.renumber:
+        count = renumber(args.toml)
+        print(f"Renumbered {count} requirements: 001-{count:03d}")
+        return
 
     df = load_toml(args.toml)
 
@@ -229,11 +333,11 @@ def main():
 
     if args.html:
         export_html(df, args.html)
-        print(f"✓ Saved {len(df)} requirements to {args.html}")
+        print(f"Saved {len(df)} requirements to {args.html}")
 
     if args.markdown:
         export_markdown(df, args.markdown)
-        print(f"✓ Saved {len(df)} requirements to {args.markdown}")
+        print(f"Saved {len(df)} requirements to {args.markdown}")
 
 
 if __name__ == "__main__":

@@ -275,8 +275,6 @@ python requirements/requirements_table.py --toml requirements/requirements.toml 
 python requirements/requirements_table.py --toml requirements/requirements.toml --markdown table.md
 ```
 
-**Note**: Use `yq` for filtering; the table script exports formatted output only.
-
 ### Key Points
 
 - **NEVER edit requirements.toml directly** — use Python (`tomllib`) exclusively
