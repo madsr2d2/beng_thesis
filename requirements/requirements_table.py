@@ -70,7 +70,8 @@ STATUS_CSS = {
 }
 
 PRIORITY_CSS = {
-    "C": "color: #2ecc71; font-weight: bold",
+    "A": "color: #2ecc71; font-weight: bold",
+    "C": "color: #e74c3c; font-weight: bold",
     "H": "color: #f39c12",
     "M": "color: #95a5a6",
     "L": "color: #7f8c8d",
