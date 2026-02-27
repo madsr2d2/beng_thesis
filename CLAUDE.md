@@ -87,24 +87,39 @@ make clean
 
 ## Requirements Management
 
-ISO 11898-1:2015 CAN system requirements are tracked in `requirements/requirements.toml` — a human-readable TOML file with requirements organized by category.
+ISO 11898-1:2015 CAN system requirements are tracked in `requirements/requirements.toml` — a structured TOML file with numeric IDs (001–123) organized by category and side.
 
 ### Requirements File Format
 
 **File**: `requirements/requirements.toml`
-**Structure**: 63 requirements (IDs: 001–063)
+**Structure**: 123 requirements
+- **TX Side**: 83 requirements (IDs 001–063, 064–123)
+  - FRM (Frame): 27 TX requirements
+  - ERR (Error): 18 TX requirements
+  - TMG (Timing): 11 TX requirements
+  - CRC (Checksum): 6 TX requirements
+
+- **RX Side**: 40 requirements (IDs 064–123)
+  - FRM (Frame): 13 RX requirements (SOF detection, format detection, destuffing, ACK)
+  - ERR (Error): 15 RX requirements (error detection, signalling, fault confinement)
+  - TMG (Timing): 6 RX requirements (sync, sample points, bit integration)
+  - CRC (Checksum): 5 RX requirements (CRC verification)
 
 **Categories**:
-- **FRM** : Frame structure, fields, arbitration, control, stuffing, completion
-- **ERR** : Error detection & handling (bit, stuff, form, CRC errors)
-- **TMG** : Bit timing, sample points, TDC compensation
-- **CRC** : CRC polynomial selection and generation
+- **FRM** : Frame structure, fields, arbitration, control, stuffing, completion, ACK
+- **ERR** : Error detection & handling (bit, stuff, form, CRC errors), fault confinement
+- **TMG** : Bit timing, sample points, TDC compensation, synchronization
+- **CRC** : CRC polynomial selection, generation, verification
 
 **Each requirement contains**:
-- **Classification Metadata**: category, side (TX), format (CB/CE/FB/FE), priority
+- **Classification Metadata**: category, side (TX/RX), format (CB/CE/FB/FE), priority
 - **Core Specification**: description, ISO reference, acceptance criteria, notes, target_module
 - **Verification Strategy & Status**: verification method (WAVE/CVRG/SIM/ASSERT), status (verified/implemented/unverified/diagnostic)
 - **Simulation/Formal subsections**: test coverage tracking (empty by default)
+
+### ⚠️ IMPORTANT: Use yq for ALL TOML Manipulation
+
+**NEVER edit `requirements.toml` directly.** Use `yq` exclusively for all queries and updates. This ensures consistent structure and prevents corruption.
 
 ### Querying Requirements
 
@@ -112,62 +127,94 @@ Use **yq** (standard TOML query tool) for all interactions:
 
 **Filter by category:**
 ```bash
-yq '.requirements | with_entries(select(.value.category=="FRM")) | from_entries' requirements.toml
+yq '.requirements | with_entries(select(.value.category=="FRM")) | from_entries' requirements/requirements.toml
+```
+
+**Filter by side (TX or RX):**
+```bash
+yq '.requirements | with_entries(select(.value.side=="RX")) | from_entries' requirements/requirements.toml
 ```
 
 **Find by ID:**
 ```bash
-yq '.requirements."001"' requirements.toml
+yq '.requirements."001"' requirements/requirements.toml
 ```
 
 **Search by description:**
 ```bash
-yq '.requirements | with_entries(select(.value.description | contains("CRC"))) | from_entries' requirements.toml
+yq '.requirements | with_entries(select(.value.description | contains("CRC"))) | from_entries' requirements/requirements.toml
 ```
 
 **Filter by status:**
 ```bash
-yq '.requirements | with_entries(select(.value.status=="verified")) | from_entries' requirements.toml
+yq '.requirements | with_entries(select(.value.status=="verified")) | from_entries' requirements/requirements.toml
 ```
 
 **Get high-priority unverified requirements:**
 ```bash
-yq '.requirements | with_entries(select(.value.priority=="C" and .value.status!="verified")) | from_entries' requirements.toml
+yq '.requirements | with_entries(select(.value.priority=="C" and .value.status!="verified")) | from_entries' requirements/requirements.toml
 ```
 
-**Count by category:**
+**Count by category and side:**
 ```bash
-yq '.requirements | map(.category) | group_by(.) | map({(.[0]): length}) | add' requirements.toml
+yq '.requirements | map([.category, .side]) | group_by(.) | map({key: .[0], count: length})' requirements/requirements.toml
+```
+
+**Filter by format (CB, CE, FB, FE):**
+```bash
+yq '.requirements | with_entries(select(.value.format[] == "FB")) | from_entries' requirements/requirements.toml
 ```
 
 ### Updating Requirements
 
+**ALWAYS preview first, then use `-i` to persist:**
+
 **Change status of a single requirement:**
 ```bash
-yq '.requirements."001".status = "implemented"' requirements.toml -i
+# Preview first (no -i flag)
+yq '.requirements."001".status = "implemented"' requirements/requirements.toml
+
+# Persist if correct
+yq '.requirements."001".status = "implemented"' requirements/requirements.toml -i
 ```
 
 **Bulk update all FRM requirements:**
 ```bash
-yq '(.requirements | with_entries(select(.value.category=="FRM"))[].value).priority = "H"' requirements.toml -i
+yq '(.requirements | with_entries(select(.value.category=="FRM"))[].value).priority = "H"' requirements/requirements.toml -i
 ```
 
-**Set target_module for category:**
+**Set verification method for RX error detection:**
 ```bash
-yq '(.requirements | with_entries(select(.value.category=="TMG"))[].value).target_module = "can_mac_tx"' requirements.toml -i
+yq '(.requirements | with_entries(select(.value.category=="ERR" and .value.side=="RX"))[].value).verification = "SIM"' requirements/requirements.toml -i
 ```
 
-**Clear simulation/formal fields:**
+**Update status for verified requirements:**
 ```bash
-yq '.requirements[].simulation.test_case = "" | .requirements[].simulation.file = "" | .requirements[].formal.property_label = ""' requirements.toml -i
+yq '(.requirements | with_entries(select(.value.status=="verified"))[].value).verification_method = ["simulation", "formal"]' requirements/requirements.toml -i
 ```
+
+### Exporting Requirements as Tables
+
+Use `python requirements/requirements_table.py` to generate nicely formatted tables:
+
+```bash
+# Export all requirements to HTML (default)
+python requirements/requirements_table.py --toml requirements/requirements.toml --html table.html
+
+# Export to Markdown
+python requirements/requirements_table.py --toml requirements/requirements.toml --markdown table.md
+```
+
+**Note**: Use `yq` for filtering; the table script exports formatted output only.
 
 ### Key Points
 
-- **File is human-readable**: Direct TOML editing is supported
-- **No custom tools required**: Use standard `yq` for all queries/updates
+- **NEVER edit requirements.toml directly** — use yq exclusively
+- **File is machine-generated**: Structure is preserved by yq commands only
 - **Always preview first**: Run query without `-i` to see results before modifying
 - **Add `-i` to persist changes**: `-i` flag writes modifications back to file
+- **ID format**: Strictly numeric (001–123), with metadata in TOML fields
+- **Table export**: Use `requirements_table.py` for formatted HTML/Markdown output
 
 ### Makefile Details
 

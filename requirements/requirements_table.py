@@ -1,36 +1,30 @@
 """
-requirements_table.py  --  Export CAN requirements from TOML to HTML or Markdown
+requirements_table.py  --  Export CAN requirements from TOML to HTML or Markdown tables
+
+For filtering/searching requirements, use yq instead (see CLAUDE.md)
 
 Usage:
     python requirements_table.py                              # saves requirements.html
     python requirements_table.py --html out.html
     python requirements_table.py --markdown out.md
-    python requirements_table.py --cat ERR --html err.html
-    python requirements_table.py --status Verified --markdown verified.md
-    python requirements_table.py --cat FRM --status Verified
-    python requirements_table.py --format FB
-    python requirements_table.py --side TX
-    python requirements_table.py --priority H
-    python requirements_table.py --search "bit rate"
 """
 
 import argparse
 import tomllib
-import re
 import pandas as pd
-
-# -- TOML -> DataFrame ---------------------------------------------------------
 
 
 def load_toml(path: str) -> pd.DataFrame:
+    """Load requirements from TOML and convert to DataFrame"""
     with open(path, "rb") as f:
         raw = tomllib.load(f)
 
     rows = []
     for req_id, fields in raw["requirements"].items():
-        m = re.match(r"([A-Z]+)(\d+)(TX|RX|SYS)", req_id)
-        cat = m.group(1) if m else ""
-        side = m.group(3) if m else ""
+        # req_id is now numeric (001, 002, etc.)
+        # category and side are stored in fields
+        cat = fields.get("category", "")
+        side = fields.get("side", "")
 
         rows.append(
             {
@@ -42,10 +36,8 @@ def load_toml(path: str) -> pd.DataFrame:
                 "format": "/".join(fields.get("format", [])),
                 "status": fields.get("status", ""),
                 "priority": fields.get("priority", ""),
-                "tests": fields.get("tests", ""),
                 "acceptance_criteria": fields.get("acceptance_criteria", ""),
                 "verification": fields.get("verification", ""),
-                "dependencies": ", ".join(fields.get("dependencies", [])),
                 "notes": fields.get("notes", ""),
             }
         )
@@ -53,59 +45,37 @@ def load_toml(path: str) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-# -- Filtering -----------------------------------------------------------------
-
-
-def apply_filters(df: pd.DataFrame, args) -> pd.DataFrame:
-    if args.status:
-        df = df[df["status"].str.lower().isin([s.lower() for s in args.status])]
-    if args.format:
-        df = df[df["format"].str.contains(args.format, case=False, na=False)]
-    if args.cat:
-        df = df[df["cat"].str.upper() == args.cat.upper()]
-    if args.side:
-        df = df[df["side"].str.upper() == args.side.upper()]
-    if args.priority:
-        df = df[df["priority"].str.upper() == args.priority.upper()]
-    if args.search:
-        mask = (
-            df["description"].str.contains(args.search, case=False, na=False)
-            | df["notes"].str.contains(args.search, case=False, na=False)
-            | df["acceptance_criteria"].str.contains(args.search, case=False, na=False)
-        )
-        df = df[mask]
-    return df
-
-
 # -- HTML export ---------------------------------------------------------------
 
 EXPORT_COLS = [
     "id",
+    "cat",
+    "side",
     "description",
     "iso_reference",
     "format",
     "status",
     "priority",
-    "tests",
     "acceptance_criteria",
     "verification",
-    "dependencies",
     "notes",
 ]
 
 STATUS_CSS = {
-    "Verified": "color: #2ecc71; font-weight: bold",
-    "Implemented": "color: #f39c12",
-    "Diagnostic": "color: #e67e22",
-    "Partially": "color: #e67e22",
-    "Not Applicable": "color: #95a5a6",
-    "Not Started": "color: #e74c3c; font-weight: bold",
+    "verified": "color: #2ecc71; font-weight: bold",
+    "implemented": "color: #f39c12",
+    "diagnostic": "color: #e67e22",
+    "unverified": "color: #e74c3c; font-weight: bold",
+    "not applicable": "color: #95a5a6",
 }
+
 PRIORITY_CSS = {
     "C": "color: #2ecc71; font-weight: bold",
     "H": "color: #f39c12",
     "M": "color: #95a5a6",
+    "L": "color: #7f8c8d",
 }
+
 CAT_CSS = {
     "FRM": "color: #00bcd4; font-weight: bold",
     "TMG": "color: #3f51b5; font-weight: bold",
@@ -115,22 +85,22 @@ CAT_CSS = {
 
 
 def export_html(df: pd.DataFrame, path: str):
+    """Export requirements as interactive HTML table"""
     out = df[EXPORT_COLS].fillna("").copy()
 
     def style_status(val):
-        return STATUS_CSS.get(val, "")
+        return STATUS_CSS.get(val.lower(), "")
 
     def style_priority(val):
         return PRIORITY_CSS.get(val, "")
 
-    def style_id(val):
-        m = re.match(r"([A-Z]+)", str(val))
-        return CAT_CSS.get(m.group(1) if m else "", "")
+    def style_cat(cat_val):
+        return CAT_CSS.get(cat_val, "")
 
     styled = (
         out.style.map(style_status, subset=["status"])
         .map(style_priority, subset=["priority"])
-        .map(style_id, subset=["id"])
+        .map(style_cat, subset=["cat"])
         .set_table_styles(
             [
                 {
@@ -156,11 +126,12 @@ def export_html(df: pd.DataFrame, path: str):
         .set_properties(
             subset=[
                 "id",
+                "cat",
+                "side",
                 "iso_reference",
                 "format",
                 "status",
                 "priority",
-                "tests",
                 "verification",
             ],
             **{"white-space": "nowrap"},
@@ -174,16 +145,17 @@ def export_html(df: pd.DataFrame, path: str):
   <meta charset="UTF-8">
   <title>CAN Requirements</title>
   <style>
-    body {{ margin: 0; padding: 16px; background: #1e1e1e; color: #d4d4d4; }}
-    h1   {{ font-family: monospace; font-size: 16px; color: #888; margin-bottom: 12px; }}
+    body {{ margin: 0; padding: 16px; background: #1e1e1e; color: #d4d4d4; font-family: monospace; }}
+    h1 {{ font-size: 16px; color: #888; margin: 0 0 16px 0; }}
     .wrap {{ overflow-x: auto; }}
-    th.asc::after  {{ content: " ▲"; font-size: 10px; }}
-    th.desc::after {{ content: " ▼"; font-size: 10px; }}
+    th {{ cursor: pointer; user-select: none; }}
     th:hover {{ background: #3a3a3a !important; }}
+    th.asc::after {{ content: " ▲"; font-size: 10px; color: #2ecc71; }}
+    th.desc::after {{ content: " ▼"; font-size: 10px; color: #e74c3c; }}
   </style>
 </head>
 <body>
-  <h1>CAN Requirements &mdash; {len(out)} rows</h1>
+  <h1>CAN Requirements — {len(out)} entries (Click column headers to sort)</h1>
   <div class="wrap">
     {table_html}
   </div>
@@ -194,7 +166,7 @@ def export_html(df: pd.DataFrame, path: str):
     headers.forEach((th, col) => {{
       th.addEventListener("click", () => {{
         const tbody = table.querySelector("tbody");
-        const rows  = Array.from(tbody.querySelectorAll("tr"));
+        const rows = Array.from(tbody.querySelectorAll("tr"));
         sortAsc = sortCol === col ? !sortAsc : true;
         sortCol = col;
         rows.sort((a, b) => {{
@@ -219,6 +191,7 @@ def export_html(df: pd.DataFrame, path: str):
 
 
 def export_markdown(df: pd.DataFrame, path: str):
+    """Export requirements as Markdown table"""
     out = df[EXPORT_COLS].fillna("")
     header = "| " + " | ".join(out.columns) + " |"
     sep = "| " + " | ".join(["---"] * len(out.columns)) + " |"
@@ -231,16 +204,11 @@ def export_markdown(df: pd.DataFrame, path: str):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Export CAN requirements from TOML")
-    parser.add_argument("--toml", default="requirements.toml")
-    parser.add_argument(
-        "--status", action="append", help="Filter by status (repeatable)"
+    parser = argparse.ArgumentParser(
+        description="Export CAN requirements from TOML to formatted tables",
+        epilog="For filtering/searching, use: yq '.requirements | select(.category==\"FRM\")' requirements.toml"
     )
-    parser.add_argument("--format", help="Filter by format code e.g. FB")
-    parser.add_argument("--cat", help="Filter by category: FRM, TMG, ERR, CRC")
-    parser.add_argument("--side", help="Filter by side: TX or RX")
-    parser.add_argument("--priority", help="Filter by priority: C, H, M")
-    parser.add_argument("--search", help="Search description/notes/acceptance criteria")
+    parser.add_argument("--toml", default="requirements.toml", help="Path to TOML file")
     parser.add_argument(
         "--html",
         metavar="FILE",
@@ -249,30 +217,24 @@ def main():
         help="Save as HTML (default: requirements.html)",
     )
     parser.add_argument(
-        "--markdown", metavar="FILE", help="Save as markdown e.g. requirements.md"
+        "--markdown", metavar="FILE", help="Save as Markdown table"
     )
     args = parser.parse_args()
 
     df = load_toml(args.toml)
-    df = apply_filters(df, args)
 
-    if df.empty:
-        print("No requirements match the given filters.")
-        return
-
-    # Default to HTML if no output flag given
+    # Default to HTML if no output format given
     if not args.html and not args.markdown:
         args.html = "requirements.html"
 
     if args.html:
         export_html(df, args.html)
-        print(f"Saved to {args.html}")
+        print(f"✓ Saved {len(df)} requirements to {args.html}")
 
     if args.markdown:
         export_markdown(df, args.markdown)
-        print(f"Saved to {args.markdown}")
+        print(f"✓ Saved {len(df)} requirements to {args.markdown}")
 
 
 if __name__ == "__main__":
     main()
-

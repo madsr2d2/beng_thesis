@@ -101,13 +101,13 @@
 # Classification Metadata
   category = "CRC"
   side = "TX"
-  format = ["CB", "CE", "FB", "FE"]
+  format = ["CB", "CE"]
   priority = "H"
 # Core Specification
-  description = "CRC calculated over: SOF + arb + ctrl + data (no stuff bits)"
-  iso_reference = "6.6.4.4"
-  acceptance_criteria = "Correct bit stream selected"
-  notes = "Excludes stuff bits"
+  description = "CC frames: CRC-15 calculated over SOF + arbitration + control + data; no stuff bits"
+  iso_reference = "6.6.4.4, 6.6.10.5"
+  acceptance_criteria = "Bitstream excludes all dynamic and fixed stuff bits"
+  notes = "CC frames only - no stuff bits in CRC calculation"
   target_module = ""
 # Verification Strategy & Status
   verification = "CVRG"
@@ -129,18 +129,18 @@
 # Classification Metadata
   category = "CRC"
   side = "TX"
-  format = ["CB", "CE", "FB", "FE"]
-  priority = "M"
+  format = ["FB", "FE"]
+  priority = "H"
 # Core Specification
-  description = "CRC initialized: 0x0000 (CRC-15), 0x10000 (CRC-17/21)"
-  iso_reference = "6.6.4.4"
-  acceptance_criteria = "Init vector per polynomial"
-  notes = "Hamming distance 6"
+  description = "FD frames: CRC-17/21 calculated over SOF + arbitration + control + data + stuff count (SBC) + dynamic stuff bits; no fixed stuff bits"
+  iso_reference = "6.6.4.4, 6.6.11.5"
+  acceptance_criteria = "Bitstream includes SBC and dynamic stuff bits; excludes fixed stuff bits from CRC calculation"
+  notes = "FD frames only - dynamic stuff bits included but fixed stuff bits excluded"
   target_module = ""
 # Verification Strategy & Status
   verification = "CVRG"
   verification_method = ["simulation", "formal"]
-  status = "implemented"
+  status = "unverified"
 
 [requirements.005.simulation]
   test_case = ""
@@ -157,18 +157,18 @@
 # Classification Metadata
   category = "CRC"
   side = "TX"
-  format = ["XB", "XL-E (Out of Scope)"]
+  format = ["CB", "CE", "FB", "FE"]
   priority = "M"
 # Core Specification
-  description = "Provisional CRC (PCRC): calculated in arbitration phase (XL frames only)"
-  iso_reference = "6.6.12.3 (XL ref)"
-  acceptance_criteria = "N/A - XL frames not in current scope"
-  notes = "XL frame feature - Project scope: ISO 11898-1:2015 CC/FD only"
+  description = "CRC initialized: 0x0000 (CRC-15), 0x10000 (CRC-17/21)"
+  iso_reference = "6.6.4.4"
+  acceptance_criteria = "Init vector per polynomial"
+  notes = "Hamming distance 6"
   target_module = ""
 # Verification Strategy & Status
-  verification = "N/A"
+  verification = "CVRG"
   verification_method = ["simulation", "formal"]
-  status = "not applicable"
+  status = "implemented"
 
 [requirements.006.simulation]
   test_case = ""
