@@ -235,6 +235,8 @@ def renumber(path: str):
     for new_idx, group in enumerate(groups, start=1):
         new_id = f"{new_idx:03d}"
         m = re.match(r"\[requirements\.(\d{3})\]", group[0])
+        if not m:
+            continue
         old_id = m.group(1)
         for line in group:
             line = re.sub(
@@ -305,9 +307,7 @@ def main():
         const="requirements.html",
         help="Save as HTML (default: requirements.html)",
     )
-    parser.add_argument(
-        "--markdown", metavar="FILE", help="Save as Markdown table"
-    )
+    parser.add_argument("--markdown", metavar="FILE", help="Save as Markdown table")
     parser.add_argument(
         "--renumber", action="store_true", help="Renumber IDs sequentially"
     )

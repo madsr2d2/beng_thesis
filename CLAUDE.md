@@ -87,203 +87,114 @@ make clean
 
 ## Requirements Management
 
-ISO 11898-1:2015 CAN system requirements are tracked in `requirements/requirements.toml` — a structured TOML file with numeric IDs (001–123) organized by category and side.
+ISO 11898-1:2015 CAN system requirements are tracked in `requirements/requirements.toml` — a structured TOML file with sequential numeric IDs organized by category and side. The file header documents all keys and valid values.
 
 ### Requirements File Format
 
 **File**: `requirements/requirements.toml`
-**Structure**: 123 requirements
-- **TX Side**: 83 requirements (IDs 001–063, 064–123)
-  - FRM (Frame): 27 TX requirements
-  - ERR (Error): 18 TX requirements
-  - TMG (Timing): 11 TX requirements
-  - CRC (Checksum): 6 TX requirements
+**Structure**: 122 requirements (IDs 001–122), sequential with no gaps
+**Scope**: CAN Classic (CC) and CAN FD only — XL frames are strictly out of scope
 
-- **RX Side**: 40 requirements (IDs 064–123)
-  - FRM (Frame): 13 RX requirements (SOF detection, format detection, destuffing, ACK)
-  - ERR (Error): 15 RX requirements (error detection, signalling, fault confinement)
-  - TMG (Timing): 6 RX requirements (sync, sample points, bit integration)
-  - CRC (Checksum): 5 RX requirements (CRC verification)
+**Categories**: FRM (frame), ERR (error), TMG (timing), CRC (checksum)
+**Sides**: TX (transmitter), RX (receiver)
+**Formats**: CB (Classic Basic), CE (Classic Extended), FB (FD Basic), FE (FD Extended)
+**Priorities**: critical, high, medium, low
+**Verification**: simulation, coverage, waveform, assertion
+**Status**: verified, implemented, unverified, diagnostic
 
-**Categories**:
-- **FRM** : Frame structure, fields, arbitration, control, stuffing, completion, ACK
-- **ERR** : Error detection & handling (bit, stuff, form, CRC errors), fault confinement
-- **TMG** : Bit timing, sample points, TDC compensation, synchronization
-- **CRC** : CRC polynomial selection, generation, verification
+### Querying Requirements (Python + tomllib)
 
-**Each requirement contains**:
-- **Classification Metadata**: category, side (TX/RX), format (CB/CE/FB/FE), priority
-- **Core Specification**: description, ISO reference, acceptance criteria, notes, target_module
-- **Verification Strategy & Status**: verification method (WAVE/CVRG/SIM/ASSERT), status (verified/implemented/unverified/diagnostic)
-- **Simulation/Formal subsections**: test coverage tracking (empty by default)
-
-### ⚠️ IMPORTANT: Use Python for ALL TOML Manipulation
-
-**NEVER edit `requirements.toml` directly.** Use Python with `tomllib` for all queries and updates. This ensures consistent structure and prevents corruption.
-
-### Querying Requirements
-
-Use **Python with `tomllib`** for all queries:
-
-**Filter by category:**
 ```python
 import tomllib
 with open('requirements/requirements.toml', 'rb') as f:
     data = tomllib.load(f)
-frm_reqs = {k: v for k, v in data['requirements'].items() if v.get('category') == 'FRM'}
-for req_id, req in frm_reqs.items():
-    print(f"{req_id}: {req['description']}")
-```
 
-**Filter by side (TX or RX):**
-```python
-import tomllib
-with open('requirements/requirements.toml', 'rb') as f:
-    data = tomllib.load(f)
-rx_reqs = {k: v for k, v in data['requirements'].items() if v.get('side') == 'RX'}
-print(f"Found {len(rx_reqs)} RX requirements")
-```
+# Filter by category
+frm = {k: v for k, v in data['requirements'].items() if v['category'] == 'FRM'}
 
-**Find by ID:**
-```python
-import tomllib
-with open('requirements/requirements.toml', 'rb') as f:
-    data = tomllib.load(f)
-req = data['requirements'].get('001')
-if req:
-    print(f"ID 001: {req['description']}")
-```
+# Filter by side
+rx = {k: v for k, v in data['requirements'].items() if v['side'] == 'RX'}
 
-**Search by description:**
-```python
-import tomllib
-with open('requirements/requirements.toml', 'rb') as f:
-    data = tomllib.load(f)
-matches = {k: v for k, v in data['requirements'].items()
-           if 'CRC' in v.get('description', '')}
-for req_id, req in matches.items():
-    print(f"{req_id}: {req['description']}")
-```
+# Search by description
+matches = {k: v for k, v in data['requirements'].items() if 'CRC' in v['description']}
 
-**Filter by status:**
-```python
-import tomllib
-with open('requirements/requirements.toml', 'rb') as f:
-    data = tomllib.load(f)
-verified = {k: v for k, v in data['requirements'].items()
-            if v.get('status') == 'verified'}
-print(f"{len(verified)} verified requirements")
-```
+# Filter by status
+verified = {k: v for k, v in data['requirements'].items() if v['status'] == 'verified'}
 
-**Get high-priority unverified requirements:**
-```python
-import tomllib
-with open('requirements/requirements.toml', 'rb') as f:
-    data = tomllib.load(f)
-unverified_critical = {k: v for k, v in data['requirements'].items()
-                       if v.get('priority') == 'C' and v.get('status') != 'verified'}
-for req_id, req in unverified_critical.items():
-    print(f"{req_id} ({req['category']}): {req['description']}")
-```
+# Filter by format
+fd = {k: v for k, v in data['requirements'].items() if 'FB' in v['format']}
 
-**Count by category and side:**
-```python
-import tomllib
-from collections import defaultdict
-with open('requirements/requirements.toml', 'rb') as f:
-    data = tomllib.load(f)
-counts = defaultdict(int)
-for req in data['requirements'].values():
-    counts[(req.get('category'), req.get('side'))] += 1
-for (cat, side), count in sorted(counts.items()):
-    print(f"{cat}/{side}: {count}")
-```
-
-**Filter by format (CB, CE, FB, FE):**
-```python
-import tomllib
-with open('requirements/requirements.toml', 'rb') as f:
-    data = tomllib.load(f)
-fb_reqs = {k: v for k, v in data['requirements'].items()
-           if 'FB' in v.get('format', [])}
-print(f"Found {len(fb_reqs)} FB (FD Basic) requirements")
+# Count by category
+from collections import Counter
+print(Counter(v['category'] for v in data['requirements'].values()))
 ```
 
 ### Updating Requirements
 
-Use Python to read, modify, and write back:
+Use Python regex for bulk field updates (preserves TOML structure and comments):
 
-**Change status of a single requirement:**
 ```python
-import tomllib
-
-# Read
-with open('requirements/requirements.toml', 'rb') as f:
-    data = tomllib.load(f)
-
-# Modify
-data['requirements']['001']['status'] = 'implemented'
-
-# Write back
-import json
-with open('requirements/requirements.toml', 'w') as f:
-    # Convert back to TOML format (or use custom serializer)
-    # For now, use inline TOML editing or consider tomli_w package
-```
-
-**Bulk update all FRM requirements:**
-```python
-import tomllib
-
-with open('requirements/requirements.toml', 'rb') as f:
-    data = tomllib.load(f)
-
-# Update all FRM requirements
-for req in data['requirements'].values():
-    if req.get('category') == 'FRM':
-        req['priority'] = 'H'
-
-# Write back (use regex or tomli_w)
-```
-
-**Mark requirements as verified by category:**
-```python
-import tomllib
 import re
-
 with open('requirements/requirements.toml', 'r') as f:
     content = f.read()
 
-# Use regex to find and update status values for specific category
-# Example: Mark all CRC requirements as verified
-pattern = r'(\[requirements\.\d+\].*?category = "CRC".*?status = )"[^"]*"'
-updated = re.sub(pattern, r'\1"verified"', content, flags=re.DOTALL)
+# Update a single field value across all requirements
+content = re.sub(r'(priority\s*=\s*)"[^"]*"', r'\1"high"', content)
+
+# Update field for a specific requirement (e.g. 005)
+content = re.sub(
+    r'(\[requirements\.005\].*?status\s*=\s*)"[^"]*"',
+    r'\1"verified"', content, flags=re.DOTALL
+)
 
 with open('requirements/requirements.toml', 'w') as f:
-    f.write(updated)
+    f.write(content)
+```
+
+### Deleting Requirements
+
+Use the built-in `--delete` command. This removes the requirement and automatically renumbers all remaining IDs to stay sequential:
+
+```bash
+python requirements/requirements_table.py --toml requirements/requirements.toml --delete 011
+```
+
+This is equivalent to:
+1. Remove requirement 011 (main section + simulation/formal sub-tables)
+2. Renumber 012→011, 013→012, etc. to close the gap
+3. Update the ID range in the file header comment
+
+**Never delete requirements by hand** — use `--delete` to avoid ID gaps and duplicate-key errors.
+
+### Renumbering Requirements
+
+If IDs have gaps (e.g. after manual editing), renumber them sequentially:
+
+```bash
+python requirements/requirements_table.py --toml requirements/requirements.toml --renumber
 ```
 
 ### Exporting Requirements as Tables
 
-Use `python requirements/requirements_table.py` to generate nicely formatted tables:
-
 ```bash
-# Export all requirements to HTML (default)
+# HTML table with sorting and color-coded status/priority (default)
+python requirements/requirements_table.py --toml requirements/requirements.toml
+
+# HTML to specific file
 python requirements/requirements_table.py --toml requirements/requirements.toml --html table.html
 
-# Export to Markdown
+# Markdown table
 python requirements/requirements_table.py --toml requirements/requirements.toml --markdown table.md
 ```
 
 ### Key Points
 
-- **NEVER edit requirements.toml directly** — use Python (`tomllib`) exclusively
-- **Python is reliable**: Built-in library available in Python 3.11+, works reliably with TOML
-- **Use tomllib for reading**: `tomllib.load()` for queries and analysis
-- **Use regex for bulk updates**: For simple bulk modifications, regex with file I/O is faster
-- **Consider tomli_w for complex writes**: For complex updates, use `tomli_w` package to serialize back to TOML
-- **ID format**: Strictly numeric (001–123), with metadata in TOML fields (category, side, status, etc.)
-- **Table export**: Use `requirements_table.py` for formatted HTML/Markdown output
+- **Use Python (`tomllib`) for reading**, regex for bulk field updates
+- **Use `--delete` to remove requirements** — never delete by hand
+- **Use `--renumber` to fix ID gaps** after manual edits
+- **IDs are sequential** (001–NNN) with no gaps; the script maintains this invariant
+- **XL frames are out of scope** — do not add XL-related requirements
+- **All keys and valid values** are documented in the `requirements.toml` header comment
 
 ### Makefile Details
 
