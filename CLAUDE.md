@@ -85,64 +85,89 @@ make clean
 
 ---
 
-## Requirements Search Tool
+## Requirements Management
 
-Search the ISO 11898-1:2015 CAN system requirements from `requirements/requirements.toml`.
+ISO 11898-1:2015 CAN system requirements are tracked in `requirements/requirements.toml` — a human-readable TOML file with requirements organized by category.
 
-### Usage
+### Requirements File Format
 
-**Search by keyword:**
+**File**: `requirements/requirements.toml`
+**Structure**: 63 requirements (IDs: 001–063)
+
+**Categories**:
+- **FRM** : Frame structure, fields, arbitration, control, stuffing, completion
+- **ERR** : Error detection & handling (bit, stuff, form, CRC errors)
+- **TMG** : Bit timing, sample points, TDC compensation
+- **CRC** : CRC polynomial selection and generation
+
+**Each requirement contains**:
+- **Classification Metadata**: category, side (TX), format (CB/CE/FB/FE), priority
+- **Core Specification**: description, ISO reference, acceptance criteria, notes, target_module
+- **Verification Strategy & Status**: verification method (WAVE/CVRG/SIM/ASSERT), status (verified/implemented/unverified/diagnostic)
+- **Simulation/Formal subsections**: test coverage tracking (empty by default)
+
+### Querying Requirements
+
+Use **yq** (standard TOML query tool) for all interactions:
+
+**Filter by category:**
 ```bash
-python scripts/req_search.py --query "CRC"
-python scripts/req_search.py --query "bit stuffing"
+yq '.requirements | with_entries(select(.value.category=="FRM")) | from_entries' requirements.toml
+```
+
+**Find by ID:**
+```bash
+yq '.requirements."001"' requirements.toml
+```
+
+**Search by description:**
+```bash
+yq '.requirements | with_entries(select(.value.description | contains("CRC"))) | from_entries' requirements.toml
 ```
 
 **Filter by status:**
 ```bash
-python scripts/req_search.py --status "Verified"
-python scripts/req_search.py --status "Implemented"
+yq '.requirements | with_entries(select(.value.status=="verified")) | from_entries' requirements.toml
 ```
 
-**Filter by priority:**
+**Get high-priority unverified requirements:**
 ```bash
-python scripts/req_search.py --priority "H"  # High priority
-python scripts/req_search.py --priority "C"  # Critical
+yq '.requirements | with_entries(select(.value.priority=="C" and .value.status!="verified")) | from_entries' requirements.toml
 ```
 
-**Filter by format (CAN type):**
+**Count by category:**
 ```bash
-python scripts/req_search.py --format "FB"  # CAN-FD Basic
-python scripts/req_search.py --format "CE"  # CAN Classic Extended
+yq '.requirements | map(.category) | group_by(.) | map({(.[0]): length}) | add' requirements.toml
 ```
 
-**Get specific requirement:**
+### Updating Requirements
+
+**Change status of a single requirement:**
 ```bash
-python scripts/req_search.py --req-id "FRM001TX"
+yq '.requirements."001".status = "implemented"' requirements.toml -i
 ```
 
-**Combine filters:**
+**Bulk update all FRM requirements:**
 ```bash
-python scripts/req_search.py --query "CRC" --status "Verified" --priority "H"
+yq '(.requirements | with_entries(select(.value.category=="FRM"))[].value).priority = "H"' requirements.toml -i
 ```
 
-**List available values:**
+**Set target_module for category:**
 ```bash
-python scripts/req_search.py --list-statuses
-python scripts/req_search.py --list-priorities
-python scripts/req_search.py --list-formats
+yq '(.requirements | with_entries(select(.value.category=="TMG"))[].value).target_module = "can_mac_tx"' requirements.toml -i
 ```
 
-**View summary statistics:**
+**Clear simulation/formal fields:**
 ```bash
-python scripts/req_search.py --summary
+yq '.requirements[].simulation.test_case = "" | .requirements[].simulation.file = "" | .requirements[].formal.property_label = ""' requirements.toml -i
 ```
 
-### Notes
+### Key Points
 
-- The tool works directly with `requirements.toml` (human-readable TOML format)
-- You can manually edit requirements.toml and the changes are immediately available
-- Search is case-insensitive substring matching
-- When asking Claude about requirements, mention: *"Use the script in scripts/req_search.py to search requirements"*
+- **File is human-readable**: Direct TOML editing is supported
+- **No custom tools required**: Use standard `yq` for all queries/updates
+- **Always preview first**: Run query without `-i` to see results before modifying
+- **Add `-i` to persist changes**: `-i` flag writes modifications back to file
 
 ### Makefile Details
 
