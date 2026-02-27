@@ -18,7 +18,7 @@
   category = "CRC"
   side = "TX"
   format = ["CB", "CE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "CC frames use CRC-15 polynomial"
   iso_reference = "6.6.4.4"
@@ -46,7 +46,7 @@
   category = "CRC"
   side = "TX"
   format = ["FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "FD frames \u226416 bytes: use CRC-17 polynomial"
   iso_reference = "6.6.4.4"
@@ -74,7 +74,7 @@
   category = "CRC"
   side = "TX"
   format = ["FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "FD frames >16 bytes: use CRC-21 polynomial"
   iso_reference = "6.6.4.4"
@@ -102,7 +102,7 @@
   category = "CRC"
   side = "TX"
   format = ["CB", "CE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "CC frames: CRC-15 calculated over SOF + arbitration + control + data; no stuff bits"
   iso_reference = "6.6.4.4, 6.6.10.5"
@@ -130,7 +130,7 @@
   category = "CRC"
   side = "TX"
   format = ["FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "FD frames: CRC-17/21 calculated over SOF + arbitration + control + data + stuff count (SBC) + dynamic stuff bits; no fixed stuff bits"
   iso_reference = "6.6.4.4, 6.6.11.5"
@@ -158,7 +158,7 @@
   category = "CRC"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "M"
+  priority = "A"
 # Core Specification
   description = "CRC initialized: 0x0000 (CRC-15), 0x10000 (CRC-17/21)"
   iso_reference = "6.6.4.4"
@@ -186,7 +186,7 @@
   category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "Bit error: detected when TX bit != monitored bus bit"
   iso_reference = "6.6.21.2"
@@ -214,7 +214,7 @@
   category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "Bit error in arbitration: frame loss (not an error)"
   iso_reference = "6.6.21.3.1"
@@ -242,7 +242,7 @@
   category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "Stuff error: violation of 5-consecutive-bit rule"
   iso_reference = "6.6.21.2"
@@ -270,7 +270,7 @@
   category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "Form error: illegal bit sequence detected"
   iso_reference = "6.6.21.2"
@@ -298,7 +298,7 @@
   category = "ERR"
   side = "TX"
   format = ["XB", "XL-E (Out of Scope)"]
-  priority = "M"
+  priority = "A"
 # Core Specification
   description = "PCRC error: CRC mismatch during arbitration phase (XL frames only)"
   iso_reference = "6.6.21.2"
@@ -326,7 +326,7 @@
   category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "ACK error: no dominant in ACK slot when expected"
   iso_reference = "6.6.21.2"
@@ -354,7 +354,7 @@
   category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "Error flag: 6 consecutive dominant bits (active error)"
   iso_reference = "6.6.5.2"
@@ -382,7 +382,7 @@
   category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "Error flag start: next bit after error detection"
   iso_reference = "6.6.21.3.1"
@@ -410,7 +410,7 @@
   category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "Arbitration phase error: send EF immediately"
   iso_reference = "6.6.21.3.1"
@@ -438,7 +438,7 @@
   category = "ERR"
   side = "TX"
   format = ["FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "Data phase error (FD): switch bit rate back to nominal before EF"
   iso_reference = "6.6.21.3.1"
@@ -466,7 +466,7 @@
   category = "ERR"
   side = "TX"
   format = ["FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "FD data phase error: complete phase after SP where error detected"
   iso_reference = "6.6.21.3.1"
@@ -494,7 +494,7 @@
   category = "ERR"
   side = "TX"
   format = ["FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "FD data-phase error: defer first EF bit until nominal timing is active"
   iso_reference = "6.6.21.3.1"
@@ -522,7 +522,7 @@
   category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "Error delimiter: 8 recessive bits after error flag"
   iso_reference = "6.6.5.3"
@@ -550,7 +550,7 @@
   category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "M"
+  priority = "A"
 # Core Specification
   description = "Intermission after error: 3 recessive bits before next frame"
   iso_reference = "6.6.7.2"
@@ -606,7 +606,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "Frame shall contain SOF, arbitration, control, data (optional), CRC, ACK, EOF"
   iso_reference = "6.6.9"
@@ -634,7 +634,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "DLC field shall match LLC DLC value"
   iso_reference = "6.6.10.3, Table 5"
@@ -662,7 +662,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "Data field byte order: byte 0 first, MSB first"
   iso_reference = "6.6.10.4"
@@ -690,7 +690,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "CRC field shall contain FCRC sequence + delimiter"
   iso_reference = "6.6.10.5, 6.6.11.5"
@@ -718,7 +718,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "ACK field: ACK slot + ACK delimiter (8 bits total)"
   iso_reference = "6.6.10.6"
@@ -746,7 +746,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "EOF shall be 7 recessive bits"
   iso_reference = "6.6.10.7, 6.6.11.7"
@@ -774,7 +774,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "CBFF base ID: 11-bit identifier"
   iso_reference = "6.6.10.2"
@@ -802,7 +802,7 @@
   category = "FRM"
   side = "TX"
   format = ["CE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "CEFF extended ID: 29-bit identifier (11+18)"
   iso_reference = "6.6.10.2"
@@ -830,7 +830,7 @@
   category = "FRM"
   side = "TX"
   format = ["FB"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "FBFF base ID: 11-bit identifier"
   iso_reference = "6.6.11.2"
@@ -858,7 +858,7 @@
   category = "FRM"
   side = "TX"
   format = ["FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "FEFF extended ID: 29-bit identifier (11+18)"
   iso_reference = "6.6.11.2"
@@ -886,7 +886,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "RTR bit: dominant in DF, recessive in RF (CC only)"
   iso_reference = "6.6.10.2"
@@ -914,7 +914,7 @@
   category = "FRM"
   side = "TX"
   format = ["FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "RRS bit: dominant in FBFF/FEFF"
   iso_reference = "6.6.11.2"
@@ -942,7 +942,7 @@
   category = "FRM"
   side = "TX"
   format = ["CE"]
-  priority = "M"
+  priority = "A"
 # Core Specification
   description = "SRR bit: transmitted recessive (CC extended only)"
   iso_reference = "6.6.10.2"
@@ -970,7 +970,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "IDE bit: dominant in CBFF/FBFF, recessive in CEFF/FEFF"
   iso_reference = "6.6.10.2, 6.6.11.2"
@@ -998,7 +998,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "Arbitration ends at RTR/RRS bit; loser becomes receiver"
   iso_reference = "6.6.10.2"
@@ -1026,7 +1026,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "IDE/r1 bit: dominant (CC r0, FD FDF)"
   iso_reference = "6.6.10.3, 6.6.11.3"
@@ -1054,7 +1054,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "r0 bit: dominant in CC frames"
   iso_reference = "6.6.10.3"
@@ -1082,7 +1082,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "FDF bit: recessive for CC, dominant for FD"
   iso_reference = "6.6.11.3"
@@ -1110,7 +1110,7 @@
   category = "FRM"
   side = "TX"
   format = ["FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "res bit: dominant (FD frames only, between FDF and BRS)"
   iso_reference = "6.6.11.3"
@@ -1138,7 +1138,7 @@
   category = "FRM"
   side = "TX"
   format = ["FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "BRS bit: recessive if data phase, dominant otherwise"
   iso_reference = "6.6.11.3"
@@ -1166,7 +1166,7 @@
   category = "FRM"
   side = "TX"
   format = ["FB", "FE"]
-  priority = "M"
+  priority = "A"
 # Core Specification
   description = "ESI bit: polarity based on node error state"
   iso_reference = "6.6.11.3"
@@ -1194,7 +1194,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "Dynamic stuff rule: no more than 4 consecutive bits of same polarity in arb/ctrl/data"
   iso_reference = "6.6.13.2"
@@ -1222,7 +1222,7 @@
   category = "FRM"
   side = "TX"
   format = ["FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "Fixed stuff bits: CAN FD SBC field (Stuff Bit Count)"
   iso_reference = "6.6.13.3"
@@ -1250,7 +1250,7 @@
   category = "FRM"
   side = "TX"
   format = ["FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "Fixed stuff bit positions: every 5th bit in CRC field"
   iso_reference = "6.6.13.3.1"
@@ -1278,7 +1278,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "Stuff bit polarity: opposite of preceding 4 bits"
   iso_reference = "6.6.13.2"
@@ -1306,7 +1306,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "ACK handling: TX sends recessive, expects dominant from receivers"
   iso_reference = "6.6.10.6"
@@ -1334,7 +1334,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "Frame transmitted status: reported after EOF completion"
   iso_reference = "6.4.5.5.5"
@@ -1362,7 +1362,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "Frame abort: on abort request, stop transmission"
   iso_reference = "6.4.5.5.3"
@@ -1390,7 +1390,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "M"
+  priority = "A"
 # Core Specification
   description = "Intermission: 3 recessive bits after EOF"
   iso_reference = "6.6.7.2"
@@ -1418,7 +1418,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "M"
+  priority = "A"
 # Core Specification
   description = "Bus idle: recognized after 11 recessive bits in re-integration"
   iso_reference = "6.6.7.5"
@@ -1446,7 +1446,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "Frame status transitions: idle to transmitting to intermission to idle"
   iso_reference = "6.6.7, 6.6.21"
@@ -1474,7 +1474,7 @@
   category = "TMG"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "Nominal bit time: Sync_Seg + Prop_Seg + Phase_Seg1 + Phase_Seg2"
   iso_reference = "7.2"
@@ -1502,7 +1502,7 @@
   category = "TMG"
   side = "TX"
   format = ["FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "Data bit time (FD only): shorter data_bit_time when BRS recessive"
   iso_reference = "7.2, 7.3.3"
@@ -1530,7 +1530,7 @@
   category = "TMG"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "Sample Point (SP): configurable within bit time"
   iso_reference = "7.2 Table 10"
@@ -1558,7 +1558,7 @@
   category = "TMG"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "M"
+  priority = "A"
 # Core Specification
   description = "Bit time quantization: measured in time quanta (tq)"
   iso_reference = "7.2"
@@ -1586,7 +1586,7 @@
   category = "TMG"
   side = "TX"
   format = ["FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "Data phase entry: at SP of BRS bit when BRS recessive"
   iso_reference = "7.3.3"
@@ -1614,7 +1614,7 @@
   category = "TMG"
   side = "TX"
   format = ["FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "Data phase exit: at SP of CRC delimiter"
   iso_reference = "6.6.21.3.1"
@@ -1642,7 +1642,7 @@
   category = "TMG"
   side = "TX"
   format = ["FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "TDC measurement: at res bit FDF to res edge (FD only)"
   iso_reference = "7.3.4"
@@ -1670,7 +1670,7 @@
   category = "TMG"
   side = "TX"
   format = ["FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "Secondary Sample Point (SSP): configured from TDC measurement"
   iso_reference = "7.3.4"
@@ -1698,7 +1698,7 @@
   category = "TMG"
   side = "TX"
   format = ["FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "TDC error at SSP: detect at following SP"
   iso_reference = "6.6.21.3.1"
@@ -1726,7 +1726,7 @@
   category = "TMG"
   side = "TX"
   format = ["FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "TDC error timing: SSP to SP to IPT to nominal rate back"
   iso_reference = "6.6.21.3.1"
@@ -1754,7 +1754,7 @@
   category = "TMG"
   side = "TX"
   format = ["FB", "FE"]
-  priority = "M"
+  priority = "A"
 # Core Specification
   description = "SSP used for FD data phase bits (not control field)"
   iso_reference = "7.3.4"
@@ -1787,7 +1787,7 @@
   category = "FRM"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Detect SOF (dominant bit during bus idle or at intermission bit 3) to begin frame reception"
   iso_reference = "6.6.8"
@@ -1815,7 +1815,7 @@
   category = "FRM"
   side = "RX"
   format = ["CB", "CE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Detect frame format (CBFF vs CEFF) by sampling IDE bit in arbitration field"
   iso_reference = "6.6.10.2"
@@ -1843,7 +1843,7 @@
   category = "FRM"
   side = "RX"
   format = ["FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Detect FD frame format (FBFF vs FEFF) by sampling FDF bit recessive during arbitration"
   iso_reference = "6.6.11.3"
@@ -1871,7 +1871,7 @@
   category = "FRM"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Receive and deserialize arbitration field bits (identifier, RTR/RRS, IDE, SRR) in the correct order MSB first"
   iso_reference = "6.6.16"
@@ -1899,7 +1899,7 @@
   category = "FRM"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Extract DLC from control field and determine expected data field length"
   iso_reference = "6.6.10.3"
@@ -1927,7 +1927,7 @@
   category = "FRM"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Remove dynamic stuff bits from received bit stream (de-stuffing)"
   iso_reference = "6.6.13.2"
@@ -1955,7 +1955,7 @@
   category = "FRM"
   side = "RX"
   format = ["FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Remove fixed stuff bits from FD CRC field (de-stuffing at fixed positions)"
   iso_reference = "6.6.13.3.1"
@@ -1983,7 +1983,7 @@
   category = "FRM"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Receive data field bytes sequentially (byte 0 first, MSB first within each byte)"
   iso_reference = "6.6.10.4"
@@ -2011,7 +2011,7 @@
   category = "FRM"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Validate received frame by monitoring all fields up to last-but-one bit of EOF without error"
   iso_reference = "6.6.15.2"
@@ -2039,7 +2039,7 @@
   category = "FRM"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "RX: Perform frame acceptance filtering to decide if received frame is relevant to this node"
   iso_reference = "6.5.4"
@@ -2067,7 +2067,7 @@
   category = "FRM"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Deliver validated LLC frame to LLC sub-layer via L_Data.Indication service"
   iso_reference = "6.4.5.5.5"
@@ -2095,7 +2095,7 @@
   category = "FRM"
   side = "RX"
   format = ["FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "RX: Switch bit rate from nominal to FD data rate at sample point of BRS bit when BRS=recessive"
   iso_reference = "6.6.11.3"
@@ -2123,7 +2123,7 @@
   category = "FRM"
   side = "RX"
   format = ["FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Extract and verify Stuff Bit Count (SBC) from FD CRC field header (Gray-coded with parity)"
   iso_reference = "6.6.11.5"
@@ -2155,7 +2155,7 @@
   category = "FRM"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Transmit dominant ACK bit in ACK slot after receiving consistent frame (CRC match, no errors)"
   iso_reference = "6.6.14"
@@ -2183,7 +2183,7 @@
   category = "FRM"
   side = "RX"
   format = ["FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "RX: Tolerate up to two-bit dominant phase overlapping ACK slot in FD frames (compensate phase shifts between receivers)"
   iso_reference = "6.6.11.6"
@@ -2211,7 +2211,7 @@
   category = "FRM"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "RX: Do not transmit dominant ACK when CRC error detected (withhold acknowledgement)"
   iso_reference = "6.6.21.3.1"
@@ -2243,7 +2243,7 @@
   category = "ERR"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Detect stuff error when six consecutive bits of same polarity appear in dynamically-stuffed field"
   iso_reference = "6.6.21.2"
@@ -2271,7 +2271,7 @@
   category = "ERR"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Detect form error when fixed-form bit fields contain unexpected values"
   iso_reference = "6.6.21.2"
@@ -2299,7 +2299,7 @@
   category = "ERR"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Detect FCRC error when receiver-calculated CRC does not match received CRC sequence"
   iso_reference = "6.6.21.2"
@@ -2327,7 +2327,7 @@
   category = "ERR"
   side = "RX"
   format = ["FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Detect SBC mismatch in FD frames (received stuff count does not match receiver-counted dynamic stuff bits)"
   iso_reference = "6.6.21.2"
@@ -2355,7 +2355,7 @@
   category = "ERR"
   side = "RX"
   format = ["FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "RX: Detect form error when fixed stuff bit in FD CRC field has same value as its preceding bit"
   iso_reference = "6.6.13.3.1"
@@ -2387,7 +2387,7 @@
   category = "ERR"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Transmit active error flag (6 dominant bits) immediately after detecting any error when node is error-active"
   iso_reference = "6.6.21.3.1"
@@ -2415,7 +2415,7 @@
   category = "ERR"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Transmit passive error flag (6 recessive bits) after detecting error when node is error-passive"
   iso_reference = "6.6.5.2"
@@ -2443,7 +2443,7 @@
   category = "ERR"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Transmit error delimiter (8 recessive bits) after error flag completion"
   iso_reference = "6.6.5.3"
@@ -2471,7 +2471,7 @@
   category = "ERR"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Send FCRC-error EF at start of EOF for CC/XL frames; 3 bit-times after CRC delimiter for FD frames"
   iso_reference = "6.6.21.3.1"
@@ -2499,7 +2499,7 @@
   category = "ERR"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "RX: Send overload frame when dominant bit detected at last bit of EOF"
   iso_reference = "6.6.21.3.2"
@@ -2531,7 +2531,7 @@
   category = "CRC"
   side = "RX"
   format = ["CB", "CE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Calculate CRC-15 over received CC frame bit stream (SOF + arb + ctrl + data, no stuff bits) and compare to received CRC field"
   iso_reference = "6.6.4.4"
@@ -2559,7 +2559,7 @@
   category = "CRC"
   side = "RX"
   format = ["FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Calculate CRC-17 over received FD frame bit stream for frames with <= 16 data bytes and compare to received CRC sequence"
   iso_reference = "6.6.4.4"
@@ -2587,7 +2587,7 @@
   category = "CRC"
   side = "RX"
   format = ["FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Calculate CRC-21 over received FD frame bit stream for frames with > 16 data bytes and compare to received CRC sequence"
   iso_reference = "6.6.4.4"
@@ -2615,7 +2615,7 @@
   category = "CRC"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Start CRC calculation concurrently at SOF for all applicable CRC polynomials; select correct CRC based on detected frame format and DLC"
   iso_reference = "6.6.4.4"
@@ -2643,7 +2643,7 @@
   category = "CRC"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "RX: Use correct CRC init vector per polynomial: 0x0000 for CRC-15; MSB-only-1 for CRC-17 and CRC-21"
   iso_reference = "6.6.4.4"
@@ -2675,7 +2675,7 @@
   category = "TMG"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Perform hard synchronization on dominant-edge at SOF (first recessive-to-dominant transition during bus idle)"
   iso_reference = "7.3.5.3"
@@ -2703,7 +2703,7 @@
   category = "TMG"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "RX: Perform bit resynchronization on recessive-to-dominant edges during frame reception (one synchronization per bit time)"
   iso_reference = "7.3.5.4"
@@ -2731,7 +2731,7 @@
   category = "TMG"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "RX: Sample received bits at configured sample point (end of Phase_Seg1)"
   iso_reference = "7.3.2"
@@ -2759,7 +2759,7 @@
   category = "TMG"
   side = "RX"
   format = ["FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "RX: Hard synchronize at FDF-to-res bit edge when receiving FD frame (arbitration to data phase transition)"
   iso_reference = "7.3.5.3"
@@ -2787,7 +2787,7 @@
   category = "TMG"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "RX: Configure separate bit time parameters (Sync_Seg, Prop_Seg, Phase_Seg1, Phase_Seg2, SJW) for nominal and data rates"
   iso_reference = "7.3.3"
@@ -2815,7 +2815,7 @@
   category = "TMG"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "RX: Detect bus re-integration idle condition (11 consecutive recessive bits) after protocol exception event or bus-off recovery"
   iso_reference = "6.6.7.5"
@@ -2847,7 +2847,7 @@
   category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "FCE: Maintain transmit error counter (TEC) and receive error counter (REC) per fault confinement rules"
   iso_reference = "8.1.4.2"
@@ -2875,7 +2875,7 @@
   category = "ERR"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "FCE: Increment REC by 1 when receiver detects any error (except bit error during active error/overload flag transmission)"
   iso_reference = "8.1.4.2"
@@ -2903,7 +2903,7 @@
   category = "ERR"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "FCE: Increment REC by 8 when receiver detects dominant bit as first bit after sending error flag"
   iso_reference = "8.1.4.2"
@@ -2931,7 +2931,7 @@
   category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "FCE: Increment TEC by 8 when transmitter sends error flag (with two exceptions for error-passive ACK and pre-arbitration stuff errors)"
   iso_reference = "8.1.4.2"
@@ -2959,7 +2959,7 @@
   category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "FCE: Decrement TEC by 1 after successful frame transmission (ACK received, no error through EOF)"
   iso_reference = "8.1.4.2"
@@ -2987,7 +2987,7 @@
   category = "ERR"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "FCE: Decrement REC by 1 after successful frame reception (no error to ACK slot, ACK sent successfully)"
   iso_reference = "8.1.4.2"
@@ -3015,7 +3015,7 @@
   category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "FCE: Transition from error-active to error-passive when TEC or REC exceeds 127"
   iso_reference = "8.1.4.3"
@@ -3043,7 +3043,7 @@
   category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "FCE: Transition from error-passive to error-active when both TEC and REC are <= 127"
   iso_reference = "8.1.4.3"
@@ -3071,7 +3071,7 @@
   category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "FCE: Enter bus-off state when TEC exceeds 255; stop all bus activity"
   iso_reference = "8.1.4.4"
@@ -3099,7 +3099,7 @@
   category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "FCE: Recover from bus-off after 128 occurrences of 11 consecutive recessive bits; reset both error counters to zero"
   iso_reference = "8.1.4.4"
@@ -3131,7 +3131,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "TX: Observe 3-bit recessive intermission field before starting next frame transmission"
   iso_reference = "6.6.7.2"
@@ -3159,7 +3159,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "C"
+  priority = "A"
 # Core Specification
   description = "TX: Error-passive transmitter observes 8-bit suspend transmission period after intermission before accessing bus"
   iso_reference = "6.6.7.4"
@@ -3187,7 +3187,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "TX: Re-arbitrate (restart) frame transmission after losing arbitration without LLC error notification"
   iso_reference = "6.5.2"
@@ -3215,7 +3215,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "TX: Retransmit frame after error or non-acknowledgement up to configured retransmission limit"
   iso_reference = "6.5.3"
@@ -3243,7 +3243,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "TX: Transmit overload frame (OF) when requested by LLC to delay next DF/RF; maximum two LLC-requested OFs"
   iso_reference = "6.6.21.3.2"
@@ -3271,7 +3271,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "TX: Transmit reactive overload frame when dominant bit detected at intermission bit 1 or 2"
   iso_reference = "6.6.21.3.2"
@@ -3299,7 +3299,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "TX: Detect protocol exception event when FD-tolerant node receives recessive r0/r1 bit (unexpected frame format indicator)"
   iso_reference = "6.6.10.3"
@@ -3327,7 +3327,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "TX: Report Transfer_Status to LLC sub-layer for each transmission outcome (Ongoing, Lost_Arbitration, Transmitted, Aborted, Disturbed)"
   iso_reference = "6.5.6"
@@ -3355,7 +3355,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "TX: During node start-up, attempt transmission and tolerate ACK error becoming error-passive without going bus-off"
   iso_reference = "8.1.5"
@@ -3383,7 +3383,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "M"
+  priority = "A"
 # Core Specification
   description = "TX: Support restricted operation mode: receive DFs/RFs and ACK valid frames; do not transmit DFs/RFs; treat error/overload conditions as protocol exception events"
   iso_reference = "6.6.19"
@@ -3411,7 +3411,7 @@
   category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "M"
+  priority = "A"
 # Core Specification
   description = "TX: Support bus monitoring mode: receive valid frames but transmit only recessive bits; reroute required dominant bits (ACK, error flag) internally"
   iso_reference = "6.6.20"
@@ -3439,7 +3439,7 @@
   category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "TX: Increment TEC by 8 when transmitter detects bit error during active error flag or overload flag transmission"
   iso_reference = "8.1.4.2"
@@ -3467,7 +3467,7 @@
   category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "H"
+  priority = "A"
 # Core Specification
   description = "FCE: Tolerate up to 7 consecutive dominant bits after error flag; increment TEC/REC by 8 after each additional 8 dominant bits beyond 14 (active) or 8 (passive)"
   iso_reference = "8.1.4.2"
