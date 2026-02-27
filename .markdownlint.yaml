@@ -17,6 +17,8 @@ MD033: false
 # Don't require blank lines around lists
 MD032: false
 
+MD060: false
+
 MD004: 
   style: "dash"
 MD007:

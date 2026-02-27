@@ -83,6 +83,67 @@ gtkwave sim/can_pkg_tb.ghw gtk_wave/can_pkg_tb.gtkw
 make clean
 ```
 
+---
+
+## Requirements Search Tool
+
+Search the ISO 11898-1:2015 CAN system requirements from `requirements/requirements.toml`.
+
+### Usage
+
+**Search by keyword:**
+```bash
+python scripts/req_search.py --query "CRC"
+python scripts/req_search.py --query "bit stuffing"
+```
+
+**Filter by status:**
+```bash
+python scripts/req_search.py --status "Verified"
+python scripts/req_search.py --status "Implemented"
+```
+
+**Filter by priority:**
+```bash
+python scripts/req_search.py --priority "H"  # High priority
+python scripts/req_search.py --priority "C"  # Critical
+```
+
+**Filter by format (CAN type):**
+```bash
+python scripts/req_search.py --format "FB"  # CAN-FD Basic
+python scripts/req_search.py --format "CE"  # CAN Classic Extended
+```
+
+**Get specific requirement:**
+```bash
+python scripts/req_search.py --req-id "FRM001TX"
+```
+
+**Combine filters:**
+```bash
+python scripts/req_search.py --query "CRC" --status "Verified" --priority "H"
+```
+
+**List available values:**
+```bash
+python scripts/req_search.py --list-statuses
+python scripts/req_search.py --list-priorities
+python scripts/req_search.py --list-formats
+```
+
+**View summary statistics:**
+```bash
+python scripts/req_search.py --summary
+```
+
+### Notes
+
+- The tool works directly with `requirements.toml` (human-readable TOML format)
+- You can manually edit requirements.toml and the changes are immediately available
+- Search is case-insensitive substring matching
+- When asking Claude about requirements, mention: *"Use the script in scripts/req_search.py to search requirements"*
+
 ### Makefile Details
 
 - **Compilation order**: Packages → leaf modules → dependent modules → mac_tx (last)

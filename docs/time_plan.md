@@ -9,13 +9,15 @@ hr {
 </style>
 
 <!-- omit in toc -->
+
 # B.Eng Thesis Project Plan
 
 **Author:** Mads Richardt, s224948
 
-<hr />
+---
 
 <!-- omit in toc -->
+
 ## Table of Contents
 
 - [Document Overview](#document-overview)
@@ -119,11 +121,11 @@ gantt
 
 ## Risks and Mitigation Strategies
 
-| Risk | Mitigation |
+|Risk|Mitigation|
 |:---|:---|
-| Project schedule slips due to underestimated tasks or unforeseen issues. | Build in buffer time. Review progress weekly. Prioritize critical tasks early. |
-| Report writing takes longer than expected. | Maintain ongoing documentation. Set internal deadlines for drafts. Seek feedback regularly. |
-| Late discovery of design or verification issues. | Develop and follow a detailed verification plan. Run regression tests frequently. Review design with advisors. |
-| Python reference model development takes longer than expected. | Limit reference model to essential features (CRC reference, frame generator, bit stuffing check). Prototype early. Plan for integration testing with hardware and ensure tools are compatible with the target environment. |
-| Hardware integration or testing reveals unexpected issues. | Plan for early integration testing. Coordinate with company advisor for access to hardware and test environments. Document hardware requirements and constraints. |
-| External factors (e.g., family emergencies, advisor availability) impact timeline. | Maintain flexibility. Communicate proactively with stakeholders. Adjust plan as needed. |
+|Project schedule slips due to underestimated tasks or unforeseen issues.|Build in buffer time. Review progress weekly. Prioritize critical tasks|
+|Report writing takes longer than expected.|Maintain ongoing documentation. Set internal deadlines for drafts. Seek feedback regularly.|
+|Late discovery of design or verification issues.|Develop and follow a detailed verification plan. Run regression tests frequently. Review design with advisors.|
+| Python reference model development takes longer than expected.|Limit reference model to essential features (CRC reference, frame generator, bit stuffing check). Prototype early. Plan for integration testing with hardware and ensure tools are compatible with the target environment.| 
+|Hardware integration or testing reveals unexpected issues.|Plan for early integration testing. Coordinate with company advisor for access to hardware and test environments. Document hardware requirements and constraints.|
+| External factors (e.g., family emergencies, advisor availability) impact timeline. | Maintain flexibility. Communicate proactively with stakeholders. Adjust plan as needed.|

@@ -1,784 +1,1779 @@
-# CAN System Requirements
-# ID format: {CATEGORY}{NNN}{SIDE}
+# ISO reference: ISO 11898-1:2015
 #
-# Categories: FRM=Frame/Arb/Control/Stuffing/Completion
-#             TMG=Bit Timing & TDC
-#             ERR=Error Detection & Handling
-#             CRC=CRC Generation
+# Categories:
+#   FRM: Frame structure, fields, arbitration, control, stuffing, completion
+#   ERR: Error detection & handling (bit, stuff, form, CRC errors)
+#   TMG: Bit timing, sample points, TDC compensation
+#   CRC: CRC polynomial selection and generation
 #
-# Side:       TX=Transmitter  RX=Receiver
+# Side:     TX = Transmitter
 #
-# Format:     CB=Classic Basic  CE=Classic Extended
-#             FB=FD Basic       FE=FD Extended
-
-# ============================================================
-# FRAME FORMAT, ARBITRATION, CONTROL & COMPLETION
+# Format:   CB = Classic Basic       CE = Classic Extended
+#           FB = FD Basic            FE = FD Extended
+#
 # ============================================================
 
-[requirements.FRM001TX]
-description        = "SOF shall be 1 dominant bit marking frame start"
-iso_reference      = "6.6.8"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = ""
-tests              = "T1, T4, T5"
-acceptance_criteria = "SOF always dominant, exactly 1 bit"
-verification       = "WAVE"
-dependencies       = []
-notes              = "Every frame starts with SOF"
-
-[requirements.FRM002TX]
-description        = "Frame shall contain SOF, arbitration, control, data (optional), CRC, ACK, EOF"
-iso_reference      = "6.6.9"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T1"
-acceptance_criteria = "All fields present in correct order"
-verification       = "ASSERT"
-dependencies       = ["FRM001TX"]
-notes              = "Field ordering critical"
-
-[requirements.FRM003TX]
-description        = "DLC field shall match LLC DLC value"
-iso_reference      = "6.6.10.3, Table 5"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T1"
-acceptance_criteria = "DLC encoded correctly per table"
-verification       = "CVRG"
-dependencies       = []
-notes              = "Maps to data length"
-
-[requirements.FRM004TX]
-description        = "Data field byte order: byte 0 first, MSB first"
-iso_reference      = "6.6.10.4"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T1"
-acceptance_criteria = "Bytes transmitted sequentially"
-verification       = "SIM"
-dependencies       = []
-notes              = "8 bits per byte"
-
-[requirements.FRM005TX]
-description        = "CRC field shall contain FCRC sequence + delimiter"
-iso_reference      = "6.6.10.5, 6.6.11.5"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Implemented"
-priority           = "H"
-tests              = "None"
-acceptance_criteria = "CRC bits correct, delimiter recessive"
-verification       = "WAVE"
-dependencies       = ["CRC001TX"]
-notes              = "Polynomial selection"
-
-[requirements.FRM006TX]
-description        = "ACK field: ACK slot + ACK delimiter (8 bits total)"
-iso_reference      = "6.6.10.6"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "H"
-tests              = "T1, T11"
-acceptance_criteria = "TX sends recessive, monitors for dominant"
-verification       = "WAVE"
-dependencies       = []
-notes              = "Part of frame completion"
-
-[requirements.FRM007TX]
-description        = "EOF shall be 7 recessive bits"
-iso_reference      = "6.6.10.7, 6.6.11.7"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T1"
-acceptance_criteria = "EOF always recessive, 7 bits"
-verification       = "WAVE"
-dependencies       = []
-notes              = "Marks frame end"
-
-[requirements.FRM008TX]
-description        = "CBFF base ID: 11-bit identifier"
-iso_reference      = "6.6.10.2"
-format             = ["CB"]
-status             = "Verified"
-priority           = "C"
-tests              = "T1"
-acceptance_criteria = "ID bits 10-0 transmitted MSB first"
-verification       = "CVRG"
-dependencies       = []
-notes              = "CC Basic only"
-
-[requirements.FRM009TX]
-description        = "CEFF extended ID: 29-bit identifier (11+18)"
-iso_reference      = "6.6.10.2"
-format             = ["CE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T4"
-acceptance_criteria = "Base ID (11-bit) + extended ID (18-bit)"
-verification       = "CVRG"
-dependencies       = []
-notes              = "CC Extended only"
-
-[requirements.FRM010TX]
-description        = "FBFF base ID: 11-bit identifier"
-iso_reference      = "6.6.11.2"
-format             = ["FB"]
-status             = "Verified"
-priority           = "C"
-tests              = "T5"
-acceptance_criteria = "ID bits 10-0 transmitted MSB first"
-verification       = "CVRG"
-dependencies       = []
-notes              = "FD Basic only"
-
-[requirements.FRM011TX]
-description        = "FEFF extended ID: 29-bit identifier (11+18)"
-iso_reference      = "6.6.11.2"
-format             = ["FE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T6"
-acceptance_criteria = "Base ID (11-bit) + extended ID (18-bit)"
-verification       = "CVRG"
-dependencies       = []
-notes              = "FD Extended only"
-
-[requirements.FRM012TX]
-description        = "RTR bit: dominant in DF, recessive in RF (CC only)"
-iso_reference      = "6.6.10.2"
-format             = ["CB", "CE"]
-status             = "Verified"
-priority           = "H"
-tests              = "T1"
-acceptance_criteria = "Correct polarity based on frame type"
-verification       = "CVRG"
-dependencies       = []
-notes              = "CAN Classic only"
-
-[requirements.FRM013TX]
-description        = "RRS bit: dominant in FBFF/FEFF"
-iso_reference      = "6.6.11.2"
-format             = ["FB", "FE"]
-status             = "Verified"
-priority           = "H"
-tests              = "T5, T6"
-acceptance_criteria = "RRS always dominant"
-verification       = "CVRG"
-dependencies       = []
-notes              = "CAN FD only"
-
-[requirements.FRM014TX]
-description        = "SRR bit: transmitted recessive (CC extended only)"
-iso_reference      = "6.6.10.2"
-format             = ["CE"]
-status             = "Verified"
-priority           = "M"
-tests              = "T4"
-acceptance_criteria = "SRR bit always recessive"
-verification       = "CVRG"
-dependencies       = []
-notes              = "Arbitration helper bit"
-
-[requirements.FRM015TX]
-description        = "IDE bit: dominant in CBFF/FBFF, recessive in CEFF/FEFF"
-iso_reference      = "6.6.10.2, 6.6.11.2"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T1, T4, T5, T6"
-acceptance_criteria = "Correct polarity based on format"
-verification       = "CVRG"
-dependencies       = []
-notes              = "Format indicator"
-
-[requirements.FRM016TX]
-description        = "Arbitration ends at RTR/RRS bit; loser becomes receiver"
-iso_reference      = "6.6.10.2"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T12"
-acceptance_criteria = "FSM transitions to receive on arbitration loss"
-verification       = "SIM"
-dependencies       = []
-notes              = "Arbitration loss withdrawal"
-
-[requirements.FRM017TX]
-description        = "IDE/r1 bit: dominant (CC r0, FD FDF)"
-iso_reference      = "6.6.10.3, 6.6.11.3"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T1"
-acceptance_criteria = "Control field bits correct polarity"
-verification       = "CVRG"
-dependencies       = []
-notes              = "Format control bits"
-
-[requirements.FRM018TX]
-description        = "r0 bit: dominant in CC frames"
-iso_reference      = "6.6.10.3"
-format             = ["CB", "CE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T1"
-acceptance_criteria = "r0 always dominant"
-verification       = "CVRG"
-dependencies       = []
-notes              = "CAN Classic only"
-
-[requirements.FRM019TX]
-description        = "FDF bit: recessive for CC, dominant for FD"
-iso_reference      = "6.6.11.3"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T1, T5"
-acceptance_criteria = "Correct format indicator"
-verification       = "CVRG"
-dependencies       = []
-notes              = "Differentiates CC/FD"
-
-[requirements.FRM020TX]
-description        = "res bit: dominant (FD frames only, between FDF and BRS)"
-iso_reference      = "6.6.11.3"
-format             = ["FB", "FE"]
-status             = "Verified"
-priority           = "H"
-tests              = "T5, T6, T14"
-acceptance_criteria = "res bit always dominant"
-verification       = "CVRG"
-dependencies       = []
-notes              = "FD format only"
-
-[requirements.FRM021TX]
-description        = "BRS bit: recessive if data phase, dominant otherwise"
-iso_reference      = "6.6.11.3"
-format             = ["FB", "FE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T5, T6, T14"
-acceptance_criteria = "Polarity matches config"
-verification       = "CVRG"
-dependencies       = []
-notes              = "Enables bit rate switch"
-
-[requirements.FRM022TX]
-description        = "ESI bit: polarity based on node error state"
-iso_reference      = "6.6.11.3"
-format             = ["FB", "FE"]
-status             = "Implemented"
-priority           = "M"
-tests              = "None"
-acceptance_criteria = "ESI=dominant (error-active), recessive (error-passive)"
-verification       = "CVRG"
-dependencies       = []
-notes              = "Error state indicator"
-
-[requirements.FRM023TX]
-description        = "Dynamic stuff rule: no more than 4 consecutive bits of same polarity in arb/ctrl/data"
-iso_reference      = "6.6.13.2"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T7"
-acceptance_criteria = "Stuff bit inserted after 4 same bits"
-verification       = "CVRG"
-dependencies       = []
-notes              = "5-in-a-row rule"
-
-[requirements.FRM024TX]
-description        = "Fixed stuff bits: CAN FD SBC field (Stuff Bit Count)"
-iso_reference      = "6.6.13.3"
-format             = ["FB", "FE"]
-status             = "Verified"
-priority           = "H"
-tests              = "None"
-acceptance_criteria = "SBC field contains stuff count"
-verification       = "CVRG"
-dependencies       = []
-notes              = "FD frames only"
-
-[requirements.FRM025TX]
-description        = "Fixed stuff bit positions: every 5th bit in CRC field"
-iso_reference      = "6.6.13.3.1"
-format             = ["FB", "FE"]
-status             = "Implemented"
-priority           = "H"
-tests              = "None"
-acceptance_criteria = "Positions calculated correctly"
-verification       = "CVRG"
-dependencies       = []
-notes              = "FD CRC field"
-
-[requirements.FRM026TX]
-description        = "Stuff bit polarity: opposite of preceding 4 bits"
-iso_reference      = "6.6.13.2"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "H"
-tests              = "T7"
-acceptance_criteria = "Stuff bit correct"
-verification       = "CVRG"
-dependencies       = ["FRM023TX"]
-notes              = "Dynamic stuffing"
-
-[requirements.FRM027TX]
-description        = "ACK handling: TX sends recessive, expects dominant from receivers"
-iso_reference      = "6.6.10.6"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T1, T11"
-acceptance_criteria = "ACK slot monitoring logic"
-verification       = "SIM"
-dependencies       = []
-notes              = "Frame acknowledgement"
-
-[requirements.FRM028TX]
-description        = "Frame transmitted status: reported after EOF completion"
-iso_reference      = "6.4.5.5.5"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T1"
-acceptance_criteria = "Transfer_status=transmitted signal"
-verification       = "SIM"
-dependencies       = []
-notes              = "LLC notification"
-
-[requirements.FRM029TX]
-description        = "Frame abort: on abort request, stop transmission"
-iso_reference      = "6.4.5.5.3"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T2, T3"
-acceptance_criteria = "FSM transitions to idle"
-verification       = "SIM"
-dependencies       = []
-notes              = "Abort handling"
-
-[requirements.FRM030TX]
-description        = "Intermission: 3 recessive bits after EOF"
-iso_reference      = "6.6.7.2"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Implemented"
-priority           = "M"
-tests              = "None"
-acceptance_criteria = "Intermission state"
-verification       = "SIM"
-dependencies       = []
-notes              = "Recovery phase"
-
-[requirements.FRM031TX]
-description        = "Bus idle: recognized after 11 recessive bits in re-integration"
-iso_reference      = "6.6.7.5"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Implemented"
-priority           = "M"
-tests              = "None"
-acceptance_criteria = "Re-integration counter"
-verification       = "SIM"
-dependencies       = []
-notes              = "Idle detection"
-
-[requirements.FRM032TX]
-description        = "Frame status transitions: idle to transmitting to intermission to idle"
-iso_reference      = "6.6.7, 6.6.21"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T1"
-acceptance_criteria = "FSM state machine flow"
-verification       = "SIM"
-dependencies       = []
-notes              = "State management"
-
-# ============================================================
-# BIT TIMING & TRANSMITTER DELAY COMPENSATION
-# ============================================================
-
-[requirements.TMG001TX]
-description        = "Nominal bit time: Sync_Seg + Prop_Seg + Phase_Seg1 + Phase_Seg2"
-iso_reference      = "7.2"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Implemented"
-priority           = "H"
-tests              = "None"
-acceptance_criteria = "Bit timing per Table 10/11"
-verification       = "SIM"
-dependencies       = []
-notes              = "Arbitration phase"
-
-[requirements.TMG002TX]
-description        = "Data bit time (FD only): shorter data_bit_time when BRS recessive"
-iso_reference      = "7.2, 7.3.3"
-format             = ["FB", "FE"]
-status             = "Implemented"
-priority           = "H"
-tests              = "T14"
-acceptance_criteria = "Bit time switches at BRS SP"
-verification       = "SIM"
-dependencies       = ["FRM021TX"]
-notes              = "FD frames only"
-
-[requirements.TMG003TX]
-description        = "Sample Point (SP): configurable within bit time"
-iso_reference      = "7.2 Table 10"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Implemented"
-priority           = "H"
-tests              = "None"
-acceptance_criteria = "SP pulse at correct position"
-verification       = "SIM"
-dependencies       = ["TMG001TX"]
-notes              = "Per configuration"
-
-[requirements.TMG004TX]
-description        = "Bit time quantization: measured in time quanta (tq)"
-iso_reference      = "7.2"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Implemented"
-priority           = "M"
-tests              = "None"
-acceptance_criteria = "Prescaler sets tq length"
-verification       = "SIM"
-dependencies       = []
-notes              = "Clock division"
-
-[requirements.TMG005TX]
-description        = "Data phase entry: at SP of BRS bit when BRS recessive"
-iso_reference      = "7.3.3"
-format             = ["FB", "FE"]
-status             = "Implemented"
-priority           = "C"
-tests              = "T14"
-acceptance_criteria = "State transition to data phase"
-verification       = "SIM"
-dependencies       = ["TMG002TX"]
-notes              = "FD frames, BRS=recessive"
-
-[requirements.TMG006TX]
-description        = "Data phase exit: at SP of CRC delimiter"
-iso_reference      = "6.6.21.3.1"
-format             = ["FB", "FE"]
-status             = "Implemented"
-priority           = "C"
-tests              = "None"
-acceptance_criteria = "State transition back to nominal"
-verification       = "SIM"
-dependencies       = []
-notes              = "FD frames only"
-
-[requirements.TMG007TX]
-description        = "TDC measurement: at res bit FDF to res edge (FD only)"
-iso_reference      = "7.3.4"
-format             = ["FB", "FE"]
-status             = "Implemented"
-priority           = "H"
-tests              = "T14"
-acceptance_criteria = "Delay measured at res bit SP"
-verification       = "SIM"
-dependencies       = []
-notes              = "Recently fixed (Issue B)"
-
-[requirements.TMG008TX]
-description        = "Secondary Sample Point (SSP): configured from TDC measurement"
-iso_reference      = "7.3.4"
-format             = ["FB", "FE"]
-status             = "Implemented"
-priority           = "H"
-tests              = "None"
-acceptance_criteria = "SSP position calculated per config"
-verification       = "SIM"
-dependencies       = ["TMG007TX"]
-notes              = "Within bit time"
-
-[requirements.TMG009TX]
-description        = "TDC error at SSP: detect at following SP"
-iso_reference      = "6.6.21.3.1"
-format             = ["FB", "FE"]
-status             = "Diagnostic"
-priority           = "H"
-tests              = "T5"
-acceptance_criteria = "Error confirmed at SP after SSP"
-verification       = "SIM"
-dependencies       = []
-notes              = "TDC error path - Test 5 diagnostic (waveform inspection)"
-
-[requirements.TMG010TX]
-description        = "TDC error timing: SSP to SP to IPT to nominal rate back"
-iso_reference      = "6.6.21.3.1"
-format             = ["FB", "FE"]
-status             = "Diagnostic"
-priority           = "H"
-tests              = "T6"
-acceptance_criteria = "Bit timing sequence correct"
-verification       = "WAVE"
-dependencies       = ["TMG009TX"]
-notes              = "Complex timing - Test 6 diagnostic (multi-signal analysis)"
-
-[requirements.TMG011TX]
-description        = "SSP used for FD data phase bits (not control field)"
-iso_reference      = "7.3.4"
-format             = ["FB", "FE"]
-status             = "Implemented"
-priority           = "M"
-tests              = "None"
-acceptance_criteria = "SSP only in data phase"
-verification       = "SIM"
-dependencies       = []
-notes              = "ESI excluded from SSP"
-
-# ============================================================
-# ERROR DETECTION & HANDLING
-# ============================================================
-
-[requirements.ERR001TX]
-description        = "Bit error: detected when TX bit != monitored bus bit"
-iso_reference      = "6.6.21.2"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T2"
-acceptance_criteria = "Comparison triggered at SP/SSP"
-verification       = "SIM"
-dependencies       = []
-notes              = "Monitoring logic - VERIFIED (polarity mismatch detected)"
-
-[requirements.ERR002TX]
-description        = "Bit error in arbitration: frame loss (not an error)"
-iso_reference      = "6.6.21.3.1"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T12"
-acceptance_criteria = "FSM withdraws to receiver mode"
-verification       = "SIM"
-dependencies       = []
-notes              = "Arbitration loss handling"
-
-[requirements.ERR003TX]
-description        = "Stuff error: violation of 5-consecutive-bit rule"
-iso_reference      = "6.6.21.2"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "H"
-tests              = "T6"
-acceptance_criteria = "Stuff rule check during TX"
-verification       = "CVRG"
-dependencies       = []
-notes              = "Detected at bit level"
-
-[requirements.ERR004TX]
-description        = "Form error: illegal bit sequence detected"
-iso_reference      = "6.6.21.2"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Not Applicable"
-priority           = "H"
-tests              = "None"
-acceptance_criteria = "TX ignores form errors per 6.6.21.3.1; RX-side only"
-verification       = "CVRG"
-dependencies       = []
-notes              = "TX ignores form errors (SOF to AH2); caught as bit errors"
-
-[requirements.ERR005TX]
-description        = "PCRC error: CRC mismatch during arbitration phase (XL frames only)"
-iso_reference      = "6.6.21.2"
-format             = ["XB", "XL-E (Out of Scope)"]
-status             = "Not Applicable"
-priority           = "M"
-tests              = "N/A"
-acceptance_criteria = "N/A - XL frames not in current scope"
-verification       = "N/A"
-dependencies       = []
-notes              = "XL frame feature - Project scope: ISO 11898-1:2015 CC/FD only"
-
-[requirements.ERR006TX]
-description        = "ACK error: no dominant in ACK slot when expected"
-iso_reference      = "6.6.21.2"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "H"
-tests              = "T1"
-acceptance_criteria = "ACK slot monitoring"
-verification       = "SIM"
-dependencies       = []
-notes              = "TX monitors for ACK - VERIFIED"
-
-[requirements.ERR007TX]
-description        = "Error flag: 6 consecutive dominant bits (active error)"
-iso_reference      = "6.6.5.2"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T9"
-acceptance_criteria = "EF format correct"
-verification       = "WAVE"
-dependencies       = []
-notes              = "Error signalling"
-
-[requirements.ERR008TX]
-description        = "Error flag start: next bit after error detection"
-iso_reference      = "6.6.21.3.1"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T9"
-acceptance_criteria = "FSM state transitions to transmitting_error_flag"
-verification       = "SIM"
-dependencies       = ["ERR007TX"]
-notes              = "Timing critical"
-
-[requirements.ERR009TX]
-description        = "Arbitration phase error: send EF immediately"
-iso_reference      = "6.6.21.3.1"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T7"
-acceptance_criteria = "EF triggered at arb error"
-verification       = "SIM"
-dependencies       = ["ERR007TX"]
-notes              = "Stuff errors in arb"
-
-[requirements.ERR010TX]
-description        = "Data phase error (FD): switch bit rate back to nominal before EF"
-iso_reference      = "6.6.21.3.1"
-format             = ["FB", "FE"]
-status             = "Diagnostic"
-priority           = "C"
-tests              = "T3"
-acceptance_criteria = "Bit time switches data to nominal"
-verification       = "WAVE"
-dependencies       = ["TMG002TX"]
-notes              = "Test 3 implemented - requires waveform inspection for verification"
-
-[requirements.ERR011TX]
-description        = "FD data phase error: complete phase after SP where error detected"
-iso_reference      = "6.6.21.3.1"
-format             = ["FB", "FE"]
-status             = "Diagnostic"
-priority           = "H"
-tests              = "T4"
-acceptance_criteria = "Data phase finishes at SP"
-verification       = "SIM"
-dependencies       = []
-notes              = "FD only - Test 4 diagnostic (waveform inspection)"
-
-[requirements.ERR012TX]
-description        = "FD data-phase error: defer first EF bit until nominal timing is active"
-iso_reference      = "6.6.21.3.1"
-format             = ["FB", "FE"]
-status             = "Verified"
-priority           = "H"
-tests              = "T7"
-acceptance_criteria = "First EF bit appears only after nominal-rate handover"
-verification       = "SIM"
-dependencies       = ["ERR010TX"]
-notes              = "Explicit assertion-based check in tx_error_detection_tb"
-
-[requirements.ERR013TX]
-description        = "Error delimiter: 8 recessive bits after error flag"
-iso_reference      = "6.6.5.3"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Implemented"
-priority           = "H"
-tests              = "None"
-acceptance_criteria = "Delimiter format correct"
-verification       = "SIM"
-dependencies       = ["ERR007TX"]
-notes              = "Follows error flag"
-
-[requirements.ERR014TX]
-description        = "Intermission after error: 3 recessive bits before next frame"
-iso_reference      = "6.6.7.2"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Implemented"
-priority           = "M"
-tests              = "None"
-acceptance_criteria = "Intermission timing"
-verification       = "SIM"
-dependencies       = []
-notes              = "Recovery sequence"
-
-# ============================================================
-# CRC GENERATION & HANDLING
-# ============================================================
-
-[requirements.CRC001TX]
-description        = "CC frames use CRC-15 polynomial"
-iso_reference      = "6.6.4.4"
-format             = ["CB", "CE"]
-status             = "Verified"
-priority           = "C"
-tests              = "T1"
-acceptance_criteria = "CRC-15 (0xC599) applied"
-verification       = "CVRG"
-dependencies       = []
-notes              = "Classic frames"
-
-[requirements.CRC002TX]
-description        = "FD frames ≤16 bytes: use CRC-17 polynomial"
-iso_reference      = "6.6.4.4"
-format             = ["FB", "FE"]
-status             = "Implemented"
-priority           = "C"
-tests              = "None"
-acceptance_criteria = "CRC-17 (0x3685B) for small payloads"
-verification       = "CVRG"
-dependencies       = []
-notes              = "FD selection logic"
-
-[requirements.CRC003TX]
-description        = "FD frames >16 bytes: use CRC-21 polynomial"
-iso_reference      = "6.6.4.4"
-format             = ["FB", "FE"]
-status             = "Implemented"
-priority           = "C"
-tests              = "None"
-acceptance_criteria = "CRC-21 (0x302899) for large payloads"
-verification       = "CVRG"
-dependencies       = []
-notes              = "FD selection logic"
-
-[requirements.CRC004TX]
-description        = "CRC calculated over: SOF + arb + ctrl + data (no stuff bits)"
-iso_reference      = "6.6.4.4"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Verified"
-priority           = "H"
-tests              = "None"
-acceptance_criteria = "Correct bit stream selected"
-verification       = "CVRG"
-dependencies       = []
-notes              = "Excludes stuff bits"
-
-[requirements.CRC005TX]
-description        = "CRC initialized: 0x0000 (CRC-15), 0x10000 (CRC-17/21)"
-iso_reference      = "6.6.4.4"
-format             = ["CB", "CE", "FB", "FE"]
-status             = "Implemented"
-priority           = "M"
-tests              = "None"
-acceptance_criteria = "Init vector per polynomial"
-verification       = "CVRG"
-dependencies       = []
-notes              = "Hamming distance 6"
-
-[requirements.CRC006TX]
-description        = "Provisional CRC (PCRC): calculated in arbitration phase (XL frames only)"
-iso_reference      = "6.6.12.3 (XL ref)"
-format             = ["XB", "XL-E (Out of Scope)"]
-status             = "Not Applicable"
-priority           = "M"
-tests              = "None"
-acceptance_criteria = "N/A - XL frames not in current scope"
-verification       = "N/A"
-dependencies       = []
-notes              = "XL frame feature - Project scope: ISO 11898-1:2015 CC/FD only"
+[requirements.001]
+# Classification Metadata
+  category = "CRC"
+  side = "TX"
+  format = ["CB", "CE"]
+  priority = "C"
+# Core Specification
+  description = "CC frames use CRC-15 polynomial"
+  iso_reference = "6.6.4.4"
+  acceptance_criteria = "CRC-15 (0xC599) applied"
+  notes = "Classic frames"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.001.simulation]
+  test_case = "T1"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.001.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.002]
+# Classification Metadata
+  category = "CRC"
+  side = "TX"
+  format = ["FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "FD frames \u226416 bytes: use CRC-17 polynomial"
+  iso_reference = "6.6.4.4"
+  acceptance_criteria = "CRC-17 (0x3685B) for small payloads"
+  notes = "FD selection logic"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "implemented"
+
+[requirements.002.simulation]
+  test_case = "None"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.002.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.003]
+# Classification Metadata
+  category = "CRC"
+  side = "TX"
+  format = ["FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "FD frames >16 bytes: use CRC-21 polynomial"
+  iso_reference = "6.6.4.4"
+  acceptance_criteria = "CRC-21 (0x302899) for large payloads"
+  notes = "FD selection logic"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "implemented"
+
+[requirements.003.simulation]
+  test_case = "None"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.003.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.004]
+# Classification Metadata
+  category = "CRC"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "CRC calculated over: SOF + arb + ctrl + data (no stuff bits)"
+  iso_reference = "6.6.4.4"
+  acceptance_criteria = "Correct bit stream selected"
+  notes = "Excludes stuff bits"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.004.simulation]
+  test_case = "None"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.004.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.005]
+# Classification Metadata
+  category = "CRC"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "M"
+# Core Specification
+  description = "CRC initialized: 0x0000 (CRC-15), 0x10000 (CRC-17/21)"
+  iso_reference = "6.6.4.4"
+  acceptance_criteria = "Init vector per polynomial"
+  notes = "Hamming distance 6"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "implemented"
+
+[requirements.005.simulation]
+  test_case = "None"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.005.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.006]
+# Classification Metadata
+  category = "CRC"
+  side = "TX"
+  format = ["XB", "XL-E (Out of Scope)"]
+  priority = "M"
+# Core Specification
+  description = "Provisional CRC (PCRC): calculated in arbitration phase (XL frames only)"
+  iso_reference = "6.6.12.3 (XL ref)"
+  acceptance_criteria = "N/A - XL frames not in current scope"
+  notes = "XL frame feature - Project scope: ISO 11898-1:2015 CC/FD only"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "N/A"
+  verification_method = ["simulation", "formal"]
+  status = "not applicable"
+
+[requirements.006.simulation]
+  test_case = "None"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.006.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.007]
+# Classification Metadata
+  category = "ERR"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "Bit error: detected when TX bit != monitored bus bit"
+  iso_reference = "6.6.21.2"
+  acceptance_criteria = "Comparison triggered at SP/SSP"
+  notes = "Monitoring logic - VERIFIED (polarity mismatch detected)"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.007.simulation]
+  test_case = "T2"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.007.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.008]
+# Classification Metadata
+  category = "ERR"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "Bit error in arbitration: frame loss (not an error)"
+  iso_reference = "6.6.21.3.1"
+  acceptance_criteria = "FSM withdraws to receiver mode"
+  notes = "Arbitration loss handling"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.008.simulation]
+  test_case = "T12"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.008.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.009]
+# Classification Metadata
+  category = "ERR"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "Stuff error: violation of 5-consecutive-bit rule"
+  iso_reference = "6.6.21.2"
+  acceptance_criteria = "Stuff rule check during TX"
+  notes = "Detected at bit level"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.009.simulation]
+  test_case = "T6"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.009.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.010]
+# Classification Metadata
+  category = "ERR"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "Form error: illegal bit sequence detected"
+  iso_reference = "6.6.21.2"
+  acceptance_criteria = "TX ignores form errors per 6.6.21.3.1; RX-side only"
+  notes = "TX ignores form errors (SOF to AH2); caught as bit errors"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "not applicable"
+
+[requirements.010.simulation]
+  test_case = "None"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.010.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.011]
+# Classification Metadata
+  category = "ERR"
+  side = "TX"
+  format = ["XB", "XL-E (Out of Scope)"]
+  priority = "M"
+# Core Specification
+  description = "PCRC error: CRC mismatch during arbitration phase (XL frames only)"
+  iso_reference = "6.6.21.2"
+  acceptance_criteria = "N/A - XL frames not in current scope"
+  notes = "XL frame feature - Project scope: ISO 11898-1:2015 CC/FD only"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "N/A"
+  verification_method = ["simulation", "formal"]
+  status = "not applicable"
+
+[requirements.011.simulation]
+  test_case = "N/A"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.011.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.012]
+# Classification Metadata
+  category = "ERR"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "ACK error: no dominant in ACK slot when expected"
+  iso_reference = "6.6.21.2"
+  acceptance_criteria = "ACK slot monitoring"
+  notes = "TX monitors for ACK - VERIFIED"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.012.simulation]
+  test_case = "T1"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.012.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.013]
+# Classification Metadata
+  category = "ERR"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "Error flag: 6 consecutive dominant bits (active error)"
+  iso_reference = "6.6.5.2"
+  acceptance_criteria = "EF format correct"
+  notes = "Error signalling"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "WAVE"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.013.simulation]
+  test_case = "T9"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.013.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.014]
+# Classification Metadata
+  category = "ERR"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "Error flag start: next bit after error detection"
+  iso_reference = "6.6.21.3.1"
+  acceptance_criteria = "FSM state transitions to transmitting_error_flag"
+  notes = "Timing critical"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.014.simulation]
+  test_case = "T9"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.014.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.015]
+# Classification Metadata
+  category = "ERR"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "Arbitration phase error: send EF immediately"
+  iso_reference = "6.6.21.3.1"
+  acceptance_criteria = "EF triggered at arb error"
+  notes = "Stuff errors in arb"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.015.simulation]
+  test_case = "T7"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.015.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.016]
+# Classification Metadata
+  category = "ERR"
+  side = "TX"
+  format = ["FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "Data phase error (FD): switch bit rate back to nominal before EF"
+  iso_reference = "6.6.21.3.1"
+  acceptance_criteria = "Bit time switches data to nominal"
+  notes = "Test 3 implemented - requires waveform inspection for verification"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "WAVE"
+  verification_method = ["simulation", "formal"]
+  status = "diagnostic"
+
+[requirements.016.simulation]
+  test_case = "T3"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.016.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.017]
+# Classification Metadata
+  category = "ERR"
+  side = "TX"
+  format = ["FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "FD data phase error: complete phase after SP where error detected"
+  iso_reference = "6.6.21.3.1"
+  acceptance_criteria = "Data phase finishes at SP"
+  notes = "FD only - Test 4 diagnostic (waveform inspection)"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "diagnostic"
+
+[requirements.017.simulation]
+  test_case = "T4"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.017.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.018]
+# Classification Metadata
+  category = "ERR"
+  side = "TX"
+  format = ["FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "FD data-phase error: defer first EF bit until nominal timing is active"
+  iso_reference = "6.6.21.3.1"
+  acceptance_criteria = "First EF bit appears only after nominal-rate handover"
+  notes = "Explicit assertion-based check in tx_error_detection_tb"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.018.simulation]
+  test_case = "T7"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.018.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.019]
+# Classification Metadata
+  category = "ERR"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "Error delimiter: 8 recessive bits after error flag"
+  iso_reference = "6.6.5.3"
+  acceptance_criteria = "Delimiter format correct"
+  notes = "Follows error flag"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "implemented"
+
+[requirements.019.simulation]
+  test_case = "None"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.019.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.020]
+# Classification Metadata
+  category = "ERR"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "M"
+# Core Specification
+  description = "Intermission after error: 3 recessive bits before next frame"
+  iso_reference = "6.6.7.2"
+  acceptance_criteria = "Intermission timing"
+  notes = "Recovery sequence"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "implemented"
+
+[requirements.020.simulation]
+  test_case = "None"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.020.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.021]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = ""
+# Core Specification
+  description = "SOF shall be 1 dominant bit marking frame start"
+  iso_reference = "6.6.8"
+  acceptance_criteria = "SOF always dominant, exactly 1 bit"
+  notes = "Every frame starts with SOF"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "WAVE"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.021.simulation]
+  test_case = "T1, T4, T5"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.021.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.022]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "Frame shall contain SOF, arbitration, control, data (optional), CRC, ACK, EOF"
+  iso_reference = "6.6.9"
+  acceptance_criteria = "All fields present in correct order"
+  notes = "Field ordering critical"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "ASSERT"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.022.simulation]
+  test_case = "T1"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.022.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.023]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "DLC field shall match LLC DLC value"
+  iso_reference = "6.6.10.3, Table 5"
+  acceptance_criteria = "DLC encoded correctly per table"
+  notes = "Maps to data length"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.023.simulation]
+  test_case = "T1"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.023.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.024]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "Data field byte order: byte 0 first, MSB first"
+  iso_reference = "6.6.10.4"
+  acceptance_criteria = "Bytes transmitted sequentially"
+  notes = "8 bits per byte"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.024.simulation]
+  test_case = "T1"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.024.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.025]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "CRC field shall contain FCRC sequence + delimiter"
+  iso_reference = "6.6.10.5, 6.6.11.5"
+  acceptance_criteria = "CRC bits correct, delimiter recessive"
+  notes = "Polynomial selection"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "WAVE"
+  verification_method = ["simulation", "formal"]
+  status = "implemented"
+
+[requirements.025.simulation]
+  test_case = "None"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.025.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.026]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "ACK field: ACK slot + ACK delimiter (8 bits total)"
+  iso_reference = "6.6.10.6"
+  acceptance_criteria = "TX sends recessive, monitors for dominant"
+  notes = "Part of frame completion"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "WAVE"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.026.simulation]
+  test_case = "T1, T11"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.026.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.027]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "EOF shall be 7 recessive bits"
+  iso_reference = "6.6.10.7, 6.6.11.7"
+  acceptance_criteria = "EOF always recessive, 7 bits"
+  notes = "Marks frame end"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "WAVE"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.027.simulation]
+  test_case = "T1"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.027.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.028]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB"]
+  priority = "C"
+# Core Specification
+  description = "CBFF base ID: 11-bit identifier"
+  iso_reference = "6.6.10.2"
+  acceptance_criteria = "ID bits 10-0 transmitted MSB first"
+  notes = "CC Basic only"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.028.simulation]
+  test_case = "T1"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.028.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.029]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CE"]
+  priority = "C"
+# Core Specification
+  description = "CEFF extended ID: 29-bit identifier (11+18)"
+  iso_reference = "6.6.10.2"
+  acceptance_criteria = "Base ID (11-bit) + extended ID (18-bit)"
+  notes = "CC Extended only"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.029.simulation]
+  test_case = "T4"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.029.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.030]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["FB"]
+  priority = "C"
+# Core Specification
+  description = "FBFF base ID: 11-bit identifier"
+  iso_reference = "6.6.11.2"
+  acceptance_criteria = "ID bits 10-0 transmitted MSB first"
+  notes = "FD Basic only"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.030.simulation]
+  test_case = "T5"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.030.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.031]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["FE"]
+  priority = "C"
+# Core Specification
+  description = "FEFF extended ID: 29-bit identifier (11+18)"
+  iso_reference = "6.6.11.2"
+  acceptance_criteria = "Base ID (11-bit) + extended ID (18-bit)"
+  notes = "FD Extended only"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.031.simulation]
+  test_case = "T6"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.031.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.032]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE"]
+  priority = "H"
+# Core Specification
+  description = "RTR bit: dominant in DF, recessive in RF (CC only)"
+  iso_reference = "6.6.10.2"
+  acceptance_criteria = "Correct polarity based on frame type"
+  notes = "CAN Classic only"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.032.simulation]
+  test_case = "T1"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.032.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.033]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "RRS bit: dominant in FBFF/FEFF"
+  iso_reference = "6.6.11.2"
+  acceptance_criteria = "RRS always dominant"
+  notes = "CAN FD only"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.033.simulation]
+  test_case = "T5, T6"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.033.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.034]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CE"]
+  priority = "M"
+# Core Specification
+  description = "SRR bit: transmitted recessive (CC extended only)"
+  iso_reference = "6.6.10.2"
+  acceptance_criteria = "SRR bit always recessive"
+  notes = "Arbitration helper bit"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.034.simulation]
+  test_case = "T4"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.034.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.035]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "IDE bit: dominant in CBFF/FBFF, recessive in CEFF/FEFF"
+  iso_reference = "6.6.10.2, 6.6.11.2"
+  acceptance_criteria = "Correct polarity based on format"
+  notes = "Format indicator"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.035.simulation]
+  test_case = "T1, T4, T5, T6"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.035.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.036]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "Arbitration ends at RTR/RRS bit; loser becomes receiver"
+  iso_reference = "6.6.10.2"
+  acceptance_criteria = "FSM transitions to receive on arbitration loss"
+  notes = "Arbitration loss withdrawal"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.036.simulation]
+  test_case = "T12"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.036.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.037]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "IDE/r1 bit: dominant (CC r0, FD FDF)"
+  iso_reference = "6.6.10.3, 6.6.11.3"
+  acceptance_criteria = "Control field bits correct polarity"
+  notes = "Format control bits"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.037.simulation]
+  test_case = "T1"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.037.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.038]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE"]
+  priority = "C"
+# Core Specification
+  description = "r0 bit: dominant in CC frames"
+  iso_reference = "6.6.10.3"
+  acceptance_criteria = "r0 always dominant"
+  notes = "CAN Classic only"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.038.simulation]
+  test_case = "T1"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.038.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.039]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "FDF bit: recessive for CC, dominant for FD"
+  iso_reference = "6.6.11.3"
+  acceptance_criteria = "Correct format indicator"
+  notes = "Differentiates CC/FD"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.039.simulation]
+  test_case = "T1, T5"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.039.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.040]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "res bit: dominant (FD frames only, between FDF and BRS)"
+  iso_reference = "6.6.11.3"
+  acceptance_criteria = "res bit always dominant"
+  notes = "FD format only"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.040.simulation]
+  test_case = "T5, T6, T14"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.040.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.041]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "BRS bit: recessive if data phase, dominant otherwise"
+  iso_reference = "6.6.11.3"
+  acceptance_criteria = "Polarity matches config"
+  notes = "Enables bit rate switch"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.041.simulation]
+  test_case = "T5, T6, T14"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.041.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.042]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["FB", "FE"]
+  priority = "M"
+# Core Specification
+  description = "ESI bit: polarity based on node error state"
+  iso_reference = "6.6.11.3"
+  acceptance_criteria = "ESI=dominant (error-active), recessive (error-passive)"
+  notes = "Error state indicator"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "implemented"
+
+[requirements.042.simulation]
+  test_case = "None"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.042.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.043]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "Dynamic stuff rule: no more than 4 consecutive bits of same polarity in arb/ctrl/data"
+  iso_reference = "6.6.13.2"
+  acceptance_criteria = "Stuff bit inserted after 4 same bits"
+  notes = "5-in-a-row rule"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.043.simulation]
+  test_case = "T7"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.043.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.044]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "Fixed stuff bits: CAN FD SBC field (Stuff Bit Count)"
+  iso_reference = "6.6.13.3"
+  acceptance_criteria = "SBC field contains stuff count"
+  notes = "FD frames only"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.044.simulation]
+  test_case = "None"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.044.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.045]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "Fixed stuff bit positions: every 5th bit in CRC field"
+  iso_reference = "6.6.13.3.1"
+  acceptance_criteria = "Positions calculated correctly"
+  notes = "FD CRC field"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "implemented"
+
+[requirements.045.simulation]
+  test_case = "None"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.045.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.046]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "Stuff bit polarity: opposite of preceding 4 bits"
+  iso_reference = "6.6.13.2"
+  acceptance_criteria = "Stuff bit correct"
+  notes = "Dynamic stuffing"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "CVRG"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.046.simulation]
+  test_case = "T7"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.046.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.047]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "ACK handling: TX sends recessive, expects dominant from receivers"
+  iso_reference = "6.6.10.6"
+  acceptance_criteria = "ACK slot monitoring logic"
+  notes = "Frame acknowledgement"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.047.simulation]
+  test_case = "T1, T11"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.047.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.048]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "Frame transmitted status: reported after EOF completion"
+  iso_reference = "6.4.5.5.5"
+  acceptance_criteria = "Transfer_status=transmitted signal"
+  notes = "LLC notification"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.048.simulation]
+  test_case = "T1"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.048.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.049]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "Frame abort: on abort request, stop transmission"
+  iso_reference = "6.4.5.5.3"
+  acceptance_criteria = "FSM transitions to idle"
+  notes = "Abort handling"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.049.simulation]
+  test_case = "T2, T3"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.049.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.050]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "M"
+# Core Specification
+  description = "Intermission: 3 recessive bits after EOF"
+  iso_reference = "6.6.7.2"
+  acceptance_criteria = "Intermission state"
+  notes = "Recovery phase"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "implemented"
+
+[requirements.050.simulation]
+  test_case = "None"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.050.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.051]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "M"
+# Core Specification
+  description = "Bus idle: recognized after 11 recessive bits in re-integration"
+  iso_reference = "6.6.7.5"
+  acceptance_criteria = "Re-integration counter"
+  notes = "Idle detection"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "implemented"
+
+[requirements.051.simulation]
+  test_case = "None"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.051.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.052]
+# Classification Metadata
+  category = "FRM"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "Frame status transitions: idle to transmitting to intermission to idle"
+  iso_reference = "6.6.7, 6.6.21"
+  acceptance_criteria = "FSM state machine flow"
+  notes = "State management"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "verified"
+
+[requirements.052.simulation]
+  test_case = "T1"
+  file = ""
+  passed = true
+  coverage = "100%"
+
+[requirements.052.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.053]
+# Classification Metadata
+  category = "TMG"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "Nominal bit time: Sync_Seg + Prop_Seg + Phase_Seg1 + Phase_Seg2"
+  iso_reference = "7.2"
+  acceptance_criteria = "Bit timing per Table 10/11"
+  notes = "Arbitration phase"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "implemented"
+
+[requirements.053.simulation]
+  test_case = "None"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.053.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.054]
+# Classification Metadata
+  category = "TMG"
+  side = "TX"
+  format = ["FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "Data bit time (FD only): shorter data_bit_time when BRS recessive"
+  iso_reference = "7.2, 7.3.3"
+  acceptance_criteria = "Bit time switches at BRS SP"
+  notes = "FD frames only"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "implemented"
+
+[requirements.054.simulation]
+  test_case = "T14"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.054.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.055]
+# Classification Metadata
+  category = "TMG"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "Sample Point (SP): configurable within bit time"
+  iso_reference = "7.2 Table 10"
+  acceptance_criteria = "SP pulse at correct position"
+  notes = "Per configuration"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "implemented"
+
+[requirements.055.simulation]
+  test_case = "None"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.055.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.056]
+# Classification Metadata
+  category = "TMG"
+  side = "TX"
+  format = ["CB", "CE", "FB", "FE"]
+  priority = "M"
+# Core Specification
+  description = "Bit time quantization: measured in time quanta (tq)"
+  iso_reference = "7.2"
+  acceptance_criteria = "Prescaler sets tq length"
+  notes = "Clock division"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "implemented"
+
+[requirements.056.simulation]
+  test_case = "None"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.056.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.057]
+# Classification Metadata
+  category = "TMG"
+  side = "TX"
+  format = ["FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "Data phase entry: at SP of BRS bit when BRS recessive"
+  iso_reference = "7.3.3"
+  acceptance_criteria = "State transition to data phase"
+  notes = "FD frames, BRS=recessive"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "implemented"
+
+[requirements.057.simulation]
+  test_case = "T14"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.057.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.058]
+# Classification Metadata
+  category = "TMG"
+  side = "TX"
+  format = ["FB", "FE"]
+  priority = "C"
+# Core Specification
+  description = "Data phase exit: at SP of CRC delimiter"
+  iso_reference = "6.6.21.3.1"
+  acceptance_criteria = "State transition back to nominal"
+  notes = "FD frames only"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "implemented"
+
+[requirements.058.simulation]
+  test_case = "None"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.058.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.059]
+# Classification Metadata
+  category = "TMG"
+  side = "TX"
+  format = ["FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "TDC measurement: at res bit FDF to res edge (FD only)"
+  iso_reference = "7.3.4"
+  acceptance_criteria = "Delay measured at res bit SP"
+  notes = "Recently fixed (Issue B)"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "implemented"
+
+[requirements.059.simulation]
+  test_case = "T14"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.059.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.060]
+# Classification Metadata
+  category = "TMG"
+  side = "TX"
+  format = ["FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "Secondary Sample Point (SSP): configured from TDC measurement"
+  iso_reference = "7.3.4"
+  acceptance_criteria = "SSP position calculated per config"
+  notes = "Within bit time"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "implemented"
+
+[requirements.060.simulation]
+  test_case = "None"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.060.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.061]
+# Classification Metadata
+  category = "TMG"
+  side = "TX"
+  format = ["FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "TDC error at SSP: detect at following SP"
+  iso_reference = "6.6.21.3.1"
+  acceptance_criteria = "Error confirmed at SP after SSP"
+  notes = "TDC error path - Test 5 diagnostic (waveform inspection)"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "diagnostic"
+
+[requirements.061.simulation]
+  test_case = "T5"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.061.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.062]
+# Classification Metadata
+  category = "TMG"
+  side = "TX"
+  format = ["FB", "FE"]
+  priority = "H"
+# Core Specification
+  description = "TDC error timing: SSP to SP to IPT to nominal rate back"
+  iso_reference = "6.6.21.3.1"
+  acceptance_criteria = "Bit timing sequence correct"
+  notes = "Complex timing - Test 6 diagnostic (multi-signal analysis)"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "WAVE"
+  verification_method = ["simulation", "formal"]
+  status = "diagnostic"
+
+[requirements.062.simulation]
+  test_case = "T6"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.062.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
+[requirements.063]
+# Classification Metadata
+  category = "TMG"
+  side = "TX"
+  format = ["FB", "FE"]
+  priority = "M"
+# Core Specification
+  description = "SSP used for FD data phase bits (not control field)"
+  iso_reference = "7.3.4"
+  acceptance_criteria = "SSP only in data phase"
+  notes = "ESI excluded from SSP"
+  target_module = ""
+# Verification Strategy & Status
+  verification = "SIM"
+  verification_method = ["simulation", "formal"]
+  status = "implemented"
+
+[requirements.063.simulation]
+  test_case = "None"
+  file = ""
+  passed = false
+  coverage = "0%"
+
+[requirements.063.formal]
+  property_label = ""
+  file = ""
+  depth_reached = 0
+
