@@ -35,11 +35,22 @@ src/                    # Design and testbench VHDL files
 ├── shift_reg.vhd       # Shift register utility
 └── crc_fd.vhd          # CRC calculation for CAN-FD
 
+mcp_tools/              # Model Context Protocol servers (extensible)
+├── __init__.py         # Package initialization
+├── requirements.txt    # MCP tools dependencies
+├── requirements_manager.py  # Requirements TOML management server
+└── [future tools]      # Additional MCP servers (analysis, simulation, etc.)
+
 gtk_wave/               # GTKWave configuration files
 docs/                   # Documentation and standards reference
 ├── md_out/              # Searchable markdown versions of standards (ISO 11898-1, etc.)
 OsvvmLibraries/         # OSVVM simulation framework (external)
 sim/                    # Generated simulation artifacts
+requirements/           # Requirements specification and tooling
+├── requirements.toml   # 122 ISO 11898-1:2015 requirements (CC/FD)
+├── requirements_table.py # Export to HTML/Markdown tables
+├── mcp_requirements.txt # [DEPRECATED - use mcp_tools/requirements.txt]
+└── mcp_server_config_example.md # [DEPRECATED - see MCP Configuration below]
 ```
 
 ---
@@ -200,6 +211,116 @@ python requirements/requirements_table.py --toml requirements/requirements.toml 
 - **IDs are sequential** (001–NNN) with no gaps; the script maintains this invariant
 - **XL frames are out of scope** — do not add XL-related requirements
 - **All keys and valid values** are documented in the `requirements.toml` header comment
+
+---
+
+## MCP Tool Configuration
+
+### Overview
+
+MCP servers are located in `mcp_tools/` for easy discovery and extensibility. Each tool is a standalone Python server that handles a specific domain (requirements, simulation analysis, coverage reporting, etc.).
+
+### Setup
+
+**Install dependencies (one-time):**
+
+```bash
+pip install -r mcp_tools/requirements.txt
+```
+
+### Claude Code Integration
+
+Add to Claude Code settings (`~/.claude/settings.json` or via UI):
+
+```json
+{
+  "mcpServers": {
+    "requirements": {
+      "command": "python",
+      "args": ["-m", "mcp_tools.requirements_manager"]
+    }
+  }
+}
+```
+
+Or specify full path:
+
+```json
+{
+  "mcpServers": {
+    "requirements": {
+      "command": "python",
+      "args": ["/absolute/path/to/beng_thesis/mcp_tools/requirements_manager.py"]
+    }
+  }
+}
+```
+
+### Available Tools
+
+#### requirements_manager
+
+**Purpose**: Safe, atomic operations on requirements.toml
+
+**Tools provided**:
+- `query_requirements` — Filter by category, side, status, priority, verification
+- `update_requirement` — Update single field with validation
+- `bulk_update` — Update multiple requirements matching filters
+- `delete_requirement` — Delete and auto-renumber
+- `renumber_requirements` — Fix ID gaps
+- `get_statistics` — Count by category/side/status/priority
+
+**Example usage**:
+```
+Query all unverified CRC requirements
+Call: query_requirements(category="CRC", status="unverified")
+
+Set all critical requirements to target_module = "tx_mac_ser.vhd"
+Call: bulk_update(field="target_module", value="tx_mac_ser.vhd", priority="critical")
+
+Delete requirement 011 and renumber
+Call: delete_requirement(req_id="011")
+```
+
+### Adding New MCP Tools
+
+**Pattern** (add to `mcp_tools/`):
+
+1. Create `mcp_tools/my_tool.py`
+2. Implement using Claude MCP SDK
+3. Add to settings.json mcpServers
+4. Update `mcp_tools/__init__.py` documentation
+
+**Example**:
+```python
+# mcp_tools/analysis_server.py
+from mcp.server import Server
+import logging
+
+logger = logging.getLogger(__name__)
+server = Server("analysis")
+
+@server.list_tools()
+async def list_tools():
+    return [Tool(...)]
+
+@server.call_tool()
+async def call_tool(name: str, arguments: dict):
+    # Implementation
+    pass
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(server.main())
+```
+
+### Benefits
+
+✅ **Centralized** — All tools in one folder, easy to discover
+✅ **Extensible** — Add new tools without modifying core code
+✅ **Safe** — MCP servers enforce type safety, validation, logging
+✅ **Auditable** — All changes logged with timestamps
+✅ **Isolated** — Each tool has its own dependencies and scope
 
 ### Makefile Details
 

@@ -1,0 +1,5 @@
+# MCP Tools Dependencies
+# Install with: pip install -r mcp_tools/requirements.txt
+
+mcp>=0.1.0
+tomli-w>=1.0.0
