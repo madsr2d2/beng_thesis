@@ -509,14 +509,15 @@ async def call_tool(name: str, arguments: dict) -> CallToolResult:
         )
 
 
-async def main():
-    """Run MCP server"""
-    logger.info("Starting Requirements Manager MCP Server")
-    async with server:
-        logger.info("Server running. Waiting for tool calls...")
-
-
 if __name__ == "__main__":
     import asyncio
+    from mcp.server.stdio import stdio_server as create_stdio_server
 
-    asyncio.run(main())
+    async def run_server():
+        logger.info("Starting Requirements Manager MCP Server")
+        # Server communicates with Claude Code via stdio
+        async with create_stdio_server() as (read_stream, write_stream):
+            logger.info("Server ready")
+            await server.run(read_stream, write_stream, server.create_initialization_options())
+
+    asyncio.run(run_server())
