@@ -22,8 +22,6 @@ This is a B.Eng thesis project implementing a **CAN (Controller Area Network) bu
 ## Directory Structure
 
 ```
-mcp.json                # MCP server configuration (auto-loaded by Claude Code)
-
 src/                    # Design and testbench VHDL files
 ├── can_pkg.vhd         # Core CAN definitions, types, utility functions
 ├── can_pkg_tb.vhd      # Unit tests (29 tests, all passing)
@@ -232,7 +230,7 @@ pip install -r mcp_tools/requirements.txt
 
 **Auto-discovery (Recommended):**
 
-Claude Code automatically loads `mcp.json` from the project root. The configuration is in `mcp.json`:
+Claude Code automatically loads `.claude/mcp.json` from the project `.claude/` directory. The configuration is in `.claude/mcp.json`:
 
 ```json
 {
@@ -249,24 +247,7 @@ Claude Code automatically loads `mcp.json` from the project root. The configurat
 }
 ```
 
-**Manual configuration (if needed):**
-
-Add to `~/.claude/settings.json`:
-
-```json
-{
-  "mcpServers": {
-    "requirements": {
-      "command": "python",
-      "args": ["-m", "mcp_tools.requirements_manager"],
-      "cwd": "/path/to/beng_thesis",
-      "env": {
-        "PYTHONPATH": "/path/to/beng_thesis"
-      }
-    }
-  }
-}
-```
+Claude Code discovers and loads this configuration automatically when opening the project — no manual setup required.
 
 ### Available Tools
 
