@@ -230,24 +230,24 @@ pip install -r mcp_tools/requirements.txt
 
 **Auto-discovery (Recommended):**
 
-Claude Code automatically loads `.claude/mcp.json` from the project `.claude/` directory. The configuration is in `.claude/mcp.json`:
+Claude Code automatically loads `.mcp.json` from the project root. The configuration is in `.mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "requirements": {
+      "type": "stdio",
       "command": "python",
       "args": ["-m", "mcp_tools.requirements_manager"],
-      "cwd": "${workspaceRoot}",
       "env": {
-        "PYTHONPATH": "${workspaceRoot}"
+        "PYTHONPATH": "${PWD}"
       }
     }
   }
 }
 ```
 
-Claude Code discovers and loads this configuration automatically when opening the project — no manual setup required.
+Claude Code discovers and loads this automatically when opening the project — no manual setup required. Once loaded, the MCP tools appear as callable tools alongside Bash, Read, Write, etc.
 
 ### Available Tools
 
