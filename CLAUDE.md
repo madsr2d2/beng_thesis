@@ -102,76 +102,81 @@ ISO 11898-1:2015 CAN system requirements are tracked in `requirements/requiremen
 **Verification**: simulation, coverage, waveform, assertion
 **Status**: verified, implemented, unverified, diagnostic
 
-### Querying Requirements (Python + tomllib)
+### Requirements Management via MCP Server (Recommended)
 
+Use the Requirements Manager MCP server for safe, atomic operations. The server handles validation, backup, and logging automatically.
+
+**Setup (one-time):**
+
+```bash
+pip install -r requirements/mcp_requirements.txt
+```
+
+**Start the MCP server:**
+
+```bash
+python requirements/requirements_mcp_server.py
+```
+
+**Available Tools** (use via Claude Code MCP integration):
+
+```
+query_requirements(category, side, status, priority, verification)
+  → Returns matching requirements with IDs
+  Example: Query all unverified CRC requirements
+    category="CRC" status="unverified"
+
+update_requirement(req_id, field, value)
+  → Update single requirement field atomically
+  Example: Set requirement 012 status to verified
+    req_id="012" field="status" value="verified"
+
+bulk_update(field, value, category, side, status, priority, verification)
+  → Update multiple requirements matching filters
+  Example: Set all critical requirements target_module to tx_mac_ser.vhd
+    field="target_module" value="tx_mac_ser.vhd" priority="critical"
+
+delete_requirement(req_id)
+  → Delete requirement and auto-renumber remaining IDs
+  Example: Delete requirement 011
+    req_id="011"
+  Result: Requirements renumbered 012→011, 013→012, etc.
+
+renumber_requirements()
+  → Renumber all requirements sequentially (fix ID gaps)
+
+get_statistics()
+  → Get counts by category, side, status, priority
+```
+
+**Key Benefits:**
+
+✅ **Atomic operations** — backup created, changes validated before write
+✅ **Auto-renumbering** — delete/renumber combined, no manual steps
+✅ **Logging** — all changes logged with timestamp and details
+✅ **Type safety** — field validation, prevents corruption
+✅ **No ad-hoc scripts** — consistent, versioned operations
+
+### Legacy: Command-line Tools
+
+For direct CLI access without MCP:
+
+**Query requirements** (Python + tomllib):
 ```python
 import tomllib
 with open('requirements/requirements.toml', 'rb') as f:
     data = tomllib.load(f)
-
-# Filter by category
 frm = {k: v for k, v in data['requirements'].items() if v['category'] == 'FRM'}
-
-# Filter by side
-rx = {k: v for k, v in data['requirements'].items() if v['side'] == 'RX'}
-
-# Search by description
-matches = {k: v for k, v in data['requirements'].items() if 'CRC' in v['description']}
-
-# Filter by status
-verified = {k: v for k, v in data['requirements'].items() if v['status'] == 'verified'}
-
-# Filter by format
-fd = {k: v for k, v in data['requirements'].items() if 'FB' in v['format']}
-
-# Count by category
-from collections import Counter
-print(Counter(v['category'] for v in data['requirements'].values()))
 ```
 
-### Updating Requirements
-
-Use Python regex for bulk field updates (preserves TOML structure and comments):
-
-```python
-import re
-with open('requirements/requirements.toml', 'r') as f:
-    content = f.read()
-
-# Update a single field value across all requirements
-content = re.sub(r'(priority\s*=\s*)"[^"]*"', r'\1"high"', content)
-
-# Update field for a specific requirement (e.g. 005)
-content = re.sub(
-    r'(\[requirements\.005\].*?status\s*=\s*)"[^"]*"',
-    r'\1"verified"', content, flags=re.DOTALL
-)
-
-with open('requirements/requirements.toml', 'w') as f:
-    f.write(content)
-```
-
-### Deleting Requirements
-
-Use the built-in `--delete` command. This removes the requirement and automatically renumbers all remaining IDs to stay sequential:
-
+**Delete via script:**
 ```bash
-python requirements/requirements_table.py --toml requirements/requirements.toml --delete 011
+python requirements/requirements_table.py --delete 011
 ```
 
-This is equivalent to:
-1. Remove requirement 011 (main section + simulation/formal sub-tables)
-2. Renumber 012→011, 013→012, etc. to close the gap
-3. Update the ID range in the file header comment
-
-**Never delete requirements by hand** — use `--delete` to avoid ID gaps and duplicate-key errors.
-
-### Renumbering Requirements
-
-If IDs have gaps (e.g. after manual editing), renumber them sequentially:
-
+**Renumber via script:**
 ```bash
-python requirements/requirements_table.py --toml requirements/requirements.toml --renumber
+python requirements/requirements_table.py --renumber
 ```
 
 ### Exporting Requirements as Tables
