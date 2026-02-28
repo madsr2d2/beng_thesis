@@ -14,7 +14,6 @@ import sys
 import re
 from pathlib import Path
 from typing import Any, Optional
-import tomllib
 import shutil
 
 try:
@@ -26,10 +25,10 @@ except ImportError:
     )
 
 try:
-    import tomli_w
+    import tomlkit
 except ImportError:
     raise ImportError(
-        "tomli_w not installed. Install with: pip install tomli_w"
+        "tomlkit not installed. Install with: pip install tomlkit"
     )
 
 # Configure logging for MCP communication
@@ -58,9 +57,9 @@ class RequirementsManager:
         logger.info(f"Initialized RequirementsManager with {self.toml_path}")
 
     def load(self) -> dict:
-        """Load requirements from TOML"""
-        with open(self.toml_path, "rb") as f:
-            return tomllib.load(f)
+        """Load requirements from TOML (preserves formatting/comments)"""
+        with open(self.toml_path, "r") as f:
+            return tomlkit.parse(f.read())
 
     def backup(self):
         """Create backup before modification"""
@@ -296,9 +295,9 @@ class RequirementsManager:
         return len(groups)
 
     def _write_toml(self, data: dict):
-        """Write data back to TOML preserving structure as much as possible"""
+        """Write data back to TOML preserving formatting, comments, and structure"""
         with open(self.toml_path, "w") as f:
-            tomli_w.dump(data, f)
+            f.write(tomlkit.dumps(data))
 
         logger.info(f"Wrote updates to {self.toml_path}")
 
