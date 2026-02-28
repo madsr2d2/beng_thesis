@@ -18,7 +18,7 @@ import shutil
 
 try:
     from mcp.server import Server
-    from mcp.types import Tool, TextContent, ToolResult
+    from mcp.types import Tool, TextContent, CallToolResult
 except ImportError:
     raise ImportError(
         "MCP SDK not installed. Install with: pip install mcp"
@@ -435,18 +435,18 @@ async def list_tools():
 
 
 @server.call_tool()
-async def call_tool(name: str, arguments: dict) -> ToolResult:
+async def call_tool(name: str, arguments: dict) -> CallToolResult:
     """Execute tool calls"""
     try:
         if name == "query_requirements":
             result = manager.query(**arguments)
-            return ToolResult(content=[TextContent(type="text", text=str(result))])
+            return CallToolResult(content=[TextContent(type="text", text=str(result))])
 
         elif name == "update_requirement":
             result = manager.update_requirement(
                 arguments["req_id"], arguments["field"], arguments["value"]
             )
-            return ToolResult(
+            return CallToolResult(
                 content=[
                     TextContent(
                         type="text",
@@ -458,7 +458,7 @@ async def call_tool(name: str, arguments: dict) -> ToolResult:
         elif name == "bulk_update":
             filters = {k: v for k, v in arguments.items() if k not in ["field", "value"] and v}
             result = manager.bulk_update(arguments["field"], arguments["value"], **filters)
-            return ToolResult(
+            return CallToolResult(
                 content=[
                     TextContent(
                         type="text",
@@ -469,7 +469,7 @@ async def call_tool(name: str, arguments: dict) -> ToolResult:
 
         elif name == "delete_requirement":
             result = manager.delete_requirement(arguments["req_id"])
-            return ToolResult(
+            return CallToolResult(
                 content=[
                     TextContent(
                         type="text",
@@ -480,7 +480,7 @@ async def call_tool(name: str, arguments: dict) -> ToolResult:
 
         elif name == "renumber_requirements":
             result = manager.renumber()
-            return ToolResult(
+            return CallToolResult(
                 content=[
                     TextContent(
                         type="text",
@@ -491,19 +491,19 @@ async def call_tool(name: str, arguments: dict) -> ToolResult:
 
         elif name == "get_statistics":
             result = manager.get_statistics()
-            return ToolResult(
+            return CallToolResult(
                 content=[TextContent(type="text", text=str(result))]
             )
 
         else:
-            return ToolResult(
+            return CallToolResult(
                 content=[TextContent(type="text", text=f"Unknown tool: {name}")],
                 isError=True,
             )
 
     except Exception as e:
         logger.error(f"Tool {name} failed: {e}", exc_info=True)
-        return ToolResult(
+        return CallToolResult(
             content=[TextContent(type="text", text=f"Error: {e}")],
             isError=True,
         )
