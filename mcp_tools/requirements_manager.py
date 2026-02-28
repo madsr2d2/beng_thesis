@@ -40,6 +40,7 @@ mcp = FastMCP("requirements-manager")
 
 # ── Requirements Manager ──────────────────────────────────────────────────────
 
+
 class RequirementsManager:
     """Safe, atomic manager for requirements.toml using tomlkit."""
 
@@ -131,10 +132,15 @@ class RequirementsManager:
         verification: Optional[str] = None,
     ) -> list[dict]:
         filters = {
-            k: v for k, v in {
-                "category": category, "side": side, "status": status,
-                "priority": priority, "verification": verification,
-            }.items() if v is not None
+            k: v
+            for k, v in {
+                "category": category,
+                "side": side,
+                "status": status,
+                "priority": priority,
+                "verification": verification,
+            }.items()
+            if v is not None
         }
         data = self._load()
         results = [
@@ -201,8 +207,8 @@ class RequirementsManager:
         return {
             "total_count": len(reqs),
             "by_category": dict(Counter(r["category"] for r in reqs.values())),
-            "by_side":     dict(Counter(r["side"]     for r in reqs.values())),
-            "by_status":   dict(Counter(r["status"]   for r in reqs.values())),
+            "by_side": dict(Counter(r["side"] for r in reqs.values())),
+            "by_status": dict(Counter(r["status"] for r in reqs.values())),
             "by_priority": dict(Counter(r["priority"] for r in reqs.values())),
         }
 
@@ -212,6 +218,7 @@ manager = RequirementsManager()
 
 
 # ── MCP Tools ─────────────────────────────────────────────────────────────────
+
 
 @mcp.tool()
 def query_requirements(
@@ -232,8 +239,7 @@ def query_requirements(
     """
     results = manager.query(category, side, status, priority, verification)
     lines = [
-        f"{r['id']}: [{r['category']}/{r['side']}] {r['description']}"
-        for r in results
+        f"{r['id']}: [{r['category']}/{r['side']}] {r['description']}" for r in results
     ]
     return f"{len(results)} requirements found:\n\n" + "\n".join(lines)
 
@@ -274,10 +280,15 @@ def bulk_update(
         verification: Filter by verification method
     """
     filters = {
-        k: v for k, v in {
-            "category": category, "side": side, "status": status,
-            "priority": priority, "verification": verification,
-        }.items() if v is not None
+        k: v
+        for k, v in {
+            "category": category,
+            "side": side,
+            "status": status,
+            "priority": priority,
+            "verification": verification,
+        }.items()
+        if v is not None
     }
     result = manager.bulk_update(field, value, **filters)
     return f"Updated {result['count']} requirements: {result['updated_ids']}"
@@ -309,16 +320,19 @@ def renumber_requirements() -> str:
 def get_statistics() -> str:
     """Get requirement counts by category, side, status, and priority."""
     s = manager.get_statistics()
-    return "\n".join([
-        f"Total:       {s['total_count']}",
-        f"By category: {s['by_category']}",
-        f"By side:     {s['by_side']}",
-        f"By status:   {s['by_status']}",
-        f"By priority: {s['by_priority']}",
-    ])
+    return "\n".join(
+        [
+            f"Total:       {s['total_count']}",
+            f"By category: {s['by_category']}",
+            f"By side:     {s['by_side']}",
+            f"By status:   {s['by_status']}",
+            f"By priority: {s['by_priority']}",
+        ]
+    )
 
 
 # ── Entry Point ───────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     """Start the MCP server using stdio transport."""

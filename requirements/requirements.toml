@@ -99,7 +99,7 @@
   format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "FD frames \u226416 bytes: use CRC-17 polynomial"
+  description = "FD frames <=16 bytes: use CRC-17 polynomial"
   iso_reference = "6.6.4.4"
   acceptance_criteria = "CRC-17 (0x3685B) for small payloads"
   notes = "FD selection logic"
