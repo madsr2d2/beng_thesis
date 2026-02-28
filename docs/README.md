@@ -2,6 +2,12 @@
 
 Reference documentation for the CAN bus implementation thesis project.
 
+## Project Documents
+
+- **Progress Report**: [`report.md`](report.md) - Tracks the project timeline and status.
+- **Architecture & Design**: [`architecture_and_design.md`](architecture_and_design.md) - Detailed technical documentation of the implementation.
+- **Project Plan**: [`time_plan.md`](time_plan.md) - Overall schedule and milestones.
+
 ## ISO 11898-1:2015 Standard
 
 **File**: `ISO_11898_1_CAN_bus_link.pdf`

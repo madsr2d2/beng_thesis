@@ -32,7 +32,7 @@ entity bit_stuffer_fd is
   );
   port (
     clk_i   : in    std_logic;
-    reset_i : in    std_logic;
+    rst_i   : in    std_logic;
     bs_fd_i : in    mac_fsm_to_bs_fd_if_t;
     bs_fd_o : out   bs_fd_to_mac_fsm_if_t
   );
@@ -53,25 +53,21 @@ begin
   fsm_sequential : process (clk_i) is
 
     -- Registered next-value variables
-    variable v_stuff_valid_prev : boolean;
+    variable v_consecutive_count : integer range 0 to stuff_width_c;
+    variable v_last_polarity     : polarity_t;
+    variable v_stuff_count       : unsigned(2 downto 0);
+    variable v_stuff_valid_prev  : boolean;
 
     -- Registered output next-value variable
     variable v_bs_fd_o : bs_fd_to_mac_fsm_if_t;
 
+    -- Named guard variables
+    variable fsm_data_valid_v : boolean;
+    variable stuff_required_v : boolean;
+
     -- Handle detection of N consecutive bits and stuff bit requirement
     procedure manage_bit_counting is
-
-      variable v_last_polarity     : polarity_t;
-      variable v_consecutive_count : integer range 0 to stuff_width_c;
-      variable fsm_data_valid_v    : boolean;
-      variable stuff_required_v    : boolean;
-
     begin
-
-      fsm_data_valid_v    := bs_fd_i.valid;
-      stuff_required_v    := bs_fd_o.valid;
-      v_consecutive_count := consecutive_count;
-      v_last_polarity     := last_polarity;
 
       if (fsm_data_valid_v) then
         if (stuff_required_v) then
@@ -102,21 +98,15 @@ begin
         end if;
       end if;
 
-      consecutive_count <= v_consecutive_count;
-      last_polarity     <= v_last_polarity;
-
     end procedure manage_bit_counting;
 
     -- Handle Gray-coded SBC calculation on stuff bit events
     procedure manage_sbc_encoding is
 
-      variable gray_bits_v   : std_logic_vector(2 downto 0);
-      variable parity_bit_v  : std_logic;
-      variable v_stuff_count : unsigned(2 downto 0);
+      variable gray_bits_v  : std_logic_vector(2 downto 0);
+      variable parity_bit_v : std_logic;
 
     begin
-
-      v_stuff_count := stuff_count;
 
       -- Pulse logic: detect rising edge of stuff requirement
       if (v_bs_fd_o.valid and not stuff_valid_prev) then
@@ -124,18 +114,16 @@ begin
       end if;
 
       -- Continuously update Gray-coded SBC output
-      gray_bits_v   := to_gray(std_logic_vector(v_stuff_count));
-      parity_bit_v  := calc_parity(gray_bits_v);
-      v_bs_fd_o.sbc := gray_bits_v & parity_bit_v;
-
-      stuff_count <= v_stuff_count;
+      gray_bits_v      := to_gray(std_logic_vector(v_stuff_count));
+      parity_bit_v     := calc_parity(gray_bits_v);
+      v_bs_fd_o.sbc    := gray_bits_v & parity_bit_v;
 
     end procedure manage_sbc_encoding;
 
   begin
 
     if rising_edge(clk_i) then
-      if (reset_i = '1' or bs_fd_i.start) then
+      if (rst_i = '1' or bs_fd_i.start) then
         consecutive_count <= 0;
         last_polarity     <= dominant;
         stuff_count       <= (others => '0');
@@ -144,11 +132,16 @@ begin
         bs_fd_o <= bs_fd_to_mac_fsm_if_reset_c;
       else
         -- Evaluate guards
+        fsm_data_valid_v := bs_fd_i.valid;
+        stuff_required_v := bs_fd_o.valid;
 
         -------------------------------------------------------------------
         -- Defaults: hold current registered values
         -------------------------------------------------------------------
-        v_stuff_valid_prev := bs_fd_o.valid;
+        v_consecutive_count := consecutive_count;
+        v_last_polarity     := last_polarity;
+        v_stuff_count       := stuff_count;
+        v_stuff_valid_prev  := bs_fd_o.valid;
 
         -- Baseline from registered interface
         v_bs_fd_o := bs_fd_o;
@@ -165,7 +158,10 @@ begin
         -------------------------------------------------------------------
         -- Register all next-cycle values
         -------------------------------------------------------------------
-        stuff_valid_prev <= v_stuff_valid_prev;
+        consecutive_count <= v_consecutive_count;
+        last_polarity     <= v_last_polarity;
+        stuff_count       <= v_stuff_count;
+        stuff_valid_prev  <= v_stuff_valid_prev;
 
         bs_fd_o <= v_bs_fd_o;
       end if;

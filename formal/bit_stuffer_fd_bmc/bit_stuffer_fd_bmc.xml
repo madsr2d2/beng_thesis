@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+<testsuite timestamp="2026-02-28T16:48:32" hostname="madsr2d2" package="bit_stuffer_fd" id="0" name="bmc" tests="0" errors="0" failures="0" time="0" skipped="0">
+<properties>
+<property name="os" value="Linux"/>
+<property name="expect" value="PASS"/>
+<property name="status" value="PASS"/>
+</properties>
+<testcase classname="bmc" name="build execution" time="0">
+</testcase>
+<system-out>SBY 16:48:31 [formal/bit_stuffer_fd_bmc] Removing directory '/home/madsr2d2/beng_thesis/formal/bit_stuffer_fd_bmc'.
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] Copy '/home/madsr2d2/beng_thesis/src/can_types_pkg.vhd' to '/home/madsr2d2/beng_thesis/formal/bit_stuffer_fd_bmc/src/can_types_pkg.vhd'.
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] Copy '/home/madsr2d2/beng_thesis/src/can_protocol_pkg.vhd' to '/home/madsr2d2/beng_thesis/formal/bit_stuffer_fd_bmc/src/can_protocol_pkg.vhd'.
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] Copy '/home/madsr2d2/beng_thesis/src/can_timing_pkg.vhd' to '/home/madsr2d2/beng_thesis/formal/bit_stuffer_fd_bmc/src/can_timing_pkg.vhd'.
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] Copy '/home/madsr2d2/beng_thesis/src/bit_stuffer_fd.vhd' to '/home/madsr2d2/beng_thesis/formal/bit_stuffer_fd_bmc/src/bit_stuffer_fd.vhd'.
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: smtbmc z3
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: starting process &quot;cd formal/bit_stuffer_fd_bmc/src; yosys -ql ../model/design.log ../model/design.ys&quot;
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: can_types_pkg.vhd:528:13:warning: attribute &quot;fsm_encoding&quot; for type &quot;can_format_t&quot; is not kept in the netlist [-Wunkept-attribute]
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: attribute fsm_encoding of can_format_t       : type is &quot;one_hot&quot;;
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: ^
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: can_types_pkg.vhd:529:13:warning: attribute &quot;fsm_encoding&quot; for type &quot;can_node_type_t&quot; is not kept in the netlist [-Wunkept-attribute]
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: attribute fsm_encoding of can_node_type_t    : type is &quot;one_hot&quot;;
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: ^
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: can_types_pkg.vhd:530:13:warning: attribute &quot;fsm_encoding&quot; for type &quot;frame_type_t&quot; is not kept in the netlist [-Wunkept-attribute]
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: attribute fsm_encoding of frame_type_t       : type is &quot;one_hot&quot;;
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: ^
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: can_types_pkg.vhd:531:13:warning: attribute &quot;fsm_encoding&quot; for type &quot;tx_mac_fsm_state_t&quot; is not kept in the netlist [-Wunkept-attribute]
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: attribute fsm_encoding of tx_mac_fsm_state_t : type is &quot;one_hot&quot;;
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: ^
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: can_types_pkg.vhd:532:13:warning: attribute &quot;fsm_encoding&quot; for type &quot;tx_mac_ser_state_t&quot; is not kept in the netlist [-Wunkept-attribute]
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: attribute fsm_encoding of tx_mac_ser_state_t : type is &quot;one_hot&quot;;
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: ^
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: can_types_pkg.vhd:533:13:warning: attribute &quot;fsm_encoding&quot; for type &quot;tx_mac_error_t&quot; is not kept in the netlist [-Wunkept-attribute]
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: attribute fsm_encoding of tx_mac_error_t     : type is &quot;one_hot&quot;;
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: ^
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: can_types_pkg.vhd:534:13:warning: attribute &quot;fsm_encoding&quot; for type &quot;error_flag_t&quot; is not kept in the netlist [-Wunkept-attribute]
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: attribute fsm_encoding of error_flag_t       : type is &quot;one_hot&quot;;
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: ^
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: can_types_pkg.vhd:535:13:warning: attribute &quot;fsm_encoding&quot; for type &quot;transfer_status_t&quot; is not kept in the netlist [-Wunkept-attribute]
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: attribute fsm_encoding of transfer_status_t  : type is &quot;one_hot&quot;;
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: ^
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] base: finished (returncode=0)
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] prep: starting process &quot;cd formal/bit_stuffer_fd_bmc/model; yosys -ql design_prep.log design_prep.ys&quot;
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] prep: finished (returncode=0)
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] smt2: starting process &quot;cd formal/bit_stuffer_fd_bmc/model; yosys -ql design_smt2.log design_smt2.ys&quot;
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] smt2: finished (returncode=0)
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: starting process &quot;cd formal/bit_stuffer_fd_bmc; yosys-smtbmc -s z3 --presat --noprogress -t 25  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2&quot;
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Solver: z3
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 0..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 0..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 1..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 1..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 2..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 2..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 3..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 3..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 4..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 4..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 5..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 5..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 6..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 6..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 7..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 7..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 8..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 8..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 9..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 9..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 10..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 10..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 11..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 11..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 12..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 12..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 13..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 13..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 14..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 14..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 15..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 15..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 16..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 16..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 17..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 17..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 18..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 18..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 19..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 19..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 20..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 20..
+SBY 16:48:31 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 21..
+SBY 16:48:32 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 21..
+SBY 16:48:32 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 22..
+SBY 16:48:32 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 22..
+SBY 16:48:32 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 23..
+SBY 16:48:32 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 23..
+SBY 16:48:32 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assumptions in step 24..
+SBY 16:48:32 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Checking assertions in step 24..
+SBY 16:48:32 [formal/bit_stuffer_fd_bmc] engine_0: ##   0:00:00  Status: passed
+SBY 16:48:32 [formal/bit_stuffer_fd_bmc] engine_0: finished (returncode=0)
+SBY 16:48:32 [formal/bit_stuffer_fd_bmc] engine_0: Status returned by engine: pass
+SBY 16:48:32 [formal/bit_stuffer_fd_bmc] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY 16:48:32 [formal/bit_stuffer_fd_bmc] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY 16:48:32 [formal/bit_stuffer_fd_bmc] summary: engine_0 (smtbmc z3) returned pass
+SBY 16:48:32 [formal/bit_stuffer_fd_bmc] summary: engine_0 did not produce any traces
+SBY 16:48:32 [formal/bit_stuffer_fd_bmc] DONE (PASS, rc=0)
+</system-out>
+<system-err>
+</system-err>
+</testsuite>
+</testsuites>
