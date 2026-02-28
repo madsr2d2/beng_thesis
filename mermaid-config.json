@@ -1,0 +1,22 @@
+{
+  "flowchart": {
+    "defaultRenderer": "elk",
+    "curve": "linear",
+    "htmlLabels": true,
+    "useMaxWidth": true
+  },
+  "elk": {
+    "algorithm": "layered",
+    "mergeEdges": false,
+    "nodePlacementStrategy": "SIMPLE"
+  },
+  "theme": "dark",
+  "themeVariables": {
+    "primaryColor": "#1f6feb",
+    "primaryTextColor": "#f0f6f2",
+    "primaryBorderColor": "#30363d",
+    "lineColor": "#8b949e",
+    "secondaryColor": "#238636",
+    "tertiaryColor": "#161b22"
+  }
+}

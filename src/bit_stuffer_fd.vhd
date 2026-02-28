@@ -202,7 +202,7 @@ begin
 
 -- #042 [P2]: When consecutive_count reaches the stuffing threshold, the output
 -- MUST assert valid (stuff bit required).  Proves count and valid are consistent.
--- psl P2_COUNT_IMPLIES_VALID : assert always ((consecutive_count = stuff_width_c) -> bs_fd_o.valid) report "FAIL P2: #042 count at threshold but valid not asserted";
+-- psl P2_COUNT_IMPLIES_VALID : assert always ((consecutive_count = stuff_width_c) -t> bs_fd_o.valid) report "FAIL P2: #042 count at threshold but valid not asserted";
 
 -- #042 [P3a/3b]: Stuff bit polarity is always inverse of the run that triggered it.
 -- last_polarity holds the polarity of the 5th consecutive bit, i.e. the run polarity.
@@ -213,7 +213,7 @@ begin
 -- psl P4_NO_UNKNOWN_OUTPUT : assert always (bs_fd_o.valid -> (bs_fd_o.data = dominant or bs_fd_o.data = recessive)) report "FAIL P4: #043 stuff bit has undefined polarity when valid";
 
 -- #042 [P5]: Synchronous reset clears consecutive_count and deasserts valid next cycle.
--- psl P5_RST_CLEARS_STATE : assert always (rst_i = '1') -> next (consecutive_count = 0 and not bs_fd_o.valid) report "FAIL P5: #042 synchronous reset did not clear state";
+-- psl P5_RST_CLEARS_STATE : assert always (reset_i = '1') -> next (consecutive_count = 0 and not bs_fd_o.valid) report "FAIL P5: #042 synchronous reset did not clear state";
 
 -- #042 [P6]: Frame-start pulse clears consecutive_count and deasserts valid next cycle.
 -- psl P6_START_CLEARS_STATE : assert always bs_fd_i.start -> next (consecutive_count = 0 and not bs_fd_o.valid) report "FAIL P6: #042 start pulse did not clear state";

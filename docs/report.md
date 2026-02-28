@@ -104,7 +104,8 @@ While this thesis focuses on the implementation of the **TX Pipeline**, the arch
 ```mermaid
 ---
 config:
-  layout: elk
+  flowchart:
+    defaultRenderer: elk
   elk:
     algorithm: layered
     mergeEdges: false
@@ -114,16 +115,15 @@ config:
   curve: linear
 ---
 flowchart LR
-    User["User Application"]
+    User["User Application<br/>(Avalon-ST)"]
     FCE["Fault Confinement<br/>Entity (FCE)"]
-    Bus["Bus"]
 
     subgraph Node ["CAN Node"]
-        subgraph TX_Pipeline ["TX Pipeline"]
+        subgraph TX_Pipeline ["TX Pipeline (Thesis Focus)"]
             TX_LLC["tx_llc<br/>(LLC Sub-layer)"]
             TX_MAC["tx_mac<br/>(MAC Sub-layer)"]
             TX_PCS["tx_pcs<br/>(PCS Sub-layer)"]
-            
+
             TX_LLC <==> TX_MAC <==> TX_PCS
         end
 
@@ -136,16 +136,16 @@ flowchart LR
         end
 
         %% Control & Status paths
-        FCE <==> TX_LLC & TX_MAC & TX_PCS
-        FCE <==> RX_LLC & RX_MAC & RX_PCS
+        FCE -.-> TX_LLC & TX_MAC & TX_PCS
+        FCE -.-> RX_LLC & RX_MAC & RX_PCS
     end
 
     User <==> TX_LLC
     RX_LLC <==> User
 
-    TX_PCS <==> Bus
+    TX_PCS <==> Bus["CAN Bus"]
     Bus <==> RX_PCS
-```
+``````
 
 ### 4.2 LLC Sub-layer (`tx_llc`)
 Responsible for frame buffering and retransmission management. It provides an Avalon-ST interface to the user application and communicates with the FCE to handle retransmission limits and error status reporting.
