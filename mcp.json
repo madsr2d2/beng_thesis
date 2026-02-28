@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "requirements": {
+      "command": "python",
+      "args": ["-m", "mcp_tools.requirements_manager"],
+      "cwd": "${workspaceRoot}",
+      "env": {
+        "PYTHONPATH": "${workspaceRoot}"
+      }
+    }
+  }
+}

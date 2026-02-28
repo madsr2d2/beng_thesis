@@ -22,6 +22,8 @@ This is a B.Eng thesis project implementing a **CAN (Controller Area Network) bu
 ## Directory Structure
 
 ```
+mcp.json                # MCP server configuration (auto-loaded by Claude Code)
+
 src/                    # Design and testbench VHDL files
 ├── can_pkg.vhd         # Core CAN definitions, types, utility functions
 ├── can_pkg_tb.vhd      # Unit tests (29 tests, all passing)
@@ -37,7 +39,7 @@ src/                    # Design and testbench VHDL files
 
 mcp_tools/              # Model Context Protocol servers (extensible)
 ├── __init__.py         # Package initialization
-├── requirements.txt    # MCP tools dependencies
+├── requirements.txt    # MCP tools dependencies (mcp, tomlkit)
 ├── requirements_manager.py  # Requirements TOML management server
 └── [future tools]      # Additional MCP servers (analysis, simulation, etc.)
 
@@ -48,9 +50,7 @@ OsvvmLibraries/         # OSVVM simulation framework (external)
 sim/                    # Generated simulation artifacts
 requirements/           # Requirements specification and tooling
 ├── requirements.toml   # 122 ISO 11898-1:2015 requirements (CC/FD)
-├── requirements_table.py # Export to HTML/Markdown tables
-├── mcp_requirements.txt # [DEPRECATED - use mcp_tools/requirements.txt]
-└── mcp_server_config_example.md # [DEPRECATED - see MCP Configuration below]
+└── requirements_table.py # Export to HTML/Markdown tables
 ```
 
 ---
@@ -230,27 +230,39 @@ pip install -r mcp_tools/requirements.txt
 
 ### Claude Code Integration
 
-Add to Claude Code settings (`~/.claude/settings.json` or via UI):
+**Auto-discovery (Recommended):**
+
+Claude Code automatically loads `mcp.json` from the project root. The configuration is in `mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "requirements": {
       "command": "python",
-      "args": ["-m", "mcp_tools.requirements_manager"]
+      "args": ["-m", "mcp_tools.requirements_manager"],
+      "cwd": "${workspaceRoot}",
+      "env": {
+        "PYTHONPATH": "${workspaceRoot}"
+      }
     }
   }
 }
 ```
 
-Or specify full path:
+**Manual configuration (if needed):**
+
+Add to `~/.claude/settings.json`:
 
 ```json
 {
   "mcpServers": {
     "requirements": {
       "command": "python",
-      "args": ["/absolute/path/to/beng_thesis/mcp_tools/requirements_manager.py"]
+      "args": ["-m", "mcp_tools.requirements_manager"],
+      "cwd": "/path/to/beng_thesis",
+      "env": {
+        "PYTHONPATH": "/path/to/beng_thesis"
+      }
     }
   }
 }
