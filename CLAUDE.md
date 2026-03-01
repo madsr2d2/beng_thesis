@@ -101,8 +101,8 @@ ISO 11898-1:2015 CAN system requirements are tracked in `requirements/requiremen
 ### Requirements File Format
 
 **File**: `requirements/requirements.toml`
-**Structure**: 122 requirements (IDs 001–122), sequential with no gaps
-**Scope**: CAN Classic (CC) and CAN FD only — XL frames are strictly out of scope
+**Structure**: 123 requirements (IDs 001–123), sequential with no gaps
+**Scope**: CAN Classic (CC) and CAN FD only — CB, CE, FB, and FE frames. CAN XL frames are strictly out of scope and must NOT be added to the requirements plan.
 
 **Categories**: FRM (frame), ERR (error), TMG (timing), CRC (checksum)
 **Sides**: TX (transmitter), RX (receiver)

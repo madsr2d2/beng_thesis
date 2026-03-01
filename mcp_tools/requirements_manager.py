@@ -181,6 +181,99 @@ class RequirementsManager:
         logger.info(f"bulk_update {field}={value!r} on {len(updated_ids)} requirements")
         return {"count": len(updated_ids), "updated_ids": updated_ids}
 
+    def insert_requirement(
+        self,
+        position: Optional[int],
+        category: str,
+        side: str,
+        format_list: list[str],
+        priority: str,
+        description: str,
+        iso_reference: str = "",
+        acceptance_criteria: str = "",
+        notes: str = "",
+        target_module: str = "",
+        verification: str = "simulation",
+        status: str = "unverified",
+    ) -> dict:
+        """Insert a new requirement at the given position and renumber.
+
+        If position is None, appends after the last requirement.
+        """
+        self._backup()
+
+        # Build the new requirement block text
+        data = self._load()
+        existing_count = len(data["requirements"])
+
+        if position is None:
+            position = existing_count + 1
+        elif position < 1 or position > existing_count + 1:
+            raise ValueError(
+                f"Position {position} out of range (1-{existing_count + 1})"
+            )
+
+        # Format the format list as TOML array
+        fmt_str = "[" + ", ".join(f'"{f}"' for f in format_list) + "]"
+
+        # Use a temporary ID that will be fixed by renumber
+        temp_id = f"{position:03d}"
+
+        new_block = (
+            f"\n[requirements.{temp_id}]\n"
+            f"# Classification Metadata\n"
+            f'  category = "{category}"\n'
+            f'  side = "{side}"\n'
+            f"  format = {fmt_str}\n"
+            f'  priority = "{priority}"\n'
+            f"# Core Specification\n"
+            f'  description = "{description}"\n'
+            f'  iso_reference = "{iso_reference}"\n'
+            f'  acceptance_criteria = "{acceptance_criteria}"\n'
+            f'  notes = "{notes}"\n'
+            f'  target_module = "{target_module}"\n'
+            f"# Verification Strategy & Status\n"
+            f'  verification = "{verification}"\n'
+            f'  status = "{status}"\n'
+            f"\n"
+            f"[requirements.{temp_id}.simulation]\n"
+            f'  test_case = ""\n'
+            f'  file = ""\n'
+            f"  passed = false\n"
+            f'  coverage = ""\n'
+            f"\n"
+            f"[requirements.{temp_id}.formal]\n"
+            f'  property_label = ""\n'
+            f'  file = ""\n'
+            f"  depth_reached = 0\n"
+        )
+
+        # Read raw file and find insertion point
+        lines = self.toml_path.read_text()
+
+        if position <= existing_count:
+            # Insert before the target position's block
+            target_header = f"[requirements.{position:03d}]"
+            insert_idx = lines.find(target_header)
+            if insert_idx == -1:
+                raise KeyError(f"Could not find {target_header} in file")
+            new_content = lines[:insert_idx] + new_block + "\n" + lines[insert_idx:]
+        else:
+            # Append at end
+            new_content = lines.rstrip() + "\n" + new_block
+
+        self.toml_path.write_text(new_content)
+        count = self._renumber()
+        logger.info(
+            f"Inserted requirement at position {position}, "
+            f"renumbered to 001-{count:03d}"
+        )
+        return {
+            "inserted_id": f"{position:03d}",
+            "new_total_count": count,
+            "description": description,
+        }
+
     def delete_requirement(self, req_id: str) -> dict:
         req_id = req_id.zfill(3)
         self._backup()
@@ -292,6 +385,60 @@ def bulk_update(
     }
     result = manager.bulk_update(field, value, **filters)
     return f"Updated {result['count']} requirements: {result['updated_ids']}"
+
+
+@mcp.tool()
+def insert_requirement(
+    category: str,
+    side: str,
+    format_list: str,
+    priority: str,
+    description: str,
+    position: Optional[int] = None,
+    iso_reference: str = "",
+    acceptance_criteria: str = "",
+    notes: str = "",
+    target_module: str = "",
+    verification: str = "simulation",
+    status: str = "unverified",
+) -> str:
+    """Insert a new requirement at the given position and auto-renumber.
+
+    Args:
+        category: FRM, ERR, TMG, or CRC
+        side: TX or RX
+        format_list: Comma-separated formats, e.g. "CB,CE" or "FB,FE"
+        priority: critical, high, medium, or low
+        description: Requirement description text
+        position: Insert before this ID (1-based). None = append at end.
+        iso_reference: ISO 11898-1 section reference
+        acceptance_criteria: How to verify this requirement
+        notes: Additional notes
+        target_module: Target VHDL module
+        verification: simulation, coverage, waveform, or assertion
+        status: verified, implemented, unverified, or diagnostic
+    """
+    formats = [f.strip() for f in format_list.split(",")]
+    result = manager.insert_requirement(
+        position=position,
+        category=category,
+        side=side,
+        format_list=formats,
+        priority=priority,
+        description=description,
+        iso_reference=iso_reference,
+        acceptance_criteria=acceptance_criteria,
+        notes=notes,
+        target_module=target_module,
+        verification=verification,
+        status=status,
+    )
+    return (
+        f"Inserted requirement at position {result['inserted_id']}: "
+        f"{result['description']}\n"
+        f"Total: {result['new_total_count']} requirements "
+        f"(renumbered 001-{result['new_total_count']:03d})"
+    )
 
 
 @mcp.tool()

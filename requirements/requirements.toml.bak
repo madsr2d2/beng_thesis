@@ -454,7 +454,7 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   priority = "critical"
 # Core Specification
   description = "When an error is detected at the SSP during the FD data phase, the transmitter shall switch bit rate back to nominal at the following SP; the Phase_Seg2 of that bit runs at nominal timing, and the error flag begins at the next bit boundary"
-  iso_reference = "6.6.21.3.1, Figure 30"
+  iso_reference = "6.6.21.3.1"
   acceptance_criteria = "Error detected at SSP in data phase; bit rate returns to nominal at the following SP; Phase_Seg2 of that bit uses nominal timing; first error flag bit transmitted at the following bit boundary at nominal rate"
   notes = "See ISO Figure 30 (TDC) and Figure 31 (no TDC) for timing diagrams"
   target_module = ""
@@ -2418,7 +2418,7 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Core Specification
   description = "Receiver shall send an FCRC error flag at the start of EOF for CC frames; for FD frames the error flag shall be sent 3 bit-times after the CRC delimiter"
   iso_reference = "6.6.21.3.1"
-  acceptance_criteria = "CC frames: FCRC error flag sent at bit 1 of EOF; FD frames: error flag sent 3 bit-times after CRC delimiter. Dominant bits monitored between CRC delimiter and error flag start position shall NOT be treated as bit errors"
+  acceptance_criteria = "CC frames: FCRC error flag sent at bit 1 of EOF; FD frames: error flag sent 3 bit-times after CRC delimiter. Dominant bits monitored between CRC delimiter and error flag start position shall NOT be treated as bit errors (ISO 6.6.21.3.1 provision)"
   notes = "FD CRC error response deliberately delayed to allow bit rate return to nominal"
   target_module = ""
 # Verification Strategy & Status
