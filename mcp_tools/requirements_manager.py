@@ -198,6 +198,9 @@ class RequirementsManager:
         target_module: str = "",
         verification: str = "simulation",
         status: str = "unverified",
+        pre: str = "",
+        evt: str = "",
+        post: str = "",
     ) -> dict:
         """Insert a new requirement at the given position and renumber.
 
@@ -222,6 +225,16 @@ class RequirementsManager:
         # Use a temporary ID that will be fixed by renumber
         temp_id = f"{position:03d}"
 
+        # PRE/EVT/POST block — only emitted when at least one field is provided
+        pep_block = ""
+        if pre or evt or post:
+            pep_block = (
+                f"# PRE/EVT/POST Analysis\n"
+                f'  pre  = "{pre}"\n'
+                f'  evt  = "{evt}"\n'
+                f'  post = "{post}"\n'
+            )
+
         new_block = (
             f"\n[requirements.{temp_id}]\n"
             f"# Classification Metadata\n"
@@ -235,6 +248,7 @@ class RequirementsManager:
             f'  acceptance_criteria = "{acceptance_criteria}"\n'
             f'  notes = "{notes}"\n'
             f'  target_module = "{target_module}"\n'
+            f"{pep_block}"
             f"# Verification Strategy & Status\n"
             f'  verification = "{verification}"\n'
             f'  status = "{status}"\n'
@@ -275,6 +289,7 @@ class RequirementsManager:
             "inserted_id": f"{position:03d}",
             "new_total_count": count,
             "description": description,
+            "has_pre_evt_post": bool(pre or evt or post),
         }
 
     def delete_requirement(self, req_id: str) -> dict:
@@ -300,12 +315,26 @@ class RequirementsManager:
 
     def get_statistics(self) -> dict:
         reqs = self._load()["requirements"]
+        # Only top-level requirement entries (exclude sub-tables like .simulation/.formal)
+        top_level = {
+            k: v for k, v in reqs.items() if isinstance(v, dict) and "category" in v
+        }
+        annotated = sum(
+            1 for r in top_level.values()
+            if r.get("pre") and r.get("evt") and r.get("post")
+        )
+        missing_annotation = [
+            k for k, r in top_level.items()
+            if not (r.get("pre") and r.get("evt") and r.get("post"))
+        ]
         return {
-            "total_count": len(reqs),
-            "by_category": dict(Counter(r["category"] for r in reqs.values())),
-            "by_side": dict(Counter(r["side"] for r in reqs.values())),
-            "by_status": dict(Counter(r["status"] for r in reqs.values())),
-            "by_priority": dict(Counter(r["priority"] for r in reqs.values())),
+            "total_count": len(top_level),
+            "by_category": dict(Counter(r["category"] for r in top_level.values())),
+            "by_side": dict(Counter(r["side"] for r in top_level.values())),
+            "by_status": dict(Counter(r["status"] for r in top_level.values())),
+            "by_priority": dict(Counter(r["priority"] for r in top_level.values())),
+            "pre_evt_post_annotated": annotated,
+            "pre_evt_post_missing": missing_annotation,
         }
 
 
@@ -323,6 +352,7 @@ def query_requirements(
     status: Optional[str] = None,
     priority: Optional[str] = None,
     verification: Optional[str] = None,
+    missing_annotation: Optional[bool] = None,
 ) -> str:
     """Query requirements with optional filters.
 
@@ -332,11 +362,26 @@ def query_requirements(
         status: verified, implemented, unverified, or diagnostic
         priority: critical, high, medium, or low
         verification: simulation, coverage, waveform, or assertion
+        missing_annotation: if True, return only requirements missing pre/evt/post fields
     """
     results = manager.query(category, side, status, priority, verification)
-    lines = [
-        f"{r['id']}: [{r['category']}/{r['side']}] {r['description']}" for r in results
-    ]
+    if missing_annotation is True:
+        results = [r for r in results if not (r.get("pre") and r.get("evt") and r.get("post"))]
+    elif missing_annotation is False:
+        results = [r for r in results if r.get("pre") and r.get("evt") and r.get("post")]
+
+    lines = []
+    for r in results:
+        line = f"{r['id']}: [{r['category']}/{r['side']}] {r['description']}"
+        pre = r.get("pre", "")
+        evt = r.get("evt", "")
+        post = r.get("post", "")
+        if pre or evt or post:
+            line += f"\n     PRE:  {pre}"
+            line += f"\n     EVT:  {evt}"
+            line += f"\n     POST: {post}"
+        lines.append(line)
+
     return f"{len(results)} requirements found:\n\n" + "\n".join(lines)
 
 
@@ -347,7 +392,7 @@ def update_requirement(req_id: str, field: str, value: str) -> str:
     Args:
         req_id: Requirement ID (e.g. 012)
         field: priority, status, verification, target_module, description,
-               iso_reference, acceptance_criteria, or notes
+               iso_reference, acceptance_criteria, notes, pre, evt, or post
         value: New value for the field
     """
     result = manager.update_requirement(req_id, field, value)
@@ -404,6 +449,9 @@ def insert_requirement(
     target_module: str = "",
     verification: str = "simulation",
     status: str = "unverified",
+    pre: str = "",
+    evt: str = "",
+    post: str = "",
 ) -> str:
     """Insert a new requirement at the given position and auto-renumber.
 
@@ -420,6 +468,9 @@ def insert_requirement(
         target_module: Target VHDL module
         verification: simulation, coverage, waveform, or assertion
         status: verified, implemented, unverified, or diagnostic
+        pre: Precondition — what must be true before the triggering event
+        evt: Triggering event — the condition or action being tested
+        post: Postcondition — the observable outcome to assert
     """
     formats = [f.strip() for f in format_list.split(",")]
     result = manager.insert_requirement(
@@ -435,12 +486,17 @@ def insert_requirement(
         target_module=target_module,
         verification=verification,
         status=status,
+        pre=pre,
+        evt=evt,
+        post=post,
     )
+    annotation_note = " [pre/evt/post annotated]" if result["has_pre_evt_post"] else " [pre/evt/post missing — add via update_requirement]"
     return (
         f"Inserted requirement at position {result['inserted_id']}: "
         f"{result['description']}\n"
         f"Total: {result['new_total_count']} requirements "
         f"(renumbered 001-{result['new_total_count']:03d})"
+        f"{annotation_note}"
     )
 
 
@@ -470,13 +526,19 @@ def renumber_requirements() -> str:
 def get_statistics() -> str:
     """Get requirement counts by category, side, status, and priority."""
     s = manager.get_statistics()
+    total = s["total_count"]
+    annotated = s["pre_evt_post_annotated"]
+    missing = s["pre_evt_post_missing"]
+    missing_str = (", ".join(missing)) if missing else "none"
     return "\n".join(
         [
-            f"Total:       {s['total_count']}",
+            f"Total:       {total}",
             f"By category: {s['by_category']}",
             f"By side:     {s['by_side']}",
             f"By status:   {s['by_status']}",
             f"By priority: {s['by_priority']}",
+            f"Annotated (pre/evt/post): {annotated}/{total}",
+            f"Missing annotation: {missing_str}",
         ]
     )
 

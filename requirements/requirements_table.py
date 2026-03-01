@@ -40,6 +40,9 @@ def load_toml(path: str) -> pd.DataFrame:
                 "acceptance_criteria": fields.get("acceptance_criteria", ""),
                 "verification": fields.get("verification", ""),
                 "notes": fields.get("notes", ""),
+                "pre": fields.get("pre", ""),
+                "evt": fields.get("evt", ""),
+                "post": fields.get("post", ""),
             }
         )
 
@@ -57,9 +60,11 @@ EXPORT_COLS = [
     "format",
     "status",
     "priority",
-    "acceptance_criteria",
     "verification",
     "notes",
+    "pre",
+    "evt",
+    "post",
 ]
 
 STATUS_CSS = {
