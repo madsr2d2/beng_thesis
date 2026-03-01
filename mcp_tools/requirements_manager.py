@@ -53,6 +53,9 @@ class RequirementsManager:
         "iso_reference",
         "acceptance_criteria",
         "notes",
+        "pre",    # PRE/EVT/POST analysis fields
+        "evt",
+        "post",
     }
 
     def __init__(self, toml_path: Path = _DEFAULT_TOML):

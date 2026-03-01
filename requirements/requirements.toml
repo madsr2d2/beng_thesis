@@ -5,7 +5,7 @@
 #
 # --- Requirement Keys ---
 #
-# [requirements.NNN]                  Unique numeric ID (001-123)
+# [requirements.NNN]                  Unique numeric ID (001-121)
 #
 # -- Classification Metadata --
 #   category        : string          Functional area
@@ -235,11 +235,15 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Transmitter shall detect a bit error when the monitored bus bit differs from the transmitted bit; during the FD data phase with TDC active, the transmitter shall ignore bit errors at SP and instead compare at SSP, reacting at the following SP"
+  description = "TX detects a bit error whenever the monitored bus bit differs from the transmitted bit at SP. This single mechanism covers all field contexts: data bits, dynamically-stuffed bits, fixed-form bits, and fixed stuff bits. During the FD data phase with TDC active, the SP comparison is suppressed and the SSP comparison is used instead; the error reaction is deferred to the following SP."
   iso_reference = "6.6.21.2, 6.6.21.3.1, 7.3.4"
   acceptance_criteria = "Without TDC: bit error detected at SP when monitored differs from transmitted; With TDC in FD data phase: SP comparison ignored, SSP comparison used, error reaction deferred to following SP"
-  notes = "Monitoring logic - VERIFIED (polarity mismatch detected)"
+  notes = "Sole TX error detection mechanism. What ISO calls stuff errors and form errors are detected by the TX via this same bit-compare path — the TX generated those bits correctly, so any corruption appears as monitored ≠ transmitted. Stuff error and form error classification is an RX-side concern."
   target_module = ""
+# PRE/EVT/POST Analysis
+  pre  = "Transmitter is actively driving bits onto the bus (outside the three exception contexts of REQ-008); TDC mode off OR bit is outside FD data phase"
+  evt  = "SP strobe fires and monitored_bit ≠ transmitted_bit"
+  post = "Error condition asserted; error flag sequence begins at next bit boundary"
 # Verification Strategy & Status
   verification = "simulation"
   status = "unverified"
@@ -263,11 +267,15 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Transmitter shall NOT detect a bit error in the following cases: (a) monitored dominant during a recessive non-stuff bit in the arbitration field, (b) monitored dominant during the recessive ACK slot, (c) error-passive node monitoring dominant during passive error flag"
+  description = "TX shall suppress the bit error reaction in exactly three contexts where monitored ≠ transmitted is expected or permitted: (a) recessive transmitted on a non-stuff bit in the arbitration field, dominant monitored — arbitration loss, not an error; (b) recessive transmitted in the ACK slot, dominant monitored — normal acknowledgment, not an error; (c) error-passive node transmitting passive error flag (recessive), dominant monitored — overwritten by another node's active error flag, not an error."
   iso_reference = "6.6.21.2"
   acceptance_criteria = "No bit error flagged for: (a) transmitter sends recessive, monitors dominant on a non-stuff bit during arbitration (normal arbitration loss); (b) dominant monitored during recessive ACK slot (normal acknowledgment); (c) dominant monitored during passive error flag (other node's active error flag expected)"
-  notes = "Exception (a) is the arbitration loss mechanism; exception (b) is the ACK mechanism; exception (c) prevents error escalation; exception (d) applies to FD frames only"
+  notes = "These three contexts are the complete exception set. Any monitored ≠ transmitted outside these contexts triggers the error reaction in REQ-007. The old exception (d) for FD frames has been absorbed into REQ-007 (SSP/TDC path)."
   target_module = ""
+# PRE/EVT/POST Analysis
+  pre  = "SP strobe fires and monitored_bit ≠ transmitted_bit"
+  evt  = "Exception context matched: (a) non-stuff arbitration bit and transmitted=recessive, OR (b) ACK slot and transmitted=recessive, OR (c) passive error flag and transmitted=recessive"
+  post = "Error condition NOT asserted; no error flag; no TEC increment"
 # Verification Strategy & Status
   verification = "simulation"
   status = "unverified"
@@ -295,6 +303,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   acceptance_criteria = "No error flag transmitted on arbitration loss; node transitions to receiver mode; TEC not incremented"
   notes = "Arbitration loss handling"
   target_module = ""
+# PRE/EVT/POST Analysis
+  pre  = "Transmitter is in arbitration field; transmitted=recessive on a non-stuff bit; dominant monitored at SP"
+  evt  = "SP strobe fires with monitored=dominant on non-stuff arbitration bit"
+  post = "Transmitter withdraws: no error flag transmitted, node transitions to receiver role, TEC not incremented"
 # Verification Strategy & Status
   verification = "simulation"
   status = "unverified"
@@ -317,13 +329,17 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Transmitter shall detect a stuff error when six or more consecutive bits of identical polarity appear in the dynamically-stuffed portion of the frame"
-  iso_reference = "6.6.13.2, 6.6.21.2"
-  acceptance_criteria = "Stuff error detected and error flag transmitted when 6 or more consecutive identical bits observed in dynamically-stuffed region"
-  notes = "Detected at bit level"
+  description = "Transmitter shall detect an ACK error when no dominant bit is monitored in the ACK slot at the sample point"
+  iso_reference = "6.6.21.2"
+  acceptance_criteria = "ACK error detected when ACK slot sampled recessive; error flag transmitted at next bit"
+  notes = "TX monitors for ACK - VERIFIED"
   target_module = ""
+# PRE/EVT/POST Analysis
+  pre  = "Transmitter has completed CRC field and is in ACK slot; transmitted=recessive"
+  evt  = "SP strobe fires in ACK slot and monitored_bit = recessive"
+  post = "ACK error condition asserted; error flag begins at next bit boundary"
 # Verification Strategy & Status
-  verification = "coverage"
+  verification = "simulation"
   status = "unverified"
 
 [requirements.010.simulation]
@@ -344,13 +360,17 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Transmitter shall detect a form error when a fixed-form bit field (CRC delimiter, ACK delimiter, or EOF) contains an illegal bit value"
-  iso_reference = "6.6.21.2"
-  acceptance_criteria = "Form error detected when fixed-form field (CRC delimiter, ACK delimiter, EOF) contains an illegal bit value; error flag transmitted"
-  notes = "TX ignores form errors (SOF to AH2); caught as bit errors"
+  description = "Active error flag shall consist of 6 consecutive dominant bits transmitted by an error-active node; transmission shall begin at the bit position immediately following the error detection point"
+  iso_reference = "6.6.5.2, 6.6.21.3.1"
+  acceptance_criteria = "6 consecutive dominant bits transmitted starting at the first bit after error detection; applies to all error types in all frame phases"
+  notes = "Error signalling. EXTERNAL_DEP: node error state (error-active) defined by fault confinement requirements (REQ-105/106), not within this block."
   target_module = ""
+# PRE/EVT/POST Analysis
+  pre  = "Error condition asserted (from REQ-007 or REQ-010); node is error-active (TEC ≤ 127 and REC ≤ 127)"
+  evt  = "First bit boundary after error detection point"
+  post = "6 consecutive dominant bits driven onto the bus"
 # Verification Strategy & Status
-  verification = "coverage"
+  verification = "waveform"
   status = "unverified"
 
 [requirements.011.simulation]
@@ -364,6 +384,7 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   file = ""
   depth_reached = 0
 
+
 [requirements.012]
 # Classification Metadata
   category = "ERR"
@@ -371,11 +392,15 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Transmitter shall detect an ACK error when no dominant bit is monitored in the ACK slot at the sample point"
-  iso_reference = "6.6.21.2"
-  acceptance_criteria = "ACK error detected when ACK slot sampled recessive; error flag transmitted at next bit"
-  notes = "TX monitors for ACK - VERIFIED"
+  description = "Passive error flag shall consist of 6 consecutive recessive bits transmitted by an error-passive node; transmission shall begin at the bit position immediately following the error detection point"
+  iso_reference = "6.6.5.2, 6.6.21.3.1"
+  acceptance_criteria = "6 consecutive recessive bits transmitted starting at the first bit after error detection when node is error-passive; passive EF may be overwritten by dominant bits from other nodes"
+  notes = "Passive EF is recessive-only; dominant bits from other nodes may overwrite it on the bus. EXTERNAL_DEP: node error state (error-passive) defined by fault confinement requirements (REQ-105/106), not within this block."
   target_module = ""
+# PRE/EVT/POST Analysis
+  pre  = "Error condition asserted (from REQ-007 or REQ-010); node is error-passive (TEC > 127 or REC > 127)"
+  evt  = "First bit boundary after error detection point"
+  post = "6 consecutive recessive bits driven onto the bus"
 # Verification Strategy & Status
   verification = "simulation"
   status = "unverified"
@@ -395,14 +420,18 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "ERR"
   side = "TX"
-  format = ["CB", "CE", "FB", "FE"]
+  format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Active error flag shall consist of 6 consecutive dominant bits transmitted by an error-active node; transmission shall begin at the bit position immediately following the error detection point"
-  iso_reference = "6.6.5.2, 6.6.21.3.1"
-  acceptance_criteria = "6 consecutive dominant bits transmitted starting at the first bit after error detection; applies to all error types in all frame phases"
-  notes = "Error signalling"
+  description = "When an error is detected at the SSP during the FD data phase, the transmitter shall switch bit rate back to nominal at the following SP; the Phase_Seg2 of that bit runs at nominal timing, and the error flag begins at the next bit boundary"
+  iso_reference = "6.6.21.3.1, Figure 30"
+  acceptance_criteria = "Error detected at SSP in data phase; bit rate returns to nominal at the following SP; Phase_Seg2 of that bit uses nominal timing; first error flag bit transmitted at the following bit boundary at nominal rate"
+  notes = "See ISO Figure 30 (TDC) and Figure 31 (no TDC) for timing diagrams. COMPOUND: POST claims both rate switch AND error flag start — test in two separate coverage bins."
   target_module = ""
+# PRE/EVT/POST Analysis
+  pre  = "Transmitter is in FD data phase with TDC active; SSP comparison fires and monitored_bit ≠ transmitted_bit at SSP"
+  evt  = "SP strobe fires at the bit following the failed SSP check"
+  post = "Bit rate reverts to nominal; Phase_Seg2 of that bit uses nominal timing; error flag begins at the following bit boundary"
 # Verification Strategy & Status
   verification = "waveform"
   status = "unverified"
@@ -418,7 +447,6 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   file = ""
   depth_reached = 0
 
-
 [requirements.014]
 # Classification Metadata
   category = "ERR"
@@ -426,11 +454,15 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Passive error flag shall consist of 6 consecutive recessive bits transmitted by an error-passive node; transmission shall begin at the bit position immediately following the error detection point"
-  iso_reference = "6.6.5.2, 6.6.21.3.1"
-  acceptance_criteria = "6 consecutive recessive bits transmitted starting at the first bit after error detection when node is error-passive; passive EF may be overwritten by dominant bits from other nodes"
-  notes = "Passive EF is recessive-only; dominant bits from other nodes may overwrite it on the bus"
+  description = "Error delimiter shall consist of 8 consecutive recessive bits following the end of the error flag"
+  iso_reference = "6.6.5.3"
+  acceptance_criteria = "8 recessive bits follow the error flag sequence on the bus"
+  notes = "Follows error flag"
   target_module = ""
+# PRE/EVT/POST Analysis
+  pre  = "Error flag sequence (active or passive) has completed transmission"
+  evt  = "Last bit of error flag sequence (bit 6) completes at bit boundary"
+  post = "8 consecutive recessive bits driven onto the bus"
 # Verification Strategy & Status
   verification = "simulation"
   status = "unverified"
@@ -450,16 +482,20 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "ERR"
   side = "TX"
-  format = ["FB", "FE"]
+  format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "When an error is detected at the SSP during the FD data phase, the transmitter shall switch bit rate back to nominal at the following SP; the Phase_Seg2 of that bit runs at nominal timing, and the error flag begins at the next bit boundary"
-  iso_reference = "6.6.21.3.1, Figure 30"
-  acceptance_criteria = "Error detected at SSP in data phase; bit rate returns to nominal at the following SP; Phase_Seg2 of that bit uses nominal timing; first error flag bit transmitted at the following bit boundary at nominal rate"
-  notes = "See ISO Figure 30 (TDC) and Figure 31 (no TDC) for timing diagrams"
+  description = "After error recovery, intermission shall consist of 3 consecutive recessive bits before the bus returns to idle or the next frame begins"
+  iso_reference = "6.6.7.2"
+  acceptance_criteria = "3 recessive bits follow EOF or error delimiter before next frame or bus idle"
+  notes = "Recovery sequence. COMPOUND: POST claims both intermission transmission and subsequent idle/SOF condition — split: REQ-015 covers 3 recessive bits transmitted; REQ-048 covers bus idle after 11 recessive."
   target_module = ""
+# PRE/EVT/POST Analysis
+  pre  = "EOF or error delimiter has completed; bus not idle"
+  evt  = "Last bit of EOF or error delimiter completes at bit boundary"
+  post = "3 consecutive recessive bits driven; bus returns to idle or next frame SOF accepted after intermission"
 # Verification Strategy & Status
-  verification = "waveform"
+  verification = "simulation"
   status = "unverified"
 
 [requirements.015.simulation]
@@ -475,18 +511,18 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 
 [requirements.016]
 # Classification Metadata
-  category = "ERR"
+  category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Error delimiter shall consist of 8 consecutive recessive bits following the end of the error flag"
-  iso_reference = "6.6.5.3"
-  acceptance_criteria = "8 recessive bits follow the error flag sequence on the bus"
-  notes = "Follows error flag"
+  description = "SOF shall be a single dominant bit marking the start of a data frame or remote frame"
+  iso_reference = "6.6.8"
+  acceptance_criteria = "SOF bit on waveform is dominant, exactly 1 bit long"
+  notes = "Every frame starts with SOF"
   target_module = ""
 # Verification Strategy & Status
-  verification = "simulation"
+  verification = "waveform"
   status = "unverified"
 
 [requirements.016.simulation]
@@ -502,18 +538,18 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 
 [requirements.017]
 # Classification Metadata
-  category = "ERR"
+  category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "After error recovery, intermission shall consist of 3 consecutive recessive bits before the bus returns to idle or the next frame begins"
-  iso_reference = "6.6.7.2"
-  acceptance_criteria = "3 recessive bits follow EOF or error delimiter before next frame or bus idle"
-  notes = "Recovery sequence"
+  description = "A CAN frame shall contain the following fields in order: SOF, arbitration field, control field, data field (optional), CRC field, ACK field, and EOF"
+  iso_reference = "6.6.9"
+  acceptance_criteria = "All 7 frame fields present in order: SOF, arbitration, control, data, CRC, ACK, EOF; observed in simulation waveform"
+  notes = "Field ordering critical"
   target_module = ""
 # Verification Strategy & Status
-  verification = "simulation"
+  verification = "assertion"
   status = "unverified"
 
 [requirements.017.simulation]
@@ -534,13 +570,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "SOF shall be a single dominant bit marking the start of a data frame or remote frame"
-  iso_reference = "6.6.8"
-  acceptance_criteria = "SOF bit on waveform is dominant, exactly 1 bit long"
-  notes = "Every frame starts with SOF"
+  description = "The DLC field shall encode the number of data bytes; DLC[3:0] encoding shall follow Table 5; DLC values 9-15 map to fixed byte counts for CAN-FD only"
+  iso_reference = "6.6.10.3, Table 5"
+  acceptance_criteria = "DLC[3:0] encoding matches Table 5; DLC > 8 maps correctly for FD only"
+  notes = "Maps to data length"
   target_module = ""
 # Verification Strategy & Status
-  verification = "waveform"
+  verification = "coverage"
   status = "unverified"
 
 [requirements.018.simulation]
@@ -561,13 +597,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "A CAN frame shall contain the following fields in order: SOF, arbitration field, control field, data field (optional), CRC field, ACK field, and EOF"
-  iso_reference = "6.6.9"
-  acceptance_criteria = "All 7 frame fields present in order: SOF, arbitration, control, data, CRC, ACK, EOF; observed in simulation waveform"
-  notes = "Field ordering critical"
+  description = "Data bytes shall be transmitted MSB first; byte 0 shall be transmitted before byte 1, and so on in ascending order"
+  iso_reference = "6.6.10.4"
+  acceptance_criteria = "Byte 0 transmitted first; MSB of each byte transmitted first; verified in simulation"
+  notes = "8 bits per byte"
   target_module = ""
 # Verification Strategy & Status
-  verification = "assertion"
+  verification = "simulation"
   status = "unverified"
 
 [requirements.019.simulation]
@@ -588,13 +624,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "The DLC field shall encode the number of data bytes; DLC[3:0] encoding shall follow Table 5; DLC values 9-15 map to fixed byte counts for CAN-FD only"
-  iso_reference = "6.6.10.3, Table 5"
-  acceptance_criteria = "DLC[3:0] encoding matches Table 5; DLC > 8 maps correctly for FD only"
-  notes = "Maps to data length"
+  description = "The CRC field shall contain the FCRC sequence followed by a CRC delimiter; the CRC polynomial shall be selected based on frame format and DLC"
+  iso_reference = "6.6.10.5, 6.6.11.5"
+  acceptance_criteria = "CRC-15 polynomial 0xC599 applied; remainder 0x0000 on correct frame; CRC delimiter is recessive"
+  notes = "Polynomial selection"
   target_module = ""
 # Verification Strategy & Status
-  verification = "coverage"
+  verification = "waveform"
   status = "unverified"
 
 [requirements.020.simulation]
@@ -615,13 +651,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Data bytes shall be transmitted MSB first; byte 0 shall be transmitted before byte 1, and so on in ascending order"
-  iso_reference = "6.6.10.4"
-  acceptance_criteria = "Byte 0 transmitted first; MSB of each byte transmitted first; verified in simulation"
-  notes = "8 bits per byte"
+  description = "The transmitter shall send a recessive bit in the ACK slot; a dominant bit driven by a receiver in the ACK slot indicates successful reception"
+  iso_reference = "6.6.10.6"
+  acceptance_criteria = "Transmitter sends recessive during ACK slot; dominant monitored at ACK SP indicates successful acknowledgement"
+  notes = "Part of frame completion"
   target_module = ""
 # Verification Strategy & Status
-  verification = "simulation"
+  verification = "waveform"
   status = "unverified"
 
 [requirements.021.simulation]
@@ -642,10 +678,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "The CRC field shall contain the FCRC sequence followed by a CRC delimiter; the CRC polynomial shall be selected based on frame format and DLC"
-  iso_reference = "6.6.10.5, 6.6.11.5"
-  acceptance_criteria = "CRC-15 polynomial 0xC599 applied; remainder 0x0000 on correct frame; CRC delimiter is recessive"
-  notes = "Polynomial selection"
+  description = "EOF shall consist of 7 consecutive recessive bits at the end of every data frame and remote frame"
+  iso_reference = "6.6.10.7, 6.6.11.7"
+  acceptance_criteria = "7 consecutive recessive bits observed at end of frame"
+  notes = "Marks frame end"
   target_module = ""
 # Verification Strategy & Status
   verification = "waveform"
@@ -666,16 +702,16 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "TX"
-  format = ["CB", "CE", "FB", "FE"]
+  format = ["CB"]
   priority = "critical"
 # Core Specification
-  description = "The transmitter shall send a recessive bit in the ACK slot; a dominant bit driven by a receiver in the ACK slot indicates successful reception"
-  iso_reference = "6.6.10.6"
-  acceptance_criteria = "Transmitter sends recessive during ACK slot; dominant monitored at ACK SP indicates successful acknowledgement"
-  notes = "Part of frame completion"
+  description = "The base identifier in CBFF frames shall be 11 bits transmitted MSB first"
+  iso_reference = "6.6.10.2"
+  acceptance_criteria = "11-bit base identifier transmitted MSB-first; verified in simulation"
+  notes = "CC Basic only"
   target_module = ""
 # Verification Strategy & Status
-  verification = "waveform"
+  verification = "coverage"
   status = "unverified"
 
 [requirements.023.simulation]
@@ -693,16 +729,16 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "TX"
-  format = ["CB", "CE", "FB", "FE"]
+  format = ["CE"]
   priority = "critical"
 # Core Specification
-  description = "EOF shall consist of 7 consecutive recessive bits at the end of every data frame and remote frame"
-  iso_reference = "6.6.10.7, 6.6.11.7"
-  acceptance_criteria = "7 consecutive recessive bits observed at end of frame"
-  notes = "Marks frame end"
+  description = "The identifier in CEFF frames shall be 29 bits: 11-bit base identifier followed by SRR, IDE, and 18-bit identifier extension, all transmitted MSB first"
+  iso_reference = "6.6.10.2"
+  acceptance_criteria = "29-bit identifier transmitted: 11 base bits + SRR + IDE + 18 extension bits; all MSB-first"
+  notes = "CC Extended only"
   target_module = ""
 # Verification Strategy & Status
-  verification = "waveform"
+  verification = "coverage"
   status = "unverified"
 
 [requirements.024.simulation]
@@ -720,13 +756,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "TX"
-  format = ["CB"]
+  format = ["FB"]
   priority = "critical"
 # Core Specification
-  description = "The base identifier in CBFF frames shall be 11 bits transmitted MSB first"
-  iso_reference = "6.6.10.2"
+  description = "The base identifier in FBFF frames shall be 11 bits transmitted MSB first"
+  iso_reference = "6.6.11.2"
   acceptance_criteria = "11-bit base identifier transmitted MSB-first; verified in simulation"
-  notes = "CC Basic only"
+  notes = "FD Basic only"
   target_module = ""
 # Verification Strategy & Status
   verification = "coverage"
@@ -747,13 +783,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "TX"
-  format = ["CE"]
+  format = ["FE"]
   priority = "critical"
 # Core Specification
-  description = "The identifier in CEFF frames shall be 29 bits: 11-bit base identifier followed by SRR, IDE, and 18-bit identifier extension, all transmitted MSB first"
-  iso_reference = "6.6.10.2"
+  description = "The identifier in FEFF frames shall be 29 bits: 11-bit base identifier followed by SRR, IDE, and 18-bit identifier extension, all transmitted MSB first"
+  iso_reference = "6.6.11.2"
   acceptance_criteria = "29-bit identifier transmitted: 11 base bits + SRR + IDE + 18 extension bits; all MSB-first"
-  notes = "CC Extended only"
+  notes = "FD Extended only"
   target_module = ""
 # Verification Strategy & Status
   verification = "coverage"
@@ -774,13 +810,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "TX"
-  format = ["FB"]
+  format = ["CB", "CE"]
   priority = "critical"
 # Core Specification
-  description = "The base identifier in FBFF frames shall be 11 bits transmitted MSB first"
-  iso_reference = "6.6.11.2"
-  acceptance_criteria = "11-bit base identifier transmitted MSB-first; verified in simulation"
-  notes = "FD Basic only"
+  description = "The RTR bit shall be dominant in data frames and recessive in remote frames; this field is present only in CC frames (CBFF and CEFF)"
+  iso_reference = "6.6.10.2"
+  acceptance_criteria = "RTR bit dominant in data frame; RTR bit recessive in remote frame"
+  notes = "CAN Classic only"
   target_module = ""
 # Verification Strategy & Status
   verification = "coverage"
@@ -801,13 +837,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "TX"
-  format = ["FE"]
+  format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "The identifier in FEFF frames shall be 29 bits: 11-bit base identifier followed by SRR, IDE, and 18-bit identifier extension, all transmitted MSB first"
+  description = "The RRS bit shall always be dominant in FBFF and FEFF frames"
   iso_reference = "6.6.11.2"
-  acceptance_criteria = "29-bit identifier transmitted: 11 base bits + SRR + IDE + 18 extension bits; all MSB-first"
-  notes = "FD Extended only"
+  acceptance_criteria = "RRS bit always dominant in FBFF and FEFF frames; verified in simulation"
+  notes = "CAN FD only"
   target_module = ""
 # Verification Strategy & Status
   verification = "coverage"
@@ -828,13 +864,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "TX"
-  format = ["CB", "CE"]
+  format = ["CE"]
   priority = "critical"
 # Core Specification
-  description = "The RTR bit shall be dominant in data frames and recessive in remote frames; this field is present only in CC frames (CBFF and CEFF)"
+  description = "The SRR bit shall always be recessive in CEFF and FEFF frames"
   iso_reference = "6.6.10.2"
-  acceptance_criteria = "RTR bit dominant in data frame; RTR bit recessive in remote frame"
-  notes = "CAN Classic only"
+  acceptance_criteria = "SRR bit always recessive in CEFF and FEFF frames; verified in simulation"
+  notes = "Arbitration helper bit"
   target_module = ""
 # Verification Strategy & Status
   verification = "coverage"
@@ -855,13 +891,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "TX"
-  format = ["FB", "FE"]
+  format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "The RRS bit shall always be dominant in FBFF and FEFF frames"
-  iso_reference = "6.6.11.2"
-  acceptance_criteria = "RRS bit always dominant in FBFF and FEFF frames; verified in simulation"
-  notes = "CAN FD only"
+  description = "The IDE bit shall be dominant in CBFF and FBFF frames; IDE shall be recessive in CEFF and FEFF frames"
+  iso_reference = "6.6.10.2, 6.6.11.2"
+  acceptance_criteria = "IDE bit dominant in CBFF/FBFF; recessive in CEFF/FEFF; verified in simulation"
+  notes = "Format indicator"
   target_module = ""
 # Verification Strategy & Status
   verification = "coverage"
@@ -882,16 +918,16 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "TX"
-  format = ["CE"]
+  format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "The SRR bit shall always be recessive in CEFF and FEFF frames"
-  iso_reference = "6.6.10.2"
-  acceptance_criteria = "SRR bit always recessive in CEFF and FEFF frames; verified in simulation"
-  notes = "Arbitration helper bit"
+  description = "A node that transmits a recessive bit but monitors a dominant bit at the RTR or RRS position shall withdraw from transmitter role and become a receiver without signalling an error"
+  iso_reference = "6.6.3.2"
+  acceptance_criteria = "No error flag on arbitration loss at RTR/RRS; node transitions to receiver mode without TEC increment"
+  notes = "Arbitration loss withdrawal"
   target_module = ""
 # Verification Strategy & Status
-  verification = "coverage"
+  verification = "simulation"
   status = "unverified"
 
 [requirements.031.simulation]
@@ -912,10 +948,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "The IDE bit shall be dominant in CBFF and FBFF frames; IDE shall be recessive in CEFF and FEFF frames"
-  iso_reference = "6.6.10.2, 6.6.11.2"
-  acceptance_criteria = "IDE bit dominant in CBFF/FBFF; recessive in CEFF/FEFF; verified in simulation"
-  notes = "Format indicator"
+  description = "The r1 bit (reserved bit 1) in CEFF frames shall be transmitted dominant"
+  iso_reference = "6.6.10.3"
+  acceptance_criteria = "r1 bit observed dominant in CEFF frames; verified in simulation"
+  notes = "Format control bits"
   target_module = ""
 # Verification Strategy & Status
   verification = "coverage"
@@ -936,16 +972,16 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "TX"
-  format = ["CB", "CE", "FB", "FE"]
+  format = ["CB", "CE"]
   priority = "critical"
 # Core Specification
-  description = "A node that transmits a recessive bit but monitors a dominant bit at the RTR or RRS position shall withdraw from transmitter role and become a receiver without signalling an error"
-  iso_reference = "6.6.3.2"
-  acceptance_criteria = "No error flag on arbitration loss at RTR/RRS; node transitions to receiver mode without TEC increment"
-  notes = "Arbitration loss withdrawal"
+  description = "The r0 bit (reserved bit 0) in CBFF and CEFF frames shall be transmitted dominant"
+  iso_reference = "6.6.10.3"
+  acceptance_criteria = "r0 bit always dominant in CBFF and CEFF frames; verified in simulation"
+  notes = "CAN Classic only"
   target_module = ""
 # Verification Strategy & Status
-  verification = "simulation"
+  verification = "coverage"
   status = "unverified"
 
 [requirements.033.simulation]
@@ -966,10 +1002,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "The r1 bit (reserved bit 1) in CEFF frames shall be transmitted dominant"
-  iso_reference = "6.6.10.3"
-  acceptance_criteria = "r1 bit observed dominant in CEFF frames; verified in simulation"
-  notes = "Format control bits"
+  description = "The FDF bit shall be recessive in CC frames (indicating a classic frame) and dominant in FD frames (indicating an FD frame)"
+  iso_reference = "6.6.11.3"
+  acceptance_criteria = "FDF bit recessive for CC frames, dominant for FD frames; verified in waveform"
+  notes = "Differentiates CC/FD"
   target_module = ""
 # Verification Strategy & Status
   verification = "coverage"
@@ -990,13 +1026,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "TX"
-  format = ["CB", "CE"]
+  format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "The r0 bit (reserved bit 0) in CBFF and CEFF frames shall be transmitted dominant"
-  iso_reference = "6.6.10.3"
-  acceptance_criteria = "r0 bit always dominant in CBFF and CEFF frames; verified in simulation"
-  notes = "CAN Classic only"
+  description = "The res bit shall always be dominant in FD frames; it is located between FDF and BRS in the control field"
+  iso_reference = "6.6.11.3"
+  acceptance_criteria = "res bit always dominant in FD frames; verified in simulation"
+  notes = "FD format only"
   target_module = ""
 # Verification Strategy & Status
   verification = "coverage"
@@ -1017,13 +1053,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "TX"
-  format = ["CB", "CE", "FB", "FE"]
+  format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "The FDF bit shall be recessive in CC frames (indicating a classic frame) and dominant in FD frames (indicating an FD frame)"
+  description = "The BRS bit shall be recessive when the transmitter requests a data phase bit rate switch; BRS shall be dominant when no rate switch is requested"
   iso_reference = "6.6.11.3"
-  acceptance_criteria = "FDF bit recessive for CC frames, dominant for FD frames; verified in waveform"
-  notes = "Differentiates CC/FD"
+  acceptance_criteria = "BRS bit recessive when data phase rate switch requested; BRS dominant when no rate switch; verified in waveform"
+  notes = "Enables bit rate switch"
   target_module = ""
 # Verification Strategy & Status
   verification = "coverage"
@@ -1047,10 +1083,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "The res bit shall always be dominant in FD frames; it is located between FDF and BRS in the control field"
+  description = "The ESI bit shall be recessive when the transmitting node is error-passive; ESI shall be dominant when the node is error-active"
   iso_reference = "6.6.11.3"
-  acceptance_criteria = "res bit always dominant in FD frames; verified in simulation"
-  notes = "FD format only"
+  acceptance_criteria = "ESI bit recessive when node is error-passive; dominant when error-active; verified in simulation"
+  notes = "Error state indicator"
   target_module = ""
 # Verification Strategy & Status
   verification = "coverage"
@@ -1071,16 +1107,16 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "TX"
-  format = ["FB", "FE"]
+  format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "The BRS bit shall be recessive when the transmitter requests a data phase bit rate switch; BRS shall be dominant when no rate switch is requested"
-  iso_reference = "6.6.11.3"
-  acceptance_criteria = "BRS bit recessive when data phase rate switch requested; BRS dominant when no rate switch; verified in waveform"
-  notes = "Enables bit rate switch"
+  description = "Dynamic bit stuffing shall ensure no more than 4 consecutive bits of the same polarity in the dynamically-stuffed region; a complementary stuff bit shall be inserted after the 5th consecutive identical bit"
+  iso_reference = "6.6.13.2"
+  acceptance_criteria = "No more than 4 identical consecutive bits in destuffed stream; complementary stuff bit inserted after 5th consecutive identical bit"
+  notes = "Formally verified via PSL assertions embedded in bit_stuffer_fd.vhd. Properties P1-P3, P5-P6: count bounded, count implies valid, stuff polarity inverse, reset/start clear state. Run: sby formal/bit_stuffer_fd.sby prove"
   target_module = ""
 # Verification Strategy & Status
-  verification = "coverage"
+  verification = "assertion"
   status = "unverified"
 
 [requirements.038.simulation]
@@ -1101,13 +1137,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "The ESI bit shall be recessive when the transmitting node is error-passive; ESI shall be dominant when the node is error-active"
-  iso_reference = "6.6.11.3"
-  acceptance_criteria = "ESI bit recessive when node is error-passive; dominant when error-active; verified in simulation"
-  notes = "Error state indicator"
+  description = "In FD frames, a fixed stuff bit of opposite polarity to the preceding bit shall be inserted before the SBC field"
+  iso_reference = "6.6.13.3"
+  acceptance_criteria = "Fixed stuff bit inserted before SBC and after every 4th CRC bit; polarity = inverse of preceding bit"
+  notes = "PSL property P4 (no unknown polarity on valid output) in bit_stuffer_fd.vhd. Run: sby formal/bit_stuffer_fd.sby prove"
   target_module = ""
 # Verification Strategy & Status
-  verification = "coverage"
+  verification = "assertion"
   status = "unverified"
 
 [requirements.039.simulation]
@@ -1125,16 +1161,16 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "TX"
-  format = ["CB", "CE", "FB", "FE"]
+  format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Dynamic bit stuffing shall ensure no more than 4 consecutive bits of the same polarity in the dynamically-stuffed region; a complementary stuff bit shall be inserted after the 5th consecutive identical bit"
-  iso_reference = "6.6.13.2"
-  acceptance_criteria = "No more than 4 identical consecutive bits in destuffed stream; complementary stuff bit inserted after 5th consecutive identical bit"
-  notes = "Formally verified via PSL assertions embedded in bit_stuffer_fd.vhd. Properties P1-P3, P5-P6: count bounded, count implies valid, stuff polarity inverse, reset/start clear state. Run: sby formal/bit_stuffer_fd.sby prove"
+  description = "In FD frames, a fixed stuff bit of opposite polarity to the preceding bit shall be inserted after every 4th bit of the CRC field"
+  iso_reference = "6.6.13.3.1"
+  acceptance_criteria = "Fixed stuff bit inserted before SBC and after every 4th CRC bit; polarity = inverse of preceding bit"
+  notes = "FD CRC field"
   target_module = ""
 # Verification Strategy & Status
-  verification = "assertion"
+  verification = "coverage"
   status = "unverified"
 
 [requirements.040.simulation]
@@ -1152,16 +1188,16 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "TX"
-  format = ["FB", "FE"]
+  format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "In FD frames, a fixed stuff bit of opposite polarity to the preceding bit shall be inserted before the SBC field"
+  description = "Each fixed stuff bit shall have polarity opposite to the immediately preceding bit in the bit stream"
   iso_reference = "6.6.13.3"
   acceptance_criteria = "Fixed stuff bit inserted before SBC and after every 4th CRC bit; polarity = inverse of preceding bit"
-  notes = "PSL property P4 (no unknown polarity on valid output) in bit_stuffer_fd.vhd. Run: sby formal/bit_stuffer_fd.sby prove"
+  notes = "Dynamic stuffing"
   target_module = ""
 # Verification Strategy & Status
-  verification = "assertion"
+  verification = "coverage"
   status = "unverified"
 
 [requirements.041.simulation]
@@ -1179,16 +1215,16 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "TX"
-  format = ["FB", "FE"]
+  format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "In FD frames, a fixed stuff bit of opposite polarity to the preceding bit shall be inserted after every 4th bit of the CRC field"
-  iso_reference = "6.6.13.3.1"
-  acceptance_criteria = "Fixed stuff bit inserted before SBC and after every 4th CRC bit; polarity = inverse of preceding bit"
-  notes = "FD CRC field"
+  description = "The transmitter shall send a recessive bit in the ACK slot and shall monitor the bus for a dominant ACK from a receiver; absence of dominant ACK triggers an ACK error"
+  iso_reference = "6.6.10.6"
+  acceptance_criteria = "Transmitter sends recessive during ACK slot; dominant monitored at ACK SP indicates successful acknowledgement"
+  notes = "Frame acknowledgement"
   target_module = ""
 # Verification Strategy & Status
-  verification = "coverage"
+  verification = "simulation"
   status = "unverified"
 
 [requirements.042.simulation]
@@ -1209,13 +1245,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Each fixed stuff bit shall have polarity opposite to the immediately preceding bit in the bit stream"
-  iso_reference = "6.6.13.3"
-  acceptance_criteria = "Fixed stuff bit inserted before SBC and after every 4th CRC bit; polarity = inverse of preceding bit"
-  notes = "Dynamic stuffing"
+  description = "Transfer_Status value Transmitted shall be reported to the LLC sub-layer after successful completion of EOF"
+  iso_reference = "6.4.5.5.5"
+  acceptance_criteria = "Transfer_Status = Transmitted reported to LLC after successful EOF completion; verified in FSM signal output"
+  notes = "LLC notification"
   target_module = ""
 # Verification Strategy & Status
-  verification = "coverage"
+  verification = "simulation"
   status = "unverified"
 
 [requirements.043.simulation]
@@ -1236,10 +1272,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "The transmitter shall send a recessive bit in the ACK slot and shall monitor the bus for a dominant ACK from a receiver; absence of dominant ACK triggers an ACK error"
-  iso_reference = "6.6.10.6"
-  acceptance_criteria = "Transmitter sends recessive during ACK slot; dominant monitored at ACK SP indicates successful acknowledgement"
-  notes = "Frame acknowledgement"
+  description = "On receiving an abort request from LLC, the transmitter shall halt frame transmission and release the bus without completing the current frame"
+  iso_reference = "6.4.5.5.3"
+  acceptance_criteria = "Frame transmission halts on abort request; bus released without completing frame; FSM returns to idle"
+  notes = "Abort handling"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1263,10 +1299,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Transfer_Status value Transmitted shall be reported to the LLC sub-layer after successful completion of EOF"
-  iso_reference = "6.4.5.5.5"
-  acceptance_criteria = "Transfer_Status = Transmitted reported to LLC after successful EOF completion; verified in FSM signal output"
-  notes = "LLC notification"
+  description = "After EOF, the transmitter shall observe an intermission of 3 consecutive recessive bits before starting or acknowledging a new frame"
+  iso_reference = "6.6.7.2"
+  acceptance_criteria = "3 recessive bits follow EOF or error delimiter before next frame or bus idle"
+  notes = "Recovery phase"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1290,10 +1326,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "On receiving an abort request from LLC, the transmitter shall halt frame transmission and release the bus without completing the current frame"
-  iso_reference = "6.4.5.5.3"
-  acceptance_criteria = "Frame transmission halts on abort request; bus released without completing frame; FSM returns to idle"
-  notes = "Abort handling"
+  description = "Bus idle shall be declared after 11 consecutive recessive bits are detected during the re-integration sequence following a bus-off recovery or protocol exception"
+  iso_reference = "6.6.7.5"
+  acceptance_criteria = "Bus idle after 11 consecutive recessive bits post re-integration; confirmed in FSM signal transitions"
+  notes = "Idle detection"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1317,10 +1353,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "After EOF, the transmitter shall observe an intermission of 3 consecutive recessive bits before starting or acknowledging a new frame"
-  iso_reference = "6.6.7.2"
-  acceptance_criteria = "3 recessive bits follow EOF or error delimiter before next frame or bus idle"
-  notes = "Recovery phase"
+  description = "The MAC transmit FSM shall transition through states: idle, transmitting, intermission, and back to idle after each successful frame"
+  iso_reference = "6.6.7, 6.6.21"
+  acceptance_criteria = "Frame status transitions: idle → transmitting → intermission → idle observed in FSM signals"
+  notes = "State management"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1339,15 +1375,15 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 
 [requirements.048]
 # Classification Metadata
-  category = "FRM"
+  category = "TMG"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Bus idle shall be declared after 11 consecutive recessive bits are detected during the re-integration sequence following a bus-off recovery or protocol exception"
-  iso_reference = "6.6.7.5"
-  acceptance_criteria = "Bus idle after 11 consecutive recessive bits post re-integration; confirmed in FSM signal transitions"
-  notes = "Idle detection"
+  description = "Nominal bit time shall be composed of four non-overlapping segments: Sync_Seg, Prop_Seg, Phase_Seg1, and Phase_Seg2"
+  iso_reference = "7.3.2"
+  acceptance_criteria = "Bit time = Sync_Seg + Prop_Seg + Phase_Seg1 + Phase_Seg2 tq total; each segment within configured bounds per Table 13"
+  notes = "Arbitration phase"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1366,15 +1402,15 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 
 [requirements.049]
 # Classification Metadata
-  category = "FRM"
+  category = "TMG"
   side = "TX"
-  format = ["CB", "CE", "FB", "FE"]
+  format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "The MAC transmit FSM shall transition through states: idle, transmitting, intermission, and back to idle after each successful frame"
-  iso_reference = "6.6.7, 6.6.21"
-  acceptance_criteria = "Frame status transitions: idle → transmitting → intermission → idle observed in FSM signals"
-  notes = "State management"
+  description = "FD data phase bit time shall be shorter than the nominal bit time; the switch to data phase bit timing occurs at the sample point of the BRS bit when BRS is recessive"
+  iso_reference = "7.3.2"
+  acceptance_criteria = "BRS bit recessive when data phase rate switch requested; data phase bit time shorter than nominal; switch at BRS SP"
+  notes = "FD frames only"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1398,10 +1434,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Nominal bit time shall be composed of four non-overlapping segments: Sync_Seg, Prop_Seg, Phase_Seg1, and Phase_Seg2"
+  description = "Sample point shall be located at the end of Phase_Seg1 within the bit time"
   iso_reference = "7.3.2"
-  acceptance_criteria = "Bit time = Sync_Seg + Prop_Seg + Phase_Seg1 + Phase_Seg2 tq total; each segment within configured bounds per Table 13"
-  notes = "Arbitration phase"
+  acceptance_criteria = "SP pulse occurs at end of Phase_Seg1; confirmed by strobe alignment in simulation"
+  notes = "Per configuration"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1422,13 +1458,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "TMG"
   side = "TX"
-  format = ["FB", "FE"]
+  format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "FD data phase bit time shall be shorter than the nominal bit time; the switch to data phase bit timing occurs at the sample point of the BRS bit when BRS is recessive"
+  description = "Time quantum shall be defined as an integer multiple of the minimum clock period determined by the prescaler value m"
   iso_reference = "7.3.2"
-  acceptance_criteria = "BRS bit recessive when data phase rate switch requested; data phase bit time shorter than nominal; switch at BRS SP"
-  notes = "FD frames only"
+  acceptance_criteria = "Time quantum length = m * minimum clock period; measured tq count matches configured prescaler m"
+  notes = "Clock division"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1449,13 +1485,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "TMG"
   side = "TX"
-  format = ["CB", "CE", "FB", "FE"]
+  format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Sample point shall be located at the end of Phase_Seg1 within the bit time"
-  iso_reference = "7.3.2"
-  acceptance_criteria = "SP pulse occurs at end of Phase_Seg1; confirmed by strobe alignment in simulation"
-  notes = "Per configuration"
+  description = "Data phase shall begin at the sample point of the BRS bit when BRS is recessive"
+  iso_reference = "7.3.3"
+  acceptance_criteria = "BRS bit recessive when data phase rate switch requested; data phase begins at BRS SP; verified in waveform"
+  notes = "FD frames, BRS=recessive"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1476,13 +1512,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "TMG"
   side = "TX"
-  format = ["CB", "CE", "FB", "FE"]
+  format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Time quantum shall be defined as an integer multiple of the minimum clock period determined by the prescaler value m"
-  iso_reference = "7.3.2"
-  acceptance_criteria = "Time quantum length = m * minimum clock period; measured tq count matches configured prescaler m"
-  notes = "Clock division"
+  description = "Data phase shall end at the sample point of the CRC delimiter"
+  iso_reference = "7.3.3"
+  acceptance_criteria = "Data phase bit timing reverts to nominal at CRC delimiter SP; verified in waveform"
+  notes = "FD frames only"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1506,10 +1542,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Data phase shall begin at the sample point of the BRS bit when BRS is recessive"
-  iso_reference = "7.3.3"
-  acceptance_criteria = "BRS bit recessive when data phase rate switch requested; data phase begins at BRS SP; verified in waveform"
-  notes = "FD frames, BRS=recessive"
+  description = "TDC measurement shall be triggered by the recessive-to-dominant edge on the res bit (FDF-to-res bit transition) in FD frames"
+  iso_reference = "7.3.4"
+  acceptance_criteria = "TDC measurement started at recessive-to-dominant edge on res bit; delay value captured before first data phase bit"
+  notes = "Recently fixed (Issue B)"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1533,10 +1569,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Data phase shall end at the sample point of the CRC delimiter"
-  iso_reference = "7.3.3"
-  acceptance_criteria = "Data phase bit timing reverts to nominal at CRC delimiter SP; verified in waveform"
-  notes = "FD frames only"
+  description = "Secondary sample point (SSP) position shall be calculated as the sum of the TDC measured delay and the configured SSP offset"
+  iso_reference = "7.3.4"
+  acceptance_criteria = "SSP position = TDC measured delay + configured SSP offset; verified by strobe timing in waveform"
+  notes = "Within bit time"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1560,10 +1596,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "TDC measurement shall be triggered by the recessive-to-dominant edge on the res bit (FDF-to-res bit transition) in FD frames"
+  description = "TDC error shall be detected at the sample point following a failed SSP check during the FD data phase"
   iso_reference = "7.3.4"
-  acceptance_criteria = "TDC measurement started at recessive-to-dominant edge on res bit; delay value captured before first data phase bit"
-  notes = "Recently fixed (Issue B)"
+  acceptance_criteria = "TDC error signalled after SSP check fails; error flag not delayed past the following SP"
+  notes = "TDC error path - Test 5 diagnostic (waveform inspection)"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1587,13 +1623,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Secondary sample point (SSP) position shall be calculated as the sum of the TDC measured delay and the configured SSP offset"
+  description = "After a TDC error, the node shall revert to using SP instead of SSP and restore nominal bit rate after the current data phase"
   iso_reference = "7.3.4"
-  acceptance_criteria = "SSP position = TDC measured delay + configured SSP offset; verified by strobe timing in waveform"
-  notes = "Within bit time"
+  acceptance_criteria = "After TDC error: SSP replaced by SP for remainder of data phase; nominal rate restored at CRC delimiter"
+  notes = "Complex timing - Test 6 diagnostic (multi-signal analysis)"
   target_module = ""
 # Verification Strategy & Status
-  verification = "simulation"
+  verification = "waveform"
   status = "unverified"
 
 [requirements.057.simulation]
@@ -1614,10 +1650,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "TDC error shall be detected at the sample point following a failed SSP check during the FD data phase"
+  description = "SSP shall be used only for FD data phase bits; SSP shall not be used during arbitration or control fields"
   iso_reference = "7.3.4"
-  acceptance_criteria = "TDC error signalled after SSP check fails; error flag not delayed past the following SP"
-  notes = "TDC error path - Test 5 diagnostic (waveform inspection)"
+  acceptance_criteria = "SSP strobe occurs only during FD data phase; no SSP strobe during arbitration, control, or error fields"
+  notes = "ESI excluded from SSP"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1634,6 +1670,12 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   file = ""
   depth_reached = 0
 
+
+# ============================================================
+# RX Frame Reception Requirements (FRM/RX)
+# ============================================================
+
+
 [requirements.059]
 # Classification Metadata
   category = "TMG"
@@ -1641,13 +1683,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "After a TDC error, the node shall revert to using SP instead of SSP and restore nominal bit rate after the current data phase"
+  description = "Bit error detection shall be disabled for bits at the end of the FD data phase whose SSPs fall into the following arbitration phase"
   iso_reference = "7.3.4"
-  acceptance_criteria = "After TDC error: SSP replaced by SP for remainder of data phase; nominal rate restored at CRC delimiter"
-  notes = "Complex timing - Test 6 diagnostic (multi-signal analysis)"
+  acceptance_criteria = "For FD data phase bits near CRC delimiter, if the computed SSP position exceeds the data phase boundary, bit error detection is suppressed for those bits"
+  notes = "Prevents false bit errors during rate transition from FD data phase back to nominal"
   target_module = ""
 # Verification Strategy & Status
-  verification = "waveform"
+  verification = "simulation"
   status = "unverified"
 
 [requirements.059.simulation]
@@ -1663,15 +1705,15 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 
 [requirements.060]
 # Classification Metadata
-  category = "TMG"
-  side = "TX"
-  format = ["FB", "FE"]
+  category = "FRM"
+  side = "RX"
+  format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "SSP shall be used only for FD data phase bits; SSP shall not be used during arbitration or control fields"
-  iso_reference = "7.3.4"
-  acceptance_criteria = "SSP strobe occurs only during FD data phase; no SSP strobe during arbitration, control, or error fields"
-  notes = "ESI excluded from SSP"
+  description = "Receiver shall detect the start of a new frame by observing a dominant bit during bus idle or at the third bit of intermission, and shall begin frame reception and hard synchronization at that bit"
+  iso_reference = "6.6.8, 6.6.7.1"
+  acceptance_criteria = "Dominant SOF bit on waveform; receiver transitions from bus-idle to frame-receiving state; hard synchronization occurs at SOF edge"
+  notes = "A node sampling dominant at intermission bit 3 accepts it as SOF"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1688,23 +1730,17 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   file = ""
   depth_reached = 0
 
-
-# ============================================================
-# RX Frame Reception Requirements (FRM/RX)
-# ============================================================
-
-
 [requirements.061]
 # Classification Metadata
-  category = "TMG"
-  side = "TX"
-  format = ["FB", "FE"]
+  category = "FRM"
+  side = "RX"
+  format = ["CB", "CE"]
   priority = "critical"
 # Core Specification
-  description = "Bit error detection shall be disabled for bits at the end of the FD data phase whose SSPs fall into the following arbitration phase"
-  iso_reference = "7.3.4"
-  acceptance_criteria = "For FD data phase bits near CRC delimiter, if the computed SSP position exceeds the data phase boundary, bit error detection is suppressed for those bits"
-  notes = "Prevents false bit errors during rate transition from FD data phase back to nominal"
+  description = "Receiver shall determine the frame format as CBFF or CEFF by sampling the IDE bit within the arbitration field: dominant IDE indicates CBFF; recessive IDE indicates CEFF"
+  iso_reference = "6.6.10.2, 6.6.10.3"
+  acceptance_criteria = "IDE=dominant received → CBFF path selected; IDE=recessive received → CEFF path selected; verified in simulation for both polarities"
+  notes = "IDE bit position differs between formats; must be identified during arbitration"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1725,13 +1761,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "RX"
-  format = ["CB", "CE", "FB", "FE"]
+  format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall detect the start of a new frame by observing a dominant bit during bus idle or at the third bit of intermission, and shall begin frame reception and hard synchronization at that bit"
-  iso_reference = "6.6.8, 6.6.7.1"
-  acceptance_criteria = "Dominant SOF bit on waveform; receiver transitions from bus-idle to frame-receiving state; hard synchronization occurs at SOF edge"
-  notes = "A node sampling dominant at intermission bit 3 accepts it as SOF"
+  description = "Receiver shall determine the frame format as FD (FBFF or FEFF) by sampling the FDF bit recessive in the control field; a dominant FDF indicates a CC frame"
+  iso_reference = "6.6.11.3, 6.6.11.4"
+  acceptance_criteria = "FDF=recessive triggers FD reception path including BRS and ESI field processing; FDF=dominant keeps CC reception path"
+  notes = "FD tolerant nodes detect protocol exception when r0/r1 bit is recessive"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1752,13 +1788,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "RX"
-  format = ["CB", "CE"]
+  format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall determine the frame format as CBFF or CEFF by sampling the IDE bit within the arbitration field: dominant IDE indicates CBFF; recessive IDE indicates CEFF"
-  iso_reference = "6.6.10.2, 6.6.10.3"
-  acceptance_criteria = "IDE=dominant received → CBFF path selected; IDE=recessive received → CEFF path selected; verified in simulation for both polarities"
-  notes = "IDE bit position differs between formats; must be identified during arbitration"
+  description = "Receiver shall deserialize the arbitration field bits — base identifier (11 bits MSB-first), SRR/RTR, IDE, and extended identifier (18 bits MSB-first if CEFF/FEFF) — in the order specified by the detected frame format"
+  iso_reference = "6.6.16, 6.6.10.2"
+  acceptance_criteria = "11-bit base identifier received MSB-first; for extended frames, 18-bit extension received MSB-first after SRR/IDE; reconstructed ID matches transmitted ID"
+  notes = "Within each field, MSB transmitted first"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1779,13 +1815,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "RX"
-  format = ["FB", "FE"]
+  format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall determine the frame format as FD (FBFF or FEFF) by sampling the FDF bit recessive in the control field; a dominant FDF indicates a CC frame"
-  iso_reference = "6.6.11.3, 6.6.11.4"
-  acceptance_criteria = "FDF=recessive triggers FD reception path including BRS and ESI field processing; FDF=dominant keeps CC reception path"
-  notes = "FD tolerant nodes detect protocol exception when r0/r1 bit is recessive"
+  description = "Receiver shall extract the DLC field from the received control field and determine the expected data field length in bytes according to the DLC-to-length mapping defined in Table 5"
+  iso_reference = "6.6.10.3, 6.6.11.3"
+  acceptance_criteria = "DLC[3:0] encoding matches Table 5; CC DLC > 8 treated as 8 bytes; FD DLC 9–15 maps to 12/16/20/24/32/48/64 bytes respectively"
+  notes = "DLC interpretation differs between CC and FD formats"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1809,10 +1845,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall deserialize the arbitration field bits — base identifier (11 bits MSB-first), SRR/RTR, IDE, and extended identifier (18 bits MSB-first if CEFF/FEFF) — in the order specified by the detected frame format"
-  iso_reference = "6.6.16, 6.6.10.2"
-  acceptance_criteria = "11-bit base identifier received MSB-first; for extended frames, 18-bit extension received MSB-first after SRR/IDE; reconstructed ID matches transmitted ID"
-  notes = "Within each field, MSB transmitted first"
+  description = "Receiver shall remove dynamic stuff bits from the received bit stream by discarding every bit that follows five or more consecutive identical bits in the SOF-through-FCRC region of the frame"
+  iso_reference = "6.6.13.2"
+  acceptance_criteria = "No more than 4 identical consecutive bits in de-stuffed stream; complementary stuff bit discarded after 5th consecutive identical bit"
+  notes = "Dynamic bit stuffing applies from SOF through FCRC in CC; through data field in FD"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1833,13 +1869,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "RX"
-  format = ["CB", "CE", "FB", "FE"]
+  format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall extract the DLC field from the received control field and determine the expected data field length in bytes according to the DLC-to-length mapping defined in Table 5"
-  iso_reference = "6.6.10.3, 6.6.11.3"
-  acceptance_criteria = "DLC[3:0] encoding matches Table 5; CC DLC > 8 treated as 8 bytes; FD DLC 9–15 maps to 12/16/20/24/32/48/64 bytes respectively"
-  notes = "DLC interpretation differs between CC and FD formats"
+  description = "Receiver shall remove fixed stuff bits from the FD CRC field at the fixed positions: the bit before the SBC field and after every 4th CRC bit; each removed bit shall have a polarity inverse to the preceding bit"
+  iso_reference = "6.6.13.3.1, 6.6.13.3.2"
+  acceptance_criteria = "Fixed stuff bit before SBC and after every 4th CRC bit removed at correct positions; form error raised if fixed stuff bit polarity equals preceding bit"
+  notes = "Fixed stuff bits apply only in FD CRC field; not in dynamic-stuffed regions"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1863,10 +1899,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall remove dynamic stuff bits from the received bit stream by discarding every bit that follows five or more consecutive identical bits in the SOF-through-FCRC region of the frame"
-  iso_reference = "6.6.13.2"
-  acceptance_criteria = "No more than 4 identical consecutive bits in de-stuffed stream; complementary stuff bit discarded after 5th consecutive identical bit"
-  notes = "Dynamic bit stuffing applies from SOF through FCRC in CC; through data field in FD"
+  description = "Receiver shall receive and reassemble the data field bytes sequentially, with byte 0 first and the MSB of each byte received first, for the number of bytes determined by the DLC"
+  iso_reference = "6.6.10.4, 6.6.11.4"
+  acceptance_criteria = "Received data bytes reassembled in order byte 0 first, MSB first within each byte; byte count equals DLC-mapped length; verified in simulation"
+  notes = "Data field absent when DLC=0 or for remote frames"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1887,13 +1923,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "RX"
-  format = ["FB", "FE"]
+  format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall remove fixed stuff bits from the FD CRC field at the fixed positions: the bit before the SBC field and after every 4th CRC bit; each removed bit shall have a polarity inverse to the preceding bit"
-  iso_reference = "6.6.13.3.1, 6.6.13.3.2"
-  acceptance_criteria = "Fixed stuff bit before SBC and after every 4th CRC bit removed at correct positions; form error raised if fixed stuff bit polarity equals preceding bit"
-  notes = "Fixed stuff bits apply only in FD CRC field; not in dynamic-stuffed regions"
+  description = "Receiver shall validate a received frame by monitoring all fields from SOF through the last-but-one bit of EOF without detecting a CRC error, stuff error, or form error; a frame with no errors through this point shall be considered valid"
+  iso_reference = "6.6.15.2, 6.6.10.6"
+  acceptance_criteria = "7 consecutive recessive bits observed at end of received frame (EOF); no CRC, stuff, or form error detected before EOF; frame accepted as valid"
+  notes = "Dominant at last EOF bit causes receiver to send OF but does not invalidate frame"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1917,10 +1953,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall receive and reassemble the data field bytes sequentially, with byte 0 first and the MSB of each byte received first, for the number of bytes determined by the DLC"
-  iso_reference = "6.6.10.4, 6.6.11.4"
-  acceptance_criteria = "Received data bytes reassembled in order byte 0 first, MSB first within each byte; byte count equals DLC-mapped length; verified in simulation"
-  notes = "Data field absent when DLC=0 or for remote frames"
+  description = "Receiver shall perform frame acceptance filtering based on the received identifier and frame format, as configured by the LLC sub-layer, to determine whether the frame is addressed to this node"
+  iso_reference = "6.5.4, 6.6.15"
+  acceptance_criteria = "Received frame with matching identifier and format passed to LLC; non-matching frames discarded without LLC notification; verified across multiple ID configurations"
+  notes = "Acceptance filtering is a single self-contained operation independent of previous frames"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1944,10 +1980,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall validate a received frame by monitoring all fields from SOF through the last-but-one bit of EOF without detecting a CRC error, stuff error, or form error; a frame with no errors through this point shall be considered valid"
-  iso_reference = "6.6.15.2, 6.6.10.6"
-  acceptance_criteria = "7 consecutive recessive bits observed at end of received frame (EOF); no CRC, stuff, or form error detected before EOF; frame accepted as valid"
-  notes = "Dominant at last EOF bit causes receiver to send OF but does not invalidate frame"
+  description = "After successful frame reception and acceptance filtering, the MAC sub-layer shall deliver the frame to the LLC sub-layer via the L_Data.Indication service primitive"
+  iso_reference = "6.4.5.5.5, 6.6.15.2"
+  acceptance_criteria = "L_Data.Indication issued after valid frame reception and acceptance filtering; delivered frame contents byte-for-byte match the transmitted LLC frame"
+  notes = "Indication only after frame validation; timestamp captured at configured reference point"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -1968,16 +2004,16 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "RX"
-  format = ["CB", "CE", "FB", "FE"]
+  format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall perform frame acceptance filtering based on the received identifier and frame format, as configured by the LLC sub-layer, to determine whether the frame is addressed to this node"
-  iso_reference = "6.5.4, 6.6.15"
-  acceptance_criteria = "Received frame with matching identifier and format passed to LLC; non-matching frames discarded without LLC notification; verified across multiple ID configurations"
-  notes = "Acceptance filtering is a single self-contained operation independent of previous frames"
+  description = "Receiver shall switch bit rate from nominal to the FD data phase rate at the sample point of the BRS bit when BRS is sampled recessive; the switch shall occur before sampling the ESI bit"
+  iso_reference = "6.6.11.3, 7.3.3"
+  acceptance_criteria = "BRS bit recessive when data phase rate switch requested; data phase bit rate active from BRS SP through CRC delimiter SP; verified in waveform"
+  notes = "Bit rate switch occurs at SP of BRS regardless of transmitter TDC use"
   target_module = ""
 # Verification Strategy & Status
-  verification = "simulation"
+  verification = "waveform"
   status = "unverified"
 
 [requirements.071.simulation]
@@ -1995,13 +2031,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "FRM"
   side = "RX"
-  format = ["CB", "CE", "FB", "FE"]
+  format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "After successful frame reception and acceptance filtering, the MAC sub-layer shall deliver the frame to the LLC sub-layer via the L_Data.Indication service primitive"
-  iso_reference = "6.4.5.5.5, 6.6.15.2"
-  acceptance_criteria = "L_Data.Indication issued after valid frame reception and acceptance filtering; delivered frame contents byte-for-byte match the transmitted LLC frame"
-  notes = "Indication only after frame validation; timestamp captured at configured reference point"
+  description = "Receiver shall extract the Stuff Bit Count (SBC) field from the received FD CRC field header and verify its Gray-coded value against the actual number of dynamic stuff bits counted; a parity error or count mismatch shall indicate a CRC error"
+  iso_reference = "6.6.11.5, 6.6.13.3.2"
+  acceptance_criteria = "SBC Gray-decoded value matches receiver's own dynamic stuff bit count modulo 8; SBC parity bit verified; mismatch or parity error flagged as CRC error"
+  notes = "SBC mismatch detected as FCRC error; Table 8 defines Gray encoding"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2018,20 +2054,24 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   file = ""
   depth_reached = 0
 
+# ============================================================
+# RX ACK Requirements (FRM/RX)
+# ============================================================
+
 [requirements.073]
 # Classification Metadata
   category = "FRM"
   side = "RX"
-  format = ["FB", "FE"]
+  format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall switch bit rate from nominal to the FD data phase rate at the sample point of the BRS bit when BRS is sampled recessive; the switch shall occur before sampling the ESI bit"
-  iso_reference = "6.6.11.3, 7.3.3"
-  acceptance_criteria = "BRS bit recessive when data phase rate switch requested; data phase bit rate active from BRS SP through CRC delimiter SP; verified in waveform"
-  notes = "Bit rate switch occurs at SP of BRS regardless of transmitter TDC use"
+  description = "Receiver shall transmit a dominant bit in the ACK slot when the received frame CRC matches the locally calculated CRC and no other errors have been detected up to the CRC delimiter"
+  iso_reference = "6.6.14, 6.6.10.6"
+  acceptance_criteria = "Dominant ACK bit driven in ACK slot after error-free reception through CRC delimiter; ACK slot sampled dominant by transmitter; verified in simulation"
+  notes = "ACK shall not depend on frame identifier; all consistent frames must be acknowledged"
   target_module = ""
 # Verification Strategy & Status
-  verification = "waveform"
+  verification = "simulation"
   status = "unverified"
 
 [requirements.073.simulation]
@@ -2052,10 +2092,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall extract the Stuff Bit Count (SBC) field from the received FD CRC field header and verify its Gray-coded value against the actual number of dynamic stuff bits counted; a parity error or count mismatch shall indicate a CRC error"
-  iso_reference = "6.6.11.5, 6.6.13.3.2"
-  acceptance_criteria = "SBC Gray-decoded value matches receiver's own dynamic stuff bit count modulo 8; SBC parity bit verified; mismatch or parity error flagged as CRC error"
-  notes = "SBC mismatch detected as FCRC error; Table 8 defines Gray encoding"
+  description = "For FD frames, a receiver that sends an ACK dominant bit shall tolerate a dominant bit in the ACK slot extending up to two bit times past its own ACK bit, to accommodate phase differences between multiple receivers on the bus"
+  iso_reference = "6.6.11.6, 6.6.14"
+  acceptance_criteria = "Receiver does not raise form error when dominant ACK extends up to 2 bit-times beyond its own sent ACK in FD frames; verified in simulation with delayed second receiver"
+  notes = "FD ACK compensation accounts for clock phase differences between multiple receivers"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2072,10 +2112,6 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   file = ""
   depth_reached = 0
 
-# ============================================================
-# RX ACK Requirements (FRM/RX)
-# ============================================================
-
 [requirements.075]
 # Classification Metadata
   category = "FRM"
@@ -2083,10 +2119,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall transmit a dominant bit in the ACK slot when the received frame CRC matches the locally calculated CRC and no other errors have been detected up to the CRC delimiter"
-  iso_reference = "6.6.14, 6.6.10.6"
-  acceptance_criteria = "Dominant ACK bit driven in ACK slot after error-free reception through CRC delimiter; ACK slot sampled dominant by transmitter; verified in simulation"
-  notes = "ACK shall not depend on frame identifier; all consistent frames must be acknowledged"
+  description = "Receiver shall withhold the dominant ACK bit and refrain from sending any acknowledgement when a CRC error is detected; the receiver shall instead send an error flag at the appropriate point"
+  iso_reference = "6.6.21.3.1, 6.6.14"
+  acceptance_criteria = "ACK slot remains recessive when CRC error detected; error flag transmitted at appropriate point (ACK slot for CC, 3 bits after CRC delimiter for FD)"
+  notes = "FD FCRC error: EF sent 3 bit-times after CRC delimiter, not at ACK slot"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2103,17 +2139,21 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   file = ""
   depth_reached = 0
 
+# ============================================================
+# RX Error Detection Requirements (ERR/RX)
+# ============================================================
+
 [requirements.076]
 # Classification Metadata
-  category = "FRM"
+  category = "ERR"
   side = "RX"
-  format = ["FB", "FE"]
+  format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "For FD frames, a receiver that sends an ACK dominant bit shall tolerate a dominant bit in the ACK slot extending up to two bit times past its own ACK bit, to accommodate phase differences between multiple receivers on the bus"
-  iso_reference = "6.6.11.6, 6.6.14"
-  acceptance_criteria = "Receiver does not raise form error when dominant ACK extends up to 2 bit-times beyond its own sent ACK in FD frames; verified in simulation with delayed second receiver"
-  notes = "FD ACK compensation accounts for clock phase differences between multiple receivers"
+  description = "Receiver shall detect a stuff error when six or more consecutive bits of identical polarity appear in the dynamically-stuffed portion of the received frame"
+  iso_reference = "6.6.13.2, 6.6.21.2"
+  acceptance_criteria = "Stuff error detected and error flag transmitted when 6 or more consecutive identical bits observed in dynamically-stuffed region"
+  notes = "Stuff error does not apply in fixed-stuffed FD CRC field; fixed stuff bit violations are form errors"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2132,15 +2172,15 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 
 [requirements.077]
 # Classification Metadata
-  category = "FRM"
+  category = "ERR"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall withhold the dominant ACK bit and refrain from sending any acknowledgement when a CRC error is detected; the receiver shall instead send an error flag at the appropriate point"
-  iso_reference = "6.6.21.3.1, 6.6.14"
-  acceptance_criteria = "ACK slot remains recessive when CRC error detected; error flag transmitted at appropriate point (ACK slot for CC, 3 bits after CRC delimiter for FD)"
-  notes = "FD FCRC error: EF sent 3 bit-times after CRC delimiter, not at ACK slot"
+  description = "Receiver shall detect a form error when a fixed-form bit field (CRC delimiter, ACK delimiter, or EOF) in the received frame contains an illegal bit value"
+  iso_reference = "6.6.21.2"
+  acceptance_criteria = "Form error detected when fixed-form field (CRC delimiter, ACK delimiter, EOF) contains an illegal bit value; error flag transmitted"
+  notes = "Exception: dominant at last EOF bit, last error delimiter bit, last overload delimiter bit not treated as form error"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2157,10 +2197,6 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   file = ""
   depth_reached = 0
 
-# ============================================================
-# RX Error Detection Requirements (ERR/RX)
-# ============================================================
-
 [requirements.078]
 # Classification Metadata
   category = "ERR"
@@ -2168,10 +2204,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall detect a stuff error when six or more consecutive bits of identical polarity appear in the dynamically-stuffed portion of the received frame"
-  iso_reference = "6.6.13.2, 6.6.21.2"
-  acceptance_criteria = "Stuff error detected and error flag transmitted when 6 or more consecutive identical bits observed in dynamically-stuffed region"
-  notes = "Stuff error does not apply in fixed-stuffed FD CRC field; fixed stuff bit violations are form errors"
+  description = "Receiver shall detect an FCRC error when the locally calculated CRC does not match the received FCRC sequence in the CRC field"
+  iso_reference = "6.6.21.2"
+  acceptance_criteria = "Receiver calculates appropriate CRC polynomial per frame type (CRC-15 for CC, CRC-17 for FD ≤16 bytes, CRC-21 for FD >16 bytes); mismatch between calculated and received FCRC triggers error flag"
+  notes = "Check triggered at CRC delimiter SP for CC/FD"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2192,13 +2228,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "ERR"
   side = "RX"
-  format = ["CB", "CE", "FB", "FE"]
+  format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall detect a form error when a fixed-form bit field (CRC delimiter, ACK delimiter, or EOF) in the received frame contains an illegal bit value"
-  iso_reference = "6.6.21.2"
-  acceptance_criteria = "Form error detected when fixed-form field (CRC delimiter, ACK delimiter, EOF) contains an illegal bit value; error flag transmitted"
-  notes = "Exception: dominant at last EOF bit, last error delimiter bit, last overload delimiter bit not treated as form error"
+  description = "Receiver shall detect an SBC mismatch error in FD frames when the received stuff bit count (SBC) does not match the receiver-counted number of dynamic stuff bits"
+  iso_reference = "6.6.13.3.2, 6.6.21.2"
+  acceptance_criteria = "SBC Gray-coded value matches receiver dynamic stuff bit count mod 8; parity bit correct; mismatch triggers FCRC error handling"
+  notes = "SBC parity check (even parity over Gray-coded value) must pass; SBC Gray decode must match count modulo 8"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2219,13 +2255,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "ERR"
   side = "RX"
-  format = ["CB", "CE", "FB", "FE"]
+  format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall detect an FCRC error when the locally calculated CRC does not match the received FCRC sequence in the CRC field"
-  iso_reference = "6.6.21.2"
-  acceptance_criteria = "Receiver calculates appropriate CRC polynomial per frame type (CRC-15 for CC, CRC-17 for FD ≤16 bytes, CRC-21 for FD >16 bytes); mismatch between calculated and received FCRC triggers error flag"
-  notes = "Check triggered at CRC delimiter SP for CC/FD"
+  description = "Receiver shall detect a form error in FD frames when a fixed stuff bit in the CRC field has the same polarity as its immediately preceding bit"
+  iso_reference = "6.6.13.3.1, 6.6.21.2"
+  acceptance_criteria = "Form error detected when fixed stuff bit in FD CRC field has same polarity as preceding bit; error flag transmitted"
+  notes = "Fixed stuff bit violations are form errors, not stuff errors"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2242,17 +2278,21 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   file = ""
   depth_reached = 0
 
+# ============================================================
+# RX Error Signalling Requirements (ERR/RX)
+# ============================================================
+
 [requirements.081]
 # Classification Metadata
   category = "ERR"
   side = "RX"
-  format = ["FB", "FE"]
+  format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall detect an SBC mismatch error in FD frames when the received stuff bit count (SBC) does not match the receiver-counted number of dynamic stuff bits"
-  iso_reference = "6.6.13.3.2, 6.6.21.2"
-  acceptance_criteria = "SBC Gray-coded value matches receiver dynamic stuff bit count mod 8; parity bit correct; mismatch triggers FCRC error handling"
-  notes = "SBC parity check (even parity over Gray-coded value) must pass; SBC Gray decode must match count modulo 8"
+  description = "Error-active receiver shall transmit 6 consecutive dominant bits (active error flag) immediately after detecting any error condition"
+  iso_reference = "6.6.5.2"
+  acceptance_criteria = "6 consecutive dominant bits observed at next bit after error detection"
+  notes = "Active error flag violates bit stuffing rule and fixed formats, forcing all nodes to detect error"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2273,13 +2313,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "ERR"
   side = "RX"
-  format = ["FB", "FE"]
+  format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall detect a form error in FD frames when a fixed stuff bit in the CRC field has the same polarity as its immediately preceding bit"
-  iso_reference = "6.6.13.3.1, 6.6.21.2"
-  acceptance_criteria = "Form error detected when fixed stuff bit in FD CRC field has same polarity as preceding bit; error flag transmitted"
-  notes = "Fixed stuff bit violations are form errors, not stuff errors"
+  description = "Error-passive receiver shall transmit 6 consecutive recessive bits (passive error flag) after detecting any error condition"
+  iso_reference = "6.6.5.2"
+  acceptance_criteria = "6 consecutive recessive bits transmitted after error detection by error-passive node; no dominant bits driven to bus"
+  notes = "Passive error flag may be overwritten by dominant bits from other nodes"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2296,21 +2336,18 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   file = ""
   depth_reached = 0
 
-# ============================================================
-# RX Error Signalling Requirements (ERR/RX)
-# ============================================================
 
 [requirements.083]
 # Classification Metadata
   category = "ERR"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "critical"
+  priority = "high"
 # Core Specification
-  description = "Error-active receiver shall transmit 6 consecutive dominant bits (active error flag) immediately after detecting any error condition"
-  iso_reference = "6.6.5.2"
-  acceptance_criteria = "6 consecutive dominant bits observed at next bit after error detection"
-  notes = "Active error flag violates bit stuffing rule and fixed formats, forcing all nodes to detect error"
+  description = "Receiver shall NOT detect a bit error when a dominant bit is monitored during the transmission of a passive error flag (6 recessive bits); the dominant bit indicates another node's active error flag and is expected behavior"
+  iso_reference = "6.6.21.2(a) Exception 2"
+  acceptance_criteria = "During passive error flag transmission, dominant bits monitored on bus do not trigger bit error detection; error flag completes normally and error delimiter follows"
+  notes = "ISO 6.6.21.2(a) Exception 2: bit error not raised during passive error flag because dominant from other nodes is expected"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2334,10 +2371,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Error-passive receiver shall transmit 6 consecutive recessive bits (passive error flag) after detecting any error condition"
-  iso_reference = "6.6.5.2"
-  acceptance_criteria = "6 consecutive recessive bits transmitted after error detection by error-passive node; no dominant bits driven to bus"
-  notes = "Passive error flag may be overwritten by dominant bits from other nodes"
+  description = "After transmitting an error flag, the node shall transmit an error delimiter consisting of 8 consecutive recessive bits"
+  iso_reference = "6.6.5.3"
+  acceptance_criteria = "8 recessive bits follow the error flag sequence on the bus"
+  notes = "Error delimiter begins when first recessive bit is monitored after error flag"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2354,18 +2391,17 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   file = ""
   depth_reached = 0
 
-
 [requirements.085]
 # Classification Metadata
   category = "ERR"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "high"
+  priority = "critical"
 # Core Specification
-  description = "Receiver shall NOT detect a bit error when a dominant bit is monitored during the transmission of a passive error flag (6 recessive bits); the dominant bit indicates another node's active error flag and is expected behavior"
-  iso_reference = "6.6.21.2(a) Exception 2"
-  acceptance_criteria = "During passive error flag transmission, dominant bits monitored on bus do not trigger bit error detection; error flag completes normally and error delimiter follows"
-  notes = "ISO 6.6.21.2(a) Exception 2: bit error not raised during passive error flag because dominant from other nodes is expected"
+  description = "Receiver shall send an FCRC error flag at the start of EOF for CC frames; for FD frames the error flag shall be sent 3 bit-times after the CRC delimiter"
+  iso_reference = "6.6.21.3.1"
+  acceptance_criteria = "CC frames: FCRC error flag sent at bit 1 of EOF; FD frames: error flag sent 3 bit-times after CRC delimiter. Dominant bits monitored between CRC delimiter and error flag start position shall NOT be treated as bit errors"
+  notes = "FD CRC error response deliberately delayed to allow bit rate return to nominal"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2389,10 +2425,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "After transmitting an error flag, the node shall transmit an error delimiter consisting of 8 consecutive recessive bits"
-  iso_reference = "6.6.5.3"
-  acceptance_criteria = "8 recessive bits follow the error flag sequence on the bus"
-  notes = "Error delimiter begins when first recessive bit is monitored after error flag"
+  description = "Receiver shall transmit an overload frame when a dominant bit is detected at the last bit of EOF"
+  iso_reference = "6.6.6.2"
+  acceptance_criteria = "Overload frame (6 dominant + 8 recessive bits) transmitted starting one bit after detecting dominant at last EOF bit"
+  notes = "This is condition b) of reactive OF; distinct from LLC-requested OF"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2409,20 +2445,24 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   file = ""
   depth_reached = 0
 
+# ============================================================
+# RX CRC Verification Requirements (CRC/RX)
+# ============================================================
+
 [requirements.087]
 # Classification Metadata
-  category = "ERR"
+  category = "CRC"
   side = "RX"
-  format = ["CB", "CE", "FB", "FE"]
+  format = ["CB", "CE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall send an FCRC error flag at the start of EOF for CC frames; for FD frames the error flag shall be sent 3 bit-times after the CRC delimiter"
-  iso_reference = "6.6.21.3.1"
-  acceptance_criteria = "CC frames: FCRC error flag sent at bit 1 of EOF; FD frames: error flag sent 3 bit-times after CRC delimiter. Dominant bits monitored between CRC delimiter and error flag start position shall NOT be treated as bit errors"
-  notes = "FD CRC error response deliberately delayed to allow bit rate return to nominal"
+  description = "Receiver shall calculate CRC-15 over SOF through data field of received CC frame (excluding dynamic stuff bits) and compare result to received FCRC sequence"
+  iso_reference = "6.6.4.4, 6.6.10.5"
+  acceptance_criteria = "CRC-15 polynomial 0xC599 applied; remainder 0x0000 on correct frame"
+  notes = "Stuff bits excluded from CRC calculation for CC frames"
   target_module = ""
 # Verification Strategy & Status
-  verification = "simulation"
+  verification = "coverage"
   status = "unverified"
 
 [requirements.087.simulation]
@@ -2438,18 +2478,18 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 
 [requirements.088]
 # Classification Metadata
-  category = "ERR"
+  category = "CRC"
   side = "RX"
-  format = ["CB", "CE", "FB", "FE"]
+  format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall transmit an overload frame when a dominant bit is detected at the last bit of EOF"
-  iso_reference = "6.6.6.2"
-  acceptance_criteria = "Overload frame (6 dominant + 8 recessive bits) transmitted starting one bit after detecting dominant at last EOF bit"
-  notes = "This is condition b) of reactive OF; distinct from LLC-requested OF"
+  description = "Receiver shall calculate CRC-17 over received FD frame with DLC encoding up to 16 data bytes (including dynamic stuff bits and SBC, excluding fixed stuff bits) and compare to received FCRC sequence"
+  iso_reference = "6.6.4.4, 6.6.11.5"
+  acceptance_criteria = "CRC-17 polynomial 0x3685B applied; remainder 0x00000 on correct frame"
+  notes = "CRC-17 init vector has single 1 at MSB position"
   target_module = ""
 # Verification Strategy & Status
-  verification = "simulation"
+  verification = "coverage"
   status = "unverified"
 
 [requirements.088.simulation]
@@ -2463,21 +2503,17 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   file = ""
   depth_reached = 0
 
-# ============================================================
-# RX CRC Verification Requirements (CRC/RX)
-# ============================================================
-
 [requirements.089]
 # Classification Metadata
   category = "CRC"
   side = "RX"
-  format = ["CB", "CE"]
+  format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall calculate CRC-15 over SOF through data field of received CC frame (excluding dynamic stuff bits) and compare result to received FCRC sequence"
-  iso_reference = "6.6.4.4, 6.6.10.5"
-  acceptance_criteria = "CRC-15 polynomial 0xC599 applied; remainder 0x0000 on correct frame"
-  notes = "Stuff bits excluded from CRC calculation for CC frames"
+  description = "Receiver shall calculate CRC-21 over received FD frame with DLC encoding more than 16 data bytes (including dynamic stuff bits and SBC, excluding fixed stuff bits) and compare to received FCRC sequence"
+  iso_reference = "6.6.4.4, 6.6.11.5"
+  acceptance_criteria = "CRC-21 polynomial 0x302899 applied; remainder 0x000000 on correct frame"
+  notes = "CRC polynomial selection based on data field length after DLC decode"
   target_module = ""
 # Verification Strategy & Status
   verification = "coverage"
@@ -2498,16 +2534,16 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "CRC"
   side = "RX"
-  format = ["FB", "FE"]
+  format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall calculate CRC-17 over received FD frame with DLC encoding up to 16 data bytes (including dynamic stuff bits and SBC, excluding fixed stuff bits) and compare to received FCRC sequence"
-  iso_reference = "6.6.4.4, 6.6.11.5"
-  acceptance_criteria = "CRC-17 polynomial 0x3685B applied; remainder 0x00000 on correct frame"
-  notes = "CRC-17 init vector has single 1 at MSB position"
+  description = "Receiver shall calculate all applicable CRC polynomials concurrently starting at SOF and select the correct result based on detected frame format and DLC"
+  iso_reference = "6.6.4.4"
+  acceptance_criteria = "CRC-15 polynomial 0xC599 applied; remainder 0x0000 on correct frame; CRC-17 polynomial 0x3685B applied; remainder 0x00000 on correct frame; CRC-21 polynomial 0x302899 applied; remainder 0x000000 on correct frame"
+  notes = "CRC calculation starts at SOF regardless of eventual frame format; format determined during arbitration/control fields"
   target_module = ""
 # Verification Strategy & Status
-  verification = "coverage"
+  verification = "assertion"
   status = "unverified"
 
 [requirements.090.simulation]
@@ -2525,16 +2561,16 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "CRC"
   side = "RX"
-  format = ["FB", "FE"]
+  format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall calculate CRC-21 over received FD frame with DLC encoding more than 16 data bytes (including dynamic stuff bits and SBC, excluding fixed stuff bits) and compare to received FCRC sequence"
-  iso_reference = "6.6.4.4, 6.6.11.5"
-  acceptance_criteria = "CRC-21 polynomial 0x302899 applied; remainder 0x000000 on correct frame"
-  notes = "CRC polynomial selection based on data field length after DLC decode"
+  description = "Receiver CRC shift registers shall use correct initialisation vectors: 0x0000 for CRC-15; MSB-only-1 for CRC-17 and CRC-21"
+  iso_reference = "6.6.4.4"
+  acceptance_criteria = "Init vector per polynomial: 0x0000 for CRC-15; 0x10000 for CRC-17; 0x100000 for CRC-21"
+  notes = "Init vector mismatch causes systematic CRC failure on all frames"
   target_module = ""
 # Verification Strategy & Status
-  verification = "coverage"
+  verification = "assertion"
   status = "unverified"
 
 [requirements.091.simulation]
@@ -2550,18 +2586,18 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 
 [requirements.092]
 # Classification Metadata
-  category = "CRC"
+  category = "TMG"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall calculate all applicable CRC polynomials concurrently starting at SOF and select the correct result based on detected frame format and DLC"
-  iso_reference = "6.6.4.4"
-  acceptance_criteria = "CRC-15 polynomial 0xC599 applied; remainder 0x0000 on correct frame; CRC-17 polynomial 0x3685B applied; remainder 0x00000 on correct frame; CRC-21 polynomial 0x302899 applied; remainder 0x000000 on correct frame"
-  notes = "CRC calculation starts at SOF regardless of eventual frame format; format determined during arbitration/control fields"
+  description = "Receiver shall perform hard synchronisation on the recessive-to-dominant edge at SOF (first such edge detected during bus idle)"
+  iso_reference = "7.3.5.3"
+  acceptance_criteria = "Hard synchronisation resets bit timing to Sync_Seg at SOF recessive-to-dominant edge; verified in waveform"
+  notes = "Hard sync not limited by SJW; forces edge within Sync_Seg of restarted bit time"
   target_module = ""
 # Verification Strategy & Status
-  verification = "assertion"
+  verification = "waveform"
   status = "unverified"
 
 [requirements.092.simulation]
@@ -2577,18 +2613,18 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 
 [requirements.093]
 # Classification Metadata
-  category = "CRC"
+  category = "TMG"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver CRC shift registers shall use correct initialisation vectors: 0x0000 for CRC-15; MSB-only-1 for CRC-17 and CRC-21"
-  iso_reference = "6.6.4.4"
-  acceptance_criteria = "Init vector per polynomial: 0x0000 for CRC-15; 0x10000 for CRC-17; 0x100000 for CRC-21"
-  notes = "Init vector mismatch causes systematic CRC failure on all frames"
+  description = "Receiver shall perform resynchronisation on recessive-to-dominant edges during frame reception, with a maximum of one resynchronisation per bit time"
+  iso_reference = "7.3.5.4"
+  acceptance_criteria = "Resynchronisation performed on recessive-to-dominant edge; Phase_Seg1 or Phase_Seg2 adjusted by min(phase_error, SJW); maximum one per bit time"
+  notes = "Only one resync allowed per bit time; disabled when bus sampled dominant at SP"
   target_module = ""
 # Verification Strategy & Status
-  verification = "assertion"
+  verification = "waveform"
   status = "unverified"
 
 [requirements.093.simulation]
@@ -2609,10 +2645,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall perform hard synchronisation on the recessive-to-dominant edge at SOF (first such edge detected during bus idle)"
-  iso_reference = "7.3.5.3"
-  acceptance_criteria = "Hard synchronisation resets bit timing to Sync_Seg at SOF recessive-to-dominant edge; verified in waveform"
-  notes = "Hard sync not limited by SJW; forces edge within Sync_Seg of restarted bit time"
+  description = "Receiver shall sample received bits at the configured sample point located at the end of Phase_Seg1"
+  iso_reference = "7.3.2"
+  acceptance_criteria = "Bits sampled at configured sample point (end of Phase_Seg1); SP position confirmed in simulation"
+  notes = "SP is at end of Phase_Seg1 for all three bit rate configurations"
   target_module = ""
 # Verification Strategy & Status
   verification = "waveform"
@@ -2633,13 +2669,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "TMG"
   side = "RX"
-  format = ["CB", "CE", "FB", "FE"]
+  format = ["FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall perform resynchronisation on recessive-to-dominant edges during frame reception, with a maximum of one resynchronisation per bit time"
-  iso_reference = "7.3.5.4"
-  acceptance_criteria = "Resynchronisation performed on recessive-to-dominant edge; Phase_Seg1 or Phase_Seg2 adjusted by min(phase_error, SJW); maximum one per bit time"
-  notes = "Only one resync allowed per bit time; disabled when bus sampled dominant at SP"
+  description = "Receiver shall perform hard synchronisation at the FDF-to-res bit edge when receiving FD frames (arbitration to data phase transition)"
+  iso_reference = "7.3.5.3"
+  acceptance_criteria = "Hard synchronisation triggered at FDF-to-res bit edge; verified in waveform showing correct data phase sampling after sync"
+  notes = "This sync enables the receiver to lock onto data phase timing before BRS"
   target_module = ""
 # Verification Strategy & Status
   verification = "waveform"
@@ -2663,13 +2699,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall sample received bits at the configured sample point located at the end of Phase_Seg1"
-  iso_reference = "7.3.2"
-  acceptance_criteria = "Bits sampled at configured sample point (end of Phase_Seg1); SP position confirmed in simulation"
-  notes = "SP is at end of Phase_Seg1 for all three bit rate configurations"
+  description = "Receiver shall use separate bit time parameters (Sync_Seg, Prop_Seg, Phase_Seg1, Phase_Seg2, SJW) for nominal and data rates"
+  iso_reference = "7.3.3"
+  acceptance_criteria = "Separate Sync_Seg, Prop_Seg, Phase_Seg1, Phase_Seg2, SJW register sets for nominal and data rates; correct values applied at BRS SP transition"
+  notes = "SJW <= min(Phase_Seg1, Phase_Seg2); Phase_Seg2 >= max(SJW, IPT)"
   target_module = ""
 # Verification Strategy & Status
-  verification = "waveform"
+  verification = "simulation"
   status = "unverified"
 
 [requirements.096.simulation]
@@ -2687,16 +2723,16 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 # Classification Metadata
   category = "TMG"
   side = "RX"
-  format = ["FB", "FE"]
+  format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall perform hard synchronisation at the FDF-to-res bit edge when receiving FD frames (arbitration to data phase transition)"
-  iso_reference = "7.3.5.3"
-  acceptance_criteria = "Hard synchronisation triggered at FDF-to-res bit edge; verified in waveform showing correct data phase sampling after sync"
-  notes = "This sync enables the receiver to lock onto data phase timing before BRS"
+  description = "Bus re-integration idle condition shall be 11 consecutive recessive bits detected after a protocol exception event or bus-off recovery before the node may resume bus activity"
+  iso_reference = "6.6.7.3, 8.1.4.4"
+  acceptance_criteria = "Bus idle after 11 consecutive recessive bits post re-integration; confirmed in FSM signal transitions"
+  notes = "FD nodes reset counter on synchronizing edges as well as dominant bits"
   target_module = ""
 # Verification Strategy & Status
-  verification = "waveform"
+  verification = "simulation"
   status = "unverified"
 
 [requirements.097.simulation]
@@ -2712,15 +2748,15 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 
 [requirements.098]
 # Classification Metadata
-  category = "TMG"
-  side = "RX"
+  category = "ERR"
+  side = "TX"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Receiver shall use separate bit time parameters (Sync_Seg, Prop_Seg, Phase_Seg1, Phase_Seg2, SJW) for nominal and data rates"
-  iso_reference = "7.3.3"
-  acceptance_criteria = "Separate Sync_Seg, Prop_Seg, Phase_Seg1, Phase_Seg2, SJW register sets for nominal and data rates; correct values applied at BRS SP transition"
-  notes = "SJW <= min(Phase_Seg1, Phase_Seg2); Phase_Seg2 >= max(SJW, IPT)"
+  description = "Each CAN node shall maintain a transmit error counter (TEC) and receive error counter (REC) and shall update them according to the fault confinement rules"
+  iso_reference = "8.1.4.2"
+  acceptance_criteria = "TEC and REC counters present; TEC and REC values updated correctly per fault confinement rules a-h in ISO 8.1.4.2"
+  notes = "Both counters required; separate increment/decrement rules for TX and RX errors"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2739,15 +2775,15 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 
 [requirements.099]
 # Classification Metadata
-  category = "TMG"
+  category = "ERR"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Bus re-integration idle condition shall be 11 consecutive recessive bits detected after a protocol exception event or bus-off recovery before the node may resume bus activity"
-  iso_reference = "6.6.7.3, 8.1.4.4"
-  acceptance_criteria = "Bus idle after 11 consecutive recessive bits post re-integration; confirmed in FSM signal transitions"
-  notes = "FD nodes reset counter on synchronizing edges as well as dominant bits"
+  description = "REC shall be incremented by 1 when the receiver detects any error except a bit error detected during active error flag or overload flag transmission"
+  iso_reference = "8.1.4.2"
+  acceptance_criteria = "REC incremented by 1 on receiver error detection"
+  notes = "Rule a) of 8.1.4.2 error counting rules"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2767,14 +2803,14 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 [requirements.100]
 # Classification Metadata
   category = "ERR"
-  side = "TX"
+  side = "RX"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "Each CAN node shall maintain a transmit error counter (TEC) and receive error counter (REC) and shall update them according to the fault confinement rules"
+  description = "REC shall be incremented by 8 when the receiver detects a dominant bit as the first bit after sending its own error flag"
   iso_reference = "8.1.4.2"
-  acceptance_criteria = "TEC and REC counters present; TEC and REC values updated correctly per fault confinement rules a-h in ISO 8.1.4.2"
-  notes = "Both counters required; separate increment/decrement rules for TX and RX errors"
+  acceptance_criteria = "REC incremented by 8 on dominant bit after receiver sends error flag"
+  notes = "Rule b) of 8.1.4.2; indicates another node is also flagging an error"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2791,17 +2827,18 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   file = ""
   depth_reached = 0
 
+
 [requirements.101]
 # Classification Metadata
   category = "ERR"
   side = "RX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "critical"
+  priority = "high"
 # Core Specification
-  description = "REC shall be incremented by 1 when the receiver detects any error except a bit error detected during active error flag or overload flag transmission"
-  iso_reference = "8.1.4.2"
-  acceptance_criteria = "REC incremented by 1 on receiver error detection"
-  notes = "Rule a) of 8.1.4.2 error counting rules"
+  description = "After 14 or more consecutive dominant bits following an active error flag, or 8 or more consecutive dominant bits following a passive error flag, REC shall be incremented by 8 for every sequence of additional 8 consecutive dominant bits"
+  iso_reference = "8.1.4.2 rule f"
+  acceptance_criteria = "REC incremented by 8 for each group of 8 consecutive dominant bits beyond the initial threshold (14 after active EF, 8 after passive EF); verified in simulation with extended dominant bus conditions"
+  notes = "ISO 8.1.4.2 rule f: prevents bus-stuck-dominant from keeping REC low; mirrors TX-side requirement for TEC"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2821,14 +2858,14 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 [requirements.102]
 # Classification Metadata
   category = "ERR"
-  side = "RX"
+  side = "TX"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "REC shall be incremented by 8 when the receiver detects a dominant bit as the first bit after sending its own error flag"
+  description = "TEC shall be incremented by 8 when the transmitter sends an error flag, with exceptions for error-passive ACK errors and stuff errors detected before the first bit of the EOF"
   iso_reference = "8.1.4.2"
-  acceptance_criteria = "REC incremented by 8 on dominant bit after receiver sends error flag"
-  notes = "Rule b) of 8.1.4.2; indicates another node is also flagging an error"
+  acceptance_criteria = "TEC incremented by 8 after error flag transmission"
+  notes = "Rule c) and exceptions of 8.1.4.2"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2845,18 +2882,17 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   file = ""
   depth_reached = 0
 
-
 [requirements.103]
 # Classification Metadata
   category = "ERR"
-  side = "RX"
+  side = "TX"
   format = ["CB", "CE", "FB", "FE"]
-  priority = "high"
+  priority = "critical"
 # Core Specification
-  description = "After 14 or more consecutive dominant bits following an active error flag, or 8 or more consecutive dominant bits following a passive error flag, REC shall be incremented by 8 for every sequence of additional 8 consecutive dominant bits"
-  iso_reference = "8.1.4.2 rule f"
-  acceptance_criteria = "REC incremented by 8 for each group of 8 consecutive dominant bits beyond the initial threshold (14 after active EF, 8 after passive EF); verified in simulation with extended dominant bus conditions"
-  notes = "ISO 8.1.4.2 rule f: prevents bus-stuck-dominant from keeping REC low; mirrors TX-side requirement for TEC"
+  description = "TEC shall be decremented by 1 after successful frame transmission (ACK received and no error detected through end of EOF)"
+  iso_reference = "8.1.4.2"
+  acceptance_criteria = "TEC decremented by 1 after successful frame (ACK received, no error through EOF)"
+  notes = "Rule g) of 8.1.4.2; successful = got ACK and no error detected through end of EOF"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2876,14 +2912,14 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 [requirements.104]
 # Classification Metadata
   category = "ERR"
-  side = "TX"
+  side = "RX"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "TEC shall be incremented by 8 when the transmitter sends an error flag, with exceptions for error-passive ACK errors and stuff errors detected before the first bit of the EOF"
+  description = "REC shall be decremented by 1 after successful frame reception with no error detected up to and including the ACK slot and ACK sent correctly"
   iso_reference = "8.1.4.2"
-  acceptance_criteria = "TEC incremented by 8 after error flag transmission"
-  notes = "Rule c) and exceptions of 8.1.4.2"
+  acceptance_criteria = "REC decremented by 1 after error-free reception through ACK slot with ACK sent correctly; if REC was between 119 and 127 before decrement, it shall be set to a value between 119 and 127 (ISO 8.1.4.2 rule h clamping)"
+  notes = "Rule h) of 8.1.4.2; REC >127 clamped on successful RX to allow transition back to error-active"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2907,10 +2943,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "TEC shall be decremented by 1 after successful frame transmission (ACK received and no error detected through end of EOF)"
-  iso_reference = "8.1.4.2"
-  acceptance_criteria = "TEC decremented by 1 after successful frame (ACK received, no error through EOF)"
-  notes = "Rule g) of 8.1.4.2; successful = got ACK and no error detected through end of EOF"
+  description = "A node shall transition from error-active to error-passive state when TEC exceeds 127 or REC exceeds 127"
+  iso_reference = "8.1.4.3"
+  acceptance_criteria = "Node transitions to error-passive when TEC > 127 or REC > 127; passive error flag used thereafter"
+  notes = "Transition to error-passive also changes EF from active (6 dominant) to passive (6 recessive)"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2930,14 +2966,14 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 [requirements.106]
 # Classification Metadata
   category = "ERR"
-  side = "RX"
+  side = "TX"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "REC shall be decremented by 1 after successful frame reception with no error detected up to and including the ACK slot and ACK sent correctly"
-  iso_reference = "8.1.4.2"
-  acceptance_criteria = "REC decremented by 1 after error-free reception through ACK slot with ACK sent correctly; if REC was between 119 and 127 before decrement, it shall be set to a value between 119 and 127 (ISO 8.1.4.2 rule h clamping)"
-  notes = "Rule h) of 8.1.4.2; REC >127 clamped on successful RX to allow transition back to error-active"
+  description = "A node shall transition from error-passive to error-active state when both TEC and REC are 127 or less"
+  iso_reference = "8.1.4.3"
+  acceptance_criteria = "Node returns to error-active when both TEC <= 127 and REC <= 127; active error flags resume"
+  notes = "Both counters must be below threshold simultaneously for re-activation"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2961,10 +2997,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "A node shall transition from error-active to error-passive state when TEC exceeds 127 or REC exceeds 127"
-  iso_reference = "8.1.4.3"
-  acceptance_criteria = "Node transitions to error-passive when TEC > 127 or REC > 127; passive error flag used thereafter"
-  notes = "Transition to error-passive also changes EF from active (6 dominant) to passive (6 recessive)"
+  description = "A node shall enter the bus-off state and stop all bus activity when TEC exceeds 255"
+  iso_reference = "8.1.4.4"
+  acceptance_criteria = "Node enters bus-off (no bus activity) when TEC > 255; no dominant bits driven to bus"
+  notes = "Bus-off node may optionally receive frames depending on implementation"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -2988,10 +3024,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "A node shall transition from error-passive to error-active state when both TEC and REC are 127 or less"
-  iso_reference = "8.1.4.3"
-  acceptance_criteria = "Node returns to error-active when both TEC <= 127 and REC <= 127; active error flags resume"
-  notes = "Both counters must be below threshold simultaneously for re-activation"
+  description = "A bus-off node shall recover and reset both TEC and REC to zero after detecting 128 occurrences of 11 consecutive recessive bits"
+  iso_reference = "8.1.4.4"
+  acceptance_criteria = "Node leaves bus-off after 128 occurrences of 11 consecutive recessive bits; TEC = REC = 0 after recovery"
+  notes = "Idle condition = 11 consecutive recessive bits; second counter tracks idle occurrences"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -3010,15 +3046,15 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 
 [requirements.109]
 # Classification Metadata
-  category = "ERR"
+  category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "A node shall enter the bus-off state and stop all bus activity when TEC exceeds 255"
-  iso_reference = "8.1.4.4"
-  acceptance_criteria = "Node enters bus-off (no bus activity) when TEC > 255; no dominant bits driven to bus"
-  notes = "Bus-off node may optionally receive frames depending on implementation"
+  description = "The transmitter shall observe a 3-bit recessive intermission field after EOF before starting the next frame transmission"
+  iso_reference = "6.6.7.2"
+  acceptance_criteria = "3 recessive bits follow EOF or error delimiter before next frame or bus idle"
+  notes = "OF may be transmitted during intermission; but no new DF/RF"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -3037,15 +3073,15 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 
 [requirements.110]
 # Classification Metadata
-  category = "ERR"
+  category = "FRM"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "A bus-off node shall recover and reset both TEC and REC to zero after detecting 128 occurrences of 11 consecutive recessive bits"
-  iso_reference = "8.1.4.4"
-  acceptance_criteria = "Node leaves bus-off after 128 occurrences of 11 consecutive recessive bits; TEC = REC = 0 after recovery"
-  notes = "Idle condition = 11 consecutive recessive bits; second counter tracks idle occurrences"
+  description = "An error-passive transmitter shall observe an 8-bit suspend transmission period of recessive bits after the intermission field before accessing the bus"
+  iso_reference = "6.6.7.4"
+  acceptance_criteria = "Error-passive TX waits 8 additional recessive bits after intermission before accessing bus; verified in FSM state signal"
+  notes = "Only applies when node was transmitter of previous frame and is error-passive"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -3069,10 +3105,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "The transmitter shall observe a 3-bit recessive intermission field after EOF before starting the next frame transmission"
-  iso_reference = "6.6.7.2"
-  acceptance_criteria = "3 recessive bits follow EOF or error delimiter before next frame or bus idle"
-  notes = "OF may be transmitted during intermission; but no new DF/RF"
+  description = "After losing arbitration, the transmitter shall re-arbitrate for the bus and restart frame transmission without notifying the LLC sub-layer of the loss"
+  iso_reference = "6.5.2"
+  acceptance_criteria = "After arbitration loss, frame retransmission starts without LLC notification; re-arbitration observed in waveform"
+  notes = "Arbitration loss does not increment TEC; frame eventually wins or is aborted"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -3096,10 +3132,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "An error-passive transmitter shall observe an 8-bit suspend transmission period of recessive bits after the intermission field before accessing the bus"
-  iso_reference = "6.6.7.4"
-  acceptance_criteria = "Error-passive TX waits 8 additional recessive bits after intermission before accessing bus; verified in FSM state signal"
-  notes = "Only applies when node was transmitter of previous frame and is error-passive"
+  description = "The transmitter shall retransmit a frame after an error or non-acknowledgement up to the configured retransmission limit; exceeding the limit shall trigger an LLC error notification"
+  iso_reference = "6.5.3"
+  acceptance_criteria = "Frame retransmitted up to configured limit after error or ACK failure; limit exceeded triggers LLC error notification"
+  notes = "Retransmission counter separate from error counters; reset on successful TX or new LLC request"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -3123,10 +3159,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "After losing arbitration, the transmitter shall re-arbitrate for the bus and restart frame transmission without notifying the LLC sub-layer of the loss"
-  iso_reference = "6.5.2"
-  acceptance_criteria = "After arbitration loss, frame retransmission starts without LLC notification; re-arbitration observed in waveform"
-  notes = "Arbitration loss does not increment TEC; frame eventually wins or is aborted"
+  description = "The transmitter shall send an overload frame when requested by LLC to delay the next data or remote frame; a maximum of two LLC-requested overload frames are allowed per inter-frame space"
+  iso_reference = "6.6.6"
+  acceptance_criteria = "Overload frame transmitted after LLC request; maximum 2 LLC-requested overloads per frame"
+  notes = "LLC-requested OF distinct from reactive OF; both use same frame format as active error flag + error delimiter"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -3150,10 +3186,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "The transmitter shall retransmit a frame after an error or non-acknowledgement up to the configured retransmission limit; exceeding the limit shall trigger an LLC error notification"
-  iso_reference = "6.5.3"
-  acceptance_criteria = "Frame retransmitted up to configured limit after error or ACK failure; limit exceeded triggers LLC error notification"
-  notes = "Retransmission counter separate from error counters; reset on successful TX or new LLC request"
+  description = "The transmitter shall send a reactive overload frame when a dominant bit is detected at intermission bit 1 or 2"
+  iso_reference = "6.6.6.2"
+  acceptance_criteria = "Dominant bit detected at intermission bit 1 or 2 triggers reactive overload frame; OF observed in waveform"
+  notes = "Reactive OF is MAC-initiated; distinguishes from LLC-requested OF which is LLC-initiated"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -3177,10 +3213,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "The transmitter shall send an overload frame when requested by LLC to delay the next data or remote frame; a maximum of two LLC-requested overload frames are allowed per inter-frame space"
-  iso_reference = "6.6.6"
-  acceptance_criteria = "Overload frame transmitted after LLC request; maximum 2 LLC-requested overloads per frame"
-  notes = "LLC-requested OF distinct from reactive OF; both use same frame format as active error flag + error delimiter"
+  description = "An FD-tolerant node shall detect a protocol exception event when an unexpected recessive r0 or r1 bit is received, indicating an unknown frame format, and shall defer its next bus access"
+  iso_reference = "6.6.10.3"
+  acceptance_criteria = "FD-tolerant node detecting unexpected recessive r0/r1 enters protocol exception event; defers next bus access; no error flag transmitted"
+  notes = "Error counters unchanged during protocol exception event; distinct from error frame handling"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -3204,10 +3240,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "The transmitter shall send a reactive overload frame when a dominant bit is detected at intermission bit 1 or 2"
-  iso_reference = "6.6.6.2"
-  acceptance_criteria = "Dominant bit detected at intermission bit 1 or 2 triggers reactive overload frame; OF observed in waveform"
-  notes = "Reactive OF is MAC-initiated; distinguishes from LLC-requested OF which is LLC-initiated"
+  description = "The MAC sub-layer shall report Transfer_Status values to the LLC sub-layer at the correct frame lifecycle events: Ongoing during transmission, Lost_Arbitration on arbitration loss, Transmitted on success, Aborted on abort, Disturbed on error"
+  iso_reference = "6.5.6"
+  acceptance_criteria = "Transfer_Status values Ongoing / Lost_Arbitration / Transmitted / Aborted / Disturbed reported to LLC at correct frame lifecycle points"
+  notes = "Timestamp valid only when Transfer_Status = Transmitted"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -3231,10 +3267,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "An FD-tolerant node shall detect a protocol exception event when an unexpected recessive r0 or r1 bit is received, indicating an unknown frame format, and shall defer its next bus access"
-  iso_reference = "6.6.10.3"
-  acceptance_criteria = "FD-tolerant node detecting unexpected recessive r0/r1 enters protocol exception event; defers next bus access; no error flag transmitted"
-  notes = "Error counters unchanged during protocol exception event; distinct from error frame handling"
+  description = "During node start-up integration, an ACK error from the first transmission attempt shall not increment TEC beyond the error-passive threshold; the node shall remain error-active"
+  iso_reference = "8.1.5"
+  acceptance_criteria = "During node start-up, ACK error from first transmission does not increment TEC past passive threshold; node remains error-active"
+  notes = "Exception 1 of rule c) protects isolated nodes from bus-off; node becomes error-passive but retransmits indefinitely"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -3258,10 +3294,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "The MAC sub-layer shall report Transfer_Status values to the LLC sub-layer at the correct frame lifecycle events: Ongoing during transmission, Lost_Arbitration on arbitration loss, Transmitted on success, Aborted on abort, Disturbed on error"
-  iso_reference = "6.5.6"
-  acceptance_criteria = "Transfer_Status values Ongoing / Lost_Arbitration / Transmitted / Aborted / Disturbed reported to LLC at correct frame lifecycle points"
-  notes = "Timestamp valid only when Transfer_Status = Transmitted"
+  description = "In restricted operation mode, the node shall receive data and remote frames and acknowledge valid frames; the node shall not transmit data or remote frames; errors and overload conditions shall be treated as protocol exception events"
+  iso_reference = "6.6.19"
+  acceptance_criteria = "In restricted operation mode, node receives DFs/RFs and sends ACK; no DFs/RFs transmitted; errors treated as protocol exception events"
+  notes = "Optional for CC/FD nodes"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -3285,10 +3321,10 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "During node start-up integration, an ACK error from the first transmission attempt shall not increment TEC beyond the error-passive threshold; the node shall remain error-active"
-  iso_reference = "8.1.5"
-  acceptance_criteria = "During node start-up, ACK error from first transmission does not increment TEC past passive threshold; node remains error-active"
-  notes = "Exception 1 of rule c) protects isolated nodes from bus-off; node becomes error-passive but retransmits indefinitely"
+  description = "In bus monitoring mode, the node shall receive valid frames but shall drive only recessive bits to the bus; required dominant bits (ACK, error flags) shall be internally looped back without driving the bus"
+  iso_reference = "6.6.20"
+  acceptance_criteria = "In bus monitoring mode, all required dominant bits (ACK, error flags) are internally looped back; only recessive bits driven to bus"
+  notes = "Bus monitoring enables passive observation without network influence; optional feature"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -3307,15 +3343,15 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 
 [requirements.120]
 # Classification Metadata
-  category = "FRM"
+  category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
   priority = "critical"
 # Core Specification
-  description = "In restricted operation mode, the node shall receive data and remote frames and acknowledge valid frames; the node shall not transmit data or remote frames; errors and overload conditions shall be treated as protocol exception events"
-  iso_reference = "6.6.19"
-  acceptance_criteria = "In restricted operation mode, node receives DFs/RFs and sends ACK; no DFs/RFs transmitted; errors treated as protocol exception events"
-  notes = "Optional for CC/FD nodes"
+  description = "TEC shall be incremented by 8 when the transmitter detects a bit error during active error flag or overload flag transmission"
+  iso_reference = "8.1.4.2"
+  acceptance_criteria = "TEC incremented by 8 after error flag transmission"
+  notes = "Rule d) of 8.1.4.2; indicates persistent bus disturbance"
   target_module = ""
 # Verification Strategy & Status
   verification = "simulation"
@@ -3334,60 +3370,6 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
 
 [requirements.121]
 # Classification Metadata
-  category = "FRM"
-  side = "TX"
-  format = ["CB", "CE", "FB", "FE"]
-  priority = "critical"
-# Core Specification
-  description = "In bus monitoring mode, the node shall receive valid frames but shall drive only recessive bits to the bus; required dominant bits (ACK, error flags) shall be internally looped back without driving the bus"
-  iso_reference = "6.6.20"
-  acceptance_criteria = "In bus monitoring mode, all required dominant bits (ACK, error flags) are internally looped back; only recessive bits driven to bus"
-  notes = "Bus monitoring enables passive observation without network influence; optional feature"
-  target_module = ""
-# Verification Strategy & Status
-  verification = "simulation"
-  status = "unverified"
-
-[requirements.121.simulation]
-  test_case = ""
-  file = ""
-  passed = false
-  coverage = ""
-
-[requirements.121.formal]
-  property_label = ""
-  file = ""
-  depth_reached = 0
-
-[requirements.122]
-# Classification Metadata
-  category = "ERR"
-  side = "TX"
-  format = ["CB", "CE", "FB", "FE"]
-  priority = "critical"
-# Core Specification
-  description = "TEC shall be incremented by 8 when the transmitter detects a bit error during active error flag or overload flag transmission"
-  iso_reference = "8.1.4.2"
-  acceptance_criteria = "TEC incremented by 8 after error flag transmission"
-  notes = "Rule d) of 8.1.4.2; indicates persistent bus disturbance"
-  target_module = ""
-# Verification Strategy & Status
-  verification = "simulation"
-  status = "unverified"
-
-[requirements.122.simulation]
-  test_case = ""
-  file = ""
-  passed = false
-  coverage = ""
-
-[requirements.122.formal]
-  property_label = ""
-  file = ""
-  depth_reached = 0
-
-[requirements.123]
-# Classification Metadata
   category = "ERR"
   side = "TX"
   format = ["CB", "CE", "FB", "FE"]
@@ -3402,13 +3384,13 @@ acceptance_criteria = "CRC-15 polynomial 0xC599 used to calculate FCRC"
   verification = "simulation"
   status = "unverified"
 
-[requirements.123.simulation]
+[requirements.121.simulation]
   test_case = ""
   file = ""
   passed = false
   coverage = ""
 
-[requirements.123.formal]
+[requirements.121.formal]
   property_label = ""
   file = ""
   depth_reached = 0
