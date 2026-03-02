@@ -21,30 +21,53 @@ def load_toml(path: str) -> pd.DataFrame:
         raw = tomllib.load(f)
 
     rows = []
-    for req_id, fields in raw["requirements"].items():
-        # req_id is now numeric (001, 002, etc.)
-        # category and side are stored in fields
-        cat = fields.get("category", "")
-        side = fields.get("side", "")
-
-        rows.append(
-            {
-                "id": req_id,
-                "cat": cat,
-                "side": side,
-                "description": fields.get("description", ""),
-                "iso_reference": fields.get("iso_reference", ""),
-                "format": "/".join(fields.get("format", [])),
-                "status": fields.get("status", ""),
-                "priority": fields.get("priority", ""),
-                "acceptance_criteria": fields.get("acceptance_criteria", ""),
-                "verification": fields.get("verification", ""),
-                "notes": fields.get("notes", ""),
-                "pre": fields.get("pre", ""),
-                "evt": fields.get("evt", ""),
-                "post": fields.get("post", ""),
-            }
-        )
+    
+    # Handle New Format: [[requirement]]
+    if "requirement" in raw:
+        for fields in raw["requirement"]:
+            # Map new format fields to DataFrame columns
+            rows.append(
+                {
+                    "id": fields.get("id", ""),
+                    "cat": fields.get("layer", ""),
+                    "side": fields.get("side", ""),
+                    "description": fields.get("original_wording", ""),
+                    "iso_reference": fields.get("source_clause", ""),
+                    "format": fields.get("format_applicability", ""),
+                    "notes": fields.get("notes", ""),
+                    "pre": fields.get("precondition", ""),
+                    "evt": fields.get("event", ""),
+                    "post": fields.get("postcondition", ""),
+                    "shape": fields.get("shape", ""),
+                    "scope": fields.get("scope", ""),
+                    "flags": ", ".join(fields.get("flags", [])),
+                    "label": fields.get("label", ""),
+                    "file": fields.get("file", ""),
+                }
+            )
+    
+    # Handle Legacy Format: [requirements.NNN]
+    elif "requirements" in raw:
+        for req_id, fields in raw["requirements"].items():
+            rows.append(
+                {
+                    "id": req_id,
+                    "cat": fields.get("category", ""),
+                    "side": fields.get("side", ""),
+                    "description": fields.get("description", ""),
+                    "iso_reference": fields.get("iso_reference", ""),
+                    "format": "/".join(fields.get("format", [])),
+                    "notes": fields.get("notes", ""),
+                    "pre": fields.get("pre", ""),
+                    "evt": fields.get("evt", ""),
+                    "post": fields.get("post", ""),
+                    "shape": "",
+                    "scope": "",
+                    "flags": "",
+                    "label": "",
+                    "file": "",
+                }
+            )
 
     return pd.DataFrame(rows)
 
@@ -55,38 +78,28 @@ EXPORT_COLS = [
     "id",
     "cat",
     "side",
+    "shape",
+    "scope",
     "description",
     "iso_reference",
     "format",
-    "status",
-    "priority",
-    "verification",
     "notes",
     "pre",
     "evt",
     "post",
+    "flags",
+    "label",
+    "file",
 ]
-
-STATUS_CSS = {
-    "verified": "color: #2ecc71; font-weight: bold",
-    "implemented": "color: #f39c12",
-    "diagnostic": "color: #e67e22",
-    "unverified": "color: #e74c3c; font-weight: bold",
-    "not applicable": "color: #95a5a6",
-}
-
-PRIORITY_CSS = {
-    "critical": "color: #e74c3c; font-weight: bold",
-    "high": "color: #f39c12",
-    "medium": "color: #95a5a6",
-    "low": "color: #7f8c8d",
-}
 
 CAT_CSS = {
     "FRM": "color: #00bcd4; font-weight: bold",
     "TMG": "color: #3f51b5; font-weight: bold",
     "ERR": "color: #e74c3c; font-weight: bold",
     "CRC": "color: #9c27b0; font-weight: bold",
+    "LLC": "color: #ffeb3b; font-weight: bold",
+    "MAC": "color: #03a9f4; font-weight: bold",
+    "PCS": "color: #8bc34a; font-weight: bold",
 }
 
 
@@ -94,19 +107,11 @@ def export_html(df: pd.DataFrame, path: str):
     """Export requirements as interactive HTML table"""
     out = df[EXPORT_COLS].fillna("").copy()
 
-    def style_status(val):
-        return STATUS_CSS.get(val.lower(), "")
-
-    def style_priority(val):
-        return PRIORITY_CSS.get(val, "")
-
     def style_cat(cat_val):
         return CAT_CSS.get(cat_val, "")
 
     styled = (
-        out.style.map(style_status, subset=["status"])
-        .map(style_priority, subset=["priority"])
-        .map(style_cat, subset=["cat"])
+        out.style.map(style_cat, subset=["cat"])
         .set_table_styles(
             [
                 {
@@ -136,9 +141,8 @@ def export_html(df: pd.DataFrame, path: str):
                 "side",
                 "iso_reference",
                 "format",
-                "status",
-                "priority",
-                "verification",
+                "label",
+                "file",
             ],
             **{"white-space": "nowrap"},
         )
@@ -210,66 +214,106 @@ def export_markdown(df: pd.DataFrame, path: str):
 
 
 def renumber(path: str):
-    """Renumber requirement IDs to be sequential (001, 002, ...) preserving order."""
+    """Renumber requirement IDs sequentially, preserving order and prefixes for new format."""
     with open(path, "r") as f:
         lines = f.readlines()
 
-    # Split into header (before first [requirements.) and body
-    header_end = 0
-    for i, line in enumerate(lines):
-        if re.match(r"\[requirements\.\d{3}\]", line):
-            header_end = i
-            break
+    is_new_format = any(line.strip() == "[[requirement]]" for line in lines)
 
-    header = lines[:header_end]
+    if is_new_format:
+        # Split into header and blocks
+        header_end = 0
+        for i, line in enumerate(lines):
+            if line.strip() == "[[requirement]]":
+                header_end = i
+                break
+        header = lines[:header_end]
+        
+        blocks = []
+        current = []
+        for line in lines[header_end:]:
+            if line.strip() == "[[requirement]]" and current:
+                blocks.append(current)
+                current = [line]
+            else:
+                current.append(line)
+        if current:
+            blocks.append(current)
 
-    # Split body into groups: each starts at a top-level [requirements.NNN] line
-    groups = []
-    current = []
-    for line in lines[header_end:]:
-        if re.match(r"\[requirements\.\d{3}\]\s*$", line) and current:
+        new_lines = header[:]
+        counters = {}
+        for block in blocks:
+            for line in block:
+                m = re.search(r'id = "(.*?)(\d{3})"', line)
+                if m:
+                    prefix = m.group(1)
+                    counters[prefix] = counters.get(prefix, 0) + 1
+                    new_id_num = f"{counters[prefix]:03d}"
+                    line = re.sub(r'id = "(.*?)(\d{3})"', f'id = "{prefix}{new_id_num}"', line)
+                new_lines.append(line)
+        
+        with open(path, "w") as f:
+            f.writelines(new_lines)
+        return sum(counters.values())
+
+    else:
+        # Legacy Format
+        header_end = 0
+        for i, line in enumerate(lines):
+            if re.match(r"\[requirements\.\d{3}\]", line):
+                header_end = i
+                break
+
+        header = lines[:header_end]
+        groups = []
+        current = []
+        for line in lines[header_end:]:
+            if re.match(r"\[requirements\.\d{3}\]\s*$", line) and current:
+                groups.append(current)
+                current = [line]
+            else:
+                current.append(line)
+        if current:
             groups.append(current)
-            current = [line]
-        else:
-            current.append(line)
-    if current:
-        groups.append(current)
 
-    # Renumber each group sequentially
-    new_lines = header[:]
-    for new_idx, group in enumerate(groups, start=1):
-        new_id = f"{new_idx:03d}"
-        m = re.match(r"\[requirements\.(\d{3})\]", group[0])
-        if not m:
-            continue
-        old_id = m.group(1)
-        for line in group:
-            line = re.sub(
-                rf"\[requirements\.{re.escape(old_id)}([\].])",
-                rf"[requirements.{new_id}\1",
-                line,
-            )
-            new_lines.append(line)
+        new_lines = header[:]
+        for new_idx, group in enumerate(groups, start=1):
+            new_id = f"{new_idx:03d}"
+            m = re.match(r"\[requirements\.(\d{3})\]", group[0])
+            if not m:
+                continue
+            old_id = m.group(1)
+            for line in group:
+                line = re.sub(
+                    rf"\[requirements\.{re.escape(old_id)}([\].])",
+                    rf"[requirements.{new_id}\1",
+                    line,
+                )
+                new_lines.append(line)
 
-    with open(path, "w") as f:
-        f.writelines(new_lines)
+        with open(path, "w") as f:
+            f.writelines(new_lines)
 
-    # Update the ID range in the header comment
-    _update_header_id_range(path, len(groups))
-
-    return len(groups)
+        _update_header_id_range(path, len(groups))
+        return len(groups)
 
 
 def delete_requirement(path: str, req_id: str):
     """Delete a requirement by ID and renumber remaining requirements."""
-    req_id = req_id.zfill(3)
-
     with open(path, "r") as f:
         content = f.read()
 
-    # Remove the requirement block (main + simulation + formal sub-tables)
-    pattern = rf"\[requirements\.{re.escape(req_id)}\]\n.*?(?=\[requirements\.(?!{re.escape(req_id)}[\].])|$)"
-    new_content = re.sub(pattern, "", content, flags=re.DOTALL)
+    is_new_format = "[[requirement]]" in content
+
+    if is_new_format:
+        # New format deletion: look for [[requirement]] followed by id = "req_id"
+        pattern = rf"\[\[requirement\]\]\s*\nid = \"{re.escape(req_id)}\".*?(?=\[\[requirement\]\]|$)"
+        new_content = re.sub(pattern, "", content, flags=re.DOTALL)
+    else:
+        # Legacy format deletion
+        req_id = req_id.zfill(3)
+        pattern = rf"\[requirements\.{re.escape(req_id)}\]\n.*?(?=\[requirements\.(?!{re.escape(req_id)}[\].])|$)"
+        new_content = re.sub(pattern, "", content, flags=re.DOTALL)
 
     if new_content == content:
         print(f"Requirement {req_id} not found")
@@ -279,7 +323,7 @@ def delete_requirement(path: str, req_id: str):
         f.write(new_content)
 
     count = renumber(path)
-    print(f"Deleted requirement {req_id}, renumbered to 001-{count:03d}")
+    print(f"Deleted requirement {req_id}, renumbered to {count} entries")
 
 
 def _update_header_id_range(path: str, count: int):
