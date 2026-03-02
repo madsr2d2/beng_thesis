@@ -3,7 +3,7 @@
 ## Context
 
 You are assisting with formal and simulation-based verification of a CAN FD bus controller
-implemented in VHDL. The design implements ISO 11898-1:2015 and contains approximately 130
+implemented in VHDL. The design implements ISO 11898-1:2024 and contains approximately 130
 extracted requirements currently stored in a structured table. All requirements have been forced
 into a PRE/EVT/POST triple format, which is insufficient — this task is to reformat them into a
 more accurate taxonomy that correctly reflects the verification intent of each requirement.
@@ -177,7 +177,7 @@ Produce one TOML block per requirement using the schema below.
 | `postcondition` | required | required | required | omit |
 | `coverage_target` | omit | omit | omit | required |
 
-**For `scope = "frame"` requirements**, `side` may be omitted or set to `"both"` if the
+**For `scope = "frame"` requirements**, `side` should be set to `"both"` if the
 structural rule applies regardless of transmit or receive role.
 
 **For COMPOUND requirements**, output one block using the shape and scope of the first distinct

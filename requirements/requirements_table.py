@@ -21,7 +21,7 @@ def load_toml(path: str) -> pd.DataFrame:
         raw = tomllib.load(f)
 
     rows = []
-    
+
     # Handle New Format: [[requirement]]
     if "requirement" in raw:
         for fields in raw["requirement"]:
@@ -45,7 +45,7 @@ def load_toml(path: str) -> pd.DataFrame:
                     "file": fields.get("file", ""),
                 }
             )
-    
+
     # Handle Legacy Format: [requirements.NNN]
     elif "requirements" in raw:
         for req_id, fields in raw["requirements"].items():
@@ -228,7 +228,7 @@ def renumber(path: str):
                 header_end = i
                 break
         header = lines[:header_end]
-        
+
         blocks = []
         current = []
         for line in lines[header_end:]:
@@ -249,9 +249,11 @@ def renumber(path: str):
                     prefix = m.group(1)
                     counters[prefix] = counters.get(prefix, 0) + 1
                     new_id_num = f"{counters[prefix]:03d}"
-                    line = re.sub(r'id = "(.*?)(\d{3})"', f'id = "{prefix}{new_id_num}"', line)
+                    line = re.sub(
+                        r'id = "(.*?)(\d{3})"', f'id = "{prefix}{new_id_num}"', line
+                    )
                 new_lines.append(line)
-        
+
         with open(path, "w") as f:
             f.writelines(new_lines)
         return sum(counters.values())
@@ -363,6 +365,12 @@ def main():
     parser.add_argument(
         "--delete", metavar="ID", help="Delete requirement by ID and renumber"
     )
+    parser.add_argument(
+        "--exclude",
+        metavar="COL=PAT",
+        action="append",
+        help="Exclude rows where COL contains PAT (e.g. --exclude 'flags=DOC_ONLY')",
+    )
     args = parser.parse_args()
 
     if args.delete:
@@ -375,6 +383,17 @@ def main():
         return
 
     df = load_toml(args.toml)
+
+    if args.exclude:
+        for excl in args.exclude:
+            if "=" in excl:
+                col, pat = excl.split("=", 1)
+                if col in df.columns:
+                    before = len(df)
+                    df = df[~df[col].astype(str).str.contains(pat, na=False)]
+                    print(f"Excluded {before - len(df)} rows matching {excl}")
+                else:
+                    print(f"Warning: Column '{col}' not found")
 
     # Default to HTML if no output format given
     if not args.html and not args.markdown:
