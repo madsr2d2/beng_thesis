@@ -7,14 +7,6 @@
       "env": {
         "PYTHONPATH": "${PWD}"
       }
-    },
-    "requirements-reformatter": {
-      "type": "stdio",
-      "command": "python",
-      "args": ["-m", "mcp_tools.requirements_reformatter"],
-      "env": {
-        "PYTHONPATH": "${PWD}"
-      }
     }
   }
 }

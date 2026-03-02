@@ -1,17 +1,26 @@
 #!/usr/bin/env python3
 """
-CAN Requirements Management MCP Server
+CAN Requirements MCP Server
 
-Provides safe, atomic operations for querying and modifying requirements.toml.
-Uses FastMCP (high-level MCP Python SDK) with stdio transport for Claude Code.
+Manages ISO-aligned requirements in TOML format.
+Handles querying, updating, inserting, deleting, and validating requirements.
+
+Format structure:
+  [[requirement]]
+  id = "REQ-LLC-001"
+  shape = "invariant" | "triggered" | "liveness" | "reachability"
+  scope = "frame" | "node" | "bus"
+  layer = "LLC" | "MAC" | "PCS" | "FCE"
+  flags = ["COMPOUND", "AMBIGUOUS", "EXTERNAL_DEP", "SHOULD", "DOC_ONLY"]
+  label = ""  # PSL assertion label or testbench procedure name
+  file = ""   # Target VHDL source file
+  ... etc ...
 
 Usage:
     python -m mcp_tools.requirements_manager
 """
 
 import logging
-import re
-import shutil
 import sys
 from collections import Counter
 from pathlib import Path
@@ -21,7 +30,6 @@ import tomlkit
 from mcp.server.fastmcp import FastMCP
 
 # ── Logging ───────────────────────────────────────────────────────────────────
-# Must write to stderr only — stdout carries MCP JSON-RPC messages.
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
@@ -30,45 +38,51 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-# Resolve relative to this file so the server works regardless of cwd.
 _PROJECT_ROOT = Path(__file__).parent.parent
-_DEFAULT_TOML = _PROJECT_ROOT / "requirements" / "requirements.toml"
+_REQUIREMENTS_DIR = _PROJECT_ROOT / "requirements"
 
 # ── FastMCP Server ────────────────────────────────────────────────────────────
-mcp = FastMCP("requirements-manager")
+mcp = FastMCP("requirements")
 
 
-# ── Requirements Manager ──────────────────────────────────────────────────────
+# ── Requirements Manager ─────────────────────────────────────────────────────
 
 
 class RequirementsManager:
-    """Safe, atomic manager for requirements.toml using tomlkit."""
+    """Manager for ISO-aligned CAN requirements using tomlkit."""
 
-    VALID_FIELDS = {
-        "priority",
-        "status",
-        "verification",
-        "target_module",
-        "description",
-        "iso_reference",
-        "acceptance_criteria",
+    VALID_SHAPES = {"triggered", "invariant", "liveness", "reachability"}
+    VALID_SCOPES = {"frame", "node", "bus"}
+    VALID_LAYERS = {"LLC", "MAC", "PCS", "FCE"}
+    VALID_FLAGS = {"COMPOUND", "AMBIGUOUS", "EXTERNAL_DEP", "SHOULD", "DOC_ONLY"}
+    VALID_FIELD_UPDATES = {
+        "shape",
+        "scope",
+        "layer",
+        "side",
+        "flags",
         "notes",
-        "pre",    # PRE/EVT/POST analysis fields
-        "evt",
-        "post",
+        "label",
+        "file",
+        "precondition",
+        "event",
+        "postcondition",
+        "coverage_target",
+        "original_wording",
+        "source_clause",
+        "format_applicability",
     }
 
-    def __init__(self, toml_path: Path = _DEFAULT_TOML):
+    def __init__(self, toml_path: Path):
         self.toml_path = Path(toml_path)
         self.backup_path = self.toml_path.with_suffix(".toml.bak")
 
         if not self.toml_path.exists():
             raise FileNotFoundError(f"Requirements file not found: {self.toml_path}")
-
         logger.info(f"RequirementsManager ready: {self.toml_path}")
 
     def _load(self) -> dict:
-        """Load TOML preserving comments and formatting (via tomlkit)."""
+        """Load TOML preserving comments and formatting."""
         with open(self.toml_path, "r") as f:
             return tomlkit.parse(f.read())
 
@@ -79,267 +93,266 @@ class RequirementsManager:
         logger.info(f"Saved: {self.toml_path}")
 
     def _backup(self) -> None:
-        shutil.copy(self.toml_path, self.backup_path)
+        self.toml_path.read_text()  # Verify readable
+        self.backup_path.write_text(self.toml_path.read_text())
         logger.info(f"Backup: {self.backup_path}")
-
-    def _renumber(self) -> int:
-        """Renumber all requirement IDs sequentially and update header."""
-        lines = self.toml_path.read_text().splitlines(keepends=True)
-
-        header_end = next(
-            (i for i, l in enumerate(lines) if re.match(r"\[requirements\.\d{3}\]", l)),
-            len(lines),
-        )
-        header = lines[:header_end]
-
-        groups: list[list[str]] = []
-        current: list[str] = []
-        for line in lines[header_end:]:
-            if re.match(r"\[requirements\.\d{3}\]\s*$", line) and current:
-                groups.append(current)
-                current = [line]
-            else:
-                current.append(line)
-        if current:
-            groups.append(current)
-
-        new_lines = header[:]
-        for new_idx, group in enumerate(groups, start=1):
-            new_id = f"{new_idx:03d}"
-            m = re.match(r"\[requirements\.(\d{3})\]", group[0])
-            if not m:
-                continue
-            old_id = m.group(1)
-            for line in group:
-                line = re.sub(
-                    rf"\[requirements\.{re.escape(old_id)}([\].])",
-                    rf"[requirements.{new_id}\1",
-                    line,
-                )
-                new_lines.append(line)
-
-        content = re.sub(
-            r"Unique numeric ID \(\d+-\d+\)",
-            f"Unique numeric ID (001-{len(groups):03d})",
-            "".join(new_lines),
-        )
-        self.toml_path.write_text(content)
-        return len(groups)
 
     def query(
         self,
-        category: Optional[str] = None,
+        shape: Optional[str] = None,
+        scope: Optional[str] = None,
+        layer: Optional[str] = None,
         side: Optional[str] = None,
-        status: Optional[str] = None,
-        priority: Optional[str] = None,
-        verification: Optional[str] = None,
+        has_flags: Optional[str] = None,
+        is_blank_label: Optional[bool] = None,
+        is_blank_file: Optional[bool] = None,
     ) -> list[dict]:
-        filters = {
-            k: v
-            for k, v in {
-                "category": category,
-                "side": side,
-                "status": status,
-                "priority": priority,
-                "verification": verification,
-            }.items()
-            if v is not None
-        }
+        """Query requirements by shape, scope, layer, side, and flags."""
         data = self._load()
-        results = [
-            {"id": req_id, **req}
-            for req_id, req in data["requirements"].items()
-            if all(req.get(k) == v for k, v in filters.items())
-        ]
-        logger.info(f"query({filters}) → {len(results)} results")
+        requirements = data.get("requirement", [])
+
+        filters = {}
+        if shape:
+            filters["shape"] = shape
+        if scope:
+            filters["scope"] = scope
+        if layer:
+            filters["layer"] = layer
+        if side:
+            filters["side"] = side
+
+        results = []
+        for req in requirements:
+            if not all(req.get(k) == v for k, v in filters.items()):
+                continue
+
+            if has_flags:
+                required_flags = set(f.strip() for f in has_flags.split(","))
+                req_flags = set(req.get("flags", []))
+                if not req_flags & required_flags:
+                    continue
+
+            if is_blank_label is not None:
+                if (req.get("label", "") == "") != is_blank_label:
+                    continue
+            if is_blank_file is not None:
+                if (req.get("file", "") == "") != is_blank_file:
+                    continue
+
+            results.append(req)
+
+        logger.info(f"query() with filters → {len(results)} results")
         return results
 
-    def update_requirement(self, req_id: str, field: str, value: str) -> dict:
-        req_id = req_id.zfill(3)
-        if field not in self.VALID_FIELDS:
-            raise ValueError(f"Invalid field '{field}'. Valid: {self.VALID_FIELDS}")
+    def get_by_id(self, req_id: str) -> Optional[dict]:
+        """Get a single requirement by ID."""
+        data = self._load()
+        requirements = data.get("requirement", [])
+        for req in requirements:
+            if req.get("id") == req_id:
+                return req
+        return None
+
+    def update_requirement(self, req_id: str, field: str, value) -> dict:
+        """Update a single field on one requirement."""
+        if field not in self.VALID_FIELD_UPDATES:
+            raise ValueError(
+                f"Invalid field '{field}'. Valid: {self.VALID_FIELD_UPDATES}"
+            )
+
+        if field == "shape" and value not in self.VALID_SHAPES:
+            raise ValueError(f"Invalid shape '{value}'. Valid: {self.VALID_SHAPES}")
+        if field == "scope" and value not in self.VALID_SCOPES:
+            raise ValueError(f"Invalid scope '{value}'. Valid: {self.VALID_SCOPES}")
+        if field == "layer" and value not in self.VALID_LAYERS:
+            raise ValueError(f"Invalid layer '{value}'. Valid: {self.VALID_LAYERS}")
+
         self._backup()
         data = self._load()
-        if req_id not in data["requirements"]:
-            raise KeyError(f"Requirement {req_id} not found")
-        old = data["requirements"][req_id].get(field)
-        data["requirements"][req_id][field] = value
-        self._save(data)
-        logger.info(f"update {req_id}.{field}: {old!r} → {value!r}")
-        return dict(data["requirements"][req_id])
+        requirements = data.get("requirement", [])
 
-    def bulk_update(self, field: str, value: str, **filters) -> dict:
-        if field not in self.VALID_FIELDS:
-            raise ValueError(f"Invalid field '{field}'. Valid: {self.VALID_FIELDS}")
+        found = False
+        updated_req = None
+        for req in requirements:
+            if req.get("id") == req_id:
+                old_value = req.get(field)
+                req[field] = value
+                found = True
+                updated_req = req
+                logger.info(f"Updated {req_id}.{field}: {old_value!r} → {value!r}")
+                break
+
+        if not found:
+            raise KeyError(f"Requirement {req_id} not found")
+
+        self._save(data)
+        return updated_req
+
+    def bulk_update(self, field: str, value, **filters) -> dict:
+        """Update a field on all requirements matching the given filters."""
+        if field not in self.VALID_FIELD_UPDATES:
+            raise ValueError(
+                f"Invalid field '{field}'. Valid: {self.VALID_FIELD_UPDATES}"
+            )
+
         matching = self.query(**filters)
         if not matching:
             return {"count": 0, "updated_ids": []}
+
         self._backup()
         data = self._load()
+        requirements = data.get("requirement", [])
         updated_ids = []
-        for req in matching:
-            data["requirements"][req["id"]][field] = value
-            updated_ids.append(req["id"])
+
+        for match in matching:
+            match_id = match.get("id")
+            for req in requirements:
+                if req.get("id") == match_id:
+                    req[field] = value
+                    updated_ids.append(match_id)
+                    break
+
         self._save(data)
         logger.info(f"bulk_update {field}={value!r} on {len(updated_ids)} requirements")
         return {"count": len(updated_ids), "updated_ids": updated_ids}
 
-    def insert_requirement(
-        self,
-        position: Optional[int],
-        category: str,
-        side: str,
-        format_list: list[str],
-        priority: str,
-        description: str,
-        iso_reference: str = "",
-        acceptance_criteria: str = "",
-        notes: str = "",
-        target_module: str = "",
-        verification: str = "simulation",
-        status: str = "unverified",
-        pre: str = "",
-        evt: str = "",
-        post: str = "",
-    ) -> dict:
-        """Insert a new requirement at the given position and renumber.
-
-        If position is None, appends after the last requirement.
-        """
-        self._backup()
-
-        # Build the new requirement block text
+    def get_statistics(self) -> dict:
+        """Get requirement counts by shape, scope, layer, flags."""
         data = self._load()
-        existing_count = len(data["requirements"])
+        requirements = data.get("requirement", [])
 
-        if position is None:
-            position = existing_count + 1
-        elif position < 1 or position > existing_count + 1:
-            raise ValueError(
-                f"Position {position} out of range (1-{existing_count + 1})"
-            )
+        if not requirements:
+            return {
+                "total_count": 0,
+                "by_shape": {},
+                "by_scope": {},
+                "by_layer": {},
+                "flags_present": {},
+                "blank_label_count": 0,
+                "blank_file_count": 0,
+            }
 
-        # Format the format list as TOML array
-        fmt_str = "[" + ", ".join(f'"{f}"' for f in format_list) + "]"
-
-        # Use a temporary ID that will be fixed by renumber
-        temp_id = f"{position:03d}"
-
-        # PRE/EVT/POST block — only emitted when at least one field is provided
-        pep_block = ""
-        if pre or evt or post:
-            pep_block = (
-                f"# PRE/EVT/POST Analysis\n"
-                f'  pre  = "{pre}"\n'
-                f'  evt  = "{evt}"\n'
-                f'  post = "{post}"\n'
-            )
-
-        new_block = (
-            f"\n[requirements.{temp_id}]\n"
-            f"# Classification Metadata\n"
-            f'  category = "{category}"\n'
-            f'  side = "{side}"\n'
-            f"  format = {fmt_str}\n"
-            f'  priority = "{priority}"\n'
-            f"# Core Specification\n"
-            f'  description = "{description}"\n'
-            f'  iso_reference = "{iso_reference}"\n'
-            f'  acceptance_criteria = "{acceptance_criteria}"\n'
-            f'  notes = "{notes}"\n'
-            f'  target_module = "{target_module}"\n'
-            f"{pep_block}"
-            f"# Verification Strategy & Status\n"
-            f'  verification = "{verification}"\n'
-            f'  status = "{status}"\n'
-            f"\n"
-            f"[requirements.{temp_id}.simulation]\n"
-            f'  test_case = ""\n'
-            f'  file = ""\n'
-            f"  passed = false\n"
-            f'  coverage = ""\n'
-            f"\n"
-            f"[requirements.{temp_id}.formal]\n"
-            f'  property_label = ""\n'
-            f'  file = ""\n'
-            f"  depth_reached = 0\n"
-        )
-
-        # Read raw file and find insertion point
-        lines = self.toml_path.read_text()
-
-        if position <= existing_count:
-            # Insert before the target position's block
-            target_header = f"[requirements.{position:03d}]"
-            insert_idx = lines.find(target_header)
-            if insert_idx == -1:
-                raise KeyError(f"Could not find {target_header} in file")
-            new_content = lines[:insert_idx] + new_block + "\n" + lines[insert_idx:]
-        else:
-            # Append at end
-            new_content = lines.rstrip() + "\n" + new_block
-
-        self.toml_path.write_text(new_content)
-        count = self._renumber()
-        logger.info(
-            f"Inserted requirement at position {position}, "
-            f"renumbered to 001-{count:03d}"
-        )
         return {
-            "inserted_id": f"{position:03d}",
-            "new_total_count": count,
-            "description": description,
-            "has_pre_evt_post": bool(pre or evt or post),
+            "total_count": len(requirements),
+            "by_shape": dict(Counter(r.get("shape", "unknown") for r in requirements)),
+            "by_scope": dict(Counter(r.get("scope", "unknown") for r in requirements)),
+            "by_layer": dict(Counter(r.get("layer", "unknown") for r in requirements)),
+            "flags_present": dict(
+                Counter(flag for r in requirements for flag in r.get("flags", []))
+            ),
+            "blank_label_count": sum(
+                1 for r in requirements if r.get("label", "") == ""
+            ),
+            "blank_file_count": sum(1 for r in requirements if r.get("file", "") == ""),
         }
 
     def delete_requirement(self, req_id: str) -> dict:
-        req_id = req_id.zfill(3)
+        """Delete a requirement by ID."""
         self._backup()
-        content = self.toml_path.read_text()
-        pattern = (
-            rf"\[requirements\.{re.escape(req_id)}\]\n"
-            rf".*?(?=\[requirements\.(?!{re.escape(req_id)}[\].])|$)"
-        )
-        new_content = re.sub(pattern, "", content, flags=re.DOTALL)
-        if new_content == content:
-            raise KeyError(f"Requirement {req_id} not found")
-        self.toml_path.write_text(new_content)
-        count = self._renumber()
-        logger.info(f"Deleted {req_id}, renumbered to 001-{count:03d}")
-        return {"deleted_id": req_id, "new_total_count": count}
+        data = self._load()
+        requirements = data.get("requirement", [])
 
-    def renumber(self) -> dict:
-        count = self._renumber()
-        logger.info(f"Renumbered {count} requirements")
-        return {"total_count": count, "id_range": f"001-{count:03d}"}
+        for i, req in enumerate(requirements):
+            if req.get("id") == req_id:
+                del requirements[i]
+                self._save(data)
+                logger.info(f"Deleted {req_id}, {len(requirements)} remaining")
+                return {"deleted": req_id, "remaining": len(requirements)}
 
-    def get_statistics(self) -> dict:
-        reqs = self._load()["requirements"]
-        # Only top-level requirement entries (exclude sub-tables like .simulation/.formal)
-        top_level = {
-            k: v for k, v in reqs.items() if isinstance(v, dict) and "category" in v
+        raise KeyError(f"Requirement {req_id} not found")
+
+    def renumber_requirements(self) -> dict:
+        """Renumber all requirement IDs sequentially within each layer."""
+        self._backup()
+        data = self._load()
+        requirements = data.get("requirement", [])
+
+        counters: dict[str, int] = {}
+        id_map: dict[str, str] = {}
+
+        for req in requirements:
+            layer = req.get("layer", "UNK")
+            counters[layer] = counters.get(layer, 0) + 1
+            old_id = req.get("id", "")
+            new_id = f"REQ-{layer}-{counters[layer]:03d}"
+            if old_id != new_id:
+                id_map[old_id] = new_id
+            req["id"] = new_id
+
+        for req in requirements:
+            notes = req.get("notes", "")
+            if notes:
+                for old_id, new_id in id_map.items():
+                    notes = notes.replace(old_id, new_id)
+                req["notes"] = notes
+
+        self._save(data)
+        logger.info(f"Renumbered {len(requirements)} requirements, {len(id_map)} IDs changed")
+        return {"total": len(requirements), "changed": len(id_map), "id_map": id_map}
+
+    def insert_requirement(self, **fields) -> dict:
+        """Insert a new requirement. Auto-assigns next sequential ID for the layer."""
+        self._backup()
+        data = self._load()
+        requirements = data.get("requirement", [])
+
+        layer = fields.get("layer", "LLC")
+        max_num = 0
+        for req in requirements:
+            if req.get("layer") == layer:
+                rid = req.get("id", "")
+                try:
+                    num = int(rid.split("-")[-1])
+                    max_num = max(max_num, num)
+                except (ValueError, IndexError):
+                    pass
+        new_id = f"REQ-{layer}-{max_num + 1:03d}"
+
+        new_req = tomlkit.table()
+        new_req["id"] = new_id
+        defaults = {
+            "source_clause": "",
+            "original_wording": "",
+            "shape": "triggered",
+            "scope": "frame",
+            "layer": layer,
+            "side": "",
+            "format_applicability": "",
+            "flags": [],
+            "precondition": "",
+            "event": "",
+            "postcondition": "",
+            "coverage_target": "",
+            "label": "",
+            "file": "",
+            "notes": "",
         }
-        annotated = sum(
-            1 for r in top_level.values()
-            if r.get("pre") and r.get("evt") and r.get("post")
-        )
-        missing_annotation = [
-            k for k, r in top_level.items()
-            if not (r.get("pre") and r.get("evt") and r.get("post"))
-        ]
-        return {
-            "total_count": len(top_level),
-            "by_category": dict(Counter(r["category"] for r in top_level.values())),
-            "by_side": dict(Counter(r["side"] for r in top_level.values())),
-            "by_status": dict(Counter(r["status"] for r in top_level.values())),
-            "by_priority": dict(Counter(r["priority"] for r in top_level.values())),
-            "pre_evt_post_annotated": annotated,
-            "pre_evt_post_missing": missing_annotation,
-        }
+        for key, default in defaults.items():
+            new_req[key] = fields.get(key, default)
+
+        requirements.append(new_req)
+        self._save(data)
+        logger.info(f"Inserted {new_id}")
+        return {"id": new_id, "total": len(requirements)}
 
 
 # ── Singleton ─────────────────────────────────────────────────────────────────
-manager = RequirementsManager()
+def get_manager(toml_path: Optional[Path] = None):
+    """Get or create a manager for the given TOML file."""
+    if toml_path is None:
+        for name in [
+            "requirements.toml",
+        ]:
+            path = _REQUIREMENTS_DIR / name
+            if path.exists():
+                toml_path = path
+                break
+        if toml_path is None:
+            raise FileNotFoundError(
+                f"No requirements TOML found in {_REQUIREMENTS_DIR}"
+            )
+
+    return RequirementsManager(toml_path)
 
 
 # ── MCP Tools ─────────────────────────────────────────────────────────────────
@@ -347,200 +360,258 @@ manager = RequirementsManager()
 
 @mcp.tool()
 def query_requirements(
-    category: Optional[str] = None,
+    shape: Optional[str] = None,
+    scope: Optional[str] = None,
+    layer: Optional[str] = None,
     side: Optional[str] = None,
-    status: Optional[str] = None,
-    priority: Optional[str] = None,
-    verification: Optional[str] = None,
-    missing_annotation: Optional[bool] = None,
+    has_flags: Optional[str] = None,
+    is_blank_label: Optional[bool] = None,
+    is_blank_file: Optional[bool] = None,
+    toml_path: Optional[str] = None,
 ) -> str:
     """Query requirements with optional filters.
 
     Args:
-        category: FRM, ERR, TMG, or CRC
-        side: TX or RX
-        status: verified, implemented, unverified, or diagnostic
-        priority: critical, high, medium, or low
-        verification: simulation, coverage, waveform, or assertion
-        missing_annotation: if True, return only requirements missing pre/evt/post fields
+        shape: triggered, invariant, liveness, or reachability
+        scope: frame, node, or bus
+        layer: LLC, MAC, PCS, or FCE
+        side: transmitter, receiver, or both
+        has_flags: Comma-separated flags (COMPOUND, AMBIGUOUS, EXTERNAL_DEP, SHOULD, DOC_ONLY)
+        is_blank_label: if true, return only requirements with label=""
+        is_blank_file: if true, return only requirements with file=""
+        toml_path: Path to requirements file (auto-detected if not provided)
     """
-    results = manager.query(category, side, status, priority, verification)
-    if missing_annotation is True:
-        results = [r for r in results if not (r.get("pre") and r.get("evt") and r.get("post"))]
-    elif missing_annotation is False:
-        results = [r for r in results if r.get("pre") and r.get("evt") and r.get("post")]
+    manager = get_manager(Path(toml_path) if toml_path else None)
+    results = manager.query(
+        shape=shape,
+        scope=scope,
+        layer=layer,
+        side=side,
+        has_flags=has_flags,
+        is_blank_label=is_blank_label,
+        is_blank_file=is_blank_file,
+    )
 
     lines = []
-    for r in results:
-        line = f"{r['id']}: [{r['category']}/{r['side']}] {r['description']}"
-        pre = r.get("pre", "")
-        evt = r.get("evt", "")
-        post = r.get("post", "")
-        if pre or evt or post:
-            line += f"\n     PRE:  {pre}"
-            line += f"\n     EVT:  {evt}"
-            line += f"\n     POST: {post}"
+    for req in results:
+        line = f"{req.get('id', 'UNKNOWN')}: [{req.get('layer', '?')}/{req.get('shape', '?')}]"
+        if req.get("flags"):
+            line += f" {req['flags']}"
         lines.append(line)
+        lines.append(f"    {req.get('original_wording', '')[:80]}...")
 
+    if not results:
+        return "No requirements matched the query."
     return f"{len(results)} requirements found:\n\n" + "\n".join(lines)
 
 
 @mcp.tool()
-def update_requirement(req_id: str, field: str, value: str) -> str:
+def get_requirement(req_id: str, toml_path: Optional[str] = None) -> str:
+    """Get a single requirement by ID with all details.
+
+    Args:
+        req_id: Requirement ID (e.g. "REQ-LLC-001")
+        toml_path: Path to requirements file (auto-detected if not provided)
+    """
+    manager = get_manager(Path(toml_path) if toml_path else None)
+    req = manager.get_by_id(req_id)
+
+    if not req:
+        return f"Requirement {req_id} not found."
+
+    lines = [f"ID: {req.get('id')}"]
+    lines.append(f"Source: {req.get('source_clause')}")
+    lines.append(f"Shape: {req.get('shape')}")
+    lines.append(f"Scope: {req.get('scope')}")
+    lines.append(f"Layer: {req.get('layer')}")
+    lines.append(f"Side: {req.get('side', 'N/A')}")
+    lines.append(f"Format: {req.get('format_applicability')}")
+    lines.append(f"Flags: {req.get('flags', [])}")
+    lines.append(f"Label: {req.get('label', '[BLANK]')}")
+    lines.append(f"File: {req.get('file', '[BLANK]')}")
+    lines.append("")
+    lines.append(f"Original wording:\n  {req.get('original_wording')}")
+    lines.append("")
+    if req.get("precondition"):
+        lines.append(f"Precondition:\n  {req.get('precondition')}")
+    if req.get("event"):
+        lines.append(f"Event:\n  {req.get('event')}")
+    if req.get("postcondition"):
+        lines.append(f"Postcondition:\n  {req.get('postcondition')}")
+    if req.get("coverage_target"):
+        lines.append(f"Coverage target:\n  {req.get('coverage_target')}")
+    lines.append("")
+    lines.append(f"Notes:\n  {req.get('notes')}")
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
+def update_requirement(
+    req_id: str,
+    field: str,
+    value: str,
+    toml_path: Optional[str] = None,
+) -> str:
     """Update a single field on one requirement.
 
     Args:
-        req_id: Requirement ID (e.g. 012)
-        field: priority, status, verification, target_module, description,
-               iso_reference, acceptance_criteria, notes, pre, evt, or post
-        value: New value for the field
+        req_id: Requirement ID (e.g. "REQ-LLC-001")
+        field: Field to update (shape, scope, layer, label, file, notes, etc.)
+        value: New value
+        toml_path: Path to requirements file (auto-detected if not provided)
     """
-    result = manager.update_requirement(req_id, field, value)
-    return f"Updated {req_id}.{field} = {value!r}\n\n{result}"
+    manager = get_manager(Path(toml_path) if toml_path else None)
+    manager.update_requirement(req_id, field, value)
+    return f"Updated {req_id}.{field} = {value!r}"
 
 
 @mcp.tool()
 def bulk_update(
     field: str,
     value: str,
-    category: Optional[str] = None,
-    side: Optional[str] = None,
-    status: Optional[str] = None,
-    priority: Optional[str] = None,
-    verification: Optional[str] = None,
+    shape: Optional[str] = None,
+    scope: Optional[str] = None,
+    layer: Optional[str] = None,
+    has_flags: Optional[str] = None,
+    is_blank_label: Optional[bool] = None,
+    is_blank_file: Optional[bool] = None,
+    toml_path: Optional[str] = None,
 ) -> str:
-    """Update a field on all requirements matching the given filters.
+    """Bulk update a field on requirements matching filters.
 
     Args:
         field: Field to update
         value: New value
-        category: Filter by category (FRM, ERR, TMG, CRC)
-        side: Filter by side (TX, RX)
-        status: Filter by status
-        priority: Filter by priority
-        verification: Filter by verification method
+        shape: Filter by shape
+        scope: Filter by scope
+        layer: Filter by layer
+        has_flags: Filter by flags (CSV)
+        is_blank_label: Filter by blank label
+        is_blank_file: Filter by blank file
+        toml_path: Path to requirements file (auto-detected if not provided)
     """
-    filters = {
-        k: v
-        for k, v in {
-            "category": category,
-            "side": side,
-            "status": status,
-            "priority": priority,
-            "verification": verification,
-        }.items()
-        if v is not None
-    }
-    result = manager.bulk_update(field, value, **filters)
-    return f"Updated {result['count']} requirements: {result['updated_ids']}"
+    manager = get_manager(Path(toml_path) if toml_path else None)
+    result = manager.bulk_update(
+        field,
+        value,
+        shape=shape,
+        scope=scope,
+        layer=layer,
+        has_flags=has_flags,
+        is_blank_label=is_blank_label,
+        is_blank_file=is_blank_file,
+    )
+    return (
+        f"Updated {result['count']} requirements:\n{', '.join(result['updated_ids'])}"
+    )
+
+
+@mcp.tool()
+def delete_requirement(
+    req_id: str,
+    toml_path: Optional[str] = None,
+) -> str:
+    """Delete a requirement by ID.
+
+    Args:
+        req_id: Requirement ID (e.g. "REQ-LLC-001")
+        toml_path: Path to requirements file (auto-detected if not provided)
+    """
+    manager = get_manager(Path(toml_path) if toml_path else None)
+    result = manager.delete_requirement(req_id)
+    return f"Deleted {result['deleted']}. {result['remaining']} requirements remaining."
+
+
+@mcp.tool()
+def renumber_requirements(toml_path: Optional[str] = None) -> str:
+    """Renumber all requirement IDs sequentially within each layer.
+
+    Args:
+        toml_path: Path to requirements file (auto-detected if not provided)
+    """
+    manager = get_manager(Path(toml_path) if toml_path else None)
+    result = manager.renumber_requirements()
+    lines = [f"Renumbered {result['total']} requirements ({result['changed']} IDs changed)."]
+    if result["id_map"]:
+        for old, new in list(result["id_map"].items())[:20]:
+            lines.append(f"  {old} → {new}")
+        if len(result["id_map"]) > 20:
+            lines.append(f"  ... and {len(result['id_map']) - 20} more")
+    return "\n".join(lines)
 
 
 @mcp.tool()
 def insert_requirement(
-    category: str,
-    side: str,
-    format_list: str,
-    priority: str,
-    description: str,
-    position: Optional[int] = None,
-    iso_reference: str = "",
-    acceptance_criteria: str = "",
+    layer: str,
+    original_wording: str,
+    shape: str = "triggered",
+    scope: str = "frame",
+    side: str = "",
+    source_clause: str = "",
+    format_applicability: str = "",
+    precondition: str = "",
+    event: str = "",
+    postcondition: str = "",
+    coverage_target: str = "",
     notes: str = "",
-    target_module: str = "",
-    verification: str = "simulation",
-    status: str = "unverified",
-    pre: str = "",
-    evt: str = "",
-    post: str = "",
+    toml_path: Optional[str] = None,
 ) -> str:
-    """Insert a new requirement at the given position and auto-renumber.
+    """Insert a new requirement. Auto-assigns next sequential ID for the layer.
 
     Args:
-        category: FRM, ERR, TMG, or CRC
-        side: TX or RX
-        format_list: Comma-separated formats, e.g. "CB,CE" or "FB,FE"
-        priority: critical, high, medium, or low
-        description: Requirement description text
-        position: Insert before this ID (1-based). None = append at end.
-        iso_reference: ISO 11898-1 section reference
-        acceptance_criteria: How to verify this requirement
+        layer: LLC, MAC, PCS, or FCE
+        original_wording: Requirement description text
+        shape: triggered, invariant, liveness, or reachability
+        scope: frame, node, or bus
+        side: transmitter, receiver, or both
+        source_clause: ISO 11898-1 section reference
+        format_applicability: Comma-separated formats (e.g. "CB, CE, FB, FE")
+        precondition: What must be true before the triggering event
+        event: The condition or action being tested
+        postcondition: The observable outcome to assert
+        coverage_target: How to verify this requirement
         notes: Additional notes
-        target_module: Target VHDL module
-        verification: simulation, coverage, waveform, or assertion
-        status: verified, implemented, unverified, or diagnostic
-        pre: Precondition — what must be true before the triggering event
-        evt: Triggering event — the condition or action being tested
-        post: Postcondition — the observable outcome to assert
+        toml_path: Path to requirements file (auto-detected if not provided)
     """
-    formats = [f.strip() for f in format_list.split(",")]
+    manager = get_manager(Path(toml_path) if toml_path else None)
     result = manager.insert_requirement(
-        position=position,
-        category=category,
+        layer=layer,
+        original_wording=original_wording,
+        shape=shape,
+        scope=scope,
         side=side,
-        format_list=formats,
-        priority=priority,
-        description=description,
-        iso_reference=iso_reference,
-        acceptance_criteria=acceptance_criteria,
+        source_clause=source_clause,
+        format_applicability=format_applicability,
+        precondition=precondition,
+        event=event,
+        postcondition=postcondition,
+        coverage_target=coverage_target,
         notes=notes,
-        target_module=target_module,
-        verification=verification,
-        status=status,
-        pre=pre,
-        evt=evt,
-        post=post,
     )
-    annotation_note = " [pre/evt/post annotated]" if result["has_pre_evt_post"] else " [pre/evt/post missing — add via update_requirement]"
-    return (
-        f"Inserted requirement at position {result['inserted_id']}: "
-        f"{result['description']}\n"
-        f"Total: {result['new_total_count']} requirements "
-        f"(renumbered 001-{result['new_total_count']:03d})"
-        f"{annotation_note}"
-    )
+    return f"Inserted {result['id']}. Total: {result['total']} requirements."
 
 
 @mcp.tool()
-def delete_requirement(req_id: str) -> str:
-    """Delete a requirement and auto-renumber all remaining IDs.
+def get_statistics(toml_path: Optional[str] = None) -> str:
+    """Get statistics on requirements by shape, scope, layer, and flags.
 
     Args:
-        req_id: Requirement ID to delete (e.g. 011)
+        toml_path: Path to requirements file (auto-detected if not provided)
     """
-    result = manager.delete_requirement(req_id)
-    return (
-        f"Deleted {result['deleted_id']}. "
-        f"Remaining: {result['new_total_count']} requirements "
-        f"(renumbered 001-{result['new_total_count']:03d})"
-    )
+    manager = get_manager(Path(toml_path) if toml_path else None)
+    stats = manager.get_statistics()
 
-
-@mcp.tool()
-def renumber_requirements() -> str:
-    """Renumber all requirement IDs sequentially, fixing any gaps."""
-    result = manager.renumber()
-    return f"Renumbered {result['total_count']} requirements: {result['id_range']}"
-
-
-@mcp.tool()
-def get_statistics() -> str:
-    """Get requirement counts by category, side, status, and priority."""
-    s = manager.get_statistics()
-    total = s["total_count"]
-    annotated = s["pre_evt_post_annotated"]
-    missing = s["pre_evt_post_missing"]
-    missing_str = (", ".join(missing)) if missing else "none"
-    return "\n".join(
-        [
-            f"Total:       {total}",
-            f"By category: {s['by_category']}",
-            f"By side:     {s['by_side']}",
-            f"By status:   {s['by_status']}",
-            f"By priority: {s['by_priority']}",
-            f"Annotated (pre/evt/post): {annotated}/{total}",
-            f"Missing annotation: {missing_str}",
-        ]
-    )
+    lines = [
+        f"Total requirements: {stats['total_count']}",
+        f"By shape: {stats['by_shape']}",
+        f"By scope: {stats['by_scope']}",
+        f"By layer: {stats['by_layer']}",
+        f"Flags present: {stats['flags_present']}",
+        f"Blank label: {stats['blank_label_count']}",
+        f"Blank file: {stats['blank_file_count']}",
+    ]
+    return "\n".join(lines)
 
 
 # ── Entry Point ───────────────────────────────────────────────────────────────
@@ -548,7 +619,7 @@ def get_statistics() -> str:
 
 def main() -> None:
     """Start the MCP server using stdio transport."""
-    logger.info("Starting Requirements Manager MCP server")
+    logger.info("Starting Requirements MCP server")
     mcp.run(transport="stdio")
 
 
