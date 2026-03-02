@@ -9,7 +9,7 @@ Usage:
     python verification_plan_table.py --renumber                   # renumber IDs sequentially
     python verification_plan_table.py --delete REQ-LLC-005         # delete requirement and renumber
     python verification_plan_table.py --exclude 'flags=DOC_ONLY'   # exclude rows matching pattern
-    python verification_plan_table.py --include 'cat=LLC'          # include only rows matching pattern
+    python verification_plan_table.py --include 'layer=LLC'          # include only rows matching pattern
 """
 
 import argparse
@@ -49,15 +49,15 @@ def load_toml(path: str) -> pd.DataFrame:
         rows.append(
             {
                 "id": fields.get("id", ""),
-                "cat": fields.get("layer", ""),
+                "layer": fields.get("layer", ""),
                 "side": fields.get("side", ""),
-                "description": fields.get("original_wording", ""),
-                "iso_reference": fields.get("source_clause", ""),
-                "format": fields.get("format_applicability", ""),
+                "original_wording": fields.get("original_wording", ""),
+                "source_clause": fields.get("source_clause", ""),
+                "format_applicability": fields.get("format_applicability", ""),
                 "notes": fields.get("notes", ""),
-                "pre": fields.get("precondition", ""),
-                "evt": fields.get("event", ""),
-                "post": fields.get("postcondition", ""),
+                "precondition": fields.get("precondition", ""),
+                "event": fields.get("event", ""),
+                "postcondition": fields.get("postcondition", ""),
                 "shape": fields.get("shape", ""),
                 "scope": fields.get("scope", ""),
                 "flags": ", ".join(fields.get("flags", [])),
@@ -73,17 +73,17 @@ def load_toml(path: str) -> pd.DataFrame:
 
 EXPORT_COLS = [
     "id",
-    "cat",
+    "layer",
     "side",
     "shape",
     "scope",
-    "description",
-    "iso_reference",
-    "format",
+    "original_wording",
+    "source_clause",
+    "format_applicability",
     "notes",
-    "pre",
-    "evt",
-    "post",
+    "precondition",
+    "event",
+    "postcondition",
     "flags",
     "label",
     "file",
@@ -108,12 +108,12 @@ def export_html(df: pd.DataFrame, path: str, cols=None):
     active_cols = set(out.columns)
     nowrap_cols = [
         c
-        for c in ["id", "cat", "side", "iso_reference", "format", "label", "file"]
+        for c in ["id", "layer", "side", "source_clause", "format_applicability", "label", "file"]
         if c in active_cols
     ]
 
     styled = (
-        out.style.map(style_cat, subset=["cat"] if "cat" in active_cols else [])
+        out.style.map(style_cat, subset=["layer"] if "layer" in active_cols else [])
         .hide(axis="index")
         .set_table_styles(
             [
@@ -306,7 +306,7 @@ def main():
         "--include",
         metavar="COL=PAT",
         action="append",
-        help="Include only rows where COL contains PAT (e.g. --include 'cat=LLC')",
+        help="Include only rows where COL contains PAT (e.g. --include 'layer=LLC')",
     )
     parser.add_argument(
         "--hide",
