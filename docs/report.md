@@ -105,6 +105,8 @@ It is important to note that the AI-generated content served only as a first dra
 - Ensure that the resulting Verification Plan provides a reliable and authoritative basis for subsequent VHDL implementation and testbench development.
 
 #### 3.2.3 Design Rationale and Tooling
+NOTE: Not quite right. TOML was selected as a format because its eazy to read and edit manually can also be parsed by python tools (tomlkit) so MCP tools could be written to handle the manipulation on behalf of the AI agent, preventing "context window bloat" and ensuring consistency. The specific metadata fields (columns) in the TOML schema were designed to drive the verification workflow.
+
 The choice of **TOML (Tom's Obvious Minimal Language)** as the storage format for the Verification Plan was deliberate. TOML is a structured data format that is exceptionally easy for both humans and LLMs to read and write. Its line-based structure for table keys minimizes merge conflicts and allows the AI agent to perform surgical updates without corrupting the file structure.
 
 The specific metadata fields (columns) in the TOML schema were designed to drive the verification workflow:

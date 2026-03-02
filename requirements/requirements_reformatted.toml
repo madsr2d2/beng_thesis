@@ -1830,7 +1830,6 @@ source_clause = "ISO 11898-1:2024 §6.6.11.6"
 original_wording = "Nodes that receive the matching FCRC sequence and the matching stuff count shall send an ACK within the ACK slot by overwriting the recessive bit of the transmitter with a dominant bit (they send ACK). ; In FD frames, all nodes shall accept an up to two bit long dominant phase of overlapping ACK slot bits as a valid ACK, to compensate for phase shifts between the receivers."
 shape = "triggered"
 scope = "bus"
-side = "both"
 side = "receiver"
 layer = "MAC"
 format_applicability = "FB, FE"
@@ -2210,6 +2209,7 @@ source_clause = "ISO 11898-1:2024 §6.6.17.4"
 original_wording = "Identifier based arbitration shall be performed in CBFF from the first bit of the identifier up to the IDE bit, in CEFF from the first bit of the identifier up to the RTR bit, and in FBFF, FEFF from the first bit of the identifier up to the bit following the FDF bit."
 shape = "invariant"
 scope = "frame"
+side = "transmitter"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
 precondition = "Arbitration is in progress"
@@ -2245,6 +2245,7 @@ source_clause = "ISO 11898-1:2024 §6.6.19"
 original_wording = "CAN nodes shall support the restricted operation mode, in which they shall be able to receive DFs and RFs and shall acknowledge valid frames by means of transmitting a dominant bit in the ACK slot. But CAN nodes in restricted operation mode shall not transmit DFs and RFs. ; In case of an error condition or an overload condition, CAN nodes shall not send dominant bits. Instead they shall treat this as a protocol exception event and shall enter the bus re-integration state (see 6.6.7.5). ; The error counters shall neither be incremented nor decremented while the CAN node is in restricted operation mode. ; Nodes that do not support the XL frame format are not required to implement the restricted operation mode."
 shape = "invariant"
 scope = "node"
+side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
 precondition = "The CAN node is in restricted operation mode"
@@ -2262,6 +2263,7 @@ source_clause = "ISO 11898-1:2024 §6.6.20"
 original_wording = "CAN nodes may provide the bus monitoring mode, where they shall be able to receive valid DFs and valid RFs, but the bus monitoring mode sends only recessive bits on the CAN bus and does not start a transmission. If the MAC sub-layer is required to send a dominant bit (ACK bit, overload flag, active error flag), the bit shall be rerouted internally so that the MAC sub-layer monitors this dominant bit, although the CAN bus can remain in recessive state."
 shape = "invariant"
 scope = "node"
+side = "transmitter"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
 precondition = "The CAN node is in bus monitoring mode"
@@ -2279,6 +2281,7 @@ source_clause = "ISO 11898-1:2024 §6.6.21.1"
 original_wording = "There shall be a configuration parameter to decide whether error signalling is enabled or is disabled."
 shape = "invariant"
 scope = "node"
+side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
 precondition = "The CAN node is being configured"
@@ -2296,6 +2299,7 @@ source_clause = "ISO 11898-1:2024 §6.6.21.2"
 original_wording = "A node sending a bit on the bus shall also monitor the bus. A bit error shall be detected at that bit time, when the bit value that is monitored differs from the bit value sent. ; Exception 1: A monitored dominant bit shall not lead to a bit error when a recessive bit, which is not a dynamic stuff bit, is sent during arbitration, or a recessive bit is sent during ACK slot. ; Exception 2: A node sending a passive error flag and detecting a dominant bit shall not interpret this as a bit error."
 shape = "triggered"
 scope = "node"
+side = "transmitter"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
 precondition = "A node is transmitting a bit on the bus and monitoring the bus"
@@ -2312,6 +2316,7 @@ source_clause = "ISO 11898-1:2024 §6.6.21.2"
 original_wording = "A stuff error shall be detected at the bit time of the sixth consecutive equal bit level in a field that is coded by the method of dynamic bit stuffing."
 shape = "triggered"
 scope = "node"
+side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
 precondition = "The node is in a frame region coded by dynamic bit stuffing"
@@ -2345,6 +2350,7 @@ source_clause = "ISO 11898-1:2024 §6.6.21.2"
 original_wording = "A form error shall be detected in the following cases: when a fixed form bit field contains one or more unexpected bit values, or when a fixed stuff bit in an FD frame is not at its expected value. ; Exception 1: A receiver detecting a dominant bit at the last bit of EOF, or a node detecting a dominant bit at the last bit of the error delimiter or of the overload delimiter, shall not treat this as a form error."
 shape = "triggered"
 scope = "node"
+side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
 precondition = "A fixed-form bit field or fixed stuff bit position is being processed"
@@ -2380,6 +2386,7 @@ source_clause = "ISO 11898-1:2024 §6.6.21.3.1"
 original_wording = "When error signalling is enabled, the node shall be able to transmit and to receive all CAN frame formats."
 shape = "invariant"
 scope = "node"
+side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
 precondition = "Error signalling is enabled"
@@ -2395,6 +2402,7 @@ source_clause = "ISO 11898-1:2024 §6.6.21.3.1"
 original_wording = "Whenever a bit error, a stuff error, a form error, a PCRC error, or an ACK error is detected by a node, the LLC sub-layer shall be informed, and the node shall start an error flag at the following bit."
 shape = "triggered"
 scope = "node"
+side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
 precondition = "Error signalling is enabled"
@@ -2608,4 +2616,1434 @@ file = ""
 #   REQ-MAC-088 (layer=MAC) → depends on FCE: error counters unchanged on protocol exception
 #   REQ-MAC-093 (layer=MAC) → depends on FCE: error counters frozen in restricted mode
 #   REQ-MAC-111 (layer=MAC) → depends on FCE: error counting rules from §8.1.4
+# ===
+
+# ============================================================
+# SECTION: §7.1 + §7.2 + §7.3 — PCS (Physical Coding Sub-layer)
+# ============================================================
+# === SECTION INVENTORY: §7.1 + §7.2 + §7.3 — PCS (layer = PCS) ===
+# Subsections covered: §7.1, §7.2.1–7.2.6, §7.3.1, §7.3.2, §7.3.3, §7.3.4,
+#   §7.3.5.1–7.3.5.4, §7.3.6, §7.4.2.1–7.4.2.3
+# Skipped: §7.2.4 PCS_Mode.Request (XL-specific), §7.4.2.4+ (PMA-layer, out of scope)
+# XL data bit rate and XL-specific items within subsections are noted but excluded
+# Requirement count lower bound: 40
+# Cross-section dependencies noted:
+#   - §7.2.5/7.2.6 D_Transmit/D_Receive → BRS bit (MAC §6.6.11.3)
+#   - §7.3.4 TDC → FDF-to-res edge (MAC §6.6.11.3)
+#   - §7.3.5.1 hard sync conditions → bus re-integration (MAC §6.6.7.5)
+#   - §7.4.2.2/7.4.2.3 bus_off → FCE supervisor (§8.1.3.4)
+# ===
+
+# ── §7.1 General and functional modelling ──
+
+[[requirement]]
+id = "REQ-PCS-001"
+source_clause = "ISO 11898-1:2015 §7.1"
+original_wording = "The PCS shall encompass functions related to bit encoding/decoding, timing and synchronization as well as bus failure detection."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The PCS sub-layer is present in the CAN node"
+postcondition = "The PCS implements bit encoding/decoding, timing, synchronization, and bus failure detection functions"
+flags = ["DOC_ONLY"]
+notes = "Architectural capability statement. DOC_ONLY because this enumerates functions without specifying assertable behavior. All four in-scope formats share the same PCS functions."
+label = ""
+file = ""
+
+# ── §7.2.1 Requirements ──
+
+[[requirement]]
+id = "REQ-PCS-002"
+source_clause = "ISO 11898-1:2015 §7.2.1"
+original_wording = "The services of the PL shall allow the local MAC sub-layer entity to exchange bits with peer MAC sub-layer entities. ; The PCS shall provide the following services to the MAC sub-layer: PCS_Data.Request; PCS_Data.Indicate; PCS_Mode.Request; PCS_Status.Transmitter; PCS_Status.Receiver."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The PCS sub-layer is operational"
+postcondition = "The PCS provides PCS_Data.Request, PCS_Data.Indicate, PCS_Status.Transmitter, and PCS_Status.Receiver services to the MAC sub-layer"
+flags = ["DOC_ONLY"]
+notes = "DOC_ONLY: service enumeration. PCS_Mode.Request is XL-specific but listed for completeness. All four in-scope formats share the same PCS service interface."
+label = ""
+file = ""
+
+# ── §7.2.2 PCS_Data.Request ──
+
+[[requirement]]
+id = "REQ-PCS-003"
+source_clause = "ISO 11898-1:2015 §7.2.2"
+original_wording = "The PCS_Data.Request service is passed from the MAC sub-layer to the PCS to request the transmission of a bit. The service shall provide the following parameter: PCS_Data.Request(Output_Unit). ; The Output_Unit parameter shall take on one of the two values each representing a single bit: dominant or recessive."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The MAC sub-layer requests bit transmission"
+postcondition = "The PCS_Data.Request service accepts an Output_Unit parameter with value dominant or recessive"
+flags = ["DOC_ONLY"]
+notes = "Service interface definition. DOC_ONLY because the primitive direction and parameter values are structural. All four formats use the same PCS_Data.Request."
+label = ""
+file = ""
+
+# ── §7.2.3 PCS_Data.Indicate ──
+
+[[requirement]]
+id = "REQ-PCS-004"
+source_clause = "ISO 11898-1:2015 §7.2.3"
+original_wording = "The PCS_Data.Indicate service is passed from the PL to the MAC sub-layer to indicate the arrival of a bit. The service shall provide the following parameter: PCS_Data.Indicate(Input_Unit). ; The Input_Unit parameter shall take on one of the two values each representing a single bit: dominant or recessive."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "A bit has been received from the bus"
+postcondition = "The PCS_Data.Indicate service passes an Input_Unit parameter with value dominant or recessive to the MAC sub-layer"
+flags = ["DOC_ONLY"]
+notes = "Service interface definition. DOC_ONLY because the primitive direction and parameter values are structural. All four formats use the same PCS_Data.Indicate."
+label = ""
+file = ""
+
+# ── §7.2.4 PCS_Mode.Request — XL-specific, skipped (out of scope) ──
+
+# ── §7.2.5 PCS_Status.Transmitter ──
+
+[[requirement]]
+id = "REQ-PCS-005"
+source_clause = "ISO 11898-1:2015 §7.2.5"
+original_wording = "The D_Transmit parameter shall take on one of the two values: active and passive. ; In transmitted FD frames, D_Transmit shall be set to active at the beginning of the FD data phase and it shall be set to passive at the end of the FD data phase or when that frame is disturbed."
+shape = "triggered"
+scope = "node"
+side = "transmitter"
+layer = "PCS"
+format_applicability = "FB, FE"
+precondition = "An FD frame is being transmitted"
+event = "The FD data phase begins (BRS sampled recessive) or the FD data phase ends (CRC delimiter sample point reached or error detected)"
+postcondition = "D_Transmit is set to active at FD data phase start and passive at FD data phase end or on disturbance"
+flags = []
+notes = "XL-related wording removed. D_Transmit controls transceiver mode switching (if supported). Only FB and FE have an FD data phase."
+label = ""
+file = ""
+
+# ── §7.2.6 PCS_Status.Receiver ──
+
+[[requirement]]
+id = "REQ-PCS-006"
+source_clause = "ISO 11898-1:2015 §7.2.6"
+original_wording = "The D_Receive parameter shall take on one of the two values: active and passive. ; In received FD frames, D_Receive shall be set to active at the beginning of the FD data phase and it shall be set to passive at the end of the FD data phase or when that frame is disturbed."
+shape = "triggered"
+scope = "node"
+side = "receiver"
+layer = "PCS"
+format_applicability = "FB, FE"
+precondition = "An FD frame is being received"
+event = "The FD data phase begins or ends (or frame is disturbed)"
+postcondition = "D_Receive is set to active at FD data phase start and passive at FD data phase end or on disturbance"
+flags = []
+notes = "XL-related wording removed. D_Receive controls transceiver mode switching (if supported). Only FB and FE have an FD data phase."
+label = ""
+file = ""
+
+# ── §7.3.2 Bit time ──
+
+[[requirement]]
+id = "REQ-PCS-007"
+source_clause = "ISO 11898-1:2015 §7.3.2"
+original_wording = "CAN nodes shall support three different bit rates, the nominal bit rate, the FD data bit rate and the XL data bit rate. There shall be separate configuration register sets for the definition of these bit rates."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The CAN node supports FD frame format"
+postcondition = "The node supports at least the nominal bit rate and the FD data bit rate with separate configuration register sets"
+flags = []
+notes = "XL data bit rate excluded (out of scope). Non-FD-capable nodes need only the nominal bit rate. For this project (FD-enabled), both nominal and FD data bit rates are required."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-008"
+source_clause = "ISO 11898-1:2015 §7.3.2"
+original_wording = "The FD data bit time shall only be used inside the FD data phase of an FD frame. Nodes that do not support the FD frame format do not include configuration registers for the FD data bit rate."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "FB, FE"
+precondition = "The node supports FD frame format"
+postcondition = "The FD data bit time is used only during the FD data phase; outside the FD data phase, the nominal bit time is used"
+flags = []
+notes = "Defines the scope of FD data bit rate usage. Only FB and FE have an FD data phase."
+label = ""
+file = ""
+
+# ── §7.3.2 Time quantum ──
+
+[[requirement]]
+id = "REQ-PCS-009"
+source_clause = "ISO 11898-1:2015 §7.3.2"
+original_wording = "The time quantum (t_q) shall be a fixed unit of time derived from the node clock period. There shall exist a programmable prescaler, with integer values. The minimum time quantum (t_q,min) shall be one node clock period long. The length of t_q shall be an integer multiple m of the minimum time quantum t_q,min with m as the value of the prescaler."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The bit timing logic is being configured"
+postcondition = "t_q is derived from node clock via integer prescaler m; t_q,min = one node clock period; t_q = m × t_q,min"
+flags = ["COMPOUND"]
+notes = "COMPOUND: (1) t_q is fixed unit from clock; (2) programmable prescaler exists; (3) t_q,min = one clock period; (4) t_q = m × t_q,min. Fundamental to all bit timing. All four formats share the same time quantum definition."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-010"
+source_clause = "ISO 11898-1:2015 §7.3.2"
+original_wording = "The frequencies of the node clock oscillators in the different CAN nodes shall be coordinated to provide a network-wide specified time quantum for the nominal bit time and, for FD or XL enabled nodes, for the data bit time."
+shape = "invariant"
+scope = "bus"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "A CAN network is being configured"
+postcondition = "Node clock oscillator frequencies are coordinated to achieve a consistent time quantum across the network for nominal and (for FD-enabled nodes) data bit times"
+flags = []
+notes = "Bus-scope because coordination is across all nodes in the network. All four formats share the same clock coordination requirement."
+label = ""
+file = ""
+
+# ── §7.3.2 Bit times — segments ──
+
+[[requirement]]
+id = "REQ-PCS-011"
+source_clause = "ISO 11898-1:2015 §7.3.2"
+original_wording = "All three bit times shall consist of separate non-overlapping time segments. The segments shall form the bit times as shown in Figure 32."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Bit timing is configured"
+postcondition = "Each bit time consists of non-overlapping segments: Sync_Seg, Prop_Seg, Phase_Seg1, Phase_Seg2"
+flags = []
+notes = "The four segments are: Sync_Seg, Prop_Seg, Phase_Seg1, Phase_Seg2 per Figure 32. All four formats share the same bit time segment structure."
+label = ""
+file = ""
+
+# ── §7.3.2 Sample point ──
+
+[[requirement]]
+id = "REQ-PCS-012"
+source_clause = "ISO 11898-1:2015 §7.3.2"
+original_wording = "The sample point shall be the point in time at which the bus level is read and interpreted as the value of that respective bit. Its location shall be at the end of Phase_Seg1."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "A bit is being sampled"
+postcondition = "The sample point is located at the end of Phase_Seg1, where the bus level is read and interpreted as the bit value"
+flags = []
+notes = "Fundamental timing definition. All four formats share the same sample point location."
+label = ""
+file = ""
+
+# ── §7.3.2 Information processing time ──
+
+[[requirement]]
+id = "REQ-PCS-013"
+source_clause = "ISO 11898-1:2015 §7.3.2"
+original_wording = "The information processing time shall be the number of time quanta required for the calculation of the subsequent bit level. This calculation begins at the sample point and shall be less than or equal to Phase_Seg2."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "A bit has been sampled and the subsequent bit level is being calculated"
+postcondition = "The information processing time (IPT) starts at the sample point and is ≤ Phase_Seg2 in duration"
+flags = []
+notes = "IPT must fit within Phase_Seg2. Additional restrictions on IPT ≤ 2 t_q are in §7.3.3. All four formats share the same IPT constraint."
+label = ""
+file = ""
+
+# ── §7.3.2 Internal delay time and propagation ──
+
+[[requirement]]
+id = "REQ-PCS-014"
+source_clause = "ISO 11898-1:2015 §7.3.2"
+original_wording = "The internal delay time of a CAN node, t_node, shall be the sum of all asynchronous delays that occur along the transmission and reception path, relative to the bit timing logic unit of the CAN node. ; For proper arbitration, the following conditions given by Formula (2) shall be met: t_prop_seg ≥ t_nodeA + t_nodeB + 2 × t_busline."
+shape = "invariant"
+scope = "bus"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Two CAN nodes A and B are communicating on a bus"
+postcondition = "t_node = t_output + t_input; and Prop_Seg duration ≥ sum of both nodes' internal delays plus twice the bus line propagation delay"
+flags = ["COMPOUND"]
+notes = "COMPOUND: (1) t_node definition; (2) propagation constraint for proper arbitration. Bus-scope because it relates two nodes' delays plus bus line delay. All four formats require proper arbitration timing."
+label = ""
+file = ""
+
+# ── §7.3.3 Configuration of the bit time parameters ──
+
+[[requirement]]
+id = "REQ-PCS-015"
+source_clause = "ISO 11898-1:2015 §7.3.3"
+original_wording = "Configuration of the bit time shall be performed using the following periods of time: Sync_Seg, Prop_Seg, Phase_Seg1, Phase_Seg2, and SJW."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Bit timing is being configured"
+postcondition = "Configuration uses the five parameters: Sync_Seg, Prop_Seg, Phase_Seg1, Phase_Seg2, and SJW, all as integer multiples of t_q"
+flags = ["DOC_ONLY"]
+notes = "DOC_ONLY: defines configuration parameters. The valid ranges are in Tables 11–13. All four formats share the same parameter set."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-016"
+source_clause = "ISO 11898-1:2015 §7.3.3"
+original_wording = "There shall be one prescaler m for the three sets of bit time configurations. ; Except for the synchronization segment, which shall be exactly one t_q long, CAN nodes may allow time segments that exceed the minimum required configuration ranges specified in the tables."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Bit timing is being configured"
+postcondition = "A single prescaler m is used for all bit time configurations (separate prescalers are allowed but should be equal); Sync_Seg is exactly 1 t_q"
+flags = ["COMPOUND"]
+notes = "COMPOUND: (1) one prescaler m; (2) Sync_Seg = 1 t_q exactly. The table notes allow separate prescalers but recommends same values. All four formats share the same prescaler and Sync_Seg rules."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-017"
+source_clause = "ISO 11898-1:2015 §7.3.3"
+original_wording = "When the bit time configuration of a CAN node is not programmable, its fixed bit time configuration shall meet the restrictions for this configuration as specified in this subclause."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The CAN node uses a fixed (non-programmable) bit time configuration"
+postcondition = "The fixed configuration meets all restrictions specified in §7.3.3"
+flags = []
+notes = "Ensures fixed-configuration nodes still comply with timing constraints. All four formats share this rule."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-018"
+source_clause = "ISO 11898-1:2015 §7.3.3"
+original_wording = "The information processing time shall be less than or equal to 2 t_q long."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The information processing time is being configured or verified"
+postcondition = "IPT ≤ 2 t_q"
+flags = []
+notes = "Tighter constraint than §7.3.2 (which says IPT ≤ Phase_Seg2). All four formats share this limit."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-019"
+source_clause = "ISO 11898-1:2015 §7.3.3"
+original_wording = "In data bit time, Phase_Seg2 shall be greater than or equal to these two items: SJW and the maximum information processing time. ; In nominal bit time, Phase_Seg2 shall be greater than or equal to the maximum of these two items: SJW and the information processing time."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Bit timing parameters are being configured"
+postcondition = "Phase_Seg2 ≥ max(SJW, IPT) for both nominal and data bit times"
+flags = []
+notes = "Ensures Phase_Seg2 is large enough for both resynchronization jumps and information processing. All four formats share these constraints."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-020"
+source_clause = "ISO 11898-1:2015 §7.3.3"
+original_wording = "In nominal bit time and in data bit time, SJW shall be less than or equal to the minimum of these two items: Phase_Seg1 and Phase_Seg2."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Bit timing parameters are being configured"
+postcondition = "SJW ≤ min(Phase_Seg1, Phase_Seg2) for both nominal and data bit times"
+flags = []
+notes = "Prevents SJW from exceeding either phase segment. All four formats share this constraint."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-021"
+source_clause = "ISO 11898-1:2015 §7.3.3"
+original_wording = "In a CAN node, Prop_Seg and Phase_Seg1 do not need to be programmable separately; it shall be sufficient to program the sum of Prop_Seg and Phase_Seg1. ; The total number of time quanta in a nominal bit time shall be programmable at least from 8 to 25 for nodes that are not FD enabled. For nodes that are FD enabled, the total number of time quanta in a data bit time shall be programmable at least from 5 to 25 and in a nominal bit time at least from 8 to 80."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Bit timing is being configured for an FD-enabled node"
+postcondition = "Prop_Seg + Phase_Seg1 may be programmed as a single sum; nominal bit time is programmable from 8 to at least 80 t_q; FD data bit time is programmable from 5 to at least 25 t_q"
+flags = ["COMPOUND"]
+notes = "COMPOUND: (1) Prop_Seg + Phase_Seg1 combined programming allowed; (2) nominal range 8–80; (3) data range 5–25. XL range (5–385/5–641) excluded. For this project (FD-enabled, non-XL), the FD ranges apply."
+label = ""
+file = ""
+
+# ── §7.3.4 Transmitter delay compensation ──
+
+[[requirement]]
+id = "REQ-PCS-022"
+source_clause = "ISO 11898-1:2015 §7.3.4"
+original_wording = "Nodes that support the FD frame format and nodes that support the XL frame format shall support a transmitter delay compensation mechanism."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "FB, FE"
+precondition = "The node supports FD frame format"
+postcondition = "The node implements a transmitter delay compensation (TDC) mechanism"
+flags = []
+notes = "Mandatory for FD-capable nodes. Only FB and FE benefit from TDC (during FD data phase)."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-023"
+source_clause = "ISO 11898-1:2015 §7.3.4"
+original_wording = "Transmitters shall only use this mechanism in the FD data phase of FD frames if the BRS bit is recessive. It shall be programmable whether the mechanism is used. When this mechanism is used, the value of the prescaler m shall be one or two."
+shape = "invariant"
+scope = "node"
+side = "transmitter"
+layer = "PCS"
+format_applicability = "FB, FE"
+precondition = "TDC is being configured or activated"
+postcondition = "TDC is used only in FD data phase when BRS is recessive; TDC enable/disable is programmable; prescaler m must be 1 or 2 when TDC is active"
+flags = ["COMPOUND"]
+notes = "COMPOUND: (1) TDC scope limited to FD data phase with BRS recessive; (2) programmable enable; (3) prescaler m = 1 or 2. XL data phase usage excluded (out of scope). Only FB and FE apply."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-024"
+source_clause = "ISO 11898-1:2015 §7.3.4"
+original_wording = "The node shall be able to compensate transmitter delays of at least 95 t_q,min. The position of the SSP shall be configurable separately for XL frames and for FD frames."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "FB, FE"
+precondition = "TDC is implemented"
+postcondition = "The node compensates transmitter delays of at least 95 t_q,min; the SSP position is separately configurable for FD frames"
+flags = ["COMPOUND"]
+notes = "COMPOUND: (1) minimum compensation range 95 t_q,min; (2) SSP separately configurable. Non-XL nodes may limit to 63 t_q,min per the standard. Only FB and FE apply."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-025"
+source_clause = "ISO 11898-1:2015 §7.3.4"
+original_wording = "Bit error detection shall be disabled for those bits at the end of the FD data phase in which the SSPs of the bits are in the following arbitration phase."
+shape = "invariant"
+scope = "node"
+side = "transmitter"
+layer = "PCS"
+format_applicability = "FB, FE"
+precondition = "TDC is active and the end of the FD data phase is being processed"
+postcondition = "Bit error detection via SSP is disabled for bits whose SSP would fall in the subsequent arbitration phase"
+flags = []
+notes = "Prevents false bit errors from SSPs that extend beyond the data phase. Only FB and FE apply."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-026"
+source_clause = "ISO 11898-1:2015 §7.3.4"
+original_wording = "When it is used, the transmitter shall ignore bit errors detected at the sample point. The received bit value shall be compared, at the SSP, with the (delayed) transmitted bit value. If a bit error is detected at the SSP, the transmitter shall react to this bit error at the subsequent following sample point."
+shape = "triggered"
+scope = "node"
+side = "transmitter"
+layer = "PCS"
+format_applicability = "FB, FE"
+precondition = "TDC is active during the FD data phase"
+event = "A bit is sampled at the sample point and at the SSP"
+postcondition = "Bit errors at SP are ignored; the received bit at SSP is compared with the delayed transmitted bit; if SSP detects a mismatch, the error is reported at the next SP"
+flags = ["COMPOUND"]
+notes = "COMPOUND: (1) SP bit errors ignored; (2) SSP comparison; (3) SSP error reported at next SP. This is the core TDC bit error detection mechanism. Only FB and FE apply."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-027"
+source_clause = "ISO 11898-1:2015 §7.3.4"
+original_wording = "The position of the SSP is specified by its distance from the start of the bit time. The SSP position shall be set to a value derived from a measurement of the actual transmitter delay. ; The measurement of the transmitter delay shall be done in each transmitted frame at the recessive to dominant edge from the FDF bit to the res bit in FD frames. ; A counter shall be started when the transmitter starts to transmit the dominant res bit at the transmit output. The counter shall be incremented by one each minimum time quantum until the dominant signal is detected at the receive input; then the counter shall be stopped. The counter value is the measured transmitter delay time. The SSP position shall be the sum of the measured transmitter delay value and the configured SSP offset."
+shape = "triggered"
+scope = "node"
+side = "transmitter"
+layer = "PCS"
+format_applicability = "FB, FE"
+precondition = "TDC is active and an FD frame is being transmitted"
+event = "The recessive-to-dominant edge from FDF to res bit occurs"
+postcondition = "A counter starts at the TX output of the dominant res bit, increments each t_q,min until the dominant signal is detected at RX input, then stops; SSP position = measured delay + configured SSP offset"
+flags = ["COMPOUND"]
+notes = "COMPOUND: (1) SSP position from measurement; (2) measurement at FDF-to-res edge; (3) counter mechanism; (4) SSP = measured + offset. This is the TDC measurement procedure. Only FB and FE apply."
+label = ""
+file = ""
+
+# ── §7.3.5.1 Synchronization description ──
+
+[[requirement]]
+id = "REQ-PCS-028"
+source_clause = "ISO 11898-1:2015 §7.3.5.1"
+original_wording = "The state machine synchronizing the operation of the CAN node to the PCS_Data.Indicate shall operate in time steps of one t_q. ; At each time quantum, it shall be analysed whether the bus state is recessive or dominant. The bus state detected at the sample point of a bit shall be regarded as the value of that bit."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The synchronization state machine is operational"
+postcondition = "The state machine operates in t_q steps; bus state is analyzed each t_q; the bus state at the sample point is the bit value"
+flags = ["COMPOUND"]
+notes = "COMPOUND: (1) t_q time steps; (2) bus state analyzed each t_q; (3) sample point determines bit value. All four formats share the same synchronization state machine."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-029"
+source_clause = "ISO 11898-1:2015 §7.3.5.1"
+original_wording = "Only one synchronization within one bit time (between two sample points) shall be allowed. After an edge is detected, synchronizations shall be disabled until the next time the bus state detected at the sample point is recessive."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The synchronization state machine is processing edges"
+postcondition = "At most one synchronization per bit time; after an edge detection, synchronization is disabled until the next recessive sample point"
+flags = ["COMPOUND"]
+notes = "COMPOUND: (1) one sync per bit time; (2) sync disabled after edge until recessive SP. Rule (a) of synchronization rules. All four formats share this rule."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-030"
+source_clause = "ISO 11898-1:2015 §7.3.5.1"
+original_wording = "An edge shall cause synchronization only if the bus state detected at the previous sample point (previous read bus state) was recessive. ; An edge with a positive phase error shall not cause synchronization in a node sending a dominant bit."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "An edge is detected on the bus"
+postcondition = "The edge causes synchronization only if the previous sample point was recessive; a positive-phase-error edge does not cause synchronization in a node sending dominant"
+flags = ["COMPOUND"]
+notes = "COMPOUND: (1) previous SP must be recessive; (2) positive phase error edges suppressed when sending dominant. Rule (b) of synchronization rules. All four formats share this rule."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-031"
+source_clause = "ISO 11898-1:2015 §7.3.5.1"
+original_wording = "Hard synchronization shall be performed: on edges during inter-frame space (with the exception of the first bit of intermission); when a node is in bus-integration state; at the edge between the FDF bit and the following dominant res bit inside an FD frame."
+shape = "triggered"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "An edge meeting the hard synchronization conditions is detected"
+event = "A recessive-to-dominant edge occurs during IFS (except first intermission bit), or during bus integration, or at FDF-to-res boundary in an FD frame"
+postcondition = "Hard synchronization is performed"
+flags = ["COMPOUND"]
+notes = "COMPOUND: three trigger conditions for hard sync. XL-specific conditions (XLF-to-resXL, DH-to-DL, DAH-to-AL edges) excluded. Rule (c) of synchronization rules. The FDF-to-res edge applies only to FB and FE; the IFS and bus-integration conditions apply to all four formats."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-032"
+source_clause = "ISO 11898-1:2015 §7.3.5.1"
+original_wording = "All other recessive to dominant edges fulfilling rules a) and b) shall be used for resynchronization with one exception: A node transmitting an FD frame shall not synchronize while it transmits the data phase of that frame."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "A recessive-to-dominant edge is detected that fulfills rules (a) and (b) and is not a hard sync trigger"
+postcondition = "The edge triggers resynchronization, EXCEPT: a node transmitting an FD frame does not synchronize during its data phase"
+flags = []
+notes = "Rule (d) of synchronization rules. The FD data phase exception prevents the transmitter from resynchronizing to its own delayed bits during high-speed data phase. XL exception excluded. All four formats use resynchronization."
+label = ""
+file = ""
+
+# ── §7.3.5.3 Hard synchronization ──
+
+[[requirement]]
+id = "REQ-PCS-033"
+source_clause = "ISO 11898-1:2015 §7.3.5.3"
+original_wording = "After a hard synchronization, the bit time shall be restarted by each bit-timing logic unit with Sync_Seg completed. Thus, hard synchronization shall force the edge which has caused the hard synchronization to lie within the synchronization segment of the restarted bit time. The function of hard synchronization shall not be limited by the synchronization jump width."
+shape = "triggered"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "A hard synchronization has been triggered"
+event = "The edge causing hard synchronization is detected"
+postcondition = "The bit time is restarted with Sync_Seg completed; the triggering edge lies within the Sync_Seg of the restarted bit time; hard sync is not limited by SJW"
+flags = ["COMPOUND"]
+notes = "COMPOUND: (1) bit time restart with Sync_Seg completed; (2) edge within Sync_Seg; (3) not limited by SJW. All four formats share the same hard sync behavior."
+label = ""
+file = ""
+
+# ── §7.3.5.4 Bit resynchronization ──
+
+[[requirement]]
+id = "REQ-PCS-034"
+source_clause = "ISO 11898-1:2015 §7.3.5.4"
+original_wording = "When the magnitude of the phase error of the edge which causes resynchronization is less than or equal to the programmed value of the synchronization jump width, the effect of a resynchronization shall be the same as a hard synchronization."
+shape = "triggered"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "A resynchronization is triggered and |phase error| ≤ SJW"
+event = "A resynchronization edge is detected with |e| ≤ SJW"
+postcondition = "The resynchronization has the same effect as hard synchronization (bit time restarted)"
+flags = []
+notes = "Small phase errors are fully corrected, same as hard sync. All four formats share this behavior."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-035"
+source_clause = "ISO 11898-1:2015 §7.3.5.4"
+original_wording = "When the magnitude of the phase error is larger than the programmed value of the synchronization jump width, and if the phase error e is positive, Phase_Seg1 shall be lengthened by an amount equal to the synchronization jump width; and if the phase error e is negative, then Phase_Seg2 shall be shortened by an amount equal to the synchronization jump width."
+shape = "triggered"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "A resynchronization is triggered and |phase error| > SJW"
+event = "A resynchronization edge is detected with |e| > SJW"
+postcondition = "If e > 0: Phase_Seg1 is lengthened by SJW. If e < 0: Phase_Seg2 is shortened by SJW"
+flags = ["COMPOUND"]
+notes = "COMPOUND: two sub-claims for positive and negative phase errors. Large phase errors are only partially corrected (by SJW). All four formats share this behavior."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-036"
+source_clause = "ISO 11898-1:2015 §7.3.5.4"
+original_wording = "Neither receiver nor transmitter shall perform a synchronization at an edge after the sample point of the ADH bit and before the sample point of the DH1 bit."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "FB, FE"
+precondition = "An edge is detected between the SP of ADH and SP of DH1 in an FD or XL frame"
+postcondition = "No synchronization (hard or resync) is performed"
+flags = ["AMBIGUOUS"]
+notes = "AMBIGUOUS: The ADH and DH1 bits are XL-specific (ADS sequence). However, the standard may also apply this to FD frame transitions. For this project (non-XL), this may not be directly applicable, but included for completeness."
+label = ""
+file = ""
+
+# ── §7.3.6 Tolerance range of the oscillator frequencies ──
+
+[[requirement]]
+id = "REQ-PCS-037"
+source_clause = "ISO 11898-1:2015 §7.3.6"
+original_wording = "The tolerance of a node clock oscillator frequency f_osc around the nominal frequency f_nom shall be given by the range (1-df)×f_nom ≤ f_osc ≤ (1+df)×f_nom."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The node clock oscillator is being specified"
+postcondition = "The oscillator frequency tolerance df defines the acceptable range: f_osc ∈ [(1-df)×f_nom, (1+df)×f_nom]"
+flags = []
+notes = "The tolerance df is constrained by Formulae (3)–(7). All four formats share this oscillator tolerance definition."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-038"
+source_clause = "ISO 11898-1:2015 §7.3.6"
+original_wording = "The conditions given in Formulae (3) and (4) shall be met for CC frames. ; All conditions of Formulae (3) to (7) shall be met for FD frames."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The oscillator tolerance df is being verified"
+postcondition = "For CC frames: df satisfies Formulae (3) and (4). For FD frames: df satisfies Formulae (3) through (7)"
+flags = []
+notes = "CC frames use two tolerance conditions; FD frames add three more (5, 6, 7) related to the data phase. The formulae involve SJW, Phase_Seg1/2, and bit times for both nominal and data phases. All four formats are covered."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-PCS-039"
+source_clause = "ISO 11898-1:2015 §7.3.6"
+original_wording = "The configured SJW shall not be larger than the smaller one of the Phase_Seg1 and Phase_Seg2."
+shape = "invariant"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Bit timing parameters are configured"
+postcondition = "SJW ≤ min(Phase_Seg1, Phase_Seg2)"
+flags = []
+notes = "Substantively duplicates REQ-PCS-020 from §7.3.3 — same constraint restated in §7.3.6 context. Retained for traceability to source clause. All four formats share this constraint."
+label = ""
+file = ""
+
+# ── §7.4.2.1 PCS to PMA output symbol ──
+
+[[requirement]]
+id = "REQ-PCS-040"
+source_clause = "ISO 11898-1:2015 §7.4.2.1"
+original_wording = "The PCS shall send an output symbol to the PMA sub-layer when it receives an Output_Unit from the MAC sub-layer."
+shape = "triggered"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The PCS is operational"
+event = "An Output_Unit (dominant or recessive) is received from the MAC sub-layer via PCS_Data.Request"
+postcondition = "The PCS sends a corresponding output symbol (level_0 or level_1) to the PMA sub-layer"
+flags = []
+notes = "Maps MAC-level dominant/recessive to PMA-level voltage symbols. All four formats share this PCS-to-PMA path."
+label = ""
+file = ""
+
+# ── §7.4.2.2 Bus_off symbol ──
+
+[[requirement]]
+id = "REQ-PCS-041"
+source_clause = "ISO 11898-1:2015 §7.4.2.2"
+original_wording = "The PCS shall send a bus_off symbol to the PMA sub-layer, when it receives a bus_off_request from the supervisor (see 8.1.3.4)."
+shape = "triggered"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The PCS is operational"
+event = "A bus_off_request is received from the FCE supervisor"
+postcondition = "The PCS sends a bus_off symbol to the PMA sub-layer"
+flags = ["EXTERNAL_DEP"]
+notes = "EXTERNAL_DEP: the bus_off_request originates from the FCE supervisor (§8.1.3.4). All four formats share the same bus-off signalling path."
+label = ""
+file = ""
+
+# ── §7.4.2.3 Bus_off_release symbol ──
+
+[[requirement]]
+id = "REQ-PCS-042"
+source_clause = "ISO 11898-1:2015 §7.4.2.3"
+original_wording = "The PCS shall send a bus_off_release symbol to the PMA sub-layer when it receives a bus_off_release_request from the supervisor (see 8.1.3.4)."
+shape = "triggered"
+scope = "node"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The PCS is operational and in bus-off state"
+event = "A bus_off_release_request is received from the FCE supervisor"
+postcondition = "The PCS sends a bus_off_release symbol to the PMA sub-layer"
+flags = ["EXTERNAL_DEP"]
+notes = "EXTERNAL_DEP: the bus_off_release_request originates from the FCE supervisor (§8.1.3.4). All four formats share the same bus-off release path."
+label = ""
+file = ""
+
+# === SECTION SUMMARY: §7.1 + §7.2 + §7.3 + §7.4.2 — PCS ===
+# Requirements output: 42
+#   triggered:    11  (REQ-PCS-005, REQ-PCS-006, REQ-PCS-026, REQ-PCS-027, REQ-PCS-031, REQ-PCS-033, REQ-PCS-034, REQ-PCS-035, REQ-PCS-040, REQ-PCS-041, REQ-PCS-042)
+#   invariant:    31  (REQ-PCS-001, REQ-PCS-002, REQ-PCS-003, REQ-PCS-004, REQ-PCS-007, REQ-PCS-008, REQ-PCS-009, REQ-PCS-010, REQ-PCS-011, REQ-PCS-012, REQ-PCS-013, REQ-PCS-014, REQ-PCS-015, REQ-PCS-016, REQ-PCS-017, REQ-PCS-018, REQ-PCS-019, REQ-PCS-020, REQ-PCS-021, REQ-PCS-022, REQ-PCS-023, REQ-PCS-024, REQ-PCS-025, REQ-PCS-028, REQ-PCS-029, REQ-PCS-030, REQ-PCS-032, REQ-PCS-036, REQ-PCS-037, REQ-PCS-038, REQ-PCS-039)
+#   liveness:      0
+#   reachability:  0
+#   DOC_ONLY:      5  (REQ-PCS-001, REQ-PCS-002, REQ-PCS-003, REQ-PCS-004, REQ-PCS-015)
+# Flags raised:
+#   COMPOUND:     14  (REQ-PCS-009, REQ-PCS-014, REQ-PCS-016, REQ-PCS-021, REQ-PCS-023, REQ-PCS-024, REQ-PCS-026, REQ-PCS-027, REQ-PCS-028, REQ-PCS-029, REQ-PCS-030, REQ-PCS-031, REQ-PCS-033, REQ-PCS-035)
+#   AMBIGUOUS:     1  (REQ-PCS-036)
+#   EXTERNAL_DEP:  2  (REQ-PCS-041, REQ-PCS-042)
+#   SHOULD:        0
+#   DOC_ONLY:      5  (REQ-PCS-001, REQ-PCS-002, REQ-PCS-003, REQ-PCS-004, REQ-PCS-015)
+# Cross-section dependencies:
+#   REQ-PCS-041 (layer=PCS) → depends on FCE: bus_off_request from FCE supervisor (§8.1.3.4)
+#   REQ-PCS-042 (layer=PCS) → depends on FCE: bus_off_release_request from FCE supervisor (§8.1.3.4)
+# ===
+
+# ============================================================
+# SECTION: §8 — FCE (Fault Confinement Entity)
+# ============================================================
+# === SECTION INVENTORY: §8 — Fault Confinement Entity (layer = FCE) ===
+# Subsections covered: §8.1.1, §8.1.2, §8.1.3.1, §8.1.3.2, §8.1.3.3, §8.1.3.4,
+#   §8.1.4.1, §8.1.4.2, §8.1.4.3, §8.1.4.4, §8.1.5, §8.2
+# Requirement count lower bound: 25
+# Cross-section dependencies noted:
+#   - §8.1.3.2 LLC/FCE interface: Normal_mode_request resets FCE (from LLC)
+#   - §8.1.3.3 MAC/FCE interface: Error, Primary_error, Successful_transfer signals (from MAC)
+#   - §8.1.3.4 PL/FCE interface: Bus_off_request/release to PCS
+#   - §8.1.4.2 Error counting rules reference MAC-layer error detection signals
+#   - §8.1.4.4 Bus-off management references re-integration (MAC §6.6.7.5)
+#   - §8.1.5 Node start-up references bus synchronisation (MAC §6.6.7.5)
+# ===
+
+# ── §8.1.1 Objectives ──
+
+[[requirement]]
+id = "REQ-FCE-001"
+source_clause = "ISO 11898-1:2024 §8.1.1"
+original_wording = "The fault confinement strategies shall prove reliable on the following instances: a) distinction between temporary errors and permanent failures; b) localization and switching-off of faulty nodes."
+shape = "invariant"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Fault confinement is active in the CAN node"
+postcondition = "The fault confinement entity reliably distinguishes temporary errors from permanent failures and localises/switches off faulty nodes"
+flags = ["DOC_ONLY", "COMPOUND"]
+notes = "DOC_ONLY: high-level objective statement — no single RTL signal to assert. COMPOUND: two sub-claims: (a) distinguish temporary errors from permanent failures, (b) localise and switch off faulty nodes. All four formats share the same FCE."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-002"
+source_clause = "ISO 11898-1:2024 §8.1.1"
+original_wording = "Fault confinement shall be enabled only when error signalling is enabled."
+shape = "invariant"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The CAN node is operational"
+postcondition = "Fault confinement is active if and only if error signalling is enabled"
+flags = []
+notes = "Gate condition for the entire FCE: when error signalling is disabled, fault confinement is inactive. All four formats share the same FCE enable condition."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-003"
+source_clause = "ISO 11898-1:2024 §8.1.1"
+original_wording = "When error signalling is disabled within a network, the node shall never enter error passive state or bus-off state as specified in 8.1.4."
+shape = "invariant"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Error signalling is disabled"
+postcondition = "The node does not enter error-passive state or bus-off state"
+flags = []
+notes = "Prohibition: with error signalling disabled, the FCE state machine must remain in error-active (or equivalent initial state). All four formats share the same FCE."
+label = ""
+file = ""
+
+# ── §8.1.2 Strategies ──
+
+[[requirement]]
+id = "REQ-FCE-004"
+source_clause = "ISO 11898-1:2024 §8.1.2"
+original_wording = "All nodes shall include a transmit error counter and a receive error counter."
+shape = "invariant"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The CAN node implements fault confinement"
+postcondition = "The node contains a transmit error counter (TEC) and a receive error counter (REC)"
+flags = ["DOC_ONLY"]
+notes = "DOC_ONLY: architectural requirement — the existence of TEC and REC is a design obligation, not a single-cycle assertion. All four formats share the same counters."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-005"
+source_clause = "ISO 11898-1:2024 §8.1.2"
+original_wording = "The transmit error counter shall register the number of errors during the transmission, and the receive error counter shall register the errors during the reception of frames."
+shape = "invariant"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Fault confinement is active"
+postcondition = "TEC accumulates transmit errors and REC accumulates receive errors"
+flags = ["COMPOUND"]
+notes = "COMPOUND: two sub-claims: (1) TEC registers transmit errors, (2) REC registers receive errors. All four formats share the same error counting mechanism."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-006"
+source_clause = "ISO 11898-1:2024 §8.1.2"
+original_wording = "When frames are sent or received correctly, the counters shall be decremented. ; When frames are sent or received with errors, the counters shall be incremented more than they are decremented in the absence of errors."
+shape = "invariant"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Fault confinement is active"
+postcondition = "Successful frames decrement the counters; erroneous frames result in net counter increment"
+flags = ["COMPOUND"]
+notes = "COMPOUND: two sub-claims: (1) successful frames decrement counters, (2) error frames cause net increment. Specific increment/decrement values are defined in §8.1.4.2. All four formats share the same counting strategy."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-007"
+source_clause = "ISO 11898-1:2024 §8.1.2"
+original_wording = "Depending on predetermined counter values, the behaviour of nodes in respect to errors shall be modified. I.e. this shall range from a prohibition of sending error flags to cancel frames, up to switching-off of nodes which often send invalid frames."
+shape = "invariant"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Fault confinement is active"
+postcondition = "Node error behaviour is modified based on error counter thresholds (error-passive prohibitions, bus-off switch-off)"
+flags = ["DOC_ONLY"]
+notes = "DOC_ONLY: high-level strategy description — specific thresholds and state transitions are defined in §8.1.4.3 and §8.1.4.4. All four formats share the same strategy."
+label = ""
+file = ""
+
+# ── §8.1.3.1 Description ──
+# No normative "shall" statements — describes interface diagram (Figure 42).
+
+# ── §8.1.3.2 LLC sub-layer/FCE interface (Tables 14–15) ──
+
+[[requirement]]
+id = "REQ-FCE-008"
+source_clause = "ISO 11898-1:2024 §8.1.3.2, Table 14"
+original_wording = "Normal_mode_request: Resets FCE to initial state (the values of the transmit error counter and the receive error counter are set to zero when the FCE passes into its initial state)."
+shape = "triggered"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The FCE is operational"
+event = "Normal_mode_request is received from the LLC sub-layer"
+postcondition = "The FCE enters its initial state with TEC = 0 and REC = 0"
+flags = ["EXTERNAL_DEP"]
+notes = "EXTERNAL_DEP: the Normal_mode_request originates from the LLC sub-layer. All four formats share the same reset mechanism."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-009"
+source_clause = "ISO 11898-1:2024 §8.1.3.2, Table 15"
+original_wording = "Normal_mode_response: Response to the Normal_mode_request. ; Bus_off: Indicates that the node is in the bus-off state."
+shape = "invariant"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The FCE-to-LLC interface is active"
+postcondition = "The FCE provides Normal_mode_response and Bus_off indication services to the LLC sub-layer"
+flags = ["DOC_ONLY", "COMPOUND"]
+notes = "DOC_ONLY: service interface definition — direction and existence of primitives. COMPOUND: two services: (1) Normal_mode_response, (2) Bus_off indication. All four formats share the same FCE-LLC interface."
+label = ""
+file = ""
+
+# ── §8.1.3.3 MAC sub-layer/FCE interface (Tables 16–17) ──
+
+[[requirement]]
+id = "REQ-FCE-010"
+source_clause = "ISO 11898-1:2024 §8.1.3.3, Table 16"
+original_wording = "Transmit/receive: Indicates the node's current transfer mode. ; Error: Indicates that the MAC sub-layer has detected an error (bit error, stuff error, CRC error, form error, ACK error). ; Primary_error: Signals that the MAC sub-layer has detected a dominant bit after sending an error flag (indicates that the MAC sub-layer has detected a primary error and not an error that is caused by the error flag of another node). ; Error/overload flag: Indicates that the MAC sub-layer is sending an error flag or an overload flag. ; Counters_unchanged: Indicates that the FCE counters remain unchanged (due to special cases; see rule c) in 8.1.4.2). ; Error_delimiter_too_late: Indicates that the MAC sub-layer is waiting too long for error delimiter. ; Successful_transfer: Indicates that transmission/reception was successfully completed. ; Error_passive_response: Indicates that the node was set into the error passive state. ; Error_active_response: Indicates that the node was set into the error active state again."
+shape = "invariant"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The MAC-to-FCE interface is active"
+postcondition = "The MAC sub-layer provides Transmit/receive, Error, Primary_error, Error/overload flag, Counters_unchanged, Error_delimiter_too_late, Successful_transfer, Error_passive_response, and Error_active_response services to the FCE"
+flags = ["DOC_ONLY", "COMPOUND", "EXTERNAL_DEP"]
+notes = "DOC_ONLY: service interface definition — enumerates the MAC-to-FCE primitives. COMPOUND: nine distinct service primitives. EXTERNAL_DEP: all signals originate from the MAC sub-layer. All four formats share the same MAC-FCE interface."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-011"
+source_clause = "ISO 11898-1:2024 §8.1.3.3, Table 17"
+original_wording = "Error_passive_request: Request to set the node into the error passive state. ; Error_active_request: Request to set the node into the error active state."
+shape = "invariant"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The FCE-to-MAC interface is active"
+postcondition = "The FCE provides Error_passive_request and Error_active_request services to the MAC sub-layer"
+flags = ["DOC_ONLY", "COMPOUND"]
+notes = "DOC_ONLY: service interface definition — direction and existence of primitives. COMPOUND: two services: (1) Error_passive_request, (2) Error_active_request. All four formats share the same FCE-MAC interface."
+label = ""
+file = ""
+
+# ── §8.1.3.4 PL/FCE interface (Tables 18–19) ──
+
+[[requirement]]
+id = "REQ-FCE-012"
+source_clause = "ISO 11898-1:2024 §8.1.3.4, Table 18"
+original_wording = "Bus_off_request: Request to switch off the node from the bus. ; Bus_off_release_request: Request to set the node into the normal transmit/receive node."
+shape = "invariant"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The FCE-to-PL interface is active"
+postcondition = "The FCE provides Bus_off_request and Bus_off_release_request services to the PL"
+flags = ["DOC_ONLY", "COMPOUND"]
+notes = "DOC_ONLY: service interface definition. COMPOUND: two services: (1) Bus_off_request, (2) Bus_off_release_request. All four formats share the same FCE-PL interface."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-013"
+source_clause = "ISO 11898-1:2024 §8.1.3.4, Table 19"
+original_wording = "Bus_off_response: Response to bus_off_request. ; Bus_off_release_response: Response to bus_off_release_request."
+shape = "invariant"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The PL-to-FCE interface is active"
+postcondition = "The PL provides Bus_off_response and Bus_off_release_response services to the FCE"
+flags = ["DOC_ONLY", "COMPOUND", "EXTERNAL_DEP"]
+notes = "DOC_ONLY: service interface definition. COMPOUND: two services. EXTERNAL_DEP: responses originate from the PL (PCS layer). All four formats share the same PL-FCE interface."
+label = ""
+file = ""
+
+# ── §8.1.4.1 Description ──
+# No normative "shall" statements — describes the three FCE states
+# (error-active, error-passive, bus-off) as a function of counter levels.
+
+# ── §8.1.4.2 Error counting ──
+
+[[requirement]]
+id = "REQ-FCE-014"
+source_clause = "ISO 11898-1:2024 §8.1.4.2"
+original_wording = "The error counters shall be modified according to the following rules (more than one rule can apply during a given frame transfer)."
+shape = "invariant"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Fault confinement is active and a frame transfer is in progress"
+postcondition = "Error counters are modified according to rules a) through h) of §8.1.4.2, with multiple rules potentially applying during a single frame"
+flags = ["DOC_ONLY"]
+notes = "DOC_ONLY: umbrella statement for rules a)–h). The individual rules are extracted as separate requirements below. All four formats share the same error counting rules."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-015"
+source_clause = "ISO 11898-1:2024 §8.1.4.2 rule a)"
+original_wording = "When a receiver detects an error, the receive error counter shall be incremented by 1, except when the detected error is a bit error during the sending of an active error flag or an overload flag."
+shape = "triggered"
+scope = "node"
+side = "receiver"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Node is receiving and fault confinement is active"
+event = "The receiver detects an error (not a bit error during active error flag or overload flag)"
+postcondition = "REC is incremented by 1"
+flags = ["EXTERNAL_DEP"]
+notes = "EXTERNAL_DEP: error detection signal originates from MAC sub-layer. The exception (bit error during active error flag/overload flag) is covered by rule e). All four formats share the same rule."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-016"
+source_clause = "ISO 11898-1:2024 §8.1.4.2 rule b)"
+original_wording = "When a receiver detects a dominant bit as the first bit after sending an error flag, the receive error counter shall be incremented by 8."
+shape = "triggered"
+scope = "node"
+side = "receiver"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Node is receiving and has just finished sending an error flag"
+event = "The first bit after the error flag is detected as dominant"
+postcondition = "REC is incremented by 8"
+flags = ["EXTERNAL_DEP"]
+notes = "EXTERNAL_DEP: bit detection and error flag completion signals originate from MAC sub-layer. All four formats share the same rule."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-017"
+source_clause = "ISO 11898-1:2024 §8.1.4.2 rule c)"
+original_wording = "When a transmitter sends an error flag, the transmit error counter shall be incremented by 8. ; Exception 1: If the transmitter is error-passive and detects an ACK error because of not detecting a dominant ACK and does not detect a dominant bit while sending its passive error flag. ; Exception 2: If the transmitter sends an error flag because a stuff error occurred before the arbitration is decided, whereby the stuff bit should have been recessive, and after it is sent recessive but is monitored to be dominant. ; In exception 1 and in exception 2, the transmit error counter remains unchanged."
+shape = "triggered"
+scope = "node"
+side = "transmitter"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Node is transmitting and fault confinement is active"
+event = "The transmitter sends an error flag"
+postcondition = "TEC is incremented by 8, unless exception 1 (error-passive ACK error with no dominant during passive error flag) or exception 2 (stuff error during arbitration with recessive stuff bit monitored as dominant) applies, in which case TEC remains unchanged"
+flags = ["COMPOUND", "EXTERNAL_DEP"]
+notes = "COMPOUND: three sub-claims: (1) base rule TEC += 8, (2) exception 1 for error-passive ACK error, (3) exception 2 for stuff error during arbitration. EXTERNAL_DEP: error flag sending and error detection signals originate from MAC sub-layer. All four formats share the same rule."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-018"
+source_clause = "ISO 11898-1:2024 §8.1.4.2 rule d)"
+original_wording = "If a transmitter detects a bit error while sending an active error flag or an overload flag, the transmit error counter shall be incremented by 8."
+shape = "triggered"
+scope = "node"
+side = "transmitter"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Node is transmitting an active error flag or overload flag"
+event = "A bit error is detected during the active error flag or overload flag"
+postcondition = "TEC is incremented by 8"
+flags = ["EXTERNAL_DEP"]
+notes = "EXTERNAL_DEP: bit error detection during error/overload flag originates from MAC sub-layer. All four formats share the same rule."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-019"
+source_clause = "ISO 11898-1:2024 §8.1.4.2 rule e)"
+original_wording = "If a receiver detects a bit error while sending an active error flag or an overload flag, the receive error counter shall be incremented by 8."
+shape = "triggered"
+scope = "node"
+side = "receiver"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Node is receiving and sending an active error flag or overload flag"
+event = "A bit error is detected during the active error flag or overload flag"
+postcondition = "REC is incremented by 8"
+flags = ["EXTERNAL_DEP"]
+notes = "EXTERNAL_DEP: bit error detection during error/overload flag originates from MAC sub-layer. All four formats share the same rule."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-020"
+source_clause = "ISO 11898-1:2024 §8.1.4.2 rule f)"
+original_wording = "Any node shall tolerate up to 7 consecutive dominant bits after sending an active error flag, passive error flag, or overload flag. After detecting 14 consecutive dominant bits (in case of an active error flag or an overload flag) or after detecting 8 consecutive dominant bits following a passive error flag, and after each sequence of additional 8 consecutive dominant bits, every transmitter shall increment its transmit error counter by 8 and every receiver shall increment its receive error counter by 8."
+shape = "triggered"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Node has sent an error flag or overload flag and fault confinement is active"
+event = "14 consecutive dominant bits detected after active error/overload flag, or 8 consecutive dominant bits after passive error flag, or each subsequent sequence of 8 consecutive dominant bits"
+postcondition = "Transmitter increments TEC by 8; receiver increments REC by 8"
+flags = ["COMPOUND", "EXTERNAL_DEP"]
+notes = "COMPOUND: three sub-claims: (1) tolerate up to 7 dominant bits, (2) after 14/8 threshold crossed increment by 8, (3) each additional 8-bit sequence increments by 8. EXTERNAL_DEP: dominant bit detection originates from MAC sub-layer. All four formats share the same rule."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-021"
+source_clause = "ISO 11898-1:2024 §8.1.4.2 rule g)"
+original_wording = "After the successful transmission of a frame (getting ACK and no error has been detected until EOF is finished), the transmit error counter shall be decremented by 1 unless it was already 0."
+shape = "triggered"
+scope = "node"
+side = "transmitter"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Node is transmitting and fault confinement is active"
+event = "Successful frame transmission is completed (ACK received and no error until EOF)"
+postcondition = "TEC is decremented by 1 (saturates at 0)"
+flags = ["EXTERNAL_DEP"]
+notes = "EXTERNAL_DEP: successful_transfer signal originates from MAC sub-layer. All four formats share the same decrement rule."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-022"
+source_clause = "ISO 11898-1:2024 §8.1.4.2 rule h)"
+original_wording = "After the successful reception of a frame (reception without error up to the ACK slot and the successful sending of the ACK bit), the receive error counter shall be decremented by 1 if it was between 1 and 127. If the receive error counter was 0, it shall stay at 0, and if it was greater than 127, then it shall be set to a value between 119 and 127."
+shape = "triggered"
+scope = "node"
+side = "receiver"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Node is receiving and fault confinement is active"
+event = "Successful frame reception is completed (no error up to ACK slot and ACK sent)"
+postcondition = "If REC is in [1, 127]: REC decremented by 1. If REC = 0: REC stays at 0. If REC > 127: REC is set to a value in [119, 127]"
+flags = ["COMPOUND", "EXTERNAL_DEP"]
+notes = "COMPOUND: three sub-claims depending on REC range: (1) REC in [1,127] → decrement by 1, (2) REC = 0 → stays 0, (3) REC > 127 → set to [119,127]. EXTERNAL_DEP: successful_transfer signal originates from MAC sub-layer. All four formats share the same rule."
+label = ""
+file = ""
+
+# ── §8.1.4.3 Transition between error-active and error-passive states ──
+
+[[requirement]]
+id = "REQ-FCE-023"
+source_clause = "ISO 11898-1:2024 §8.1.4.3"
+original_wording = "If the transmit error counter or the receive error counter of a node exceeds 127 (carry condition in case of a 7-bit receive error counter) then the supervisor shall request the MAC sub-layer to set the corresponding node into the error-passive state."
+shape = "triggered"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Node is in error-active state and fault confinement is active"
+event = "TEC > 127 or REC > 127"
+postcondition = "The FCE supervisor issues Error_passive_request to the MAC sub-layer"
+flags = []
+notes = "The carry condition note applies to implementations using a 7-bit receive error counter. All four formats share the same threshold and transition."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-024"
+source_clause = "ISO 11898-1:2024 §8.1.4.3"
+original_wording = "An error condition causing a node to become error-passive shall cause the node to send an active error flag."
+shape = "triggered"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Node is in error-active state"
+event = "An error condition causes the node to transition to error-passive"
+postcondition = "The node sends an active error flag (for the error that caused the transition)"
+flags = []
+notes = "The error flag sent is active (not passive) because the node was still error-active when the error occurred. The transition to error-passive takes effect after the error flag. All four formats share the same rule."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-025"
+source_clause = "ISO 11898-1:2024 §8.1.4.3"
+original_wording = "An error-passive node shall become error-active again when both the transmit error counter and the receive error counter are less than or equal to 127 (see Figure 43)."
+shape = "triggered"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Node is in error-passive state"
+event = "Both TEC ≤ 127 and REC ≤ 127"
+postcondition = "The node transitions to error-active state"
+flags = []
+notes = "Recovery from error-passive requires both counters below threshold simultaneously. All four formats share the same rule."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-026"
+source_clause = "ISO 11898-1:2024 §8.1.4.3"
+original_wording = "When the receive error counter of a node exceeds the error-passive limit of 127, further increments of this receive error counter shall be limited by the width of the counter."
+shape = "invariant"
+scope = "node"
+side = "receiver"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "REC > 127 and fault confinement is active"
+postcondition = "Further REC increments are limited by the counter width (no overflow beyond maximum representable value)"
+flags = []
+notes = "Prevents REC overflow — the counter saturates at its maximum value (e.g. 255 for an 8-bit counter). All four formats share the same rule."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-027"
+source_clause = "ISO 11898-1:2024 §8.1.4.3"
+original_wording = "At the next successful reception of a frame (transition to error-active), the receive error counter shall be set to a value below the error-passive limit see error counting rule h) in 8.1.4.2."
+shape = "triggered"
+scope = "node"
+side = "receiver"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Node is error-passive with REC > 127"
+event = "Successful reception of a frame"
+postcondition = "REC is set to a value in [119, 127] (below the error-passive limit), per rule h)"
+flags = []
+notes = "Cross-references rule h) in §8.1.4.2. This requirement is substantively contained in REQ-FCE-022 (rule h, third sub-claim) but restated here in the context of error-passive recovery. All four formats share the same rule."
+label = ""
+file = ""
+
+# ── §8.1.4.4 Bus-off management ──
+
+[[requirement]]
+id = "REQ-FCE-028"
+source_clause = "ISO 11898-1:2024 §8.1.4.4"
+original_wording = "If the transmit error counter of a node is greater than 255 (carry condition in case of an 8-bit transmit error counter) then the supervisor shall request the PL to set the node into the bus-off state."
+shape = "triggered"
+scope = "node"
+side = "transmitter"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Node is in error-passive state and fault confinement is active"
+event = "TEC > 255"
+postcondition = "The FCE supervisor issues Bus_off_request to the PL (PCS)"
+flags = []
+notes = "The carry condition note applies to implementations using an 8-bit TEC. All four formats share the same bus-off threshold."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-029"
+source_clause = "ISO 11898-1:2024 §8.1.4.4"
+original_wording = "A node which is in the bus-off state shall have no influence on the bus."
+shape = "invariant"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Node is in bus-off state"
+postcondition = "The node has no influence on the bus (does not drive dominant or recessive)"
+flags = []
+notes = "Fundamental bus-off isolation rule. All four formats share the same bus-off behaviour."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-030"
+source_clause = "ISO 11898-1:2024 §8.1.4.4"
+original_wording = "It shall not send any frames nor acknowledge DFs or RFs."
+shape = "invariant"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Node is in bus-off state"
+postcondition = "The node does not send any frames and does not acknowledge data frames or remote frames"
+flags = []
+notes = "Continuation of bus-off isolation. All four formats share the same bus-off behaviour."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-031"
+source_clause = "ISO 11898-1:2024 §8.1.4.4"
+original_wording = "Upon a restart request, a node which is in the bus-off state shall be re-integrating to the CAN communication (see 6.6.7.5) and may become error-active (no longer bus-off) with its error counters both set to zero after having monitored 128 occurrences of the idle condition (see 3.34) on the bus."
+shape = "liveness"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Node is in bus-off state and a restart request is issued"
+postcondition = "The node re-integrates into CAN communication and becomes error-active with TEC = 0 and REC = 0 after monitoring 128 occurrences of the idle condition (11 consecutive recessive bits)"
+flags = ["EXTERNAL_DEP"]
+notes = "Liveness: the standard says the node 'shall be re-integrating' and 'may become error-active' — eventual recovery without a fixed cycle deadline. EXTERNAL_DEP: re-integration procedure references MAC §6.6.7.5 and idle condition definition §3.34. All four formats share the same bus-off recovery."
+label = ""
+file = ""
+
+# ── §8.1.5 Node start-up ──
+
+[[requirement]]
+id = "REQ-FCE-032"
+source_clause = "ISO 11898-1:2024 §8.1.5"
+original_wording = "If during network start-up only one node is online and if this node transmits any DF or RF, it does not get an ACK. In this case, it shall detect an error and repeat the frame. ; According to rule c) in 8.1.4.2, exception 1, it may become error-passive but shall not go bus-off."
+shape = "invariant"
+scope = "node"
+side = "transmitter"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "Only one node is online during network start-up and it transmits a DF or RF"
+postcondition = "The node detects an ACK error and repeats the frame; the node may become error-passive but shall not enter bus-off"
+flags = ["COMPOUND"]
+notes = "COMPOUND: two sub-claims: (1) the lone node detects error and repeats frame, (2) the node shall not go bus-off (protected by rule c exception 1). All four formats share the same start-up behaviour."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-033"
+source_clause = "ISO 11898-1:2024 §8.1.5"
+original_wording = "When a switched-off node is switched on again, it shall: synchronize with already available nodes to re-integrate into the bus communication (see 6.6.7.5) before starting to transmit. ; Synchronization is achieved when 11 recessive bits have been detected that are equivalent to ACK delimiter + EOF + intermission or Error/Overload delimiter + intermission."
+shape = "triggered"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "A previously switched-off node is being switched on"
+event = "The node is switched on (power-up or reset release)"
+postcondition = "The node synchronises with existing bus traffic by detecting 11 consecutive recessive bits before starting to transmit"
+flags = ["EXTERNAL_DEP"]
+notes = "EXTERNAL_DEP: re-integration references MAC §6.6.7.5 bus synchronisation. The 11 recessive bits correspond to ACK delimiter + EOF + intermission. All four formats share the same start-up rule."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-FCE-034"
+source_clause = "ISO 11898-1:2024 §8.1.5"
+original_wording = "When a switched-off node is switched on again, it shall: wait for other nodes if there is no other node available at the moment without becoming bus-off."
+shape = "invariant"
+scope = "node"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "A previously switched-off node is switched on and no other nodes are present on the bus"
+postcondition = "The node waits without entering bus-off state"
+flags = []
+notes = "Prevents bus-off during initial start-up when no other nodes are available. All four formats share the same start-up rule."
+label = ""
+file = ""
+
+# ── §8.2 Bus failure management ──
+
+[[requirement]]
+id = "REQ-FCE-035"
+source_clause = "ISO 11898-1:2024 §8.2"
+original_wording = "During normal operation, several bus failures can occur that influence the bus operation. These failures and the resulting behaviour of the network shall be in accordance with the used PMA."
+shape = "invariant"
+scope = "bus"
+side = "both"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+precondition = "The CAN network is in normal operation"
+postcondition = "Bus failure behaviour is in accordance with the PMA specification"
+flags = ["DOC_ONLY", "EXTERNAL_DEP"]
+notes = "DOC_ONLY: compliance obligation referencing the PMA — no specific RTL assertion possible without knowing the PMA specification. EXTERNAL_DEP: depends on PMA (physical medium attachment), which is outside the scope of this design. All four formats share the same bus failure management."
+label = ""
+file = ""
+
+# === SECTION SUMMARY: §8 — Fault Confinement Entity ===
+# Requirements output: 35
+#   triggered:    15  (REQ-FCE-008, REQ-FCE-015, REQ-FCE-016, REQ-FCE-017, REQ-FCE-018, REQ-FCE-019, REQ-FCE-020, REQ-FCE-021, REQ-FCE-022, REQ-FCE-023, REQ-FCE-024, REQ-FCE-025, REQ-FCE-027, REQ-FCE-028, REQ-FCE-033)
+#   invariant:    19  (REQ-FCE-001, REQ-FCE-002, REQ-FCE-003, REQ-FCE-004, REQ-FCE-005, REQ-FCE-006, REQ-FCE-007, REQ-FCE-009, REQ-FCE-010, REQ-FCE-011, REQ-FCE-012, REQ-FCE-013, REQ-FCE-014, REQ-FCE-026, REQ-FCE-029, REQ-FCE-030, REQ-FCE-032, REQ-FCE-034, REQ-FCE-035)
+#   liveness:      1  (REQ-FCE-031)
+#   reachability:  0
+#   DOC_ONLY:     10  (REQ-FCE-001, REQ-FCE-004, REQ-FCE-007, REQ-FCE-009, REQ-FCE-010, REQ-FCE-011, REQ-FCE-012, REQ-FCE-013, REQ-FCE-014, REQ-FCE-035)
+# Flags raised:
+#   COMPOUND:     12  (REQ-FCE-001, REQ-FCE-005, REQ-FCE-006, REQ-FCE-009, REQ-FCE-010, REQ-FCE-011, REQ-FCE-012, REQ-FCE-013, REQ-FCE-017, REQ-FCE-020, REQ-FCE-022, REQ-FCE-032)
+#   AMBIGUOUS:     0
+#   EXTERNAL_DEP: 14  (REQ-FCE-008, REQ-FCE-010, REQ-FCE-013, REQ-FCE-015, REQ-FCE-016, REQ-FCE-017, REQ-FCE-018, REQ-FCE-019, REQ-FCE-020, REQ-FCE-021, REQ-FCE-022, REQ-FCE-031, REQ-FCE-033, REQ-FCE-035)
+#   SHOULD:        0
+#   DOC_ONLY:     10  (REQ-FCE-001, REQ-FCE-004, REQ-FCE-007, REQ-FCE-009, REQ-FCE-010, REQ-FCE-011, REQ-FCE-012, REQ-FCE-013, REQ-FCE-014, REQ-FCE-035)
+# Cross-section dependencies:
+#   REQ-FCE-008 (layer=FCE) → depends on LLC: Normal_mode_request from LLC sub-layer
+#   REQ-FCE-010 (layer=FCE) → depends on MAC: nine MAC-to-FCE service signals (Table 16)
+#   REQ-FCE-013 (layer=FCE) → depends on PCS: Bus_off_response/Bus_off_release_response from PL
+#   REQ-FCE-015 (layer=FCE) → depends on MAC: error detection signal
+#   REQ-FCE-016 (layer=FCE) → depends on MAC: bit detection after error flag
+#   REQ-FCE-017 (layer=FCE) → depends on MAC: error flag sending and error detection
+#   REQ-FCE-018 (layer=FCE) → depends on MAC: bit error during active error/overload flag
+#   REQ-FCE-019 (layer=FCE) → depends on MAC: bit error during active error/overload flag
+#   REQ-FCE-020 (layer=FCE) → depends on MAC: consecutive dominant bit detection
+#   REQ-FCE-021 (layer=FCE) → depends on MAC: successful_transfer signal
+#   REQ-FCE-022 (layer=FCE) → depends on MAC: successful_transfer signal
+#   REQ-FCE-031 (layer=FCE) → depends on MAC: re-integration procedure (§6.6.7.5)
+#   REQ-FCE-033 (layer=FCE) → depends on MAC: bus synchronisation (§6.6.7.5)
+#   REQ-FCE-035 (layer=FCE) → depends on PMA: bus failure behaviour
+# ===
+
+# ============================================================
+# === FINAL CROSS-REFERENCE ===
+# ============================================================
+# Total requirements: 209
+#   (of which DOC_ONLY: 36 — no assertions to write)
+#
+# By layer:
+#   LLC:  24
+#   MAC: 108
+#   PCS:  42
+#   FCE:  35
+#
+# By shape:
+#   invariant:   138
+#   triggered:    68
+#   liveness:      3
+#   reachability:  0
+#
+# EXTERNAL_DEP requirements and their dependency targets:
+#   REQ-LLC-008  (layer=LLC) → depends on MAC: successful frame completion signal
+#   REQ-LLC-010  (layer=LLC) → depends on MAC: data transfer service (§6.6)
+#   REQ-LLC-014  (layer=LLC) → depends on MAC: error/arbitration status
+#   REQ-LLC-019  (layer=LLC) → depends on MAC: arbitration loss report
+#   REQ-LLC-025  (layer=LLC) → depends on MAC: OF structure (§6.6.6)
+#   REQ-LLC-028  (layer=LLC) → depends on MAC: all five trigger conditions from MAC
+#   REQ-LLC-031  (layer=LLC) → depends on MAC: time reference point signal (§6.6.3)
+#   REQ-LLC-033  (layer=LLC) → depends on MAC: TX time reference point
+#   REQ-LLC-034  (layer=LLC) → depends on MAC: RX time reference point
+#   REQ-PCS-041  (layer=PCS) → depends on FCE: bus_off_request from FCE supervisor
+#   REQ-PCS-042  (layer=PCS) → depends on FCE: bus_off_release_request from FCE supervisor
+#   REQ-FCE-008  (layer=FCE) → depends on LLC: Normal_mode_request
+#   REQ-FCE-010  (layer=FCE) → depends on MAC: nine MAC-to-FCE service signals
+#   REQ-FCE-013  (layer=FCE) → depends on PCS: Bus_off_response/release from PL
+#   REQ-FCE-015  (layer=FCE) → depends on MAC: error detection signal
+#   REQ-FCE-016  (layer=FCE) → depends on MAC: bit detection after error flag
+#   REQ-FCE-017  (layer=FCE) → depends on MAC: error flag sending and error detection
+#   REQ-FCE-018  (layer=FCE) → depends on MAC: bit error during active error/overload flag
+#   REQ-FCE-019  (layer=FCE) → depends on MAC: bit error during active error/overload flag
+#   REQ-FCE-020  (layer=FCE) → depends on MAC: consecutive dominant bit detection
+#   REQ-FCE-021  (layer=FCE) → depends on MAC: successful_transfer signal
+#   REQ-FCE-022  (layer=FCE) → depends on MAC: successful_transfer signal
+#   REQ-FCE-031  (layer=FCE) → depends on MAC: re-integration (§6.6.7.5)
+#   REQ-FCE-033  (layer=FCE) → depends on MAC: bus synchronisation (§6.6.7.5)
+#   REQ-FCE-035  (layer=FCE) → depends on PMA: bus failure behaviour
+#
+# Requirements that may need to be duplicated across layers:
+#   REQ-FCE-027: substantively overlaps REQ-FCE-022 rule h) — review for merge
+#   REQ-FCE-024: error flag type (active) is a MAC output triggered by FCE state — review boundary
+#   REQ-FCE-031: bus-off recovery references MAC re-integration procedure — review boundary
+#
+# Recommended human review items:
+#   - All AMBIGUOUS flags (4 total) — scope or shape assignments need confirmation
+#   - All COMPOUND flags (75 total) — require splitting before assertion writing
+#   - All SHOULD flags (1 total) — confirm whether to treat as assertions or comments
+#   - All DOC_ONLY flags (36 total) — confirm documentation deliverable is tracked elsewhere
 # ===
