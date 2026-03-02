@@ -1,3 +1,12 @@
+---
+title: "Implementation of a CAN/CAN-FD Bus Transmitter in VHDL"
+author: "Mads Richardt (s224948)"
+date: "February 28, 2026"
+bibliography: references.bib
+csl: ieee.csl
+link-citations: true
+---
+
 # B.Eng Thesis: Implementation of a CAN/CAN-FD Bus Transmitter in VHDL
 
 **Author**: Mads Richardt (s224948)
@@ -27,13 +36,14 @@ This thesis describes the design, implementation, and verification of a CAN (Con
   - [2.1 CAN Protocol Evolution](#21-can-protocol-evolution)
   - [2.2 ISO 11898-1:2024 Standard](#22-iso-11898-12024-standard)
   - [2.3 VHDL and OSVVM](#23-vhdl-and-osvvm)
-- [3. Requirements and Verification Planning](#3-requirements-and-verification-planning)
-  - [3.1 Functional Requirements](#31-functional-requirements)
-  - [3.2 Verification Plan Construction](#32-verification-plan-construction)
-    - [3.2.1 Extraction and Reformatting Process](#321-extraction-and-reformatting-process)
-    - [3.2.2 Human-in-the-Loop Validation](#322-human-in-the-loop-validation)
-    - [3.2.3 Design Rationale and Tooling](#323-design-rationale-and-tooling)
-  - [3.3 Verification Strategy](#33-verification-strategy)
+- [3. Verification Planning](#3-verification-planning)
+  - [3.1 Overview and Scope](#31-overview-and-scope)
+  - [3.2 Requirement Taxonomy](#32-requirement-taxonomy)
+  - [3.3 Verification Plan Construction](#33-verification-plan-construction)
+    - [3.3.1 AI-Assisted Extraction](#331-ai-assisted-extraction)
+    - [3.3.2 Human-in-the-Loop Validation](#332-human-in-the-loop-validation)
+  - [3.4 Storage Format and Tooling](#34-storage-format-and-tooling)
+  - [3.5 Verification Strategy](#35-verification-strategy)
 - [4. Design and Architecture](#4-design-and-architecture)
   - [4.1 System Overview](#41-system-overview)
   - [4.2 LLC Sub-layer (`tx_llc`)](#42-llc-sub-layer-tx_llc)
@@ -82,45 +92,81 @@ The role of modern VHDL standards and verification frameworks in digital design.
 
 ---
 
-## 3. Requirements and Verification Planning
+## 3. Verification Planning
 
-### 3.1 Functional Requirements
-The system must meet the specific requirements identified from the ISO standard. These are documented in detail in `requirements/requirements.toml` and summarized in the generated verification plan. Key categories include:
-- **CRC Generation**: Support for CRC-15 (Classic), CRC-17, and CRC-21 (FD).
-- **Bit Stuffing**: Dynamic stuffing for arbitration/data and fixed stuffing for FD CRC.
-- **Error Handling**: Bit error, ACK error, and Form error detection.
+### 3.1 Overview and Scope
 
-### 3.2 Verification Plan Construction
-The foundation of the project's verification effort is a structured **Verification Plan** derived directly from the normative text of ISO 11898-1:2024. This plan was constructed through a multi-stage process of requirement extraction and categorization to ensure 100% protocol compliance.
+Protocol compliance is the central objective of this project. The CAN and CAN-FD standards (ISO 11898-1:2024) specify hundreds of normative requirements governing frame structure, bit timing, error handling, and fault confinement. To verify the transmitter against these requirements systematically, a structured **Verification Plan** was developed as the first major deliverable of the project — before any RTL implementation began.
 
-#### 3.2.1 Extraction and Reformatting Process
-To manage the volume and complexity of the ISO standard, a specialized taxonomy was developed to classify requirements based on their verification "shape" (Triggered, Invariant, Liveness, or Reachability) and "scope" (Frame, Node, or Bus). This approach allowed for a more accurate representation of protocol behaviors compared to traditional simplified models.
+The plan covers the four in-scope frame formats: Classic Basic (CB), Classic Extended (CE), FD Basic (FB), and FD Extended (FE). CAN XL frames are excluded. In total, the plan contains 168 requirements extracted from the standard, organized by architectural layer (LLC, MAC, PCS, FCE) and spanning the major functional areas:
 
-The initial extraction of normative "shall" and "should" statements was performed using **Generative AI**. This particular task is well-suited for Large Language Models (LLMs), as they excel at processing large volumes of technical text, identifying structural patterns, and reformatting unstructured documentation into structured data formats (in this case, TOML). The use of AI significantly accelerated the initial drafting phase and reduced the risk of manual oversight during the translation from PDF to a machine-readable plan.
+- **Frame structure**: Field ordering, bit-level encoding, and format-specific control bits.
+- **CRC generation**: CRC-15 (Classic), CRC-17, and CRC-21 (FD) polynomials.
+- **Bit stuffing**: Dynamic stuffing during arbitration/data and fixed stuffing in the FD CRC region.
+- **Error handling**: Bit error, ACK error, Form error, and Stuff error detection.
+- **Fault confinement**: TEC/REC counter management and Error Active/Passive/Bus Off state transitions.
 
-#### 3.2.2 Human-in-the-Loop Validation
-It is important to note that the AI-generated content served only as a first draft. Every extracted requirement, its assigned shape, and its categorized scope underwent a comprehensive **manual review**. This step was critical to:
-- Verify the technical accuracy of the AI's interpretation of protocol nuances.
-- Refine the categorization where the standard's wording was ambiguous.
-- Ensure that the resulting Verification Plan provides a reliable and authoritative basis for subsequent VHDL implementation and testbench development.
+### 3.2 Requirement Taxonomy
 
-#### 3.2.3 Design Rationale and Tooling
-NOTE: Not quite right. TOML was selected as a format because its eazy to read and edit manually can also be parsed by python tools (tomlkit) so MCP tools could be written to handle the manipulation on behalf of the AI agent, preventing "context window bloat" and ensuring consistency. The specific metadata fields (columns) in the TOML schema were designed to drive the verification workflow.
+A key design decision was the development of a two-axis taxonomy to classify each requirement by its **shape** and **scope**. This taxonomy determines both *how* a requirement is verified and *what environment* is needed.
 
-The choice of **TOML (Tom's Obvious Minimal Language)** as the storage format for the Verification Plan was deliberate. TOML is a structured data format that is exceptionally easy for both humans and LLMs to read and write. Its line-based structure for table keys minimizes merge conflicts and allows the AI agent to perform surgical updates without corrupting the file structure.
+**Shape** classifies the verification primitive. These categories draw on established concepts from formal verification theory:
 
-The specific metadata fields (columns) in the TOML schema were designed to drive the verification workflow:
-- **Shape**: Directly maps the requirement to a verification primitive (e.g., `invariant` maps to a concurrent assertion, `reachability` maps to a coverage point).
-- **Scope**: Defines the required verification environment (e.g., `frame`-scope requirements are verified at the bit-stream interface, while `bus`-scope requirements require a multi-node simulation).
-- **Layer**: Aligns the requirement with the architectural sub-layer (LLC, MAC, PCS), facilitating a "divide and conquer" approach to implementation.
+- **Triggered**: A precondition/event/postcondition triplet that translates directly into a directed test procedure — establish the precondition, apply the event, assert the postcondition. This structure follows the Hoare triple formalism {P} S {Q} [@hoare1969].
+- **Invariant**: A property that must hold at all times (e.g., "the SOF bit shall always be dominant"), mapping to concurrent assertions or monitors.
+- **Liveness**: A property asserting that something eventually happens (e.g., "after detecting an error, the node shall eventually transmit an error flag"), requiring temporal reasoning [@alpern1985].
+- **Reachability**: A property asserting that a state or condition *can* be reached (e.g., "the node shall be capable of entering Bus Off"), mapping to coverage points.
 
-To maintain the integrity of this plan over time, a suite of **Model Context Protocol (MCP) tools** was developed. These tools allow for automated renumbering, consistency checking, and statistics generation directly within the developer's environment. By offloading these mechanical tasks to specialized tools, we ensure that the Verification Plan remains consistent and prevent "context window bloat" by providing the AI agent with summarized views rather than the entire raw file for every operation.
+**Scope** defines the required verification environment:
 
-### 3.3 Verification Strategy
-We employ a layered verification approach:
-- **Unit Testing**: Individual modules (Serializer, CRC, Bit Stuffer) are verified in isolation.
-- **Protocol Testing**: `tx_can_protocol_tb` verifies frame structure and field timing.
-- **Integrated Testing**: `tx_can_tb` verifies end-to-end transmission, retries, and abort scenarios.
+- **Frame**: Verified by inspecting a single transmitted bit-stream in isolation.
+- **Node**: Requires visibility into internal state such as error counters or FSM transitions.
+- **Bus**: Requires a multi-node simulation with arbitration and acknowledge behavior.
+
+Together, these two axes allow each requirement to be mapped to the appropriate testbench level and verification technique without ambiguity.
+
+### 3.3 Verification Plan Construction
+
+With the taxonomy defined, the next step was to extract and classify the normative requirements from the ISO standard text. This was a two-stage process combining AI-assisted extraction with manual engineering review.
+
+#### 3.3.1 AI-Assisted Extraction
+
+The initial extraction of normative "shall" and "should" statements was performed using a **Large Language Model (LLM)**. The ISO standard was provided as a searchable markdown document, and the LLM was prompted to identify normative clauses, extract their wording verbatim, assign a shape and scope classification, and format the result as TOML entries. This task is well-suited for LLMs because it involves processing large volumes of technical text, identifying structural patterns (normative vs. informative language), and reformatting unstructured prose into a consistent structured format. The use of AI significantly accelerated the initial drafting phase and reduced the risk of human oversight during the translation from standard text to a machine-readable plan.
+
+#### 3.3.2 Human-in-the-Loop Validation
+
+The AI-generated extraction served only as a first draft. Every requirement — its wording, assigned shape, scope, layer, and flags — underwent a comprehensive **manual review**. This step was critical to:
+
+- Verify the technical accuracy of the AI's interpretation of protocol nuances (e.g., distinguishing between transmitter-side and receiver-side obligations).
+- Refine the shape/scope classification where the standard's wording was ambiguous or where a single clause contained multiple independent requirements (flagged as `COMPOUND`).
+- Identify requirements that depend on components outside the TX pipeline (flagged as `EXTERNAL_DEP`) or that are advisory rather than mandatory (flagged as `SHOULD`).
+- Ensure that the resulting plan provides a reliable and authoritative basis for the subsequent VHDL implementation and testbench development.
+
+### 3.4 Storage Format and Tooling
+
+The Verification Plan is stored as a single TOML file (`verification_plan/verification_plan.toml`). TOML was selected for two practical reasons: (1) it is easy to read and edit by hand — each requirement is a self-contained `[[requirement]]` block with one key per line, making version-control diffs clean and merge conflicts rare; and (2) it can be parsed and manipulated programmatically by Python tools (specifically `tomlkit`, which preserves comments and formatting on round-trip). This second property was essential for building the automated tooling described below.
+
+Each requirement entry carries metadata fields designed to drive the verification workflow:
+
+| Field | Purpose |
+| :--- | :--- |
+| `shape` | Classification axis described in Section 3.2 — determines the verification primitive. |
+| `scope` | Classification axis described in Section 3.2 — determines the test environment. |
+| `layer` | Architectural sub-layer (LLC, MAC, PCS, or FCE), enabling a divide-and-conquer approach where each testbench targets one layer. |
+| `precondition` / `event` / `postcondition` | For *triggered*-shape requirements, these three fields form a testable triplet that translates directly into a test procedure. |
+| `coverage_target` | Describes how to verify the requirement (e.g., "assert CRC field matches polynomial output", "cover all four frame formats"). |
+| `flags` | Marks special properties: `COMPOUND`, `AMBIGUOUS`, `EXTERNAL_DEP`, `SHOULD`, or `DOC_ONLY`. These flags inform review priority and test generation strategy. |
+| `label` / `file` | Link the requirement to its implementing assertion label or testbench procedure, providing full traceability from standard clause to RTL. |
+
+To maintain the integrity of the plan as it evolves, a **Model Context Protocol (MCP) server** (`mcp_tools/verification_plan_manager.py`) was developed. The server exposes query, update, insert, delete, and statistics operations as tool calls that the AI coding agent can invoke directly within the development environment. Each write operation creates an automatic backup and validates field values against the schema before committing changes. This design serves two purposes: first, the agent receives summarized query results rather than the entire raw file, avoiding context window bloat; and second, constraining the agent to narrow, validated operations minimizes the risk of data corruption and hallucination — rather than asking the LLM to rewrite a large structured file (where it may silently drop entries, fabricate field values, or break TOML syntax), each MCP call targets a single atomic change with schema-level validation, making such errors structurally impossible.
+
+### 3.5 Verification Strategy
+
+The verification plan drives a layered testing strategy, where each level targets a different scope of requirements:
+
+- **Unit Testing**: Individual modules (Serializer, CRC, Bit Stuffer) are verified in isolation against *frame*-scope requirements.
+- **Protocol Testing**: `tx_can_protocol_tb` verifies frame structure and field timing, covering *node*-scope requirements that involve FSM state and internal counters.
+- **Integrated Testing**: `tx_can_tb` verifies end-to-end transmission, retries, and abort scenarios, targeting *bus*-scope requirements that involve multi-node arbitration and acknowledgment.
 
 ---
 
@@ -225,6 +271,5 @@ Summary of work completed and how objectives were met.
 ---
 
 ## 9. References
-- ISO 11898-1:2024 Standard
-- OSVVM Documentation
-- GHDL Documentation
+
+<!-- Generated automatically by Pandoc from docs/references.bib -->

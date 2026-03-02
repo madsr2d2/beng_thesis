@@ -1,15 +1,15 @@
 """
-requirements_table.py  --  Manage CAN requirements TOML file
+verification_plan_table.py  --  Manage CAN verification plan TOML file
 
 Usage:
-    python requirements_table.py                              # saves requirements.html
-    python requirements_table.py --toml path/to/file.toml     # specify TOML file
-    python requirements_table.py --html out.html
-    python requirements_table.py --markdown out.md
-    python requirements_table.py --renumber                   # renumber IDs sequentially
-    python requirements_table.py --delete REQ-LLC-005         # delete requirement and renumber
-    python requirements_table.py --exclude 'flags=DOC_ONLY'   # exclude rows matching pattern
-    python requirements_table.py --include 'cat=LLC'          # include only rows matching pattern
+    python verification_plan_table.py                              # saves verification_plan.html
+    python verification_plan_table.py --toml path/to/file.toml     # specify TOML file
+    python verification_plan_table.py --html out.html
+    python verification_plan_table.py --markdown out.md
+    python verification_plan_table.py --renumber                   # renumber IDs sequentially
+    python verification_plan_table.py --delete REQ-LLC-005         # delete requirement and renumber
+    python verification_plan_table.py --exclude 'flags=DOC_ONLY'   # exclude rows matching pattern
+    python verification_plan_table.py --include 'cat=LLC'          # include only rows matching pattern
 """
 
 import argparse
@@ -25,12 +25,12 @@ _SCRIPT_DIR = Path(__file__).parent
 
 
 def _find_toml() -> str:
-    """Auto-detect requirements TOML file."""
-    for name in ["requirements.toml"]:
+    """Auto-detect verification plan TOML file."""
+    for name in ["verification_plan.toml"]:
         path = _SCRIPT_DIR / name
         if path.exists():
             return str(path)
-    return "requirements.toml"
+    return "verification_plan.toml"
 
 
 # -- Load TOML ----------------------------------------------------------------
@@ -97,16 +97,23 @@ CAT_CSS = {
 }
 
 
-def export_html(df: pd.DataFrame, path: str):
+def export_html(df: pd.DataFrame, path: str, cols=None):
     """Export requirements as interactive HTML table."""
-    out = df[EXPORT_COLS].fillna("").copy()
+    out = df[cols or EXPORT_COLS].fillna("").copy()
     out = out.reset_index(drop=True)
 
     def style_cat(cat_val):
         return CAT_CSS.get(cat_val, "")
 
+    active_cols = set(out.columns)
+    nowrap_cols = [
+        c
+        for c in ["id", "cat", "side", "iso_reference", "format", "label", "file"]
+        if c in active_cols
+    ]
+
     styled = (
-        out.style.map(style_cat, subset=["cat"])
+        out.style.map(style_cat, subset=["cat"] if "cat" in active_cols else [])
         .hide(axis="index")
         .set_table_styles(
             [
@@ -130,19 +137,9 @@ def export_html(df: pd.DataFrame, path: str):
             ]
         )
         .set_properties(**{"white-space": "normal", "word-wrap": "break-word"})
-        .set_properties(
-            subset=[
-                "id",
-                "cat",
-                "side",
-                "iso_reference",
-                "format",
-                "label",
-                "file",
-            ],
-            **{"white-space": "nowrap"},
-        )
     )
+    if nowrap_cols:
+        styled = styled.set_properties(subset=nowrap_cols, **{"white-space": "nowrap"})
 
     table_html = styled.to_html()
     html = f"""<!DOCTYPE html>
@@ -198,9 +195,9 @@ def export_html(df: pd.DataFrame, path: str):
 # -- Markdown export -----------------------------------------------------------
 
 
-def export_markdown(df: pd.DataFrame, path: str):
+def export_markdown(df: pd.DataFrame, path: str, cols=None):
     """Export requirements as Markdown table."""
-    out = df[EXPORT_COLS].fillna("").reset_index(drop=True)
+    out = df[cols or EXPORT_COLS].fillna("").reset_index(drop=True)
     header = "| " + " | ".join(out.columns) + " |"
     sep = "| " + " | ".join(["---"] * len(out.columns)) + " |"
     rows = []
@@ -289,8 +286,8 @@ def main():
         "--html",
         metavar="FILE",
         nargs="?",
-        const="requirements.html",
-        help="Save as HTML (default: requirements.html)",
+        const="verification_plan.html",
+        help="Save as HTML (default: verification_plan.html)",
     )
     parser.add_argument("--markdown", metavar="FILE", help="Save as Markdown table")
     parser.add_argument(
@@ -310,6 +307,12 @@ def main():
         metavar="COL=PAT",
         action="append",
         help="Include only rows where COL contains PAT (e.g. --include 'cat=LLC')",
+    )
+    parser.add_argument(
+        "--hide",
+        metavar="COL",
+        action="append",
+        help="Hide a column from output (e.g. --hide notes --hide flags)",
     )
     args = parser.parse_args()
 
@@ -350,16 +353,20 @@ def main():
 
     df = df.reset_index(drop=True)
 
+    cols = EXPORT_COLS
+    if args.hide:
+        cols = [c for c in cols if c not in args.hide]
+
     # Default to HTML if no output format given
     if not args.html and not args.markdown:
-        args.html = "requirements.html"
+        args.html = "verification_plan.html"
 
     if args.html:
-        export_html(df, args.html)
+        export_html(df, args.html, cols=cols)
         print(f"Saved {len(df)} requirements to {args.html}")
 
     if args.markdown:
-        export_markdown(df, args.markdown)
+        export_markdown(df, args.markdown, cols=cols)
         print(f"Saved {len(df)} requirements to {args.markdown}")
 
 

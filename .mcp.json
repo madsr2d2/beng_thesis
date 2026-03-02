@@ -1,9 +1,9 @@
 {
   "mcpServers": {
-    "requirements": {
+    "verification_plan": {
       "type": "stdio",
       "command": "python",
-      "args": ["-m", "mcp_tools.requirements_manager"],
+      "args": ["-m", "mcp_tools.verification_plan_manager"],
       "env": {
         "PYTHONPATH": "${PWD}"
       }

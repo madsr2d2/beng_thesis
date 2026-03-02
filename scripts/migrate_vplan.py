@@ -101,4 +101,4 @@ def migrate_vplan(input_file: str, output_file: str):
 
 if __name__ == "__main__":
     # Ensure you have your old file named 'old_plan.toml' in the same folder
-    migrate_vplan("old_plan.toml", "requirements.toml")
+    migrate_vplan("old_plan.toml", "verification_plan.toml")

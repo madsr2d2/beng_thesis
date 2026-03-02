@@ -38,7 +38,7 @@ src/                    # Design and testbench VHDL files
 mcp_tools/              # Model Context Protocol servers (extensible)
 ├── __init__.py         # Package initialization
 ├── requirements.txt    # MCP tools dependencies (mcp, tomlkit)
-├── requirements_manager.py  # Requirements TOML management server
+├── verification_plan_manager.py  # Verification plan TOML management server
 └── [future tools]      # Additional MCP servers (analysis, simulation, etc.)
 
 gtk_wave/               # GTKWave configuration files
@@ -46,9 +46,9 @@ docs/                   # Documentation and standards reference
 ├── md_out/              # Searchable markdown versions of standards (ISO 11898-1, etc.)
 OsvvmLibraries/         # OSVVM simulation framework (external)
 sim/                    # Generated simulation artifacts
-requirements/           # Requirements specification and tooling
-├── requirements.toml   # 122 ISO 11898-1:2015 requirements (CC/FD)
-└── requirements_table.py # Export to HTML/Markdown tables
+verification_plan/      # Verification plan specification and tooling
+├── verification_plan.toml   # 122 ISO 11898-1:2015 requirements (CC/FD)
+└── verification_plan_table.py # Export to HTML/Markdown tables
 ```
 
 ---
@@ -94,15 +94,15 @@ make clean
 
 ---
 
-## Requirements Management
+## Verification Plan Management
 
-ISO 11898-1:2015 CAN system requirements are tracked in `requirements/requirements.toml` — a structured TOML file with sequential numeric IDs organized by category and side. The file header documents all keys and valid values.
+ISO 11898-1:2015 CAN system requirements are tracked in `verification_plan/verification_plan.toml` — a structured TOML file with sequential numeric IDs organized by category and side. The file header documents all keys and valid values.
 
-### Requirements File Format
+### Verification Plan File Format
 
-**File**: `requirements/requirements.toml`
+**File**: `verification_plan/verification_plan.toml`
 **Structure**: 123 requirements (IDs 001–123), sequential with no gaps
-**Scope**: CAN Classic (CC) and CAN FD only — CB, CE, FB, and FE frames. CAN XL frames are strictly out of scope and must NOT be added to the requirements plan.
+**Scope**: CAN Classic (CC) and CAN FD only — CB, CE, FB, and FE frames. CAN XL frames are strictly out of scope and must NOT be added to the verification plan.
 
 **Categories**: FRM (frame), ERR (error), TMG (timing), CRC (checksum)
 **Sides**: TX (transmitter), RX (receiver)
@@ -111,20 +111,20 @@ ISO 11898-1:2015 CAN system requirements are tracked in `requirements/requiremen
 **Verification**: simulation, coverage, waveform, assertion
 **Status**: verified, implemented, unverified, diagnostic
 
-### Requirements Management via MCP Server (Recommended)
+### Verification Plan Management via MCP Server (Recommended)
 
-Use the Requirements Manager MCP server for safe, atomic operations. The server handles validation, backup, and logging automatically.
+Use the Verification Plan Manager MCP server for safe, atomic operations. The server handles validation, backup, and logging automatically.
 
 **Setup (one-time):**
 
 ```bash
-pip install -r requirements/mcp_requirements.txt
+pip install -r mcp_tools/requirements.txt
 ```
 
 **Start the MCP server:**
 
 ```bash
-python requirements/requirements_mcp_server.py
+python -m mcp_tools.verification_plan_manager
 ```
 
 **Available Tools** (use via Claude Code MCP integration):
@@ -173,32 +173,32 @@ For direct CLI access without MCP:
 **Query requirements** (Python + tomllib):
 ```python
 import tomllib
-with open('requirements/requirements.toml', 'rb') as f:
+with open('verification_plan/verification_plan.toml', 'rb') as f:
     data = tomllib.load(f)
 frm = {k: v for k, v in data['requirements'].items() if v['category'] == 'FRM'}
 ```
 
 **Delete via script:**
 ```bash
-python requirements/requirements_table.py --delete 011
+python verification_plan/verification_plan_table.py --delete 011
 ```
 
 **Renumber via script:**
 ```bash
-python requirements/requirements_table.py --renumber
+python verification_plan/verification_plan_table.py --renumber
 ```
 
-### Exporting Requirements as Tables
+### Exporting Verification Plan as Tables
 
 ```bash
 # HTML table with sorting and color-coded status/priority (default)
-python requirements/requirements_table.py --toml requirements/requirements.toml
+python verification_plan/verification_plan_table.py --toml verification_plan/verification_plan.toml
 
 # HTML to specific file
-python requirements/requirements_table.py --toml requirements/requirements.toml --html table.html
+python verification_plan/verification_plan_table.py --toml verification_plan/verification_plan.toml --html table.html
 
 # Markdown table
-python requirements/requirements_table.py --toml requirements/requirements.toml --markdown table.md
+python verification_plan/verification_plan_table.py --toml verification_plan/verification_plan.toml --markdown table.md
 ```
 
 ### Key Points
@@ -208,7 +208,7 @@ python requirements/requirements_table.py --toml requirements/requirements.toml 
 - **Use `--renumber` to fix ID gaps** after manual edits
 - **IDs are sequential** (001–NNN) with no gaps; the script maintains this invariant
 - **XL frames are out of scope** — do not add XL-related requirements
-- **All keys and valid values** are documented in the `requirements.toml` header comment
+- **All keys and valid values** are documented in the `verification_plan.toml` header comment
 
 ---
 
@@ -216,7 +216,7 @@ python requirements/requirements_table.py --toml requirements/requirements.toml 
 
 ### Overview
 
-MCP servers are located in `mcp_tools/` for easy discovery and extensibility. Each tool is a standalone Python server that handles a specific domain (requirements, simulation analysis, coverage reporting, etc.).
+MCP servers are located in `mcp_tools/` for easy discovery and extensibility. Each tool is a standalone Python server that handles a specific domain (verification plan, simulation analysis, coverage reporting, etc.).
 
 ### Setup
 
@@ -235,10 +235,10 @@ Claude Code automatically loads `.mcp.json` from the project root. The configura
 ```json
 {
   "mcpServers": {
-    "requirements": {
+    "verification_plan": {
       "type": "stdio",
       "command": "python",
-      "args": ["-m", "mcp_tools.requirements_manager"],
+      "args": ["-m", "mcp_tools.verification_plan_manager"],
       "env": {
         "PYTHONPATH": "${PWD}"
       }
@@ -251,9 +251,9 @@ Claude Code discovers and loads this automatically when opening the project — 
 
 ### Available Tools
 
-#### requirements_manager
+#### verification_plan_manager
 
-**Purpose**: Safe, atomic operations on requirements.toml
+**Purpose**: Safe, atomic operations on verification_plan.toml
 
 **Tools provided**:
 - `query_requirements` — Filter by category, side, status, priority, verification

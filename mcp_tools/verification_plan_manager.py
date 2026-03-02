@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-CAN Requirements MCP Server
+CAN Verification Plan MCP Server
 
-Manages ISO-aligned requirements in TOML format.
+Manages ISO-aligned verification plan in TOML format.
 Handles querying, updating, inserting, deleting, and validating requirements.
 
 Format structure:
@@ -17,7 +17,7 @@ Format structure:
   ... etc ...
 
 Usage:
-    python -m mcp_tools.requirements_manager
+    python -m mcp_tools.verification_plan_manager
 """
 
 import logging
@@ -39,10 +39,10 @@ logger = logging.getLogger(__name__)
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 _PROJECT_ROOT = Path(__file__).parent.parent
-_REQUIREMENTS_DIR = _PROJECT_ROOT / "requirements"
+_VPLAN_DIR = _PROJECT_ROOT / "verification_plan"
 
 # ── FastMCP Server ────────────────────────────────────────────────────────────
-mcp = FastMCP("requirements")
+mcp = FastMCP("verification_plan")
 
 
 # ── Requirements Manager ─────────────────────────────────────────────────────
@@ -341,15 +341,15 @@ def get_manager(toml_path: Optional[Path] = None):
     """Get or create a manager for the given TOML file."""
     if toml_path is None:
         for name in [
-            "requirements.toml",
+            "verification_plan.toml",
         ]:
-            path = _REQUIREMENTS_DIR / name
+            path = _VPLAN_DIR / name
             if path.exists():
                 toml_path = path
                 break
         if toml_path is None:
             raise FileNotFoundError(
-                f"No requirements TOML found in {_REQUIREMENTS_DIR}"
+                f"No verification plan TOML found in {_VPLAN_DIR}"
             )
 
     return RequirementsManager(toml_path)
@@ -619,7 +619,7 @@ def get_statistics(toml_path: Optional[str] = None) -> str:
 
 def main() -> None:
     """Start the MCP server using stdio transport."""
-    logger.info("Starting Requirements MCP server")
+    logger.info("Starting Verification Plan MCP server")
     mcp.run(transport="stdio")
 
 
