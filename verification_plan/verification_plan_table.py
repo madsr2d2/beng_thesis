@@ -52,17 +52,19 @@ def load_toml(path: str) -> pd.DataFrame:
                 "layer": fields.get("layer", ""),
                 "side": fields.get("side", ""),
                 "original_wording": fields.get("original_wording", ""),
-                "source_clause": fields.get("source_clause", ""),
-                "format_applicability": fields.get("format_applicability", ""),
+                "iso_ref": fields.get("source_clause", ""),
+                "format": fields.get("format_applicability", ""),
                 "notes": fields.get("notes", ""),
-                "precondition": fields.get("precondition", ""),
+                "preconditions": fields.get("precondition", ""),
                 "event": fields.get("event", ""),
-                "postcondition": fields.get("postcondition", ""),
+                "postconditions": fields.get("postcondition", ""),
                 "shape": fields.get("shape", ""),
                 "scope": fields.get("scope", ""),
                 "flags": ", ".join(fields.get("flags", [])),
                 "label": fields.get("label", ""),
                 "file": fields.get("file", ""),
+                "observability": fields.get("observability", ""),
+                "observability_rational": fields.get("observability_rationale", ""),
             }
         )
 
@@ -73,20 +75,22 @@ def load_toml(path: str) -> pd.DataFrame:
 
 EXPORT_COLS = [
     "id",
+    "original_wording",
+    "iso_ref",
     "layer",
     "side",
-    "shape",
     "scope",
-    "original_wording",
-    "source_clause",
-    "format_applicability",
-    "notes",
-    "precondition",
-    "event",
-    "postcondition",
+    "format",
+    "shape",
     "flags",
-    "label",
+    "observability",
+    "observability_rational",
+    "preconditions",
+    "event",
+    "postconditions",
     "file",
+    "label",
+    "notes",
 ]
 
 CAT_CSS = {
@@ -108,7 +112,7 @@ def export_html(df: pd.DataFrame, path: str, cols=None):
     active_cols = set(out.columns)
     nowrap_cols = [
         c
-        for c in ["id", "layer", "side", "source_clause", "format_applicability", "label", "file"]
+        for c in ["id", "layer", "side", "iso_ref", "format", "label", "file"]
         if c in active_cols
     ]
 

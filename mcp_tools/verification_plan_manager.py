@@ -12,6 +12,8 @@ Format structure:
   scope = "frame" | "node" | "bus"
   layer = "LLC" | "MAC" | "PCS" | "FCE"
   flags = ["COMPOUND", "AMBIGUOUS", "EXTERNAL_DEP", "SHOULD", "DOC_ONLY"]
+  observability = "external" | "derived" | "internal" | ""
+  observability_rationale = ""  # Justification for the observability classification
   label = ""  # PSL assertion label or testbench procedure name
   file = ""   # Target VHDL source file
   ... etc ...
@@ -55,6 +57,7 @@ class RequirementsManager:
     VALID_SCOPES = {"frame", "node", "bus"}
     VALID_LAYERS = {"LLC", "MAC", "PCS", "FCE"}
     VALID_FLAGS = {"COMPOUND", "AMBIGUOUS", "EXTERNAL_DEP", "SHOULD", "DOC_ONLY"}
+    VALID_OBSERVABILITIES = {"external", "derived", "internal", ""}
     VALID_FIELD_UPDATES = {
         "shape",
         "scope",
@@ -71,6 +74,8 @@ class RequirementsManager:
         "original_wording",
         "source_clause",
         "format_applicability",
+        "observability",
+        "observability_rationale",
     }
 
     def __init__(self, toml_path: Path):
@@ -104,10 +109,12 @@ class RequirementsManager:
         layer: Optional[str] = None,
         side: Optional[str] = None,
         has_flags: Optional[str] = None,
+        observability: Optional[str] = None,
         is_blank_label: Optional[bool] = None,
         is_blank_file: Optional[bool] = None,
+        is_blank_observability: Optional[bool] = None,
     ) -> list[dict]:
-        """Query requirements by shape, scope, layer, side, and flags."""
+        """Query requirements by shape, scope, layer, side, flags, and observability."""
         data = self._load()
         requirements = data.get("requirement", [])
 
@@ -120,6 +127,8 @@ class RequirementsManager:
             filters["layer"] = layer
         if side:
             filters["side"] = side
+        if observability:
+            filters["observability"] = observability
 
         results = []
         for req in requirements:
@@ -137,6 +146,9 @@ class RequirementsManager:
                     continue
             if is_blank_file is not None:
                 if (req.get("file", "") == "") != is_blank_file:
+                    continue
+            if is_blank_observability is not None:
+                if (req.get("observability", "") == "") != is_blank_observability:
                     continue
 
             results.append(req)
@@ -166,6 +178,10 @@ class RequirementsManager:
             raise ValueError(f"Invalid scope '{value}'. Valid: {self.VALID_SCOPES}")
         if field == "layer" and value not in self.VALID_LAYERS:
             raise ValueError(f"Invalid layer '{value}'. Valid: {self.VALID_LAYERS}")
+        if field == "observability" and value not in self.VALID_OBSERVABILITIES:
+            raise ValueError(
+                f"Invalid observability '{value}'. Valid: {self.VALID_OBSERVABILITIES}"
+            )
 
         self._backup()
         data = self._load()
@@ -188,7 +204,7 @@ class RequirementsManager:
         self._save(data)
         return updated_req
 
-    def bulk_update(self, field: str, value, **filters) -> dict:
+    def bulk_update(self, field: str, value, **filters) -> dict:  # type: ignore[return]
         """Update a field on all requirements matching the given filters."""
         if field not in self.VALID_FIELD_UPDATES:
             raise ValueError(
@@ -237,6 +253,9 @@ class RequirementsManager:
             "by_shape": dict(Counter(r.get("shape", "unknown") for r in requirements)),
             "by_scope": dict(Counter(r.get("scope", "unknown") for r in requirements)),
             "by_layer": dict(Counter(r.get("layer", "unknown") for r in requirements)),
+            "by_observability": dict(
+                Counter(r.get("observability", "") or "unset" for r in requirements)
+            ),
             "flags_present": dict(
                 Counter(flag for r in requirements for flag in r.get("flags", []))
             ),
@@ -244,6 +263,9 @@ class RequirementsManager:
                 1 for r in requirements if r.get("label", "") == ""
             ),
             "blank_file_count": sum(1 for r in requirements if r.get("file", "") == ""),
+            "blank_observability_count": sum(
+                1 for r in requirements if not r.get("observability", "")
+            ),
         }
 
     def delete_requirement(self, req_id: str) -> dict:
@@ -319,6 +341,8 @@ class RequirementsManager:
             "side": "",
             "format_applicability": "",
             "flags": [],
+            "observability": "",
+            "observability_rationale": "",
             "precondition": "",
             "event": "",
             "postcondition": "",
@@ -365,8 +389,10 @@ def query_requirements(
     layer: Optional[str] = None,
     side: Optional[str] = None,
     has_flags: Optional[str] = None,
+    observability: Optional[str] = None,
     is_blank_label: Optional[bool] = None,
     is_blank_file: Optional[bool] = None,
+    is_blank_observability: Optional[bool] = None,
     toml_path: Optional[str] = None,
 ) -> str:
     """Query requirements with optional filters.
@@ -377,8 +403,10 @@ def query_requirements(
         layer: LLC, MAC, PCS, or FCE
         side: transmitter, receiver, or both
         has_flags: Comma-separated flags (COMPOUND, AMBIGUOUS, EXTERNAL_DEP, SHOULD, DOC_ONLY)
+        observability: external, derived, or internal
         is_blank_label: if true, return only requirements with label=""
         is_blank_file: if true, return only requirements with file=""
+        is_blank_observability: if true, return only requirements with observability=""
         toml_path: Path to requirements file (auto-detected if not provided)
     """
     manager = get_manager(Path(toml_path) if toml_path else None)
@@ -388,13 +416,17 @@ def query_requirements(
         layer=layer,
         side=side,
         has_flags=has_flags,
+        observability=observability,
         is_blank_label=is_blank_label,
         is_blank_file=is_blank_file,
+        is_blank_observability=is_blank_observability,
     )
 
     lines = []
     for req in results:
         line = f"{req.get('id', 'UNKNOWN')}: [{req.get('layer', '?')}/{req.get('shape', '?')}]"
+        if req.get("observability"):
+            line += f" obs={req['observability']}"
         if req.get("flags"):
             line += f" {req['flags']}"
         lines.append(line)
@@ -427,6 +459,9 @@ def get_requirement(req_id: str, toml_path: Optional[str] = None) -> str:
     lines.append(f"Side: {req.get('side', 'N/A')}")
     lines.append(f"Format: {req.get('format_applicability')}")
     lines.append(f"Flags: {req.get('flags', [])}")
+    lines.append(f"Observability: {req.get('observability', '[UNSET]')}")
+    if req.get("observability_rationale"):
+        lines.append(f"Observability rationale:\n  {req.get('observability_rationale')}")
     lines.append(f"Label: {req.get('label', '[BLANK]')}")
     lines.append(f"File: {req.get('file', '[BLANK]')}")
     lines.append("")
@@ -474,8 +509,10 @@ def bulk_update(
     scope: Optional[str] = None,
     layer: Optional[str] = None,
     has_flags: Optional[str] = None,
+    observability: Optional[str] = None,
     is_blank_label: Optional[bool] = None,
     is_blank_file: Optional[bool] = None,
+    is_blank_observability: Optional[bool] = None,
     toml_path: Optional[str] = None,
 ) -> str:
     """Bulk update a field on requirements matching filters.
@@ -487,8 +524,10 @@ def bulk_update(
         scope: Filter by scope
         layer: Filter by layer
         has_flags: Filter by flags (CSV)
+        observability: Filter by observability (external, derived, internal)
         is_blank_label: Filter by blank label
         is_blank_file: Filter by blank file
+        is_blank_observability: Filter by blank observability field
         toml_path: Path to requirements file (auto-detected if not provided)
     """
     manager = get_manager(Path(toml_path) if toml_path else None)
@@ -499,8 +538,10 @@ def bulk_update(
         scope=scope,
         layer=layer,
         has_flags=has_flags,
+        observability=observability,
         is_blank_label=is_blank_label,
         is_blank_file=is_blank_file,
+        is_blank_observability=is_blank_observability,
     )
     return (
         f"Updated {result['count']} requirements:\n{', '.join(result['updated_ids'])}"
@@ -550,6 +591,8 @@ def insert_requirement(
     side: str = "",
     source_clause: str = "",
     format_applicability: str = "",
+    observability: str = "",
+    observability_rationale: str = "",
     precondition: str = "",
     event: str = "",
     postcondition: str = "",
@@ -567,6 +610,8 @@ def insert_requirement(
         side: transmitter, receiver, or both
         source_clause: ISO 11898-1 section reference
         format_applicability: Comma-separated formats (e.g. "CB, CE, FB, FE")
+        observability: external, derived, or internal
+        observability_rationale: Justification for the observability classification
         precondition: What must be true before the triggering event
         event: The condition or action being tested
         postcondition: The observable outcome to assert
@@ -583,6 +628,8 @@ def insert_requirement(
         side=side,
         source_clause=source_clause,
         format_applicability=format_applicability,
+        observability=observability,
+        observability_rationale=observability_rationale,
         precondition=precondition,
         event=event,
         postcondition=postcondition,
@@ -607,9 +654,11 @@ def get_statistics(toml_path: Optional[str] = None) -> str:
         f"By shape: {stats['by_shape']}",
         f"By scope: {stats['by_scope']}",
         f"By layer: {stats['by_layer']}",
+        f"By observability: {stats['by_observability']}",
         f"Flags present: {stats['flags_present']}",
         f"Blank label: {stats['blank_label_count']}",
         f"Blank file: {stats['blank_file_count']}",
+        f"Blank observability: {stats['blank_observability_count']}",
     ]
     return "\n".join(lines)
 

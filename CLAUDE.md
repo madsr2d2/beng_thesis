@@ -110,6 +110,25 @@ ISO 11898-1:2015 CAN system requirements are tracked in `verification_plan/verif
 **Priorities**: critical, high, medium, low
 **Verification**: simulation, coverage, waveform, assertion
 **Status**: verified, implemented, unverified, diagnostic
+**Observability**: external, derived, internal (layer-level black-box testability axis)
+
+  Observability is defined **relative to the layer's own canonical interface boundary**
+  (not the top-level CAN node). The canonical interfaces are defined in
+  `docs/canonical_layer_interfaces.md` (ISO 11898-1:2015 service primitives).
+
+  - `external`: postcondition is fully observable at the layer's own boundary, either as
+    a named primitive parameter, or as the *timing* of a primitive call where that timing
+    is fully determined by configuration generics and stimulus inputs known to the testbench.
+    *Example: sample point timing — when PCS_Data.Indicate fires equals brp×(sync_seg +
+    prop_seg + phase_seg1), all config generics, so testbench can predict and verify it.*
+  - `derived`: effect manifests at the layer boundary but verifying it requires knowledge
+    of a non-trivial internal algorithm beyond reading config generics and measuring timing.
+    *Example: CRC content — bits appear in Output_Unit calls but correctness requires
+    applying the specific polynomial to the data.*
+  - `internal`: postcondition is a structural definition, a constraint on valid config
+    inputs, or has no manifestation at any layer boundary even indirectly.
+    *Example: "Phase_Seg2 shall be ≥ IPT + SJW" — constrains what configurations are
+    valid, not what the layer outputs for a given valid configuration.*
 
 ### Verification Plan Management via MCP Server (Recommended)
 
