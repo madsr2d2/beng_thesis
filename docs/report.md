@@ -190,7 +190,7 @@ config:
   theme: dark
   curve: linear
 ---
-flowchart LR
+flowchart TD
     User["User Application<br/>(Avalon-ST)"]
     FCE["Fault Confinement<br/>Entity (FCE)"]
 
@@ -212,8 +212,8 @@ flowchart LR
         end
 
         %% Control & Status paths
-        FCE -.-> TX_LLC & TX_MAC & TX_PCS
-        FCE -.-> RX_LLC & RX_MAC & RX_PCS
+        FCE <==> TX_LLC & TX_MAC & TX_PCS
+        FCE <==> RX_LLC & RX_MAC & RX_PCS
     end
 
     User <==> TX_LLC
