@@ -4,10 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a B.Eng thesis project implementing a **CAN (Controller Area Network) bus transmitter** in VHDL-2008, following the **ISO 11898-1:2015 standard**. The project includes:
+This is a B.Eng thesis project implementing a **full CAN (Controller Area Network) node** with both TX and RX pipelines in VHDL-2008, following the **ISO 11898-1:2015 standard**. The project includes:
 
 - Core CAN/CAN-FD frame structure and utilities (`can_pkg.vhd`)
 - MAC layer transmit serializer (`tx_mac_ser.vhd`)
+- MAC layer receive deserializer and processing
 - Bit stuffing logic for CAN protocol (`bit_stuffer.vhd`, `bit_stuffer_fd.vhd`)
 - Comprehensive unit tests (29 tests in can_pkg_tb, 5 in tx_mac_ser_tb)
 - GHDL simulator integration with OSVVM library framework
@@ -650,3 +651,35 @@ See `OsvvmLibraries/README.md` for OSVVM build and usage.
 
 **Writing style (emails, reports, prose):**
 - Do not use semicolons or em dashes. Use periods or plain hyphens (-) instead.
+
+### Markdown Report Format (for `scripts/md_to_pdf.sh`)
+
+- Use Pandoc markdown with YAML front matter, including:
+  - `bibliography: references.bib`
+  - `csl: ieee.csl`
+  - `link-citations: true`
+- Use heading IDs for cross-references and section export:
+  - Top-level sections: `# Title {#sec:topic-name}`
+  - Do not hardcode numbering in headings. Pandoc applies numbering.
+- Reference sections with Pandoc crossref syntax:
+  - `@sec:topic-name`
+- Figures:
+  - Use figure IDs and captions so `pandoc-crossref` can label them:
+    - Mermaid: ```` ```{.mermaid #fig:my-figure caption="My caption"} ``` ````
+    - Image: `![My caption](img.png){#fig:my-figure}`
+  - Reference figures as `@fig:my-figure`.
+- Tables:
+  - Add table caption lines with table IDs:
+    - `: Caption text. {#tbl:my-table}`
+  - Reference tables as `@tbl:my-table`.
+- Wide tables:
+  - Wrap wide table blocks in fenced div class `.landscape-tables`:
+    - `::: {.landscape-tables}` ... `:::`
+- TOC:
+  - Prefer Pandoc-generated TOC (script handles TOC generation).
+<!-- mtoc-start -->
+
+<!-- mtoc-end -->
+- Section selection (`--section`):
+  - Best reliability comes from `sec:` IDs in headings.
+  - Aliases like `design_and_architecture` are supported.
