@@ -647,3 +647,6 @@ See `OsvvmLibraries/README.md` for OSVVM build and usage.
 - Max line length: 120 characters
 - Code blocks: Always specify language (``` vhdl, ``` bash)
 - Bold (`**text**`) for emphasis, not underscores
+
+**Writing style (emails, reports, prose):**
+- Do not use semicolons or em dashes. Use periods or plain hyphens (-) instead.
