@@ -218,22 +218,22 @@ config:
     fontSize: "14px"
 ---
 flowchart TD
-    User["User"]
-    FCE["can_fce<br/>(FCE, ISO ref.: 8.1.3-8.1.4)"]
-    PMA["PMA Sub-layer<br/>(ISO ref.: 7.4)"]
-    subgraph Node ["CAN Node<br/>(DLL + PCS, ISO ref.: 6.1-6.3)"]
-        subgraph TX_Pipeline ["TX Pipeline"]
-            LLC_TX["can_llc_tx<br/>(LLC Sub-layer, ISO ref.: 6.4-6.5)"]
-            MAC_TX["can_mac_tx<br/>(MAC Sub-layer, ISO ref.: 6.6)"]
-            PCS_TX["can_pcs_tx<br/>(PCS Sub-layer, ISO ref.: 7.2-7.4)"]
+    User["**User**"]
+    FCE["**can_fce**<br/>─────────<br/>Fault confinement<br/>(FCE, ISO ref.: 8.1.3-8.1.4)"]
+    PMA["**PMA**<br/>─────────<br/>Physical medium attachment<br/>(ISO ref.: 7.4)"]
+    subgraph Node ["**CAN Node**<br/>─────────<br/>DLL + PCS, ISO ref.: 6.1-6.3"]
+        subgraph TX_Pipeline ["**TX Pipeline**"]
+            LLC_TX["**can_llc_tx**<br/>─────────<br/>Frame buffering & retransmission<br/>(LLC Sub-layer,ISO ref.: 6.4-6.5)"]
+            MAC_TX["**can_mac_tx**<br/>─────────<br/>Serialization, CRC & bit stuffing<br/>(MAC Sub-layer, ISO ref.: 6.6)"]
+            PCS_TX["**can_pcs_tx**<br/>─────────<br/>Bit timing & TDC<br/>(PCS Sub-layer, ISO ref.: 7.2-7.4)"]
 
             LLC_TX <==>|llc_mac_tx_if| MAC_TX <==>|mac_pcs_tx_if| PCS_TX
         end
 
-        subgraph RX_Pipeline ["RX Pipeline"]
-            PCS_RX["can_pcs_rx<br/>(PCS Sub-layer, ISO ref.: 7.2-7.4)"]
-            MAC_RX["can_mac_rx<br/>(MAC Sub-layer, ISO ref.: 6.6)"]
-            LLC_RX["can_llc_rx<br/>(LLC Sub-layer, ISO ref.: 6.4-6.5)"]
+        subgraph RX_Pipeline ["**RX Pipeline**"]
+            PCS_RX["**can_pcs_rx**<br/>─────────<br/>Bit timing & synchronization<br/>(PCS Sub-layer, ISO ref.: 7.2-7.4)"]
+            MAC_RX["**can_mac_rx**<br/>─────────<br/>Deserialization, CRC & destuffing<br/>(MAC Sub-layer, ISO ref.: 6.6)"]
+            LLC_RX["**can_llc_rx**<br/>─────────<br/>Frame delivery & filtering<br/>(LLC Sub-layer, ISO ref.: 6.4-6.5)"]
 
             PCS_RX <==>|pcs_mac_rx_if| MAC_RX <==>|mac_llc_rx_if| LLC_RX
         end
@@ -505,7 +505,6 @@ classDiagram
     note for protocol_constants "Fundamental protocol constants derived directly from ISO 11898-1.<br/>All frame layout constants, field widths, and type constraints<br/>in the design are derived from these values.<br/>Serves as the single source of truth for protocol specification."
     note for frame_layout_constants "cb_, ce_, fb_, fe_ format constants.<br/>Used by serialiser to calculate frame_params_t at frame ingestion.<br/>See Table X for complete listing."
     note for common_frame_bits "Fixed polarity protocol bits shared across all frame formats.<br/>Returned directly by get_current_bit for known protocol bit positions.<br/>See Table X for complete listing."
-    note for mac_frame_bit_name_t "Carries semantic protocol context across the MAC-PCS boundary.<br/>Enumeration literals appear by name in simulation waveforms,<br/>enabling human-readable protocol tracing without raw bit decoding."
     note for frame_params_t "Calculated once per frame by the serialiser from frame layout constants.<br/>Boolean fields are pre-computed predicates for get_current_bit if-guards,<br/>avoiding repeated condition evaluation on every bit clock cycle.<br/>Encapsulates all format-specific parameters allowing get_current_bit<br/>to resolve the correct mac_frame_bit_t for any bit counter value."
 
     position_t ..> protocol_constants : range from
@@ -558,15 +557,15 @@ config:
     fontSize: "14px"
 ---
 flowchart TD
-    LLC["can_llx_tx"]
-    PCS["can_pcs_tx"]
-    FCE["can_fce"]
+    LLC["**can_llc_tx**<br/>─────────<br/>LLC Sub-layer, ISO ref.: 6.4-6.5"]
+    PCS["**can_pcs_tx**<br/>─────────<br/>PCS Sub-layer, ISO ref.: 7.2-7.4"]
+    FCE["**can_fce**<br/>─────────<br/>FCE, ISO ref.: 8.1.3-8.1.4"]
 
-    subgraph MAC_TX ["can_mac_tx"]
-        SER["can_mac_ser_tx<br/>(LLC Serializer)"]
-        FSM["can_mac_fsm_tx<br/>(Controlling FSM)"]
-        BS["can_mac_bs_tx<br/>(Bit Stuffer)"]
-        CRC["can_mac_crc_tx<br/>(CRC generator)"]
+    subgraph MAC_TX ["**can_mac_tx**<br/>─────────<br/>MAC Sub-layer, ISO ref.: 6.6"]
+        SER["**can_mac_ser_tx**<br/>─────────<br/>LLC frame Serializer"]
+        FSM["**can_mac_fsm_tx**<br/>─────────<br/>Controlling FSM"]
+        BS["**can_mac_bs_tx**<br/>─────────<br/>Bit Stuffer"]
+        CRC["**can_mac_crc_tx**<br/>─────────<br/>CRC generator"]
 
         SER <==>|can_mac_fsm_ser_tx_if| FSM
         FSM <==>|can_mac_fsm_bs_tx_if| BS
@@ -578,6 +577,68 @@ flowchart TD
     FSM <==>|mac_pcs_tx_if| PCS
     FSM <==>|fce_mac_if| FCE
 ```
+
+
+```{.mermaid #fig:mac-tx-fsm caption="MAC TX FSM state transitions. Error-active and error-passive paths share the same flag+delimiter sequence but drive different polarities. Overload transitions (dominant in intermission bits 0-1, or dominant on last delimiter bit) are omitted for clarity."}
+---
+config:
+  layout: elk
+  elk:
+    algorithm: layered
+    mergeEdges: false
+    nodePlacementStrategy: LINEAR_SEGMENTS
+  look: classic
+  theme: neutral
+  themeVariables:
+    fontFamily: "Libertinus Serif, Noto Serif, serif"
+    fontSize: "14px"
+    primaryTextColor: "#000"
+---
+stateDiagram-v2
+
+  state "**bus_reintegration**<br/>─────────<br/>• Bus not driving<br/>• Await idle condition" as bus_reintegration
+  state "**bus_idle**<br/>─────────<br/>• Bus not driving<br/>• Await frame request" as bus_idle
+  state "**transmitting_frame**<br/>─────────<br/>• Driving frame bits<br/>• Monitoring bus" as transmitting_frame
+  state "**transmitting_active_error_flag**<br/>─────────<br/>• Driving dominant error flag<br/>• Signalling error to FCE" as transmitting_active_error_flag
+  state "**transmitting_passive_error_flag**<br/>─────────<br/>• Driving recessive error flag<br/>• Signalling error to FCE" as transmitting_passive_error_flag
+  state "**transmitting_overload_flag**<br/>─────────<br/>• Driving dominant overload flag<br/>• Signalling error to FCE" as transmitting_overload_flag
+  state "**intermission**<br/>─────────<br/>• Bus not driving<br/>• Monitoring for overload" as intermission
+  state "**suspend_transmission**<br/>─────────<br/>• Bus not driving<br/>• Error-passive hold-off" as suspend_transmission
+
+
+  [*] --> bus_reintegration : reset
+  bus_reintegration --> bus_idle : bus idle
+
+  bus_idle --> transmitting_frame : frame pending
+
+  transmitting_frame --> intermission : frame complete
+  transmitting_frame --> intermission : lost arbitration
+  transmitting_frame --> transmitting_active_error_flag : error detected
+  transmitting_frame --> transmitting_passive_error_flag : error detected
+
+  transmitting_active_error_flag --> intermission : sequence complete
+  transmitting_active_error_flag --> transmitting_overload_flag : overload detected
+
+  transmitting_passive_error_flag --> intermission : sequence complete
+  transmitting_passive_error_flag --> transmitting_overload_flag : overload detected
+
+  transmitting_overload_flag --> intermission : sequence complete
+  transmitting_overload_flag --> transmitting_overload_flag : overload detected
+
+  intermission --> bus_idle : intermission complete
+  intermission --> suspend_transmission : error-passive transmitter
+  intermission --> transmitting_overload_flag : overload detected
+
+  suspend_transmission --> bus_idle : suspend complete
+  suspend_transmission --> transmitting_overload_flag : overload detected
+```
+
+The `transmitting_frame` state is the most complex. On entry, `initialize_frame_transmission()` resets the Serializer (`can_mac_ser_tx`), the Bit Stuffer (`can_mac_bs_tx`, MAC Sub-layer, ISO ref.: 8.5), and the CRC engine (`can_mac_crc_tx`, MAC Sub-layer, ISO ref.: 8.5.4). Each sample-point strobe from the PCS Sub-layer (ISO ref.: 7.2-7.4) then drives the following sequence:
+
+1. `get_observed_mac_frame_bit_info()` reads the bus polarity at the sample point and compares it against the transmitted bit, returning an event record with mismatch and stuff-bit flags.
+2. If an SSP error was latched from the previous bit period (CAN-FD data phase TDC, PCS Sub-layer, ISO ref.: 7.3.4), that error is processed before the current event.
+3. Based on the event, either `transmit_stuff_bit()` or `transmit_normal_bit()` drives the next bit and updates the CRC and stuff-bit counter.
+4. A detected error or polarity mismatch triggers a transition to `transmitting_active_error_flag` or `transmitting_passive_error_flag` depending on the fault confinement state reported by the FCE (Fault Confinement Entity, ISO ref.: 8.1.3-8.1.4).
 
 ### `can_mac_rx` {#sec:can-mac-rx}
 
