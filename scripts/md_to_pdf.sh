@@ -10,12 +10,17 @@ Usage: md_to_pdf.sh [--section NAME[,NAME...]] [INPUT_MD] [OUTPUT_PDF]
 Options:
   --md-file PATH         Markdown input file (alias: --md_file).
   --output-pdf PATH      PDF output file.
+  --table-style STYLE    Table style preset: clean or enhanced.
   --section NAME         Select a section subtree by ID/alias; repeatable.
                          Accepts comma-separated values.
                          Examples:
                            --section verification_plan
                            --section sec:verification-results,discussion
   -h, --help             Show this help.
+
+Environment:
+  PANDOC_TABLE_STYLE     Table style preset for PDF output.
+                         Values: clean (default), enhanced
 EOF
 }
 
@@ -33,8 +38,8 @@ require_cmd() {
 
 is_enabled() {
   case "${1,,}" in
-    1|true|yes|on) return 0 ;;
-    *) return 1 ;;
+  1 | true | yes | on) return 0 ;;
+  *) return 1 ;;
   esac
 }
 
@@ -53,58 +58,69 @@ parse_args() {
   SECTION_SELECTOR=""
   INPUT_MD_OVERRIDE=""
   OUTPUT_PDF_OVERRIDE=""
+  TABLE_STYLE_OVERRIDE=""
   POSITIONAL_ARGS=()
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --md-file|--md_file|--input-md)
-        [[ $# -ge 2 ]] || die "$1 requires a value."
-        INPUT_MD_OVERRIDE="$2"
-        shift 2
-        ;;
-      --md-file=*|--md_file=*|--input-md=*)
-        INPUT_MD_OVERRIDE="${1#*=}"
-        [[ -n "$INPUT_MD_OVERRIDE" ]] || die "${1%%=*} requires a non-empty value."
-        shift
-        ;;
-      --output-pdf|--pdf-file|--output)
-        [[ $# -ge 2 ]] || die "$1 requires a value."
-        OUTPUT_PDF_OVERRIDE="$2"
-        shift 2
-        ;;
-      --output-pdf=*|--pdf-file=*|--output=*)
-        OUTPUT_PDF_OVERRIDE="${1#*=}"
-        [[ -n "$OUTPUT_PDF_OVERRIDE" ]] || die "${1%%=*} requires a non-empty value."
-        shift
-        ;;
-      --section)
-        [[ $# -ge 2 ]] || die "--section requires a value."
-        append_section_selector "$2"
-        shift 2
-        ;;
-      --section=*)
-        append_section_selector "${1#*=}"
-        shift
-        ;;
-      -h|--help)
-        usage
-        exit 0
-        ;;
-      --)
-        shift
-        while [[ $# -gt 0 ]]; do
-          POSITIONAL_ARGS+=("$1")
-          shift
-        done
-        ;;
-      -*)
-        usage >&2
-        die "unknown option: $1"
-        ;;
-      *)
+    --md-file | --md_file | --input-md)
+      [[ $# -ge 2 ]] || die "$1 requires a value."
+      INPUT_MD_OVERRIDE="$2"
+      shift 2
+      ;;
+    --md-file=* | --md_file=* | --input-md=*)
+      INPUT_MD_OVERRIDE="${1#*=}"
+      [[ -n "$INPUT_MD_OVERRIDE" ]] || die "${1%%=*} requires a non-empty value."
+      shift
+      ;;
+    --output-pdf | --pdf-file | --output)
+      [[ $# -ge 2 ]] || die "$1 requires a value."
+      OUTPUT_PDF_OVERRIDE="$2"
+      shift 2
+      ;;
+    --output-pdf=* | --pdf-file=* | --output=*)
+      OUTPUT_PDF_OVERRIDE="${1#*=}"
+      [[ -n "$OUTPUT_PDF_OVERRIDE" ]] || die "${1%%=*} requires a non-empty value."
+      shift
+      ;;
+    --table-style)
+      [[ $# -ge 2 ]] || die "$1 requires a value."
+      TABLE_STYLE_OVERRIDE="$2"
+      shift 2
+      ;;
+    --table-style=*)
+      TABLE_STYLE_OVERRIDE="${1#*=}"
+      [[ -n "$TABLE_STYLE_OVERRIDE" ]] || die "${1%%=*} requires a non-empty value."
+      shift
+      ;;
+    --section)
+      [[ $# -ge 2 ]] || die "--section requires a value."
+      append_section_selector "$2"
+      shift 2
+      ;;
+    --section=*)
+      append_section_selector "${1#*=}"
+      shift
+      ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      while [[ $# -gt 0 ]]; do
         POSITIONAL_ARGS+=("$1")
         shift
-        ;;
+      done
+      ;;
+    -*)
+      usage >&2
+      die "unknown option: $1"
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1")
+      shift
+      ;;
     esac
   done
 
@@ -169,6 +185,7 @@ main() {
   PDF_MAINFONT="${PDF_MAINFONT:-Libertinus Serif}"
   PDF_FIG_WIDTH="${PDF_FIG_WIDTH:-\linewidth}"
   PDF_FIG_MAX_HEIGHT="${PDF_FIG_MAX_HEIGHT:-0.82\textheight}"
+  PANDOC_TABLE_STYLE="${TABLE_STYLE_OVERRIDE:-${PANDOC_TABLE_STYLE:-clean}}"
   PANDOC_TOC="${PANDOC_TOC:-1}"
   PANDOC_CROSSREF="${PANDOC_CROSSREF:-1}"
   PANDOC_FIG_PREFIX="${PANDOC_FIG_PREFIX:-Figure}"
@@ -177,6 +194,13 @@ main() {
   SANITIZE_GLYPHS="${SANITIZE_GLYPHS:-0}"
   PANDOC_TABLE_LAYOUT_FILTER="${PANDOC_TABLE_LAYOUT_FILTER:-$ROOT_DIR/scripts/filters/table_landscape.lua}"
   PANDOC_SECTION_SELECT_FILTER="${PANDOC_SECTION_SELECT_FILTER:-$ROOT_DIR/scripts/filters/select_sections.lua}"
+
+  case "${PANDOC_TABLE_STYLE,,}" in
+  clean | enhanced) ;;
+  *)
+    die "invalid table style '$PANDOC_TABLE_STYLE' (expected: clean or enhanced)."
+    ;;
+  esac
 
   TEMP_MERMAID_DIR="$(mktemp -d "${TMPDIR:-/tmp}/mermaid-pandoc.XXXXXX")"
   TEMP_MD=""
@@ -239,7 +263,7 @@ main() {
     in_mtoc == 1 { next }
     /^[[:space:]]*##[[:space:]]+Table of Contents[[:space:]]*$/ { next }
     { print }
-  ' "$INPUT_MD_ABS" > "$TEMP_MD"
+  ' "$INPUT_MD_ABS" >"$TEMP_MD"
 
   if is_enabled "$SANITIZE_GLYPHS"; then
     require_cmd perl
@@ -257,12 +281,14 @@ main() {
 
   export PANDOC_DEFAULT_FIG_WIDTH="$PDF_FIG_WIDTH"
   export PANDOC_DEFAULT_FIG_MAX_HEIGHT="$PDF_FIG_MAX_HEIGHT"
+  export PANDOC_TABLE_STYLE
 
   pandoc "$TEMP_RENDERED_MD" \
     --standalone \
     "${LUA_FILTER_ARGS[@]}" \
     "${CROSSREF_ARGS[@]}" \
     --citeproc \
+    --table-caption-position=above \
     --pdf-engine="$PDF_ENGINE" \
     --number-sections \
     "${TOC_ARGS[@]}" \

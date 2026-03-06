@@ -19,6 +19,7 @@ function Meta(meta)
 
   local fig_width = os.getenv("PANDOC_DEFAULT_FIG_WIDTH") or "\\linewidth"
   local fig_height = os.getenv("PANDOC_DEFAULT_FIG_MAX_HEIGHT") or "0.82\\textheight"
+  local table_style = (os.getenv("PANDOC_TABLE_STYLE") or "clean"):lower()
   local fig_setkeys = string.format(
     "\\AtBeginDocument{\\setkeys{Gin}{width=%s,height=%s,keepaspectratio}}",
     fig_width,
@@ -30,13 +31,70 @@ function Meta(meta)
     header = { header }
   end
 
-  table.insert(header, pandoc.MetaBlocks({
+  local blocks = {
     pandoc.RawBlock("latex", "\\usepackage{graphicx}"),
     pandoc.RawBlock("latex", "\\usepackage{pdflscape}"),
+    pandoc.RawBlock("latex", "\\raggedbottom"),
+    pandoc.RawBlock("latex", "\\usepackage{float}"),
+    pandoc.RawBlock("latex", "\\floatplacement{figure}{htbp}"),
+    pandoc.RawBlock("latex", "\\floatplacement{table}{htbp}"),
+    pandoc.RawBlock("latex", "\\setcounter{topnumber}{3}"),
+    pandoc.RawBlock("latex", "\\setcounter{bottomnumber}{0}"),
     pandoc.RawBlock("latex", fig_setkeys)
-  }))
+  }
+
+  if table_style == "enhanced" then
+    table.insert(blocks, pandoc.RawBlock("latex", "\\usepackage[table]{xcolor}"))
+    table.insert(blocks, pandoc.RawBlock("latex", "\\usepackage{cellspace}"))
+    table.insert(blocks, pandoc.RawBlock("latex", "\\usepackage{makecell}"))
+    table.insert(blocks, pandoc.RawBlock("latex", "\\usepackage{caption}"))
+    table.insert(blocks, pandoc.RawBlock("latex", "\\setlength\\cellspacetoplimit{3pt}"))
+    table.insert(blocks, pandoc.RawBlock("latex", "\\setlength\\cellspacebottomlimit{3pt}"))
+    table.insert(blocks, pandoc.RawBlock("latex", "\\definecolor{TableStripe}{gray}{0.94}"))
+    table.insert(blocks, pandoc.RawBlock("latex", "\\captionsetup[table]{labelfont=bf,font=small,skip=6pt}"))
+    table.insert(blocks, pandoc.RawBlock("latex", "\\AtBeginEnvironment{longtable}{\\small\\setlength{\\tabcolsep}{5pt}\\renewcommand{\\arraystretch}{1.18}}"))
+    table.insert(blocks, pandoc.RawBlock("latex", "\\AtBeginEnvironment{tabular}{\\small\\setlength{\\tabcolsep}{5pt}\\renewcommand{\\arraystretch}{1.15}}"))
+  end
+
+  table.insert(header, pandoc.MetaBlocks(blocks))
   meta["header-includes"] = header
   return meta
+end
+
+function Table(el)
+  if not FORMAT:match("latex") then
+    return el
+  end
+
+  local table_style = (os.getenv("PANDOC_TABLE_STYLE") or "clean"):lower()
+  if table_style ~= "enhanced" then
+    return el
+  end
+
+  -- Inject \cellcolor{TableStripe} into every header cell.
+  -- \cellcolor works inside cells (no \noalign needed) and is independent of
+  -- the row counter, so header color is guaranteed regardless of longtable
+  -- counter reset behaviour at \endhead.
+  if el.head and el.head.rows then
+    for _, row in ipairs(el.head.rows) do
+      for _, cell in ipairs(row.cells) do
+        if #cell.contents == 0 then
+          cell.contents = { pandoc.Plain({ pandoc.RawInline("latex", "\\cellcolor{TableStripe}") }) }
+        elseif cell.contents[1].t == "Plain" or cell.contents[1].t == "Para" then
+          table.insert(cell.contents[1].content, 1, pandoc.RawInline("latex", "\\cellcolor{TableStripe}"))
+        end
+      end
+    end
+  end
+
+  -- Counter does not reset at \endhead, so row 2 is the first data row.
+  -- \rowcolors{2}{white}{TableStripe} makes row 2=white, row 3=gray, row 4=white, ...
+  -- The header (row 1) is forced gray independently via \cellcolor above.
+  return {
+    pandoc.RawBlock("latex", "{\\rowcolors{2}{white}{TableStripe}"),
+    el,
+    pandoc.RawBlock("latex", "}")
+  }
 end
 
 function Div(el)

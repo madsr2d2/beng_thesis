@@ -373,6 +373,51 @@ Required patterns from this guide:
 
 ## Architecture & Interfaces
 
+### LLC Frame Format
+
+The **LLC (Logical Link Control) Frame** is the interface between the User layer and the MAC layer. This project supports both Classic CAN and CAN-FD using a unified frame format that is **backward compatible**.
+
+**Frame Structure** (per `docs/report.md`):
+
+- **Bytes 0–3**: Identifier bytes (11-bit base ID for Classic, 29-bit extended ID for Extended format)
+- **Byte 4**: Format and DLC byte:
+  - `[7]`: Reserved (0)
+  - `[6:4]`: **FMT** field (3-bit frame format indicator)
+  - `[3:0]`: **DLC** (Data Length Code, 0–15)
+- **Bytes 5–68**: Data field (0–64 bytes, maximum 64 for CAN-FD)
+- **Byte 69**: Control flags:
+  - `[7:1]`: Reserved (0)
+  - `[0]`: **IDE** (Identifier Extension) — must match format (0 for CB/FB, 1 for CE/FE)
+- **Byte 70**: Additional flags:
+  - `[7:3]`: Reserved (0)
+  - `[2]`: **BRS** (Bit Rate Switch, CAN-FD only)
+  - `[1]`: **ESI** (Error State Indicator, CAN-FD only)
+  - `[0]`: **RTR** (Remote Transmission Request)
+
+**FMT Encoding**:
+
+| FMT Code | Format | IDE | Max Bytes |
+|----------|--------|-----|-----------|
+| `000` | Classic Basic (CB) | 0 | 8 |
+| `100` | Classic Extended (CE) | 1 | 8 |
+| `010` | FD Basic (FB) | 0 | 64 |
+| `110` | FD Extended (FE) | 1 | 64 |
+
+**Backward Compatibility**:
+- Implementations that only support Classic frames can ignore the FMT bits and treat all frames as Classic.
+- Implementations supporting CAN-FD use the FMT field to distinguish frame types without affecting the existing ID and data field structure.
+
+**ID Byte Mapping** (reference `src/can_pkg.vhd` for detailed extraction):
+
+- **Classic Basic (CB)**: Base 11-bit ID in Bytes 2–3
+  - Byte 2: `00000` + `ID[10:8]`
+  - Byte 3: `ID[7:0]`
+- **Classic Extended (CE)**: Extended 29-bit ID in Bytes 0–3
+  - Byte 0: `000` + `ID[28:24]`
+  - Byte 1: `ID[23:16]`
+  - Byte 2: `ID[15:8]`
+  - Byte 3: `ID[7:0]`
+
 ### Layer Boundary: LLC → MAC Domain
 
 **Key Design Decision:**
@@ -448,14 +493,18 @@ end record mac_frame_bit_t;
 - `bit_to_polarity()` - Convert std_logic to polarity_t
 - `polarity_to_bit()` - Convert polarity_t to std_logic
 
-**Frame Structure** (per ISO 11898-1):
-- SOF (1 bit)
-- Arbitration (base_id 11-bit, ide, extended_id 18-bit, rtr)
-- Control (dlc, fdf/brs/esi for CAN-FD)
-- Data (0-64 bytes)
-- CRC + delimiter
-- ACK + delimiter
-- EOF (7 bits)
+**CAN Wire Frame Structure** (per ISO 11898-1:2015 — the format transmitted on the bus):
+
+The serializer (`tx_mac_ser`) converts LLC frame bytes into this wire format:
+- **SOF** (1 bit) - Start of Frame
+- **Arbitration** (11-bit or 29-bit ID based on format, plus IDE/RTR flags)
+- **Control** (DLC, FDF/BRS/ESI for CAN-FD)
+- **Data** (0–64 bytes)
+- **CRC** + Delimiter (Cyclic Redundancy Check)
+- **ACK** + Delimiter (Acknowledgment slot)
+- **EOF** (7 bits) - End of Frame
+
+See `docs/report.md` sections 6.2–6.4 for detailed LLC frame format and the mapping between LLC interface bytes and wire frame fields.
 
 ### tx_mac_ser.vhd (MAC Serializer)
 
@@ -650,7 +699,8 @@ See `OsvvmLibraries/README.md` for OSVVM build and usage.
 - Bold (`**text**`) for emphasis, not underscores
 
 **Writing style (emails, reports, prose):**
-- Do not use semicolons or em dashes. Use periods or plain hyphens (-) instead.
+- Limit the use of semicolons. Prefer periods where possible.
+- Do not use em dashes. Use plain hyphens (-) instead.
 
 ### Markdown Report Format (for `scripts/md_to_pdf.sh`)
 
