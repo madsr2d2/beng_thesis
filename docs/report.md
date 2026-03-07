@@ -672,7 +672,7 @@ Handles bit timing and synchronization. It generates the sample point (SP) and s
 
 ### `can_pcs_tx` {#sec:can-pcs-tx}
 
-```{.mermaid #fig:can-pcs-tx caption="PCS TX FSM state transitions. The measuring_delay state is entered on the FDF sample point to measure TDCV (Transmitter Delay Compensation Value, ISO ref.: 7.3.4). The BRS bit boundary determines whether data-phase timing is used. All non-idle states return to idle when the frame becomes inactive."}
+```{.mermaid #fig:can-pcs-tx caption="can_pcs_tx FSM. The measuring_delay state is entered on the FDF sample point to measure TDCV (Transmitter Delay Compensation Value, ISO ref.: 7.3.4). The BRS bit boundary determines whether data-phase timing is used. All non-idle states return to idle when the frame becomes inactive."}
 ---
 config:
   layout: elk
@@ -689,26 +689,24 @@ config:
 ---
 stateDiagram-v2
 
-  state "**idle**<br/>─────────<br/>• Awaiting frame activation<br/>• Nominal timing free-running<br/>• Latch first bit on frame activation" as idle_s
+  state "**idle**<br/>─────────<br/>• Awaiting frame activation<br/>• Nominal timing<br/>• Latch first bit on frame activation" as idle_s
   state "**transmitting_nominal**<br/>─────────<br/>• Nominal bit timing<br/>• Latch next bit at nominal bit boundary<br/>• SP strobe at end of Phase_Seg1" as nom_s
-  state "**measuring_delay**<br/>─────────<br/>• Nominal bit timing continues<br/>• Measure TDCV (ISO ref.: 7.3.4)<br/>• Latch SSP position and FIFO index on RX edge" as meas_s
-  state "**transmitting_data**<br/>─────────<br/>• Data-phase bit timing<br/>• Latch next bit at data bit boundary<br/>• SSP strobe when TDC active, SP otherwise" as data_s
+  state "**measuring_delay**<br/>─────────<br/>• Nominal bit timing<br/>• Measure TDCV<br/>• Latch SSP position and FIFO index on RX edge" as meas_s
+  state "**transmitting_data**<br/>─────────<br/>• Data-phase bit timing<br/>• Latch next bit at data bit boundary<br/>• SP or SSP strobe per TDC configuration" as data_s
 
   [*] --> idle_s : reset
-
   idle_s --> nom_s : frame active
 
   nom_s --> idle_s : frame inactive
-  nom_s --> meas_s : fdf_bit at SP
+  nom_s --> meas_s : FDF bit at SP
 
   meas_s --> idle_s : frame inactive
-  meas_s --> data_s : BRS=recessive at bit boundary
-  meas_s --> nom_s : BRS=dominant at bit boundary
-  meas_s --> nom_s : TDC timeout
+  meas_s --> data_s : BRS bit recessive
+  meas_s --> nom_s : BRS bit dominant
 
   data_s --> idle_s : frame inactive
-  data_s --> nom_s : CRC delimiter boundary
-  data_s --> nom_s : error flag boundary
+  data_s --> nom_s : CRC delimiter
+  data_s --> nom_s : error flag
 ```
 ### `can_pcs_rx` {#sec:can-pcs-rx}
 
