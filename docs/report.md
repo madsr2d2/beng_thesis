@@ -14,7 +14,6 @@ link-citations: true
 This thesis describes the design, implementation, and verification of a CAN (Controller Area Network) and CAN-FD (Flexible Data rate) transmitter sub-system.
  The implementation is targeting high-reliability engine controller applications and is compliant with the ISO 11898-1:2024 standard. Key features include support for both Classic and FD frame formats, Transmitter Delay Compensation (TDC) for high-speed data phases, and a modular architecture separated into Link Layer Control (LLC), Media Access Control (MAC), and Physical Coding Sublayer (PCS).
 
-
 # Abbreviations {-}
 
 | Abbreviation | Meaning |
@@ -202,7 +201,7 @@ A complete CAN node is composed of a Transmit (TX) path and a Receive (RX) path 
 The focus of this thesis is the complete node architecture and its standards-traceable interfaces. The TX path is responsible for frame submission, arbitration participation, and bitstream generation toward the bus, while the RX path is responsible for bus observation, frame reconstruction, and delivery/notification toward the user layer. As shown in @fig:can-node-architecture, this full-node decomposition spans LLC, MAC, PCS, FCE, and PMA boundaries.
 
 
-```{.mermaid #fig:can-node-architecture caption="CAN node decomposition across LLC, MAC, PCS, FCE, and PMA boundaries. Interface definitions are provided for llc_tx_if (@tbl:llc-tx-if), llc_rx_if (@tbl:llc-rx-if), llc_mac_tx_if (@tbl:llc-mac-tx-if), mac_llc_rx_if (@tbl:mac-llc-rx-if), mac_pcs_tx_if (@tbl:mac-pcs-tx-if), pcs_mac_rx_if (@tbl:pcs-mac-rx-if), aui_if (@tbl:aui-if), fce_llc_tx_if and fce_llc_if (@tbl:fce-llc-if), fce_mac_if (@tbl:fce-mac-if), and fce_pcs_if (@tbl:fce-pcs-if)."}
+```{.mermaid #fig:can-node-architecture caption="CAN node decomposition across LLC, MAC, PCS, FCE, and PMA boundaries. Interface definitions are provided for llc_tx_if (@tbl:llc-tx-if), llc_rx_if (@tbl:llc-rx-if), llc_mac_tx_if (@tbl:llc-mac-tx-if), llc_mac_rx_if (@tbl:llc-mac-rx-if), mac_pcs_if (@tbl:mac-pcs-if), aui_if (@tbl:aui-if), fce_llc_if (@tbl:fce-llc-if), fce_mac_if (@tbl:fce-mac-if), and fce_pcs_if (@tbl:fce-pcs-if)."}
 ---
 config:
   flowchart:
@@ -227,19 +226,19 @@ flowchart TD
             MAC_TX["**can_mac_tx**<br/>─────────<br/>Serialization, CRC & bit stuffing<br/>(MAC Sub-layer, ISO ref.: 6.6)"]
             PCS_TX["**can_pcs_tx**<br/>─────────<br/>Bit timing & TDC<br/>(PCS Sub-layer, ISO ref.: 7.2-7.4)"]
 
-            LLC_TX <==>|llc_mac_tx_if| MAC_TX <==>|mac_pcs_tx_if| PCS_TX
+            LLC_TX <==>|llc_mac_tx_if| MAC_TX <==>|mac_pcs_if| PCS_TX
         end
 
         subgraph RX_Pipeline ["**RX Pipeline**"]
-            PCS_RX["**can_pcs_rx**<br/>─────────<br/>Bit timing & synchronization<br/>(PCS Sub-layer, ISO ref.: 7.2-7.4)"]
-            MAC_RX["**can_mac_rx**<br/>─────────<br/>Deserialization, CRC & destuffing<br/>(MAC Sub-layer, ISO ref.: 6.6)"]
             LLC_RX["**can_llc_rx**<br/>─────────<br/>Frame delivery & filtering<br/>(LLC Sub-layer, ISO ref.: 6.4-6.5)"]
+            MAC_RX["**can_mac_rx**<br/>─────────<br/>Deserialization, CRC & destuffing<br/>(MAC Sub-layer, ISO ref.: 6.6)"]
+            PCS_RX["**can_pcs_rx**<br/>─────────<br/>Bit timing & synchronization<br/>(PCS Sub-layer, ISO ref.: 7.2-7.4)"]
 
-            PCS_RX <==>|pcs_mac_rx_if| MAC_RX <==>|mac_llc_rx_if| LLC_RX
+            LLC_RX <==>|llc_mac_rx_if| MAC_RX <==>|mac_pcs_if| PCS_RX
         end
 
         %% Control & Status paths
-        FCE <==>|fce_llc_tx_if| LLC_TX
+        FCE <==>|fce_llc_if| LLC_TX
         FCE <==>|fce_mac_if| MAC_TX
         FCE <==>|fce_pcs_if| PCS_TX
         FCE <==>|fce_llc_if| LLC_RX
@@ -250,7 +249,7 @@ flowchart TD
     User <==>|llc_tx_if| LLC_TX
     User <==>|llc_rx_if| LLC_RX
     PCS_TX <==>|aui_if| PMA
-    PMA <==>|aui_if| PCS_RX
+    PCS_RX <==>|aui_if| PMA
 ```
 
 ### LLC Frame Format
@@ -265,7 +264,7 @@ config:
     fontFamily: "Libertinus Serif, Noto Serif, serif"
     fontSize: "14px"
   packet:
-    bitsPerRow: 8
+    bitsPerRow: 5
     bitWidth: 100
     rowHeight: 42
     showBits: true
@@ -293,7 +292,7 @@ config:
     fontFamily: "Libertinus Serif, Noto Serif, serif"
     fontSize: "14px"
   packet:
-    bitsPerRow: 8
+    bitsPerRow: 5
     bitWidth: 100
     rowHeight: 42
     showBits: true
@@ -328,108 +327,105 @@ Detailed interface definitions (normative source mapping):
 ::: {.landscape-tables}
 
 
-| ISO symbol | ISO payload | Direction | Semantics | Timing | ISO ref. | Implementation mapping |
+| ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `L_Data.Request` (start) | `LLC Frame`, `Handle` | `User -> LLC` | Request data transfer of `LLC frame` | Issued when `User` wants to start `LLC frame` transfer | 6.4.5.5.2 | `valid && ready && sop && payload on data`|
-| `L_Data.Request` (stream) | `LLC Frame`, `Handle` | `User -> LLC` | Stream `LLC frame` | Intermediate beats while `LLC frame` is streamed |  6.4.5.5.2 | `valid && ready && !sop && !eop && payload on data` |
-| `L_Data.Request` (end) | `LLC Frame`, `Handle` | `User -> LLC` | End of current `LLC frame` transfer | Final beat of `LLC frame` transfer | 6.4.5.5.2  | `valid && ready && eop && payload on data`|
-| `L_Data.AbortRequest` | `Handle` | `User -> LLC` | Abort pending `LLC frame` transfer | Issued when `User` wants to cancel `LLC frame` transfer | 6.4.5.5.3 | TBD |
+| 6.4.5.5.2 | `L_Data.Request` | `LLC Frame`, `Handle` | Submit LLC frame for transmission | `User -> LLC` | `llc_tx_if.data` (`byte_t`), `llc_tx_if.valid` (`std_logic`), `llc_tx_if.sop` (`std_logic`) | `valid` high with byte on data; `sop` asserted on first byte |
+| 6.4.5.5.2 | `L_Data.Request` | `LLC Frame`, `Handle` | Submit LLC frame for transmission | `User -> LLC` | `llc_tx_if.data` (`byte_t`), `llc_tx_if.valid` (`std_logic`) | `valid` high; `sop` and `eop` deasserted on intermediate bytes |
+| 6.4.5.5.2 | `L_Data.Request` | `LLC Frame`, `Handle` | Submit LLC frame for transmission | `User -> LLC` | `llc_tx_if.data` (`byte_t`), `llc_tx_if.valid` (`std_logic`), `llc_tx_if.eop` (`std_logic`) | `valid` high with byte on data; `eop` asserted on last byte |
+| 6.4.5.5.2 | `L_Data.Request` | | Flow control | `LLC -> User` | `llc_tx_if.ready` (`std_logic`) | Asserted by LLC when able to consume next byte |
+| 6.4.5.5.3 | `L_Data.AbortRequest` | `Handle` | Abort pending frame transfer | `User -> LLC` | `llc_tx_if.abort_request` (`std_logic`) | Pulse when user wants to cancel an in-progress transfer |
 
-: Interface definition for `llc_tx_if`. Uses the existing Avalon-ST interface (`pk_eth_st`) to implement `L_Data.Request`. Includes `L_Data.AbortRequest` for complete ISO-defined service coverage. `L_Data.AbortRequest` is not implemented in the current CAN bus controller. `TBD` = To Be Defined. {#tbl:llc-tx-if}
+: Interface definition for `llc_tx_if`. Implements `L_Data.Request` as an Avalon-ST byte stream. `L_Data.AbortRequest` is included for complete ISO service coverage but is not yet implemented. {#tbl:llc-tx-if}
 
 
-| ISO symbol | ISO payload | Direction | Semantics | Timing | ISO ref. | Implementation mapping |
+| ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `L_Data.Indication` (start) | `LLC Frame`, optional `Timestamp` | `LLC -> User` | Start received `LLC frame` transfer | Issued when `LLC` wants to start `LLC frame` transfer | 6.4.5.5.5 | `valid && ready && sop && payload on data`|
-| `L_Data.Indication` (stream) | `LLC Frame`, optional `Timestamp` | `LLC -> User` | Stream received `LLC frame` | Intermediate beats while `LLC frame` is streamed | 6.4.5.5.5 | `valid && ready && !sop && !eop && payload on data` |
-| `L_Data.Indication` (end) | `LLC Frame`, optional `Timestamp` | `LLC -> User` | End received `LLC frame` transfer | Final beat of `LLC frame` transfer | 6.4.5.5.5 | `valid && ready && eop && payload on data` |
-| `L_Data.Confirm` | `Transfer_Status`, optional `Timestamp`, `Handle` | `LLC -> User` | Report result of prior `L_Data.Request` | Issued on completion/failure of prior `L_Data.Request` | 6.4.5.5.4 | TBD |
+| 6.4.5.5.5 | `L_Data.Indication` | `LLC Frame`, `Timestamp` | Deliver received LLC frame to user | `LLC -> User` | `llc_rx_if.data` (`byte_t`), `llc_rx_if.valid` (`std_logic`), `llc_rx_if.sop` (`std_logic`) | `valid` high with byte on data; `sop` asserted on first byte |
+| 6.4.5.5.5 | `L_Data.Indication` | `LLC Frame`, `Timestamp` | Deliver received LLC frame to user | `LLC -> User` | `llc_rx_if.data` (`byte_t`), `llc_rx_if.valid` (`std_logic`) | `valid` high; `sop` and `eop` deasserted on intermediate bytes |
+| 6.4.5.5.5 | `L_Data.Indication` | `LLC Frame`, `Timestamp` | Deliver received LLC frame to user | `LLC -> User` | `llc_rx_if.data` (`byte_t`), `llc_rx_if.valid` (`std_logic`), `llc_rx_if.eop` (`std_logic`) | `valid` high with byte on data; `eop` asserted on last byte |
+| 6.4.5.5.5 | `L_Data.Indication` | | Flow control | `User -> LLC` | `llc_rx_if.ready` (`std_logic`) | Asserted by user when able to consume next byte |
+| 6.4.5.5.4 | `L_Data.Confirm` | `Transfer_Status`, `Timestamp`, `Handle` | Report outcome of prior `L_Data.Request` | `LLC -> User` | `llc_rx_if.transfer_status` (`transfer_status_t`) | Issued on frame completion, loss, or error |
 
-: Interface definition for `llc_rx_if`. Uses the existing Avalon-ST interface (`pk_eth_st`) to implement `L_Data.Indication`. Includes `L_Data.Confirm` and optional `Timestamp` for complete ISO service coverage. `L_Data.AbortRequest` is not implemented in the current CAN bus controller. `Transfer_Status: [Ongoing, Lost Arbitration, Transmitted, Aborted, Disturbed]`. `TBD` = To Be Defined. {#tbl:llc-rx-if}
+: Interface definition for `llc_rx_if`. Implements `L_Data.Indication` as an Avalon-ST byte stream. `Timestamp` is included for complete ISO service coverage but is not yet implemented. {#tbl:llc-rx-if}
 
 
-| ISO symbol | ISO payload | Direction | Semantics | Timing | ISO ref. | Implementation mapping |
+| ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `DLL SDU` | `LLC Frame` | `LLC -> MAC` | Transfer `LLC Frame` content | Issued when LLC starts MAC handoff | 6.3, 6.6.4.2 | `TBD` |
-| Interface control information | `Control context` | `LLC -> MAC` | Transfer control context for frame handling | Valid with `DLL SDU` handoff | 6.6.4.2 | `TBD` |
+| 6.3, 6.6.4.2 | `DLL SDU` | `LLC Frame` | Transfer LLC frame to MAC for serialization | `LLC -> MAC` | `llc_mac_tx_if.data` (`byte_t`), `llc_mac_tx_if.valid` (`std_logic`), `llc_mac_tx_if.sop` (`std_logic`) | `valid` high with byte on data; `sop` marks first byte of new frame |
+| 6.3, 6.6.4.2 | `DLL SDU` | | Flow control | `MAC -> LLC` | `llc_mac_tx_if.ready` (`std_logic`) | Asserted by MAC serializer when able to consume next byte |
+| 6.6.4.2 | Interface control information | `Transfer_Status` | Report frame transmission outcome | `MAC -> LLC` | `llc_mac_tx_if.transfer_status` (`transfer_status_t`) | Updated by MAC on completion, loss, or error |
 
-: Interface definition for `llc_mac_tx_if`. `TBD` = To Be Defined. {#tbl:llc-mac-tx-if}
+: Interface definition for `llc_mac_tx_if`. Frame length is self-describing from the DLC config bytes; the MAC serializer does not consume `eop`. {#tbl:llc-mac-tx-if}
 
 
-| ISO symbol | ISO payload | Direction | Semantics | Timing | ISO ref. | Implementation mapping |
+| ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `DLL SDU` | Reconstructed `LLC Frame` | `MAC -> LLC` | Transfer reconstructed `LLC Frame` | Issued when MAC has reconstructed `LLC Frame` from received `MAC Frame` | 6.6.4.3, 6.6.9 | `TBD` |
-| Time reference notification | `SOF/frame-valid indication` | `MAC -> LLC` | Provide timing reference for timestamping | Generated for transmitted/received DF/RF | 6.6.3 | `TBD` |
+| 6.6.4.3, 6.6.9 | `DLL SDU` | Reconstructed `LLC Frame` | Transfer reconstructed LLC frame to LLC | `MAC -> LLC` | | Issued when MAC has reconstructed a frame from the received bitstream |
+| 6.6.3 | Time reference notification | `SOF/frame-valid indication` | Provide timing reference for timestamping | `MAC -> LLC` | | Generated for transmitted/received DF/RF |
 
-: Interface definition for `mac_llc_rx_if`. `TBD` = To Be Defined. {#tbl:mac-llc-rx-if}
+: Interface definition for `llc_mac_rx_if`. {#tbl:llc-mac-rx-if}
 
 
-| ISO symbol | ISO payload | Direction | Semantics | Timing | ISO ref. | Implementation mapping |
+| ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `PCS_Data.Request` | `Output_Unit` | `MAC -> PCS` | Request transmission of one `dominant/recessive` bit | Bit-by-bit during `MAC Frame` serialization | 7.2.1, 7.2.2 | `TBD` |
-| `PCS_Status.Transmitter` | `D_Transmit` | `MAC -> PCS` | Indicate FD data-phase interval | Active during transmission in the FD data-phase | 7.2.1, 7.2.5 | `TBD` |
+| 7.2.1, 7.2.2 | `PCS_Data.Request` | `Output_Unit` | Present next bit for transmission | `MAC -> PCS` | `mac_pcs_if.data` (`mac_frame_bit_t`) | MAC holds bit stable; PCS samples `data` at each bit boundary autonomously |
+| 7.2.1, 7.2.5 | `PCS_Status.Transmitter` | `D_Transmit` | Indicate FD data-phase interval to PCS | `MAC -> PCS` | `mac_pcs_if.data.bit_name` (`mac_frame_bit_name_t`) | PCS enters data phase at `fdf_bit` SP, exits at `crc_delimiter_bit` or error flag boundary |
+| 7.2.1, 7.2.3 | `PCS_Data.Indicate` | `Input_Unit` | Indicate bus polarity at sample point | `PCS -> MAC` | `mac_pcs_if.bus_polarity` (`polarity_t`), `mac_pcs_if.sample_strobe` (`std_logic`), `mac_pcs_if.strobe_type` (`strobe_type_t`), `mac_pcs_if.fifo_index` (`integer`) | `sample_strobe` pulses once per SP/SSP; `strobe_type` distinguishes SP from SSP for TDC |
+| 7.2.1, 7.2.6 | `PCS_Status.Receiver` | `D_Receive` | Indicate FD data-phase interval to PCS | `MAC -> PCS` | not yet implemented | Asserted during FD data-phase reception |
 
-: Interface definition for `mac_pcs_tx_if`. `TBD` = To Be Defined. {#tbl:mac-pcs-tx-if}
+: Interface definition for `mac_pcs_if`. The `D_Transmit` status is encoded directly in `mac_pcs_if.data.bit_name` rather than as a separate signal - the PCS derives data-phase entry and exit from the protocol-semantic bit name, eliminating the need for a redundant boolean flag. {#tbl:mac-pcs-if}
 
 
-| ISO symbol | ISO payload | Direction | Semantics | Timing | ISO ref. | Implementation mapping |
+| ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `PCS_Data.Indicate` | `Input_Unit` | `PCS -> MAC` | Indicate arrival of one `dominant/recessive` bit | Bit-by-bit during reception stream | 7.2.1, 7.2.3 | `TBD` |
-| `PCS_Status.Receiver` | `D_Receive` | `MAC -> PCS` | Indicate FD data-phase interval | Active during reception in the FD data-phase | 7.2.1, 7.2.6 | `TBD` |
+| 7.4.2.1 | `output symbol` | `Dominant/recessive symbol` | Drive physical output symbol | `PCS -> PMA` | `aui_if.tx` (`std_logic`) | Updated on each `Output_Unit` request |
+| 7.4.2.2, 8.1.3.4 | `bus_off symbol` | `Bus-off control` | Switch node off bus | `PCS -> PMA` | `aui_if.bus_off` (`std_logic`) | On `Bus_off_request` from FCE |
+| 7.4.2.3, 8.1.3.4 | `bus_off_release symbol` | `Bus-off release control` | Release node from bus-off | `PCS -> PMA` | `aui_if.bus_off_release` (`std_logic`) | On `Bus_off_release_request` from FCE |
+| 7.4.3 | `input symbol` | `Dominant/recessive symbol` | Indicate physical input symbol | `PMA -> PCS` | `aui_if.rx` (`std_logic`) | Continuously driven by PMA |
 
-: Interface definition for `pcs_mac_rx_if`. `TBD` = To Be Defined. {#tbl:pcs-mac-rx-if}
+: Interface definition for `aui_if`. {#tbl:aui-if}
 
 
-| ISO symbol | ISO payload | Direction | Semantics | Timing | ISO ref. | Implementation mapping |
+| ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `output symbol` | `Dominant/recessive symbol` | `PCS -> PMA` | Drive physical output symbol | Issued on `Output_Unit` updates | 7.4.2.1 | `TBD` |
-| `bus_off symbol` | `Bus-off control` | `PCS -> PMA` | Switch node off bus | Issued on `Bus_off_request` request from `FCE` | 7.4.2.2, 8.1.3.4 | `TBD` |
-| `bus_off_release symbol` | `Bus-off release control` | `PCS -> PMA` | Release node from bus-off | Issued on `Bus_off_release` request from `FCE` | 7.4.2.3, 8.1.3.4 | `TBD` |
-| `input symbol` | `Dominant/recessive symbol` | `PMA -> PCS` | Indicate physical input symbol | Continuous PMA-to-PCS indication | 7.4.3 | `TBD` |
+| 8.1.3.2 | `Normal_mode_request` | `Mode request` | Request reset to normal mode | `LLC -> FCE` | `fce_llc_if.normal_mode_request` (`boolean`) | Issued on startup/restart |
+| 8.1.3.2 | `Normal_mode_response` | `Mode response` | Acknowledge normal-mode request | `FCE -> LLC` | `fce_llc_if.normal_mode_response` (`boolean`) | Returned after FCE processing |
+| 8.1.3.2 | `Bus_off` | `Bus-off status` | Indicate node is bus-off | `FCE -> LLC` | `fce_llc_if.bus_off` (`boolean`) | Asserted on bus-off transition |
 
-: Interface definition for `aui_if`. `TBD` = To Be Defined. {#tbl:aui-if}
+: Interface definition for `fce_llc_if`. {#tbl:fce-llc-if}
 
 
-| ISO symbol | ISO payload | Direction | Semantics | Timing | ISO ref. | Implementation mapping |
+| ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `Normal_mode_request` | `Mode request` | `LLC -> FCE` | Request reset to normal mode | Issued on startup/restart | 8.1.3.2 | `TBD` |
-| `Normal_mode_response` | `Mode response` | `FCE -> LLC` | Acknowledge normal-mode request | Returned after FCE processing | 8.1.3.2 | `TBD` |
-| `Bus_off` | `Bus-off status` | `FCE -> LLC` | Indicate node is bus-off | Asserted on bus-off transition | 8.1.3.2 | `TBD` |
+| 8.1.3.3 | `Transmit/receive` | `Transfer mode context` | Report current TX/RX context | `MAC -> FCE` | `fce_mac_if.transmitting` (`boolean`) | Updated with MAC transfer context |
+| 8.1.3.3 | `Error` | `Error event` | Report detected protocol error | `MAC -> FCE` | `fce_mac_if.error` (`boolean`) | Pulse on bit/stuff/CRC/form/ACK error |
+| 8.1.3.3 | `Primary_error` | `Primary error event` | Report primary error condition | `MAC -> FCE` | `fce_mac_if.primary_error` (`boolean`) | Pulse on primary error condition |
+| 8.1.3.3 | `Error/overload flag` | `EF/OF state` | Report EF/OF transmission state | `MAC -> FCE` | `fce_mac_if.sending_error_flag` (`boolean`) | Asserted during EF/OF transmission |
+| 8.1.3.3 | `Counters_unchanged` | `Counter-update qualifier` | Qualify counter exception path | `MAC -> FCE` | `fce_mac_if.counters_unchanged` (`boolean`) | Asserted on rule-c exception cases |
+| 8.1.3.3 | `Error_delimiter_too_late` | `Late delimiter event` | Report late error-delimiter condition | `MAC -> FCE` | `fce_mac_if.error_delimiter_too_late` (`boolean`) | Asserted on late delimiter condition |
+| 8.1.3.3 | `Successful_transfer` | `Transfer completion event` | Report successful TX/RX completion | `MAC -> FCE` | `fce_mac_if.successful_transfer` (`boolean`) | Pulse on successful frame transfer |
+| 8.1.3.3 | `Error_passive_response` | `State response` | Report entry into error-passive state | `MAC -> FCE` | `fce_mac_if.error_passive_response` (`boolean`) | On state transition completion |
+| 8.1.3.3 | `Error_active_response` | `State response` | Report return to error-active state | `MAC -> FCE` | `fce_mac_if.error_active_response` (`boolean`) | On state transition completion |
+| 8.1.3.3 | `Error_passive_request` | `State request` | Request MAC enter error-passive state | `FCE -> MAC` | `fce_mac_if.error_passive` (`boolean`) | On TEC/REC threshold crossing |
+| 8.1.3.3 | `Error_active_request` | `State request` | Request MAC return to error-active state | `FCE -> MAC` | `fce_mac_if.error_active` (`boolean`) | On TEC/REC recovery |
 
-: Interface definition for `fce_llc_if`. `TBD` = To Be Defined. {#tbl:fce-llc-if}
+: Interface definition for `fce_mac_if`. {#tbl:fce-mac-if}
 
 
-| ISO symbol | ISO payload | Direction | Semantics | Timing | ISO ref. | Implementation mapping |
+| ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `Transmit/receive` | `Transfer mode context` | `MAC -> FCE` | Report current TX/RX context | Updated with MAC transfer context | 8.1.3.3 | `TBD` |
-| `Error` | `Error event` | `MAC -> FCE` | Report detected protocol error | On bit/stuff/CRC/form/ACK error | 8.1.3.3 | `TBD` |
-| `Primary_error` | `Primary error event` | `MAC -> FCE` | Report primary error condition | On primary error condition | 8.1.3.3 | `TBD` |
-| `Error/overload flag` | `EF/OF state` | `MAC -> FCE` | Report EF/OF transmission state | During EF/OF transmission | 8.1.3.3 | `TBD` |
-| `Counters_unchanged` | `Counter-update qualifier` | `MAC -> FCE` | Qualify counter exception path | On rule-c exception cases | 8.1.3.3 | `TBD` |
-| `Error_delimiter_too_late` | `Late delimiter event` | `MAC -> FCE` | Report late error-delimiter condition | Set on late delimiter condition | 8.1.3.3 | `TBD` |
-| `Successful_transfer` | `Transfer completion event` | `MAC -> FCE` | Report successful TX/RX completion | On successful frame transfer | 8.1.3.3 | `TBD` |
-| `Error_passive_response` | `State response` | `MAC -> FCE` | Report entry into error-passive state | On state transition completion | 8.1.3.3 | `TBD` |
-| `Error_active_response` | `State response` | `MAC -> FCE` | Report return to error-active state | On state transition completion | 8.1.3.3 | `TBD` |
-| `Error_passive_request` | `State request` | `FCE -> MAC` | Request MAC enter error-passive state | On TEC/REC threshold crossing | 8.1.3.3 | `TBD` |
-| `Error_active_request` | `State request` | `FCE -> MAC` | Request MAC return to error-active state | On TEC/REC recovery conditions | 8.1.3.3 | `TBD` |
+| 8.1.3.4 | `Bus_off_request` | `Bus-off request` | Request node switch-off from bus | `FCE -> PCS` | `fce_pcs_if.bus_off_request` (`boolean`) | On bus-off transition condition |
+| 8.1.3.4 | `Bus_off_release_request` | `Bus-off release request` | Request node re-enable from bus-off | `FCE -> PCS` | `fce_pcs_if.bus_off_release_request` (`boolean`) | On restart/reintegration |
+| 8.1.3.4 | `Bus_off_response` | `Bus-off response` | Acknowledge bus-off request | `PCS -> FCE` | `fce_pcs_if.bus_off_response` (`boolean`) | Returned after bus-off action |
+| 8.1.3.4 | `Bus_off_release_response` | `Bus-off release response` | Acknowledge bus-off-release request | `PCS -> FCE` | `fce_pcs_if.bus_off_release_response` (`boolean`) | Returned after release action |
 
-: Interface definition for `fce_mac_if`. `TBD` = To Be Defined. {#tbl:fce-mac-if}
-
-
-| ISO symbol | ISO payload | Direction | Semantics | Timing | ISO ref. | Implementation mapping |
-| --- | --- | --- | --- | --- | --- | --- |
-| `Bus_off_request` | `Bus-off request` | `FCE -> PCS` | Request node switch-off from bus | On bus-off transition condition | 8.1.3.4 | `TBD` |
-| `Bus_off_release_request` | `Bus-off release request` | `FCE -> PCS` | Request node re-enable from bus-off | On restart/reintegration | 8.1.3.4 | `TBD` |
-| `Bus_off_response` | `Bus-off response` | `PCS -> FCE` | Acknowledge bus-off request | Returned after bus-off action | 8.1.3.4 | `TBD` |
-| `Bus_off_release_response` | `Bus-off release response` | `PCS -> FCE` | Acknowledge bus-off-release request | Returned after release action | 8.1.3.4 | `TBD` |
-
-: Interface definition for `fce_pcs_if`. `TBD` = To Be Defined. {#tbl:fce-pcs-if}
+: Interface definition for `fce_pcs_if`. {#tbl:fce-pcs-if}
 :::
 
 ## Protocol-Driven Type System
 
 
-```{.mermaid #fig:types-diagram caption="Type and constant hierarchy. Protocol constants derived from ISO 11898-1 form the root of the hierarchy, from which frame layout constants, type constraints, and composite record types are derived. The mac_frame_bit_name_t enumeration carries semantic protocol context across the MAC-PCS boundary and provides human-readable signal names in simulation waveforms."}
+```{.mermaid #fig:types-diagram caption="Type and constant hierarchy. Protocol constants derived from ISO 11898-1 form the root of the hierarchy, from which frame layout constants, type constraints, and composite record types are derived. The TX Monitoring namespace groups the types used by get_observed_mac_frame_bit_info() to classify bus events on each sample-point strobe and support TDC-delayed bit comparison via the transmitted-bits FIFO."}
 ---
 config:
   layout: elk
@@ -447,11 +443,14 @@ config:
     hideEmptyMembersBox: true
 ---
 classDiagram
-    namespace `Protocol Primitives` {
+    namespace `**Semantic Protocol Primitives**` {
         class polarity_t["type polarity_t"]
         class can_format_t["type can_format_t"]
         class mac_frame_bit_name_t["type mac_frame_bit_name_t"]
         class position_t["subtype position_t"]
+        class tx_mac_monitor_event_t["type tx_mac_monitor_event_t"]
+        class transfer_status_t["type transfer_status_t"]
+        class strobe_type_t["type strobe_type_t"]
     }
 
     class protocol_constants["Protocol Constants"]
@@ -502,24 +501,50 @@ classDiagram
     frame_params_t : brs_bit bit_t
     frame_params_t : ⋮
 
-    note for protocol_constants "Fundamental protocol constants derived directly from ISO 11898-1.<br/>All frame layout constants, field widths, and type constraints<br/>in the design are derived from these values.<br/>Serves as the single source of truth for protocol specification."
-    note for frame_layout_constants "cb_, ce_, fb_, fe_ format constants.<br/>Used by serialiser to calculate frame_params_t at frame ingestion.<br/>See Table X for complete listing."
-    note for common_frame_bits "Fixed polarity protocol bits shared across all frame formats.<br/>Returned directly by get_current_bit for known protocol bit positions.<br/>See Table X for complete listing."
-    note for frame_params_t "Calculated once per frame by the serialiser from frame layout constants.<br/>Boolean fields are pre-computed predicates for get_current_bit if-guards,<br/>avoiding repeated condition evaluation on every bit clock cycle.<br/>Encapsulates all format-specific parameters allowing get_current_bit<br/>to resolve the correct mac_frame_bit_t for any bit counter value."
+    class observed_mac_frame_bit_info_t["record observed_mac_frame_bit_info_t"]
+    class transmitted_bits_fifo_t["type transmitted_bits_fifo_t"]
 
-    position_t ..> protocol_constants : range from
-    frame_layout_constants ..> protocol_constants : derives from
-    common_frame_bits ..> protocol_constants : derives from
-    bit_t *-- position_t : position
-    bit_t *-- polarity_t : polarity
-    mac_frame_bit_t *-- polarity_t : polarity
-    mac_frame_bit_t *-- mac_frame_bit_name_t : bit_name
-    frame_layout_constants ..> bit_t : uses
-    common_frame_bits ..> mac_frame_bit_t : uses
-    frame_params_t *-- can_format_t : format
-    frame_params_t *-- position_t : field ranges
-    frame_params_t *-- bit_t : format specific bits
-    frame_params_t ..> frame_layout_constants : derived from
+    tx_mac_monitor_event_t : none
+    tx_mac_monitor_event_t : ack_detected
+    tx_mac_monitor_event_t : ack_error
+    tx_mac_monitor_event_t : bit_error
+    tx_mac_monitor_event_t : lost_arbitration
+
+    transfer_status_t : ongoing
+    transfer_status_t : lost_arbitration
+    transfer_status_t : transmitted
+    transfer_status_t : aborted
+    transfer_status_t : disturbed
+
+    strobe_type_t : sp_strobe
+    strobe_type_t : ssp_strobe
+
+    observed_mac_frame_bit_info_t : event_type tx_mac_monitor_event_t
+    observed_mac_frame_bit_info_t : transfer_status transfer_status_t
+    observed_mac_frame_bit_info_t : expected_bit mac_frame_bit_t
+    observed_mac_frame_bit_info_t : observed_polarity polarity_t
+
+    transmitted_bits_fifo_t : array of mac_frame_bit_t
+
+    position_t ..> protocol_constants
+    frame_layout_constants ..> protocol_constants
+    common_frame_bits ..> protocol_constants
+    bit_t *-- position_t
+    bit_t *-- polarity_t
+    mac_frame_bit_t *-- polarity_t
+    mac_frame_bit_t *-- mac_frame_bit_name_t
+    frame_layout_constants ..> bit_t
+    common_frame_bits ..> mac_frame_bit_t
+    frame_params_t *-- can_format_t
+    frame_params_t *-- position_t
+    frame_params_t *-- bit_t
+    frame_params_t ..> frame_layout_constants
+
+    observed_mac_frame_bit_info_t *-- tx_mac_monitor_event_t
+    observed_mac_frame_bit_info_t *-- transfer_status_t
+    observed_mac_frame_bit_info_t *-- mac_frame_bit_t
+    observed_mac_frame_bit_info_t *-- polarity_t
+    transmitted_bits_fifo_t ..> mac_frame_bit_t
 ```
 
 ## LLC Sub-layer {#sec:llc-sub-layer}
@@ -574,7 +599,7 @@ flowchart TD
 
     LLC <==>|llc_mac_tx_if| SER
 
-    FSM <==>|mac_pcs_tx_if| PCS
+    FSM <==>|mac_pcs_if| PCS
     FSM <==>|fce_mac_if| FCE
 ```
 
@@ -646,6 +671,45 @@ The `transmitting_frame` state is the most complex. On entry, `initialize_frame_
 Handles bit timing and synchronization. It generates the sample point (SP) and secondary sample point (SSP) strobes. It provides bit-level monitoring data to the FCE to detect synchronization and timing errors.
 
 ### `can_pcs_tx` {#sec:can-pcs-tx}
+
+```{.mermaid #fig:can-pcs-tx caption="PCS TX FSM state transitions. The measuring_delay state is entered on the FDF sample point to measure TDCV (Transmitter Delay Compensation Value, ISO ref.: 7.3.4). The BRS bit boundary determines whether data-phase timing is used. All non-idle states return to idle when the frame becomes inactive."}
+---
+config:
+  layout: elk
+  elk:
+    algorithm: layered
+    mergeEdges: false
+    nodePlacementStrategy: LINEAR_SEGMENTS
+  look: classic
+  theme: neutral
+  themeVariables:
+    fontFamily: "Libertinus Serif, Noto Serif, serif"
+    fontSize: "14px"
+    primaryTextColor: "#000"
+---
+stateDiagram-v2
+
+  state "**idle**<br/>─────────<br/>• Awaiting frame activation<br/>• Nominal timing free-running<br/>• Latch first bit on frame activation" as idle_s
+  state "**transmitting_nominal**<br/>─────────<br/>• Nominal bit timing<br/>• Latch next bit at nominal bit boundary<br/>• SP strobe at end of Phase_Seg1" as nom_s
+  state "**measuring_delay**<br/>─────────<br/>• Nominal bit timing continues<br/>• Measure TDCV (ISO ref.: 7.3.4)<br/>• Latch SSP position and FIFO index on RX edge" as meas_s
+  state "**transmitting_data**<br/>─────────<br/>• Data-phase bit timing<br/>• Latch next bit at data bit boundary<br/>• SSP strobe when TDC active, SP otherwise" as data_s
+
+  [*] --> idle_s : reset
+
+  idle_s --> nom_s : frame active
+
+  nom_s --> idle_s : frame inactive
+  nom_s --> meas_s : fdf_bit at SP
+
+  meas_s --> idle_s : frame inactive
+  meas_s --> data_s : BRS=recessive at bit boundary
+  meas_s --> nom_s : BRS=dominant at bit boundary
+  meas_s --> nom_s : TDC timeout
+
+  data_s --> idle_s : frame inactive
+  data_s --> nom_s : CRC delimiter boundary
+  data_s --> nom_s : error flag boundary
+```
 ### `can_pcs_rx` {#sec:can-pcs-rx}
 
 ---

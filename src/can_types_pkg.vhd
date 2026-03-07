@@ -32,16 +32,16 @@ package can_types_pkg is
   constant byte_width_c      : integer                       := 8;
 
   -- Max frame: FD extended, DLC 15 → eof_stop = 593.
-  constant max_mac_frame_length_c       : integer := 640;
+  constant max_mac_frame_length_c        : integer := 640;
   subtype  bit_count_t is integer range 0 to max_mac_frame_length_c;
-  constant base_id_width_c              : integer := 11;
-  constant extended_id_width_c          : integer := 18;
-  constant eof_field_width_c            : integer := 7;
-  constant error_flag_width_c           : integer := 6;
-  constant error_delimiter_width_c      : integer := 8;
-  constant bus_idle_condition_width_c   : integer := 11; -- ISO 11898-1: 3.34
-  constant intermission_width_c         : integer := 3;  -- ISO 11898-1: 6.6.7.2
-  constant suspend_transmission_width_c : integer := 8;  -- ISO 11898-1: 6.6.7.4
+  constant base_id_width_c               : integer := 11;
+  constant extended_id_width_c           : integer := 18;
+  constant eof_field_width_c             : integer := 7;
+  constant error_flag_width_c            : integer := 6;
+  constant error_delimiter_width_c       : integer := 8;
+  constant bus_idle_condition_width_c    : integer := 11;   -- ISO 11898-1: 3.34
+  constant intermission_width_c          : integer := 3;    -- ISO 11898-1: 6.6.7.2
+  constant suspend_transmission_width_c  : integer := 8;    -- ISO 11898-1: 6.6.7.4
   constant transmitted_bits_fifo_depth_c : integer := 32;
   constant dlc_max_decimal_value         : integer := 15;
   constant max_data_bytes_c              : integer := 64;
