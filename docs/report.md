@@ -424,7 +424,7 @@ Detailed interface definitions (normative source mapping):
 
 ## Protocol-Driven Type System
 
-All types and constants shared between modules are defined in `can_types_pkg.vhd`. The hierarchy (@fig:types-diagram) is rooted in ISO-derived protocol constants, from which frame layout constants, semantic enumeration types, and composite record types are derived. This ensures that protocol-level meaning is encoded in the type system rather than left to naming convention.
+The shared type system encodes protocol semantics directly into the interface bundles defined in @sec:interface-definition-tables. This makes the protocol semantics visible in the implementation and in simulation waveforms. As shown in @fig:types-diagram, the hierarchy is rooted in ISO-derived protocol constants, from which frame layout constants, semantic enumeration types, and composite record types are derived.
 
 ```{.mermaid #fig:types-diagram caption="Type and constant hierarchy. The Semantic Protocol Primitives namespace groups the enumeration types and subtypes that comprise the protocol semantic primitives. Compound record types compose these primitives: bit_t pairs a bit position with a polarity and underpins the frame layout constants. mac_frame_bit_t carries semantic context by combining a polarity with a protocol bit name, so each transmitted bit remains identifiable throughout the design. frame_params_t aggregates format flags, field boundary positions, and format-specific control bit positions, computed once per frame (@sec:can-mac-ser). observed_mac_frame_bit_info_t and transmitted_bits_fifo_t support bus monitoring and TDC-delayed bit comparison (@sec:can-mac-fsm-tx). Constant groups derive from the root protocol constants."}
 ---

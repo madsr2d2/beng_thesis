@@ -701,6 +701,7 @@ See `OsvvmLibraries/README.md` for OSVVM build and usage.
 **Writing style (emails, reports, prose):**
 - Limit the use of semicolons. Prefer periods where possible.
 - Do not use em dashes. Use plain hyphens (-) instead.
+- Use internal cross-references (`@sec:`, `@fig:`, `@tbl:`) to connect related concepts across sections. Cross-references integrate the narrative, avoid redundancy, and give the reader a clear path to supporting detail. Every figure and table must be referenced at least once in the main text, and introductory paragraphs should reference the diagrams or tables contained in their section.
 
 ### Markdown Report Format (for `scripts/md_to_pdf.sh`)
 
