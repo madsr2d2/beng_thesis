@@ -11,6 +11,7 @@ Options:
   --md-file PATH         Markdown input file (alias: --md_file).
   --output-pdf PATH      PDF output file.
   --table-style STYLE    Table style preset: clean or enhanced.
+  --toc-depth N          TOC depth (default: 4).
   --section NAME         Select a section subtree by ID/alias; repeatable.
                          Accepts comma-separated values.
                          Examples:
@@ -59,6 +60,7 @@ parse_args() {
   INPUT_MD_OVERRIDE=""
   OUTPUT_PDF_OVERRIDE=""
   TABLE_STYLE_OVERRIDE=""
+  TOC_DEPTH_OVERRIDE=""
   POSITIONAL_ARGS=()
 
   while [[ $# -gt 0 ]]; do
@@ -91,6 +93,16 @@ parse_args() {
     --table-style=*)
       TABLE_STYLE_OVERRIDE="${1#*=}"
       [[ -n "$TABLE_STYLE_OVERRIDE" ]] || die "${1%%=*} requires a non-empty value."
+      shift
+      ;;
+    --toc-depth)
+      [[ $# -ge 2 ]] || die "$1 requires a value."
+      TOC_DEPTH_OVERRIDE="$2"
+      shift 2
+      ;;
+    --toc-depth=*)
+      TOC_DEPTH_OVERRIDE="${1#*=}"
+      [[ -n "$TOC_DEPTH_OVERRIDE" ]] || die "${1%%=*} requires a non-empty value."
       shift
       ;;
     --section)
@@ -187,6 +199,7 @@ main() {
   PDF_FIG_MAX_HEIGHT="${PDF_FIG_MAX_HEIGHT:-0.9\textheight}"
   PANDOC_TABLE_STYLE="${TABLE_STYLE_OVERRIDE:-${PANDOC_TABLE_STYLE:-clean}}"
   PANDOC_TOC="${PANDOC_TOC:-1}"
+  PANDOC_TOC_DEPTH="${TOC_DEPTH_OVERRIDE:-${PANDOC_TOC_DEPTH:-4}}"
   PANDOC_CROSSREF="${PANDOC_CROSSREF:-1}"
   PANDOC_FIG_PREFIX="${PANDOC_FIG_PREFIX:-Figure}"
   PANDOC_TBL_PREFIX="${PANDOC_TBL_PREFIX:-Table}"
@@ -194,6 +207,7 @@ main() {
   SANITIZE_GLYPHS="${SANITIZE_GLYPHS:-0}"
   PANDOC_TABLE_LAYOUT_FILTER="${PANDOC_TABLE_LAYOUT_FILTER:-$ROOT_DIR/scripts/filters/table_landscape.lua}"
   PANDOC_SECTION_SELECT_FILTER="${PANDOC_SECTION_SELECT_FILTER:-$ROOT_DIR/scripts/filters/select_sections.lua}"
+  PANDOC_MERMAID_WIDTH_FILTER="${PANDOC_MERMAID_WIDTH_FILTER:-$ROOT_DIR/scripts/filters/mermaid_width.lua}"
 
   case "${PANDOC_TABLE_STYLE,,}" in
   clean | enhanced) ;;
@@ -226,7 +240,7 @@ main() {
   export MERMAID_FILTER_SCALE="${MERMAID_FILTER_SCALE:-2}"
 
   if is_enabled "$PANDOC_TOC"; then
-    TOC_ARGS=(--toc --toc-depth=3)
+    TOC_ARGS=(--toc "--toc-depth=$PANDOC_TOC_DEPTH")
   else
     TOC_ARGS=()
   fi
@@ -248,6 +262,10 @@ main() {
   LUA_FILTER_ARGS=()
   if [[ -f "$PANDOC_TABLE_LAYOUT_FILTER" ]]; then
     LUA_FILTER_ARGS+=(--lua-filter "$PANDOC_TABLE_LAYOUT_FILTER")
+  fi
+  if [[ -f "$PANDOC_MERMAID_WIDTH_FILTER" ]]; then
+    LUA_FILTER_ARGS+=(--lua-filter "$PANDOC_MERMAID_WIDTH_FILTER")
+    export PANDOC_SOURCE_MD="$INPUT_MD_ABS"
   fi
   if [[ -n "$SECTION_SELECTOR" ]]; then
     [[ -f "$PANDOC_SECTION_SELECT_FILTER" ]] || die "section-selection filter not found: $PANDOC_SECTION_SELECT_FILTER"

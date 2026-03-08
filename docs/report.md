@@ -12,7 +12,7 @@ link-citations: true
 *This document is a work-in-progress draft for the B.Eng thesis. Currently, the project is in the **Verification Plan** phase (Phase 2), with architectural prototyping for the transmitter sub-system completed.*
 
 This thesis describes the design, implementation, and verification of a CAN (Controller Area Network) and CAN-FD (Flexible Data rate) transmitter sub-system.
- The implementation is targeting high-reliability engine controller applications and is compliant with the ISO 11898-1:2024 standard. Key features include support for both Classic and FD frame formats, Transmitter Delay Compensation (TDC) for high-speed data phases, and a modular architecture separated into Link Layer Control (LLC), Media Access Control (MAC), and Physical Coding Sublayer (PCS).
+ The implementation is targeting high-reliability engine controller applications and is compliant with the ISO 11898-1:2024 standard [@iso11898_1]. Key features include support for both Classic and FD frame formats, Transmitter Delay Compensation (TDC) for high-speed data phases, and a modular architecture separated into Link Layer Control (LLC), Media Access Control (MAC), and Physical Coding Sublayer (PCS).
 
 # Abbreviations {-}
 
@@ -56,7 +56,7 @@ This thesis describes the design, implementation, and verification of a CAN (Con
 The Controller Area Network (CAN) has been the workhorse of automotive and industrial communication for decades. However, the increasing bandwidth requirements of modern systems led to the development of CAN-FD (Flexible Data rate), which allows for larger payloads and higher bit rates. This project aims to provide a robust, hardware-independent VHDL implementation of a CAN-FD transmitter.
 
 ## Problem Statement {#sec:problem-statement}
-Existing CAN implementations often lack flexibility or do not fully support the latest ISO 11898-1:2024 features, such as advanced Transmitter Delay Compensation (TDC). The challenge lies in creating a transmitter that can seamlessly switch between bit rates while maintaining strict protocol compliance and timing accuracy.
+Existing CAN implementations often lack flexibility or do not fully support the latest ISO 11898-1:2024 [@iso11898_1] features, such as advanced Transmitter Delay Compensation (TDC). The challenge lies in creating a transmitter that can seamlessly switch between bit rates while maintaining strict protocol compliance and timing accuracy.
 
 ## Objectives {#sec:objectives}
 - Implement a VHDL-2008 compliant CAN/CAN-FD transmitter.
@@ -72,7 +72,7 @@ Existing CAN implementations often lack flexibility or do not fully support the 
 Brief history from CAN 2.0 to CAN-FD.
 
 ## ISO 11898-1:2024 Standard {#sec:iso-standard}
-Overview of the data link layer and physical signaling requirements.
+Overview of the data link layer and physical signaling requirements [@iso11898_1].
 
 ## VHDL and OSVVM {#sec:vhdl-osvvm}
 The role of modern VHDL standards and verification frameworks in digital design.
@@ -83,7 +83,7 @@ The role of modern VHDL standards and verification frameworks in digital design.
 
 ## Overview and Scope {#sec:overview-scope}
 
-Protocol compliance is the central objective of this project. The CAN and CAN-FD standards (ISO 11898-1:2024) specify hundreds of normative requirements governing frame structure, bit timing, error handling, and fault confinement. To verify the transmitter against these requirements systematically, a structured **Verification Plan** was developed as the first major deliverable of the project - before any RTL implementation began.
+Protocol compliance is the central objective of this project. The CAN and CAN-FD standards [@iso11898_1] specify hundreds of normative requirements governing frame structure, bit timing, error handling, and fault confinement. To verify the transmitter against these requirements systematically, a structured **Verification Plan** was developed as the first major deliverable of the project - before any RTL implementation began.
 
 The plan covers the four in-scope frame formats: Classic Basic (CB), Classic Extended (CE), FD Basic (FB), and FD Extended (FE). CAN XL frames are excluded. In total, the plan contains 168 requirements extracted from the standard, organized by architectural layer (LLC, MAC, PCS, FCE) and spanning the major functional areas:
 
@@ -120,7 +120,7 @@ Observability is assessed **per layer**, not per top-level CAN node. The design 
 
 ### Canonical Layer Interfaces {#sec:canonical-layer-interfaces}
 
-To make observability judgments repeatable and independent of VHDL implementation choices, the classification is anchored in the **canonical service primitives** defined by ISO 11898-1:2015. The standard specifies inter-layer boundaries as abstract service access points with named primitives and parameters:
+To make observability judgments repeatable and independent of VHDL implementation choices, the classification is anchored in the **canonical service primitives** defined by ISO 11898-1 [@iso11898_1]. The standard specifies inter-layer boundaries as abstract service access points with named primitives and parameters:
 
 - **LLC ↔ User**: `L_Data.Request`, `L_Data.Confirm`, `L_Data.Indication` - carrying frame content, transfer status, and timestamps (§6.4.5).
 - **MAC ↔ PCS**: `PCS_Data.Request(Output_Unit)`, `PCS_Data.Indicate(Input_Unit)` - the bit-level transmission and reception interface; `PCS_Status.Transmitter(D_Transmit)` and `PCS_Status.Receiver(D_Receive)` - signalling the FD data phase (§7.2).
@@ -197,9 +197,7 @@ The verification plan drives a layered testing strategy, where each level target
 # Design and Architecture {#sec:design-architecture}
 
 ## System Overview {#sec:system-overview}
-A complete CAN node is composed of a Transmit (TX) path and a Receive (RX) path coordinated by shared fault-confinement and physical-interface control. The paths operate in parallel at runtime, but they are not symmetric in behavior or responsibility.
-The focus of this thesis is the complete node architecture and its standards-traceable interfaces. The TX path is responsible for frame submission, arbitration participation, and bitstream generation toward the bus, while the RX path is responsible for bus observation, frame reconstruction, and delivery/notification toward the user layer. As shown in @fig:can-node-architecture, this full-node decomposition spans LLC, MAC, PCS, FCE, and PMA boundaries.
-
+A complete CAN node decomposes into a TX path and an RX path, coordinated by shared Fault Confinement Entity (FCE) and Physical Medium Attachment (PMA) control, as shown in @fig:can-node-architecture. Each path spans three sub-layers - LLC (@sec:llc-sub-layer), MAC (@sec:mac-sub-layer), and PCS (@sec:pcs-sub-layer) - with the LLC frame format defined in @sec:llc-frame-format and interface bundles defined in @sec:interface-definition-tables. A shared protocol-driven type system (@sec:protocol-driven-type-system) underpins all inter-module interfaces, encoding ISO semantics directly into the VHDL type hierarchy.
 
 ```{.mermaid #fig:can-node-architecture caption="CAN node decomposition across LLC, MAC, PCS, FCE, and PMA boundaries. Interface definitions are provided for llc_tx_if (@tbl:llc-tx-if), llc_rx_if (@tbl:llc-rx-if), llc_mac_tx_if (@tbl:llc-mac-tx-if), llc_mac_rx_if (@tbl:llc-mac-rx-if), mac_pcs_if (@tbl:mac-pcs-if), aui_if (@tbl:aui-if), fce_llc_if (@tbl:fce-llc-if), fce_mac_if (@tbl:fce-mac-if), and fce_pcs_if (@tbl:fce-pcs-if)."}
 ---
@@ -218,21 +216,21 @@ config:
 ---
 flowchart TD
     User["**User**"]
-    FCE["**can_fce**<br/>─────────<br/>Fault confinement<br/>(FCE, ISO ref.: 8.1.3-8.1.4)"]
-    PMA["**PMA**<br/>─────────<br/>Physical medium attachment<br/>(ISO ref.: 7.4)"]
-    subgraph Node ["**CAN Node**<br/>─────────<br/>DLL + PCS, ISO ref.: 6.1-6.3"]
+    FCE["**can_fce**<br/>─────────<br/>Fault confinement<br/>(FCE, §8.1.3-8.1.4)"]
+    PMA["**PMA**<br/>─────────<br/>Physical medium attachment<br/>(§7.4)"]
+    subgraph Node ["**CAN Node**<br/>─────────<br/>DLL + PCS, §6.1-6.3"]
         subgraph TX_Pipeline ["**TX Pipeline**"]
-            LLC_TX["**can_llc_tx**<br/>─────────<br/>Frame buffering & retransmission<br/>(LLC Sub-layer,ISO ref.: 6.4-6.5)"]
-            MAC_TX["**can_mac_tx**<br/>─────────<br/>Serialization, CRC & bit stuffing<br/>(MAC Sub-layer, ISO ref.: 6.6)"]
-            PCS_TX["**can_pcs_tx**<br/>─────────<br/>Bit timing & TDC<br/>(PCS Sub-layer, ISO ref.: 7.2-7.4)"]
+            LLC_TX["**can_llc_tx**<br/>─────────<br/>Frame buffering & retransmission<br/>(LLC Sub-layer, §6.4-6.5)"]
+            MAC_TX["**can_mac_tx**<br/>─────────<br/>Serialization, CRC & bit stuffing<br/>(MAC Sub-layer, §6.6)"]
+            PCS_TX["**can_pcs_tx**<br/>─────────<br/>Bit timing & TDC<br/>(PCS Sub-layer, §7.2-7.4)"]
 
             LLC_TX <==>|llc_mac_tx_if| MAC_TX <==>|mac_pcs_if| PCS_TX
         end
 
         subgraph RX_Pipeline ["**RX Pipeline**"]
-            LLC_RX["**can_llc_rx**<br/>─────────<br/>Frame delivery & filtering<br/>(LLC Sub-layer, ISO ref.: 6.4-6.5)"]
-            MAC_RX["**can_mac_rx**<br/>─────────<br/>Deserialization, CRC & destuffing<br/>(MAC Sub-layer, ISO ref.: 6.6)"]
-            PCS_RX["**can_pcs_rx**<br/>─────────<br/>Bit timing & synchronization<br/>(PCS Sub-layer, ISO ref.: 7.2-7.4)"]
+            LLC_RX["**can_llc_rx**<br/>─────────<br/>Frame delivery & filtering<br/>(LLC Sub-layer, §6.4-6.5)"]
+            MAC_RX["**can_mac_rx**<br/>─────────<br/>Deserialization, CRC & destuffing<br/>(MAC Sub-layer, §6.6)"]
+            PCS_RX["**can_pcs_rx**<br/>─────────<br/>Bit timing & synchronization<br/>(PCS Sub-layer, §7.2-7.4)"]
 
             LLC_RX <==>|llc_mac_rx_if| MAC_RX <==>|mac_pcs_if| PCS_RX
         end
@@ -252,10 +250,10 @@ flowchart TD
     PCS_RX <==>|aui_if| PMA
 ```
 
-### LLC Frame Format
+## LLC Frame Format {#sec:llc-frame-format}
 The current `LLC Frame` format is depicted in @fig:llc-frame-current with the ID byte format depicted in @tbl:ID-bytes. The revised `LLC Frame` supporting FD is depicted in @fig:llc-frame-revised. The revised format adds a 3-bit `FMT` (ISO 6.4.3) field to the DLC byte, expands the data field to 64 bytes, and repurposes reserved bits in the last byte for BRS and ESI flags. The `FMT` encodes the supported frame formats as '`000`' = CB, '`100`' = CE, '`010`' = FB, '`110`' = FE. Accordingly, for the frame content to be self-consistent the IDE bit must be set to `0` for `FMT` = CB/FB and `1` for `FMT` = CE/FE. The revised format is designed to be backward compatible: an implementation that only supports Classic frames can simply ignore the `FMT` bits and treat all frames as Classic, while an implementation that supports FD can use the `FMT` field to distinguish frame types without affecting the existing ID and data field structure.
 
-```{.mermaid #fig:llc-frame-current caption="Current 15 byte LLC Frame format."}
+```{.mermaid #fig:llc-frame-current caption="Current LLC frame format (15 bytes). ID byte encoding is defined in @tbl:ID-bytes."}
 ---
 look: classic
 config:
@@ -264,7 +262,7 @@ config:
     fontFamily: "Libertinus Serif, Noto Serif, serif"
     fontSize: "14px"
   packet:
-    bitsPerRow: 5
+    bitsPerRow: 8
     bitWidth: 100
     rowHeight: 42
     showBits: true
@@ -283,7 +281,7 @@ packet
 ```
 
 
-```{.mermaid #fig:llc-frame-revised caption="Maximum length revised LLC Frame format with FD support."}
+```{.mermaid #fig:llc-frame-revised caption="Revised LLC frame format with FD support, shown at maximum length (71 bytes). The FMT field selects frame type; BRS and ESI repurpose reserved bits in the final byte. ID byte encoding is defined in @tbl:ID-bytes."}
 ---
 look: classic
 config:
@@ -292,7 +290,7 @@ config:
     fontFamily: "Libertinus Serif, Noto Serif, serif"
     fontSize: "14px"
   packet:
-    bitsPerRow: 5
+    bitsPerRow: 8
     bitWidth: 100
     rowHeight: 42
     showBits: true
@@ -316,13 +314,13 @@ packet
 | Basic | '`00000000`' | '`00000000`' | '`00000`' `&` '`ID(10-8)`' | '`ID(7-0)`' | 
 | Extended | '`000`' `&` '`ID(28:24)`' | '`ID(23-16)`' | '`ID(15-8)`' | '`ID(7-0)`' | 
 
-: Four ID byts of the current `LLC frame` format. {#tbl:ID-bytes}
+: ID byte encoding for the LLC frame formats shown in @fig:llc-frame-current and @fig:llc-frame-revised. {#tbl:ID-bytes}
 
 ## Interface Definition Tables {#sec:interface-definition-tables}
 
-The following tables define the interface bundles shown in @fig:can-node-architecture. ISO references are to ISO 11898-1:2024 clauses and tables.
+The interface bundles shown in @fig:can-node-architecture are defined in full below, with each signal mapped to its corresponding ISO 11898-1 [@iso11898_1] service primitive. This normative anchoring provides a direct traceability path from protocol clauses to VHDL port, and establishes the canonical layer boundaries used for observability classification in @sec:observability-classification. The types used in these interfaces are defined in @sec:protocol-driven-type-system.
 
-Detailed interface definitions (normative source mapping):
+The semantic protocol types described in @sec:protocol-driven-type-system are used internally within the MAC layer and at the MAC-PCS boundary, where frame context must be carried alongside each bit. The LLC layer operates purely on bytes - the LLC frame format (@sec:llc-frame-format) is defined in terms of plain data fields with no protocol-semantic typing. The AUI interface (`aui_if`) uses `std_logic` throughout, as it crosses outside the ISO protocol domain into the physical medium. The one exception is `transfer_status_t`, which propagates a frame outcome from the MAC layer back through the LLC to the user. The LLC-User interface (`llc_tx_if`, `llc_rx_if`) is implemented as an Avalon-ST byte stream to maintain backward compatibility with the existing CAN bus controller, which uses the same `valid`/`ready`/`startofpacket` handshake convention.
 
 ::: {.landscape-tables}
 
@@ -363,7 +361,7 @@ Detailed interface definitions (normative source mapping):
 | 6.6.4.3, 6.6.9 | `DLL SDU` | Reconstructed `LLC Frame` | Transfer reconstructed LLC frame to LLC | `MAC -> LLC` | | Issued when MAC has reconstructed a frame from the received bitstream |
 | 6.6.3 | Time reference notification | `SOF/frame-valid indication` | Provide timing reference for timestamping | `MAC -> LLC` | | Generated for transmitted/received DF/RF |
 
-: Interface definition for `llc_mac_rx_if`. {#tbl:llc-mac-rx-if}
+: Interface definition for `llc_mac_rx_if`. Carries the reconstructed LLC frame from `can_mac_rx` to `can_llc_rx` (@sec:can-mac-rx). Full decomposition of RX sub-module interfaces is deferred to future work. {#tbl:llc-mac-rx-if}
 
 
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
@@ -383,7 +381,7 @@ Detailed interface definitions (normative source mapping):
 | 7.4.2.3, 8.1.3.4 | `bus_off_release symbol` | `Bus-off release control` | Release node from bus-off | `PCS -> PMA` | `aui_if.bus_off_release` (`std_logic`) | On `Bus_off_release_request` from FCE |
 | 7.4.3 | `input symbol` | `Dominant/recessive symbol` | Indicate physical input symbol | `PMA -> PCS` | `aui_if.rx` (`std_logic`) | Continuously driven by PMA |
 
-: Interface definition for `aui_if`. {#tbl:aui-if}
+: Interface definition for `aui_if`. All signals are `std_logic`, as this interface crosses from the ISO protocol domain into the physical medium. {#tbl:aui-if}
 
 
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
@@ -392,7 +390,7 @@ Detailed interface definitions (normative source mapping):
 | 8.1.3.2 | `Normal_mode_response` | `Mode response` | Acknowledge normal-mode request | `FCE -> LLC` | `fce_llc_if.normal_mode_response` (`boolean`) | Returned after FCE processing |
 | 8.1.3.2 | `Bus_off` | `Bus-off status` | Indicate node is bus-off | `FCE -> LLC` | `fce_llc_if.bus_off` (`boolean`) | Asserted on bus-off transition |
 
-: Interface definition for `fce_llc_if`. {#tbl:fce-llc-if}
+: Interface definition for `fce_llc_if`. Carries bus-off status and mode-request handshake between the FCE and LLC layers [@iso11898_1, sec. 8.1.3.2]. {#tbl:fce-llc-if}
 
 
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
@@ -409,7 +407,7 @@ Detailed interface definitions (normative source mapping):
 | 8.1.3.3 | `Error_passive_request` | `State request` | Request MAC enter error-passive state | `FCE -> MAC` | `fce_mac_if.error_passive` (`boolean`) | On TEC/REC threshold crossing |
 | 8.1.3.3 | `Error_active_request` | `State request` | Request MAC return to error-active state | `FCE -> MAC` | `fce_mac_if.error_active` (`boolean`) | On TEC/REC recovery |
 
-: Interface definition for `fce_mac_if`. {#tbl:fce-mac-if}
+: Interface definition for `fce_mac_if`. The MAC reports error events and frame outcomes to the FCE; the FCE returns the current error-active/passive state to the MAC [@iso11898_1, sec. 8.1.3.3]. {#tbl:fce-mac-if}
 
 
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
@@ -419,10 +417,10 @@ Detailed interface definitions (normative source mapping):
 | 8.1.3.4 | `Bus_off_response` | `Bus-off response` | Acknowledge bus-off request | `PCS -> FCE` | `fce_pcs_if.bus_off_response` (`boolean`) | Returned after bus-off action |
 | 8.1.3.4 | `Bus_off_release_response` | `Bus-off release response` | Acknowledge bus-off-release request | `PCS -> FCE` | `fce_pcs_if.bus_off_release_response` (`boolean`) | Returned after release action |
 
-: Interface definition for `fce_pcs_if`. {#tbl:fce-pcs-if}
+: Interface definition for `fce_pcs_if`. Carries bus-off and bus-off-release request/response handshakes between the FCE and PCS layers [@iso11898_1, sec. 8.1.3.4]. {#tbl:fce-pcs-if}
 :::
 
-## Protocol-Driven Type System
+## Protocol-Driven Type System {#sec:protocol-driven-type-system}
 
 The shared type system encodes protocol semantics directly into the interface bundles defined in @sec:interface-definition-tables. This makes the protocol semantics visible in the implementation and in simulation waveforms. As shown in @fig:types-diagram, the hierarchy is rooted in ISO-derived protocol constants, from which frame layout constants, semantic enumeration types, and composite record types are derived.
 
@@ -592,23 +590,27 @@ Responsible for frame buffering and retransmission management. It provides an Av
 
 ### `can_llc_tx` {#sec:can-llc-tx}
 
-`can_llc_tx` buffers an incoming LLC frame from the user, streams it byte-by-byte to the MAC serializer, and manages retransmission on bus disturbance up to the ISO-mandated limit (ISO ref.: 6.4.5, 6.5).
+`can_llc_tx` buffers an incoming LLC frame from the user, streams it byte-by-byte to the MAC serializer, and manages retransmission on bus disturbance up to the ISO-mandated limit [@iso11898_1, sec. 6.4.5 and 6.5].
 
 ### `can_llc_rx` {#sec:can-llc-rx}
 
-`can_llc_rx` receives a reconstructed LLC frame from the MAC layer, applies acceptance filtering, and delivers accepted frames to the user over the `llc_rx_if` Avalon-ST stream (ISO ref.: 6.4.5).
+`can_llc_rx` receives a reconstructed LLC frame from the MAC layer, applies acceptance filtering, and delivers accepted frames to the user over the `llc_rx_if` Avalon-ST stream [@iso11898_1, sec. 6.4.5].
 
 ## MAC Sub-layer {#sec:mac-sub-layer}
-The core of the protocol logic. It handles bit serialization, CRC calculation, and bit stuffing. It coordinates the overall frame state machine and interacts closely with the Fault Confinement Entity (FCE) to manage error counters (TEC/REC) and node state (Error Active/Passive/Bus Off) based on protocol violations.
+The MAC sub-layer is the core of the protocol logic, responsible for bit serialization, CRC generation, bit stuffing, and frame-level error detection. It coordinates closely with the FCE (@sec:fce-sub-layer) for error counter management and node-state transitions (Error Active/Passive/Bus Off), and with the PCS (@sec:pcs-sub-layer) for sample-point-driven bit output.
+
+The earlier CAN bus controller concentrated TX, RX, MAC, and FCE logic in a single monolithic FSM (`can_fsm`), with the sub-functions - serialization (`can_ast_to_serial`), bit stuffing (`can_stuff_bit_gen`), and CRC (`gen_crc`) - implemented in satellite modules driven directly by it. PCS timing logic was implemented in `can_node_clock`, which fed sample-point and transmit pulses into `can_fsm` - a strategy retained in the current design.
+
+The current design restructures these modules around the ISO 11898-1 [@iso11898_1] layer boundaries. On the TX side the mapping is direct: `can_ast_to_serial` becomes `can_mac_ser_tx` (@sec:can-mac-ser-tx), `can_stuff_bit_gen` becomes `can_mac_bs_tx` (@sec:can-mac-bs-tx), `gen_crc` becomes `can_mac_crc_tx` (@sec:can-mac-crc-tx), and `can_node_clock` becomes `can_pcs_tx` (@sec:can-pcs-tx). The RX-side counterparts - deserialization (`can_serial_to_ast`), bit destuffing, and CRC checking - will map to submodules within `can_mac_rx` (@sec:can-mac-rx). Fault confinement, previously embedded in `can_fsm`, is separated into its own layer.
 
 ### `can_mac_tx` {#sec:can-mac-tx}
 
 The MAC TX layer (@fig:mac-tx-architecture) is composed of four main components:
 
-1. **tx_mac_ser** (Serializer): Converts LLC bytes into a serial bit stream with polarity information
-2. **tx_mac_fsm** (Frame State Machine): Coordinates frame transmission, controls all submodules
-3. **bit_stuffer_fd** (Bit Stuffer): Implements CAN/CAN-FD bit stuffing rules
-4. **crc_fd** (CRC Engine): Generates CRC-15/CRC-17/CRC-21 based on frame type
+1. **can_mac_ser_tx**: Converts LLC bytes into a serial bit stream with polarity information
+2. **can_mac_fsm_tx**: Coordinates frame transmission, controls all submodules
+3. **can_mac_bs_tx**: Implements CAN/CAN-FD bit stuffing rules
+4. **can_mac_crc_tx**: Generates CRC-15/CRC-17/CRC-21 based on frame type
 
 ```{.mermaid #fig:mac-tx-architecture caption="MAC TX layer architecture showing internal component interconnections and external interfaces (LLC, PCS, FCE). Internal interface definitions are provided for can_mac_fsm_ser_tx_if (@tbl:mac-fsm-ser-if), can_mac_fsm_bs_tx_if (@tbl:mac-fsm-bs-if), and can_mac_fsm_crc_tx_if (@tbl:mac-fsm-crc-if)."}
 ---
@@ -626,15 +628,15 @@ config:
     fontSize: "14px"
 ---
 flowchart TD
-    LLC["**can_llc_tx**<br/>─────────<br/>LLC Sub-layer, ISO ref.: 6.4-6.5"]
-    PCS["**can_pcs_tx**<br/>─────────<br/>PCS Sub-layer, ISO ref.: 7.2-7.4"]
-    FCE["**can_fce**<br/>─────────<br/>FCE, ISO ref.: 8.1.3-8.1.4"]
+    LLC["**can_llc_tx**<br/>─────────<br/>LLC Sub-layer, §6.4-6.5"]
+    PCS["**can_pcs_tx**<br/>─────────<br/>PCS Sub-layer, §7.2-7.4"]
+    FCE["**can_fce**<br/>─────────<br/>FCE, §8.1.3-8.1.4"]
 
-    subgraph MAC_TX ["**can_mac_tx**<br/>─────────<br/>MAC Sub-layer, ISO ref.: 6.6"]
-        SER["**can_mac_ser_tx**<br/>─────────<br/>LLC frame Serializer"]
+    subgraph MAC_TX ["**can_mac_tx**<br/>─────────<br/>MAC Sub-layer, §6.6"]
+        SER["**can_mac_ser_tx**<br/>─────────<br/>LLC Frame Serializer"]
         FSM["**can_mac_fsm_tx**<br/>─────────<br/>Controlling FSM"]
         BS["**can_mac_bs_tx**<br/>─────────<br/>Bit Stuffer"]
-        CRC["**can_mac_crc_tx**<br/>─────────<br/>CRC generator"]
+        CRC["**can_mac_crc_tx**<br/>─────────<br/>CRC Generator"]
 
         SER <==>|can_mac_fsm_ser_tx_if| FSM
         FSM <==>|can_mac_fsm_bs_tx_if| BS
@@ -652,41 +654,46 @@ flowchart TD
 The interfaces between MAC sub-components are implementation-defined and carry no direct ISO service primitive mapping. @tbl:mac-fsm-ser-if, @tbl:mac-fsm-bs-if, and @tbl:mac-fsm-crc-if define each bidirectional bundle; the Direction column identifies the driving component for each field.
 
 
-| Field | Type | Direction | Description |
+| field | type | direction | description |
 | --- | --- | --- | --- |
-| `data` | `polarity_t` | `SER → FSM` | Current bit polarity; FSM reads this when `valid` is asserted |
-| `valid` | `boolean` | `SER → FSM` | Asserted while a bit is available for the FSM to consume |
-| `frame_params` | `frame_params_t` | `SER → FSM` | Frame parameters computed from the two config bytes; valid for the lifetime of the frame |
-| `ready` | `boolean` | `FSM → SER` | Pulsed when the FSM has consumed the current bit; advances the serializer to the next bit |
-| `transfer_status` | `transfer_status_t` | `FSM → SER` | Frame outcome; any non-`ongoing` value terminates serialization |
+| `data` | `polarity_t` | `ser → fsm` | current bit polarity; fsm reads this when `valid` is asserted |
+| `valid` | `boolean` | `ser → fsm` | asserted while a bit is available for the fsm to consume |
+| `frame_params` | `frame_params_t` | `ser → fsm` | frame parameters computed from the two config bytes; valid for the lifetime of the frame |
+| `ready` | `boolean` | `fsm → ser` | pulsed when the fsm has consumed the current bit; advances the serializer to the next bit |
+| `transfer_status` | `transfer_status_t` | `fsm → ser` | frame outcome; any non-`ongoing` value terminates serialization |
 
-: Interface definition for `can_mac_fsm_ser_tx_if`. {#tbl:mac-fsm-ser-if}
+: interface definition for `can_mac_fsm_ser_tx_if`, connecting `can_mac_ser_tx` and `can_mac_fsm_tx` (see @fig:mac-tx-architecture). {#tbl:mac-fsm-ser-if}
 
 
-| Field | Type | Direction | Description |
+| field | type | direction | description |
 | --- | --- | --- | --- |
-| `data` | `polarity_t` | `FSM → BS` | Bit polarity fed into the bit stuffer |
-| `valid` | `boolean` | `FSM → BS` | Pulsed when a new bit is presented to the stuffer |
-| `start` | `boolean` | `FSM → BS` | Pulsed at frame start to reinitialize the stuffer state |
-| `data` | `polarity_t` | `BS → FSM` | Polarity of the required stuff bit |
-| `valid` | `boolean` | `BS → FSM` | Asserted when a stuff bit insertion is required |
-| `sbc` | `std_logic_vector(3:0)` | `BS → FSM` | Gray-coded stuff bit count with parity, used in the FD fixed-stuffing region |
+| `data` | `polarity_t` | `fsm → bs` | bit polarity fed into the bit stuffer |
+| `valid` | `boolean` | `fsm → bs` | pulsed when a new bit is presented to the stuffer |
+| `start` | `boolean` | `fsm → bs` | pulsed at frame start to reinitialize the stuffer state |
+| `data` | `polarity_t` | `bs → fsm` | polarity of the required stuff bit |
+| `valid` | `boolean` | `bs → fsm` | asserted when a stuff bit insertion is required |
+| `sbc` | `std_logic_vector(3:0)` | `bs → fsm` | gray-coded stuff bit count with parity, used in the fd fixed-stuffing region |
 
-: Interface definition for `can_mac_fsm_bs_tx_if`. {#tbl:mac-fsm-bs-if}
+: interface definition for `can_mac_fsm_bs_tx_if`, connecting `can_mac_fsm_tx` and `can_mac_bs_tx` (see @fig:mac-tx-architecture). {#tbl:mac-fsm-bs-if}
 
 
-| Field | Type | Direction | Description |
+| field | type | direction | description |
 | --- | --- | --- | --- |
-| `crc_poly_select` | `std_logic_vector(1:0)` | `FSM → CRC` | Selects the active CRC polynomial: CRC-15, CRC-17, or CRC-21 |
-| `valid` | `boolean` | `FSM → CRC` | Pulsed when `data` should be included in the CRC accumulation |
-| `data` | `std_logic` | `FSM → CRC` | Bit value to feed into the CRC engine |
-| `crc` | `crc_vector_t` | `CRC → FSM` | Current CRC register value; FSM reads this when serializing the CRC field |
+| `crc_poly_select` | `std_logic_vector(1:0)` | `fsm → crc` | selects the active crc polynomial: crc-15, crc-17, or crc-21 |
+| `valid` | `boolean` | `fsm → crc` | pulsed when `data` should be included in the crc accumulation |
+| `data` | `std_logic` | `fsm → crc` | bit value to feed into the crc engine |
+| `crc` | `crc_vector_t` | `crc → fsm` | current crc register value; fsm reads this when serializing the crc field |
 
-: Interface definition for `can_mac_fsm_crc_tx_if`. {#tbl:mac-fsm-crc-if}
+: interface definition for `can_mac_fsm_crc_tx_if`, connecting `can_mac_fsm_tx` and `can_mac_crc_tx` (see @fig:mac-tx-architecture). {#tbl:mac-fsm-crc-if}
 
 #### `can_mac_fsm_tx` {#sec:can-mac-fsm-tx}
 
-The MAC TX FSM (@fig:mac-tx-fsm) orchestrates all frame transmission activity. It coordinates the Serializer, Bit Stuffer, and CRC engine, and drives the `mac_pcs_if` output bit on each sample-point strobe from the PCS.
+`can_mac_fsm_tx` (@fig:mac-tx-fsm) orchestrates frame transmission, coordinating the serializer (@sec:can-mac-ser-tx), bit stuffer (@sec:can-mac-bs-tx), and CRC engine (@sec:can-mac-crc-tx). On each sample-point strobe from `can_pcs_tx` (@sec:can-pcs-tx), the `transmitting_frame` state executes the following sequence:
+
+1. The observed bus polarity is compared against the transmitted bit to detect errors and arbitration loss.
+2. In the CAN-FD data phase, any pending SSP observation from the previous bit period is evaluated first [@iso11898_1, sec. 7.3.4].
+3. The next output bit is determined - stuff bit or next frame bit - and the CRC is updated.
+4. Any detected error triggers a transition to the appropriate error flag state based on the FCE fault confinement status [@iso11898_1, sec. 8.1.3-8.1.4].
 
 ```{.mermaid #fig:mac-tx-fsm caption="MAC TX FSM state transitions. Error-active and error-passive paths share the same flag+delimiter sequence but drive different polarities. Overload transitions (dominant in intermission bits 0-1, or dominant on last delimiter bit) are omitted for clarity."}
 ---
@@ -715,45 +722,38 @@ stateDiagram-v2
   state "**suspend_transmission**<br/>─────────<br/>• Bus not driving<br/>• Error-passive hold-off" as suspend_transmission
 
 
-  [*] --> bus_reintegration : reset
-  bus_reintegration --> bus_idle : bus idle
+[*] --> bus_reintegration : reset
+bus_reintegration --> bus_idle : bus idle
 
-  bus_idle --> transmitting_frame : frame pending
+bus_idle --> transmitting_frame : frame pending
 
-  transmitting_frame --> intermission : frame complete
-  transmitting_frame --> intermission : lost arbitration
-  transmitting_frame --> transmitting_active_error_flag : error detected
-  transmitting_frame --> transmitting_passive_error_flag : error detected
+transmitting_frame --> intermission : frame complete
+transmitting_frame --> intermission : lost arbitration
+transmitting_frame --> transmitting_active_error_flag : error detected
+transmitting_frame --> transmitting_passive_error_flag : error detected
 
-  transmitting_active_error_flag --> intermission : sequence complete
-  transmitting_active_error_flag --> transmitting_overload_flag : overload detected
+transmitting_active_error_flag --> intermission : sequence complete
+transmitting_active_error_flag --> transmitting_overload_flag : overload detected
 
-  transmitting_passive_error_flag --> intermission : sequence complete
-  transmitting_passive_error_flag --> transmitting_overload_flag : overload detected
+transmitting_passive_error_flag --> intermission : sequence complete
+transmitting_passive_error_flag --> transmitting_overload_flag : overload detected
 
-  transmitting_overload_flag --> intermission : sequence complete
-  transmitting_overload_flag --> transmitting_overload_flag : overload detected
+transmitting_overload_flag --> intermission : sequence complete
+transmitting_overload_flag --> transmitting_overload_flag : overload detected
 
-  intermission --> bus_idle : intermission complete
-  intermission --> suspend_transmission : error-passive transmitter
-  intermission --> transmitting_overload_flag : overload detected
+intermission --> bus_idle : intermission complete
+intermission --> suspend_transmission : error-passive transmitter
+intermission --> transmitting_overload_flag : overload detected
 
-  suspend_transmission --> bus_idle : suspend complete
-  suspend_transmission --> transmitting_overload_flag : overload detected
+suspend_transmission --> bus_idle : suspend complete
+suspend_transmission --> transmitting_overload_flag : overload detected
 ```
 
-The `transmitting_frame` state is the most complex. On entry, `initialize_frame_transmission()` resets the Serializer (`can_mac_ser_tx`), the Bit Stuffer (`can_mac_bs_tx`, MAC Sub-layer, ISO ref.: 8.5), and the CRC engine (`can_mac_crc_tx`, MAC Sub-layer, ISO ref.: 8.5.4). Each sample-point strobe from the PCS Sub-layer (ISO ref.: 7.2-7.4) then drives the following sequence:
-
-1. `get_observed_mac_frame_bit_info()` reads the bus polarity at the sample point and compares it against the transmitted bit, returning an event record with mismatch and stuff-bit flags.
-2. If an SSP error was latched from the previous bit period (CAN-FD data phase TDC, PCS Sub-layer, ISO ref.: 7.3.4), that error is processed before the current event.
-3. Based on the event, either `transmit_stuff_bit()` or `transmit_normal_bit()` drives the next bit and updates the CRC and stuff-bit counter.
-4. A detected error or polarity mismatch triggers a transition to `transmitting_active_error_flag` or `transmitting_passive_error_flag` depending on the fault confinement state reported by the FCE (Fault Confinement Entity, ISO ref.: 8.1.3-8.1.4).
-
-#### `can_mac_ser_tx` {#sec:can-mac-ser}
+#### `can_mac_ser_tx` {#sec:can-mac-ser-tx}
 
 `can_mac_ser_tx` converts the LLC byte stream into a serial polarity bit stream for the MAC FSM. Its four-state FSM (@fig:mac-ser-fsm-tx) manages the two-byte configuration handshake, byte fetching, and bit-by-bit serialization.
 
-```{.mermaid #fig:mac-ser-fsm-tx caption="can_mac_ser_tx FSM. The serializer accepts LLC frame bytes over a ready/valid handshake and shifts them out MSB-first to the MAC FSM one bit per ready pulse. Frame parameters are computed once from the two config bytes and cached in frame_params_t for use by the FSM throughout the frame."}
+```{.mermaid #fig:mac-ser-fsm-tx fig-width=0.6 caption="can_mac_ser_tx FSM. The serializer accepts LLC frame bytes over a ready/valid handshake and shifts them out MSB-first to the MAC FSM one bit per ready pulse. Frame parameters are computed once from the two config bytes and cached in frame_params_t for use by the FSM throughout the frame."}
 ---
 config:
   layout: elk
@@ -787,18 +787,22 @@ stateDiagram-v2
   s3 --> s2 : byte serialized
 ```
 
+#### can_mac_bs_tx {#sec:can-mac-bs-tx}
+
+#### can_mac_crc_tx {#sec:can-mac-crc-tx}
+
 ### `can_mac_rx` {#sec:can-mac-rx}
 
-`can_mac_rx` deserializes the bit stream received from the PCS, performs bit destuffing and CRC verification, and reconstructs the LLC frame for delivery to `can_llc_rx` (ISO ref.: 6.6).
+`can_mac_rx` deserializes the bit stream received from the PCS, performs bit destuffing and CRC verification, and reconstructs the LLC frame for delivery to `can_llc_rx` [@iso11898_1, sec. 6.6].
 
 ## PCS Sub-layer {#sec:pcs-sub-layer}
 Handles bit timing and synchronization. It generates the sample point (SP) and secondary sample point (SSP) strobes. It provides bit-level monitoring data to the FCE to detect synchronization and timing errors.
 
 ### `can_pcs_tx` {#sec:can-pcs-tx}
 
-`can_pcs_tx` implements bit timing and Transmitter Delay Compensation for the TX path. It generates the sample point (SP) strobe used by the MAC FSM to advance frame state, and - when TDC is configured - a secondary sample point (SSP) strobe for data-phase bit monitoring. The FSM (@fig:can-pcs-tx) has four states reflecting the two bit rates and the TDC measurement window. In the `measuring_delay` state, the module counts the physical TX-to-RX propagation delay (TDCV, ISO ref.: 7.3.4) by timing the dominant edge on the looped-back RX input relative to the TX output edge, then adds the configured TDCO offset to derive the SSP position for subsequent data-phase bits.
+`can_pcs_tx` implements bit timing and Transmitter Delay Compensation for the TX path. It generates the sample point (SP) strobe used by the MAC FSM to advance frame state, and - when TDC is configured - a secondary sample point (SSP) strobe for data-phase bit monitoring. The FSM (@fig:can-pcs-tx) has four states reflecting the two bit rates and the TDC measurement window. In the `measuring_delay` state, the module counts the physical TX-to-RX propagation delay (TDCV, [@iso11898_1, sec. 7.3.4]) by timing the dominant edge on the looped-back RX input relative to the TX output edge, then adds the configured TDCO offset to derive the SSP position for subsequent data-phase bits.
 
-```{.mermaid #fig:can-pcs-tx caption="can_pcs_tx FSM. The measuring_delay state is entered on the FDF sample point to measure TDCV (Transmitter Delay Compensation Value, ISO ref.: 7.3.4). The BRS bit boundary determines whether data-phase timing is used. All non-idle states return to idle when the frame becomes inactive."}
+```{.mermaid #fig:can-pcs-tx fig-width=0.6 caption="can_pcs_tx FSM. The measuring_delay state is entered on the FDF sample point to measure TDCV (Transmitter Delay Compensation Value, [@iso11898_1, sec. 7.3.4]). The BRS bit boundary determines whether data-phase timing is used. All non-idle states return to idle when the frame becomes inactive."}
 ---
 config:
   layout: elk
@@ -837,7 +841,7 @@ stateDiagram-v2
 
 ### `can_pcs_rx` {#sec:can-pcs-rx}
 
-`can_pcs_rx` implements bit timing and synchronization for the RX path. It performs hard and soft synchronization on the incoming bus signal and generates the sample point strobe used by the MAC RX layer to latch each received bit (ISO ref.: 7.2-7.3).
+`can_pcs_rx` implements bit timing and synchronization for the RX path. It performs hard and soft synchronization on the incoming bus signal and generates the sample point strobe used by the MAC RX layer to latch each received bit [@iso11898_1, sec. 7.2-7.3].
 
 ---
 
@@ -851,8 +855,6 @@ Detailed description of how `tx_pcs` measures propagation delay and calculates t
 
 ## CRC and Bit Stuffing {#sec:crc-bit-stuffing}
 Implementation details of the flexible CRC generator and the hybrid bit stuffer.
-
----
 
 # Verification and Results {#sec:verification-results}
 
@@ -872,13 +874,8 @@ Implementation details of the flexible CRC generator and the hybrid bit stuffer.
 # Discussion {#sec:discussion}
 Comparison of the implemented architecture against theoretical models. Performance analysis in high-load scenarios.
 
----
-
-
 # Conclusion {#sec:conclusion}
 Summary of work completed and how objectives were met.
-
----
 
 # References {#sec:references}
 
