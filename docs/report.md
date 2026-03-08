@@ -424,8 +424,9 @@ Detailed interface definitions (normative source mapping):
 
 ## Protocol-Driven Type System
 
+All types and constants shared between modules are defined in `can_types_pkg.vhd`. The hierarchy (@fig:types-diagram) is rooted in ISO-derived protocol constants, from which frame layout constants, semantic enumeration types, and composite record types are derived. This ensures that protocol-level meaning is encoded in the type system rather than left to naming convention.
 
-```{.mermaid #fig:types-diagram caption="Type and constant hierarchy. Protocol constants derived from ISO 11898-1 form the root of the hierarchy, from which frame layout constants, type constraints, and composite record types are derived. The TX Monitoring namespace groups the types used by get_observed_mac_frame_bit_info() to classify bus events on each sample-point strobe and support TDC-delayed bit comparison via the transmitted-bits FIFO."}
+```{.mermaid #fig:types-diagram caption="Type and constant hierarchy. The Semantic Protocol Primitives namespace groups the enumeration types and subtypes that comprise the protocol semantic primitives. Compound record types compose these primitives: bit_t pairs a bit position with a polarity and underpins the frame layout constants. mac_frame_bit_t carries semantic context by combining a polarity with a protocol bit name, so each transmitted bit remains identifiable throughout the design. frame_params_t aggregates format flags, field boundary positions, and format-specific control bit positions, computed once per frame (@sec:can-mac-ser). observed_mac_frame_bit_info_t and transmitted_bits_fifo_t support bus monitoring and TDC-delayed bit comparison (@sec:can-mac-fsm-tx). Constant groups derive from the root protocol constants."}
 ---
 config:
   layout: elk
@@ -433,6 +434,7 @@ config:
     algorithm: layered
     mergeEdges: false
     nodePlacementStrategy: SIMPLE
+    edgeRouting: ORTHOGONAL
   look: classic
   theme: neutral
   themeVariables:
@@ -443,15 +445,107 @@ config:
     hideEmptyMembersBox: true
 ---
 classDiagram
+
+    %% 1. Semantic Protocol Primitives ========================================
+
     namespace `**Semantic Protocol Primitives**` {
         class polarity_t["type polarity_t"]
         class can_format_t["type can_format_t"]
         class mac_frame_bit_name_t["type mac_frame_bit_name_t"]
         class position_t["subtype position_t"]
-        class tx_mac_monitor_event_t["type tx_mac_monitor_event_t"]
-        class transfer_status_t["type transfer_status_t"]
         class strobe_type_t["type strobe_type_t"]
+        class transfer_status_t["type transfer_status_t"]
+        class tx_mac_monitor_event_t["type tx_mac_monitor_event_t"]
     }
+
+    polarity_t : dominant
+    polarity_t : recessive
+
+    can_format_t : cc_basic
+    can_format_t : cc_extended
+    can_format_t : fd_basic
+    can_format_t : fd_extended
+
+    mac_frame_bit_name_t : active_error_flag_bit
+    mac_frame_bit_name_t : passive_error_flag_bit
+    mac_frame_bit_name_t : overload_flag_bit
+    mac_frame_bit_name_t : bus_integration_bit
+    mac_frame_bit_name_t : intermission_bit
+    mac_frame_bit_name_t : suspend_transmission_bit
+    mac_frame_bit_name_t : idle_bit
+    mac_frame_bit_name_t : stuff_bit
+    mac_frame_bit_name_t : fixed_stuff_bit
+    mac_frame_bit_name_t : sof_bit
+    mac_frame_bit_name_t : base_id_bit
+    mac_frame_bit_name_t : extended_id_bit
+    mac_frame_bit_name_t : rtr_bit
+    mac_frame_bit_name_t : srr_bit
+    mac_frame_bit_name_t : rrs_bit
+    mac_frame_bit_name_t : ide_bit
+    mac_frame_bit_name_t : r0_bit
+    mac_frame_bit_name_t : r1_bit
+    mac_frame_bit_name_t : fdf_bit
+    mac_frame_bit_name_t : res_bit
+    mac_frame_bit_name_t : brs_bit
+    mac_frame_bit_name_t : esi_bit
+    mac_frame_bit_name_t : dlc_bit
+    mac_frame_bit_name_t : data_bit
+    mac_frame_bit_name_t : sbs_bit
+    mac_frame_bit_name_t : crc_bit
+    mac_frame_bit_name_t : crc_delimiter_bit
+    mac_frame_bit_name_t : ack_bit
+    mac_frame_bit_name_t : ack_delimiter_bit
+    mac_frame_bit_name_t : eof_bit
+    mac_frame_bit_name_t : error_delimiter_bit
+
+    position_t : integer range 0 to max_mac_frame_length_c
+
+    strobe_type_t : sp_strobe
+    strobe_type_t : ssp_strobe
+
+    transfer_status_t : ongoing
+    transfer_status_t : lost_arbitration
+    transfer_status_t : transmitted
+    transfer_status_t : aborted
+    transfer_status_t : disturbed
+
+    tx_mac_monitor_event_t : none
+    tx_mac_monitor_event_t : ack_detected
+    tx_mac_monitor_event_t : ack_error
+    tx_mac_monitor_event_t : bit_error
+    tx_mac_monitor_event_t : lost_arbitration
+
+    %% 2. Compound Record Types =====================================
+
+    class bit_t["record bit_t"]
+    bit_t : position position_t
+    bit_t : polarity polarity_t
+
+    class mac_frame_bit_t["record mac_frame_bit_t"]
+    mac_frame_bit_t : polarity polarity_t
+    mac_frame_bit_t : bit_name mac_frame_bit_name_t
+
+    class frame_params_t["record frame_params_t"]
+    frame_params_t : format can_format_t
+    frame_params_t : is_fd_frame boolean
+    frame_params_t : ⋮
+    frame_params_t : data_start position_t
+    frame_params_t : crc_start position_t
+    frame_params_t : ⋮
+    frame_params_t : fdf_bit bit_t
+    frame_params_t : brs_bit bit_t
+    frame_params_t : ⋮
+
+    class observed_mac_frame_bit_info_t["record observed_mac_frame_bit_info_t"]
+    observed_mac_frame_bit_info_t : event_type tx_mac_monitor_event_t
+    observed_mac_frame_bit_info_t : transfer_status transfer_status_t
+    observed_mac_frame_bit_info_t : expected_bit mac_frame_bit_t
+    observed_mac_frame_bit_info_t : observed_polarity polarity_t
+
+    class transmitted_bits_fifo_t["type transmitted_bits_fifo_t"]
+    transmitted_bits_fifo_t : array of mac_frame_bit_t
+
+    %% 3. Constant Groups ==============================================
 
     class protocol_constants["Protocol Constants"]
     protocol_constants : constant sof_c integer = 0
@@ -471,60 +565,7 @@ classDiagram
     common_frame_bits : constant eof_bit_c mac_frame_bit_t
     common_frame_bits : ⋮
 
-    position_t : integer range 0 to max_mac_frame_length_c
-
-    polarity_t : dominant
-    polarity_t : recessive
-
-    can_format_t : cc_basic
-    can_format_t : cc_extended
-    can_format_t : fd_basic
-    can_format_t : fd_extended
-
-    mac_frame_bit_name_t : sof_bit
-    mac_frame_bit_name_t : fdf_bit
-    mac_frame_bit_name_t : brs_bit
-    mac_frame_bit_name_t : ⋮
-
-    class bit_t["record bit_t"]
-    bit_t : position position_t
-    bit_t : polarity polarity_t
-
-    class mac_frame_bit_t["record mac_frame_bit_t"]
-    mac_frame_bit_t : polarity polarity_t
-    mac_frame_bit_t : bit_name mac_frame_bit_name_t
-
-    class frame_params_t["record frame_params_t"]
-    frame_params_t : is_fd_frame boolean
-    frame_params_t : has_brs boolean
-    frame_params_t : crc_start position_t
-    frame_params_t : brs_bit bit_t
-    frame_params_t : ⋮
-
-    class observed_mac_frame_bit_info_t["record observed_mac_frame_bit_info_t"]
-    class transmitted_bits_fifo_t["type transmitted_bits_fifo_t"]
-
-    tx_mac_monitor_event_t : none
-    tx_mac_monitor_event_t : ack_detected
-    tx_mac_monitor_event_t : ack_error
-    tx_mac_monitor_event_t : bit_error
-    tx_mac_monitor_event_t : lost_arbitration
-
-    transfer_status_t : ongoing
-    transfer_status_t : lost_arbitration
-    transfer_status_t : transmitted
-    transfer_status_t : aborted
-    transfer_status_t : disturbed
-
-    strobe_type_t : sp_strobe
-    strobe_type_t : ssp_strobe
-
-    observed_mac_frame_bit_info_t : event_type tx_mac_monitor_event_t
-    observed_mac_frame_bit_info_t : transfer_status transfer_status_t
-    observed_mac_frame_bit_info_t : expected_bit mac_frame_bit_t
-    observed_mac_frame_bit_info_t : observed_polarity polarity_t
-
-    transmitted_bits_fifo_t : array of mac_frame_bit_t
+    %% 4. Relationships ===============================================
 
     position_t ..> protocol_constants
     frame_layout_constants ..> protocol_constants
@@ -539,7 +580,6 @@ classDiagram
     frame_params_t *-- position_t
     frame_params_t *-- bit_t
     frame_params_t ..> frame_layout_constants
-
     observed_mac_frame_bit_info_t *-- tx_mac_monitor_event_t
     observed_mac_frame_bit_info_t *-- transfer_status_t
     observed_mac_frame_bit_info_t *-- mac_frame_bit_t
@@ -552,7 +592,11 @@ Responsible for frame buffering and retransmission management. It provides an Av
 
 ### `can_llc_tx` {#sec:can-llc-tx}
 
+`can_llc_tx` buffers an incoming LLC frame from the user, streams it byte-by-byte to the MAC serializer, and manages retransmission on bus disturbance up to the ISO-mandated limit (ISO ref.: 6.4.5, 6.5).
+
 ### `can_llc_rx` {#sec:can-llc-rx}
+
+`can_llc_rx` receives a reconstructed LLC frame from the MAC layer, applies acceptance filtering, and delivers accepted frames to the user over the `llc_rx_if` Avalon-ST stream (ISO ref.: 6.4.5).
 
 ## MAC Sub-layer {#sec:mac-sub-layer}
 The core of the protocol logic. It handles bit serialization, CRC calculation, and bit stuffing. It coordinates the overall frame state machine and interacts closely with the Fault Confinement Entity (FCE) to manage error counters (TEC/REC) and node state (Error Active/Passive/Bus Off) based on protocol violations.
@@ -566,7 +610,7 @@ The MAC TX layer (@fig:mac-tx-architecture) is composed of four main components:
 3. **bit_stuffer_fd** (Bit Stuffer): Implements CAN/CAN-FD bit stuffing rules
 4. **crc_fd** (CRC Engine): Generates CRC-15/CRC-17/CRC-21 based on frame type
 
-```{.mermaid #fig:mac-tx-architecture caption="MAC TX layer architecture showing internal component interconnections and external interfaces (LLC, PCS, FCE)."}
+```{.mermaid #fig:mac-tx-architecture caption="MAC TX layer architecture showing internal component interconnections and external interfaces (LLC, PCS, FCE). Internal interface definitions are provided for can_mac_fsm_ser_tx_if (@tbl:mac-fsm-ser-if), can_mac_fsm_bs_tx_if (@tbl:mac-fsm-bs-if), and can_mac_fsm_crc_tx_if (@tbl:mac-fsm-crc-if)."}
 ---
 config:
   flowchart:
@@ -603,6 +647,46 @@ flowchart TD
     FSM <==>|fce_mac_if| FCE
 ```
 
+#### `can_mac_tx` Internal Interfaces {#sec:mac-internal-interfaces}
+
+The interfaces between MAC sub-components are implementation-defined and carry no direct ISO service primitive mapping. @tbl:mac-fsm-ser-if, @tbl:mac-fsm-bs-if, and @tbl:mac-fsm-crc-if define each bidirectional bundle; the Direction column identifies the driving component for each field.
+
+
+| Field | Type | Direction | Description |
+| --- | --- | --- | --- |
+| `data` | `polarity_t` | `SER → FSM` | Current bit polarity; FSM reads this when `valid` is asserted |
+| `valid` | `boolean` | `SER → FSM` | Asserted while a bit is available for the FSM to consume |
+| `frame_params` | `frame_params_t` | `SER → FSM` | Frame parameters computed from the two config bytes; valid for the lifetime of the frame |
+| `ready` | `boolean` | `FSM → SER` | Pulsed when the FSM has consumed the current bit; advances the serializer to the next bit |
+| `transfer_status` | `transfer_status_t` | `FSM → SER` | Frame outcome; any non-`ongoing` value terminates serialization |
+
+: Interface definition for `can_mac_fsm_ser_tx_if`. {#tbl:mac-fsm-ser-if}
+
+
+| Field | Type | Direction | Description |
+| --- | --- | --- | --- |
+| `data` | `polarity_t` | `FSM → BS` | Bit polarity fed into the bit stuffer |
+| `valid` | `boolean` | `FSM → BS` | Pulsed when a new bit is presented to the stuffer |
+| `start` | `boolean` | `FSM → BS` | Pulsed at frame start to reinitialize the stuffer state |
+| `data` | `polarity_t` | `BS → FSM` | Polarity of the required stuff bit |
+| `valid` | `boolean` | `BS → FSM` | Asserted when a stuff bit insertion is required |
+| `sbc` | `std_logic_vector(3:0)` | `BS → FSM` | Gray-coded stuff bit count with parity, used in the FD fixed-stuffing region |
+
+: Interface definition for `can_mac_fsm_bs_tx_if`. {#tbl:mac-fsm-bs-if}
+
+
+| Field | Type | Direction | Description |
+| --- | --- | --- | --- |
+| `crc_poly_select` | `std_logic_vector(1:0)` | `FSM → CRC` | Selects the active CRC polynomial: CRC-15, CRC-17, or CRC-21 |
+| `valid` | `boolean` | `FSM → CRC` | Pulsed when `data` should be included in the CRC accumulation |
+| `data` | `std_logic` | `FSM → CRC` | Bit value to feed into the CRC engine |
+| `crc` | `crc_vector_t` | `CRC → FSM` | Current CRC register value; FSM reads this when serializing the CRC field |
+
+: Interface definition for `can_mac_fsm_crc_tx_if`. {#tbl:mac-fsm-crc-if}
+
+#### `can_mac_fsm_tx` {#sec:can-mac-fsm-tx}
+
+The MAC TX FSM (@fig:mac-tx-fsm) orchestrates all frame transmission activity. It coordinates the Serializer, Bit Stuffer, and CRC engine, and drives the `mac_pcs_if` output bit on each sample-point strobe from the PCS.
 
 ```{.mermaid #fig:mac-tx-fsm caption="MAC TX FSM state transitions. Error-active and error-passive paths share the same flag+delimiter sequence but drive different polarities. Overload transitions (dominant in intermission bits 0-1, or dominant on last delimiter bit) are omitted for clarity."}
 ---
@@ -665,12 +749,54 @@ The `transmitting_frame` state is the most complex. On entry, `initialize_frame_
 3. Based on the event, either `transmit_stuff_bit()` or `transmit_normal_bit()` drives the next bit and updates the CRC and stuff-bit counter.
 4. A detected error or polarity mismatch triggers a transition to `transmitting_active_error_flag` or `transmitting_passive_error_flag` depending on the fault confinement state reported by the FCE (Fault Confinement Entity, ISO ref.: 8.1.3-8.1.4).
 
+#### `can_mac_ser_tx` {#sec:can-mac-ser}
+
+`can_mac_ser_tx` converts the LLC byte stream into a serial polarity bit stream for the MAC FSM. Its four-state FSM (@fig:mac-ser-fsm-tx) manages the two-byte configuration handshake, byte fetching, and bit-by-bit serialization.
+
+```{.mermaid #fig:mac-ser-fsm-tx caption="can_mac_ser_tx FSM. The serializer accepts LLC frame bytes over a ready/valid handshake and shifts them out MSB-first to the MAC FSM one bit per ready pulse. Frame parameters are computed once from the two config bytes and cached in frame_params_t for use by the FSM throughout the frame."}
+---
+config:
+  layout: elk
+  elk:
+    algorithm: layered
+    mergeEdges: false
+    nodePlacementStrategy: LINEAR_SEGMENTS
+  look: classic
+  theme: neutral
+  themeVariables:
+    fontFamily: "Libertinus Serif, Noto Serif, serif"
+    fontSize: "14px"
+    primaryTextColor: "#000"
+---
+stateDiagram-v2
+
+  state "**load_config_byte_0**<br/>─────────<br/>• Idle, awaiting new frame" as s0
+  state "**load_config_byte_1**<br/>─────────<br/>• Awaiting config byte 1" as s1
+  state "**load_llc_frame_byte**<br/>─────────<br/>• Fetching next byte from LLC stream" as s2
+  state "**shift_out_bits**<br/>─────────<br/>• Shift out MSB on MAC FSM ready pulse" as s3
+
+  [*] --> s0 : reset
+
+  s0 --> s1 : config byte 0 received from LLC
+
+  s1 --> s2 : config byte 1 received from LLC, frame_params_t computed
+
+  s2 --> s3 : data byte received from LLC
+
+  s3 --> s0 : transmission complete
+  s3 --> s2 : byte serialized
+```
+
 ### `can_mac_rx` {#sec:can-mac-rx}
+
+`can_mac_rx` deserializes the bit stream received from the PCS, performs bit destuffing and CRC verification, and reconstructs the LLC frame for delivery to `can_llc_rx` (ISO ref.: 6.6).
 
 ## PCS Sub-layer {#sec:pcs-sub-layer}
 Handles bit timing and synchronization. It generates the sample point (SP) and secondary sample point (SSP) strobes. It provides bit-level monitoring data to the FCE to detect synchronization and timing errors.
 
 ### `can_pcs_tx` {#sec:can-pcs-tx}
+
+`can_pcs_tx` implements bit timing and Transmitter Delay Compensation for the TX path. It generates the sample point (SP) strobe used by the MAC FSM to advance frame state, and - when TDC is configured - a secondary sample point (SSP) strobe for data-phase bit monitoring. The FSM (@fig:can-pcs-tx) has four states reflecting the two bit rates and the TDC measurement window. In the `measuring_delay` state, the module counts the physical TX-to-RX propagation delay (TDCV, ISO ref.: 7.3.4) by timing the dominant edge on the looped-back RX input relative to the TX output edge, then adds the configured TDCO offset to derive the SSP position for subsequent data-phase bits.
 
 ```{.mermaid #fig:can-pcs-tx caption="can_pcs_tx FSM. The measuring_delay state is entered on the FDF sample point to measure TDCV (Transmitter Delay Compensation Value, ISO ref.: 7.3.4). The BRS bit boundary determines whether data-phase timing is used. All non-idle states return to idle when the frame becomes inactive."}
 ---
@@ -708,7 +834,10 @@ stateDiagram-v2
   data_s --> nom_s : CRC delimiter
   data_s --> nom_s : error flag
 ```
+
 ### `can_pcs_rx` {#sec:can-pcs-rx}
+
+`can_pcs_rx` implements bit timing and synchronization for the RX path. It performs hard and soft synchronization on the incoming bus signal and generates the sample point strobe used by the MAC RX layer to latch each received bit (ISO ref.: 7.2-7.3).
 
 ---
 
@@ -744,6 +873,7 @@ Implementation details of the flexible CRC generator and the hybrid bit stuffer.
 Comparison of the implemented architecture against theoretical models. Performance analysis in high-load scenarios.
 
 ---
+
 
 # Conclusion {#sec:conclusion}
 Summary of work completed and how objectives were met.
