@@ -373,33 +373,6 @@ begin
     Print("PASS: Ready/Valid handshaking correct");
 
     -- =====================================================================
-    -- Test 6 removed: FSM state-dependent ready logic was part of old architecture
-    -- New simplified architecture: FSM is responsible for managing its ready signal
-    -- Serializer no longer checks FSM state; it trusts the ready signal
-
-    -- Send config bytes again after fail-fast recovery
-    llc_i.avalon_st_source.data  <= x"22";
-    llc_i.avalon_st_source.valid <= '1';
-    llc_i.avalon_st_source.sop   <= '1';
-    wait for clk_period;
-    llc_i.avalon_st_source.valid <= '0';
-    wait for clk_period;
-
-    -- Send config byte 1
-    llc_i.avalon_st_source.data  <= x"33";
-    llc_i.avalon_st_source.valid <= '1';
-    llc_i.avalon_st_source.sop   <= '0';
-    wait for clk_period;
-    llc_i.avalon_st_source.valid <= '0';
-    wait for clk_period;
-
-    -- Removed: Old architecture checked FSM state in data load
-    -- New architecture: Serializer always asserts ready in load_llc_frame_byte state
-    -- FSM is responsible for managing when it can accept data via transfer_status signal
-
-    -- FSM state management is now delegated to the FSM itself via ready/transfer_status signals
-
-    -- =====================================================================
     -- Test Summary
     -- =====================================================================
     Print("");

@@ -12,9 +12,9 @@
 --   1. Successful CC Basic transmission (happy path)
 --   2. Abort before MAC acceptance (send_config_0 state)
 --   3. Abort ignored after MAC acceptance
---   4. Successful CC Extended transmission
---   5. Successful FD Basic transmission
---   6. Successful FD Extended transmission
+--   4. CC Extended format smoke test (no ACK)
+--   5. FD Basic format smoke test (no ACK)
+--   6. FD Extended format smoke test (no ACK)
 --   7. Retransmission limit exceeded (7 attempts, no ACK)
 --   8. FD format pressure smoke (repeated FD basic/extended submissions)
 --   9. Bit error triggers error flag and retransmission
@@ -77,8 +77,6 @@ architecture tb of tx_can_tb is
   -- Waveform marker for active test:
   -- 0=idle/reset, 1..14=test id, 15=done.
   signal current_test_id : integer range 0 to 15 := 0;
-  signal enable_bitstream_check : boolean := false;
-  signal bitstream_check_done   : boolean := false;
   constant test_idle_c : integer := 0;
   constant test_1_c    : integer := 1;
   constant test_2_c    : integer := 2;
@@ -95,8 +93,6 @@ architecture tb of tx_can_tb is
   constant test_13_c   : integer := 13;
   constant test_14_c   : integer := 14;
   constant test_done_c : integer := 15;
-  signal monitor_frame_params : frame_params_t := frame_params_reset_c;
-
   -- FSM state observation via debug port
   signal fsm_state : tx_mac_fsm_state_t;
 
@@ -226,7 +222,7 @@ begin
       end loop;
     end procedure send_user_byte;
 
-    -- Helper: stream frame as 71-byte legacy LLC format to the llc_frame_adapter.
+    -- Helper: stream frame as 71-byte legacy LLC format to tx_llc(legacy_rtl).
     --
     -- Legacy layout (71 bytes):
     --   Bytes 0-3:  ID (right-aligned; CB/FB=11-bit in bytes 2-3, CE/FE=29-bit in bytes 0-3)
@@ -505,11 +501,10 @@ begin
     current_test_id <= test_1_c;
     Log(alert_id, "Test 1: Successful CC Basic transmission");
     inject_ack <= true;
-    enable_bitstream_check <= true;
+
     setup_default_frame(frame_v);
     wait until rising_edge(clk);
-    monitor_frame_params <= frame_to_params(frame_v);
-    wait until rising_edge(clk);
+
 
     -- Verify tx_ready is high before submission
     AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '1', "Test 1: tx_ready high before submit");
@@ -540,18 +535,17 @@ begin
     inject_ack <= true;
     setup_default_frame(frame_v);
     wait until rising_edge(clk);
-    monitor_frame_params <= frame_to_params(frame_v);
-    wait until rising_edge(clk);
+
 
     -- Send partial legacy frame (first ID byte only), then abort.
-    -- The llc_frame_adapter is in receive_frame state buffering legacy bytes.
-    -- When abort_request is asserted during receive_frame, the adapter resets
-    -- its buffer, deasserts ready, and reflects aborted status back to the user.
+    -- tx_llc(legacy_rtl) is in capture_frame state buffering legacy bytes.
+    -- When abort_request is asserted during capture_frame, it resets
+    -- its buffer and reflects aborted status back to the user.
     send_user_byte("00000" & frame_v.id(10 downto 8), '1', '0');
     llc_user_i.avalon_st_source.valid <= '0';
     llc_user_i.avalon_st_source.sop   <= '0';
 
-    -- Pulse abort: adapter sees this during receive_frame and signals aborted.
+    -- Pulse abort: tx_llc sees this during capture_frame and signals aborted.
     -- Transfer_status = aborted is visible for exactly one registered clock cycle.
     llc_user_i.abort_request <= '1';
     wait until rising_edge(clk);   -- T: abort_request is sampled by adapter
@@ -579,16 +573,15 @@ begin
     inject_ack <= true;
     setup_default_frame(frame_v);
     wait until rising_edge(clk);
-    monitor_frame_params <= frame_to_params(frame_v);
-    wait until rising_edge(clk);
+
 
     -- Submit frame
     submit_frame(frame_v);
 
     -- Wait for SOF to confirm MAC is actively transmitting (past the point
-    -- where abort would be accepted). With the legacy adapter, the full
-    -- 71-byte buffer must be received first, so we need to wait for the
-    -- frame to actually reach the MAC before aborting.
+    -- where abort would be accepted). tx_llc(legacy_rtl) buffers the full
+    -- 71-byte legacy frame before converting and streaming to MAC, so we
+    -- need to wait for the frame to actually reach the MAC before aborting.
     wait_for_sof(200 us, "Test 3 SOF");
 
     -- Now try to abort - should be ignored since MAC is already processing
@@ -616,8 +609,7 @@ begin
     frame_v.config_0.format := llc_fmt_ce_c;
     frame_v.id(28 downto 0) := std_logic_vector(to_unsigned(16#1ABCDEF#, 29));
     wait until rising_edge(clk);
-    monitor_frame_params <= frame_to_params(frame_v);
-    wait until rising_edge(clk);
+
 
     -- Submit frame
     submit_frame(frame_v);
@@ -639,8 +631,7 @@ begin
     frame_v.config_0.brs    := '0';
     frame_v.config_1.dlc    := std_logic_vector(to_unsigned(9, 4)); -- 12-byte payload
     wait until rising_edge(clk);
-    monitor_frame_params <= frame_to_params(frame_v);
-    wait until rising_edge(clk);
+
 
     submit_frame(frame_v);
     wait for 2 * clk_period_c;
@@ -669,8 +660,7 @@ begin
     frame_v.config_1.dlc    := std_logic_vector(to_unsigned(10, 4)); -- 16-byte payload
     frame_v.id(28 downto 0) := std_logic_vector(to_unsigned(16#1234567#, 29));
     wait until rising_edge(clk);
-    monitor_frame_params <= frame_to_params(frame_v);
-    wait until rising_edge(clk);
+
 
     submit_frame(frame_v);
     wait for 2 * clk_period_c;
@@ -694,8 +684,7 @@ begin
     inject_ack <= false; -- No ACK -> ACK error -> disturbed
     setup_default_frame(frame_v);
     wait until rising_edge(clk);
-    monitor_frame_params <= frame_to_params(frame_v);
-    wait until rising_edge(clk);
+
 
     -- Submit frame
     submit_frame(frame_v);
@@ -737,7 +726,6 @@ begin
       end if;
 
       wait until rising_edge(clk);
-      monitor_frame_params <= frame_to_params(frame_v);
       wait until rising_edge(clk);
 
       submit_frame(frame_v);
@@ -758,8 +746,7 @@ begin
     inject_ack <= false; -- No ACK needed; error occurs before ACK slot
     setup_default_frame(frame_v);
     wait until rising_edge(clk);
-    monitor_frame_params <= frame_to_params(frame_v);
-    wait until rising_edge(clk);
+
 
     submit_frame(frame_v);
     wait_for_fsm_bit_name(data_bit, 500 us, "Test 9 data field arrival");
@@ -787,8 +774,7 @@ begin
     inject_ack <= true;
     setup_default_frame(frame_v);
     wait until rising_edge(clk);
-    monitor_frame_params <= frame_to_params(frame_v);
-    wait until rising_edge(clk);
+
 
     submit_frame(frame_v);
     wait_for_completion(300 us, transmitted, "Test 9 recovery frame");
@@ -819,8 +805,7 @@ begin
     inject_ack <= true;
     setup_default_frame(frame_v);
     wait until rising_edge(clk);
-    monitor_frame_params <= frame_to_params(frame_v);
-    wait until rising_edge(clk);
+
 
     -- Submit CC Basic frame 
     submit_frame(frame_v);
@@ -860,8 +845,7 @@ begin
     inject_ack <= true;
     setup_default_frame(frame_v);
     wait until rising_edge(clk);
-    monitor_frame_params <= frame_to_params(frame_v);
-    wait until rising_edge(clk);
+
 
     submit_frame(frame_v);
     wait_for_completion(300 us, transmitted, "Test 10 second frame");
@@ -886,8 +870,7 @@ begin
     setup_default_frame(frame_v);
     frame_v.config_0.format := llc_fmt_fb_c;
     wait until rising_edge(clk);
-    monitor_frame_params <= frame_to_params(frame_v);
-    wait until rising_edge(clk);
+
 
     submit_frame(frame_v);
 
@@ -920,8 +903,7 @@ begin
     -- Set ID to all 1s (recessive) to make arbitration loss easy to trigger
     frame_v.id := (others => '1');
     wait until rising_edge(clk);
-    monitor_frame_params <= frame_to_params(frame_v);
-    wait until rising_edge(clk);
+
 
     submit_frame(frame_v);
 
@@ -963,8 +945,7 @@ begin
     frame_v.config_0.ftyp   := '1'; -- Remote Frame
     frame_v.config_1.dlc    := "1000"; -- DLC=8 (should be ignored for data transmission)
     wait until rising_edge(clk);
-    monitor_frame_params <= frame_to_params(frame_v);
-    wait until rising_edge(clk);
+
 
     submit_frame(frame_v);
 
@@ -1001,8 +982,7 @@ begin
     frame_v.config_0.format := llc_fmt_fb_c;
     frame_v.config_0.brs    := '1'; -- Enable Bit Rate Switch
     wait until rising_edge(clk);
-    monitor_frame_params <= frame_to_params(frame_v);
-    wait until rising_edge(clk);
+
 
     submit_frame(frame_v);
 

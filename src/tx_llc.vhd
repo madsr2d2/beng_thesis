@@ -64,24 +64,6 @@ architecture rtl of tx_llc is
   signal state_dbg      : integer range 0 to 4 := 0;
   signal mac_status_dbg : integer range 0 to 4 := 0;
 
-  ---------------------------------------------------------------------------
-  -- Procedures and Functions
-  ---------------------------------------------------------------------------
-  function decode_llc_format (
-    cfg0 : byte_t
-  ) return can_format_t is
-  begin
-
-    case cfg0(llc_frame_config_byte_0_format_start downto llc_frame_config_byte_0_format_end) is
-      when llc_fmt_cb_c => return cc_basic;
-      when llc_fmt_ce_c => return cc_extended;
-      when llc_fmt_fb_c => return fd_basic;
-      when llc_fmt_fe_c => return fd_extended;
-      when others => return unknown;
-    end case;
-
-  end function decode_llc_format;
-
 begin
 
   with state select state_dbg <=
@@ -172,7 +154,7 @@ begin
                 accepted_idx_v           := capture_index;
 
                 if (capture_index = 1) then
-                  format_v := decode_llc_format(frame_buf(0));
+                  format_v := decode_llc_format(frame_buf(0)(llc_frame_config_byte_0_format_start downto llc_frame_config_byte_0_format_end));
                   if (format_v = unknown) then
                     cfg_valid_v                := false;
                     llc_user_o.transfer_status <= aborted;

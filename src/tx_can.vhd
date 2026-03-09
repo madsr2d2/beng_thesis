@@ -88,7 +88,6 @@ architecture rtl of tx_can is
   -- Debug signals (for test visibility)
   ---------------------------------------------------------------------------
   signal debug_pcs_state : tx_pcs_fsm_state_t;
-  signal debug_pcs_delay : integer;
   signal debug_mac_ack_error : boolean;
   signal debug_mac_form_error : boolean;
   signal debug_mac_data_exit : boolean;
@@ -166,16 +165,12 @@ begin
   debug_mac_to_pcs_o <= mac_to_pcs;
   debug_pcs_to_mac_o <= pcs_to_mac;
 
-  -- debug_pcs_state is driven directly from tx_pcs_inst.debug_state_o above.
-  -- TDC delay_count will be exposed in future updates when force-accessible integer ranges stabilize
-  debug_pcs_delay <= 0;  -- Placeholder: delay measurement not yet exposed
-
   -- Wire debug outputs
   debug_strobe_type_o       <= pcs_to_mac.strobe_type;
   debug_current_bit_rate_o  <= '1' when debug_pcs_state = transmitting_data else '0';
   debug_data_phase_active_o <= debug_pcs_state = transmitting_data;
   debug_tdc_state_o         <= debug_pcs_state;
-  debug_tdc_delay_o         <= debug_pcs_delay;
+  debug_tdc_delay_o         <= 0;  -- Placeholder: TDC delay not yet exposed
 
   -- Wire error detection signals from mac_tx FSM
   debug_ack_error_o      <= debug_mac_ack_error;

@@ -68,11 +68,21 @@ begin
       fce_o              => fce_o,
       tx_bus_o           => tx_bus,
       rx_bus_i           => rx_bus,
-      debug_mac_to_pcs_o => debug_mac_to_pcs,
-      debug_pcs_to_mac_o => debug_pcs_to_mac,
-      debug_strobe_type_o => debug_strobe_type,
-      debug_ack_error_o  => debug_ack_error,
-      others             => open
+      debug_mac_to_pcs_o        => debug_mac_to_pcs,
+      debug_pcs_to_mac_o        => debug_pcs_to_mac,
+      debug_strobe_type_o       => debug_strobe_type,
+      debug_ack_error_o         => debug_ack_error,
+      debug_form_error_o        => open,
+      debug_current_bit_rate_o  => open,
+      debug_data_phase_active_o => open,
+      debug_data_phase_exit_o   => open,
+      debug_tdc_state_o         => open,
+      debug_tdc_delay_o         => open,
+      debug_ipt_active_o        => open,
+      debug_phase_seg2_active_o => open,
+      debug_error_at_ssp_o      => open,
+      debug_error_at_sp_o       => open,
+      debug_fsm_state_o         => open
     );
 
   -- Clock generation
@@ -186,7 +196,7 @@ begin
           log("  Sample " & integer'image(sample_count) & ": bit_name=" &
               mac_frame_bit_name_t'image(debug_mac_to_pcs.data.bit_name) &
               ", polarity=" & polarity_t'image(debug_mac_to_pcs.data.polarity) &
-              ", bus=" & std_logic'image(debug_pcs_to_mac.bus_polarity) &
+              ", bus=" & polarity_t'image(debug_pcs_to_mac.bus_polarity) &
               ", ack_error=" & boolean'image(debug_ack_error), ALWAYS);
           last_bit_name := debug_mac_to_pcs.data.bit_name;
         end if;

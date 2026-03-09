@@ -61,7 +61,6 @@ architecture rtl of llc_frame_adapter is
 
   -- legacy_frame_len_c, legacy_fmt_dlc_byte_c, legacy_data_offset_c,
   -- legacy_flags_byte_c and legacy_frame_t are defined in can_types_pkg.
-  subtype legacy_frame_buffer_t is legacy_frame_t;
 
   type id_bytes_t is array (0 to 3) of byte_t;
 
@@ -69,7 +68,7 @@ architecture rtl of llc_frame_adapter is
   -- Signals
   ---------------------------------------------------------------------------
   signal state           : adapter_state_t;
-  signal frame_buf       : legacy_frame_buffer_t;
+  signal frame_buf       : legacy_frame_t;
   signal id_bytes        : id_bytes_t;
   signal rx_index        : integer range 0 to legacy_frame_len_c - 1;
   signal id_tx_index     : integer range 0 to 3;
@@ -81,7 +80,7 @@ begin
   fsm_sequential : process (clk_i) is
 
     variable v_state           : adapter_state_t;
-    variable v_frame_buf       : legacy_frame_buffer_t;
+    variable v_frame_buf       : legacy_frame_t;
     variable v_id_bytes        : id_bytes_t;
     variable v_rx_index        : integer range 0 to legacy_frame_len_c - 1;
     variable v_id_tx_index     : integer range 0 to 3;
@@ -106,7 +105,7 @@ begin
     -- Build config_byte_0 from buffered legacy bytes
     ---------------------------------------------------------------------------
     procedure build_config_byte_0 (
-      signal buf : in    legacy_frame_buffer_t;
+      signal buf : in    legacy_frame_t;
       result     : out   byte_t
     ) is
     begin
@@ -130,7 +129,7 @@ begin
     -- Build config_byte_1 from legacy byte 4
     ---------------------------------------------------------------------------
     procedure build_config_byte_1 (
-      signal buf : in    legacy_frame_buffer_t;
+      signal buf : in    legacy_frame_t;
       result     : out   byte_t
     ) is
     begin
@@ -146,7 +145,7 @@ begin
     -- Repack ID from right-aligned legacy layout to left-aligned id_bytes
     ---------------------------------------------------------------------------
     procedure repack_id (
-      signal   buf    : in    legacy_frame_buffer_t;
+      signal   buf    : in    legacy_frame_t;
       variable is_ext : in    boolean;
       variable result : out   id_bytes_t
     ) is

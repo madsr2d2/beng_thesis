@@ -93,3 +93,4 @@ view:
 
 clean:
 	@rm -rf $(SIMDIR) OsvvmTemp_GHDL
+	@rm -f *.o e~*.o work-obj08.cf

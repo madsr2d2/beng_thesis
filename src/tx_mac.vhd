@@ -111,7 +111,7 @@ begin
   bit_stuffer_fd_inst : entity work.bit_stuffer_fd
     port map (
       clk_i   => clk,
-      reset_i   => rst,
+      rst_i     => rst,
       bs_fd_i => fsm_to_bs_fd,
       bs_fd_o => bs_fd_to_fsm
     );

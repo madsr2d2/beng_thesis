@@ -14,7 +14,7 @@ end entity bit_stuffer_fd_tb;
 
 architecture tb of bit_stuffer_fd_tb is
 
-  constant CLK_PERIOD : time := 10 ns;
+  constant clk_period_c : time := 10 ns;
 
   signal clk_i : std_logic := '0';
   signal rst_i : std_logic := '0';
@@ -33,7 +33,7 @@ architecture tb of bit_stuffer_fd_tb is
 begin
 
   -- Clock generation
-  clk_i <= not clk_i after CLK_PERIOD / 2;
+  clk_i <= not clk_i after clk_period_c / 2;
 
   -- Unpack records to signals for waveform viewing
   tb_clk             <= clk_i;
@@ -48,7 +48,7 @@ begin
   u_dut : entity work.bit_stuffer_fd
     port map (
       clk_i   => clk_i,
-      reset_i   => rst_i,
+      rst_i     => rst_i,
       bs_fd_i => bs_fd_i,
       bs_fd_o => bs_fd_o
     );
@@ -79,11 +79,11 @@ begin
     bs_fd_i.valid       <= false;
     bs_fd_i.data        <= dominant;
     bs_fd_i.start       <= false;
-    wait for CLK_PERIOD * 5;
+    wait for clk_period_c * 5;
 
     -- Release reset
     rst_i <= '0';
-    wait for CLK_PERIOD;
+    wait for clk_period_c;
     Print("Reset released");
 
     -- Test 1: Send 5 dominant bits → stuff_bit_valid should go high
@@ -91,19 +91,19 @@ begin
     for i in 0 to 4 loop
       bs_fd_i.data       <= dominant;
       bs_fd_i.valid      <= true;
-      wait for CLK_PERIOD;
+      wait for clk_period_c;
     end loop;
     bs_fd_i.valid <= false;
-    wait for CLK_PERIOD;
+    wait for clk_period_c;
     AffirmIf(bs_fd_o.valid = true, "stuff_bit_valid should be true after 5 dominant");
     AffirmIf(bs_fd_o.data = recessive, "stuff_bit should be recessive after 5 dominant");
 
     -- Feed the stuff bit back (as FSM would)
     bs_fd_i.data       <= bs_fd_o.data;
     bs_fd_i.valid      <= true;
-    wait for CLK_PERIOD;
+    wait for clk_period_c;
     bs_fd_i.valid      <= false;
-    wait for CLK_PERIOD;
+    wait for clk_period_c;
     AffirmIf(bs_fd_o.valid = false, "stuff_bit_valid should clear after stuff bit consumed");
     Print("  PASS: Stuff bit detection and consumption works");
 
@@ -115,9 +115,9 @@ begin
     -- Test 3: Frame reset clears everything
     Print("Test 3: Frame reset clears SBC...");
     bs_fd_i.start <= true;
-    wait for CLK_PERIOD;
+    wait for clk_period_c;
     bs_fd_i.start <= false;
-    wait for CLK_PERIOD;
+    wait for clk_period_c;
     AffirmIfEqual(bs_fd_o.sbc, "0000", "SBC should be zero after frame reset");
     AffirmIf(bs_fd_o.valid = false, "stuff_bit_valid should be false after reset");
     Print("  PASS: Frame reset clears SBC and stuff state");
@@ -131,7 +131,7 @@ begin
         bs_fd_i.data <= recessive;
       end if;
       bs_fd_i.valid <= true;
-      wait for CLK_PERIOD;
+      wait for clk_period_c;
       AffirmIf(bs_fd_o.valid = false, "No stuffing for alternating bits at i=" & to_string(i));
     end loop;
     bs_fd_i.valid <= false;
@@ -140,9 +140,9 @@ begin
     -- Test 5: Multiple stuff events with random patterns
     Print("Test 5: Random bit patterns...");
     bs_fd_i.start <= true;
-    wait for CLK_PERIOD;
+    wait for clk_period_c;
     bs_fd_i.start <= false;
-    wait for CLK_PERIOD;
+    wait for clk_period_c;
 
     for i in 0 to num_bits loop
       random_polarity := dominant when rnd_bit.RandInt(0, 1) = 0 else recessive;
@@ -150,39 +150,39 @@ begin
 
       bs_fd_i.data       <= random_polarity;
       bs_fd_i.valid      <= random_valid;
-      wait for CLK_PERIOD;
+      wait for clk_period_c;
 
       -- If stuff bit detected, feed it back
       if (bs_fd_o.valid) then
         bs_fd_i.data       <= bs_fd_o.data;
         bs_fd_i.valid      <= true;
-        wait for CLK_PERIOD;
+        wait for clk_period_c;
       end if;
     end loop;
 
     -- Test 6: Continuous burst of same polarity
     Print("Test 6: Continuous dominant burst...");
     bs_fd_i.start <= true;
-    wait for CLK_PERIOD;
+    wait for clk_period_c;
     bs_fd_i.start <= false;
-    wait for CLK_PERIOD;
+    wait for clk_period_c;
 
     for i in 0 to 29 loop
       if (bs_fd_o.valid) then
         -- Feed stuff bit
         bs_fd_i.data       <= bs_fd_o.data;
         bs_fd_i.valid      <= true;
-        wait for CLK_PERIOD;
+        wait for clk_period_c;
       end if;
       bs_fd_i.data       <= dominant;
       bs_fd_i.valid      <= true;
-      wait for CLK_PERIOD;
+      wait for clk_period_c;
     end loop;
     bs_fd_i.valid <= false;
 
     -- Stop and wait for cleanup
     Print("Test complete, waiting for outputs to settle...");
-    wait for CLK_PERIOD * 20;
+    wait for clk_period_c * 20;
 
     Print("=== Bit Stuffer FD Testbench Finished ===");
     TranscriptClose;
