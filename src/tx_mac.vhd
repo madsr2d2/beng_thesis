@@ -41,7 +41,8 @@ entity mac_tx is
     debug_pcs_to_mac_o  : out pcs_to_mac_if_t;
     debug_ack_error_o   : out boolean;
     debug_form_error_o  : out boolean;
-    debug_data_exit_o   : out boolean
+    debug_data_exit_o   : out boolean;
+    debug_fsm_state_o   : out tx_mac_fsm_state_t
   );
 end entity mac_tx;
 
@@ -61,6 +62,7 @@ architecture rtl of mac_tx is
   -- FSM <-> CRC
   signal fsm_to_crc : mac_fsm_to_crc_if_t;
   signal crc_to_fsm : crc_to_mac_fsm_if_t;
+
 
 begin
 
@@ -94,8 +96,12 @@ begin
       bs_fd_o   => fsm_to_bs_fd,
       crc_i     => crc_to_fsm,
       crc_o     => fsm_to_crc,
-      fce_i     => fce_i,
-      fce_o     => fce_o
+      fce_i              => fce_i,
+      fce_o              => fce_o,
+      debug_ack_error_o  => debug_ack_error_o,
+      debug_form_error_o => debug_form_error_o,
+      debug_data_exit_o  => debug_data_exit_o,
+      debug_fsm_state_o  => debug_fsm_state_o
     );
 
   -- =========================================================================
@@ -125,9 +131,7 @@ begin
   debug_mac_to_pcs_o <= pcs_o;
   debug_pcs_to_mac_o <= pcs_i;
 
-  -- Access FSM debug signals via force-accessible attributes (VHDL 2008)
-  debug_ack_error_o  <= << signal tx_mac_fsm_inst.ack_error_detected : boolean >>;
-  debug_form_error_o <= << signal tx_mac_fsm_inst.form_error_detected : boolean >>;
-  debug_data_exit_o  <= << signal tx_mac_fsm_inst.data_phase_exit_strobe : boolean >>;
+  -- debug_ack_error_o, debug_form_error_o, debug_data_exit_o are wired
+  -- directly via the tx_mac_fsm_inst port map above.
 
 end architecture rtl;

@@ -71,7 +71,10 @@ entity tx_pcs is
     pcs_to_mac_o : out   pcs_to_mac_if_t;
 
     tx_bus_o : out   std_logic;
-    rx_bus_i : in    std_logic
+    rx_bus_i : in    std_logic;
+
+    -- Debug port (test visibility)
+    debug_state_o : out tx_pcs_fsm_state_t
   );
 end entity tx_pcs;
 
@@ -527,5 +530,7 @@ begin
     end if;
 
   end process state_update;
+
+  debug_state_o <= state;
 
 end architecture rtl;

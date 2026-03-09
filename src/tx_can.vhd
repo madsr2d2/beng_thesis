@@ -66,7 +66,8 @@ entity tx_can is
     debug_ipt_active_o        : out boolean;
     debug_phase_seg2_active_o : out boolean;
     debug_error_at_ssp_o      : out boolean;
-    debug_error_at_sp_o       : out boolean
+    debug_error_at_sp_o       : out boolean;
+    debug_fsm_state_o         : out tx_mac_fsm_state_t
   );
 end entity tx_can;
 
@@ -143,7 +144,8 @@ begin
       debug_pcs_to_mac_o => open,
       debug_ack_error_o  => debug_mac_ack_error,
       debug_form_error_o => debug_mac_form_error,
-      debug_data_exit_o  => debug_mac_data_exit
+      debug_data_exit_o  => debug_mac_data_exit,
+      debug_fsm_state_o  => debug_fsm_state_o
     );
 
   -- =========================================================================
@@ -172,16 +174,16 @@ begin
       rst          => rst,
       mac_to_pcs_i => mac_to_pcs,
       pcs_to_mac_o => pcs_to_mac,
-      tx_bus_o     => tx_bus_o,
-      rx_bus_i     => rx_bus_i
+      tx_bus_o      => tx_bus_o,
+      rx_bus_i      => rx_bus_i,
+      debug_state_o => debug_pcs_state
     );
 
   -- Wire debug ports
   debug_mac_to_pcs_o <= mac_to_pcs;
   debug_pcs_to_mac_o <= pcs_to_mac;
 
-  -- Access internal PCS states via force-accessible signals (VHDL 2008)
-  debug_pcs_state <= << signal tx_pcs_inst.state : tx_pcs_fsm_state_t >>;
+  -- debug_pcs_state is driven directly from tx_pcs_inst.debug_state_o above.
   -- TDC delay_count will be exposed in future updates when force-accessible integer ranges stabilize
   debug_pcs_delay <= 0;  -- Placeholder: delay measurement not yet exposed
 

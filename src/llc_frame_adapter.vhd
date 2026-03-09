@@ -99,6 +99,8 @@ begin
     variable is_last_id_byte_v  : boolean;
     variable is_last_data_v     : boolean;
     variable no_data_v          : boolean;
+    variable abort_v            : boolean;
+    variable status_override_v  : boolean; -- True when abort set a non-ongoing status
 
     ---------------------------------------------------------------------------
     -- Build config_byte_0 from buffered legacy bytes
@@ -196,6 +198,7 @@ begin
         legacy_eop_v       := legacy_llc_i.avalon_st_source.eop = '1';
         downstream_ready_v := llc_i.avalon_st_sink.ready = '1';
         is_extended_v      := frame_buf(legacy_fmt_dlc_byte_c)(6) = '1';
+        abort_v            := legacy_llc_i.abort_request = '1';
         is_last_id_byte_v  := id_tx_index = 3;
         is_last_data_v     := tx_index = legacy_data_offset_c + data_byte_count - 1;
         no_data_v          := data_byte_count = 0;
@@ -211,7 +214,8 @@ begin
 
         -- Default output values (de-assert pulses)
         v_legacy_llc_o.avalon_st_sink.ready := '0';
-        v_legacy_llc_o.transfer_status      := llc_i.transfer_status;
+        v_legacy_llc_o.transfer_status      := ongoing;
+        status_override_v                   := false;
 
         v_llc_o.avalon_st_source.valid := '0';
         v_llc_o.avalon_st_source.sop   := '0';
@@ -225,10 +229,20 @@ begin
         case state is
 
           when receive_frame =>
-            -- Accept legacy bytes until EOP (byte 70)
-            v_legacy_llc_o.avalon_st_sink.ready := '1';
+            -- Accept legacy bytes until EOP (byte 70).
+            -- An abort_request during receive resets the buffer and signals
+            -- aborted status back to the user for one cycle, but only if
+            -- bytes have been buffered (rx_index > 0). When the adapter is
+            -- idle (rx_index = 0, no frame in progress), abort is ignored.
+            if (abort_v and rx_index > 0) then
+              v_rx_index                     := 0;
+              v_legacy_llc_o.transfer_status := aborted;
+              status_override_v              := true;
+            else
+              v_legacy_llc_o.avalon_st_sink.ready := '1';
+            end if;
 
-            if (legacy_valid_v) then
+            if (legacy_valid_v and not abort_v) then
               v_frame_buf(rx_index) := legacy_llc_i.avalon_st_source.data;
 
               if (legacy_eop_v) then
@@ -311,6 +325,16 @@ begin
             null;
 
         end case;
+
+        -------------------------------------------------------------------
+        -- Pass downstream transfer_status through only when the adapter is
+        -- staying in (or returning to) receive_frame.  During emit states,
+        -- hold ongoing so residual status from a prior frame is not visible
+        -- to the user while the new frame is being queued.
+        -------------------------------------------------------------------
+        if (v_state = receive_frame and not status_override_v) then
+          v_legacy_llc_o.transfer_status := llc_i.transfer_status;
+        end if;
 
         -------------------------------------------------------------------
         -- Register outputs

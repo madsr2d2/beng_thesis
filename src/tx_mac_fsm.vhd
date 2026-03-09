@@ -42,7 +42,13 @@ entity tx_mac_fsm is
 
     -- Fault Confinement Entity interface (ISO 11898-1 Table 16/17)
     fce_i : in    fce_to_mac_if_t;
-    fce_o : out   mac_to_fce_if_t
+    fce_o : out   mac_to_fce_if_t;
+
+    -- Debug ports (test visibility)
+    debug_ack_error_o  : out boolean;
+    debug_form_error_o : out boolean;
+    debug_data_exit_o  : out boolean;
+    debug_fsm_state_o  : out tx_mac_fsm_state_t
   );
 end entity tx_mac_fsm;
 
@@ -763,5 +769,11 @@ begin
     end if;
 
   end process fsm_sequential;
+
+  -- Wire debug signals to ports
+  debug_ack_error_o  <= ack_error_detected;
+  debug_form_error_o <= form_error_detected;
+  debug_data_exit_o  <= data_phase_exit_strobe;
+  debug_fsm_state_o  <= state;
 
 end architecture rtl;

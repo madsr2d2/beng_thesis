@@ -97,7 +97,7 @@ architecture tb of tx_can_tb is
   constant test_done_c : integer := 15;
   signal monitor_frame_params : frame_params_t := frame_params_reset_c;
 
-  -- FSM state observation via VHDL-2008 external name
+  -- FSM state observation via debug port
   signal fsm_state : tx_mac_fsm_state_t;
 
   -- Bitstream capture buffers (raw bus stream can include stuffed bits)
@@ -120,7 +120,8 @@ begin
       tx_bus_o   => tx_bus_o,
       rx_bus_i   => rx_bus_i,
       debug_mac_to_pcs_o => debug_mac_to_pcs,
-      debug_pcs_to_mac_o => debug_pcs_to_mac
+      debug_pcs_to_mac_o => debug_pcs_to_mac,
+      debug_fsm_state_o  => fsm_state
     );
 
   -- Bus model: loopback with optional ACK injection and test override
@@ -134,8 +135,7 @@ begin
   transfer_status_dbg <= llc_user_o.transfer_status;
   tx_ready_dbg        <= llc_user_o.avalon_st_sink.ready;
 
-  -- VHDL-2008 external name for FSM state observation
-  fsm_state <= << signal dut.mac_tx_inst.tx_mac_fsm_inst.state : tx_mac_fsm_state_t >>;
+  -- fsm_state is driven via the debug_fsm_state_o port from tx_can.
 
   p_state_log : process (fsm_state) is
   begin
@@ -226,55 +226,81 @@ begin
       end loop;
     end procedure send_user_byte;
 
-    -- Helper: stream frame in canonical LLC format:
-    -- cfg0, cfg1, id3, id2, id1, id0, data bytes.
+    -- Helper: stream frame as 71-byte legacy LLC format to the llc_frame_adapter.
+    --
+    -- Legacy layout (71 bytes):
+    --   Bytes 0-3:  ID (right-aligned; CB/FB=11-bit in bytes 2-3, CE/FE=29-bit in bytes 0-3)
+    --   Byte  4:    [7]=0, [6:4]=FMT, [3:0]=DLC
+    --   Bytes 5-68: Data (DLC bytes then zero-padded to 64 bytes)
+    --   Byte  69:   [7:1]=0, [0]=IDE (0 for CB/FB, 1 for CE/FE)
+    --   Byte  70:   [7:3]=0, [2]=BRS, [1]=ESI, [0]=RTR
     procedure submit_frame (
       frame : llc_frame_t
     ) is
-      variable config_0_v       : byte_t;
-      variable config_1_v       : byte_t;
-      variable id_stream_v      : std_logic_vector(31 downto 0);
-      variable id3_v            : byte_t;
-      variable id2_v            : byte_t;
-      variable id1_v            : byte_t;
-      variable id0_v            : byte_t;
+      variable id_v             : std_logic_vector(28 downto 0);
+      variable is_extended_v    : boolean;
+      variable byte0_v          : byte_t;
+      variable byte1_v          : byte_t;
+      variable byte2_v          : byte_t;
+      variable byte3_v          : byte_t;
+      variable byte4_v          : byte_t;
+      variable byte69_v         : byte_t;
+      variable byte70_v         : byte_t;
       variable data_byte_count_v : integer;
       variable data_bit_start_v : integer;
     begin
-      config_0_v := frame.config_0.format
-                    & frame.config_0.ftyp
-                    & frame.config_0.esi
-                    & frame.config_0.brs
-                    & "00";
-      config_1_v := frame.config_1.dlc & "0000";
+      id_v          := frame.id(28 downto 0);
+      is_extended_v := frame.config_0.format(2) = '1'; -- MSB of FMT: CE/FE have bit2='1'
+
+      -- Bytes 0-3: ID (right-aligned per legacy spec)
+      if is_extended_v then
+        -- 29-bit ID: byte0[4:0]=ID[28:24], byte1=ID[23:16], byte2=ID[15:8], byte3=ID[7:0]
+        byte0_v := "000" & id_v(28 downto 24);
+        byte1_v := id_v(23 downto 16);
+        byte2_v := id_v(15 downto 8);
+        byte3_v := id_v(7 downto 0);
+      else
+        -- 11-bit ID: byte2[2:0]=ID[10:8], byte3=ID[7:0], bytes 0-1 = 0
+        byte0_v := (others => '0');
+        byte1_v := (others => '0');
+        byte2_v := "00000" & id_v(10 downto 8);
+        byte3_v := id_v(7 downto 0);
+      end if;
+
+      -- Byte 4: FMT and DLC
+      byte4_v := "0" & frame.config_0.format & frame.config_1.dlc;
+
+      -- Byte 69: IDE flag
+      byte69_v := "0000000" & frame.config_0.format(2);
+
+      -- Byte 70: BRS, ESI, RTR
+      byte70_v := "00000" & frame.config_0.brs & frame.config_0.esi & frame.config_0.ftyp;
+
+      -- Compute data byte count for padding logic
       data_byte_count_v := dlc_to_data_length(
                               dlc_t(to_integer(unsigned(frame.config_1.dlc))),
                               decode_llc_format(frame.config_0.format)
                             );
-      id_stream_v := pack_llc_id_bytes(frame.id(28 downto 0), decode_llc_format(frame.config_0.format));
-      id3_v := id_stream_v(31 downto 24);
-      id2_v := id_stream_v(23 downto 16);
-      id1_v := id_stream_v(15 downto 8);
-      id0_v := id_stream_v(7 downto 0);
 
-      send_user_byte(config_0_v, '1', '0');
-      send_user_byte(config_1_v, '0', '0');
-      send_user_byte(id3_v, '0', '0');
-      send_user_byte(id2_v, '0', '0');
-      send_user_byte(id1_v, '0', '0');
-      if (data_byte_count_v = 0) then
-        send_user_byte(id0_v, '0', '1');
-      else
-        send_user_byte(id0_v, '0', '0');
-        for i in 0 to data_byte_count_v - 1 loop
+      -- Stream 71 bytes: SOP on byte 0, EOP on byte 70
+      send_user_byte(byte0_v, '1', '0');
+      send_user_byte(byte1_v, '0', '0');
+      send_user_byte(byte2_v, '0', '0');
+      send_user_byte(byte3_v, '0', '0');
+      send_user_byte(byte4_v, '0', '0');
+
+      -- Bytes 5-68: data payload then zero-padding
+      for i in 0 to 63 loop
+        if i < data_byte_count_v then
           data_bit_start_v := frame.data'left - i * 8;
-          if (i = data_byte_count_v - 1) then
-            send_user_byte(frame.data(data_bit_start_v downto data_bit_start_v - 7), '0', '1');
-          else
-            send_user_byte(frame.data(data_bit_start_v downto data_bit_start_v - 7), '0', '0');
-          end if;
-        end loop;
-      end if;
+          send_user_byte(frame.data(data_bit_start_v downto data_bit_start_v - 7), '0', '0');
+        else
+          send_user_byte((others => '0'), '0', '0');
+        end if;
+      end loop;
+
+      send_user_byte(byte69_v, '0', '0');
+      send_user_byte(byte70_v, '0', '1'); -- EOP on last byte
 
       llc_user_i.avalon_st_source.valid <= '0';
       llc_user_i.avalon_st_source.sop   <= '0';
@@ -517,27 +543,27 @@ begin
     monitor_frame_params <= frame_to_params(frame_v);
     wait until rising_edge(clk);
 
-    -- Send only first byte (SOP) then abort before full frame is captured.
-    send_user_byte(
-      frame_v.config_0.format & frame_v.config_0.ftyp & frame_v.config_0.esi & frame_v.config_0.brs & "00",
-      '1',
-      '0'
-    );
+    -- Send partial legacy frame (first ID byte only), then abort.
+    -- The llc_frame_adapter is in receive_frame state buffering legacy bytes.
+    -- When abort_request is asserted during receive_frame, the adapter resets
+    -- its buffer, deasserts ready, and reflects aborted status back to the user.
+    send_user_byte("00000" & frame_v.id(10 downto 8), '1', '0');
     llc_user_i.avalon_st_source.valid <= '0';
     llc_user_i.avalon_st_source.sop   <= '0';
-    llc_user_i.avalon_st_source.eop   <= '0';
 
-    -- Immediately pulse abort on the NEXT clock (LLC is in send_config_0)
+    -- Pulse abort: adapter sees this during receive_frame and signals aborted.
+    -- Transfer_status = aborted is visible for exactly one registered clock cycle.
     llc_user_i.abort_request <= '1';
-    wait until rising_edge(clk);
+    wait until rising_edge(clk);   -- T: abort_request is sampled by adapter
     llc_user_i.abort_request <= '0';
-
-    -- Wait a few clocks for abort to take effect
-    wait for 5 * clk_period_c;
+    wait until rising_edge(clk);   -- T+1: registered output shows transfer_status = aborted
 
     AffirmIf(alert_id,
       llc_user_o.transfer_status = aborted,
       "Test 2: transfer_status = aborted, got " & transfer_status_t'image(llc_user_o.transfer_status));
+
+    -- ready returns high one cycle later (adapter back in receive_frame with ready='1')
+    wait until rising_edge(clk);   -- T+2: adapter re-asserts ready
     AffirmIf(alert_id,
       llc_user_o.avalon_st_sink.ready = '1',
       "Test 2: tx_ready = 1 after abort");
@@ -559,8 +585,11 @@ begin
     -- Submit frame
     submit_frame(frame_v);
 
-    -- Wait several clocks so LLC passes send_config_0 into send_config_1/send_data
-    wait for 10 * clk_period_c;
+    -- Wait for SOF to confirm MAC is actively transmitting (past the point
+    -- where abort would be accepted). With the legacy adapter, the full
+    -- 71-byte buffer must be received first, so we need to wait for the
+    -- frame to actually reach the MAC before aborting.
+    wait_for_sof(200 us, "Test 3 SOF");
 
     -- Now try to abort - should be ignored since MAC is already processing
     llc_user_i.abort_request <= '1';
