@@ -60,17 +60,14 @@ begin
     procedure report_status_to_llc is
     begin
 
-      -- Default: hold registered status
       v_llc_o.transfer_status := llc_o.transfer_status;
 
-      -- Update status from MAC FSM feedback
       if (transmission_completed_v) then
         v_llc_o.transfer_status := tx_mac_fsm_i.transfer_status;
       elsif (v_state = load_config_byte_0) then
         v_llc_o.transfer_status := ongoing;
       end if;
 
-      -- Drive ready based on state
       case v_state is
         when load_config_byte_0 | load_config_byte_1 | load_llc_frame_byte =>
           v_llc_o.avalon_st_sink.ready := '1';
@@ -80,31 +77,38 @@ begin
 
     end procedure report_status_to_llc;
 
-    -- Capture config bytes and initialize ID padding counters
-    procedure capture_config is
+    -- Latch config byte 0 on SOP
+    procedure capture_config_byte_0 is
+    begin
+
+      if (llc_valid_v and llc_sop_v) then
+        v_config_byte_0 := llc_i.avalon_st_source.data;
+      end if;
+
+    end procedure capture_config_byte_0;
+
+    -- Latch config byte 1 and initialize frame params and ID padding counters
+    procedure capture_config_byte_1 is
     begin
 
       if (llc_valid_v) then
-        if (state = load_config_byte_0 and llc_sop_v) then
+        if (llc_sop_v) then
+          -- Resync: treat as a new config byte 0
           v_config_byte_0 := llc_i.avalon_st_source.data;
-        elsif (state = load_config_byte_1) then
-          if (llc_sop_v) then
-            v_config_byte_0 := llc_i.avalon_st_source.data;
-          else
-            v_tx_mac_fsm_o.frame_params := calculate_frame_params(config_byte_0, llc_i.avalon_st_source.data);
+        else
+          v_tx_mac_fsm_o.frame_params := calculate_frame_params(config_byte_0, llc_i.avalon_st_source.data);
 
-            if (config_byte_0(llc_frame_config_byte_0_extended_bit) = '1') then
-              v_id_bits_remaining      := base_id_width_c + extended_id_width_c;
-              v_padding_bits_remaining := llc_id_stream_width_c - base_id_width_c - extended_id_width_c;
-            else
-              v_id_bits_remaining      := base_id_width_c;
-              v_padding_bits_remaining := llc_id_stream_width_c - base_id_width_c;
-            end if;
+          if (config_byte_0(llc_frame_config_byte_0_extended_bit) = '1') then
+            v_id_bits_remaining      := base_id_width_c + extended_id_width_c;
+            v_padding_bits_remaining := llc_id_stream_width_c - base_id_width_c - extended_id_width_c;
+          else
+            v_id_bits_remaining      := base_id_width_c;
+            v_padding_bits_remaining := llc_id_stream_width_c - base_id_width_c;
           end if;
         end if;
       end if;
 
-    end procedure capture_config;
+    end procedure capture_config_byte_1;
 
     -- Load a new byte and optionally present MSB to FSM
     procedure load_byte is
@@ -200,16 +204,20 @@ begin
         v_llc_o.avalon_st_sink.ready := mac_to_llc_if_reset_c.avalon_st_sink.ready;
         v_tx_mac_fsm_o.valid         := tx_mac_ser_to_fsm_if_reset_c.valid;
 
+        report_status_to_llc;
+
         -----------------------------------------------------------------
-        -- State logic
+        -- State + output logic
         -----------------------------------------------------------------
         case state is
           when load_config_byte_0 =>
+            capture_config_byte_0;
             if (llc_valid_v and llc_sop_v) then
               v_state := load_config_byte_1;
             end if;
 
           when load_config_byte_1 =>
+            capture_config_byte_1;
             if (llc_valid_v) then
               if (llc_sop_v) then
                 v_state := load_config_byte_1;
@@ -219,6 +227,7 @@ begin
             end if;
 
           when load_llc_frame_byte =>
+            load_byte;
             if (transmission_completed_v) then
               v_state := load_config_byte_0;
             elsif (llc_valid_v) then
@@ -230,37 +239,18 @@ begin
             end if;
 
           when shift_out_bits =>
-            if (transmission_completed_v) then
-              v_state := load_config_byte_0;
-            elsif (in_id_padding_v) then
-              if (byte_finished_v) then
-                v_state := load_llc_frame_byte;
-              end if;
-            elsif (fsm_consumed_bit_v) then
-              if (byte_finished_v) then
-                v_state := load_llc_frame_byte;
-              end if;
-            end if;
-
-          when others =>
-            null;
-        end case;
-
-        -----------------------------------------------------------------
-        -- Output logic
-        -----------------------------------------------------------------
-        report_status_to_llc;
-        capture_config;
-
-        case state is
-          when load_llc_frame_byte =>
-            load_byte;
-
-          when shift_out_bits =>
             if (in_id_padding_v) then
               consume_padding_bit;
+              if (byte_finished_v) then
+                v_state := load_llc_frame_byte;
+              end if;
             else
               shift_normal_bit;
+              if (transmission_completed_v) then
+                v_state := load_config_byte_0;
+              elsif (fsm_consumed_bit_v and byte_finished_v) then
+                v_state := load_llc_frame_byte;
+              end if;
             end if;
 
           when others =>
