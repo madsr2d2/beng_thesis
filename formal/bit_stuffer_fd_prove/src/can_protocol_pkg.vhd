@@ -98,6 +98,11 @@ package can_protocol_pkg is
     can_format : can_format_t
   ) return std_logic_vector;
 
+  -- Decode the 3-bit LLC config_byte_0 format field to can_format_t enum.
+  function decode_llc_format (
+    format_slv : std_logic_vector(2 downto 0)
+  ) return can_format_t;
+
   ---------------------------------------------------------------------------
   -- Helper and Initialization functions
   ---------------------------------------------------------------------------
@@ -933,5 +938,21 @@ package body can_protocol_pkg is
     return result_v;
 
   end function pack_llc_id_bytes;
+
+  function decode_llc_format (
+    format_slv : std_logic_vector(2 downto 0)
+  ) return can_format_t is
+
+  begin
+
+    case format_slv is
+      when llc_frame_format_cb_encoding_c => return cc_basic;
+      when llc_frame_format_ce_encoding_c => return cc_extended;
+      when llc_frame_format_fb_encoding_c => return fd_basic;
+      when llc_frame_format_fe_encoding_c => return fd_extended;
+      when others => return unknown;
+    end case;
+
+  end function decode_llc_format;
 
 end package body can_protocol_pkg;

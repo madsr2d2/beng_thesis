@@ -30,7 +30,7 @@ smtbmc z3
 # It compiles VHDL with the LLVM-backend GHDL, then exports the netlist to Yosys.
 # PSL assertions embedded via '-- psl' comments are picked up automatically.
 plugin -i ghdl
-ghdl --std=08 \
+ghdl -fpsl --std=08 \
   can_types_pkg.vhd \
   can_protocol_pkg.vhd \
   can_timing_pkg.vhd \

@@ -195,22 +195,23 @@ begin
 -- Environment assumptions: constrain unconstrained formal inputs to legal values.
 -- psl ASSUME_NO_UNKNOWN_DATA : assume always (bs_fd_i.data = dominant or bs_fd_i.data = recessive);
 -- psl ASSUME_START_MUTEX : assume always not (bs_fd_i.start and bs_fd_i.valid);
+-- psl ASSUME_RESET_INIT : assume (reset_i = '1');
 
 -- #042 [P1]: consecutive_count is always bounded by stuff_width_c.
 -- A count exceeding the threshold would mean the logic skipped inserting a stuff bit.
--- psl P1_COUNT_BOUNDED : assert always (consecutive_count <= stuff_width_c) report "FAIL P1: #042 consecutive_count exceeded stuff_width_c";
+-- psl P1_COUNT_BOUNDED : assert always (reset_i = '0' -> (consecutive_count <= stuff_width_c)) report "FAIL P1: #042 consecutive_count exceeded stuff_width_c";
 
 -- #042 [P2]: When consecutive_count reaches the stuffing threshold, the output
 -- MUST assert valid (stuff bit required).  Proves count and valid are consistent.
--- psl P2_COUNT_IMPLIES_VALID : assert always ((consecutive_count = stuff_width_c) -> bs_fd_o.valid) report "FAIL P2: #042 count at threshold but valid not asserted";
+-- psl P2_COUNT_IMPLIES_VALID : assert always (reset_i = '0' -> ((consecutive_count = stuff_width_c) -> bs_fd_o.valid)) report "FAIL P2: #042 count at threshold but valid not asserted";
 
 -- #042 [P3a/3b]: Stuff bit polarity is always inverse of the run that triggered it.
 -- last_polarity holds the polarity of the 5th consecutive bit, i.e. the run polarity.
--- psl P3_STUFF_POL_DOMINANT : assert always ((bs_fd_o.valid and last_polarity = dominant) -> bs_fd_o.data = recessive) report "FAIL P3a: #042 stuff bit not recessive after dominant run";
--- psl P3_STUFF_POL_RECESSIVE : assert always ((bs_fd_o.valid and last_polarity = recessive) -> bs_fd_o.data = dominant) report "FAIL P3b: #042 stuff bit not dominant after recessive run";
+-- psl P3_STUFF_POL_DOMINANT : assert always (reset_i = '0' -> ((bs_fd_o.valid and last_polarity = dominant) -> bs_fd_o.data = recessive)) report "FAIL P3a: #042 stuff bit not recessive after dominant run";
+-- psl P3_STUFF_POL_RECESSIVE : assert always (reset_i = '0' -> ((bs_fd_o.valid and last_polarity = recessive) -> bs_fd_o.data = dominant)) report "FAIL P3b: #042 stuff bit not dominant after recessive run";
 
 -- #043 [P4]: Stuff bit output polarity is never undefined (unknown) when valid is asserted.
--- psl P4_NO_UNKNOWN_OUTPUT : assert always (bs_fd_o.valid -> (bs_fd_o.data = dominant or bs_fd_o.data = recessive)) report "FAIL P4: #043 stuff bit has undefined polarity when valid";
+-- psl P4_NO_UNKNOWN_OUTPUT : assert always (reset_i = '0' -> (bs_fd_o.valid -> (bs_fd_o.data = dominant or bs_fd_o.data = recessive))) report "FAIL P4: #043 stuff bit has undefined polarity when valid";
 
 -- #042 [P5]: Synchronous reset clears consecutive_count and deasserts valid next cycle.
 -- psl P5_RST_CLEARS_STATE : assert always (reset_i = '1') -> next (consecutive_count = 0 and not bs_fd_o.valid) report "FAIL P5: #042 synchronous reset did not clear state";

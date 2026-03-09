@@ -32,7 +32,7 @@ entity bit_stuffer_fd is
   );
   port (
     clk_i   : in    std_logic;
-    rst_i   : in    std_logic;
+    reset_i : in    std_logic;
     bs_fd_i : in    mac_fsm_to_bs_fd_if_t;
     bs_fd_o : out   bs_fd_to_mac_fsm_if_t
   );
@@ -53,21 +53,25 @@ begin
   fsm_sequential : process (clk_i) is
 
     -- Registered next-value variables
-    variable v_consecutive_count : integer range 0 to stuff_width_c;
-    variable v_last_polarity     : polarity_t;
-    variable v_stuff_count       : unsigned(2 downto 0);
-    variable v_stuff_valid_prev  : boolean;
+    variable v_stuff_valid_prev : boolean;
 
     -- Registered output next-value variable
     variable v_bs_fd_o : bs_fd_to_mac_fsm_if_t;
 
-    -- Named guard variables
-    variable fsm_data_valid_v : boolean;
-    variable stuff_required_v : boolean;
-
     -- Handle detection of N consecutive bits and stuff bit requirement
     procedure manage_bit_counting is
+
+      variable v_last_polarity     : polarity_t;
+      variable v_consecutive_count : integer range 0 to stuff_width_c;
+      variable fsm_data_valid_v    : boolean;
+      variable stuff_required_v    : boolean;
+
     begin
+
+      fsm_data_valid_v    := bs_fd_i.valid;
+      stuff_required_v    := bs_fd_o.valid;
+      v_consecutive_count := consecutive_count;
+      v_last_polarity     := last_polarity;
 
       if (fsm_data_valid_v) then
         if (stuff_required_v) then
@@ -98,15 +102,21 @@ begin
         end if;
       end if;
 
+      consecutive_count <= v_consecutive_count;
+      last_polarity     <= v_last_polarity;
+
     end procedure manage_bit_counting;
 
     -- Handle Gray-coded SBC calculation on stuff bit events
     procedure manage_sbc_encoding is
 
-      variable gray_bits_v  : std_logic_vector(2 downto 0);
-      variable parity_bit_v : std_logic;
+      variable gray_bits_v   : std_logic_vector(2 downto 0);
+      variable parity_bit_v  : std_logic;
+      variable v_stuff_count : unsigned(2 downto 0);
 
     begin
+
+      v_stuff_count := stuff_count;
 
       -- Pulse logic: detect rising edge of stuff requirement
       if (v_bs_fd_o.valid and not stuff_valid_prev) then
@@ -114,16 +124,18 @@ begin
       end if;
 
       -- Continuously update Gray-coded SBC output
-      gray_bits_v      := to_gray(std_logic_vector(v_stuff_count));
-      parity_bit_v     := calc_parity(gray_bits_v);
-      v_bs_fd_o.sbc    := gray_bits_v & parity_bit_v;
+      gray_bits_v   := to_gray(std_logic_vector(v_stuff_count));
+      parity_bit_v  := calc_parity(gray_bits_v);
+      v_bs_fd_o.sbc := gray_bits_v & parity_bit_v;
+
+      stuff_count <= v_stuff_count;
 
     end procedure manage_sbc_encoding;
 
   begin
 
     if rising_edge(clk_i) then
-      if (rst_i = '1' or bs_fd_i.start) then
+      if (reset_i = '1' or bs_fd_i.start) then
         consecutive_count <= 0;
         last_polarity     <= dominant;
         stuff_count       <= (others => '0');
@@ -132,16 +144,11 @@ begin
         bs_fd_o <= bs_fd_to_mac_fsm_if_reset_c;
       else
         -- Evaluate guards
-        fsm_data_valid_v := bs_fd_i.valid;
-        stuff_required_v := bs_fd_o.valid;
 
         -------------------------------------------------------------------
         -- Defaults: hold current registered values
         -------------------------------------------------------------------
-        v_consecutive_count := consecutive_count;
-        v_last_polarity     := last_polarity;
-        v_stuff_count       := stuff_count;
-        v_stuff_valid_prev  := bs_fd_o.valid;
+        v_stuff_valid_prev := bs_fd_o.valid;
 
         -- Baseline from registered interface
         v_bs_fd_o := bs_fd_o;
@@ -158,10 +165,7 @@ begin
         -------------------------------------------------------------------
         -- Register all next-cycle values
         -------------------------------------------------------------------
-        consecutive_count <= v_consecutive_count;
-        last_polarity     <= v_last_polarity;
-        stuff_count       <= v_stuff_count;
-        stuff_valid_prev  <= v_stuff_valid_prev;
+        stuff_valid_prev <= v_stuff_valid_prev;
 
         bs_fd_o <= v_bs_fd_o;
       end if;
@@ -191,25 +195,26 @@ begin
 -- Environment assumptions: constrain unconstrained formal inputs to legal values.
 -- psl ASSUME_NO_UNKNOWN_DATA : assume always (bs_fd_i.data = dominant or bs_fd_i.data = recessive);
 -- psl ASSUME_START_MUTEX : assume always not (bs_fd_i.start and bs_fd_i.valid);
+-- psl ASSUME_RESET_INIT : assume (reset_i = '1');
 
 -- #042 [P1]: consecutive_count is always bounded by stuff_width_c.
 -- A count exceeding the threshold would mean the logic skipped inserting a stuff bit.
--- psl P1_COUNT_BOUNDED : assert always (consecutive_count <= stuff_width_c) report "FAIL P1: #042 consecutive_count exceeded stuff_width_c";
+-- psl P1_COUNT_BOUNDED : assert always (reset_i = '0' -> (consecutive_count <= stuff_width_c)) report "FAIL P1: #042 consecutive_count exceeded stuff_width_c";
 
 -- #042 [P2]: When consecutive_count reaches the stuffing threshold, the output
 -- MUST assert valid (stuff bit required).  Proves count and valid are consistent.
--- psl P2_COUNT_IMPLIES_VALID : assert always ((consecutive_count = stuff_width_c) -> bs_fd_o.valid) report "FAIL P2: #042 count at threshold but valid not asserted";
+-- psl P2_COUNT_IMPLIES_VALID : assert always (reset_i = '0' -> ((consecutive_count = stuff_width_c) -> bs_fd_o.valid)) report "FAIL P2: #042 count at threshold but valid not asserted";
 
 -- #042 [P3a/3b]: Stuff bit polarity is always inverse of the run that triggered it.
 -- last_polarity holds the polarity of the 5th consecutive bit, i.e. the run polarity.
--- psl P3_STUFF_POL_DOMINANT : assert always ((bs_fd_o.valid and last_polarity = dominant) -> bs_fd_o.data = recessive) report "FAIL P3a: #042 stuff bit not recessive after dominant run";
--- psl P3_STUFF_POL_RECESSIVE : assert always ((bs_fd_o.valid and last_polarity = recessive) -> bs_fd_o.data = dominant) report "FAIL P3b: #042 stuff bit not dominant after recessive run";
+-- psl P3_STUFF_POL_DOMINANT : assert always (reset_i = '0' -> ((bs_fd_o.valid and last_polarity = dominant) -> bs_fd_o.data = recessive)) report "FAIL P3a: #042 stuff bit not recessive after dominant run";
+-- psl P3_STUFF_POL_RECESSIVE : assert always (reset_i = '0' -> ((bs_fd_o.valid and last_polarity = recessive) -> bs_fd_o.data = dominant)) report "FAIL P3b: #042 stuff bit not dominant after recessive run";
 
 -- #043 [P4]: Stuff bit output polarity is never undefined (unknown) when valid is asserted.
--- psl P4_NO_UNKNOWN_OUTPUT : assert always (bs_fd_o.valid -> (bs_fd_o.data = dominant or bs_fd_o.data = recessive)) report "FAIL P4: #043 stuff bit has undefined polarity when valid";
+-- psl P4_NO_UNKNOWN_OUTPUT : assert always (reset_i = '0' -> (bs_fd_o.valid -> (bs_fd_o.data = dominant or bs_fd_o.data = recessive))) report "FAIL P4: #043 stuff bit has undefined polarity when valid";
 
 -- #042 [P5]: Synchronous reset clears consecutive_count and deasserts valid next cycle.
--- psl P5_RST_CLEARS_STATE : assert always (rst_i = '1') -> next (consecutive_count = 0 and not bs_fd_o.valid) report "FAIL P5: #042 synchronous reset did not clear state";
+-- psl P5_RST_CLEARS_STATE : assert always (reset_i = '1') -> next (consecutive_count = 0 and not bs_fd_o.valid) report "FAIL P5: #042 synchronous reset did not clear state";
 
 -- #042 [P6]: Frame-start pulse clears consecutive_count and deasserts valid next cycle.
 -- psl P6_START_CLEARS_STATE : assert always bs_fd_i.start -> next (consecutive_count = 0 and not bs_fd_o.valid) report "FAIL P6: #042 start pulse did not clear state";

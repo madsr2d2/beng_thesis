@@ -32,16 +32,16 @@ package can_types_pkg is
   constant byte_width_c      : integer                       := 8;
 
   -- Max frame: FD extended, DLC 15 → eof_stop = 593.
-  constant max_mac_frame_length_c       : integer := 640;
+  constant max_mac_frame_length_c        : integer := 640;
   subtype  bit_count_t is integer range 0 to max_mac_frame_length_c;
-  constant base_id_width_c              : integer := 11;
-  constant extended_id_width_c          : integer := 18;
-  constant eof_field_width_c            : integer := 7;
-  constant error_flag_width_c           : integer := 6;
-  constant error_delimiter_width_c      : integer := 8;
-  constant bus_idle_condition_width_c   : integer := 11; -- ISO 11898-1: 3.34
-  constant intermission_width_c         : integer := 3;  -- ISO 11898-1: 6.6.7.2
-  constant suspend_transmission_width_c : integer := 8;  -- ISO 11898-1: 6.6.7.4
+  constant base_id_width_c               : integer := 11;
+  constant extended_id_width_c           : integer := 18;
+  constant eof_field_width_c             : integer := 7;
+  constant error_flag_width_c            : integer := 6;
+  constant error_delimiter_width_c       : integer := 8;
+  constant bus_idle_condition_width_c    : integer := 11;   -- ISO 11898-1: 3.34
+  constant intermission_width_c          : integer := 3;    -- ISO 11898-1: 6.6.7.2
+  constant suspend_transmission_width_c  : integer := 8;    -- ISO 11898-1: 6.6.7.4
   constant transmitted_bits_fifo_depth_c : integer := 32;
   constant dlc_max_decimal_value         : integer := 15;
   constant max_data_bytes_c              : integer := 64;
@@ -608,17 +608,25 @@ package can_types_pkg is
   -- LLC frame config bytes (byte 0 and byte 1) format.
   -- byte0[7:5]=format, byte0[4]=ftyp, byte0[3]=esi, byte0[2]=brs
   -- byte1[7:4]=dlc
-  constant llc_frame_format_cb_encoding_c       : std_logic_vector(2 downto 0) := "000";
-  constant llc_frame_format_ce_encoding_c       : std_logic_vector(2 downto 0) := "100";
-  constant llc_frame_format_fb_encoding_c       : std_logic_vector(2 downto 0) := "010";
-  constant llc_frame_format_fe_encoding_c       : std_logic_vector(2 downto 0) := "110";
-  constant llc_frame_config_byte_0_format_start : integer                      := byte_width_c - 1;
-  constant llc_frame_config_byte_0_format_end   : integer                      := llc_frame_config_byte_0_format_start - 2;
-  constant llc_frame_config_byte_0_ftyp         : integer                      := llc_frame_config_byte_0_format_end - 1;
-  constant llc_frame_config_byte_0_esi          : integer                      := llc_frame_config_byte_0_ftyp - 1;
-  constant llc_frame_config_byte_0_brs          : integer                      := llc_frame_config_byte_0_esi - 1;
-  constant llc_frame_config_byte_1_dlc_start    : integer                      := byte_width_c - 1;
-  constant llc_frame_config_byte_1_dlc_end      : integer                      := llc_frame_config_byte_1_dlc_start - 3;
+  constant llc_frame_format_cb_encoding_c : std_logic_vector(2 downto 0) := "000";
+  constant llc_frame_format_ce_encoding_c : std_logic_vector(2 downto 0) := "100";
+  constant llc_frame_format_fb_encoding_c : std_logic_vector(2 downto 0) := "010";
+  constant llc_frame_format_fe_encoding_c : std_logic_vector(2 downto 0) := "110";
+
+  -- Fields in config byte 0
+  constant llc_frame_config_byte_0_format_start : integer := byte_width_c - 1;
+  constant llc_frame_config_byte_0_format_end   : integer := llc_frame_config_byte_0_format_start - 2;
+  constant llc_frame_config_byte_0_ftyp         : integer := llc_frame_config_byte_0_format_end - 1;
+  constant llc_frame_config_byte_0_esi          : integer := llc_frame_config_byte_0_ftyp - 1;
+  constant llc_frame_config_byte_0_brs          : integer := llc_frame_config_byte_0_esi - 1;
+  constant llc_frame_config_byte_0_extended_bit : integer := llc_frame_config_byte_0_format_start;
+  -- Fields in config byte 1
+  constant llc_frame_config_byte_1_dlc_start : integer := byte_width_c - 1;
+  constant llc_frame_config_byte_1_dlc_end   : integer := llc_frame_config_byte_1_dlc_start - 3;
+
+  constant llc_id_byte_count_c   : integer := 4;
+  constant llc_id_stream_width_c : integer := llc_id_byte_count_c * byte_width_c;
+
   -- LLC layer types (ISO 11898-1 Section 6.4)
   --------------------------------------------------------------------
 
@@ -640,7 +648,6 @@ package can_types_pkg is
   -- LLC frame as transmitted (matches Avalon-ST byte sequence)
   -- Byte sequence: [config_0, config_1, id[31:24], id[23:16], id[15:8], id[7:0], data[0..63]]
   type llc_frame_t is record
-    format   : can_format_t;                                        -- Frame format (for lookups)
     config_0 : llc_config_byte_0_t;                                 -- Config byte 0 (format, FTYP, ESI, BRS)
     config_1 : llc_config_byte_1_t;                                 -- Config byte 1 (DLC)
     id       : std_logic_vector(31 downto 0);                       -- 4-byte packed ID (format-dependent layout)

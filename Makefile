@@ -25,13 +25,14 @@ LAYERS = \
 	src/tx_mac.vhd \
 	src/tx_pcs.vhd \
 	src/tx_llc.vhd \
+	src/llc_frame_adapter.vhd \
 	src/tx_can.vhd
 
 SRCFILES = $(PACKAGES) $(COMPONENTS) $(LAYERS)
 VHDLEX = .vhd
 
 # OSVVM library path (where TCL build compiled it)
-OSVVM_LIB_PATH = $(CURDIR)/OsvvmLibraries/osvvm/VHDL_LIBS/GHDL-4.1.0
+OSVVM_LIB_PATH = $(CURDIR)/OsvvmLibraries/osvvm/VHDL_LIBS/GHDL-6.0.0-dev
 
 # Testbench configuration
 TB ?=
@@ -51,7 +52,7 @@ GHWFILE = ${SIMDIR}/${TESTBENCHFILE}.ghw
 GTKWAVE_DIR = gtk_wave
 GTKWFILE = ${GTKWAVE_DIR}/${TESTBENCHFILE}.gtkw
 
-WAVEFORM_VIEWER = gtkwave
+WAVEFORM_VIEWER = GIO_MODULE_DIR="" gtkwave
 
 .PHONY: all compile run view clean
 
@@ -63,11 +64,11 @@ compile:
 		exit 1; \
 	fi
 	@if [ ! -d "$(OSVVM_LIB_PATH)/osvvm/v08" ]; then \
-		echo "Error: OSVVM not compiled. Build it first in OsvvmLibraries/osvvm"; \
+		echo "Error: OSVVM not compiled. Run: tclsh /tmp/build_osvvm3.tcl from project root"; \
 		exit 1; \
 	fi
 	@mkdir -p $(SIMDIR)
-	@cp -r OsvvmLibraries/osvvm/OsvvmTemp_GHDL . 2>/dev/null || true
+	@cp -r OsvvmLibraries/OsvvmTemp_GHDL . 2>/dev/null || true
 	@echo "Compiling design..."
 	@for file in $(SRCFILES); do \
 		echo "  Analyzing $$file"; \
