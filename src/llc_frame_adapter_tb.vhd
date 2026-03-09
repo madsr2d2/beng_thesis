@@ -43,21 +43,7 @@ architecture tb of llc_frame_adapter_tb is
   signal llc_o        : llc_user_to_llc_if_t;
   signal llc_i        : llc_to_llc_user_if_t;
 
-  ---------------------------------------------------------------------------
-  -- Legacy frame format constants
-  ---------------------------------------------------------------------------
-  constant legacy_frame_len_c    : integer := 71;
-  constant legacy_fmt_dlc_byte_c : integer := 4;
-  constant legacy_data_offset_c  : integer := 5;
-  constant legacy_flags_byte_c   : integer := 70;
-
-  -- FMT encoding constants
-  constant fmt_cb_c : std_logic_vector(2 downto 0) := "000";
-  constant fmt_ce_c : std_logic_vector(2 downto 0) := "100";
-  constant fmt_fb_c : std_logic_vector(2 downto 0) := "010";
-  constant fmt_fe_c : std_logic_vector(2 downto 0) := "110";
-
-  type legacy_frame_t is array (0 to legacy_frame_len_c - 1) of byte_t;
+  -- legacy_frame_t and its index constants are defined in can_types_pkg
 
 begin
 
@@ -160,7 +146,7 @@ begin
     -- CB 11-bit ID=0x555: byte2=00000_101, byte3=0x55
     frame(2)                      := "00000101";
     frame(3)                      := x"55";
-    frame(legacy_fmt_dlc_byte_c)  := "0" & fmt_cb_c & "0001";  -- FMT=CB, DLC=1
+    frame(legacy_fmt_dlc_byte_c)  := "0" & llc_fmt_cb_c & "0001";  -- FMT=CB, DLC=1
     frame(legacy_data_offset_c)   := x"AB";
     frame(legacy_flags_byte_c)    := (others => '0');
 
@@ -208,7 +194,7 @@ begin
     frame(1)                     := x"C0";
     frame(2)                     := x"5A";
     frame(3)                     := x"55";
-    frame(legacy_fmt_dlc_byte_c) := "0" & fmt_ce_c & "1000";  -- FMT=CE, DLC=8
+    frame(legacy_fmt_dlc_byte_c) := "0" & llc_fmt_ce_c & "1000";  -- FMT=CE, DLC=8
     for i in 0 to 7 loop
       frame(legacy_data_offset_c + i) := std_logic_vector(to_unsigned(i + 1, 8));
     end loop;
@@ -258,7 +244,7 @@ begin
     -- FB 11-bit ID=0x123: byte2[2:0]=001, byte3=0x23
     frame(2)                     := "00000001";
     frame(3)                     := x"23";
-    frame(legacy_fmt_dlc_byte_c) := "0" & fmt_fb_c & "1111";  -- FMT=FB, DLC=15
+    frame(legacy_fmt_dlc_byte_c) := "0" & llc_fmt_fb_c & "1111";  -- FMT=FB, DLC=15
     for i in 0 to 63 loop
       frame(legacy_data_offset_c + i) := std_logic_vector(to_unsigned(i, 8));
     end loop;
@@ -319,7 +305,7 @@ begin
     frame := (others => (others => '0'));
     -- FE 29-bit ID=0x00000001
     frame(3)                     := x"01";
-    frame(legacy_fmt_dlc_byte_c) := "0" & fmt_fe_c & "0000";  -- FMT=FE, DLC=0
+    frame(legacy_fmt_dlc_byte_c) := "0" & llc_fmt_fe_c & "0000";  -- FMT=FE, DLC=0
     frame(legacy_flags_byte_c)   := "00000111";  -- BRS=1, ESI=1, RTR=1
 
     send_frame(frame);
@@ -354,7 +340,7 @@ begin
     frame := (others => (others => '0'));
     frame(2)                     := "00000001";
     frame(3)                     := x"00";
-    frame(legacy_fmt_dlc_byte_c) := "0" & fmt_cb_c & "0001";  -- CB, DLC=1
+    frame(legacy_fmt_dlc_byte_c) := "0" & llc_fmt_cb_c & "0001";  -- CB, DLC=1
     frame(legacy_data_offset_c)  := x"FF";
     frame(legacy_flags_byte_c)   := (others => '0');
 

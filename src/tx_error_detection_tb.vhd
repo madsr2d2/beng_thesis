@@ -458,15 +458,15 @@ architecture testbench of tx_error_detection_tb is
     -- Map format to encoding
     case format is
       when cc_basic =>
-        format_v := llc_frame_format_cb_encoding_c;
+        format_v := llc_fmt_cb_c;
       when cc_extended =>
-        format_v := llc_frame_format_ce_encoding_c;
+        format_v := llc_fmt_ce_c;
       when fd_basic =>
-        format_v := llc_frame_format_fb_encoding_c;
+        format_v := llc_fmt_fb_c;
       when fd_extended =>
-        format_v := llc_frame_format_fe_encoding_c;
+        format_v := llc_fmt_fe_c;
       when others =>
-        format_v := llc_frame_format_cb_encoding_c;
+        format_v := llc_fmt_cb_c;
     end case;
 
     -- Populate config_byte_0 record

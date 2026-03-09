@@ -608,10 +608,10 @@ package can_types_pkg is
   -- LLC frame config bytes (byte 0 and byte 1) format.
   -- byte0[7:5]=format, byte0[4]=ftyp, byte0[3]=esi, byte0[2]=brs
   -- byte1[7:4]=dlc
-  constant llc_frame_format_cb_encoding_c : std_logic_vector(2 downto 0) := "000";
-  constant llc_frame_format_ce_encoding_c : std_logic_vector(2 downto 0) := "100";
-  constant llc_frame_format_fb_encoding_c : std_logic_vector(2 downto 0) := "010";
-  constant llc_frame_format_fe_encoding_c : std_logic_vector(2 downto 0) := "110";
+  constant llc_fmt_cb_c : std_logic_vector(2 downto 0) := "000";
+  constant llc_fmt_ce_c : std_logic_vector(2 downto 0) := "100";
+  constant llc_fmt_fb_c : std_logic_vector(2 downto 0) := "010";
+  constant llc_fmt_fe_c : std_logic_vector(2 downto 0) := "110";
 
   -- Fields in config byte 0
   constant llc_frame_config_byte_0_format_start : integer := byte_width_c - 1;
@@ -645,7 +645,47 @@ package can_types_pkg is
     unused : std_logic_vector(3 downto 0); -- [3:0] Reserved (always '0')
   end record llc_config_byte_1_t;
 
-  -- LLC frame as transmitted (matches Avalon-ST byte sequence)
+  ---------------------------------------------------------------------------
+  -- LLC frame formats
+  --
+  -- Two frame formats exist at the LLC/MAC boundary. Both carry the same
+  -- logical content; they differ in byte ordering and padding.
+  --
+  -- Internal format (variable length, used by tx_llc and tx_mac_ser):
+  --   The format optimised for streaming. Config bytes come first so the MAC
+  --   serializer can begin as soon as the first byte is accepted. No padding.
+  --
+  --   Byte 0 (SOP): [7:5]=FMT, [4]=FTYP(RTR), [3]=ESI, [2]=BRS, [1:0]=00
+  --   Byte 1:       [7:4]=DLC, [3:0]=0000
+  --   Bytes 2-5:    ID (32-bit, left-aligned MSB first; CB uses bits[31:21],
+  --                    CE uses bits[31:3])
+  --   Bytes 6+:     Data (DLC count only, no padding), EOP on last byte
+  --
+  -- Legacy format (fixed 71 bytes, defined in the project report):
+  --   The format presented to the external user interface. Fixed length
+  --   simplifies framing for the host. The llc_frame_adapter translates
+  --   legacy to internal before the frame enters the TX pipeline.
+  --
+  --   Bytes 0-3:  ID bytes (right-aligned, same bit layout as internal bytes 2-5)
+  --   Byte  4:    [7]=reserved, [6:4]=FMT, [3:0]=DLC
+  --   Bytes 5-68: Data (0-64 bytes, zero-padded to fill)
+  --   Byte  69:   [7:1]=reserved, [0]=IDE (redundant with FMT, not forwarded)
+  --   Byte  70:   [7:3]=reserved, [2]=BRS, [1]=ESI, [0]=RTR
+  --
+  -- The core ordering problem: BRS, ESI, and RTR are needed in byte 0 of the
+  -- internal format but arrive in byte 70 of the legacy format. The adapter
+  -- must buffer the full 71 bytes before it can emit the first internal byte.
+  ---------------------------------------------------------------------------
+
+  -- Legacy frame buffer (used by llc_frame_adapter)
+  constant legacy_frame_len_c    : integer := 71;
+  constant legacy_fmt_dlc_byte_c : integer := 4;
+  constant legacy_data_offset_c  : integer := 5;
+  constant legacy_flags_byte_c   : integer := 70;
+
+  type legacy_frame_t is array (0 to legacy_frame_len_c - 1) of byte_t;
+
+  -- Internal frame as transmitted on the Avalon-ST stream (matches byte sequence above)
   -- Byte sequence: [config_0, config_1, id[31:24], id[23:16], id[15:8], id[7:0], data[0..63]]
   type llc_frame_t is record
     config_0 : llc_config_byte_0_t;                                 -- Config byte 0 (format, FTYP, ESI, BRS)

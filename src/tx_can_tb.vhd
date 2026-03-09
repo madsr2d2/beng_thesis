@@ -199,7 +199,7 @@ begin
     ) is
     begin
       frame.id               := std_logic_vector(to_unsigned(16#555#, 32));
-      frame.config_0.format  := llc_frame_format_cb_encoding_c;
+      frame.config_0.format  := llc_fmt_cb_c;
       frame.config_0.ftyp    := '0'; -- Data frame
       frame.config_0.esi     := '0';
       frame.config_0.brs     := '0';
@@ -584,7 +584,7 @@ begin
     Log(alert_id, "Test 4: CC Extended format smoke test (no ACK)");
     inject_ack <= false;
     setup_default_frame(frame_v);
-    frame_v.config_0.format := llc_frame_format_ce_encoding_c;
+    frame_v.config_0.format := llc_fmt_ce_c;
     frame_v.id(28 downto 0) := std_logic_vector(to_unsigned(16#1ABCDEF#, 29));
     wait until rising_edge(clk);
     monitor_frame_params <= frame_to_params(frame_v);
@@ -606,7 +606,7 @@ begin
     Log(alert_id, "Test 5: FD Basic format smoke test (no ACK)");
     inject_ack <= false;
     setup_default_frame(frame_v);
-    frame_v.config_0.format := llc_frame_format_fb_encoding_c;
+    frame_v.config_0.format := llc_fmt_fb_c;
     frame_v.config_0.brs    := '0';
     frame_v.config_1.dlc    := std_logic_vector(to_unsigned(9, 4)); -- 12-byte payload
     wait until rising_edge(clk);
@@ -635,7 +635,7 @@ begin
     Log(alert_id, "Test 6: FD Extended format smoke test (no ACK)");
     inject_ack <= false;
     setup_default_frame(frame_v);
-    frame_v.config_0.format := llc_frame_format_fe_encoding_c;
+    frame_v.config_0.format := llc_fmt_fe_c;
     frame_v.config_0.brs    := '0';
     frame_v.config_1.dlc    := std_logic_vector(to_unsigned(10, 4)); -- 16-byte payload
     frame_v.id(28 downto 0) := std_logic_vector(to_unsigned(16#1234567#, 29));
@@ -702,9 +702,9 @@ begin
       frame_v.config_1.dlc := std_logic_vector(to_unsigned(dlc_v, 4));
       frame_v.id  := std_logic_vector(to_unsigned(16#100# + iter, 32));
       if ((iter mod 2) = 0) then
-        frame_v.config_0.format := llc_frame_format_fb_encoding_c;
+        frame_v.config_0.format := llc_fmt_fb_c;
       else
-        frame_v.config_0.format := llc_frame_format_fe_encoding_c;
+        frame_v.config_0.format := llc_fmt_fe_c;
       end if;
 
       wait until rising_edge(clk);
@@ -855,7 +855,7 @@ begin
     inject_ack <= false; 
     
     setup_default_frame(frame_v);
-    frame_v.config_0.format := llc_frame_format_fb_encoding_c;
+    frame_v.config_0.format := llc_fmt_fb_c;
     wait until rising_edge(clk);
     monitor_frame_params <= frame_to_params(frame_v);
     wait until rising_edge(clk);
@@ -969,7 +969,7 @@ begin
     end loop;
 
     setup_default_frame(frame_v);
-    frame_v.config_0.format := llc_frame_format_fb_encoding_c;
+    frame_v.config_0.format := llc_fmt_fb_c;
     frame_v.config_0.brs    := '1'; -- Enable Bit Rate Switch
     wait until rising_edge(clk);
     monitor_frame_params <= frame_to_params(frame_v);

@@ -385,7 +385,7 @@ begin
     -- Test 1: CC basic data frame (DLC=1)
     frame_v.id                 := (others => '0');
     frame_v.id(10 downto 0)    := std_logic_vector(to_unsigned(16#555#, 11));
-    frame_v.config_0.format    := llc_frame_format_cb_encoding_c;
+    frame_v.config_0.format    := llc_fmt_cb_c;
     frame_v.config_0.ftyp      := '0';
     frame_v.config_0.brs       := '0';
     frame_v.config_0.esi       := '0';
@@ -398,7 +398,7 @@ begin
 
     -- Test 2: CC extended data frame (DLC=2)
     frame_v.id                 := std_logic_vector(to_unsigned(16#1ABCDE1#, 32));
-    frame_v.config_0.format    := llc_frame_format_ce_encoding_c;
+    frame_v.config_0.format    := llc_fmt_ce_c;
     frame_v.config_0.ftyp      := '0';
     frame_v.config_0.brs       := '0';
     frame_v.config_0.esi       := '0';

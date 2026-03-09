@@ -73,10 +73,10 @@ architecture rtl of tx_llc is
   begin
 
     case cfg0(llc_frame_config_byte_0_format_start downto llc_frame_config_byte_0_format_end) is
-      when llc_frame_format_cb_encoding_c => return cc_basic;
-      when llc_frame_format_ce_encoding_c => return cc_extended;
-      when llc_frame_format_fb_encoding_c => return fd_basic;
-      when llc_frame_format_fe_encoding_c => return fd_extended;
+      when llc_fmt_cb_c => return cc_basic;
+      when llc_fmt_ce_c => return cc_extended;
+      when llc_fmt_fb_c => return fd_basic;
+      when llc_fmt_fe_c => return fd_extended;
       when others => return unknown;
     end case;
 

@@ -736,10 +736,10 @@ package body can_protocol_pkg is
 
     -- Extract frame format from config_byte_0[7:5]
     case config_byte_0(llc_frame_config_byte_0_format_start downto llc_frame_config_byte_0_format_end) is
-      when llc_frame_format_cb_encoding_c => result.format := cc_basic;
-      when llc_frame_format_ce_encoding_c => result.format := cc_extended;
-      when llc_frame_format_fb_encoding_c => result.format := fd_basic;
-      when llc_frame_format_fe_encoding_c => result.format := fd_extended;
+      when llc_fmt_cb_c => result.format := cc_basic;
+      when llc_fmt_ce_c => result.format := cc_extended;
+      when llc_fmt_fb_c => result.format := fd_basic;
+      when llc_fmt_fe_c => result.format := fd_extended;
       when others => result.format := unknown;
     end case;
 
@@ -946,10 +946,10 @@ package body can_protocol_pkg is
   begin
 
     case format_slv is
-      when llc_frame_format_cb_encoding_c => return cc_basic;
-      when llc_frame_format_ce_encoding_c => return cc_extended;
-      when llc_frame_format_fb_encoding_c => return fd_basic;
-      when llc_frame_format_fe_encoding_c => return fd_extended;
+      when llc_fmt_cb_c => return cc_basic;
+      when llc_fmt_ce_c => return cc_extended;
+      when llc_fmt_fb_c => return fd_basic;
+      when llc_fmt_fe_c => return fd_extended;
       when others => return unknown;
     end case;
 

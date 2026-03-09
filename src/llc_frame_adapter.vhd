@@ -35,14 +35,14 @@ library ieee;
 
 entity llc_frame_adapter is
   port (
-    clk_i        : in    std_logic;
-    rst_i        : in    std_logic;
+    clk_i : in    std_logic;
+    rst_i : in    std_logic;
     -- User-facing (legacy format input)
     legacy_llc_i : in    llc_user_to_llc_if_t;
     legacy_llc_o : out   llc_to_llc_user_if_t;
     -- Internal-facing (converted format output to tx_llc)
-    llc_o        : out   llc_user_to_llc_if_t;
-    llc_i        : in    llc_to_llc_user_if_t
+    llc_o : out   llc_user_to_llc_if_t;
+    llc_i : in    llc_to_llc_user_if_t
   );
 end entity llc_frame_adapter;
 
@@ -52,20 +52,16 @@ architecture rtl of llc_frame_adapter is
   -- Types
   ---------------------------------------------------------------------------
   type adapter_state_t is (
-    receive_frame,   -- Buffer incoming legacy bytes; wait for EOP (byte 70)
-    emit_config_0,   -- Send SOP + config_byte_0 (built from bytes 4 and 70)
-    emit_config_1,   -- Send config_byte_1 (from byte 4)
-    emit_id_bytes,   -- Send repacked ID bytes (4 bytes, MSB first)
-    emit_data_bytes  -- Send data bytes (DLC count only), EOP on last
+    receive_frame,  -- Buffer incoming legacy bytes; wait for EOP (byte 70)
+    emit_config_0,  -- Send SOP + config_byte_0 (built from bytes 4 and 70)
+    emit_config_1,  -- Send config_byte_1 (from byte 4)
+    emit_id_bytes,  -- Send repacked ID bytes (4 bytes, MSB first)
+    emit_data_bytes -- Send data bytes (DLC count only), EOP on last
   );
 
-  constant legacy_frame_len_c    : integer := 71;
-  constant legacy_id_offset_c    : integer := 0;
-  constant legacy_fmt_dlc_byte_c : integer := 4;
-  constant legacy_data_offset_c  : integer := 5;
-  constant legacy_flags_byte_c   : integer := 70;
-
-  type legacy_frame_buffer_t is array (0 to legacy_frame_len_c - 1) of byte_t;
+  -- legacy_frame_len_c, legacy_fmt_dlc_byte_c, legacy_data_offset_c,
+  -- legacy_flags_byte_c and legacy_frame_t are defined in can_types_pkg.
+  subtype legacy_frame_buffer_t is legacy_frame_t;
 
   type id_bytes_t is array (0 to 3) of byte_t;
 
@@ -96,22 +92,23 @@ begin
     variable v_llc_o        : llc_user_to_llc_if_t;
 
     -- Named guard variables
-    variable legacy_valid_v    : boolean;
-    variable legacy_eop_v      : boolean;
+    variable legacy_valid_v     : boolean;
+    variable legacy_eop_v       : boolean;
     variable downstream_ready_v : boolean;
-    variable is_extended_v     : boolean;
-    variable is_last_id_byte_v : boolean;
-    variable is_last_data_v    : boolean;
-    variable no_data_v         : boolean;
+    variable is_extended_v      : boolean;
+    variable is_last_id_byte_v  : boolean;
+    variable is_last_data_v     : boolean;
+    variable no_data_v          : boolean;
 
     ---------------------------------------------------------------------------
     -- Build config_byte_0 from buffered legacy bytes
     ---------------------------------------------------------------------------
     procedure build_config_byte_0 (
-      signal buf   : in    legacy_frame_buffer_t;
-      result       : out   byte_t
+      signal buf : in    legacy_frame_buffer_t;
+      result     : out   byte_t
     ) is
     begin
+
       -- [7:5] = FMT from legacy byte 4 bits [6:4]
       -- [4]   = RTR from legacy byte 70 bit [0]
       -- [3]   = ESI from legacy byte 70 bit [1]
@@ -120,36 +117,42 @@ begin
       result(7)          := buf(legacy_fmt_dlc_byte_c)(6);
       result(6)          := buf(legacy_fmt_dlc_byte_c)(5);
       result(5)          := buf(legacy_fmt_dlc_byte_c)(4);
-      result(4)          := buf(legacy_flags_byte_c)(0);  -- RTR
-      result(3)          := buf(legacy_flags_byte_c)(1);  -- ESI
-      result(2)          := buf(legacy_flags_byte_c)(2);  -- BRS
+      result(4)          := buf(legacy_flags_byte_c)(0); -- RTR
+      result(3)          := buf(legacy_flags_byte_c)(1); -- ESI
+      result(2)          := buf(legacy_flags_byte_c)(2); -- BRS
       result(1 downto 0) := "00";
+
     end procedure build_config_byte_0;
 
     ---------------------------------------------------------------------------
     -- Build config_byte_1 from legacy byte 4
     ---------------------------------------------------------------------------
     procedure build_config_byte_1 (
-      signal buf   : in    legacy_frame_buffer_t;
-      result       : out   byte_t
+      signal buf : in    legacy_frame_buffer_t;
+      result     : out   byte_t
     ) is
     begin
+
       -- [7:4] = DLC from legacy byte 4 bits [3:0]
       -- [3:0] = "0000"
       result(7 downto 4) := buf(legacy_fmt_dlc_byte_c)(3 downto 0);
       result(3 downto 0) := "0000";
+
     end procedure build_config_byte_1;
 
     ---------------------------------------------------------------------------
     -- Repack ID from right-aligned legacy layout to left-aligned id_bytes
     ---------------------------------------------------------------------------
     procedure repack_id (
-      signal   buf      : in    legacy_frame_buffer_t;
-      variable is_ext   : in    boolean;
-      variable result   : out   id_bytes_t
+      signal   buf    : in    legacy_frame_buffer_t;
+      variable is_ext : in    boolean;
+      variable result : out   id_bytes_t
     ) is
+
       variable raw_id_v : std_logic_vector(31 downto 0);
+
     begin
+
       raw_id_v := (others => '0');
 
       if (is_ext) then
@@ -166,6 +169,7 @@ begin
       result(1) := raw_id_v(23 downto 16);
       result(2) := raw_id_v(15 downto 8);
       result(3) := raw_id_v(7 downto 0);
+
     end procedure repack_id;
 
   begin
@@ -181,11 +185,12 @@ begin
         id_bytes        <= (others => (others => '0'));
 
         legacy_llc_o <= (avalon_st_sink => (ready => '0'), transfer_status => ongoing);
-        llc_o        <= (avalon_st_source => (data => (others => '0'), valid => '0',
-                                              sop => '0', eop => '0'),
-                         abort_request => '0');
+        llc_o        <=
+        (
+          avalon_st_source => (data => (others => '0'), valid => '0', sop => '0', eop => '0'),
+          abort_request    => '0'
+        );
       else
-
         -- Evaluate guards
         legacy_valid_v     := legacy_llc_i.avalon_st_source.valid = '1';
         legacy_eop_v       := legacy_llc_i.avalon_st_source.eop = '1';
@@ -229,9 +234,9 @@ begin
               if (legacy_eop_v) then
                 -- Full 71-byte frame buffered; compute derived values
                 v_data_byte_count := dlc_to_data_length(
-                  dlc_t(to_integer(unsigned(v_frame_buf(legacy_fmt_dlc_byte_c)(3 downto 0)))),
-                  decode_llc_format(v_frame_buf(legacy_fmt_dlc_byte_c)(6 downto 4))
-                );
+                                                        dlc_t(to_integer(unsigned(v_frame_buf(legacy_fmt_dlc_byte_c)(3 downto 0)))),
+                                                        decode_llc_format(v_frame_buf(legacy_fmt_dlc_byte_c)(6 downto 4))
+                                                      );
 
                 repack_id(frame_buf, is_extended_v, v_id_bytes);
                 v_rx_index := 0;
