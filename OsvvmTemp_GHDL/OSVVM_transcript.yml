@@ -1,1 +1,6 @@
-  - sim/bit_stuffer_fd_tb.txt
+---
+# OSVVM Transcript Configuration
+# Minimal configuration for testbench execution
+
+TranscriptYamlVersion: 1
+

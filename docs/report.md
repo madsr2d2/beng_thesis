@@ -197,7 +197,7 @@ The verification plan drives a layered testing strategy, where each level target
 # Design and Architecture {#sec:design-architecture}
 
 ## System Overview {#sec:system-overview}
-A complete CAN node decomposes into a TX path and an RX path, coordinated by shared Fault Confinement Entity (FCE) and Physical Medium Attachment (PMA) control, as shown in @fig:can-node-architecture. Each path spans three sub-layers - LLC (@sec:llc-sub-layer), MAC (@sec:mac-sub-layer), and PCS (@sec:pcs-sub-layer) - with the LLC frame format defined in @sec:llc-frame-format and interface bundles defined in @sec:interface-definition-tables. A shared protocol-driven type system (@sec:protocol-driven-type-system) underpins all inter-module interfaces, encoding ISO semantics directly into the VHDL type hierarchy.
+A complete CAN node decomposes into a TX path and an RX path, coordinated by shared Fault Confinement Entity (FCE) and Physical Medium Attachment (PMA) control, as shown in @fig:can-node-architecture. Each path spans three sub-layers - LLC (@sec:llc-sub-layer), MAC (@sec:mac-sub-layer), and PCS (@sec:pcs-sub-layer) - with the LLC frame format defined in @sec:llc-frame-format and interface bundles defined in @sec:interface-definition-tables. A protocol-driven type system (@sec:protocol-driven-type-system) underpins all inter-module interfaces, encoding ISO semantics directly into the VHDL type hierarchy.
 
 ```{.mermaid #fig:can-node-architecture caption="CAN node decomposition across LLC, MAC, PCS, FCE, and PMA boundaries. Interface definitions are provided for llc_tx_if (@tbl:llc-tx-if), llc_rx_if (@tbl:llc-rx-if), llc_mac_tx_if (@tbl:llc-mac-tx-if), llc_mac_rx_if (@tbl:llc-mac-rx-if), mac_pcs_if (@tbl:mac-pcs-if), aui_if (@tbl:aui-if), fce_llc_if (@tbl:fce-llc-if), fce_mac_if (@tbl:fce-mac-if), and fce_pcs_if (@tbl:fce-pcs-if)."}
 ---
@@ -251,7 +251,9 @@ flowchart TD
 ```
 
 ## LLC Frame Format {#sec:llc-frame-format}
-The current `LLC Frame` format is depicted in @fig:llc-frame-current with the ID byte format depicted in @tbl:ID-bytes. The revised `LLC Frame` supporting FD is depicted in @fig:llc-frame-revised. The revised format adds a 3-bit `FMT` (ISO 6.4.3) field to the DLC byte, expands the data field to 64 bytes, and repurposes reserved bits in the last byte for BRS and ESI flags. The `FMT` encodes the supported frame formats as '`000`' = CB, '`100`' = CE, '`010`' = FB, '`110`' = FE. Accordingly, for the frame content to be self-consistent the IDE bit must be set to `0` for `FMT` = CB/FB and `1` for `FMT` = CE/FE. The revised format is designed to be backward compatible: an implementation that only supports Classic frames can simply ignore the `FMT` bits and treat all frames as Classic, while an implementation that supports FD can use the `FMT` field to distinguish frame types without affecting the existing ID and data field structure.
+The `LLC Frame` format used by the existing CAN-bus implementation (`can_bus_controller`) is depicted in @fig:llc-frame-current with the ID byte format depicted in @tbl:ID-bytes. A revised `LLC Frame` supporting FD is depicted in @fig:llc-frame-revised. The revised format adds a 3-bit `FMT` [@iso11898_1 Sec. 6.4.3] field to the DLC byte (`LLC Frame` byte 4), expands the data field to 64 bytes, and repurposes reserved bits in the last byte for BRS and ESI flags.
+
+The `FMT` encodes the supported frame formats as '`000`' = CB, '`100`' = CE, '`010`' = FB, '`110`' = FE. Accordingly, for the frame content to be self-consistent the IDE bit must be set to `0` for `FMT` = CB/FB and `1` for `FMT` = CE/FE. The revised format is designed to be backward compatible. An implementation that only supports Classic frames can simply ignore the `FMT` bits and treat all frames as Classic, while an implementation that supports FD can use the `FMT` field and the additional control bits (BRS and ESI) to distinguish frame types without affecting the existing ID and data field structure.
 
 ```{.mermaid #fig:llc-frame-current caption="Current LLC frame format (15 bytes). ID byte encoding is defined in @tbl:ID-bytes."}
 ---
@@ -318,7 +320,7 @@ packet
 
 ## Interface Definition Tables {#sec:interface-definition-tables}
 
-The interface bundles shown in @fig:can-node-architecture are defined in full below, with each signal mapped to its corresponding ISO 11898-1 [@iso11898_1] service primitive. This normative anchoring provides a direct traceability path from protocol clauses to VHDL port, and establishes the canonical layer boundaries used for observability classification in @sec:observability-classification. The types used in these interfaces are defined in @sec:protocol-driven-type-system.
+The interface bundles shown in @fig:can-node-architecture are defined in full below, with each signal mapped to its corresponding ISO 11898-1 service primitive, [@iso11898_1]. This normative anchoring provides a direct traceability path from protocol clauses to VHDL ports. The types used in these interfaces are defined in @sec:protocol-driven-type-system.
 
 The semantic protocol types described in @sec:protocol-driven-type-system are used internally within the MAC layer and at the MAC-PCS boundary, where frame context must be carried alongside each bit. The LLC layer operates purely on bytes - the LLC frame format (@sec:llc-frame-format) is defined in terms of plain data fields with no protocol-semantic typing. The AUI interface (`aui_if`) uses `std_logic` throughout, as it crosses outside the ISO protocol domain into the physical medium. The one exception is `transfer_status_t`, which propagates a frame outcome from the MAC layer back through the LLC to the user. The LLC-User interface (`llc_tx_if`, `llc_rx_if`) is implemented as an Avalon-ST byte stream to maintain backward compatibility with the existing CAN bus controller, which uses the same `valid`/`ready`/`startofpacket` handshake convention.
 
@@ -422,7 +424,7 @@ The semantic protocol types described in @sec:protocol-driven-type-system are us
 
 ## Protocol-Driven Type System {#sec:protocol-driven-type-system}
 
-The shared type system encodes protocol semantics directly into the interface bundles defined in @sec:interface-definition-tables. This makes the protocol semantics visible in the implementation and in simulation waveforms. As shown in @fig:types-diagram, the hierarchy is rooted in ISO-derived protocol constants, from which frame layout constants, semantic enumeration types, and composite record types are derived.
+The type system encodes protocol semantics directly into the interface bundles defined in @sec:interface-definition-tables. This makes the protocol semantics visible in the implementation and in simulation waveforms. As shown in @fig:types-diagram, the hierarchy is rooted in ISO-derived protocol constants, from which frame layout constants, semantic enumeration types, and composite record types are derived.
 
 ```{.mermaid #fig:types-diagram caption="Type and constant hierarchy. The Semantic Protocol Primitives namespace groups the enumeration types and subtypes that comprise the protocol semantic primitives. Compound record types compose these primitives: bit_t pairs a bit position with a polarity and underpins the frame layout constants. mac_frame_bit_t carries semantic context by combining a polarity with a protocol bit name, so each transmitted bit remains identifiable throughout the design. frame_params_t aggregates format flags, field boundary positions, and format-specific control bit positions, computed once per frame (@sec:can-mac-ser). observed_mac_frame_bit_info_t and transmitted_bits_fifo_t support bus monitoring and TDC-delayed bit comparison (@sec:can-mac-fsm-tx). Constant groups derive from the root protocol constants."}
 ---
@@ -605,14 +607,14 @@ The current design restructures these modules around the ISO 11898-1 [@iso11898_
 
 ### `can_mac_tx` {#sec:can-mac-tx}
 
-The MAC TX layer (@fig:mac-tx-architecture) is composed of four main components:
+The `can_mac_tx` (@fig:mac-tx-architecture) is composed of four main components:
 
 1. **can_mac_ser_tx**: Converts LLC bytes into a serial bit stream with polarity information
 2. **can_mac_fsm_tx**: Coordinates frame transmission, controls all submodules
 3. **can_mac_bs_tx**: Implements CAN/CAN-FD bit stuffing rules
 4. **can_mac_crc_tx**: Generates CRC-15/CRC-17/CRC-21 based on frame type
 
-```{.mermaid #fig:mac-tx-architecture caption="MAC TX layer architecture showing internal component interconnections and external interfaces (LLC, PCS, FCE). Internal interface definitions are provided for can_mac_fsm_ser_tx_if (@tbl:mac-fsm-ser-if), can_mac_fsm_bs_tx_if (@tbl:mac-fsm-bs-if), and can_mac_fsm_crc_tx_if (@tbl:mac-fsm-crc-if)."}
+```{.mermaid #fig:mac-tx-architecture fig-width=0.5 caption="can_mac_tx architecture showing internal component interconnections and external interfaces. Internal interface definitions are provided for can_mac_fsm_ser_tx_if (@tbl:mac-fsm-ser-if), can_mac_fsm_bs_tx_if (@tbl:mac-fsm-bs-if), and can_mac_fsm_crc_tx_if (@tbl:mac-fsm-crc-if)."}
 ---
 config:
   flowchart:
@@ -695,7 +697,7 @@ The interfaces between MAC sub-components are implementation-defined and carry n
 3. The next output bit is determined - stuff bit or next frame bit - and the CRC is updated.
 4. Any detected error triggers a transition to the appropriate error flag state based on the FCE fault confinement status [@iso11898_1, sec. 8.1.3-8.1.4].
 
-```{.mermaid #fig:mac-tx-fsm caption="MAC TX FSM state transitions. Error-active and error-passive paths share the same flag+delimiter sequence but drive different polarities. Overload transitions (dominant in intermission bits 0-1, or dominant on last delimiter bit) are omitted for clarity."}
+```{.mermaid #fig:mac-tx-fsm caption="can_mac_fsm_tx FSM. After a successful frame or arbitration loss the FSM passes through intermission before returning to idle. Detected errors branch to either the active (dominant) or passive (recessive) error flag state depending on FCE fault confinement status. Both paths then rejoin the common intermission sequence. Overload frames can be injected from intermission or from either error flag state."}
 ---
 config:
   layout: elk
