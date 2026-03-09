@@ -25,18 +25,22 @@ architecture rtl of tx_mac_ser is
   ---------------------------------------------------------------------------
   -- Registered state signals (driven by state_update)
   ---------------------------------------------------------------------------
-  signal state            : tx_mac_ser_state_t;
-  signal count            : integer range byte_t'left downto 0;
-  signal llc_frame_buffer : byte_t;
-  signal config_byte_0    : byte_t;
+  signal state                  : tx_mac_ser_state_t;
+  signal count                  : integer range byte_t'left downto 0;
+  signal llc_frame_buffer       : byte_t;
+  signal config_byte_0          : byte_t;
+  signal id_bits_remaining      : integer range 0 to base_id_width_c + extended_id_width_c;
+  signal padding_bits_remaining : integer range 0 to llc_id_stream_width_c - base_id_width_c;
 
   ---------------------------------------------------------------------------
   -- Combinational next-cycle signals (driven by output_logic)
   ---------------------------------------------------------------------------
-  signal next_state         : tx_mac_ser_state_t;
-  signal next_count         : integer range byte_t'left downto 0;
-  signal next_frame_buffer  : byte_t;
-  signal next_config_byte_0 : byte_t;
+  signal next_state                  : tx_mac_ser_state_t;
+  signal next_count                  : integer range byte_t'left downto 0;
+  signal next_frame_buffer           : byte_t;
+  signal next_config_byte_0          : byte_t;
+  signal next_id_bits_remaining      : integer range 0 to base_id_width_c + extended_id_width_c;
+  signal next_padding_bits_remaining : integer range 0 to llc_id_stream_width_c - base_id_width_c;
 
   -- Intermediate signals for registered outputs
   signal next_llc_o        : mac_to_llc_if_t;
@@ -55,6 +59,7 @@ begin
     variable fsm_consumed_bit_v       : boolean;
     variable transmission_completed_v : boolean;
     variable byte_finished_v          : boolean;
+    variable in_id_padding_v          : boolean;
 
   begin
 
@@ -64,6 +69,7 @@ begin
     fsm_consumed_bit_v       := tx_mac_fsm_i.ready;
     transmission_completed_v := tx_mac_fsm_i.transfer_status /= ongoing;
     byte_finished_v          := count = 0;
+    in_id_padding_v          := id_bits_remaining = 0 and padding_bits_remaining > 0;
 
     -- Default: hold current state
     next_state <= state;
@@ -84,7 +90,9 @@ begin
         end if;
 
       when load_llc_frame_byte =>
-        if (llc_valid_v) then
+        if (transmission_completed_v) then
+          next_state <= load_config_byte_0;
+        elsif (llc_valid_v) then
           if (llc_sop_v) then
             next_state <= load_config_byte_1;                            -- Resync
           else
@@ -95,6 +103,11 @@ begin
       when shift_out_bits =>
         if (transmission_completed_v) then
           next_state <= load_config_byte_0;
+        elsif (in_id_padding_v) then
+          -- Auto-consume padding: transition when byte exhausted
+          if (byte_finished_v) then
+            next_state <= load_llc_frame_byte;
+          end if;
         elsif (fsm_consumed_bit_v) then
           if (byte_finished_v) then
             next_state <= load_llc_frame_byte;
@@ -117,6 +130,7 @@ begin
     variable llc_sop_v          : boolean;
     variable fsm_consumed_bit_v : boolean;
     variable fsm_finished_v     : boolean;
+    variable in_id_padding_v    : boolean;
 
     -------------------------------------------------------------------------
     -- Local procedures for state logic abstraction
@@ -154,30 +168,55 @@ begin
       case state is
         when load_llc_frame_byte =>
           if (llc_valid_v and not llc_sop_v) then
-            -- Load byte and present MSB immediately
-            next_frame_buffer       <= llc_i.avalon_st_source.data;
-            next_tx_mac_fsm_o.data  <= bit_to_polarity(llc_i.avalon_st_source.data(byte_t'left));
-            next_tx_mac_fsm_o.valid <= true;
-            next_count              <= byte_t'left;
+            -- Load byte into shift register
+            next_frame_buffer <= llc_i.avalon_st_source.data;
+            next_count        <= byte_t'left;
+
+            if (in_id_padding_v) then
+              -- Padding byte: load but do not present MSB to FSM
+              null;
+            else
+              -- Present MSB immediately to FSM
+              next_tx_mac_fsm_o.data  <= bit_to_polarity(llc_i.avalon_st_source.data(byte_t'left));
+              next_tx_mac_fsm_o.valid <= true;
+            end if;
           end if;
 
         when shift_out_bits =>
-          -- Hold valid while we have bits remaining
-          next_tx_mac_fsm_o.valid <= true;
-          next_tx_mac_fsm_o.data  <= bit_to_polarity(llc_frame_buffer(byte_t'left));
+          if (in_id_padding_v) then
+            -- Auto-consume padding bits without presenting to FSM
+            next_padding_bits_remaining <= padding_bits_remaining - 1;
 
-          if (fsm_finished_v) then
-            next_tx_mac_fsm_o.valid <= false;
-            next_count              <= byte_t'left;
-          elsif (fsm_consumed_bit_v) then
             if (count = 0) then
-              -- Byte finished, prepare for next fetch
-              next_tx_mac_fsm_o.valid <= false;
-              next_count              <= byte_t'left;
+              -- Byte exhausted, prepare for next fetch
+              next_count <= byte_t'left;
             else
-              -- Shift to next bit
               next_frame_buffer <= llc_frame_buffer sll 1;
               next_count        <= count - 1;
+            end if;
+          else
+            -- Normal operation: present bit, wait for FSM handshake
+            next_tx_mac_fsm_o.valid <= true;
+            next_tx_mac_fsm_o.data  <= bit_to_polarity(llc_frame_buffer(byte_t'left));
+
+            if (fsm_finished_v) then
+              next_tx_mac_fsm_o.valid <= false;
+              next_count              <= byte_t'left;
+            elsif (fsm_consumed_bit_v) then
+              -- Track ID bit consumption
+              if (id_bits_remaining > 0) then
+                next_id_bits_remaining <= id_bits_remaining - 1;
+              end if;
+
+              if (count = 0) then
+                -- Byte finished, prepare for next fetch
+                next_tx_mac_fsm_o.valid <= false;
+                next_count              <= byte_t'left;
+              else
+                -- Shift to next bit
+                next_frame_buffer <= llc_frame_buffer sll 1;
+                next_count        <= count - 1;
+              end if;
             end if;
           end if;
 
@@ -200,6 +239,17 @@ begin
           else
             -- Calculate and cache parameters once at start of frame
             next_tx_mac_fsm_o.frame_params <= calculate_frame_params(config_byte_0, llc_i.avalon_st_source.data);
+
+            -- Initialize ID padding counters based on frame format
+            if (config_byte_0(llc_frame_config_byte_0_extended_bit) = '1') then
+              -- Extended format (CE/FE): 29 ID bits, 3 padding bits
+              next_id_bits_remaining      <= base_id_width_c + extended_id_width_c;
+              next_padding_bits_remaining <= llc_id_stream_width_c - base_id_width_c - extended_id_width_c;
+            else
+              -- Basic format (CB/FB): 11 ID bits, 21 padding bits
+              next_id_bits_remaining      <= base_id_width_c;
+              next_padding_bits_remaining <= llc_id_stream_width_c - base_id_width_c;
+            end if;
           end if;
         end if;
       end if;
@@ -213,13 +263,16 @@ begin
     llc_sop_v          := llc_i.avalon_st_source.sop = '1';
     fsm_consumed_bit_v := tx_mac_fsm_i.ready;
     fsm_finished_v     := tx_mac_fsm_i.transfer_status /= ongoing;
+    in_id_padding_v    := id_bits_remaining = 0 and padding_bits_remaining > 0;
 
     -------------------------------------------------------------------------
     -- Output defaults: hold current registered values
     -------------------------------------------------------------------------
-    next_count         <= count;
-    next_frame_buffer  <= llc_frame_buffer;
-    next_config_byte_0 <= config_byte_0;
+    next_count                  <= count;
+    next_frame_buffer           <= llc_frame_buffer;
+    next_config_byte_0          <= config_byte_0;
+    next_id_bits_remaining      <= id_bits_remaining;
+    next_padding_bits_remaining <= padding_bits_remaining;
 
     -- Baseline from registered outputs
     next_llc_o        <= llc_o;
@@ -246,18 +299,22 @@ begin
 
     if rising_edge(clk_i) then
       if (rst_i = '1') then
-        state            <= load_config_byte_0;
-        count            <= byte_t'left;
-        llc_frame_buffer <= (others => '0');
-        config_byte_0    <= (others => '0');
+        state                  <= load_config_byte_0;
+        count                  <= byte_t'left;
+        llc_frame_buffer       <= (others => '0');
+        config_byte_0          <= (others => '0');
+        id_bits_remaining      <= 0;
+        padding_bits_remaining <= 0;
 
         llc_o        <= mac_to_llc_if_reset_c;
         tx_mac_fsm_o <= tx_mac_ser_to_fsm_if_reset_c;
       else
-        state            <= next_state;
-        count            <= next_count;
-        llc_frame_buffer <= next_frame_buffer;
-        config_byte_0    <= next_config_byte_0;
+        state                  <= next_state;
+        count                  <= next_count;
+        llc_frame_buffer       <= next_frame_buffer;
+        config_byte_0          <= next_config_byte_0;
+        id_bits_remaining      <= next_id_bits_remaining;
+        padding_bits_remaining <= next_padding_bits_remaining;
 
         llc_o        <= next_llc_o;
         tx_mac_fsm_o <= next_tx_mac_fsm_o;
