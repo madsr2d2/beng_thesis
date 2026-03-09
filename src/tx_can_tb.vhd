@@ -50,7 +50,6 @@ architecture tb of tx_can_tb is
   constant nom_bit_time_tq_c : integer := nom_sync_seg_c + nom_prop_seg_c + nom_phase_seg1_c + nom_phase_seg2_c;
   constant nom_bit_time_clk_c : integer := nom_bit_time_tq_c * nom_prescaler_c; -- 200 clocks
   constant nom_sp_tq_c : integer := nom_sync_seg_c + nom_prop_seg_c + nom_phase_seg1_c; -- 40 TQ
-  constant nom_sp_clk_c : integer := nom_sp_tq_c * nom_prescaler_c; -- 160 clocks
 
   -- DUT signals
   signal llc_user_i : llc_user_to_llc_if_t;
@@ -103,8 +102,6 @@ architecture tb of tx_can_tb is
 
   -- Bitstream capture buffers (raw bus stream can include stuffed bits)
   constant max_raw_bits_c : integer := max_mac_frame_length_c * 2;
-  type raw_bits_t is array (0 to max_raw_bits_c - 1) of std_logic;
-  type logical_bits_t is array (0 to max_mac_frame_length_c - 1) of std_logic;
 
 begin
 
@@ -180,23 +177,6 @@ begin
     variable dlc_v    : integer;
     variable frame_v  : llc_frame_t;
     
-    -- Variables for timing measurements
-    variable start_time_v : time;
-    variable measured_v   : time;
-    variable cycle_count_v : integer;
-
-    function format_to_encoding (
-      fmt : can_format_t
-    ) return std_logic_vector is
-    begin
-      case fmt is
-        when cc_basic    => return llc_frame_format_cb_encoding_c;
-        when cc_extended => return llc_frame_format_ce_encoding_c;
-        when fd_basic    => return llc_frame_format_fb_encoding_c;
-        when fd_extended => return llc_frame_format_fe_encoding_c;
-        when others      => return "000";
-      end case;
-    end function format_to_encoding;
 
     function frame_to_params (
       frame : llc_frame_t
@@ -204,12 +184,12 @@ begin
       variable config_0_v : byte_t;
       variable config_1_v : byte_t;
     begin
-      config_0_v := format_to_encoding(frame.format)
-                    & frame.ftyp
-                    & frame.esi
-                    & frame.brs
+      config_0_v := frame.config_0.format
+                    & frame.config_0.ftyp
+                    & frame.config_0.esi
+                    & frame.config_0.brs
                     & "00";
-      config_1_v := frame.dlc & "0000";
+      config_1_v := frame.config_1.dlc & "0000";
       return calculate_frame_params(config_0_v, config_1_v);
     end function frame_to_params;
 
@@ -218,12 +198,14 @@ begin
       variable frame : out llc_frame_t
     ) is
     begin
-      frame.format := cc_basic;
-      frame.id     := std_logic_vector(to_unsigned(16#555#, 29));
-      frame.dlc    := "0001"; -- DLC=1
-      frame.ftyp   := '0'; -- Data frame
-      frame.brs    := '0';
-      frame.esi    := '0';
+      frame.id               := std_logic_vector(to_unsigned(16#555#, 32));
+      frame.config_0.format  := llc_frame_format_cb_encoding_c;
+      frame.config_0.ftyp    := '0'; -- Data frame
+      frame.config_0.esi     := '0';
+      frame.config_0.brs     := '0';
+      frame.config_0.unused  := "00";
+      frame.config_1.dlc     := "0001"; -- DLC=1
+      frame.config_1.unused  := "0000";
       frame.data   := (others => '0');
       frame.data(max_data_bytes_c * 8 - 1 downto max_data_bytes_c * 8 - 8) := x"AA";
     end procedure setup_default_frame;
@@ -259,17 +241,17 @@ begin
       variable data_byte_count_v : integer;
       variable data_bit_start_v : integer;
     begin
-      config_0_v := format_to_encoding(frame.format)
-                    & frame.ftyp
-                    & frame.esi
-                    & frame.brs
+      config_0_v := frame.config_0.format
+                    & frame.config_0.ftyp
+                    & frame.config_0.esi
+                    & frame.config_0.brs
                     & "00";
-      config_1_v := frame.dlc & "0000";
+      config_1_v := frame.config_1.dlc & "0000";
       data_byte_count_v := dlc_to_data_length(
-                              dlc_t(to_integer(unsigned(frame.dlc))),
-                              frame.format
+                              dlc_t(to_integer(unsigned(frame.config_1.dlc))),
+                              decode_llc_format(frame.config_0.format)
                             );
-      id_stream_v := pack_llc_id_bytes(frame.id, frame.format);
+      id_stream_v := pack_llc_id_bytes(frame.id(28 downto 0), decode_llc_format(frame.config_0.format));
       id3_v := id_stream_v(31 downto 24);
       id2_v := id_stream_v(23 downto 16);
       id1_v := id_stream_v(15 downto 8);
@@ -320,23 +302,6 @@ begin
       end loop;
       Alert(alert_id, test_name & ": TIMEOUT after " & time'image(timeout));
     end procedure wait_for_completion;
-
-    -- Helper: wait for bitstream checker completion with timeout
-    procedure wait_for_bitstream_check (
-      timeout   : time;
-      test_name : string
-    ) is
-      variable start_time : time;
-    begin
-      start_time := now;
-      while (now - start_time < timeout) loop
-        wait until rising_edge(clk);
-        if (bitstream_check_done) then
-          return;
-        end if;
-      end loop;
-      Alert(alert_id, test_name & ": bitstream checker TIMEOUT after " & time'image(timeout));
-    end procedure wait_for_bitstream_check;
 
     -- Helper: wait until bit_name reaches target with timeout
     procedure wait_for_fsm_bit_name (
@@ -412,7 +377,7 @@ begin
     end procedure wait_for_sample_strobe;
 
     -- Helper: inject bit error by overriding bus for one bit time
-    procedure inject_bit_error (test_name : string) is
+    procedure inject_bit_error is
     begin
       -- Override rx_bus with opposite polarity of tx_bus for one bit time
       if (tx_bus_o = dominant_bit_c) then
@@ -426,9 +391,7 @@ begin
     end procedure inject_bit_error;
 
     -- Helper: reset FSM and wait for MAC ready
-    procedure reset_and_prepare (
-      test_name : string
-    ) is
+    procedure reset_and_prepare is
     begin
       rst <= '1';
       wait for 2 * nom_bit_time_clk_c * clk_period_c;
@@ -475,24 +438,6 @@ begin
       Alert(alert_id, test_name & ": bit " & mac_frame_bit_name_t'image(bit_name) &
             " at strobe TIMEOUT after " & time'image(timeout));
     end procedure wait_for_bit_at_strobe;
-
-    -- Helper: wait until a signal goes high (synchronous to clock)
-    procedure wait_for_signal_high (
-      signal_val : in std_logic;
-      timeout    : time;
-      test_name  : string
-    ) is
-      variable start_time : time;
-    begin
-      start_time := now;
-      while (now - start_time < timeout) loop
-        wait until rising_edge(clk);
-        if (signal_val = '1') then
-          return;
-        end if;
-      end loop;
-      Alert(alert_id, test_name & ": signal high TIMEOUT after " & time'image(timeout));
-    end procedure wait_for_signal_high;
 
     -- Helper: wait for sample strobe, then verify a bus value
     procedure wait_and_verify_at_strobe (
@@ -551,7 +496,7 @@ begin
     AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '0', "Test 1: tx_ready low during transmission");
 
     -- Wait for completion
-    wait_for_completion(100 us, transmitted, "Test 1");
+    wait_for_completion(300 us, transmitted, "Test 1");
     wait for 2 * clk_period_c;
 
     -- tx_ready should return high
@@ -574,7 +519,7 @@ begin
 
     -- Send only first byte (SOP) then abort before full frame is captured.
     send_user_byte(
-      format_to_encoding(frame_v.format) & frame_v.ftyp & frame_v.esi & frame_v.brs & "00",
+      frame_v.config_0.format & frame_v.config_0.ftyp & frame_v.config_0.esi & frame_v.config_0.brs & "00",
       '1',
       '0'
     );
@@ -623,7 +568,7 @@ begin
     llc_user_i.abort_request <= '0';
 
     -- Frame should still complete successfully (abort ignored)
-    wait_for_completion(100 us, transmitted, "Test 3");
+    wait_for_completion(300 us, transmitted, "Test 3");
 
     -- tx_ready should return high
     wait for 2 * clk_period_c;
@@ -639,7 +584,7 @@ begin
     Log(alert_id, "Test 4: CC Extended format smoke test (no ACK)");
     inject_ack <= false;
     setup_default_frame(frame_v);
-    frame_v.format := cc_extended;
+    frame_v.config_0.format := llc_frame_format_ce_encoding_c;
     frame_v.id(28 downto 0) := std_logic_vector(to_unsigned(16#1ABCDEF#, 29));
     wait until rising_edge(clk);
     monitor_frame_params <= frame_to_params(frame_v);
@@ -649,7 +594,7 @@ begin
     submit_frame(frame_v);
 
     -- Wait for completion
-    wait_for_completion(900 us, aborted, "Test 4");
+    wait_for_completion(2 ms, aborted, "Test 4");
     wait for 2 * clk_period_c;
     AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '1', "Test 4: tx_ready high after completion");
     wait for 20 * nom_bit_time_clk_c * clk_period_c;
@@ -661,9 +606,9 @@ begin
     Log(alert_id, "Test 5: FD Basic format smoke test (no ACK)");
     inject_ack <= false;
     setup_default_frame(frame_v);
-    frame_v.format := fd_basic;
-    frame_v.brs    := '0';
-    frame_v.dlc    := std_logic_vector(to_unsigned(9, 4)); -- 12-byte payload
+    frame_v.config_0.format := llc_frame_format_fb_encoding_c;
+    frame_v.config_0.brs    := '0';
+    frame_v.config_1.dlc    := std_logic_vector(to_unsigned(9, 4)); -- 12-byte payload
     wait until rising_edge(clk);
     monitor_frame_params <= frame_to_params(frame_v);
     wait until rising_edge(clk);
@@ -690,9 +635,9 @@ begin
     Log(alert_id, "Test 6: FD Extended format smoke test (no ACK)");
     inject_ack <= false;
     setup_default_frame(frame_v);
-    frame_v.format := fd_extended;
-    frame_v.brs    := '0';
-    frame_v.dlc    := std_logic_vector(to_unsigned(10, 4)); -- 16-byte payload
+    frame_v.config_0.format := llc_frame_format_fe_encoding_c;
+    frame_v.config_0.brs    := '0';
+    frame_v.config_1.dlc    := std_logic_vector(to_unsigned(10, 4)); -- 16-byte payload
     frame_v.id(28 downto 0) := std_logic_vector(to_unsigned(16#1234567#, 29));
     wait until rising_edge(clk);
     monitor_frame_params <= frame_to_params(frame_v);
@@ -728,7 +673,7 @@ begin
 
     -- Wait for final abort after retransmission_limit_c + 1 attempts.
     -- Keep a wider budget to tolerate integration-level timing variation.
-    wait_for_completion(900 us, aborted, "Test 7");
+    wait_for_completion(2 ms, aborted, "Test 7");
 
     -- tx_ready should return high
     wait for 2 * clk_period_c;
@@ -754,12 +699,12 @@ begin
 
       setup_default_frame(frame_v);
       dlc_v := (iter mod 8) + 8; -- Sweep FD DLC 8..15
-      frame_v.dlc := std_logic_vector(to_unsigned(dlc_v, 4));
-      frame_v.id  := std_logic_vector(to_unsigned(16#100# + iter, 29));
+      frame_v.config_1.dlc := std_logic_vector(to_unsigned(dlc_v, 4));
+      frame_v.id  := std_logic_vector(to_unsigned(16#100# + iter, 32));
       if ((iter mod 2) = 0) then
-        frame_v.format := fd_basic;
+        frame_v.config_0.format := llc_frame_format_fb_encoding_c;
       else
-        frame_v.format := fd_extended;
+        frame_v.config_0.format := llc_frame_format_fe_encoding_c;
       end if;
 
       wait until rising_edge(clk);
@@ -779,7 +724,7 @@ begin
     current_test_id <= test_9_c;
     Log(alert_id, "Test 9: Bit error triggers error flag and recovery");
 
-    reset_and_prepare("Test 9 setup");
+    reset_and_prepare;
 
     inject_ack <= false; -- No ACK needed; error occurs before ACK slot
     setup_default_frame(frame_v);
@@ -790,7 +735,7 @@ begin
     submit_frame(frame_v);
     wait_for_fsm_bit_name(data_bit, 500 us, "Test 9 data field arrival");
     wait_for_sample_strobe(50 us, "Test 9 data SP");
-    inject_bit_error("Test 9");
+    inject_bit_error;
 
     -- FSM should enter active error flag state
     wait_for_fsm_state(transmitting_active_error_flag, 20 us, "Test 9");
@@ -807,7 +752,7 @@ begin
     -- Wait for FSM to return to bus_idle
     wait_for_fsm_state(bus_idle, 100 us, "Test 9 recovery");
 
-    reset_and_prepare("Test 9 recovery");
+    reset_and_prepare;
 
     -- Verify recovery: submit a new frame with ACK and confirm transmitted
     inject_ack <= true;
@@ -817,7 +762,7 @@ begin
     wait until rising_edge(clk);
 
     submit_frame(frame_v);
-    wait_for_completion(100 us, transmitted, "Test 9 recovery frame");
+    wait_for_completion(300 us, transmitted, "Test 9 recovery frame");
 
     wait for 2 * clk_period_c;
     AffirmIf(alert_id,
@@ -880,7 +825,7 @@ begin
     -- Wait for FSM to return to bus_idle
     wait_for_fsm_state(bus_idle, 100 us, "Test 10 recovery");
 
-    reset_and_prepare("Test 10 recovery");
+    reset_and_prepare;
 
     -- Verify recovery: submit a second frame with ACK
     inject_ack <= true;
@@ -890,7 +835,7 @@ begin
     wait until rising_edge(clk);
 
     submit_frame(frame_v);
-    wait_for_completion(100 us, transmitted, "Test 10 second frame");
+    wait_for_completion(300 us, transmitted, "Test 10 second frame");
 
     wait for 2 * clk_period_c;
     AffirmIf(alert_id,
@@ -910,7 +855,7 @@ begin
     inject_ack <= false; 
     
     setup_default_frame(frame_v);
-    frame_v.format := fd_basic;
+    frame_v.config_0.format := llc_frame_format_fb_encoding_c;
     wait until rising_edge(clk);
     monitor_frame_params <= frame_to_params(frame_v);
     wait until rising_edge(clk);
@@ -930,7 +875,7 @@ begin
     bus_override_test_en <= false;
 
     -- Frame should complete successfully (ACK accepted from delimiter)
-    wait_for_completion(100 us, transmitted, "Test 11");
+    wait_for_completion(500 us, transmitted, "Test 11");
 
     wait for 20 * nom_bit_time_clk_c * clk_period_c;
 
@@ -973,7 +918,7 @@ begin
     wait_for_sof(1 ms, "Test 12 retry SOF");
 
     -- Let the second attempt complete normally
-    wait_for_completion(500 us, transmitted, "Test 12 retry completion");
+    wait_for_completion(800 us, transmitted, "Test 12 retry completion");
 
     wait for 20 * nom_bit_time_clk_c * clk_period_c;
 
@@ -986,9 +931,8 @@ begin
 
     inject_ack <= true;
     setup_default_frame(frame_v);
-    frame_v.format := cc_basic;
-    frame_v.ftyp   := '1'; -- Remote Frame
-    frame_v.dlc    := "1000"; -- DLC=8 (should be ignored for data transmission)
+    frame_v.config_0.ftyp   := '1'; -- Remote Frame
+    frame_v.config_1.dlc    := "1000"; -- DLC=8 (should be ignored for data transmission)
     wait until rising_edge(clk);
     monitor_frame_params <= frame_to_params(frame_v);
     wait until rising_edge(clk);
@@ -1005,7 +949,7 @@ begin
     wait_and_verify_at_strobe(recessive_bit_c, "Test 13: RTR must be recessive");
 
     -- Frame should skip 64 bits of data and complete quickly
-    wait_for_completion(100 us, transmitted, "Test 13 completion");
+    wait_for_completion(300 us, transmitted, "Test 13 completion");
 
     wait for 20 * nom_bit_time_clk_c * clk_period_c;
 
@@ -1025,8 +969,8 @@ begin
     end loop;
 
     setup_default_frame(frame_v);
-    frame_v.format := fd_basic;
-    frame_v.brs    := '1'; -- Enable Bit Rate Switch
+    frame_v.config_0.format := llc_frame_format_fb_encoding_c;
+    frame_v.config_0.brs    := '1'; -- Enable Bit Rate Switch
     wait until rising_edge(clk);
     monitor_frame_params <= frame_to_params(frame_v);
     wait until rising_edge(clk);

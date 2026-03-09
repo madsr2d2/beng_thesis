@@ -396,7 +396,6 @@ architecture testbench of tx_error_detection_tb is
     rv.InitSeed(seed_in);
 
     -- Initialize frame fields
-    frame.format := format;
     frame.data := (others => '0');
 
     -- Determine frame parameters based on random_frame flag
@@ -511,7 +510,7 @@ architecture testbench of tx_error_detection_tb is
     config_1 := config_byte_1_to_slv(frame.config_1);
 
     -- Calculate data length from DLC
-    data_len := dlc_to_data_length(dlc_t(to_integer(unsigned(frame.config_1.dlc))), frame.format);
+    data_len := dlc_to_data_length(dlc_t(to_integer(unsigned(frame.config_1.dlc))), decode_llc_format(frame.config_0.format));
     if frame.config_0.ftyp = '1' then  -- RTR frame
       data_len := 0;
     end if;

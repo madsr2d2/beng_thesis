@@ -202,7 +202,7 @@ begin
 
 -- #042 [P2]: When consecutive_count reaches the stuffing threshold, the output
 -- MUST assert valid (stuff bit required).  Proves count and valid are consistent.
--- psl P2_COUNT_IMPLIES_VALID : assert always ((consecutive_count = stuff_width_c) -t> bs_fd_o.valid) report "FAIL P2: #042 count at threshold but valid not asserted";
+-- psl P2_COUNT_IMPLIES_VALID : assert always ((consecutive_count = stuff_width_c) -> bs_fd_o.valid) report "FAIL P2: #042 count at threshold but valid not asserted";
 
 -- #042 [P3a/3b]: Stuff bit polarity is always inverse of the run that triggered it.
 -- last_polarity holds the polarity of the 5th consecutive bit, i.e. the run polarity.

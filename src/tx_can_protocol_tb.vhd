@@ -262,24 +262,13 @@ begin
       variable id1_v             : byte_t;
       variable id0_v             : byte_t;
     begin
-      case frame.format is
-        when cc_basic =>
-          config_0_v := llc_frame_format_cb_encoding_c & frame.ftyp & frame.esi & frame.brs & "00";
-        when cc_extended =>
-          config_0_v := llc_frame_format_ce_encoding_c & frame.ftyp & frame.esi & frame.brs & "00";
-        when fd_basic =>
-          config_0_v := llc_frame_format_fb_encoding_c & frame.ftyp & frame.esi & frame.brs & "00";
-        when fd_extended =>
-          config_0_v := llc_frame_format_fe_encoding_c & frame.ftyp & frame.esi & frame.brs & "00";
-        when others =>
-          config_0_v := (others => '0');
-      end case;
-      config_1_v := frame.dlc & "0000";
+      config_0_v := frame.config_0.format & frame.config_0.ftyp & frame.config_0.esi & frame.config_0.brs & "00";
+      config_1_v := frame.config_1.dlc & "0000";
       data_byte_count_v := dlc_to_data_length(
-                             dlc_t(to_integer(unsigned(frame.dlc))),
-                             frame.format
+                             dlc_t(to_integer(unsigned(frame.config_1.dlc))),
+                             decode_llc_format(frame.config_0.format)
                            );
-      id_stream_v := pack_llc_id_bytes(frame.id, frame.format);
+      id_stream_v := pack_llc_id_bytes(frame.id(28 downto 0), decode_llc_format(frame.config_0.format));
       id3_v := id_stream_v(31 downto 24);
       id2_v := id_stream_v(23 downto 16);
       id1_v := id_stream_v(15 downto 8);
@@ -357,15 +346,8 @@ begin
       req_id_v := checker_request_id + 1;
       checker_request_id <= req_id_v;
 
-      case frame.format is
-        when cc_basic =>
-          config_0_v := llc_frame_format_cb_encoding_c & frame.ftyp & frame.esi & frame.brs & "00";
-        when cc_extended =>
-          config_0_v := llc_frame_format_ce_encoding_c & frame.ftyp & frame.esi & frame.brs & "00";
-        when others =>
-          config_0_v := (others => '0');
-      end case;
-      config_1_v := frame.dlc & "0000";
+      config_0_v := frame.config_0.format & frame.config_0.ftyp & frame.config_0.esi & frame.config_0.brs & "00";
+      config_1_v := frame.config_1.dlc & "0000";
 
       checker_expected_frame <= frame;
       checker_expected_params <= calculate_frame_params(config_0_v, config_1_v);
@@ -401,24 +383,26 @@ begin
     wait_clocks(2);
 
     -- Test 1: CC basic data frame (DLC=1)
-    frame_v.id     := (others => '0');
-    frame_v.id(10 downto 0) := std_logic_vector(to_unsigned(16#555#, 11));
-    frame_v.format := cc_basic;
-    frame_v.ftyp   := '0';
-    frame_v.brs    := '0';
-    frame_v.esi    := '0';
-    frame_v.dlc    := std_logic_vector(to_unsigned(1, 4));
-    frame_v.data   := (others => '0');
+    frame_v.id                 := (others => '0');
+    frame_v.id(10 downto 0)    := std_logic_vector(to_unsigned(16#555#, 11));
+    frame_v.config_0.format    := llc_frame_format_cb_encoding_c;
+    frame_v.config_0.ftyp      := '0';
+    frame_v.config_0.brs       := '0';
+    frame_v.config_0.esi       := '0';
+    frame_v.config_0.unused    := "00";
+    frame_v.config_1.dlc       := std_logic_vector(to_unsigned(1, 4));
+    frame_v.config_1.unused    := "0000";
+    frame_v.data               := (others => '0');
     frame_v.data(max_data_bytes_c * byte_width_c - 1 downto max_data_bytes_c * byte_width_c - 8) := x"A5";
     run_classic_protocol_test("Test 1: CC basic data frame protocol check", frame_v);
 
     -- Test 2: CC extended data frame (DLC=2)
-    frame_v.id     := std_logic_vector(to_unsigned(16#1ABCDE1#, 29));
-    frame_v.format := cc_extended;
-    frame_v.ftyp   := '0';
-    frame_v.brs    := '0';
-    frame_v.esi    := '0';
-    frame_v.dlc    := std_logic_vector(to_unsigned(2, 4));
+    frame_v.id                 := std_logic_vector(to_unsigned(16#1ABCDE1#, 32));
+    frame_v.config_0.format    := llc_frame_format_ce_encoding_c;
+    frame_v.config_0.ftyp      := '0';
+    frame_v.config_0.brs       := '0';
+    frame_v.config_0.esi       := '0';
+    frame_v.config_1.dlc       := std_logic_vector(to_unsigned(2, 4));
     frame_v.data   := (others => '0');
     frame_v.data(max_data_bytes_c * byte_width_c - 1 downto max_data_bytes_c * byte_width_c - 8) := x"12";
     frame_v.data(max_data_bytes_c * byte_width_c - 9 downto max_data_bytes_c * byte_width_c - 16) := x"34";
