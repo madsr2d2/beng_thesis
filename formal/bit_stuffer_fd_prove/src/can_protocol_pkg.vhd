@@ -26,7 +26,7 @@ package can_protocol_pkg is
   ---------------------------------------------------------------------------
   -- Field Layout and Parameter Calculation
   ---------------------------------------------------------------------------
-  
+
   -- Calculate all frame-specific parameters once per frame.
   function calculate_frame_params (
     config_byte_0 : byte_t;
@@ -48,7 +48,7 @@ package can_protocol_pkg is
   ---------------------------------------------------------------------------
   -- Bitstream Modeling and Extraction
   ---------------------------------------------------------------------------
-  
+
   -- Calculates the next logical bit to be transmitted per protocol state.
   function get_next_mac_frame_bit (
     bit_count         : position_t;
@@ -70,7 +70,7 @@ package can_protocol_pkg is
   ---------------------------------------------------------------------------
   -- Arithmetic and Encoding Utilities
   ---------------------------------------------------------------------------
-  
+
   -- Standard Gray encoder for SBC field.
   function to_gray (
     v : std_logic_vector
@@ -82,9 +82,15 @@ package can_protocol_pkg is
   ) return std_logic;
 
   -- Converters between polarity domain and std_logic domain.
-  function polarity_to_std_logic (p : polarity_t) return std_logic;
-  function std_logic_to_polarity (s : std_logic) return polarity_t;
-  function bit_to_polarity (bit_val : std_logic) return polarity_t;
+  function polarity_to_std_logic (
+    p : polarity_t
+  ) return std_logic;
+  function std_logic_to_polarity (
+    s : std_logic
+  ) return polarity_t;
+  function bit_to_polarity (
+    bit_val : std_logic
+  ) return polarity_t;
 
   -- Pack LLC frame ID field into canonical byte stream order ID3..ID0.
   function pack_llc_id_bytes (
@@ -751,13 +757,13 @@ package body can_protocol_pkg is
 
     -- Calculate data length from DLC vector
     data_length_v := dlc_to_data_length(dlc_t(to_integer(unsigned(result.dlc_vector))), result.format);
-    
+
     -- ISO 11898-1: 6.6.10.1 - Remote frames shall not contain a Data field
     if (result.is_remote_frame) then
       data_length_v := 0;
     end if;
 
-    data_bits_v   := data_length_v * byte_width_c;
+    data_bits_v := data_length_v * byte_width_c;
 
     -- Populate field boundaries based on format
     case result.format is
@@ -912,15 +918,20 @@ package body can_protocol_pkg is
     id         : std_logic_vector(28 downto 0);
     can_format : can_format_t
   ) return std_logic_vector is
+
     variable result_v : std_logic_vector(31 downto 0);
+
   begin
+
     result_v := (others => '0');
     if (can_format = cc_extended or can_format = fd_extended) then
       result_v(31 downto 3) := id(28 downto 0);
     else
       result_v(31 downto 21) := id(10 downto 0);
     end if;
+
     return result_v;
+
   end function pack_llc_id_bytes;
 
 end package body can_protocol_pkg;
