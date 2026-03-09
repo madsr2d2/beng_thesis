@@ -76,10 +76,6 @@ architecture rtl of tx_can is
   ---------------------------------------------------------------------------
   -- Internal signals
   ---------------------------------------------------------------------------
-  -- User (legacy format) <-> LLC frame adapter
-  signal adapter_to_llc      : llc_user_to_llc_if_t;
-  signal llc_to_adapter      : llc_to_llc_user_if_t;
-
   -- LLC <-> MAC
   signal llc_to_mac : llc_to_mac_if_t;
   signal mac_to_llc : mac_to_llc_if_t;
@@ -100,28 +96,15 @@ architecture rtl of tx_can is
 begin
 
   -- =========================================================================
-  -- llc_frame_adapter: translates legacy 71-byte format to internal format
+  -- tx_llc: LLC sub-layer (legacy_rtl accepts 71-byte legacy format directly)
+  -- Buffers frames, converts to internal format, streams to MAC, handles retx
   -- =========================================================================
-  llc_frame_adapter_inst : entity work.llc_frame_adapter
-    port map (
-      clk_i        => clk,
-      rst_i        => rst,
-      legacy_llc_i => llc_user_i,
-      legacy_llc_o => llc_user_o,
-      llc_o        => adapter_to_llc,
-      llc_i        => llc_to_adapter
-    );
-
-  -- =========================================================================
-  -- tx_llc: LLC sub-layer
-  -- Buffers frames, streams config+data to MAC, handles retransmission
-  -- =========================================================================
-  tx_llc_inst : entity work.tx_llc
+  tx_llc_inst : entity work.tx_llc(legacy_rtl)
     port map (
       clk        => clk,
       rst        => rst,
-      llc_user_i => adapter_to_llc,
-      llc_user_o => llc_to_adapter,
+      llc_user_i => llc_user_i,
+      llc_user_o => llc_user_o,
       mac_i      => mac_to_llc,
       mac_o      => llc_to_mac
     );
