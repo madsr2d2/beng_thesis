@@ -2,7 +2,7 @@
 -- Title      : CAN FD CRC Engine Wrapper
 -- Project    : CAN Bus Transmitter
 --------------------------------------------------------------------------------
--- File       : crc_fd.vhd
+-- File       : can_mac_crc_tx.vhd
 -- Standard   : VHDL-2008
 --------------------------------------------------------------------------------
 -- Description: Wrapper for the CAN/CAN-FD CRC generation logic.
@@ -11,7 +11,7 @@
 --
 -- Note       : Currently utilises a dummy gen_crc entity that mirrors the
 --              interface of the legacy gen_crc CRC engine.  Replace the
---              dummy_gen_crc architecture with the real implementation once
+--              can_mac_crc_dummy_tx architecture with the real implementation once
 --              the serial-input polynomial engine is available.
 --------------------------------------------------------------------------------
 
@@ -27,7 +27,7 @@ library ieee;
 library ieee;
   use ieee.std_logic_1164.all;
 
-entity dummy_gen_crc is
+entity can_mac_crc_dummy_tx is
   generic (
     gc_data_width  : integer                    := 1;
     gc_crc_width   : integer                    := 15;
@@ -45,9 +45,9 @@ entity dummy_gen_crc is
     data_valid_i : in    std_logic;
     crc_o        : out   std_logic_vector(gc_crc_width - 1 downto 0)
   );
-end entity dummy_gen_crc;
+end entity can_mac_crc_dummy_tx;
 
-architecture rtl of dummy_gen_crc is
+architecture rtl of can_mac_crc_dummy_tx is
 begin
 
   -- Stub: return the polynomial constant as a fixed CRC result.
@@ -65,16 +65,16 @@ library ieee;
   use ieee.numeric_std.all;
   use work.can_types_pkg.all;
 
-entity crc_fd is
+entity can_mac_crc_tx is
   port (
     clk_i : in    std_logic;
     rst_i : in    std_logic;
-    crc_i : in    mac_fsm_to_crc_if_t;
-    crc_o : out   crc_to_mac_fsm_if_t
+    crc_i : in    can_mac_fsm_crc_tx_if_s2d_t;
+    crc_o : out   can_mac_fsm_crc_tx_if_d2s_t
   );
-end entity crc_fd;
+end entity can_mac_crc_tx;
 
-architecture rtl of crc_fd is
+architecture rtl of can_mac_crc_tx is
 
   ---------------------------------------------------------------------------
   -- Internal CRC output signals
@@ -93,7 +93,7 @@ begin
   -- =========================================================================
   -- Component Instantiations
   -- =========================================================================
-  u_crc15 : entity work.dummy_gen_crc
+  u_crc15 : entity work.can_mac_crc_dummy_tx
     generic map (
       gc_data_width => 1,
       gc_crc_width  => crc_15_length_c,
@@ -112,7 +112,7 @@ begin
       crc_o        => crc15_out
     );
 
-  u_crc17 : entity work.dummy_gen_crc
+  u_crc17 : entity work.can_mac_crc_dummy_tx
     generic map (
       gc_data_width => 1,
       gc_crc_width  => crc_17_length_c,
@@ -131,7 +131,7 @@ begin
       crc_o        => crc17_out
     );
 
-  u_crc21 : entity work.dummy_gen_crc
+  u_crc21 : entity work.can_mac_crc_dummy_tx
     generic map (
       gc_data_width => 1,
       gc_crc_width  => crc_21_length_c,
@@ -151,7 +151,7 @@ begin
     );
 
   fsm_sequential : process (clk_i) is
-    variable v_crc_o       : crc_to_mac_fsm_if_t;
+    variable v_crc_o       : can_mac_fsm_crc_tx_if_d2s_t;
     variable sel_v         : std_logic_vector(1 downto 0);
     variable data_valid_v  : std_logic;
     variable start_crc_v   : std_logic;

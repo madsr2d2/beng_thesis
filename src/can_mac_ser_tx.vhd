@@ -3,25 +3,25 @@ library ieee;
   use work.can_types_pkg.all;
   use work.can_protocol_pkg.all;
 
-entity tx_mac_ser is
+entity can_mac_ser_tx is
   port (
     -- Clock and reset
     clk_i : in    std_logic;
     rst_i : in    std_logic;
 
     -- LLC interface
-    llc_i : in    llc_to_mac_if_t;
-    llc_o : out   mac_to_llc_if_t;
+    llc_i : in    can_llc_mac_tx_if_s2d_t;
+    llc_o : out   can_llc_mac_tx_if_d2s_t;
 
-    -- tx_mac_fsm interface
-    tx_mac_fsm_i : in    tx_mac_fsm_to_ser_if_t;
-    tx_mac_fsm_o : out   tx_mac_ser_to_fsm_if_t
+    -- can_mac_fsm_tx interface
+    tx_mac_fsm_i : in    can_mac_ser_fsm_tx_if_d2s_t;
+    tx_mac_fsm_o : out   can_mac_ser_fsm_tx_if_s2d_t
   );
-end entity tx_mac_ser;
+end entity can_mac_ser_tx;
 
-architecture rtl of tx_mac_ser is
+architecture rtl of can_mac_ser_tx is
 
-  signal state                  : tx_mac_ser_state_t;
+  signal state                  : can_mac_ser_tx_state_t;
   signal count                  : integer range byte_t'left downto 0;
   signal llc_frame_buffer       : byte_t;
   signal config_byte_0          : byte_t;
@@ -33,15 +33,15 @@ begin
   fsm_sequential : process (clk_i) is
 
     -- Registered next-value variables
-    variable v_state                  : tx_mac_ser_state_t;
+    variable v_state                  : can_mac_ser_tx_state_t;
     variable v_count                  : integer range byte_t'left downto 0;
     variable v_frame_buffer           : byte_t;
     variable v_config_byte_0          : byte_t;
     variable v_id_bits_remaining      : integer range 0 to base_id_width_c + extended_id_width_c;
     variable v_padding_bits_remaining : integer range 0 to llc_id_stream_width_c - base_id_width_c;
 
-    variable v_llc_o        : mac_to_llc_if_t;
-    variable v_tx_mac_fsm_o : tx_mac_ser_to_fsm_if_t;
+    variable v_llc_o        : can_llc_mac_tx_if_d2s_t;
+    variable v_tx_mac_fsm_o : can_mac_ser_fsm_tx_if_s2d_t;
 
     -- Named guard variables (evaluated once per cycle)
     variable llc_valid_v              : boolean;

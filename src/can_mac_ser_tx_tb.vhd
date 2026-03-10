@@ -8,10 +8,10 @@ library osvvm;
   use work.can_protocol_pkg.all;
   use work.can_timing_pkg.all;
 
-entity tx_mac_ser_tb is
-end entity tx_mac_ser_tb;
+entity can_mac_ser_tx_tb is
+end entity can_mac_ser_tx_tb;
 
-architecture tb of tx_mac_ser_tb is
+architecture tb of can_mac_ser_tx_tb is
 
   constant clk_period : time := 10 ns;
 
@@ -19,12 +19,12 @@ architecture tb of tx_mac_ser_tb is
   signal rst_i : std_logic := '0';
 
   -- LLC interface signals
-  signal llc_i : llc_to_mac_if_t;
-  signal llc_o : mac_to_llc_if_t;
+  signal llc_i : can_llc_mac_tx_if_s2d_t;
+  signal llc_o : can_llc_mac_tx_if_d2s_t;
 
-  -- tx_mac_fsm interface signals
-  signal tx_mac_fsm_i : tx_mac_fsm_to_ser_if_t;
-  signal tx_mac_fsm_o : tx_mac_ser_to_fsm_if_t;
+  -- can_mac_fsm_tx interface signals
+  signal tx_mac_fsm_i : can_mac_ser_fsm_tx_if_d2s_t;
+  signal tx_mac_fsm_o : can_mac_ser_fsm_tx_if_s2d_t;
 
 begin
 
@@ -32,7 +32,7 @@ begin
   clk_i <= not clk_i after clk_period / 2;
 
   -- DUT instantiation
-  u_dut : entity work.tx_mac_ser
+  u_dut : entity work.can_mac_ser_tx
     port map (
       clk_i        => clk_i,
       rst_i        => rst_i,
@@ -51,7 +51,7 @@ begin
   begin
 
     -- Open transcript file for logging
-    TranscriptOpen("sim/tx_mac_ser_tb.txt");
+    TranscriptOpen("sim/can_mac_ser_tx_tb.txt");
     SetTranscriptMirror(TRUE);
 
     Print("==========================================");

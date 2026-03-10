@@ -9,17 +9,17 @@ use work.can_types_pkg.all;
   use work.can_protocol_pkg.all;
   use work.can_timing_pkg.all;
 
-entity bit_stuffer_fd_tb is
-end entity bit_stuffer_fd_tb;
+entity can_mac_bs_tx_tb is
+end entity can_mac_bs_tx_tb;
 
-architecture tb of bit_stuffer_fd_tb is
+architecture tb of can_mac_bs_tx_tb is
 
   constant clk_period_c : time := 10 ns;
 
   signal clk_i : std_logic := '0';
   signal rst_i : std_logic := '0';
-  signal bs_fd_i : mac_fsm_to_bs_fd_if_t;
-  signal bs_fd_o : bs_fd_to_mac_fsm_if_t;
+  signal bs_fd_i : can_mac_fsm_bs_tx_if_s2d_t;
+  signal bs_fd_o : can_mac_fsm_bs_tx_if_d2s_t;
 
   -- Signals for waveform viewing (unpacked from records)
   signal tb_clk             : std_logic;
@@ -45,7 +45,7 @@ begin
   tb_sbc             <= bs_fd_o.sbc;
 
   -- DUT instantiation
-  u_dut : entity work.bit_stuffer_fd
+  u_dut : entity work.can_mac_bs_tx
     port map (
       clk_i   => clk_i,
       rst_i     => rst_i,
@@ -62,7 +62,7 @@ begin
     variable num_bits        : integer;
   begin
     -- Open transcript file for logging
-    TranscriptOpen("sim/bit_stuffer_fd_tb.txt");
+    TranscriptOpen("sim/can_mac_bs_tx_tb.txt");
     SetTranscriptMirror(TRUE);
 
     Print("=== Bit Stuffer FD Testbench Started ===");

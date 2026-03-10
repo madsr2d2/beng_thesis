@@ -2,7 +2,7 @@
 -- Title      : CAN FD Bit Stuffer
 -- Project    : CAN Bus Transmitter
 --------------------------------------------------------------------------------
--- File       : bit_stuffer_fd.vhd
+-- File       : can_mac_bs_tx.vhd
 -- Standard   : VHDL-2008
 --------------------------------------------------------------------------------
 -- Description: Unified bit stuffer implementation for CAN and CAN-FD.
@@ -18,19 +18,19 @@ library ieee;
   use work.can_types_pkg.all;
   use work.can_protocol_pkg.all;
 
-entity bit_stuffer_fd is
+entity can_mac_bs_tx is
   generic (
     stuff_width_c : integer := 5
   );
   port (
     clk_i   : in    std_logic;
     rst_i : in    std_logic;
-    bs_fd_i : in    mac_fsm_to_bs_fd_if_t;
-    bs_fd_o : out   bs_fd_to_mac_fsm_if_t
+    bs_fd_i : in    can_mac_fsm_bs_tx_if_s2d_t;
+    bs_fd_o : out   can_mac_fsm_bs_tx_if_d2s_t
   );
-end entity bit_stuffer_fd;
+end entity can_mac_bs_tx;
 
-architecture rtl of bit_stuffer_fd is
+architecture rtl of can_mac_bs_tx is
 
   ---------------------------------------------------------------------------
   -- Registered state signals (driven by fsm_sequential)
@@ -48,7 +48,7 @@ begin
     variable v_stuff_valid_prev : boolean;
 
     -- Registered output next-value variable
-    variable v_bs_fd_o : bs_fd_to_mac_fsm_if_t;
+    variable v_bs_fd_o : can_mac_fsm_bs_tx_if_d2s_t;
 
     -- Handle detection of N consecutive bits and stuff bit requirement
     procedure manage_bit_counting is
@@ -177,7 +177,7 @@ begin
 --   assertions at runtime. No simulation checking with the Ubuntu GHDL package.
 --
 -- Formal proof (exhaustive):
---   Install oss-cad-suite, then run: sby formal/bit_stuffer_fd.sby
+--   Install oss-cad-suite, then run: sby formal/can_mac_bs_tx.sby
 --   oss-cad-suite provides GHDL (LLVM backend) + Yosys + SymbiYosys.
 --   Install: https://github.com/YosysHQ/oss-cad-suite-build/releases/latest
 ---------------------------------------------------------------------------

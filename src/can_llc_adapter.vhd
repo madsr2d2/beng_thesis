@@ -2,12 +2,12 @@
 -- Title      : LLC Frame Format Adapter (Legacy → Internal)
 -- Project    : CAN Bus Transmitter
 --------------------------------------------------------------------------------
--- File       : llc_frame_adapter.vhd
+-- File       : can_llc_adapter.vhd
 -- Standard   : VHDL-2008
 --------------------------------------------------------------------------------
 -- Description: Translates the 71-byte legacy LLC frame format (as defined in
 --   the project report) to the internal variable-length streaming format
---   expected by tx_llc.
+--   expected by can_llc_tx.
 --
 --   Legacy format (71 bytes, fixed):
 --     Bytes 0-3:  ID bytes (right-aligned, format-dependent)
@@ -33,20 +33,20 @@ library ieee;
   use work.can_types_pkg.all;
   use work.can_protocol_pkg.all;
 
-entity llc_frame_adapter is
+entity can_llc_adapter is
   port (
     clk_i : in    std_logic;
     rst_i : in    std_logic;
     -- User-facing (legacy format input)
-    legacy_llc_i : in    llc_user_to_llc_if_t;
-    legacy_llc_o : out   llc_to_llc_user_if_t;
-    -- Internal-facing (converted format output to tx_llc)
-    llc_o : out   llc_user_to_llc_if_t;
-    llc_i : in    llc_to_llc_user_if_t
+    legacy_llc_i : in    can_user_llc_tx_if_s2d_t;
+    legacy_llc_o : out   can_user_llc_tx_if_d2s_t;
+    -- Internal-facing (converted format output to can_llc_tx)
+    llc_o : out   can_user_llc_tx_if_s2d_t;
+    llc_i : in    can_user_llc_tx_if_d2s_t
   );
-end entity llc_frame_adapter;
+end entity can_llc_adapter;
 
-architecture rtl of llc_frame_adapter is
+architecture rtl of can_llc_adapter is
 
   ---------------------------------------------------------------------------
   -- Types
@@ -87,8 +87,8 @@ begin
     variable v_tx_index        : integer range 0 to legacy_frame_len_c - 1;
     variable v_data_byte_count : integer range 0 to max_data_bytes_c;
 
-    variable v_legacy_llc_o : llc_to_llc_user_if_t;
-    variable v_llc_o        : llc_user_to_llc_if_t;
+    variable v_legacy_llc_o : can_user_llc_tx_if_d2s_t;
+    variable v_llc_o        : can_user_llc_tx_if_s2d_t;
 
     -- Named guard variables
     variable legacy_valid_v     : boolean;

@@ -2,7 +2,7 @@
 -- Title      : CAN Bus LLC Transmit Controller
 -- Project    : CAN Bus Transmitter
 --------------------------------------------------------------------------------
--- File       : tx_llc.vhd
+-- File       : can_llc_tx.vhd
 -- Standard   : VHDL-2008
 --------------------------------------------------------------------------------
 -- Description: Logical Link Control (LLC) sub-layer for CAN transmission.
@@ -18,22 +18,22 @@ library ieee;
   use work.can_types_pkg.all;
   use work.can_protocol_pkg.all;
 
-entity tx_llc is
+entity can_llc_tx is
   port (
     clk : in    std_logic;
     rst : in    std_logic;
 
     -- LLC user interface (Avalon-ST input stream)
-    llc_user_i : in    llc_user_to_llc_if_t;
-    llc_user_o : out   llc_to_llc_user_if_t;
+    llc_user_i : in    can_user_llc_tx_if_s2d_t;
+    llc_user_o : out   can_user_llc_tx_if_d2s_t;
 
     -- MAC interface (Avalon-ST output stream)
-    mac_i : in    mac_to_llc_if_t;
-    mac_o : out   llc_to_mac_if_t
+    mac_i : in    can_llc_mac_tx_if_d2s_t;
+    mac_o : out   can_llc_mac_tx_if_s2d_t
   );
-end entity tx_llc;
+end entity can_llc_tx;
 
-architecture rtl of tx_llc is
+architecture rtl of can_llc_tx is
 
   ---------------------------------------------------------------------------
   -- Constants
@@ -49,7 +49,7 @@ architecture rtl of tx_llc is
   ---------------------------------------------------------------------------
   -- Registered state signals (driven by state_update)
   ---------------------------------------------------------------------------
-  signal state              : tx_llc_state_t;
+  signal state              : can_llc_tx_state_t;
   signal frame_buf          : llc_frame_buffer_t;
   signal frame_len_bytes    : integer range 0 to max_llc_frame_bytes_c;
   signal capture_index      : integer range 0 to max_llc_frame_bytes_c - 1;
@@ -307,10 +307,10 @@ end architecture rtl;
 -- Architecture: legacy_rtl
 -- Accepts the 71-byte legacy LLC frame format directly and performs in-place
 -- conversion to the internal variable-length format before streaming to MAC.
--- Eliminates the need for a separate llc_frame_adapter entity upstream.
+-- Eliminates the need for a separate can_llc_adapter entity upstream.
 --------------------------------------------------------------------------------
 
-architecture legacy_rtl of tx_llc is
+architecture legacy_rtl of can_llc_tx is
 
   ---------------------------------------------------------------------------
   -- Constants
@@ -321,7 +321,7 @@ architecture legacy_rtl of tx_llc is
   ---------------------------------------------------------------------------
   -- Registered state signals
   ---------------------------------------------------------------------------
-  signal state            : tx_llc_state_t;
+  signal state            : can_llc_tx_state_t;
   signal frame_buf        : legacy_frame_t;
   signal frame_len_bytes  : integer range 0 to max_llc_frame_bytes_c;
   signal capture_index    : integer range 0 to legacy_frame_len_c - 1;

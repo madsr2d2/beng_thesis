@@ -2,7 +2,7 @@
 -- Title      : Testbench for CAN Physical Signaling Layer (PCS)
 -- Project    : CAN Bus Transmitter
 --------------------------------------------------------------------------------
--- File       : tx_pcs_tb.vhd
+-- File       : can_pcs_tx_tb.vhd
 -- Standard   : VHDL-2008
 --------------------------------------------------------------------------------
 -- Description: Exhaustive PCS-focused verification:
@@ -28,10 +28,10 @@ library osvvm;
   use work.can_timing_pkg.all;
   use work.can_types_pkg.all;
 
-entity tx_pcs_tb is
-end entity tx_pcs_tb;
+entity can_pcs_tx_tb is
+end entity can_pcs_tx_tb;
 
-architecture test of tx_pcs_tb is
+architecture test of can_pcs_tx_tb is
 
   ------------------------------------------------------------------------------
   -- Clock/reset
@@ -101,26 +101,26 @@ architecture test of tx_pcs_tb is
   ------------------------------------------------------------------------------
   -- DUT I/O
   ------------------------------------------------------------------------------
-  signal mac_to_pcs : mac_to_pcs_if_t := (
+  signal mac_to_pcs : can_mac_pcs_tx_if_s2d_t := (
     data  => unknown_mac_frame_bit_c,
     valid => false
   );
-  signal pcs_to_mac : pcs_to_mac_if_t;
+  signal pcs_to_mac : can_mac_pcs_tx_if_d2s_t;
   signal tx_bus     : std_logic;
 
   -- Secondary DUT instance: same timing but TDC policy forced disabled.
-  signal mac_to_pcs_no_tdc : mac_to_pcs_if_t := (
+  signal mac_to_pcs_no_tdc : can_mac_pcs_tx_if_s2d_t := (
     data  => unknown_mac_frame_bit_c,
     valid => false
   );
-  signal pcs_to_mac_no_tdc : pcs_to_mac_if_t;
+  signal pcs_to_mac_no_tdc : can_mac_pcs_tx_if_d2s_t;
   signal tx_bus_no_tdc     : std_logic;
   signal rx_bus_no_tdc     : std_logic := recessive_bit_c;
-  signal mac_to_pcs_ps2 : mac_to_pcs_if_t := (
+  signal mac_to_pcs_ps2 : can_mac_pcs_tx_if_s2d_t := (
     data  => unknown_mac_frame_bit_c,
     valid => false
   );
-  signal pcs_to_mac_ps2 : pcs_to_mac_if_t;
+  signal pcs_to_mac_ps2 : can_mac_pcs_tx_if_d2s_t;
   signal tx_bus_ps2     : std_logic;
   signal rx_bus_ps2     : std_logic := recessive_bit_c;
 
@@ -157,7 +157,7 @@ begin
   ------------------------------------------------------------------------------
   -- DUT
   ------------------------------------------------------------------------------
-  dut : entity work.tx_pcs
+  dut : entity work.can_pcs_tx
     generic map (
       nom_prescaler   => nom_prescaler_c,
       nom_sync_seg    => nom_sync_seg_c,
@@ -180,7 +180,7 @@ begin
       rx_bus_i     => rx_bus
     );
 
-  dut_no_tdc : entity work.tx_pcs
+  dut_no_tdc : entity work.can_pcs_tx
     generic map (
       nom_prescaler   => nom_prescaler_c,
       nom_sync_seg    => nom_sync_seg_c,
@@ -205,7 +205,7 @@ begin
       rx_bus_i     => rx_bus_no_tdc
     );
 
-  dut_ps2 : entity work.tx_pcs
+  dut_ps2 : entity work.can_pcs_tx
     generic map (
       nom_prescaler   => nom_prescaler_c,
       nom_sync_seg    => nom_sync_seg_c,
@@ -925,7 +925,7 @@ begin
     -- Summary
     ----------------------------------------------------------------------------
     Log("================================================================================", INFO);
-    Log("All tx_pcs unit tests completed", INFO);
+    Log("All can_pcs_tx unit tests completed", INFO);
     Log("================================================================================", INFO);
 
     ReportAlerts;

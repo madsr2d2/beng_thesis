@@ -2,7 +2,7 @@
 #  @brief GHDL/OSVVM makefile for testbench simulation
 #
 #  Usage: make TB=src/my_tb
-#  Example: make TB=src/tx_can_tb
+#  Example: make TB=src/can_tx_tb
 #
 #  Note: OSVVM must be compiled first in OsvvmLibraries/osvvm
 
@@ -15,18 +15,18 @@ PACKAGES = \
 
 # 2. Components and Sub-modules
 COMPONENTS = \
-	src/bit_stuffer_fd.vhd \
-	src/crc_fd.vhd \
-	src/tx_mac_ser.vhd \
-	src/tx_mac_fsm.vhd
+	src/can_mac_bs_tx.vhd \
+	src/can_mac_crc_tx.vhd \
+	src/can_mac_ser_tx.vhd \
+	src/can_mac_fsm_tx.vhd
 
 # 3. Layer wrappers and Top-level
 LAYERS = \
-	src/tx_mac.vhd \
-	src/tx_pcs.vhd \
-	src/tx_llc.vhd \
-	src/llc_frame_adapter.vhd \
-	src/tx_can.vhd
+	src/can_mac_tx.vhd \
+	src/can_pcs_tx.vhd \
+	src/can_llc_tx.vhd \
+	src/can_llc_adapter.vhd \
+	src/can_tx.vhd
 
 SRCFILES = $(PACKAGES) $(COMPONENTS) $(LAYERS)
 VHDLEX = .vhd

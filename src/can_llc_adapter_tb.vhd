@@ -2,12 +2,12 @@
 -- Title      : LLC Frame Adapter Testbench
 -- Project    : CAN Bus Transmitter
 --------------------------------------------------------------------------------
--- File       : llc_frame_adapter_tb.vhd
+-- File       : can_llc_adapter_tb.vhd
 -- Standard   : VHDL-2008
 --------------------------------------------------------------------------------
 -- Description: Tests for the legacy LLC frame format adapter.
 --   Tests verify that a 71-byte legacy frame is correctly translated to the
---   internal streaming format expected by tx_llc.
+--   internal streaming format expected by can_llc_tx.
 --
 --   Test cases:
 --     1. Classic Basic (CB): 11-bit ID, 1 byte data
@@ -15,7 +15,7 @@
 --     3. FD Basic (FB) with BRS=1, ESI=0, 64 bytes data
 --     4. FD Extended (FE) with BRS=1, ESI=1, RTR=1, 0 bytes data
 --     5. Back-pressure: downstream ready deasserted mid-emit
---     6. Transfer status pass-through from tx_llc to user
+--     6. Transfer status pass-through from can_llc_tx to user
 --------------------------------------------------------------------------------
 
 library ieee;
@@ -27,10 +27,10 @@ library osvvm;
   use work.can_types_pkg.all;
   use work.can_protocol_pkg.all;
 
-entity llc_frame_adapter_tb is
-end entity llc_frame_adapter_tb;
+entity can_llc_adapter_tb is
+end entity can_llc_adapter_tb;
 
-architecture tb of llc_frame_adapter_tb is
+architecture tb of can_llc_adapter_tb is
 
   constant clk_period : time := 10 ns;
 
@@ -38,10 +38,10 @@ architecture tb of llc_frame_adapter_tb is
   signal rst : std_logic := '0';
 
   -- DUT ports
-  signal legacy_llc_i : llc_user_to_llc_if_t;
-  signal legacy_llc_o : llc_to_llc_user_if_t;
-  signal llc_o        : llc_user_to_llc_if_t;
-  signal llc_i        : llc_to_llc_user_if_t;
+  signal legacy_llc_i : can_user_llc_tx_if_s2d_t;
+  signal legacy_llc_o : can_user_llc_tx_if_d2s_t;
+  signal llc_o        : can_user_llc_tx_if_s2d_t;
+  signal llc_i        : can_user_llc_tx_if_d2s_t;
 
   -- legacy_frame_t and its index constants are defined in can_types_pkg
 
@@ -49,7 +49,7 @@ begin
 
   clk <= not clk after clk_period / 2;
 
-  u_dut : entity work.llc_frame_adapter
+  u_dut : entity work.can_llc_adapter
     port map (
       clk_i        => clk,
       rst_i        => rst,
@@ -113,7 +113,7 @@ begin
 
   begin
 
-    TranscriptOpen("sim/llc_frame_adapter_tb.txt");
+    TranscriptOpen("sim/can_llc_adapter_tb.txt");
     SetTranscriptMirror(TRUE);
 
     Print("==========================================");

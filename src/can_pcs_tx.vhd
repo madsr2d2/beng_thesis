@@ -2,7 +2,7 @@
 -- Title      : CAN Physical Signaling Layer (PCS) with TDC
 -- Project    : CAN Bus Transmitter
 --------------------------------------------------------------------------------
--- File       : tx_pcs.vhd
+-- File       : can_pcs_tx.vhd
 -- Author     :
 -- Created    : 2026-02-13
 -- Standard   : VHDL-2008
@@ -39,7 +39,7 @@ library ieee;
   use work.can_protocol_pkg.all;
   use work.can_timing_pkg.all;
 
-entity tx_pcs is
+entity can_pcs_tx is
   generic (
     -- detect ACK error at end of ACK-slot observation window.
     -- Default 100 MHz profile:
@@ -67,18 +67,18 @@ entity tx_pcs is
     clk : in    std_logic;
     rst : in    std_logic;
 
-    mac_to_pcs_i : in    mac_to_pcs_if_t;
-    pcs_to_mac_o : out   pcs_to_mac_if_t;
+    mac_to_pcs_i : in    can_mac_pcs_tx_if_s2d_t;
+    pcs_to_mac_o : out   can_mac_pcs_tx_if_d2s_t;
 
     tx_bus_o : out   std_logic;
     rx_bus_i : in    std_logic;
 
     -- Debug port (test visibility)
-    debug_state_o : out tx_pcs_fsm_state_t
+    debug_state_o : out can_pcs_tx_state_t
   );
-end entity tx_pcs;
+end entity can_pcs_tx;
 
-architecture rtl of tx_pcs is
+architecture rtl of can_pcs_tx is
 
   -- Bit timing constants
   constant nom_bit_time          : integer := nom_sync_seg + nom_prop_seg + nom_phase_seg1 + nom_phase_seg2;
@@ -110,7 +110,7 @@ architecture rtl of tx_pcs is
   ---------------------------------------------------------------------------
   -- Registered signals (driven by state_update)
   ---------------------------------------------------------------------------
-  signal state              : tx_pcs_fsm_state_t;
+  signal state              : can_pcs_tx_state_t;
   signal clk_count_nom      : integer range 0 to nom_prescaler - 1;
   signal clk_count_data     : integer range 0 to data_prescaler - 1;
   signal tq_count           : integer range 0 to nom_bit_time;
@@ -127,7 +127,7 @@ architecture rtl of tx_pcs is
   ---------------------------------------------------------------------------
   -- Combinational next-cycle signals (driven by output_logic)
   ---------------------------------------------------------------------------
-  signal next_state           : tx_pcs_fsm_state_t;
+  signal next_state           : can_pcs_tx_state_t;
   signal next_clk_count_nom   : integer range 0 to nom_prescaler - 1;
   signal next_clk_count_data  : integer range 0 to data_prescaler - 1;
   signal next_tq_count        : integer range 0 to nom_bit_time;
@@ -138,7 +138,7 @@ architecture rtl of tx_pcs is
   signal next_ssp_position    : integer range 0 to data_bit_time - 1;
   signal next_fifo_index      : integer range 0 to transmitted_bits_fifo_depth_c - 1;
 
-  signal next_pcs_to_mac_o : pcs_to_mac_if_t;
+  signal next_pcs_to_mac_o : can_mac_pcs_tx_if_d2s_t;
 
   -- Returns true for data-phase bit types that must be monitored at SSP
   -- when TDC is active.

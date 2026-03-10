@@ -2,13 +2,13 @@
 -- Title      : CAN Bus Transmitter Top-Level
 -- Project    : CAN Bus Transmitter
 --------------------------------------------------------------------------------
--- File       : tx_can.vhd
+-- File       : can_tx.vhd
 -- Standard   : VHDL-2008
 --------------------------------------------------------------------------------
 -- Description: Top-level CAN transmitter integrating all three layers:
---   - tx_llc:  LLC sub-layer (frame buffering, retransmission, Avalon-ST)
---   - mac_tx:  MAC sub-layer (serializer, FSM, bit stuffing, CRC)
---   - tx_pcs:  PCS sub-layer (bit timing, TDC, bus interface)
+--   - can_llc_tx:  LLC sub-layer (frame buffering, retransmission, Avalon-ST)
+--   - can_mac_tx:  MAC sub-layer (serializer, FSM, bit stuffing, CRC)
+--   - can_pcs_tx:  PCS sub-layer (bit timing, TDC, bus interface)
 --------------------------------------------------------------------------------
 
 library ieee;
@@ -18,9 +18,9 @@ library ieee;
   use work.can_protocol_pkg.all;
   use work.can_timing_pkg.all;
 
-entity tx_can is
+entity can_tx is
   generic (
-    -- Keep top-level defaults aligned with tx_pcs defaults (100 MHz profile).
+    -- Keep top-level defaults aligned with can_pcs_tx defaults (100 MHz profile).
     nom_prescaler                   : integer := 4;
     nom_sync_seg                    : integer := 1;
     nom_prop_seg                    : integer := 24;
@@ -41,53 +41,53 @@ entity tx_can is
     rst : in    std_logic;
 
     -- LLC user interface (application-facing)
-    llc_user_i : in    llc_user_to_llc_if_t;
-    llc_user_o : out   llc_to_llc_user_if_t;
+    llc_user_i : in    can_user_llc_tx_if_s2d_t;
+    llc_user_o : out   can_user_llc_tx_if_d2s_t;
 
     -- Fault Confinement Entity interface
-    fce_i : in    fce_to_mac_if_t;
-    fce_o : out   mac_to_fce_if_t;
+    fce_i : in    can_mac_fce_if_d2s_t;
+    fce_o : out   can_mac_fce_if_s2d_t;
 
     -- Physical bus interface
     tx_bus_o : out   std_logic;
     rx_bus_i : in    std_logic;
 
     -- Debug interface (monitoring internal MAC/PCS handshake and error detection)
-    debug_mac_to_pcs_o        : out mac_to_pcs_if_t;
-    debug_pcs_to_mac_o        : out pcs_to_mac_if_t;
+    debug_mac_to_pcs_o        : out can_mac_pcs_tx_if_s2d_t;
+    debug_pcs_to_mac_o        : out can_mac_pcs_tx_if_d2s_t;
     debug_strobe_type_o       : out strobe_type_t;
     debug_ack_error_o         : out boolean;     -- ACK error detected
     debug_form_error_o        : out boolean;    -- Form error detected
     debug_current_bit_rate_o  : out std_logic;  -- '0'=nominal, '1'=data
     debug_data_phase_active_o : out boolean;    -- In data phase
     debug_data_phase_exit_o   : out boolean;    -- Data phase exiting at SP
-    debug_tdc_state_o         : out tx_pcs_fsm_state_t;
+    debug_tdc_state_o         : out can_pcs_tx_state_t;
     debug_tdc_delay_o         : out integer;
     debug_ipt_active_o        : out boolean;
     debug_phase_seg2_active_o : out boolean;
     debug_error_at_ssp_o      : out boolean;
     debug_error_at_sp_o       : out boolean;
-    debug_fsm_state_o         : out tx_mac_fsm_state_t
+    debug_fsm_state_o         : out can_mac_fsm_tx_state_t
   );
-end entity tx_can;
+end entity can_tx;
 
-architecture rtl of tx_can is
+architecture rtl of can_tx is
 
   ---------------------------------------------------------------------------
   -- Internal signals
   ---------------------------------------------------------------------------
   -- LLC <-> MAC
-  signal llc_to_mac : llc_to_mac_if_t;
-  signal mac_to_llc : mac_to_llc_if_t;
+  signal llc_to_mac : can_llc_mac_tx_if_s2d_t;
+  signal mac_to_llc : can_llc_mac_tx_if_d2s_t;
 
   -- MAC <-> PCS
-  signal mac_to_pcs : mac_to_pcs_if_t;
-  signal pcs_to_mac : pcs_to_mac_if_t;
+  signal mac_to_pcs : can_mac_pcs_tx_if_s2d_t;
+  signal pcs_to_mac : can_mac_pcs_tx_if_d2s_t;
 
   ---------------------------------------------------------------------------
   -- Debug signals (for test visibility)
   ---------------------------------------------------------------------------
-  signal debug_pcs_state : tx_pcs_fsm_state_t;
+  signal debug_pcs_state : can_pcs_tx_state_t;
   signal debug_mac_ack_error : boolean;
   signal debug_mac_form_error : boolean;
   signal debug_mac_data_exit : boolean;
@@ -95,10 +95,10 @@ architecture rtl of tx_can is
 begin
 
   -- =========================================================================
-  -- tx_llc: LLC sub-layer (legacy_rtl accepts 71-byte legacy format directly)
+  -- can_llc_tx: LLC sub-layer (legacy_rtl accepts 71-byte legacy format directly)
   -- Buffers frames, converts to internal format, streams to MAC, handles retx
   -- =========================================================================
-  tx_llc_inst : entity work.tx_llc(legacy_rtl)
+  tx_llc_inst : entity work.can_llc_tx(legacy_rtl)
     port map (
       clk        => clk,
       rst        => rst,
@@ -109,10 +109,10 @@ begin
     );
 
   -- =========================================================================
-  -- mac_tx: MAC sub-layer
+  -- can_mac_tx: MAC sub-layer
   -- Serializer + FSM + bit stuffer
   -- =========================================================================
-  mac_tx_inst : entity work.mac_tx
+  mac_tx_inst : entity work.can_mac_tx
     port map (
       clk              => clk,
       rst              => rst,
@@ -131,10 +131,10 @@ begin
     );
 
   -- =========================================================================
-  -- tx_pcs: PCS sub-layer
+  -- can_pcs_tx: PCS sub-layer
   -- Bit timing, TDC measurement, bus interface
   -- =========================================================================
-  tx_pcs_inst : entity work.tx_pcs
+  tx_pcs_inst : entity work.can_pcs_tx
     generic map (
       nom_prescaler        => nom_prescaler,
       nom_sync_seg         => nom_sync_seg,
@@ -172,7 +172,7 @@ begin
   debug_tdc_state_o         <= debug_pcs_state;
   debug_tdc_delay_o         <= 0;  -- Placeholder: TDC delay not yet exposed
 
-  -- Wire error detection signals from mac_tx FSM
+  -- Wire error detection signals from can_mac_tx FSM
   debug_ack_error_o      <= debug_mac_ack_error;
   debug_form_error_o     <= debug_mac_form_error;
   debug_data_phase_exit_o <= debug_mac_data_exit;

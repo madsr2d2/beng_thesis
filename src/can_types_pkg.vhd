@@ -208,7 +208,7 @@ package can_types_pkg is
   type transmitted_bits_fifo_t is array (transmitted_bits_fifo_depth_c - 1 downto 0) of mac_frame_bit_t;
 
   -- Frame-specific cached parameters, calculated once per frame by
-  -- calculate_frame_params() and passed down the pipeline via tx_mac_ser.
+  -- calculate_frame_params() and passed down the pipeline via can_mac_ser_tx.
   type frame_params_t is record
     -- Frame type and control flags
     format          : can_format_t;
@@ -298,14 +298,14 @@ package can_types_pkg is
   ---------------------------------------------------------------------------
   -- 6. FSM State Types
   ---------------------------------------------------------------------------
-  type tx_mac_ser_state_t is (
+  type can_mac_ser_tx_state_t is (
     load_config_byte_0,
     load_config_byte_1,
     load_llc_frame_byte,
     shift_out_bits
   );
 
-  type tx_mac_fsm_state_t is (
+  type can_mac_fsm_tx_state_t is (
     bus_reintegration,
     bus_idle,
     intermission,
@@ -317,14 +317,14 @@ package can_types_pkg is
   );
 
   -- PCS layer FSM states (ISO 7.3.4 TDC mechanism)
-  type tx_pcs_fsm_state_t is (
+  type can_pcs_tx_state_t is (
     idle,                 -- Waiting for first bit from MAC
     measuring_delay,      -- Counting TX->RX propagation delay
     transmitting_nominal, -- Transmitting at nominal bit rate (arbitration phase)
     transmitting_data     -- Transmitting at data bit rate (FD data phase with TDC)
   );
 
-  type tx_llc_state_t is (
+  type can_llc_tx_state_t is (
     idle,            -- Waiting for user SOP
     capture_frame,   -- Capturing full user frame into LLC buffer
     send_frame,      -- Streaming buffered frame to MAC
@@ -339,8 +339,8 @@ package can_types_pkg is
   attribute fsm_encoding : string;
   attribute fsm_encoding of can_format_t       : type is "one_hot";
   attribute fsm_encoding of transfer_status_t  : type is "one_hot";
-  attribute fsm_encoding of tx_mac_ser_state_t : type is "one_hot";
-  attribute fsm_encoding of tx_mac_fsm_state_t : type is "one_hot";
+  attribute fsm_encoding of can_mac_ser_tx_state_t : type is "one_hot";
+  attribute fsm_encoding of can_mac_fsm_tx_state_t : type is "one_hot";
 
   ---------------------------------------------------------------------------
   -- 8. Wire Frame Constants (ISO 11898-1 Figure 2)
@@ -424,7 +424,7 @@ package can_types_pkg is
   -- Two frame formats exist at the LLC/MAC boundary. Both carry the same
   -- logical content; they differ in byte ordering and padding.
   --
-  -- Internal format (variable length, used by tx_llc and tx_mac_ser):
+  -- Internal format (variable length, used by can_llc_tx and can_mac_ser_tx):
   --   Optimised for streaming. Config bytes come first so the MAC serializer
   --   can begin as soon as the first byte is accepted. No padding.
   --
@@ -436,7 +436,7 @@ package can_types_pkg is
   --
   -- Legacy format (fixed 71 bytes, defined in the project report):
   --   Presented at the external user interface. Fixed length simplifies
-  --   framing for the host. llc_frame_adapter translates legacy to internal
+  --   framing for the host. can_llc_adapter translates legacy to internal
   --   before the frame enters the TX pipeline.
   --
   --   Bytes 0-3:  ID bytes (right-aligned, same bit layout as internal bytes 2-5)
@@ -523,68 +523,68 @@ package can_types_pkg is
     ready : std_logic;
   end record avalon_st_sink_t;
 
-  -- tx_mac_ser -> tx_mac_fsm
-  type tx_mac_ser_to_fsm_if_t is record
+  -- can_mac_ser_tx -> can_mac_fsm_tx
+  type can_mac_ser_fsm_tx_if_s2d_t is record
     data         : polarity_t;     -- CAN polarity (MAC domain)
     valid        : boolean;        -- Data valid signal
     frame_params : frame_params_t; -- Cached frame parameters
-  end record tx_mac_ser_to_fsm_if_t;
+  end record can_mac_ser_fsm_tx_if_s2d_t;
 
-  constant tx_mac_ser_to_fsm_if_reset_c : tx_mac_ser_to_fsm_if_t :=
+  constant tx_mac_ser_to_fsm_if_reset_c : can_mac_ser_fsm_tx_if_s2d_t :=
   (
     data         => dominant,
     valid        => false,
     frame_params => frame_params_reset_c
   );
 
-  -- tx_mac_fsm -> tx_mac_ser
-  type tx_mac_fsm_to_ser_if_t is record
+  -- can_mac_fsm_tx -> can_mac_ser_tx
+  type can_mac_ser_fsm_tx_if_d2s_t is record
     transfer_status : transfer_status_t;
     ready           : boolean;
-  end record tx_mac_fsm_to_ser_if_t;
+  end record can_mac_ser_fsm_tx_if_d2s_t;
 
-  constant tx_mac_fsm_to_ser_if_reset_c : tx_mac_fsm_to_ser_if_t :=
+  constant tx_mac_fsm_to_ser_if_reset_c : can_mac_ser_fsm_tx_if_d2s_t :=
   (
     transfer_status => ongoing,
     ready           => false
   );
 
-  -- tx_mac_ser -> tx_llc (internal Avalon-ST stream)
-  type llc_to_mac_if_t is record
+  -- can_mac_ser_tx -> can_llc_tx (internal Avalon-ST stream)
+  type can_llc_mac_tx_if_s2d_t is record
     avalon_st_source : avalon_st_source_t;
-  end record llc_to_mac_if_t;
+  end record can_llc_mac_tx_if_s2d_t;
 
-  -- tx_llc <- tx_mac_ser (backpressure + status)
-  type mac_to_llc_if_t is record
+  -- can_llc_tx <- can_mac_ser_tx (backpressure + status)
+  type can_llc_mac_tx_if_d2s_t is record
     avalon_st_sink  : avalon_st_sink_t;
     transfer_status : transfer_status_t;
-  end record mac_to_llc_if_t;
+  end record can_llc_mac_tx_if_d2s_t;
 
-  constant mac_to_llc_if_reset_c : mac_to_llc_if_t :=
+  constant mac_to_llc_if_reset_c : can_llc_mac_tx_if_d2s_t :=
   (
     avalon_st_sink  => (ready => '0'),
     transfer_status => ongoing
   );
 
-  -- User -> tx_llc (legacy Avalon-ST stream + abort)
-  type llc_user_to_llc_if_t is record
+  -- User -> can_llc_tx (legacy Avalon-ST stream + abort)
+  type can_user_llc_tx_if_s2d_t is record
     avalon_st_source : avalon_st_source_t;
     abort_request    : std_logic; -- Pulse: abort pending transmission
-  end record llc_user_to_llc_if_t;
+  end record can_user_llc_tx_if_s2d_t;
 
-  -- tx_llc -> User (backpressure + status)
-  type llc_to_llc_user_if_t is record
+  -- can_llc_tx -> User (backpressure + status)
+  type can_user_llc_tx_if_d2s_t is record
     avalon_st_sink  : avalon_st_sink_t;
     transfer_status : transfer_status_t;
-  end record llc_to_llc_user_if_t;
+  end record can_user_llc_tx_if_d2s_t;
 
   -- MAC -> PCS (ISO 11898-1:2015 Section 7.2 PCS_Data.Request service)
-  type mac_to_pcs_if_t is record
+  type can_mac_pcs_tx_if_s2d_t is record
     data  : mac_frame_bit_t;
     valid : boolean;
-  end record mac_to_pcs_if_t;
+  end record can_mac_pcs_tx_if_s2d_t;
 
-  constant mac_to_pcs_if_reset_c : mac_to_pcs_if_t :=
+  constant mac_to_pcs_if_reset_c : can_mac_pcs_tx_if_s2d_t :=
   (
     data  => reset_mac_frame_bit_c,
     valid => false
@@ -592,16 +592,16 @@ package can_types_pkg is
 
   -- PCS -> MAC (ISO 11898-1:2015 Section 7.2 PCS_Data.Indicate service).
   -- PCS drives bus polarity continuously and pulses sample strobes.
-  type pcs_to_mac_if_t is record
+  type can_mac_pcs_tx_if_d2s_t is record
     bus_polarity  : polarity_t;    -- Current bus polarity (continuously driven)
     sample_strobe : std_logic;     -- Pulse at the active sample point
     strobe_type   : strobe_type_t; -- Distinguishes SP from SSP (ISO 7.3.4)
     -- TDC FIFO index: offset into transmitted_bits_fifo for SSP-aligned comparison.
     -- Nominal/arbitration fields use index 0.
     fifo_index : integer range 0 to transmitted_bits_fifo_depth_c - 1;
-  end record pcs_to_mac_if_t;
+  end record can_mac_pcs_tx_if_d2s_t;
 
-  constant pcs_to_mac_if_reset_c : pcs_to_mac_if_t :=
+  constant pcs_to_mac_if_reset_c : can_mac_pcs_tx_if_d2s_t :=
   (
     bus_polarity  => recessive,
     sample_strobe => '0',
@@ -610,13 +610,13 @@ package can_types_pkg is
   );
 
   -- MAC FSM -> Bit Stuffer FD
-  type mac_fsm_to_bs_fd_if_t is record
+  type can_mac_fsm_bs_tx_if_s2d_t is record
     data  : polarity_t; -- Bit polarity being transmitted
     valid : boolean;    -- Pulse when a new bit is fed to bit stuffer
     start : boolean;    -- Pulse to reinitialize bit stuffer at frame start
-  end record mac_fsm_to_bs_fd_if_t;
+  end record can_mac_fsm_bs_tx_if_s2d_t;
 
-  constant mac_fsm_to_bs_fd_if_reset_c : mac_fsm_to_bs_fd_if_t :=
+  constant mac_fsm_to_bs_fd_if_reset_c : can_mac_fsm_bs_tx_if_s2d_t :=
   (
     data  => recessive,
     valid => false,
@@ -624,13 +624,13 @@ package can_types_pkg is
   );
 
   -- Bit Stuffer FD -> MAC FSM
-  type bs_fd_to_mac_fsm_if_t is record
+  type can_mac_fsm_bs_tx_if_d2s_t is record
     data  : polarity_t;                                       -- Polarity of required stuff bit
     valid : boolean;                                          -- true when stuff bit insertion needed
     sbc   : std_logic_vector(sbc_field_width_c - 1 downto 0); -- Gray-coded stuff bit count with parity
-  end record bs_fd_to_mac_fsm_if_t;
+  end record can_mac_fsm_bs_tx_if_d2s_t;
 
-  constant bs_fd_to_mac_fsm_if_reset_c : bs_fd_to_mac_fsm_if_t :=
+  constant bs_fd_to_mac_fsm_if_reset_c : can_mac_fsm_bs_tx_if_d2s_t :=
   (
     data  => recessive,
     valid => false,
@@ -638,14 +638,14 @@ package can_types_pkg is
   );
 
   -- MAC FSM -> CRC
-  type mac_fsm_to_crc_if_t is record
+  type can_mac_fsm_crc_tx_if_s2d_t is record
     crc_poly_select : std_logic_vector(1 downto 0);
     start           : boolean;
     valid           : boolean;
     data            : std_logic;
-  end record mac_fsm_to_crc_if_t;
+  end record can_mac_fsm_crc_tx_if_s2d_t;
 
-  constant mac_fsm_to_crc_if_reset_c : mac_fsm_to_crc_if_t :=
+  constant mac_fsm_to_crc_if_reset_c : can_mac_fsm_crc_tx_if_s2d_t :=
   (
     crc_poly_select => (others => '0'),
     start           => false,
@@ -654,12 +654,12 @@ package can_types_pkg is
   );
 
   -- CRC -> MAC FSM
-  type crc_to_mac_fsm_if_t is record
+  type can_mac_fsm_crc_tx_if_d2s_t is record
     crc : crc_vector_t;
-  end record crc_to_mac_fsm_if_t;
+  end record can_mac_fsm_crc_tx_if_d2s_t;
 
   -- MAC -> Fault Confinement Entity (ISO 11898-1 Table 16/17)
-  type mac_to_fce_if_t is record
+  type can_mac_fce_if_s2d_t is record
     transmitting             : boolean; -- Node is currently transmitting
     error                    : boolean; -- Error detected (pulse)
     primary_error            : boolean; -- Dominant bit after error flag (pulse)
@@ -667,9 +667,9 @@ package can_types_pkg is
     counters_unchanged       : boolean; -- Exception: do not update counters
     error_delimiter_too_late : boolean; -- 8+ dominant bits after error flag
     successful_transfer      : boolean; -- Frame completed successfully (pulse)
-  end record mac_to_fce_if_t;
+  end record can_mac_fce_if_s2d_t;
 
-  constant mac_to_fce_if_reset_c : mac_to_fce_if_t :=
+  constant mac_to_fce_if_reset_c : can_mac_fce_if_s2d_t :=
   (
     transmitting             => false,
     error                    => false,
@@ -681,8 +681,8 @@ package can_types_pkg is
   );
 
   -- Fault Confinement Entity -> MAC
-  type fce_to_mac_if_t is record
+  type can_mac_fce_if_d2s_t is record
     error_passive : boolean; -- true = error-passive node, false = error-active
-  end record fce_to_mac_if_t;
+  end record can_mac_fce_if_d2s_t;
 
 end package can_types_pkg;

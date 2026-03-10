@@ -2,7 +2,7 @@
 -- Title      : CAN MAC Transmitter FSM
 -- Project    : CAN Bus Transmitter
 --------------------------------------------------------------------------------
--- File       : tx_mac_fsm.vhd
+-- File       : can_mac_fsm_tx.vhd
 -- Standard   : VHDL-2008
 --------------------------------------------------------------------------------
 -- Description: Media Access Control (MAC) FSM for CAN/CAN-FD transmission.
@@ -19,46 +19,46 @@ library ieee;
   use work.can_protocol_pkg.all;
   use work.can_timing_pkg.all;
 
-entity tx_mac_fsm is
+entity can_mac_fsm_tx is
   port (
     clk_i : in    std_logic;
     rst_i : in    std_logic;
 
     -- Serializer interface
-    mac_ser_i : in    tx_mac_ser_to_fsm_if_t;
-    mac_ser_o : out   tx_mac_fsm_to_ser_if_t;
+    mac_ser_i : in    can_mac_ser_fsm_tx_if_s2d_t;
+    mac_ser_o : out   can_mac_ser_fsm_tx_if_d2s_t;
 
     -- PCS interface
-    pcs_i : in    pcs_to_mac_if_t;
-    pcs_o : out   mac_to_pcs_if_t;
+    pcs_i : in    can_mac_pcs_tx_if_d2s_t;
+    pcs_o : out   can_mac_pcs_tx_if_s2d_t;
 
     -- Bit stuffer FD interface
-    bs_fd_i : in    bs_fd_to_mac_fsm_if_t;
-    bs_fd_o : out   mac_fsm_to_bs_fd_if_t;
+    bs_fd_i : in    can_mac_fsm_bs_tx_if_d2s_t;
+    bs_fd_o : out   can_mac_fsm_bs_tx_if_s2d_t;
 
     -- CRC interface
-    crc_i : in    crc_to_mac_fsm_if_t;
-    crc_o : out   mac_fsm_to_crc_if_t;
+    crc_i : in    can_mac_fsm_crc_tx_if_d2s_t;
+    crc_o : out   can_mac_fsm_crc_tx_if_s2d_t;
 
     -- Fault Confinement Entity interface (ISO 11898-1 Table 16/17)
-    fce_i : in    fce_to_mac_if_t;
-    fce_o : out   mac_to_fce_if_t;
+    fce_i : in    can_mac_fce_if_d2s_t;
+    fce_o : out   can_mac_fce_if_s2d_t;
 
     -- Debug ports (test visibility)
     debug_ack_error_o  : out boolean;
     debug_form_error_o : out boolean;
     debug_data_exit_o  : out boolean;
-    debug_fsm_state_o  : out tx_mac_fsm_state_t
+    debug_fsm_state_o  : out can_mac_fsm_tx_state_t
   );
-end entity tx_mac_fsm;
+end entity can_mac_fsm_tx;
 
-architecture rtl of tx_mac_fsm is
+architecture rtl of can_mac_fsm_tx is
 
   ---------------------------------------------------------------------------
   -- Registered state signals (driven by fsm_sequential)
   ---------------------------------------------------------------------------
-  signal state                         : tx_mac_fsm_state_t;
-  signal prev_state                    : tx_mac_fsm_state_t;
+  signal state                         : can_mac_fsm_tx_state_t;
+  signal prev_state                    : can_mac_fsm_tx_state_t;
   signal bit_count                     : bit_count_t;
   signal fifo                          : transmitted_bits_fifo_t;
   signal fifo_write_ptr                : fifo_write_ptr_t;
@@ -106,7 +106,7 @@ begin
     variable sp_sample_strobe_v           : boolean;
 
     -- Registered next-value variables
-    variable v_state                         : tx_mac_fsm_state_t;
+    variable v_state                         : can_mac_fsm_tx_state_t;
     variable v_bit_count                     : bit_count_t;
     variable v_fifo                          : transmitted_bits_fifo_t;
     variable v_fifo_write_ptr                : fifo_write_ptr_t;
@@ -122,11 +122,11 @@ begin
     variable v_dominant_run_count            : integer range 0 to 15;
 
     -- Registered output next-value variables
-    variable v_mac_ser_o : tx_mac_fsm_to_ser_if_t;
-    variable v_pcs_o     : mac_to_pcs_if_t;
-    variable v_bs_fd_o   : mac_fsm_to_bs_fd_if_t;
-    variable v_crc_o     : mac_fsm_to_crc_if_t;
-    variable v_fce_o     : mac_to_fce_if_t;
+    variable v_mac_ser_o : can_mac_ser_fsm_tx_if_d2s_t;
+    variable v_pcs_o     : can_mac_pcs_tx_if_s2d_t;
+    variable v_bs_fd_o   : can_mac_fsm_bs_tx_if_s2d_t;
+    variable v_crc_o     : can_mac_fsm_crc_tx_if_s2d_t;
+    variable v_fce_o     : can_mac_fce_if_s2d_t;
 
     -- Handles logic common to quiet states:
     -- entry-side interface reset/deassertion and SP-based idle-run counting.

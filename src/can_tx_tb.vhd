@@ -2,10 +2,10 @@
 -- Title      : CAN Transmitter Integration Testbench
 -- Project    : CAN Bus Transmitter
 --------------------------------------------------------------------------------
--- File       : tx_can_tb.vhd
+-- File       : can_tx_tb.vhd
 -- Standard   : VHDL-2008
 --------------------------------------------------------------------------------
--- Description: Integration testbench for tx_can top-level entity.
+-- Description: Integration testbench for can_tx top-level entity.
 --              Tests full transmit path: LLC user request -> bus output.
 --
 -- Test scenarios:
@@ -31,17 +31,17 @@ library ieee;
 library osvvm;
   use osvvm.AlertLogPkg.all;
 
-entity tx_can_tb is
-end entity tx_can_tb;
+entity can_tx_tb is
+end entity can_tx_tb;
 
-architecture tb of tx_can_tb is
+architecture tb of can_tx_tb is
 
   -- Clock and reset
   constant clk_period_c : time := 10 ns; -- 100 MHz
   signal clk : std_logic := '0';
   signal rst : std_logic := '1';
 
-  -- Bit timing constants (matching tx_can defaults)
+  -- Bit timing constants (matching can_tx defaults)
   constant nom_prescaler_c  : integer := 4;
   constant nom_sync_seg_c   : integer := 1;
   constant nom_prop_seg_c   : integer := 24;
@@ -52,18 +52,18 @@ architecture tb of tx_can_tb is
   constant nom_sp_tq_c : integer := nom_sync_seg_c + nom_prop_seg_c + nom_phase_seg1_c; -- 40 TQ
 
   -- DUT signals
-  signal llc_user_i : llc_user_to_llc_if_t;
-  signal llc_user_o : llc_to_llc_user_if_t;
+  signal llc_user_i : can_user_llc_tx_if_s2d_t;
+  signal llc_user_o : can_user_llc_tx_if_d2s_t;
   signal transfer_status_dbg : transfer_status_t;
   signal tx_ready_dbg        : std_logic;
-  signal fce_i      : fce_to_mac_if_t;
-  signal fce_o      : mac_to_fce_if_t;
+  signal fce_i      : can_mac_fce_if_d2s_t;
+  signal fce_o      : can_mac_fce_if_s2d_t;
   signal tx_bus_o   : std_logic;
   signal rx_bus_i   : std_logic;
 
   -- Debug signals from DUT
-  signal debug_mac_to_pcs : mac_to_pcs_if_t;
-  signal debug_pcs_to_mac : pcs_to_mac_if_t;
+  signal debug_mac_to_pcs : can_mac_pcs_tx_if_s2d_t;
+  signal debug_pcs_to_mac : can_mac_pcs_tx_if_d2s_t;
 
   -- Bus model control
   signal inject_ack   : boolean := true;
@@ -94,7 +94,7 @@ architecture tb of tx_can_tb is
   constant test_14_c   : integer := 14;
   constant test_done_c : integer := 15;
   -- FSM state observation via debug port
-  signal fsm_state : tx_mac_fsm_state_t;
+  signal fsm_state : can_mac_fsm_tx_state_t;
 
   -- Bitstream capture buffers (raw bus stream can include stuffed bits)
   constant max_raw_bits_c : integer := max_mac_frame_length_c * 2;
@@ -105,7 +105,7 @@ begin
   clk <= not clk after clk_period_c / 2 when not test_done;
 
   -- DUT instantiation
-  dut : entity work.tx_can
+  dut : entity work.can_tx
     port map (
       clk        => clk,
       rst        => rst,
@@ -131,12 +131,12 @@ begin
   transfer_status_dbg <= llc_user_o.transfer_status;
   tx_ready_dbg        <= llc_user_o.avalon_st_sink.ready;
 
-  -- fsm_state is driven via the debug_fsm_state_o port from tx_can.
+  -- fsm_state is driven via the debug_fsm_state_o port from can_tx.
 
   p_state_log : process (fsm_state) is
   begin
     if (fsm_state'event) then
-      Log(GetAlertLogID("tx_can_tb"), "FSM State transition to: " & tx_mac_fsm_state_t'image(fsm_state));
+      Log(GetAlertLogID("can_tx_tb"), "FSM State transition to: " & can_mac_fsm_tx_state_t'image(fsm_state));
     end if;
   end process p_state_log;
 
@@ -222,7 +222,7 @@ begin
       end loop;
     end procedure send_user_byte;
 
-    -- Helper: stream frame as 71-byte legacy LLC format to tx_llc(legacy_rtl).
+    -- Helper: stream frame as 71-byte legacy LLC format to can_llc_tx(legacy_rtl).
     --
     -- Legacy layout (71 bytes):
     --   Bytes 0-3:  ID (right-aligned; CB/FB=11-bit in bytes 2-3, CE/FE=29-bit in bytes 0-3)
@@ -364,7 +364,7 @@ begin
 
     -- Helper: wait until FSM enters target state with timeout
     procedure wait_for_fsm_state (
-      target    : tx_mac_fsm_state_t;
+      target    : can_mac_fsm_tx_state_t;
       timeout   : time;
       test_name : string
     ) is
@@ -378,7 +378,7 @@ begin
         end if;
       end loop;
       Alert(alert_id, test_name & ": FSM state TIMEOUT waiting for "
-        & tx_mac_fsm_state_t'image(target) & " after " & time'image(timeout));
+        & can_mac_fsm_tx_state_t'image(target) & " after " & time'image(timeout));
     end procedure wait_for_fsm_state;
 
     -- Helper: wait until sample strobe occurs with timeout
@@ -478,7 +478,7 @@ begin
 
   begin
 
-    alert_id := GetAlertLogID("tx_can_tb");
+    alert_id := GetAlertLogID("can_tx_tb");
 
     -- Initialize inputs
     llc_user_i.avalon_st_source.data   <= (others => '0');
@@ -538,14 +538,14 @@ begin
 
 
     -- Send partial legacy frame (first ID byte only), then abort.
-    -- tx_llc(legacy_rtl) is in capture_frame state buffering legacy bytes.
+    -- can_llc_tx(legacy_rtl) is in capture_frame state buffering legacy bytes.
     -- When abort_request is asserted during capture_frame, it resets
     -- its buffer and reflects aborted status back to the user.
     send_user_byte("00000" & frame_v.id(10 downto 8), '1', '0');
     llc_user_i.avalon_st_source.valid <= '0';
     llc_user_i.avalon_st_source.sop   <= '0';
 
-    -- Pulse abort: tx_llc sees this during capture_frame and signals aborted.
+    -- Pulse abort: can_llc_tx sees this during capture_frame and signals aborted.
     -- Transfer_status = aborted is visible for exactly one registered clock cycle.
     llc_user_i.abort_request <= '1';
     wait until rising_edge(clk);   -- T: abort_request is sampled by adapter
@@ -579,7 +579,7 @@ begin
     submit_frame(frame_v);
 
     -- Wait for SOF to confirm MAC is actively transmitting (past the point
-    -- where abort would be accepted). tx_llc(legacy_rtl) buffers the full
+    -- where abort would be accepted). can_llc_tx(legacy_rtl) buffers the full
     -- 71-byte legacy frame before converting and streaming to MAC, so we
     -- need to wait for the frame to actually reach the MAC before aborting.
     wait_for_sof(200 us, "Test 3 SOF");

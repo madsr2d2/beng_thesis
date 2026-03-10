@@ -6,10 +6,10 @@
 -- Standard   : VHDL-2008
 --------------------------------------------------------------------------------
 -- Description: Top-level MAC transmitter wrapper. Instantiates and wires:
---   - tx_mac_ser:    LLC byte serializer (LLC → polarity_t stream)
---   - tx_mac_fsm: Frame transmission FSM (coordinator)
---   - bit_stuffer_fd: CAN FD bit stuffing with SBC generation
---   - crc_fd: CRC engine interface
+--   - can_mac_ser_tx:    LLC byte serializer (LLC → polarity_t stream)
+--   - can_mac_fsm_tx: Frame transmission FSM (coordinator)
+--   - can_mac_bs_tx: CAN FD bit stuffing with SBC generation
+--   - can_mac_crc_tx: CRC engine interface
 --------------------------------------------------------------------------------
 
 library ieee;
@@ -19,58 +19,58 @@ library ieee;
   use work.can_protocol_pkg.all;
   use work.can_timing_pkg.all;
 
-entity mac_tx is
+entity can_mac_tx is
   port (
     clk : in    std_logic;
     rst : in    std_logic;
 
     -- LLC interface (Logical Link Control)
-    llc_i : in    llc_to_mac_if_t;
-    llc_o : out   mac_to_llc_if_t;
+    llc_i : in    can_llc_mac_tx_if_s2d_t;
+    llc_o : out   can_llc_mac_tx_if_d2s_t;
 
     -- PCS interface (Physical Coding Sublayer)
-    pcs_i : in    pcs_to_mac_if_t;
-    pcs_o : out   mac_to_pcs_if_t;
+    pcs_i : in    can_mac_pcs_tx_if_d2s_t;
+    pcs_o : out   can_mac_pcs_tx_if_s2d_t;
 
     -- Fault Confinement Entity interface
-    fce_i : in    fce_to_mac_if_t;
-    fce_o : out   mac_to_fce_if_t;
+    fce_i : in    can_mac_fce_if_d2s_t;
+    fce_o : out   can_mac_fce_if_s2d_t;
 
     -- Debug interface (monitoring internal MAC/PCS handshake)
-    debug_mac_to_pcs_o  : out mac_to_pcs_if_t;
-    debug_pcs_to_mac_o  : out pcs_to_mac_if_t;
+    debug_mac_to_pcs_o  : out can_mac_pcs_tx_if_s2d_t;
+    debug_pcs_to_mac_o  : out can_mac_pcs_tx_if_d2s_t;
     debug_ack_error_o   : out boolean;
     debug_form_error_o  : out boolean;
     debug_data_exit_o   : out boolean;
-    debug_fsm_state_o   : out tx_mac_fsm_state_t
+    debug_fsm_state_o   : out can_mac_fsm_tx_state_t
   );
-end entity mac_tx;
+end entity can_mac_tx;
 
-architecture rtl of mac_tx is
+architecture rtl of can_mac_tx is
 
   ---------------------------------------------------------------------------
   -- Internal signals
   ---------------------------------------------------------------------------
   -- Serializer <-> FSM
-  signal ser_to_fsm : tx_mac_ser_to_fsm_if_t;
-  signal fsm_to_ser : tx_mac_fsm_to_ser_if_t;
+  signal ser_to_fsm : can_mac_ser_fsm_tx_if_s2d_t;
+  signal fsm_to_ser : can_mac_ser_fsm_tx_if_d2s_t;
 
   -- FSM <-> bit stuffer FD
-  signal fsm_to_bs_fd : mac_fsm_to_bs_fd_if_t;
-  signal bs_fd_to_fsm : bs_fd_to_mac_fsm_if_t;
+  signal fsm_to_bs_fd : can_mac_fsm_bs_tx_if_s2d_t;
+  signal bs_fd_to_fsm : can_mac_fsm_bs_tx_if_d2s_t;
 
   -- FSM <-> CRC
-  signal fsm_to_crc : mac_fsm_to_crc_if_t;
-  signal crc_to_fsm : crc_to_mac_fsm_if_t;
+  signal fsm_to_crc : can_mac_fsm_crc_tx_if_s2d_t;
+  signal crc_to_fsm : can_mac_fsm_crc_tx_if_d2s_t;
 
 
 begin
 
   -- =========================================================================
-  -- tx_mac_ser: LLC byte serializer
+  -- can_mac_ser_tx: LLC byte serializer
   -- Converts Avalon-ST LLC bytes to serial polarity_t stream + frame_params
   -- =========================================================================
-  tx_mac_ser_inst : entity work.tx_mac_ser
+  tx_mac_ser_inst : entity work.can_mac_ser_tx
     port map (
       clk_i        => clk,
       rst_i        => rst,
@@ -81,10 +81,10 @@ begin
     );
 
   -- =========================================================================
-  -- tx_mac_fsm: Frame transmission FSM
+  -- can_mac_fsm_tx: Frame transmission FSM
   -- Coordinates serializer, bit stuffer, and PCS
   -- =========================================================================
-  tx_mac_fsm_inst : entity work.tx_mac_fsm
+  tx_mac_fsm_inst : entity work.can_mac_fsm_tx
     port map (
       clk_i     => clk,
       rst_i     => rst,
@@ -105,10 +105,10 @@ begin
     );
 
   -- =========================================================================
-  -- bit_stuffer_fd: CAN FD bit stuffing with SBC generation
+  -- can_mac_bs_tx: CAN FD bit stuffing with SBC generation
   -- Inserts stuff bits per CAN protocol rules
   -- =========================================================================
-  bit_stuffer_fd_inst : entity work.bit_stuffer_fd
+  bit_stuffer_fd_inst : entity work.can_mac_bs_tx
     port map (
       clk_i   => clk,
       rst_i     => rst,
@@ -117,9 +117,9 @@ begin
     );
 
   -- =========================================================================
-  -- crc_fd: CRC engine
+  -- can_mac_crc_tx: CRC engine
   -- =========================================================================
-  crc_fd_inst : entity work.crc_fd
+  crc_fd_inst : entity work.can_mac_crc_tx
     port map (
       clk_i => clk,
       rst_i => rst,

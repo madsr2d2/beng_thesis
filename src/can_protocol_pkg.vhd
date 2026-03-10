@@ -46,7 +46,7 @@ package can_protocol_pkg is
   -- Calculates the next logical bit to be transmitted per protocol state.
   function get_next_mac_frame_bit (
     bit_count         : position_t;
-    mac_ser_to_fsm    : tx_mac_ser_to_fsm_if_t;
+    mac_ser_to_fsm    : can_mac_ser_fsm_tx_if_s2d_t;
     previous_polarity : polarity_t;
     sbc               : sbc_t;
     crc               : crc_vector_t
@@ -421,7 +421,7 @@ package body can_protocol_pkg is
   procedure extract_arbitration_field (
     bit_count      : in position_t;
     frame_params   : in frame_params_t;
-    mac_ser_to_fsm : in tx_mac_ser_to_fsm_if_t;
+    mac_ser_to_fsm : in can_mac_ser_fsm_tx_if_s2d_t;
     result         : out mac_frame_bit_t;
     found          : out boolean
   ) is
@@ -517,7 +517,7 @@ package body can_protocol_pkg is
   procedure extract_data_field (
     bit_count      : in position_t;
     frame_params   : in frame_params_t;
-    mac_ser_to_fsm : in tx_mac_ser_to_fsm_if_t;
+    mac_ser_to_fsm : in can_mac_ser_fsm_tx_if_s2d_t;
     result         : out mac_frame_bit_t;
     found          : out boolean
   ) is
@@ -616,7 +616,7 @@ package body can_protocol_pkg is
 
   function get_next_mac_frame_bit (
     bit_count    : position_t;
-    mac_ser_to_fsm : tx_mac_ser_to_fsm_if_t;
+    mac_ser_to_fsm : can_mac_ser_fsm_tx_if_s2d_t;
     previous_polarity : polarity_t;
     sbc : sbc_t;
     crc : crc_vector_t

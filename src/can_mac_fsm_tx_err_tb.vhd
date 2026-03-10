@@ -2,7 +2,7 @@
 -- Title      : TX Error Detection Testbench
 -- Project    : CAN Bus Transmitter
 --------------------------------------------------------------------------------
--- File       : tx_error_detection_tb.vhd
+-- File       : can_mac_fsm_tx_err_tb.vhd
 -- Standard   : VHDL-2008
 --------------------------------------------------------------------------------
 -- Description: Comprehensive testbench for error detection requirements
@@ -64,7 +64,7 @@
 --    - fsm_state_monitor : Tracks FSM transitions
 --
 -- 9. Architecture Connections
---    - DUT instantiation (tx_can)
+--    - DUT instantiation (can_tx)
 --    - Clock generation
 --    - Bus loopback model
 --    - Force-accessible signals for debugging
@@ -84,7 +84,7 @@
 --    constant my_error_injection_c : error_injection_t := (...);
 --
 -- 3. Create test procedure in Section 7:
---    procedure run_test_my_error (signal llc_i : out llc_user_to_llc_if_t; ...);
+--    procedure run_test_my_error (signal llc_i : out can_user_llc_tx_if_s2d_t; ...);
 --    - Follow the pattern of run_test_ack_error_detection()
 --    - Log test start, setup, monitoring, results
 --    - Return via log_test_result()
@@ -98,7 +98,7 @@
 -- DEBUGGING TIPS
 -- ============================================================================
 -- 1. View waveform:
---    gtkwave sim/tx_error_detection_tb.ghw gtk_wave/tx_error_detection_tb.gtkw
+--    gtkwave sim/can_mac_fsm_tx_err_tb.ghw gtk_wave/can_mac_fsm_tx_err_tb.gtkw
 --
 -- 2. Key signals to monitor:
 --    - debug_mac_to_pcs.data.bit_name : Current frame bit position
@@ -132,7 +132,7 @@ library osvvm;
   use osvvm.AlertLogPkg.all;
   use osvvm.RandomPkg.all;
 
-entity tx_error_detection_tb is
+entity can_mac_fsm_tx_err_tb is
   generic (
     nom_prescaler                   : integer := 2;
     nom_sync_seg                    : integer := 1;
@@ -148,9 +148,9 @@ entity tx_error_detection_tb is
     system_clock_freq_hz            : integer := 100_000_000;
     pcs_to_pma_propagation_delay_ns : integer := 600
   );
-end entity tx_error_detection_tb;
+end entity can_mac_fsm_tx_err_tb;
 
-architecture testbench of tx_error_detection_tb is
+architecture testbench of can_mac_fsm_tx_err_tb is
 
   -- ============================================================================
   -- SECTION 2: Type Definitions & Constants for Test Management
@@ -269,12 +269,12 @@ architecture testbench of tx_error_detection_tb is
   signal rst : std_logic := '1';
 
   -- LLC user interface
-  signal llc_user_i : llc_user_to_llc_if_t;
-  signal llc_user_o : llc_to_llc_user_if_t;
+  signal llc_user_i : can_user_llc_tx_if_s2d_t;
+  signal llc_user_o : can_user_llc_tx_if_d2s_t;
 
   -- Fault Confinement Entity
-  signal fce_i : fce_to_mac_if_t;
-  signal fce_o : mac_to_fce_if_t;
+  signal fce_i : can_mac_fce_if_d2s_t;
+  signal fce_o : can_mac_fce_if_s2d_t;
 
   -- Physical bus (with configurable override for testing)
   signal tx_bus : std_logic;
@@ -285,15 +285,15 @@ architecture testbench of tx_error_detection_tb is
   signal passive_rx_bus       : std_logic := '1'; -- Passive receiver ACK
 
   -- Debug interface
-  signal debug_mac_to_pcs : mac_to_pcs_if_t;
-  signal debug_pcs_to_mac : pcs_to_mac_if_t;
+  signal debug_mac_to_pcs : can_mac_pcs_tx_if_s2d_t;
+  signal debug_pcs_to_mac : can_mac_pcs_tx_if_d2s_t;
   signal debug_strobe_type : strobe_type_t;
   signal debug_ack_error : boolean;
   signal debug_form_error : boolean;
   signal debug_current_bit_rate : std_logic;
   signal debug_data_phase_active : boolean;
   signal debug_data_phase_exit : boolean;
-  signal debug_tdc_state : tx_pcs_fsm_state_t;
+  signal debug_tdc_state : can_pcs_tx_state_t;
   signal debug_tdc_delay : integer;
   signal debug_ipt_active : boolean;
   signal debug_phase_seg2_active : boolean;
@@ -318,7 +318,7 @@ architecture testbench of tx_error_detection_tb is
   signal transfer_status_changes : integer := 0;
 
   -- Debug: track FSM state (via force-accessible)
-  signal fsm_state : tx_mac_fsm_state_t;
+  signal fsm_state : can_mac_fsm_tx_state_t;
 
   -- Test helpers
   -- ============================================================================
@@ -497,7 +497,7 @@ architecture testbench of tx_error_detection_tb is
   end function generate_llc_frame;
 
   procedure send_frame (
-    signal llc_i : out llc_user_to_llc_if_t;
+    signal llc_i : out can_user_llc_tx_if_s2d_t;
     signal clk : in std_logic;
     frame : in llc_frame_t
   ) is
@@ -598,7 +598,7 @@ architecture testbench of tx_error_detection_tb is
   -- ============================================================================
 
   procedure run_test_ack_error_detection (
-    signal llc_i : out llc_user_to_llc_if_t;
+    signal llc_i : out can_user_llc_tx_if_s2d_t;
     signal clk : in std_logic
   ) is
     variable test_start_time : time;
@@ -661,7 +661,7 @@ architecture testbench of tx_error_detection_tb is
   -- Injects opposite polarity during data phase to trigger bit error detection
 
   procedure run_test_bit_error_injection (
-    signal llc_i : out llc_user_to_llc_if_t;
+    signal llc_i : out can_user_llc_tx_if_s2d_t;
     signal clk : in std_logic;
     signal bus_override : out std_logic;
     signal bus_override_en : out boolean;
@@ -760,7 +760,7 @@ architecture testbench of tx_error_detection_tb is
   -- before error flag transmission
 
   procedure run_test_data_phase_bit_rate_switching (
-    signal llc_i : out llc_user_to_llc_if_t;
+    signal llc_i : out can_user_llc_tx_if_s2d_t;
     signal clk : in std_logic;
     signal bus_override : out std_logic;
     signal bus_override_en : out boolean;
@@ -842,7 +842,7 @@ architecture testbench of tx_error_detection_tb is
     log("  [ANALYSIS] Test completed", ALWAYS);
     log("  Result: [DIAGNOSTIC] Bit rate switching monitored via debug_current_bit_rate signal", ALWAYS);
     log("  Note: Detailed verification requires waveform inspection (GHW file)", ALWAYS);
-    log("  Check: tx_pcs.vhd switches bit_rate_config from data->nominal on error", ALWAYS);
+    log("  Check: can_pcs_tx.vhd switches bit_rate_config from data->nominal on error", ALWAYS);
 
     log("  Duration: " & time'image(test_duration), ALWAYS);
     log("", ALWAYS);
@@ -857,7 +857,7 @@ architecture testbench of tx_error_detection_tb is
   -- Ensures clean phase transitions during error recovery per ISO 6.6.21.3.1
 
   procedure run_test_fd_phase_completion (
-    signal llc_i : out llc_user_to_llc_if_t;
+    signal llc_i : out can_user_llc_tx_if_s2d_t;
     signal clk : in std_logic;
     signal bus_override : out std_logic;
     signal bus_override_en : out boolean;
@@ -958,7 +958,7 @@ architecture testbench of tx_error_detection_tb is
   -- Ensures robust TDC error validation per ISO 6.6.21.3.1
 
   procedure run_test_tdc_error_at_ssp (
-    signal llc_i : out llc_user_to_llc_if_t;
+    signal llc_i : out can_user_llc_tx_if_s2d_t;
     signal clk : in std_logic;
     signal bus_override : out std_logic;
     signal bus_override_en : out boolean;
@@ -1062,7 +1062,7 @@ architecture testbench of tx_error_detection_tb is
   -- Demonstrates random frame generation for coverage-driven testing
 
   procedure run_test_constraint_random_verification (
-    signal llc_i : out llc_user_to_llc_if_t;
+    signal llc_i : out can_user_llc_tx_if_s2d_t;
     signal clk : in std_logic
   ) is
     variable test_start_time : time;
@@ -1119,7 +1119,7 @@ architecture testbench of tx_error_detection_tb is
   end procedure run_test_constraint_random_verification;
 
   procedure run_test_tdc_error_timing_sequence (
-    signal llc_i : out llc_user_to_llc_if_t;
+    signal llc_i : out can_user_llc_tx_if_s2d_t;
     signal clk : in std_logic;
     signal bus_override : out std_logic;
     signal bus_override_en : out boolean;
@@ -1225,7 +1225,7 @@ architecture testbench of tx_error_detection_tb is
   -- Verifies that, after an FD data-phase error, the first error-flag bit is
   -- transmitted only after timing has returned to nominal.
   procedure run_test_fd_error_flag_first_bit_deferred (
-    signal llc_i : out llc_user_to_llc_if_t;
+    signal llc_i : out can_user_llc_tx_if_s2d_t;
     signal clk : in std_logic;
     signal bus_override : out std_logic;
     signal bus_override_en : out boolean;
@@ -1246,7 +1246,7 @@ architecture testbench of tx_error_detection_tb is
     variable ef_dom_count_v : integer := 0;
     variable ef_delim_seen_v : boolean := false;
     variable bit_rate_at_pcs_ef_v : std_logic := '1';
-    variable pcs_state_at_pcs_ef_v : tx_pcs_fsm_state_t := idle;
+    variable pcs_state_at_pcs_ef_v : can_pcs_tx_state_t := idle;
   begin
     log("", ALWAYS);
     log("Test 7: FD EF First Bit Deferred Until Nominal (REQ-TX-EH008)", ALWAYS);
@@ -1378,7 +1378,7 @@ architecture testbench of tx_error_detection_tb is
 begin
 
   -- Instantiate DUT
-  dut : entity work.tx_can
+  dut : entity work.can_tx
     port map (
       clk                => clk,
       rst                => rst,
@@ -1423,7 +1423,7 @@ begin
             tx_bus after propagation_delay_c;
 
   -- Force-accessible access to FSM internals (VHDL 2008)
-  fsm_state <= << signal dut.mac_tx_inst.tx_mac_fsm_inst.state : tx_mac_fsm_state_t >>;
+  fsm_state <= << signal dut.mac_tx_inst.tx_mac_fsm_inst.state : can_mac_fsm_tx_state_t >>;
   pcs_current_bit <= << signal dut.tx_pcs_inst.current_bit : mac_frame_bit_t >>;
 
   -- ============================================================================
@@ -1496,8 +1496,8 @@ begin
     log("", ALWAYS);
     log("================================================================================", ALWAYS);
     log("  All Tests Complete", ALWAYS);
-    log("  Waveform saved to: sim/tx_error_detection_tb.ghw", ALWAYS);
-    log("  View with: gtkwave sim/tx_error_detection_tb.ghw gtk_wave/tx_error_detection_tb.gtkw", ALWAYS);
+    log("  Waveform saved to: sim/can_mac_fsm_tx_err_tb.ghw", ALWAYS);
+    log("  View with: gtkwave sim/can_mac_fsm_tx_err_tb.ghw gtk_wave/can_mac_fsm_tx_err_tb.gtkw", ALWAYS);
     log("================================================================================", ALWAYS);
     log("", ALWAYS);
 

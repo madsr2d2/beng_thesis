@@ -2,11 +2,11 @@
 -- Title      : CAN TX Protocol Testbench
 -- Project    : CAN Bus Transmitter
 --------------------------------------------------------------------------------
--- File       : tx_can_protocol_tb.vhd
+-- File       : can_tx_protocol_tb.vhd
 -- Standard   : VHDL-2008
 --------------------------------------------------------------------------------
 -- Description: Protocol-focused TX integration testbench.
---              Keeps handshake smoke checks in tx_can_tb and concentrates here
+--              Keeps handshake smoke checks in can_tx_tb and concentrates here
 --              on logical frame correctness on the observed bus stream.
 --
 -- Scope in this bench:
@@ -24,10 +24,10 @@ library ieee;
 library osvvm;
   use osvvm.AlertLogPkg.all;
 
-entity tx_can_protocol_tb is
-end entity tx_can_protocol_tb;
+entity can_tx_protocol_tb is
+end entity can_tx_protocol_tb;
 
-architecture tb of tx_can_protocol_tb is
+architecture tb of can_tx_protocol_tb is
 
   ------------------------------------------------------------------------------
   -- Clock/reset
@@ -38,7 +38,7 @@ architecture tb of tx_can_protocol_tb is
   signal test_done : boolean := false;
 
   ------------------------------------------------------------------------------
-  -- Timing constants (match tx_can defaults)
+  -- Timing constants (match can_tx defaults)
   ------------------------------------------------------------------------------
   constant nom_prescaler_c  : integer := 4;
   constant nom_sync_seg_c   : integer := 1;
@@ -51,10 +51,10 @@ architecture tb of tx_can_protocol_tb is
   ------------------------------------------------------------------------------
   -- DUT interfaces
   ------------------------------------------------------------------------------
-  signal llc_user_i : llc_user_to_llc_if_t;
-  signal llc_user_o : llc_to_llc_user_if_t;
-  signal fce_i      : fce_to_mac_if_t;
-  signal fce_o      : mac_to_fce_if_t;
+  signal llc_user_i : can_user_llc_tx_if_s2d_t;
+  signal llc_user_o : can_user_llc_tx_if_d2s_t;
+  signal fce_i      : can_mac_fce_if_d2s_t;
+  signal fce_o      : can_mac_fce_if_s2d_t;
   signal tx_bus_o   : std_logic;
   signal rx_bus_i   : std_logic;
 
@@ -82,7 +82,7 @@ begin
 
   clk <= not clk after clk_period_c / 2 when not test_done;
 
-  dut : entity work.tx_can
+  dut : entity work.can_tx
     port map (
       clk        => clk,
       rst        => rst,
@@ -116,7 +116,7 @@ begin
     variable ack_inject_hold_bits_v : integer range 0 to 1;
     variable req_id_v : integer;
   begin
-    alert_id := GetAlertLogID("tx_can_protocol_tb/checker");
+    alert_id := GetAlertLogID("can_tx_protocol_tb/checker");
     wait until rst = '0';
 
     loop
@@ -367,7 +367,7 @@ begin
     end procedure run_classic_protocol_test;
 
   begin
-    alert_id := GetAlertLogID("tx_can_protocol_tb");
+    alert_id := GetAlertLogID("can_tx_protocol_tb");
     SetLogEnable(INFO, true);
     SetLogEnable(PASSED, true);
 
@@ -408,7 +408,7 @@ begin
     frame_v.data(max_data_bytes_c * byte_width_c - 9 downto max_data_bytes_c * byte_width_c - 16) := x"34";
     run_classic_protocol_test("Test 2: CC extended data frame protocol check", frame_v);
 
-    Log(alert_id, "All tx_can protocol tests completed", PASSED);
+    Log(alert_id, "All can_tx protocol tests completed", PASSED);
     ReportAlerts;
     test_done <= true;
     wait;
