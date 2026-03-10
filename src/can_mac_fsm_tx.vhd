@@ -681,7 +681,8 @@ begin
               -- Reset all handshake signals once we reach bus_idle.
               v_mac_ser_o := tx_mac_fsm_to_ser_if_reset_c;
             end if;
-            if (mac_ser_i.valid and sp_sample_strobe_v) then
+            -- ISO 11898-1: 8.1.4.1 - bus_off nodes shall not initiate transmissions
+            if (mac_ser_i.valid and sp_sample_strobe_v and not fce_i.bus_off) then
               v_state := transmitting_frame;
             end if;
 

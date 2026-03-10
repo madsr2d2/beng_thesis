@@ -683,6 +683,39 @@ package can_types_pkg is
   -- Fault Confinement Entity -> MAC
   type can_mac_fce_if_d2s_t is record
     error_passive : boolean; -- true = error-passive node, false = error-active
+    bus_off       : boolean; -- true = bus-off state, no transmission allowed
   end record can_mac_fce_if_d2s_t;
+
+  constant fce_to_mac_if_reset_c : can_mac_fce_if_d2s_t :=
+  (
+    error_passive => false,
+    bus_off       => false
+  );
+
+  -- FCE state enumeration (ISO 11898-1:2015 Section 8.1.4)
+  type fce_state_t is (
+    error_active,
+    error_passive,
+    bus_off
+  );
+
+  -- User -> FCE control interface
+  type can_fce_ctrl_t is record
+    restart_request          : boolean; -- Pulse for bus-off recovery
+    error_signalling_enabled : boolean; -- ISO 8.1.4.1: FCE only active when enabled
+  end record can_fce_ctrl_t;
+
+  constant fce_ctrl_reset_c : can_fce_ctrl_t :=
+  (
+    restart_request          => false,
+    error_signalling_enabled => true
+  );
+
+  -- FCE status (debug/monitoring)
+  type can_fce_status_t is record
+    state : fce_state_t;
+    tec   : integer range 0 to 511;
+    rec   : integer range 0 to 255;
+  end record can_fce_status_t;
 
 end package can_types_pkg;

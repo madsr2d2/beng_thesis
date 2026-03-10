@@ -128,6 +128,7 @@ begin
 
   -- FCE: error-active node (not error-passive)
   fce_i.error_passive <= false;
+  fce_i.bus_off       <= false;
   transfer_status_dbg <= llc_user_o.transfer_status;
   tx_ready_dbg        <= llc_user_o.avalon_st_sink.ready;
 

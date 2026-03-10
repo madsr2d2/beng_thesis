@@ -103,6 +103,7 @@ begin
     wait for 20 * clk_period;
 
     fce_i.error_passive <= false;
+    fce_i.bus_off       <= false;
     llc_user_i.avalon_st_source.valid <= '0';
     rx_bus <= '1';  -- Keep bus recessive (no ACKs from receivers)
 

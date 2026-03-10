@@ -65,6 +65,10 @@ architecture tb of can_tx_protocol_tb is
   signal bus_override    : std_logic := recessive_bit_c;
   signal bus_override_en : boolean := false;
 
+  -- Debug signals for ACK injection timing
+  signal debug_mac_to_pcs : can_mac_pcs_tx_if_s2d_t;
+  signal debug_pcs_to_mac : can_mac_pcs_tx_if_d2s_t;
+
   ------------------------------------------------------------------------------
   -- Protocol checker control
   ------------------------------------------------------------------------------
@@ -84,19 +88,40 @@ begin
 
   dut : entity work.can_tx
     port map (
-      clk        => clk,
-      rst        => rst,
-      llc_user_i => llc_user_i,
-      llc_user_o => llc_user_o,
-      fce_i      => fce_i,
-      fce_o      => fce_o,
-      tx_bus_o   => tx_bus_o,
-      rx_bus_i   => rx_bus_i
+      clk                => clk,
+      rst                => rst,
+      llc_user_i         => llc_user_i,
+      llc_user_o         => llc_user_o,
+      fce_i              => fce_i,
+      fce_o              => fce_o,
+      tx_bus_o           => tx_bus_o,
+      rx_bus_i           => rx_bus_i,
+      debug_mac_to_pcs_o => debug_mac_to_pcs,
+      debug_pcs_to_mac_o => debug_pcs_to_mac
     );
 
   -- Loopback + optional ACK-slot override.
   rx_bus_i <= bus_override when bus_override_en else tx_bus_o;
   fce_i.error_passive <= false;
+  fce_i.bus_off       <= false;
+
+  ------------------------------------------------------------------------------
+  -- ACK injection: synchronized to DUT bit boundaries via debug signals
+  ------------------------------------------------------------------------------
+  ack_injector : process is
+  begin
+    wait until rst = '0';
+    loop
+      wait until rising_edge(clk);
+      if (inject_ack and debug_pcs_to_mac.sample_strobe = '1' and
+          debug_mac_to_pcs.valid and debug_mac_to_pcs.data.bit_name = crc_delimiter_bit) then
+        bus_override    <= dominant_bit_c;
+        bus_override_en <= true;
+        wait for nom_bit_time_clk_c * clk_period_c;
+        bus_override_en <= false;
+      end if;
+    end loop;
+  end process ack_injector;
 
   ------------------------------------------------------------------------------
   -- Protocol checker
@@ -113,7 +138,6 @@ begin
     variable last_polarity_v : std_logic;
     variable sampled_bit_v : std_logic;
     variable is_stuff_bit_v : boolean;
-    variable ack_inject_hold_bits_v : integer range 0 to 1;
     variable req_id_v : integer;
   begin
     alert_id := GetAlertLogID("can_tx_protocol_tb/checker");
@@ -135,19 +159,10 @@ begin
       last_polarity_v := dominant_bit_c;
       raw_bits_v(0) := dominant_bit_c;
       logical_bits_v(0) := dominant_bit_c;
-      ack_inject_hold_bits_v := 0;
-      bus_override_en <= false;
 
       for bit_idx in 1 to 260 loop
         if (raw_count_v >= max_raw_bits_c) then
           exit;
-        end if;
-
-        if (ack_inject_hold_bits_v > 0) then
-          bus_override_en <= true;
-          bus_override <= dominant_bit_c;
-        else
-          bus_override_en <= false;
         end if;
 
         wait for nom_bit_time_clk_c * clk_period_c;
@@ -176,16 +191,6 @@ begin
             consecutive_count_v := 1;
             last_polarity_v := sampled_bit_v;
           end if;
-        end if;
-
-        if (ack_inject_hold_bits_v > 0) then
-          bus_override_en <= false;
-          ack_inject_hold_bits_v := ack_inject_hold_bits_v - 1;
-        end if;
-
-        if (not is_stuff_bit_v and inject_ack and ack_inject_hold_bits_v = 0 and
-            frame_position_v = params_v.ack_slot) then
-          ack_inject_hold_bits_v := 1;
         end if;
 
         if (frame_position_v >= params_v.eof_stop - 1) then
@@ -256,42 +261,69 @@ begin
     ) is
       variable data_byte_count_v : integer;
       variable data_bit_start_v  : integer;
-      variable id_stream_v       : std_logic_vector(31 downto 0);
-      variable id3_v             : byte_t;
-      variable id2_v             : byte_t;
-      variable id1_v             : byte_t;
-      variable id0_v             : byte_t;
+      variable id_v              : std_logic_vector(28 downto 0);
+      variable is_extended_v     : boolean;
+      variable byte0_v           : byte_t;
+      variable byte1_v           : byte_t;
+      variable byte2_v           : byte_t;
+      variable byte3_v           : byte_t;
+      variable byte4_v           : byte_t;
+      variable byte69_v          : byte_t;
+      variable byte70_v          : byte_t;
     begin
+      -- Set config bytes for protocol checker (used by run_classic_protocol_test)
       config_0_v := frame.config_0.format & frame.config_0.ftyp & frame.config_0.esi & frame.config_0.brs & "00";
       config_1_v := frame.config_1.dlc & "0000";
-      data_byte_count_v := dlc_to_data_length(
-                             dlc_t(to_integer(unsigned(frame.config_1.dlc))),
-                             decode_llc_format(frame.config_0.format)
-                           );
-      id_stream_v := pack_llc_id_bytes(frame.id(28 downto 0), decode_llc_format(frame.config_0.format));
-      id3_v := id_stream_v(31 downto 24);
-      id2_v := id_stream_v(23 downto 16);
-      id1_v := id_stream_v(15 downto 8);
-      id0_v := id_stream_v(7 downto 0);
 
-      send_user_byte(config_0_v, '1', '0');
-      send_user_byte(config_1_v, '0', '0');
-      send_user_byte(id3_v, '0', '0');
-      send_user_byte(id2_v, '0', '0');
-      send_user_byte(id1_v, '0', '0');
-      if (data_byte_count_v = 0) then
-        send_user_byte(id0_v, '0', '1');
+      id_v          := frame.id(28 downto 0);
+      is_extended_v := frame.config_0.format(2) = '1';
+
+      -- Bytes 0-3: ID (right-aligned per legacy spec)
+      if (is_extended_v) then
+        byte0_v := "000" & id_v(28 downto 24);
+        byte1_v := id_v(23 downto 16);
+        byte2_v := id_v(15 downto 8);
+        byte3_v := id_v(7 downto 0);
       else
-        send_user_byte(id0_v, '0', '0');
-        for i in 0 to data_byte_count_v - 1 loop
-          data_bit_start_v := frame.data'left - i * 8;
-          if (i = data_byte_count_v - 1) then
-            send_user_byte(frame.data(data_bit_start_v downto data_bit_start_v - 7), '0', '1');
-          else
-            send_user_byte(frame.data(data_bit_start_v downto data_bit_start_v - 7), '0', '0');
-          end if;
-        end loop;
+        byte0_v := (others => '0');
+        byte1_v := (others => '0');
+        byte2_v := "00000" & id_v(10 downto 8);
+        byte3_v := id_v(7 downto 0);
       end if;
+
+      -- Byte 4: FMT and DLC
+      byte4_v := "0" & frame.config_0.format & frame.config_1.dlc;
+
+      -- Byte 69: IDE flag
+      byte69_v := "0000000" & frame.config_0.format(2);
+
+      -- Byte 70: BRS, ESI, RTR
+      byte70_v := "00000" & frame.config_0.brs & frame.config_0.esi & frame.config_0.ftyp;
+
+      data_byte_count_v := dlc_to_data_length(
+                              dlc_t(to_integer(unsigned(frame.config_1.dlc))),
+                              decode_llc_format(frame.config_0.format)
+                            );
+
+      -- Stream 71 legacy bytes: SOP on byte 0, EOP on byte 70
+      send_user_byte(byte0_v, '1', '0');
+      send_user_byte(byte1_v, '0', '0');
+      send_user_byte(byte2_v, '0', '0');
+      send_user_byte(byte3_v, '0', '0');
+      send_user_byte(byte4_v, '0', '0');
+
+      -- Bytes 5-68: data payload then zero-padding
+      for i in 0 to 63 loop
+        if (i < data_byte_count_v) then
+          data_bit_start_v := frame.data'left - i * 8;
+          send_user_byte(frame.data(data_bit_start_v downto data_bit_start_v - 7), '0', '0');
+        else
+          send_user_byte((others => '0'), '0', '0');
+        end if;
+      end loop;
+
+      send_user_byte(byte69_v, '0', '0');
+      send_user_byte(byte70_v, '0', '1'); -- EOP on last byte
 
       llc_user_i.avalon_st_source.valid <= '0';
       llc_user_i.avalon_st_source.sop   <= '0';

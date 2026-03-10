@@ -18,7 +18,8 @@ COMPONENTS = \
 	src/can_mac_bs_tx.vhd \
 	src/can_mac_crc_tx.vhd \
 	src/can_mac_ser_tx.vhd \
-	src/can_mac_fsm_tx.vhd
+	src/can_mac_fsm_tx.vhd \
+	src/can_fce.vhd
 
 # 3. Layer wrappers and Top-level
 LAYERS = \

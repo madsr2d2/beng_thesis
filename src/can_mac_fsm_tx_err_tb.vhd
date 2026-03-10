@@ -1453,6 +1453,7 @@ begin
     wait for 10 * clk_period;
 
     fce_i.error_passive <= false;  -- Error-active node
+    fce_i.bus_off       <= false;
     llc_user_i.avalon_st_source.valid <= '0';
     error_injection_flag <= '0';
 

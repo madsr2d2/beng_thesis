@@ -24,7 +24,7 @@ entity can_mac_bs_tx is
   );
   port (
     clk_i   : in    std_logic;
-    rst_i : in    std_logic;
+    rst_i   : in    std_logic;
     bs_fd_i : in    can_mac_fsm_bs_tx_if_s2d_t;
     bs_fd_o : out   can_mac_fsm_bs_tx_if_d2s_t
   );
