@@ -30,18 +30,21 @@ package can_types_pkg is
   ---------------------------------------------------------------------------
   -- 1. Protocol Constants
   ---------------------------------------------------------------------------
-  constant dominant_bit_c    : std_logic                     := '0';
-  constant recessive_bit_c   : std_logic                     := '1';
-  constant sof_c             : integer                       := 0;
-  constant crc_15_length_c   : integer                       := 15;
-  constant crc_17_length_c   : integer                       := 17;
-  constant crc_21_length_c   : integer                       := 21;
-  constant crc_poly_15_vec_c : std_logic_vector(15 downto 0) := x"C599";
-  constant crc_poly_17_vec_c : std_logic_vector(19 downto 0) := x"3685B";
-  constant crc_poly_21_vec_c : std_logic_vector(23 downto 0) := x"302899";
-  constant dlc_field_width_c : integer                       := 4;
-  constant sbc_field_width_c : integer                       := 4;
-  constant byte_width_c      : integer                       := 8;
+  constant dominant_bit_c    : std_logic                                      := '0';
+  constant recessive_bit_c   : std_logic                                      := '1';
+  constant sof_c             : integer                                        := 0;
+  constant crc_15_length_c   : integer                                        := 15;
+  constant crc_17_length_c   : integer                                        := 17;
+  constant crc_21_length_c   : integer                                        := 21;
+  constant crc_poly_15_vec_c : std_logic_vector(crc_15_length_c - 1 downto 0) := 15x"4599";
+  constant crc_poly_17_vec_c : std_logic_vector(crc_17_length_c - 1 downto 0) := 17x"1685B";
+  constant crc_poly_21_vec_c : std_logic_vector(crc_21_length_c - 1 downto 0) := 21x"102899";
+  constant crc_init_15_vec_c : std_logic_vector(crc_15_length_c - 1 downto 0) := (others => '0');
+  constant crc_init_17_vec_c : std_logic_vector(crc_17_length_c - 1 downto 0) := '1' & (crc_17_length_c - 2 downto 0 => '0');
+  constant crc_init_21_vec_c : std_logic_vector(crc_21_length_c - 1 downto 0) := '1' & (crc_21_length_c - 2 downto 0 => '0');
+  constant dlc_field_width_c : integer                                        := 4;
+  constant sbc_field_width_c : integer                                        := 4;
+  constant byte_width_c      : integer                                        := 8;
 
   -- Max frame: FD extended, DLC 15 -> eof_stop = 593.
   constant max_mac_frame_length_c        : integer := 640;
@@ -62,7 +65,6 @@ package can_types_pkg is
   ---------------------------------------------------------------------------
   -- 2. Bit Timing Configuration (ISO 11898-1 Table 13)
   ---------------------------------------------------------------------------
-
   -- Default reference clock used by timing helper calculations and tests.
   constant system_clock_freq_c : integer := 100_000_000; -- 100 MHz
   -- ISO 11898-1:2015 Section 7.3.3 Table 13
@@ -81,7 +83,6 @@ package can_types_pkg is
   ---------------------------------------------------------------------------
   -- 3. Core Enumerations
   ---------------------------------------------------------------------------
-
   type mac_frame_bit_name_t is (
     -- Flag bits
     active_error_flag_bit,
@@ -162,7 +163,6 @@ package can_types_pkg is
   ---------------------------------------------------------------------------
   -- 4. Scalar Subtypes
   ---------------------------------------------------------------------------
-
   subtype position_t is integer range 0 to max_mac_frame_length_c;
   subtype byte_t is std_logic_vector(byte_width_c - 1 downto 0);
   subtype dlc_t is integer range 0 to dlc_max_decimal_value;
@@ -173,7 +173,6 @@ package can_types_pkg is
   ---------------------------------------------------------------------------
   -- 5. Composite Frame Types
   ---------------------------------------------------------------------------
-
   type bit_t is record
     position : position_t;
     polarity : polarity_t;
@@ -299,7 +298,6 @@ package can_types_pkg is
   ---------------------------------------------------------------------------
   -- 6. FSM State Types
   ---------------------------------------------------------------------------
-
   type tx_mac_ser_state_t is (
     load_config_byte_0,
     load_config_byte_1,
@@ -642,6 +640,7 @@ package can_types_pkg is
   -- MAC FSM -> CRC
   type mac_fsm_to_crc_if_t is record
     crc_poly_select : std_logic_vector(1 downto 0);
+    start           : boolean;
     valid           : boolean;
     data            : std_logic;
   end record mac_fsm_to_crc_if_t;
@@ -649,6 +648,7 @@ package can_types_pkg is
   constant mac_fsm_to_crc_if_reset_c : mac_fsm_to_crc_if_t :=
   (
     crc_poly_select => (others => '0'),
+    start           => false,
     valid           => false,
     data            => '0'
   );

@@ -9,7 +9,10 @@
 --              Instantiates dedicated engines for CRC15, CRC17, and CRC21
 --              and selects the appropriate output based on frame configuration.
 --
--- Note       : Currently utilizes dummy entities for architectural validation.
+-- Note       : Currently utilises a dummy gen_crc entity that mirrors the
+--              interface of the legacy gen_crc CRC engine.  Replace the
+--              dummy_gen_crc architecture with the real implementation once
+--              the serial-input polynomial engine is available.
 --------------------------------------------------------------------------------
 
 library ieee;
@@ -18,64 +21,40 @@ library ieee;
   use work.can_types_pkg.all;
 
 --------------------------------------------------------------------------------
--- Dummy CRC Entities
+-- Dummy gen_crc Entity  (matches legacy gen_crc interface)
 --------------------------------------------------------------------------------
 
--- Dummy CRC15
 library ieee;
   use ieee.std_logic_1164.all;
-  use work.can_types_pkg.all;
-entity dummy_crc15 is
-  port (
-    clk_i : in    std_logic;
-    rst_i : in    std_logic;
-    valid : in    boolean;
-    data  : in    std_logic;
-    crc_o : out   crc_vector_t
-  );
-end entity dummy_crc15;
-architecture rtl of dummy_crc15 is
-begin
-  crc_o(14 downto 0) <= crc_poly_15_vec_c(14 downto 0);
-  crc_o(crc_o'left downto 15) <= (others => '0');
-end architecture;
 
--- Dummy CRC17
-library ieee;
-  use ieee.std_logic_1164.all;
-  use work.can_types_pkg.all;
-entity dummy_crc17 is
-  port (
-    clk_i : in    std_logic;
-    rst_i : in    std_logic;
-    valid : in    boolean;
-    data  : in    std_logic;
-    crc_o : out   crc_vector_t
+entity dummy_gen_crc is
+  generic (
+    gc_data_width  : integer                    := 1;
+    gc_crc_width   : integer                    := 15;
+    gc_crc_poly    : std_logic_vector           := b"100_0101_1001_1001";
+    gc_xor_value   : std_logic_vector           := (14 downto 0 => '0');
+    gc_crc_init    : std_logic_vector           := (14 downto 0 => '0');
+    gc_ref_input   : integer                    := 0;
+    gc_ref_output  : boolean                    := false
   );
-end entity dummy_crc17;
-architecture rtl of dummy_crc17 is
-begin
-  crc_o(19 downto 0) <= crc_poly_17_vec_c;
-  crc_o(crc_o'left downto 20) <= (others => '0');
-end architecture;
+  port (
+    clk_i        : in    std_logic;
+    reset_i      : in    std_logic;
+    start_crc_i  : in    std_logic;
+    data_i       : in    std_logic_vector(gc_data_width - 1 downto 0);
+    data_valid_i : in    std_logic;
+    crc_o        : out   std_logic_vector(gc_crc_width - 1 downto 0)
+  );
+end entity dummy_gen_crc;
 
--- Dummy CRC21
-library ieee;
-  use ieee.std_logic_1164.all;
-  use work.can_types_pkg.all;
-entity dummy_crc21 is
-  port (
-    clk_i : in    std_logic;
-    rst_i : in    std_logic;
-    valid : in    boolean;
-    data  : in    std_logic;
-    crc_o : out   crc_vector_t
-  );
-end entity dummy_crc21;
-architecture rtl of dummy_crc21 is
+architecture rtl of dummy_gen_crc is
 begin
-  crc_o <= crc_poly_21_vec_c;
-end architecture;
+
+  -- Stub: return the polynomial constant as a fixed CRC result.
+  -- Replace with real serial CRC engine once available.
+  crc_o <= gc_crc_poly(gc_crc_width - 1 downto 0);
+
+end architecture rtl;
 
 --------------------------------------------------------------------------------
 -- Main CRC Engine Wrapper
@@ -98,91 +77,127 @@ end entity crc_fd;
 architecture rtl of crc_fd is
 
   ---------------------------------------------------------------------------
-  -- Internal signals
+  -- Internal CRC output signals
   ---------------------------------------------------------------------------
-  signal crc15_out : crc_vector_t;
-  signal crc17_out : crc_vector_t;
-  signal crc21_out : crc_vector_t;
-
-  ---------------------------------------------------------------------------
-  -- Combinational next-cycle signals (driven by output_logic)
-  ---------------------------------------------------------------------------
-  signal next_crc_o : crc_to_mac_fsm_if_t;
+  signal crc15_out    : std_logic_vector(crc_15_length_c - 1 downto 0);
+  signal crc17_out    : std_logic_vector(crc_17_length_c - 1 downto 0);
+  signal crc21_out    : std_logic_vector(crc_21_length_c - 1 downto 0);
+  signal data_valid_s : std_logic;
+  signal start_crc_s  : std_logic;
+  signal sel_crc15_s  : std_logic;
+  signal sel_crc17_s  : std_logic;
+  signal sel_crc21_s  : std_logic;
 
 begin
 
   -- =========================================================================
   -- Component Instantiations
   -- =========================================================================
-  
-  u_crc15 : entity work.dummy_crc15
+  u_crc15 : entity work.dummy_gen_crc
+    generic map (
+      gc_data_width => 1,
+      gc_crc_width  => crc_15_length_c,
+      gc_crc_poly   => crc_poly_15_vec_c,
+      gc_xor_value  => (crc_15_length_c - 1 downto 0 => '0'),
+      gc_crc_init   => crc_init_15_vec_c,
+      gc_ref_input  => 0,
+      gc_ref_output => false
+    )
     port map (
-      clk_i => clk_i,
-      rst_i => rst_i,
-      valid => crc_i.valid,
-      data  => crc_i.data,
-      crc_o => crc15_out
+      clk_i        => clk_i,
+      reset_i      => rst_i,
+      start_crc_i  => start_crc_s and sel_crc15_s,
+      data_i(0)    => crc_i.data,
+      data_valid_i => data_valid_s and sel_crc15_s,
+      crc_o        => crc15_out
     );
 
-  u_crc17 : entity work.dummy_crc17
+  u_crc17 : entity work.dummy_gen_crc
+    generic map (
+      gc_data_width => 1,
+      gc_crc_width  => crc_17_length_c,
+      gc_crc_poly   => crc_poly_17_vec_c,
+      gc_xor_value  => (crc_17_length_c - 1 downto 0 => '0'),
+      gc_crc_init   => crc_init_17_vec_c,
+      gc_ref_input  => 0,
+      gc_ref_output => false
+    )
     port map (
-      clk_i => clk_i,
-      rst_i => rst_i,
-      valid => crc_i.valid,
-      data  => crc_i.data,
-      crc_o => crc17_out
+      clk_i        => clk_i,
+      reset_i      => rst_i,
+      start_crc_i  => start_crc_s and sel_crc17_s,
+      data_i(0)    => crc_i.data,
+      data_valid_i => data_valid_s and sel_crc17_s,
+      crc_o        => crc17_out
     );
 
-  u_crc21 : entity work.dummy_crc21
+  u_crc21 : entity work.dummy_gen_crc
+    generic map (
+      gc_data_width => 1,
+      gc_crc_width  => crc_21_length_c,
+      gc_crc_poly   => crc_poly_21_vec_c,
+      gc_xor_value  => (crc_21_length_c - 1 downto 0 => '0'),
+      gc_crc_init   => crc_init_21_vec_c,
+      gc_ref_input  => 0,
+      gc_ref_output => false
+    )
     port map (
-      clk_i => clk_i,
-      rst_i => rst_i,
-      valid => crc_i.valid,
-      data  => crc_i.data,
-      crc_o => crc21_out
+      clk_i        => clk_i,
+      reset_i      => rst_i,
+      start_crc_i  => start_crc_s and sel_crc21_s,
+      data_i(0)    => crc_i.data,
+      data_valid_i => data_valid_s and sel_crc21_s,
+      crc_o        => crc21_out
     );
 
-  ---------------------------------------------------------------------------
-  -- Process 1: output_logic (combinational Mealy)
-  ---------------------------------------------------------------------------
-  output_logic : process (all) is
-  begin
-
-    -------------------------------------------------------------------------
-    -- Output defaults: hold current registered values
-    -------------------------------------------------------------------------
-    next_crc_o <= crc_o;
-
-    -------------------------------------------------------------------------
-    -- Logic evaluation
-    -------------------------------------------------------------------------
-    case crc_i.crc_poly_select is
-      when "00" =>
-        next_crc_o.crc <= crc15_out;
-      when "01" =>
-        next_crc_o.crc <= crc17_out;
-      when "10" =>
-        next_crc_o.crc <= crc21_out;
-      when others =>
-        next_crc_o.crc <= (others => '0');
-    end case;
-
-  end process output_logic;
-
-  ---------------------------------------------------------------------------
-  -- Process 2: state_update (clocked)
-  ---------------------------------------------------------------------------
-  state_update : process (clk_i) is
+  fsm_sequential : process (clk_i) is
+    variable v_crc_o       : crc_to_mac_fsm_if_t;
+    variable sel_v         : std_logic_vector(1 downto 0);
+    variable data_valid_v  : std_logic;
+    variable start_crc_v   : std_logic;
+    variable sel_crc15_v   : std_logic;
+    variable sel_crc17_v   : std_logic;
+    variable sel_crc21_v   : std_logic;
   begin
 
     if rising_edge(clk_i) then
       if (rst_i = '1') then
-        crc_o <= (crc => (others => '0'));
+        crc_o       <= (crc => (others => '0'));
+        data_valid_s <= '0';
+        start_crc_s  <= '0';
+        sel_crc15_s  <= '0';
+        sel_crc17_s  <= '0';
+        sel_crc21_s  <= '0';
       else
-        crc_o <= next_crc_o;
+        sel_v        := crc_i.crc_poly_select;
+        data_valid_v := '1' when crc_i.valid else '0';
+        start_crc_v  := '1' when crc_i.start else '0';
+        sel_crc15_v  := '1' when sel_v = "00" else '0';
+        sel_crc17_v  := '1' when sel_v = "01" else '0';
+        sel_crc21_v  := '1' when sel_v = "10" else '0';
+        v_crc_o := crc_o;
+
+        case sel_v is
+          when "00" =>
+            v_crc_o.crc := crc15_out & (crc_vector_t'left - crc_15_length_c downto 0 => '0');
+          when "01" =>
+            v_crc_o.crc := crc17_out & (crc_vector_t'left - crc_17_length_c downto 0 => '0');
+          when "10" =>
+            v_crc_o.crc := crc21_out & (crc_vector_t'left - crc_21_length_c downto 0 => '0');
+          when others =>
+            v_crc_o.crc := (others => '0');
+        end case;
+
+        -- Register all outputs
+        crc_o        <= v_crc_o;
+        data_valid_s <= data_valid_v;
+        start_crc_s  <= start_crc_v;
+        sel_crc15_s  <= sel_crc15_v;
+        sel_crc17_s  <= sel_crc17_v;
+        sel_crc21_s  <= sel_crc21_v;
       end if;
     end if;
 
-  end process state_update;
+  end process fsm_sequential;
 
 end architecture rtl;

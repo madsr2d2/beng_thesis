@@ -166,8 +166,9 @@ begin
       v_mac_ser_o := tx_mac_fsm_to_ser_if_reset_c;
       v_crc_o     := mac_fsm_to_crc_if_reset_c;
 
-      -- Select CRC polynomial
+      -- Select CRC polynomial and signal start of new computation
       v_crc_o.crc_poly_select := mac_ser_i.frame_params.crc_poly_select;
+      v_crc_o.start           := true;
 
       -- Activate transmit levels
       v_fce_o.transmitting := true;

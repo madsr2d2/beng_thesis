@@ -39,12 +39,6 @@ package can_protocol_pkg is
     can_format : can_format_t
   ) return integer;
 
-  -- Get CRC field width from frame format and payload length per ISO 11898-1.
-  function get_crc_length (
-    can_format  : can_format_t;
-    data_length : integer
-  ) return integer;
-
   ---------------------------------------------------------------------------
   -- Bitstream Modeling and Extraction
   ---------------------------------------------------------------------------
@@ -113,10 +107,6 @@ package can_protocol_pkg is
     signal fifo_write_ptr : inout fifo_write_ptr_t;
     next_bit              : in    mac_frame_bit_t
   );
-
-  function is_fixed_stuff_bit_position (
-    position_in_crc_field : integer
-  ) return boolean;
 
 end package can_protocol_pkg;
 
