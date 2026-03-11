@@ -809,7 +809,7 @@ config:
     primaryTextColor: "#000"
 ---
 flowchart TD
-  subgraph fsm_in ["can_mac_fsm_bs_tx_if_s2d_t"]
+  subgraph fsm_in ["can_mac_fsm_bs_tx_if_m2s_t"]
     data_in["data<br/>(polarity_t)"]
     valid_in["valid<br/>(boolean)"]
     start_in["start<br/>(boolean)"]
@@ -823,7 +823,7 @@ flowchart TD
   regs1 --> logic1
   regs2 --> logic2
 
-  subgraph fsm_out ["can_mac_fsm_bs_tx_if_d2s_t"]
+  subgraph fsm_out ["can_mac_fsm_bs_tx_if_s2m_t"]
     stuff_valid["valid<br/>(boolean)"]
     stuff_data["data<br/>(polarity_t)"]
     sbc_out["sbc<br/>(3-bit Gray + parity)"]
@@ -866,7 +866,7 @@ flowchart TD
       rst["rst_i<br/>(std_logic)"]
     end
 
-    subgraph fsm_in ["can_mac_fsm_crc_tx_if_s2d_t"]
+    subgraph fsm_in ["can_mac_fsm_crc_tx_if_m2s_t"]
       data_crc["data<br/>(std_logic)"]
       valid_crc["valid<br/>(std_logic)"]
       start_crc["start<br/>(std_logic)"]
@@ -880,20 +880,23 @@ flowchart TD
   crc17["**u_crc17**<br/>CRC-17<br/>(CAN-FD ≤ 16 Byte)"]
   crc21["**u_crc21**<br/>CRC-21<br/>(CAN-FD > 16 Byte)"]
   mux[\"mux"/]
-  pad["zero-pad to crc_vector_t<br/>(registered)"]
+  reg["register<br/>(crc_vector_t)"]
+  pad["zero-pad to crc_vector_t"]
 
-  subgraph fsm_out ["can_mac_fsm_crc_tx_if_d2s_t"]
+subgraph outputs ["Outputs"]
+  subgraph fsm_out ["can_mac_fsm_crc_tx_if_s2m_t"]
     crc_out["crc<br/>(crc_vector_t)"]
   end
+end
 
   clk --> crc15
   clk --> crc17
   clk --> crc21
-  clk --> pad
+  clk --> reg
   rst --> crc15
   rst --> crc17
   rst --> crc21
-  rst --> pad
+  rst --> reg
   valid_crc --> join
   start_crc --> join
   data_crc --> join
@@ -907,7 +910,8 @@ flowchart TD
   crc21 ==> mux
   sel ==>|select| mux
   mux ==> pad
-  pad ==> crc_out
+  pad ==> reg
+  reg ==> crc_out
 ```
 
 ### `can_mac_rx` {#sec:can-mac-rx}

@@ -25,8 +25,8 @@ entity can_mac_bs_tx is
   port (
     clk_i   : in    std_logic;
     rst_i   : in    std_logic;
-    bs_fd_i : in    can_mac_fsm_bs_tx_if_s2d_t;
-    bs_fd_o : out   can_mac_fsm_bs_tx_if_d2s_t
+    bs_fd_i : in    can_mac_fsm_bs_tx_if_m2s_t;
+    bs_fd_o : out   can_mac_fsm_bs_tx_if_s2m_t
   );
 end entity can_mac_bs_tx;
 
@@ -48,7 +48,7 @@ begin
     variable v_stuff_valid_prev : boolean;
 
     -- Registered output next-value variable
-    variable v_bs_fd_o : can_mac_fsm_bs_tx_if_d2s_t;
+    variable v_bs_fd_o : can_mac_fsm_bs_tx_if_s2m_t;
 
     -- Handle detection of N consecutive bits and stuff bit requirement
     procedure manage_bit_counting is

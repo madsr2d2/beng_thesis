@@ -523,27 +523,27 @@ package can_types_pkg is
     ready : std_logic;
   end record avalon_st_sink_t;
 
-  -- can_mac_ser_tx -> can_mac_fsm_tx
-  type can_mac_ser_fsm_tx_if_s2d_t is record
+  -- can_mac_ser_tx -> can_mac_fsm_tx (subordinate to manager)
+  type can_mac_ser_fsm_tx_if_s2m_t is record
     data         : polarity_t;     -- CAN polarity (MAC domain)
     valid        : boolean;        -- Data valid signal
     frame_params : frame_params_t; -- Cached frame parameters
-  end record can_mac_ser_fsm_tx_if_s2d_t;
+  end record can_mac_ser_fsm_tx_if_s2m_t;
 
-  constant tx_mac_ser_to_fsm_if_reset_c : can_mac_ser_fsm_tx_if_s2d_t :=
+  constant tx_mac_ser_to_fsm_if_reset_c : can_mac_ser_fsm_tx_if_s2m_t :=
   (
     data         => dominant,
     valid        => false,
     frame_params => frame_params_reset_c
   );
 
-  -- can_mac_fsm_tx -> can_mac_ser_tx
-  type can_mac_ser_fsm_tx_if_d2s_t is record
+  -- can_mac_fsm_tx -> can_mac_ser_tx (manager to subordinate)
+  type can_mac_ser_fsm_tx_if_m2s_t is record
     transfer_status : transfer_status_t;
     ready           : boolean;
-  end record can_mac_ser_fsm_tx_if_d2s_t;
+  end record can_mac_ser_fsm_tx_if_m2s_t;
 
-  constant tx_mac_fsm_to_ser_if_reset_c : can_mac_ser_fsm_tx_if_d2s_t :=
+  constant tx_mac_fsm_to_ser_if_reset_c : can_mac_ser_fsm_tx_if_m2s_t :=
   (
     transfer_status => ongoing,
     ready           => false
@@ -578,30 +578,30 @@ package can_types_pkg is
     transfer_status : transfer_status_t;
   end record can_user_llc_tx_if_d2s_t;
 
-  -- MAC -> PCS (ISO 11898-1:2015 Section 7.2 PCS_Data.Request service)
-  type can_mac_pcs_tx_if_s2d_t is record
+  -- MAC -> PCS (manager to subordinate) (ISO 11898-1:2015 Section 7.2 PCS_Data.Request service)
+  type can_mac_pcs_tx_if_m2s_t is record
     data  : mac_frame_bit_t;
     valid : boolean;
-  end record can_mac_pcs_tx_if_s2d_t;
+  end record can_mac_pcs_tx_if_m2s_t;
 
-  constant mac_to_pcs_if_reset_c : can_mac_pcs_tx_if_s2d_t :=
+  constant mac_to_pcs_if_reset_c : can_mac_pcs_tx_if_m2s_t :=
   (
     data  => reset_mac_frame_bit_c,
     valid => false
   );
 
-  -- PCS -> MAC (ISO 11898-1:2015 Section 7.2 PCS_Data.Indicate service).
+  -- PCS -> MAC (subordinate to manager) (ISO 11898-1:2015 Section 7.2 PCS_Data.Indicate service).
   -- PCS drives bus polarity continuously and pulses sample strobes.
-  type can_mac_pcs_tx_if_d2s_t is record
+  type can_mac_pcs_tx_if_s2m_t is record
     bus_polarity  : polarity_t;    -- Current bus polarity (continuously driven)
     sample_strobe : std_logic;     -- Pulse at the active sample point
     strobe_type   : strobe_type_t; -- Distinguishes SP from SSP (ISO 7.3.4)
     -- TDC FIFO index: offset into transmitted_bits_fifo for SSP-aligned comparison.
     -- Nominal/arbitration fields use index 0.
     fifo_index : integer range 0 to transmitted_bits_fifo_depth_c - 1;
-  end record can_mac_pcs_tx_if_d2s_t;
+  end record can_mac_pcs_tx_if_s2m_t;
 
-  constant pcs_to_mac_if_reset_c : can_mac_pcs_tx_if_d2s_t :=
+  constant pcs_to_mac_if_reset_c : can_mac_pcs_tx_if_s2m_t :=
   (
     bus_polarity  => recessive,
     sample_strobe => '0',
@@ -609,43 +609,43 @@ package can_types_pkg is
     fifo_index    => 0
   );
 
-  -- MAC FSM -> Bit Stuffer FD
-  type can_mac_fsm_bs_tx_if_s2d_t is record
+  -- MAC FSM -> Bit Stuffer FD (manager to subordinate)
+  type can_mac_fsm_bs_tx_if_m2s_t is record
     data  : polarity_t; -- Bit polarity being transmitted
     valid : boolean;    -- Pulse when a new bit is fed to bit stuffer
     start : boolean;    -- Pulse to reinitialize bit stuffer at frame start
-  end record can_mac_fsm_bs_tx_if_s2d_t;
+  end record can_mac_fsm_bs_tx_if_m2s_t;
 
-  constant mac_fsm_to_bs_fd_if_reset_c : can_mac_fsm_bs_tx_if_s2d_t :=
+  constant mac_fsm_to_bs_fd_if_reset_c : can_mac_fsm_bs_tx_if_m2s_t :=
   (
     data  => recessive,
     valid => false,
     start => false
   );
 
-  -- Bit Stuffer FD -> MAC FSM
-  type can_mac_fsm_bs_tx_if_d2s_t is record
+  -- Bit Stuffer FD -> MAC FSM (subordinate to manager)
+  type can_mac_fsm_bs_tx_if_s2m_t is record
     data  : polarity_t;                                       -- Polarity of required stuff bit
     valid : boolean;                                          -- true when stuff bit insertion needed
     sbc   : std_logic_vector(sbc_field_width_c - 1 downto 0); -- Gray-coded stuff bit count with parity
-  end record can_mac_fsm_bs_tx_if_d2s_t;
+  end record can_mac_fsm_bs_tx_if_s2m_t;
 
-  constant bs_fd_to_mac_fsm_if_reset_c : can_mac_fsm_bs_tx_if_d2s_t :=
+  constant bs_fd_to_mac_fsm_if_reset_c : can_mac_fsm_bs_tx_if_s2m_t :=
   (
     data  => recessive,
     valid => false,
     sbc   => (others => '0')
   );
 
-  -- MAC FSM -> CRC
-  type can_mac_fsm_crc_tx_if_s2d_t is record
+  -- MAC FSM -> CRC (manager to subordinate)
+  type can_mac_fsm_crc_tx_if_m2s_t is record
     crc_poly_select : std_logic_vector(1 downto 0);
     start           : boolean;
     valid           : boolean;
     data            : std_logic;
-  end record can_mac_fsm_crc_tx_if_s2d_t;
+  end record can_mac_fsm_crc_tx_if_m2s_t;
 
-  constant mac_fsm_to_crc_if_reset_c : can_mac_fsm_crc_tx_if_s2d_t :=
+  constant mac_fsm_to_crc_if_reset_c : can_mac_fsm_crc_tx_if_m2s_t :=
   (
     crc_poly_select => (others => '0'),
     start           => false,
@@ -653,13 +653,13 @@ package can_types_pkg is
     data            => '0'
   );
 
-  -- CRC -> MAC FSM
-  type can_mac_fsm_crc_tx_if_d2s_t is record
+  -- CRC -> MAC FSM (subordinate to manager)
+  type can_mac_fsm_crc_tx_if_s2m_t is record
     crc : crc_vector_t;
-  end record can_mac_fsm_crc_tx_if_d2s_t;
+  end record can_mac_fsm_crc_tx_if_s2m_t;
 
-  -- MAC -> Fault Confinement Entity (ISO 11898-1 Table 16/17)
-  type can_mac_fce_if_s2d_t is record
+  -- MAC -> Fault Confinement Entity (manager to subordinate) (ISO 11898-1 Table 16/17)
+  type can_mac_fce_if_m2s_t is record
     transmitting             : boolean; -- Node is currently transmitting
     error                    : boolean; -- Error detected (pulse)
     primary_error            : boolean; -- Dominant bit after error flag (pulse)
@@ -667,9 +667,9 @@ package can_types_pkg is
     counters_unchanged       : boolean; -- Exception: do not update counters
     error_delimiter_too_late : boolean; -- 8+ dominant bits after error flag
     successful_transfer      : boolean; -- Frame completed successfully (pulse)
-  end record can_mac_fce_if_s2d_t;
+  end record can_mac_fce_if_m2s_t;
 
-  constant mac_to_fce_if_reset_c : can_mac_fce_if_s2d_t :=
+  constant mac_to_fce_if_reset_c : can_mac_fce_if_m2s_t :=
   (
     transmitting             => false,
     error                    => false,
@@ -680,13 +680,13 @@ package can_types_pkg is
     successful_transfer      => false
   );
 
-  -- Fault Confinement Entity -> MAC
-  type can_mac_fce_if_d2s_t is record
+  -- Fault Confinement Entity -> MAC (subordinate to manager)
+  type can_mac_fce_if_s2m_t is record
     error_passive : boolean; -- true = error-passive node, false = error-active
     bus_off       : boolean; -- true = bus-off state, no transmission allowed
-  end record can_mac_fce_if_d2s_t;
+  end record can_mac_fce_if_s2m_t;
 
-  constant fce_to_mac_if_reset_c : can_mac_fce_if_d2s_t :=
+  constant fce_to_mac_if_reset_c : can_mac_fce_if_s2m_t :=
   (
     error_passive => false,
     bus_off       => false

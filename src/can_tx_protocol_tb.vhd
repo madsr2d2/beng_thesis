@@ -53,8 +53,8 @@ architecture tb of can_tx_protocol_tb is
   ------------------------------------------------------------------------------
   signal llc_user_i : can_user_llc_tx_if_s2d_t;
   signal llc_user_o : can_user_llc_tx_if_d2s_t;
-  signal fce_i      : can_mac_fce_if_d2s_t;
-  signal fce_o      : can_mac_fce_if_s2d_t;
+  signal fce_i      : can_mac_fce_if_s2m_t;
+  signal fce_o      : can_mac_fce_if_m2s_t;
   signal tx_bus_o   : std_logic;
   signal rx_bus_i   : std_logic;
 
@@ -66,8 +66,8 @@ architecture tb of can_tx_protocol_tb is
   signal bus_override_en : boolean := false;
 
   -- Debug signals for ACK injection timing
-  signal debug_mac_to_pcs : can_mac_pcs_tx_if_s2d_t;
-  signal debug_pcs_to_mac : can_mac_pcs_tx_if_d2s_t;
+  signal debug_mac_to_pcs : can_mac_pcs_tx_if_m2s_t;
+  signal debug_pcs_to_mac : can_mac_pcs_tx_if_s2m_t;
 
   ------------------------------------------------------------------------------
   -- Protocol checker control

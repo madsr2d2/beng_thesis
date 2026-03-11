@@ -67,8 +67,8 @@ entity can_pcs_tx is
     clk : in    std_logic;
     rst : in    std_logic;
 
-    mac_to_pcs_i : in    can_mac_pcs_tx_if_s2d_t;
-    pcs_to_mac_o : out   can_mac_pcs_tx_if_d2s_t;
+    mac_to_pcs_i : in    can_mac_pcs_tx_if_m2s_t;
+    pcs_to_mac_o : out   can_mac_pcs_tx_if_s2m_t;
 
     tx_bus_o : out   std_logic;
     rx_bus_i : in    std_logic;
@@ -138,7 +138,7 @@ architecture rtl of can_pcs_tx is
   signal next_ssp_position    : integer range 0 to data_bit_time - 1;
   signal next_fifo_index      : integer range 0 to transmitted_bits_fifo_depth_c - 1;
 
-  signal next_pcs_to_mac_o : can_mac_pcs_tx_if_d2s_t;
+  signal next_pcs_to_mac_o : can_mac_pcs_tx_if_s2m_t;
 
   -- Returns true for data-phase bit types that must be monitored at SSP
   -- when TDC is active.

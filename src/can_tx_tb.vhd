@@ -56,14 +56,14 @@ architecture tb of can_tx_tb is
   signal llc_user_o : can_user_llc_tx_if_d2s_t;
   signal transfer_status_dbg : transfer_status_t;
   signal tx_ready_dbg        : std_logic;
-  signal fce_i      : can_mac_fce_if_d2s_t;
-  signal fce_o      : can_mac_fce_if_s2d_t;
+  signal fce_i      : can_mac_fce_if_s2m_t;
+  signal fce_o      : can_mac_fce_if_m2s_t;
   signal tx_bus_o   : std_logic;
   signal rx_bus_i   : std_logic;
 
   -- Debug signals from DUT
-  signal debug_mac_to_pcs : can_mac_pcs_tx_if_s2d_t;
-  signal debug_pcs_to_mac : can_mac_pcs_tx_if_d2s_t;
+  signal debug_mac_to_pcs : can_mac_pcs_tx_if_m2s_t;
+  signal debug_pcs_to_mac : can_mac_pcs_tx_if_s2m_t;
 
   -- Bus model control
   signal inject_ack   : boolean := true;

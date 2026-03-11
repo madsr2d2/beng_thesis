@@ -23,8 +23,8 @@ architecture tb of can_mac_ser_tx_tb is
   signal llc_o : can_llc_mac_tx_if_d2s_t;
 
   -- can_mac_fsm_tx interface signals
-  signal tx_mac_fsm_i : can_mac_ser_fsm_tx_if_d2s_t;
-  signal tx_mac_fsm_o : can_mac_ser_fsm_tx_if_s2d_t;
+  signal tx_mac_fsm_i : can_mac_ser_fsm_tx_if_m2s_t;
+  signal tx_mac_fsm_o : can_mac_ser_fsm_tx_if_s2m_t;
 
 begin
 

@@ -18,8 +18,8 @@ architecture tb of can_mac_bs_tx_tb is
 
   signal clk_i : std_logic := '0';
   signal rst_i : std_logic := '0';
-  signal bs_fd_i : can_mac_fsm_bs_tx_if_s2d_t;
-  signal bs_fd_o : can_mac_fsm_bs_tx_if_d2s_t;
+  signal bs_fd_i : can_mac_fsm_bs_tx_if_m2s_t;
+  signal bs_fd_o : can_mac_fsm_bs_tx_if_s2m_t;
 
   -- Signals for waveform viewing (unpacked from records)
   signal tb_clk             : std_logic;

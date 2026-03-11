@@ -14,8 +14,8 @@ entity can_mac_ser_tx is
     llc_o : out   can_llc_mac_tx_if_d2s_t;
 
     -- can_mac_fsm_tx interface
-    tx_mac_fsm_i : in    can_mac_ser_fsm_tx_if_d2s_t;
-    tx_mac_fsm_o : out   can_mac_ser_fsm_tx_if_s2d_t
+    tx_mac_fsm_i : in    can_mac_ser_fsm_tx_if_m2s_t;
+    tx_mac_fsm_o : out   can_mac_ser_fsm_tx_if_s2m_t
   );
 end entity can_mac_ser_tx;
 
@@ -41,7 +41,7 @@ begin
     variable v_padding_bits_remaining : integer range 0 to llc_id_stream_width_c - base_id_width_c;
 
     variable v_llc_o        : can_llc_mac_tx_if_d2s_t;
-    variable v_tx_mac_fsm_o : can_mac_ser_fsm_tx_if_s2d_t;
+    variable v_tx_mac_fsm_o : can_mac_ser_fsm_tx_if_s2m_t;
 
     -- Named guard variables (evaluated once per cycle)
     variable llc_valid_v              : boolean;

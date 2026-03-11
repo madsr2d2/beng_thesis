@@ -27,10 +27,10 @@ architecture tb of can_fce_tb is
 
   signal clk      : std_logic := '0';
   signal rst      : std_logic := '1';
-  signal tx_mac_i : can_mac_fce_if_s2d_t := mac_to_fce_if_reset_c;
-  signal tx_mac_o : can_mac_fce_if_d2s_t;
-  signal rx_mac_i : can_mac_fce_if_s2d_t := mac_to_fce_if_reset_c;
-  signal rx_mac_o : can_mac_fce_if_d2s_t;
+  signal tx_mac_i : can_mac_fce_if_m2s_t := mac_to_fce_if_reset_c;
+  signal tx_mac_o : can_mac_fce_if_s2m_t;
+  signal rx_mac_i : can_mac_fce_if_m2s_t := mac_to_fce_if_reset_c;
+  signal rx_mac_o : can_mac_fce_if_s2m_t;
   signal rx_bus   : std_logic := '1'; -- Recessive by default
   signal ctrl     : can_fce_ctrl_t := fce_ctrl_reset_c;
   signal status   : can_fce_status_t;
@@ -39,7 +39,7 @@ architecture tb of can_fce_tb is
 
   -- Helper: pulse a signal for one clock cycle
   procedure pulse_tx_error (
-    signal s2d : inout can_mac_fce_if_s2d_t
+    signal s2d : inout can_mac_fce_if_m2s_t
   ) is
   begin
     s2d.transmitting <= true;
@@ -51,7 +51,7 @@ architecture tb of can_fce_tb is
   end procedure pulse_tx_error;
 
   procedure pulse_tx_success (
-    signal s2d : inOut can_mac_fce_if_s2d_t
+    signal s2d : inOut can_mac_fce_if_m2s_t
   ) is
   begin
     s2d.transmitting        <= true;
@@ -62,7 +62,7 @@ architecture tb of can_fce_tb is
   end procedure pulse_tx_success;
 
   procedure pulse_rx_error (
-    signal s2d : inout can_mac_fce_if_s2d_t
+    signal s2d : inout can_mac_fce_if_m2s_t
   ) is
   begin
     s2d.transmitting <= false;
@@ -73,7 +73,7 @@ architecture tb of can_fce_tb is
   end procedure pulse_rx_error;
 
   procedure pulse_rx_primary_error (
-    signal s2d : inout can_mac_fce_if_s2d_t
+    signal s2d : inout can_mac_fce_if_m2s_t
   ) is
   begin
     s2d.transmitting  <= false;
@@ -84,7 +84,7 @@ architecture tb of can_fce_tb is
   end procedure pulse_rx_primary_error;
 
   procedure pulse_rx_success (
-    signal s2d : inout can_mac_fce_if_s2d_t
+    signal s2d : inout can_mac_fce_if_m2s_t
   ) is
   begin
     s2d.transmitting        <= false;
@@ -95,7 +95,7 @@ architecture tb of can_fce_tb is
   end procedure pulse_rx_success;
 
   procedure pulse_tx_delim_late (
-    signal s2d : inout can_mac_fce_if_s2d_t
+    signal s2d : inout can_mac_fce_if_m2s_t
   ) is
   begin
     s2d.transmitting             <= true;

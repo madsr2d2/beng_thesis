@@ -30,12 +30,12 @@ entity can_fce is
     rst_i : in    std_logic;
 
     -- TX MAC interface
-    tx_mac_i : in    can_mac_fce_if_s2d_t;
-    tx_mac_o : out   can_mac_fce_if_d2s_t;
+    tx_mac_i : in    can_mac_fce_if_m2s_t;
+    tx_mac_o : out   can_mac_fce_if_s2m_t;
 
     -- RX MAC interface (stub for now)
-    rx_mac_i : in    can_mac_fce_if_s2d_t;
-    rx_mac_o : out   can_mac_fce_if_d2s_t;
+    rx_mac_i : in    can_mac_fce_if_m2s_t;
+    rx_mac_o : out   can_mac_fce_if_s2m_t;
 
     -- Raw bus for idle detection (bus-off recovery)
     rx_bus_i : in    std_logic;

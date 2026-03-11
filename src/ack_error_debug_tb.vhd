@@ -36,16 +36,16 @@ architecture testbench of ack_error_debug_tb is
   signal llc_user_o : can_user_llc_tx_if_d2s_t;
 
   -- Fault Confinement Entity
-  signal fce_i : can_mac_fce_if_d2s_t;
-  signal fce_o : can_mac_fce_if_s2d_t;
+  signal fce_i : can_mac_fce_if_s2m_t;
+  signal fce_o : can_mac_fce_if_m2s_t;
 
   -- Physical bus
   signal tx_bus : std_logic;
   signal rx_bus : std_logic := '1';  -- Recessive (open drain)
 
   -- Debug interface
-  signal debug_mac_to_pcs : can_mac_pcs_tx_if_s2d_t;
-  signal debug_pcs_to_mac : can_mac_pcs_tx_if_d2s_t;
+  signal debug_mac_to_pcs : can_mac_pcs_tx_if_m2s_t;
+  signal debug_pcs_to_mac : can_mac_pcs_tx_if_s2m_t;
   signal debug_ack_error : boolean;
   signal debug_strobe_type : strobe_type_t;
 

@@ -29,16 +29,16 @@ entity can_mac_tx is
     llc_o : out   can_llc_mac_tx_if_d2s_t;
 
     -- PCS interface (Physical Coding Sublayer)
-    pcs_i : in    can_mac_pcs_tx_if_d2s_t;
-    pcs_o : out   can_mac_pcs_tx_if_s2d_t;
+    pcs_i : in    can_mac_pcs_tx_if_s2m_t;
+    pcs_o : out   can_mac_pcs_tx_if_m2s_t;
 
     -- Fault Confinement Entity interface
-    fce_i : in    can_mac_fce_if_d2s_t;
-    fce_o : out   can_mac_fce_if_s2d_t;
+    fce_i : in    can_mac_fce_if_s2m_t;
+    fce_o : out   can_mac_fce_if_m2s_t;
 
     -- Debug interface (monitoring internal MAC/PCS handshake)
-    debug_mac_to_pcs_o  : out can_mac_pcs_tx_if_s2d_t;
-    debug_pcs_to_mac_o  : out can_mac_pcs_tx_if_d2s_t;
+    debug_mac_to_pcs_o  : out can_mac_pcs_tx_if_m2s_t;
+    debug_pcs_to_mac_o  : out can_mac_pcs_tx_if_s2m_t;
     debug_ack_error_o   : out boolean;
     debug_form_error_o  : out boolean;
     debug_data_exit_o   : out boolean;
@@ -52,16 +52,16 @@ architecture rtl of can_mac_tx is
   -- Internal signals
   ---------------------------------------------------------------------------
   -- Serializer <-> FSM
-  signal ser_to_fsm : can_mac_ser_fsm_tx_if_s2d_t;
-  signal fsm_to_ser : can_mac_ser_fsm_tx_if_d2s_t;
+  signal ser_to_fsm : can_mac_ser_fsm_tx_if_s2m_t;
+  signal fsm_to_ser : can_mac_ser_fsm_tx_if_m2s_t;
 
   -- FSM <-> bit stuffer FD
-  signal fsm_to_bs_fd : can_mac_fsm_bs_tx_if_s2d_t;
-  signal bs_fd_to_fsm : can_mac_fsm_bs_tx_if_d2s_t;
+  signal fsm_to_bs_fd : can_mac_fsm_bs_tx_if_m2s_t;
+  signal bs_fd_to_fsm : can_mac_fsm_bs_tx_if_s2m_t;
 
   -- FSM <-> CRC
-  signal fsm_to_crc : can_mac_fsm_crc_tx_if_s2d_t;
-  signal crc_to_fsm : can_mac_fsm_crc_tx_if_d2s_t;
+  signal fsm_to_crc : can_mac_fsm_crc_tx_if_m2s_t;
+  signal crc_to_fsm : can_mac_fsm_crc_tx_if_s2m_t;
 
 
 begin

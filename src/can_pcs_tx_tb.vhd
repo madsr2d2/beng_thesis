@@ -101,26 +101,26 @@ architecture test of can_pcs_tx_tb is
   ------------------------------------------------------------------------------
   -- DUT I/O
   ------------------------------------------------------------------------------
-  signal mac_to_pcs : can_mac_pcs_tx_if_s2d_t := (
+  signal mac_to_pcs : can_mac_pcs_tx_if_m2s_t := (
     data  => unknown_mac_frame_bit_c,
     valid => false
   );
-  signal pcs_to_mac : can_mac_pcs_tx_if_d2s_t;
+  signal pcs_to_mac : can_mac_pcs_tx_if_s2m_t;
   signal tx_bus     : std_logic;
 
   -- Secondary DUT instance: same timing but TDC policy forced disabled.
-  signal mac_to_pcs_no_tdc : can_mac_pcs_tx_if_s2d_t := (
+  signal mac_to_pcs_no_tdc : can_mac_pcs_tx_if_m2s_t := (
     data  => unknown_mac_frame_bit_c,
     valid => false
   );
-  signal pcs_to_mac_no_tdc : can_mac_pcs_tx_if_d2s_t;
+  signal pcs_to_mac_no_tdc : can_mac_pcs_tx_if_s2m_t;
   signal tx_bus_no_tdc     : std_logic;
   signal rx_bus_no_tdc     : std_logic := recessive_bit_c;
-  signal mac_to_pcs_ps2 : can_mac_pcs_tx_if_s2d_t := (
+  signal mac_to_pcs_ps2 : can_mac_pcs_tx_if_m2s_t := (
     data  => unknown_mac_frame_bit_c,
     valid => false
   );
-  signal pcs_to_mac_ps2 : can_mac_pcs_tx_if_d2s_t;
+  signal pcs_to_mac_ps2 : can_mac_pcs_tx_if_s2m_t;
   signal tx_bus_ps2     : std_logic;
   signal rx_bus_ps2     : std_logic := recessive_bit_c;
 

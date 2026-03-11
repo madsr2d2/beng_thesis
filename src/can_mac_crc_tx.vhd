@@ -69,8 +69,8 @@ entity can_mac_crc_tx is
   port (
     clk_i : in    std_logic;
     rst_i : in    std_logic;
-    crc_i : in    can_mac_fsm_crc_tx_if_s2d_t;
-    crc_o : out   can_mac_fsm_crc_tx_if_d2s_t
+    crc_i : in    can_mac_fsm_crc_tx_if_m2s_t;
+    crc_o : out   can_mac_fsm_crc_tx_if_s2m_t
   );
 end entity can_mac_crc_tx;
 
@@ -151,7 +151,7 @@ begin
     );
 
   fsm_sequential : process (clk_i) is
-    variable v_crc_o       : can_mac_fsm_crc_tx_if_d2s_t;
+    variable v_crc_o       : can_mac_fsm_crc_tx_if_s2m_t;
     variable sel_v         : std_logic_vector(1 downto 0);
     variable data_valid_v  : std_logic;
     variable start_crc_v   : std_logic;

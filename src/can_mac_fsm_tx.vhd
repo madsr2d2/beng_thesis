@@ -25,24 +25,24 @@ entity can_mac_fsm_tx is
     rst_i : in    std_logic;
 
     -- Serializer interface
-    mac_ser_i : in    can_mac_ser_fsm_tx_if_s2d_t;
-    mac_ser_o : out   can_mac_ser_fsm_tx_if_d2s_t;
+    mac_ser_i : in    can_mac_ser_fsm_tx_if_s2m_t;
+    mac_ser_o : out   can_mac_ser_fsm_tx_if_m2s_t;
 
     -- PCS interface
-    pcs_i : in    can_mac_pcs_tx_if_d2s_t;
-    pcs_o : out   can_mac_pcs_tx_if_s2d_t;
+    pcs_i : in    can_mac_pcs_tx_if_s2m_t;
+    pcs_o : out   can_mac_pcs_tx_if_m2s_t;
 
     -- Bit stuffer FD interface
-    bs_fd_i : in    can_mac_fsm_bs_tx_if_d2s_t;
-    bs_fd_o : out   can_mac_fsm_bs_tx_if_s2d_t;
+    bs_fd_i : in    can_mac_fsm_bs_tx_if_s2m_t;
+    bs_fd_o : out   can_mac_fsm_bs_tx_if_m2s_t;
 
     -- CRC interface
-    crc_i : in    can_mac_fsm_crc_tx_if_d2s_t;
-    crc_o : out   can_mac_fsm_crc_tx_if_s2d_t;
+    crc_i : in    can_mac_fsm_crc_tx_if_s2m_t;
+    crc_o : out   can_mac_fsm_crc_tx_if_m2s_t;
 
     -- Fault Confinement Entity interface (ISO 11898-1 Table 16/17)
-    fce_i : in    can_mac_fce_if_d2s_t;
-    fce_o : out   can_mac_fce_if_s2d_t;
+    fce_i : in    can_mac_fce_if_s2m_t;
+    fce_o : out   can_mac_fce_if_m2s_t;
 
     -- Debug ports (test visibility)
     debug_ack_error_o  : out boolean;
@@ -122,11 +122,11 @@ begin
     variable v_dominant_run_count            : integer range 0 to 15;
 
     -- Registered output next-value variables
-    variable v_mac_ser_o : can_mac_ser_fsm_tx_if_d2s_t;
-    variable v_pcs_o     : can_mac_pcs_tx_if_s2d_t;
-    variable v_bs_fd_o   : can_mac_fsm_bs_tx_if_s2d_t;
-    variable v_crc_o     : can_mac_fsm_crc_tx_if_s2d_t;
-    variable v_fce_o     : can_mac_fce_if_s2d_t;
+    variable v_mac_ser_o : can_mac_ser_fsm_tx_if_m2s_t;
+    variable v_pcs_o     : can_mac_pcs_tx_if_m2s_t;
+    variable v_bs_fd_o   : can_mac_fsm_bs_tx_if_m2s_t;
+    variable v_crc_o     : can_mac_fsm_crc_tx_if_m2s_t;
+    variable v_fce_o     : can_mac_fce_if_m2s_t;
 
     -- Handles logic common to quiet states:
     -- entry-side interface reset/deassertion and SP-based idle-run counting.

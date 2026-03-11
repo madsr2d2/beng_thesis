@@ -25,7 +25,7 @@ begin
   test_process : process is
 
     variable frame_info      : mac_frame_bit_t;
-    variable mac_ser_to_fsm  : can_mac_ser_fsm_tx_if_s2d_t;
+    variable mac_ser_to_fsm  : can_mac_ser_fsm_tx_if_s2m_t;
     variable crc_vec         : crc_vector_t;
     variable sbc_vec         : sbc_t;
     variable prev_polarity   : polarity_t;

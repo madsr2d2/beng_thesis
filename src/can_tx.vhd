@@ -45,16 +45,16 @@ entity can_tx is
     llc_user_o : out   can_user_llc_tx_if_d2s_t;
 
     -- Fault Confinement Entity interface
-    fce_i : in    can_mac_fce_if_d2s_t;
-    fce_o : out   can_mac_fce_if_s2d_t;
+    fce_i : in    can_mac_fce_if_s2m_t;
+    fce_o : out   can_mac_fce_if_m2s_t;
 
     -- Physical bus interface
     tx_bus_o : out   std_logic;
     rx_bus_i : in    std_logic;
 
     -- Debug interface (monitoring internal MAC/PCS handshake and error detection)
-    debug_mac_to_pcs_o        : out can_mac_pcs_tx_if_s2d_t;
-    debug_pcs_to_mac_o        : out can_mac_pcs_tx_if_d2s_t;
+    debug_mac_to_pcs_o        : out can_mac_pcs_tx_if_m2s_t;
+    debug_pcs_to_mac_o        : out can_mac_pcs_tx_if_s2m_t;
     debug_strobe_type_o       : out strobe_type_t;
     debug_ack_error_o         : out boolean;     -- ACK error detected
     debug_form_error_o        : out boolean;    -- Form error detected
@@ -81,8 +81,8 @@ architecture rtl of can_tx is
   signal mac_to_llc : can_llc_mac_tx_if_d2s_t;
 
   -- MAC <-> PCS
-  signal mac_to_pcs : can_mac_pcs_tx_if_s2d_t;
-  signal pcs_to_mac : can_mac_pcs_tx_if_d2s_t;
+  signal mac_to_pcs : can_mac_pcs_tx_if_m2s_t;
+  signal pcs_to_mac : can_mac_pcs_tx_if_s2m_t;
 
   ---------------------------------------------------------------------------
   -- Debug signals (for test visibility)
