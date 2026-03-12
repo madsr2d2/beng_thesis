@@ -1,71 +1,59 @@
 [*]
-[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Mon Feb 16 21:23:18 2026
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Thu Mar 12 19:13:44 2026
 [*]
 [dumpfile] "/home/madsr2d2/beng_thesis/sim/can_pcs_tx_tb.ghw"
-[dumpfile_mtime] "Mon Feb 16 21:22:24 2026"
-[dumpfile_size] 73709
+[dumpfile_mtime] "Thu Mar 12 19:01:00 2026"
+[dumpfile_size] 624519
 [savefile] "/home/madsr2d2/beng_thesis/gtk_wave/can_pcs_tx_tb.gtkw"
-[timestart] 19983000000
+[timestart] 292243000000
 [size] 1920 1121
 [pos] -27 -24
-*-28.087938 20975000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-29.456343 296105000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.can_pcs_tx_tb.
-[treeopen] top.can_pcs_tx_tb.dut.
-[treeopen] top.can_pcs_tx_tb.dut.mac_to_pcs_i.
-[sst_width] 278
+[treeopen] top.can_pcs_tx_tb.dut_tdc.
+[treeopen] top.can_pcs_tx_tb.dut_tdc.mac_to_pcs_i.
+[sst_width] 297
 [signals_width] 230
 [sst_expanded] 1
 [sst_vpaned_height] 338
-@800200
--DUT
--PCS_inrnals
 @28
-top.can_pcs_tx_tb.dut.sample_strobe_r
-top.can_pcs_tx_tb.dut.sample_strobe_comb
-top.can_pcs_tx_tb.dut.ssp_pulse
-top.can_pcs_tx_tb.dut.sp_pulse
+top.can_pcs_tx_tb.dut_tdc.clk
 @420
-top.can_pcs_tx_tb.dut.effective_fifo_index_r
-top.can_pcs_tx_tb.dut.effective_fifo_index_comb
-top.can_pcs_tx_tb.dut.fifo_index
-top.can_pcs_tx_tb.dut.ssp_position
-top.can_pcs_tx_tb.dut.delay_count
-top.can_pcs_tx_tb.dut.tq_count
-top.can_pcs_tx_tb.dut.clk_count_data
-top.can_pcs_tx_tb.dut.clk_count_nom
+top.can_pcs_tx_tb.dut_tdc.clk_count
+top.can_pcs_tx_tb.dut_tdc.current_bit.bit_name
+top.can_pcs_tx_tb.dut_tdc.current_bit.polarity
+top.can_pcs_tx_tb.dut_tdc.debug_state_o
+top.can_pcs_tx_tb.dut_tdc.delay_count_clk
+top.can_pcs_tx_tb.dut_tdc.fifo_index
+top.can_pcs_tx_tb.dut_tdc.mac_to_pcs_i.data.bit_name
+top.can_pcs_tx_tb.dut_tdc.current_bit.bit_name
+top.can_pcs_tx_tb.dut_tdc.current_bit.polarity
+top.can_pcs_tx_tb.dut_tdc.mac_to_pcs_i.data.polarity
+top.can_pcs_tx_tb.dut_tdc.mac_to_pcs_i.valid
+top.can_pcs_tx_tb.dut_tdc.pcs_to_mac_o.bus_polarity
+top.can_pcs_tx_tb.dut_tdc.pcs_to_mac_o.fifo_index
 @28
-top.can_pcs_tx_tb.dut.data_tq_tick
-top.can_pcs_tx_tb.dut.nom_tq_tick
+top.can_pcs_tx_tb.dut_tdc.pcs_to_mac_o.sample_strobe
 @420
-top.can_pcs_tx_tb.dut.next_state
-top.can_pcs_tx_tb.dut.state
+top.can_pcs_tx_tb.dut_tdc.pcs_to_mac_o.strobe_type
 @28
-top.can_pcs_tx_tb.dut.rx_bus_i
-top.can_pcs_tx_tb.dut.tx_bus_o
-top.can_pcs_tx_tb.dut.rst
-top.can_pcs_tx_tb.dut.clk
-@1000200
--PCS_inrnals
-@800200
--PCS_to_MAC
+top.can_pcs_tx_tb.dut_tdc.prev_rx_bus
+top.can_pcs_tx_tb.dut_tdc.prev_tx_bus
+top.can_pcs_tx_tb.dut_tdc.rst
+top.can_pcs_tx_tb.dut_tdc.rx_bus_i
 @420
-top.can_pcs_tx_tb.dut.pcs_to_mac_o.bus_polarity
-top.can_pcs_tx_tb.dut.pcs_to_mac_o.fifo_index
-@28
-top.can_pcs_tx_tb.dut.pcs_to_mac_o.sample_strobe
-@1000200
--PCS_to_MAC
-@800200
--MAC_to_PCS
+top.can_pcs_tx_tb.dut_tdc.rx_rising_edge_reg
+top.can_pcs_tx_tb.dut_tdc.ssp_position
+top.can_pcs_tx_tb.dut_tdc.state
+top.can_pcs_tx_tb.dut_tdc.tdc_counting
 @421
-top.can_pcs_tx_tb.dut.mac_to_pcs_i.data.bit_name
+top.can_pcs_tx_tb.dut_tdc.tq_count
+@28
+top.can_pcs_tx_tb.dut_tdc.tx_bus_o
 @420
-top.can_pcs_tx_tb.dut.mac_to_pcs_i.data.polarity
-top.can_pcs_tx_tb.dut.mac_to_pcs_i.valid
-@1000200
--MAC_to_PCS
--DUT
+top.can_pcs_tx_tb.dut_tdc.mac_to_pcs_i.data.bit_name
+top.can_pcs_tx_tb.dut_tdc.mac_to_pcs_i.data.polarity
 [pattern_trace] 1
 [pattern_trace] 0

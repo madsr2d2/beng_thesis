@@ -19,7 +19,7 @@
 --
 -- FSM State Transitions:
 --   idle -> transmitting_nominal              (mac_to_pcs_i.valid = true)
---   transmitting_nominal -> measuring_delay   (FDF sample point, TDC enabled)
+--   transmitting_nominal -> measuring_delay   (FDF sample point)
 --   measuring_delay -> transmitting_data      (BRS bit boundary, BRS recessive)
 --   measuring_delay -> transmitting_nominal   (BRS dominant or TDC timeout)
 --   transmitting_data -> transmitting_nominal (CRC delimiter or error flag)
@@ -80,13 +80,6 @@ architecture rtl of can_pcs_tx is
   constant tdc_prescaler_valid_c : boolean := (prescaler = 1 or prescaler = 2);
   constant use_tdc_c             : boolean := tdc_enable and tdc_prescaler_valid_c;
 
-  -- Internal alignment terms (clock cycles)
-  constant tx_output_pipeline_clk_c    : integer := 2;
-  constant rx_capture_latency_clk_c    : integer := 1;
-  constant max_transmitter_delay_clk_c : integer := max_transmitter_delay_c * prescaler;
-  constant max_fifo_index              : integer := (max_transmitter_delay_c + ssp_offset +
-                                                     tx_output_pipeline_clk_c - rx_capture_latency_clk_c) / data_bit_time;
-
   function is_ssp_monitor_bit (
     bit_name_i : mac_frame_bit_name_t
   ) return boolean is
@@ -116,12 +109,10 @@ architecture rtl of can_pcs_tx is
   -- Registered signals
   ---------------------------------------------------------------------------
   signal state              : can_pcs_tx_state_t;
-  signal clk_count_nom      : integer range 0 to prescaler - 1;
-  signal clk_count_data     : integer range 0 to prescaler - 1;
+  signal clk_count          : integer range 0 to prescaler - 1;
   signal tq_count           : integer range 0 to nom_bit_time;
   signal current_bit        : mac_frame_bit_t;
-  signal delay_count_clk    : integer range 0 to max_transmitter_delay_clk_c;
-  signal tdc_armed          : boolean;
+  signal delay_count_clk    : natural;
   signal tdc_counting       : boolean;
   signal ssp_position       : integer range 0 to data_bit_time - 1;
   signal fifo_index         : integer range 0 to transmitted_bits_fifo_depth_c - 1;
@@ -137,124 +128,85 @@ begin
   fsm : process (clk) is
 
     variable v_state           : can_pcs_tx_state_t;
-    variable v_clk_count_nom   : integer range 0 to prescaler - 1;
-    variable v_clk_count_data  : integer range 0 to prescaler - 1;
+    variable v_clk_count       : integer range 0 to prescaler - 1;
     variable v_tq_count        : integer range 0 to nom_bit_time;
     variable v_current_bit     : mac_frame_bit_t;
-    variable v_delay_count_clk : integer range 0 to max_transmitter_delay_clk_c;
-    variable v_tdc_armed       : boolean;
+    variable v_delay_count_clk : natural;
     variable v_tdc_counting    : boolean;
     variable v_ssp_position    : integer range 0 to data_bit_time - 1;
     variable v_fifo_index      : integer range 0 to transmitted_bits_fifo_depth_c - 1;
     variable v_pcs_to_mac      : can_mac_pcs_tx_if_s2m_t;
 
     -- Guard variables (evaluated once from registered state)
-    variable frame_active_v      : boolean;
-    variable tx_rising_edge_v    : boolean;
-    variable tdc_timeout_v       : boolean;
-    variable nom_tq_tick_v       : boolean;
-    variable data_tq_tick_v      : boolean;
-    variable nom_bit_boundary_v  : boolean;
-    variable data_bit_boundary_v : boolean;
-    variable nom_sp_v            : boolean;
+    variable frame_active_v   : boolean;
+    variable tx_rising_edge_v : boolean;
+    variable tq_tick_v        : boolean;
+    variable bit_boundary_v   : boolean;
+    variable nom_sp_v         : boolean;
 
-    -- TDC measurement locals
-    variable tdcv_physical_clk_v     : integer;
-    variable delay_with_offset_clk_v : integer;
-    variable delay_with_offset_tq_v  : integer;
+    -- TDC measurement local
+    variable delay_tq_v : integer;
 
     ---------------------------------------------------------------------------
     -- Shared procedures called from state arms
     ---------------------------------------------------------------------------
 
-    -- Advance nominal prescaler and set nom_tq_tick_v.
-    procedure tick_nom_prescaler is
+    -- Advance prescaler and set tq_tick_v.
+    procedure tick_prescaler is
     begin
 
-      nom_tq_tick_v := false;
-      if (v_clk_count_nom = prescaler - 1) then
-        nom_tq_tick_v   := true;
-        v_clk_count_nom := 0;
+      tq_tick_v := false;
+      if (v_clk_count = prescaler - 1) then
+        tq_tick_v   := true;
+        v_clk_count := 0;
       else
-        v_clk_count_nom := v_clk_count_nom + 1;
+        v_clk_count := v_clk_count + 1;
       end if;
 
-    end procedure tick_nom_prescaler;
+    end procedure tick_prescaler;
 
-    -- Advance data prescaler and set data_tq_tick_v.
-    procedure tick_data_prescaler is
+    -- Advance TQ counter and latch next bit at boundary.
+    -- Sets bit_boundary_v.
+    procedure latch_next_bit (
+      bit_time : in integer
+    ) is
     begin
 
-      data_tq_tick_v := false;
-      if (v_clk_count_data = prescaler - 1) then
-        data_tq_tick_v   := true;
-        v_clk_count_data := 0;
-      else
-        v_clk_count_data := v_clk_count_data + 1;
-      end if;
-
-    end procedure tick_data_prescaler;
-
-    -- Advance TQ at nominal rate and latch next bit at boundary.
-    -- Sets nom_bit_boundary_v.
-    procedure latch_next_bit_nom is
-    begin
-
-      nom_bit_boundary_v := nom_tq_tick_v and (v_tq_count = nom_bit_time - 1);
-      if (nom_bit_boundary_v) then
+      bit_boundary_v := tq_tick_v and (v_tq_count = bit_time - 1);
+      if (bit_boundary_v) then
         v_current_bit := mac_to_pcs_i.data;
         v_tq_count    := 0;
-      elsif (nom_tq_tick_v) then
+      elsif (tq_tick_v) then
         v_tq_count := v_tq_count + 1;
       end if;
 
-    end procedure latch_next_bit_nom;
+    end procedure latch_next_bit;
 
-    -- Advance TQ at data rate and latch next bit at boundary.
-    -- Sets data_bit_boundary_v.
-    procedure latch_next_bit_data is
+    -- Emit sample point strobe at the given TQ position.
+    procedure emit_sp (
+      sp_pos : in integer
+    ) is
     begin
 
-      data_bit_boundary_v := data_tq_tick_v and (v_tq_count = data_bit_time - 1);
-      if (data_bit_boundary_v) then
-        v_current_bit := mac_to_pcs_i.data;
-        v_tq_count    := 0;
-      elsif (data_tq_tick_v) then
-        v_tq_count := v_tq_count + 1;
-      end if;
-
-    end procedure latch_next_bit_data;
-
-    -- Emit nominal sample point strobe (reads registered tq_count).
-    procedure emit_nom_sp is
-    begin
-
-      if (nom_tq_tick_v and tq_count = sp_position - 1) then
+      if (tq_tick_v and tq_count = sp_pos - 1) then
         v_pcs_to_mac.sample_strobe := '1';
         v_pcs_to_mac.strobe_type   := sp_strobe;
       end if;
 
-    end procedure emit_nom_sp;
+    end procedure emit_sp;
 
-    -- Emit data-rate sample point strobe (reads registered tq_count).
-    procedure emit_data_sp is
-    begin
-
-      if (data_tq_tick_v and tq_count = data_sp_position - 1) then
-        v_pcs_to_mac.sample_strobe := '1';
-        v_pcs_to_mac.strobe_type   := sp_strobe;
-      end if;
-
-    end procedure emit_data_sp;
-
-    -- Emit secondary sample point strobe if TDC active and SP not already
-    -- asserted this cycle (reads registered tq_count, ssp_position, fifo_index).
+    -- Emit secondary sample point strobe (TDC monitoring).
     procedure emit_ssp is
+
+      variable ssp_due_v : boolean;
+
     begin
 
-      if (use_tdc_c and v_pcs_to_mac.sample_strobe = '0' and
-          is_ssp_monitor_bit(current_bit.bit_name) and
-          data_tq_tick_v and tq_count = ssp_position) then
+      ssp_due_v := use_tdc_c and
+                   is_ssp_monitor_bit(current_bit.bit_name) and
+                   tq_tick_v and tq_count = ssp_position;
+
+      if (ssp_due_v) then
         v_pcs_to_mac.sample_strobe := '1';
         v_pcs_to_mac.strobe_type   := ssp_strobe;
         v_pcs_to_mac.fifo_index    := fifo_index;
@@ -268,30 +220,19 @@ begin
     begin
 
       -- Start counter on physical TX output edge
-      if (v_tdc_armed and not v_tdc_counting and tx_rising_edge_v) then
+      if (use_tdc_c and not v_tdc_counting and tx_rising_edge_v) then
         v_tdc_counting    := true;
         v_delay_count_clk := 0;
-      elsif (v_tdc_counting and not rx_rising_edge_reg and
-             v_delay_count_clk < max_transmitter_delay_clk_c) then
+      elsif (v_tdc_counting and not rx_rising_edge_reg) then
         v_delay_count_clk := v_delay_count_clk + 1;
       end if;
 
       -- Latch on registered RX recessive->dominant edge
       if (rx_rising_edge_reg and v_tdc_counting) then
-        if (v_delay_count_clk > rx_capture_latency_clk_c) then
-          tdcv_physical_clk_v := v_delay_count_clk - rx_capture_latency_clk_c;
-        else
-          tdcv_physical_clk_v := 0;
-        end if;
-
-        delay_with_offset_clk_v := tdcv_physical_clk_v +
-                                   (ssp_offset * prescaler) +
-                                   tx_output_pipeline_clk_c;
-        delay_with_offset_tq_v  := (delay_with_offset_clk_v + prescaler - 1) / prescaler;
-        v_fifo_index            := calculate_fifo_delay_index(delay_with_offset_tq_v, data_bit_time);
-        v_ssp_position          := delay_with_offset_tq_v mod data_bit_time;
-        v_tdc_counting          := false;
-        v_tdc_armed             := false;
+        delay_tq_v     := (v_delay_count_clk + prescaler - 1) / prescaler + ssp_offset;
+        v_fifo_index   := calculate_fifo_delay_index(delay_tq_v, data_bit_time);
+        v_ssp_position := delay_tq_v mod data_bit_time;
+        v_tdc_counting := false;
       end if;
 
     end procedure measure_tdc;
@@ -301,12 +242,10 @@ begin
     if rising_edge(clk) then
       if (rst = '1') then
         state              <= idle;
-        clk_count_nom      <= 0;
-        clk_count_data     <= 0;
+        clk_count          <= 0;
         tq_count           <= 0;
         current_bit        <= reset_mac_frame_bit_c;
         delay_count_clk    <= 0;
-        tdc_armed          <= false;
         tdc_counting       <= false;
         ssp_position       <= 0;
         fifo_index         <= 0;
@@ -319,17 +258,14 @@ begin
         -- Evaluate guards from registered state
         frame_active_v   := mac_to_pcs_i.valid;
         tx_rising_edge_v := (prev_tx_bus = recessive_bit_c and tx_bus_o = dominant_bit_c);
-        tdc_timeout_v    := tdc_counting and (delay_count_clk >= max_transmitter_delay_clk_c);
-        nom_sp_v         := (clk_count_nom = prescaler - 1) and (tq_count = sp_position - 1);
+        nom_sp_v         := (clk_count = prescaler - 1) and (tq_count = sp_position - 1);
 
         -- Initialize v_* from registers
         v_state           := state;
-        v_clk_count_nom   := clk_count_nom;
-        v_clk_count_data  := clk_count_data;
+        v_clk_count       := clk_count;
         v_tq_count        := tq_count;
         v_current_bit     := current_bit;
         v_delay_count_clk := delay_count_clk;
-        v_tdc_armed       := tdc_armed;
         v_tdc_counting    := tdc_counting;
         v_ssp_position    := ssp_position;
         v_fifo_index      := fifo_index;
@@ -344,20 +280,9 @@ begin
         case state is
 
           when idle =>
-            tick_nom_prescaler;
-            -- Free-running TQ at nominal rate
-            if (nom_tq_tick_v) then
-              if (v_tq_count = nom_bit_time - 1) then
-                v_tq_count := 0;
-              else
-                v_tq_count := v_tq_count + 1;
-              end if;
-            end if;
-            emit_nom_sp;
-            -- Gate inactive state
-            v_clk_count_data := 0;
-            v_tdc_armed      := false;
-            v_tdc_counting   := false;
+            tick_prescaler;
+            latch_next_bit(nom_bit_time);
+            emit_sp(sp_position);
             -- Transition: latch first bit on valid
             if (frame_active_v) then
               v_current_bit := mac_to_pcs_i.data;
@@ -366,79 +291,55 @@ begin
             end if;
 
           when transmitting_nominal =>
-            tick_nom_prescaler;
-            latch_next_bit_nom;
-            emit_nom_sp;
-            -- Gate inactive state
-            v_clk_count_data := 0;
-            v_tdc_armed      := false;
-            v_tdc_counting   := false;
-            -- Transition to measuring_delay at FDF sample point (all FD frames).
-            -- TDC arming is conditional on use_tdc_c; without TDC the
-            -- measuring_delay state still handles the BRS rate switch.
+            tick_prescaler;
+            latch_next_bit(nom_bit_time);
+            emit_sp(sp_position);
+            -- Transition to measuring_delay at FDF bit sample point.
             if (current_bit.bit_name = fdf_bit and nom_sp_v) then
-              if (use_tdc_c) then
-                v_tdc_armed       := true;
-                v_delay_count_clk := 0;
-              end if;
-              v_state := measuring_delay;
-            end if;
-            -- Return to idle on frame end
-            if (not frame_active_v) then
-              v_state := idle;
+              v_tdc_counting    := false;
+              v_delay_count_clk := 0;
+              v_state           := measuring_delay;
             end if;
 
           when measuring_delay =>
-            tick_nom_prescaler;
-            tick_data_prescaler;
-            latch_next_bit_nom;
-            emit_nom_sp;
+            tick_prescaler;
+            latch_next_bit(nom_bit_time);
+            emit_sp(sp_position);
             measure_tdc;
             -- Transition at BRS bit boundary
-            if (current_bit.bit_name = brs_bit and nom_bit_boundary_v) then
+            if (current_bit.bit_name = brs_bit and bit_boundary_v) then
               if (current_bit.polarity = recessive) then
                 v_state := transmitting_data;
               else
                 v_state := transmitting_nominal;
               end if;
-            elsif (tdc_timeout_v) then
-              v_state := transmitting_nominal;
-            end if;
-            -- Return to idle on frame end
-            if (not frame_active_v) then
-              v_state := idle;
             end if;
 
           when transmitting_data =>
-            tick_nom_prescaler;
-            tick_data_prescaler;
-            latch_next_bit_data;
-            emit_data_sp;
+            tick_prescaler;
+            latch_next_bit(data_bit_time);
+            emit_sp(data_sp_position);
             emit_ssp;
-            -- Gate inactive TDC
-            v_tdc_armed    := false;
-            v_tdc_counting := false;
             -- Return to nominal on error flag or CRC delimiter
-            if (data_bit_boundary_v and is_error_flag_bit(mac_to_pcs_i.data.bit_name)) then
+            if (bit_boundary_v and is_error_flag_bit(mac_to_pcs_i.data.bit_name)) then
               v_state := transmitting_nominal;
-            elsif (data_bit_boundary_v and mac_to_pcs_i.data.bit_name = crc_delimiter_bit) then
+            elsif (bit_boundary_v and mac_to_pcs_i.data.bit_name = crc_delimiter_bit) then
               v_state := transmitting_nominal;
-            end if;
-            -- Return to idle on frame end
-            if (not frame_active_v) then
-              v_state := idle;
             end if;
 
         end case;
 
+        -- Return to idle when frame ends (overrides any state transition).
+        if (not frame_active_v) then
+          v_state := idle;
+        end if;
+
         -- Register all updates
         state           <= v_state;
-        clk_count_nom   <= v_clk_count_nom;
-        clk_count_data  <= v_clk_count_data;
+        clk_count       <= v_clk_count;
         tq_count        <= v_tq_count;
         current_bit     <= v_current_bit;
         delay_count_clk <= v_delay_count_clk;
-        tdc_armed       <= v_tdc_armed;
         tdc_counting    <= v_tdc_counting;
         ssp_position    <= v_ssp_position;
         fifo_index      <= v_fifo_index;
