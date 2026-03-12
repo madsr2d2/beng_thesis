@@ -49,8 +49,8 @@ begin
     port map (
       clk_i   => clk_i,
       rst_i     => rst_i,
-      bs_fd_i => bs_fd_i,
-      bs_fd_o => bs_fd_o
+      bs_i => bs_fd_i,
+      bs_o => bs_fd_o
     );
 
   -- Main test process
@@ -93,10 +93,12 @@ begin
       bs_fd_i.valid      <= true;
       wait for clk_period_c;
     end loop;
-    bs_fd_i.valid <= false;
-    wait for clk_period_c;
+    -- Stuff bit output is a single-cycle pulse registered from the 5th bit
+    -- Check immediately before clearing valid
     AffirmIf(bs_fd_o.valid = true, "stuff_bit_valid should be true after 5 dominant");
     AffirmIf(bs_fd_o.data = recessive, "stuff_bit should be recessive after 5 dominant");
+    bs_fd_i.valid <= false;
+    wait for clk_period_c;
 
     -- Feed the stuff bit back (as FSM would)
     bs_fd_i.data       <= bs_fd_o.data;

@@ -43,7 +43,7 @@ TESTBENCHPATH = $(TB_NOEXT)$(VHDLEX)
 
 # GHDL configuration
 GHDL_CMD = ghdl
-GHDL_FLAGS = --std=08 --warn-no-vital-generic --warn-no-hide -P$(OSVVM_LIB_PATH) -P.
+GHDL_FLAGS = --std=08 -fpsl --warn-no-vital-generic --warn-no-hide -P$(OSVVM_LIB_PATH) -P.
 
 SIMDIR = sim
 STOP_TIME ?= 100us
@@ -81,8 +81,9 @@ compile:
 	@$(GHDL_CMD) -m $(GHDL_FLAGS) --workdir=$(SIMDIR) --work=work $(TESTBENCHFILE)
 
 run:
-	@$(GHDL_CMD) -r $(GHDL_FLAGS) --workdir=$(SIMDIR) --work=work $(TESTBENCHFILE) --wave=$(GHWFILE) $(GHDL_SIM_OPT)
+	@$(GHDL_CMD) -r $(GHDL_FLAGS) --workdir=$(SIMDIR) --work=work $(TESTBENCHFILE) --wave=$(GHWFILE) --psl-report=$(SIMDIR)/$(TESTBENCHFILE)_psl.json $(GHDL_SIM_OPT)
 	@echo "Simulation finished. Waveform saved to $(GHWFILE)"
+	@if [ -f "$(SIMDIR)/$(TESTBENCHFILE)_psl.json" ]; then echo "PSL report saved to $(SIMDIR)/$(TESTBENCHFILE)_psl.json"; fi
 
 view:
 	@if [ -f "$(GTKWFILE)" ]; then \

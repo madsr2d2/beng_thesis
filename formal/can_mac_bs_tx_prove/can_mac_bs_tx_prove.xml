@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+<testsuite timestamp="2026-03-12T11:24:55" hostname="madsr2d2" package="can_mac_bs_tx" id="0" name="prove" tests="17" errors="0" failures="2" time="0" skipped="16">
+<properties>
+<property name="os" value="Linux"/>
+<property name="expect" value="PASS"/>
+<property name="status" value="FAIL"/>
+</properties>
+<testcase classname="prove" name="build execution" time="0">
+<failure type="FAIL" message="Task returned status FAIL." />
+</testcase>
+<testcase classname="prove" name="Property COVER req_mac_056_sbc_hold_no_stuff.cover in can_mac_bs_tx" time="0" type="COVER" location="" id="req_mac_056_sbc_hold_no_stuff.cover">
+<skipped />
+</testcase>
+<testcase classname="prove" name="Property COVER req_mac_056_sbc_inc_on_stuff.cover in can_mac_bs_tx" time="0" type="COVER" location="" id="req_mac_056_sbc_inc_on_stuff.cover">
+<skipped />
+</testcase>
+<testcase classname="prove" name="Property COVER req_mac_056_sbc_parity_correct.cover in can_mac_bs_tx" time="0" type="COVER" location="" id="req_mac_056_sbc_parity_correct.cover">
+<skipped />
+</testcase>
+<testcase classname="prove" name="Property COVER req_mac_063_hold_no_input.cover in can_mac_bs_tx" time="0" type="COVER" location="" id="req_mac_063_hold_no_input.cover">
+<skipped />
+</testcase>
+<testcase classname="prove" name="Property COVER req_mac_063_inc_on_same_pol.cover in can_mac_bs_tx" time="0" type="COVER" location="" id="req_mac_063_inc_on_same_pol.cover">
+<skipped />
+</testcase>
+<testcase classname="prove" name="Property COVER req_mac_063_rst_on_not_same_pol.cover in can_mac_bs_tx" time="0" type="COVER" location="" id="req_mac_063_rst_on_not_same_pol.cover">
+<skipped />
+</testcase>
+<testcase classname="prove" name="Property COVER reset_behavior.cover in can_mac_bs_tx" time="0" type="COVER" location="" id="reset_behavior.cover">
+<skipped />
+</testcase>
+<testcase classname="prove" name="Property ASSERT req_mac_056_sbc_hold_no_stuff in can_mac_bs_tx" time="0" type="ASSERT" location="" id="req_mac_056_sbc_hold_no_stuff">
+<skipped />
+</testcase>
+<testcase classname="prove" name="Property ASSERT req_mac_056_sbc_inc_on_stuff in can_mac_bs_tx" time="0" type="ASSERT" location="" id="req_mac_056_sbc_inc_on_stuff">
+<skipped />
+</testcase>
+<testcase classname="prove" name="Property ASSERT req_mac_056_sbc_parity_correct in can_mac_bs_tx" time="0" type="ASSERT" location="" id="req_mac_056_sbc_parity_correct">
+<skipped />
+</testcase>
+<testcase classname="prove" name="Property ASSERT req_mac_063_count_bounded in can_mac_bs_tx" time="0" type="ASSERT" location="" id="req_mac_063_count_bounded">
+<skipped />
+</testcase>
+<testcase classname="prove" name="Property ASSERT req_mac_063_hold_no_input in can_mac_bs_tx" time="0" type="ASSERT" location="" id="req_mac_063_hold_no_input">
+<skipped />
+</testcase>
+<testcase classname="prove" name="Property ASSERT req_mac_063_inc_on_same_pol in can_mac_bs_tx" time="0" type="ASSERT" location="" id="req_mac_063_inc_on_same_pol" tracefile="engine_0/trace.vcd">
+<failure type="ASSERT" message="Property ASSERT req_mac_063_inc_on_same_pol in can_mac_bs_tx failed. Trace file: engine_0/trace.vcd" />
+</testcase>
+<testcase classname="prove" name="Property ASSERT req_mac_063_rst_on_not_same_pol in can_mac_bs_tx" time="0" type="ASSERT" location="" id="req_mac_063_rst_on_not_same_pol">
+<skipped />
+</testcase>
+<testcase classname="prove" name="Property ASSERT req_mac_063_stuff_pol_inverse in can_mac_bs_tx" time="0" type="ASSERT" location="" id="req_mac_063_stuff_pol_inverse">
+<skipped />
+</testcase>
+<testcase classname="prove" name="Property ASSERT req_mac_063_valid_only_at_threshold in can_mac_bs_tx" time="0" type="ASSERT" location="" id="req_mac_063_valid_only_at_threshold">
+<skipped />
+</testcase>
+<testcase classname="prove" name="Property ASSERT reset_behavior in can_mac_bs_tx" time="0" type="ASSERT" location="" id="reset_behavior">
+<skipped />
+</testcase>
+<system-out>SBY 11:24:55 [formal/can_mac_bs_tx_prove] Removing directory '/home/madsr2d2/beng_thesis/formal/can_mac_bs_tx_prove'.
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] Copy '/home/madsr2d2/beng_thesis/src/can_types_pkg.vhd' to '/home/madsr2d2/beng_thesis/formal/can_mac_bs_tx_prove/src/can_types_pkg.vhd'.
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] Copy '/home/madsr2d2/beng_thesis/src/can_protocol_pkg.vhd' to '/home/madsr2d2/beng_thesis/formal/can_mac_bs_tx_prove/src/can_protocol_pkg.vhd'.
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] Copy '/home/madsr2d2/beng_thesis/src/can_mac_bs_tx.vhd' to '/home/madsr2d2/beng_thesis/formal/can_mac_bs_tx_prove/src/can_mac_bs_tx.vhd'.
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0: smtbmc z3
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] base: starting process &quot;cd formal/can_mac_bs_tx_prove/src; yosys -ql ../model/design.log ../model/design.ys&quot;
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] base: can_types_pkg.vhd:340:13:warning: attribute &quot;fsm_encoding&quot; for type &quot;can_format_t&quot; is not kept in the netlist [-Wunkept-attribute]
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] base: attribute fsm_encoding of can_format_t           : type is &quot;one_hot&quot;;
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] base: ^
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] base: can_types_pkg.vhd:341:13:warning: attribute &quot;fsm_encoding&quot; for type &quot;transfer_status_t&quot; is not kept in the netlist [-Wunkept-attribute]
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] base: attribute fsm_encoding of transfer_status_t      : type is &quot;one_hot&quot;;
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] base: ^
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] base: can_types_pkg.vhd:342:13:warning: attribute &quot;fsm_encoding&quot; for type &quot;can_mac_ser_tx_state_t&quot; is not kept in the netlist [-Wunkept-attribute]
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] base: attribute fsm_encoding of can_mac_ser_tx_state_t : type is &quot;one_hot&quot;;
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] base: ^
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] base: can_types_pkg.vhd:343:13:warning: attribute &quot;fsm_encoding&quot; for type &quot;can_mac_fsm_tx_state_t&quot; is not kept in the netlist [-Wunkept-attribute]
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] base: attribute fsm_encoding of can_mac_fsm_tx_state_t : type is &quot;one_hot&quot;;
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] base: ^
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] base: finished (returncode=0)
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] prep: starting process &quot;cd formal/can_mac_bs_tx_prove/model; yosys -ql design_prep.log design_prep.ys&quot;
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] prep: finished (returncode=0)
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] smt2: starting process &quot;cd formal/can_mac_bs_tx_prove/model; yosys -ql design_smt2.log design_smt2.ys&quot;
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] smt2: finished (returncode=0)
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.basecase: starting process &quot;cd formal/can_mac_bs_tx_prove; yosys-smtbmc -s z3 --presat --noprogress -t 25  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2&quot;
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.induction: starting process &quot;cd formal/can_mac_bs_tx_prove; yosys-smtbmc -s z3 --presat -i --noprogress -t 25  --append 0 --dump-vcd engine_0/trace_induct.vcd --dump-yw engine_0/trace_induct.yw --dump-vlogtb engine_0/trace_induct_tb.v --dump-smtc engine_0/trace_induct.smtc model/design_smt2.smt2&quot;
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.induction: ##   0:00:00  Solver: z3
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.induction: ##   0:00:00  Trying induction in step 25..
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.basecase: ##   0:00:00  Solver: z3
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.basecase: ##   0:00:00  Checking assumptions in step 0..
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.basecase: ##   0:00:00  Checking assertions in step 0..
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.basecase: ##   0:00:00  Checking assumptions in step 1..
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.basecase: ##   0:00:00  Checking assertions in step 1..
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.basecase: ##   0:00:00  Checking assumptions in step 2..
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.basecase: ##   0:00:00  Checking assertions in step 2..
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.basecase: ##   0:00:00  Checking assumptions in step 3..
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.induction: ##   0:00:00  Trying induction in step 24..
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.basecase: ##   0:00:00  Checking assertions in step 3..
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.induction: ##   0:00:00  Trying induction in step 23..
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.basecase: ##   0:00:00  BMC failed!
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.basecase: ##   0:00:00  Assert failed in can_mac_bs_tx: req_mac_063_inc_on_same_pol
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.basecase: ##   0:00:00  Writing trace to VCD file: engine_0/trace.vcd
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.induction: ##   0:00:00  Trying induction in step 22..
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.induction: ##   0:00:00  Trying induction in step 21..
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.basecase: ##   0:00:00  Writing trace to Verilog testbench: engine_0/trace_tb.v
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.basecase: ##   0:00:00  Writing trace to constraints file: engine_0/trace.smtc
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.basecase: ##   0:00:00  Writing trace to Yosys witness file: engine_0/trace.yw
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.induction: ##   0:00:00  Trying induction in step 20..
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.induction: ##   0:00:00  Trying induction in step 19..
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.basecase: ##   0:00:00  Status: failed
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.induction: ##   0:00:00  Trying induction in step 18..
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.induction: ##   0:00:00  Trying induction in step 17..
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.induction: ##   0:00:00  Trying induction in step 16..
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.basecase: finished (returncode=1)
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.basecase: Status returned by engine for basecase: FAIL
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] engine_0.induction: terminating process
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] summary: engine_0 (smtbmc z3) returned FAIL for basecase
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] summary: counterexample trace [basecase]: formal/can_mac_bs_tx_prove/engine_0/trace.vcd
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] summary:   failed assertion can_mac_bs_tx.req_mac_063_inc_on_same_pol at  step 3
+SBY 11:24:55 [formal/can_mac_bs_tx_prove] DONE (FAIL, rc=2)
+</system-out>
+<system-err>
+</system-err>
+</testsuite>
+</testsuites>

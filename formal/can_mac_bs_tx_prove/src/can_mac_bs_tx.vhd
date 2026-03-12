@@ -1,18 +1,16 @@
--- =============================================================================
+--------------------------------------------------------------------------------
 -- Title      : CAN FD Bit Stuffer
--- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
+-- Project    : CAN Bus Transmitter
 --------------------------------------------------------------------------------
 -- File       : can_mac_bs_tx.vhd
--- Author     : Mads Richardt
 -- Standard   : VHDL-2008
 --------------------------------------------------------------------------------
--- Description: Unified bit stuffer for CAN and CAN-FD transmit path.
---              Counts consecutive same-polarity bits, inserts inverse stuff
---              bits at the configurable threshold (stuff_width_c), and
---              maintains a Gray-coded Stuff Bit Count (SBC) with parity.
---              PSL assertions at the end of the architecture provide dual-flow
---              verification (GHDL simulation and SymbiYosys formal proving).
--- =============================================================================
+-- Description: Unified bit stuffer implementation for CAN and CAN-FD.
+--              Handles consecutive bit counting, inverse bit insertion, and
+--              Gray-coded Stuff Bit Count (SBC) generation.
+--
+-- Protocol references: ISO 11898-1:2015 Section 10.6
+--------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;
@@ -37,15 +35,13 @@ architecture rtl of can_mac_bs_tx is
   ---------------------------------------------------------------------------
   -- Registered state signals
   ---------------------------------------------------------------------------
-  signal consecutive_count : integer range 0 to stuff_width_c;
-  signal last_polarity     : polarity_t;
-  signal stuff_count       : unsigned(2 downto 0);
-  signal stuff_valid_prev  : boolean;
-
-  -- psl verification signals: not used in logic, only for psl assertions
-  signal reset_done             : boolean;
-  signal stuff_count_prev       : unsigned(2 downto 0);
-  signal consecutive_count_prev : integer range 0 to stuff_width_c;
+  signal consecutive_count      : integer range 0 to stuff_width_c;
+  signal last_polarity          : polarity_t;
+  signal stuff_count            : unsigned(2 downto 0);
+  signal stuff_valid_prev       : boolean;
+  signal reset_done             : boolean;                          -- PSL-only: true one cycle after reset deasserts
+  signal stuff_count_prev       : unsigned(2 downto 0);             -- PSL-only: stuff_count increment check
+  signal consecutive_count_prev : integer range 0 to stuff_width_c; -- PSL-only: consecutive_count increment check
 
 begin
 
@@ -166,60 +162,62 @@ begin
 
   end process bit_stuffing_process;
 
--- ===========================================================
--- REQ-MAC-063 and REQ-MAC-056: Bit counting and SBC generation
--- ===========================================================
-
--- ===========================================================
--- Default clock
--- ===========================================================
 -- psl default clock is rising_edge(clk_i);
---------------------------------------------------------------
 
--- ===========================================================
 -- Environment assumptions
--- ===========================================================
--- psl assume_no_unknown_data : assume always (bs_i.data = dominant or bs_i.data = recessive);
--- psl assume_reset_init : assume {rst_i = '1'};
--- psl assume_reset_done_init : assume {not reset_done};
---------------------------------------------------------------
+-- psl assume_no_unknown_data  : assume always (bs_i.data = dominant or bs_i.data = recessive);
+-- psl assume_reset_init       : assume {rst_i = '1'};
+-- psl assume_reset_done_init    : assume {not reset_done};
 
 -- ===========================================================
--- Assertions
+-- Check reset
 -- ===========================================================
 --------------------------------------------------------------
--- psl psl_1 : assert always
+-- psl reset_behavior : assert always
 -- { rst_i = '1' or bs_i.start }
 -- |=>
--- { consecutive_count = 0 and
--- last_polarity = recessive and
--- stuff_count = "000" and
--- bs_o.data = recessive and
--- bs_o.sbc = "0000" and
--- not stuff_valid_prev and
--- not bs_o.valid }
+-- { consecutive_count  = 0
+-- and last_polarity  = recessive
+-- and stuff_count    = "000"
+-- and bs_o.data      = recessive
+-- and bs_o.sbc       = "0000"
+-- and not stuff_valid_prev
+-- and not bs_o.valid }
 -- report "Reset did not clear all registers to default values";
 --------------------------------------------------------------
--- psl psl_2 : assert always
+
+-- ===========================================================
+-- #REQ-MAC-063:
+-- ===========================================================
+--------------------------------------------------------------
+-- psl req_mac_063_count_bounded : assert always
 -- { reset_done }
 -- |->
--- { consecutive_count <= stuff_width_c and
--- bs_o.sbc(0) = ( bs_o.sbc(3) xor bs_o.sbc(2) xor bs_o.sbc(1) ) }
--- report "Invariant violated: count bounded or SBC parity";
+-- { consecutive_count <= stuff_width_c }
+-- report "Consecutive count exceeded stuff_width_c threshold";
 --------------------------------------------------------------
--- psl psl_3 : assert always
+
+--------------------------------------------------------------
+-- psl req_mac_063_stuff_pol_inverse : assert always
 -- { reset_done and
 -- bs_o.valid }
 -- |->
--- { consecutive_count = stuff_width_c and
--- bs_o.data /= last_polarity and
--- stuff_count = ( stuff_count_prev + 1 ) }
--- report "Stuff bit invalid: wrong polarity, count, or SBC not incremented";
+-- { bs_o.data /= last_polarity }
+-- report "Stuff bit must be inverse of last polarity";
 --------------------------------------------------------------
--- psl psl_4 : assert always
+
+--------------------------------------------------------------
+-- psl req_mac_063_valid_only_at_threshold : assert always
 -- { reset_done and
--- rst_i /= '1' and
--- not bs_i.start and
+-- bs_o.valid }
+-- |->
+-- { consecutive_count = stuff_width_c }
+-- report "Stuff bit asserted before consecutive count reached threshold";
+--------------------------------------------------------------
+
+--------------------------------------------------------------
+-- psl req_mac_063_inc_on_same_pol : assert always
+-- { reset_done and
 -- bs_i.valid and
 -- consecutive_count /= stuff_width_c and
 -- bs_i.data = last_polarity }
@@ -227,7 +225,9 @@ begin
 -- { consecutive_count = (consecutive_count_prev + 1) }
 -- report "Consecutive count did not increment on same-polarity input";
 --------------------------------------------------------------
--- psl psl_5 : assert always
+
+--------------------------------------------------------------
+-- psl req_mac_063_rst_on_not_same_pol : assert always
 -- { reset_done and
 -- rst_i /= '1' and
 -- not bs_i.start and
@@ -237,14 +237,38 @@ begin
 -- { consecutive_count = 1 }
 -- report "Consecutive count did not reset to 1 on non-same-polarity input";
 --------------------------------------------------------------
--- psl psl_6 : assert always
+
+--------------------------------------------------------------
+-- psl req_mac_063_hold_no_input : assert always
 -- { reset_done and
 -- not bs_i.valid }
 -- |=>
 -- { consecutive_count = consecutive_count_prev }
 -- report "Consecutive count changed without valid input";
 --------------------------------------------------------------
--- psl psl_7 : assert always
+
+-- ===========================================================
+-- #REQ-MAC-056:
+-- ===========================================================
+--------------------------------------------------------------
+-- psl req_mac_056_sbc_parity_correct : assert always
+-- { reset_done }
+-- |->
+-- { bs_o.sbc(0) = ( bs_o.sbc(3) xor bs_o.sbc(2) xor bs_o.sbc(1) ) }
+-- report "SBC parity bit does not match Gray code bits";
+--------------------------------------------------------------
+
+--------------------------------------------------------------
+-- psl req_mac_056_sbc_inc_on_stuff : assert always
+-- { reset_done and
+-- bs_o.valid }
+-- |->
+-- { stuff_count = ( stuff_count_prev + 1 ) }
+-- report "Stuff count did not increment on stuff bit event";
+--------------------------------------------------------------
+
+--------------------------------------------------------------
+-- psl req_mac_056_sbc_hold_no_stuff : assert always
 -- { reset_done and
 -- not bs_o.valid }
 -- |->

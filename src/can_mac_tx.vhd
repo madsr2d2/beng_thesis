@@ -112,8 +112,8 @@ begin
     port map (
       clk_i   => clk,
       rst_i     => rst,
-      bs_fd_i => fsm_to_bs_fd,
-      bs_fd_o => bs_fd_to_fsm
+      bs_i => fsm_to_bs_fd,
+      bs_o => bs_fd_to_fsm
     );
 
   -- =========================================================================

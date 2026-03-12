@@ -860,32 +860,32 @@ config:
     primaryTextColor: "#000"
 ---
 flowchart TD
-  subgraph inputs ["Inputs"]
-    subgraph clk_rst ["Clock / Reset"]
-      clk["clk_i<br/>(std_logic)"]
-      rst["rst_i<br/>(std_logic)"]
+  subgraph inputs ["**Inputs**"]
+    subgraph clk_rst ["**Clock / Reset**"]
+      clk["**clk**_i<br/>(std_logic)"]
+      rst["**rst_i**<br/>(std_logic)"]
     end
 
-    subgraph fsm_in ["can_mac_fsm_crc_tx_if_m2s_t"]
-      data_crc["data<br/>(std_logic)"]
-      valid_crc["valid<br/>(std_logic)"]
-      start_crc["start<br/>(std_logic)"]
-      sel["crc_poly_select<br/>(2-bit)"]
+    subgraph fsm_in ["**can_mac_fsm_crc_tx_if_m2s_t**"]
+      data_crc["**data**<br/>(std_logic)"]
+      valid_crc["**valid**<br/>(boolean)"]
+      start_crc["**start**<br/>(boolean)"]
+      sel["**crc_poly_select**<br/>(std_logic_vector(1 downto 0))"]
     end
   end
 
-  join["join"]
-  demux[/"demux"\]
+  join["**join**"]
+  demux[/"**demux**"\]
   crc15["**u_crc15**<br/>CRC-15<br/>(CAN Classic)"]
   crc17["**u_crc17**<br/>CRC-17<br/>(CAN-FD ≤ 16 Byte)"]
   crc21["**u_crc21**<br/>CRC-21<br/>(CAN-FD > 16 Byte)"]
-  mux[\"mux"/]
-  reg["register<br/>(crc_vector_t)"]
-  pad["zero-pad to crc_vector_t"]
+  mux[\"**mux**"/]
+  reg["**register**<br/>(crc_vector_t)"]
+  pad["**zero-pad right to crc_vector_t length**"]
 
-subgraph outputs ["Outputs"]
-  subgraph fsm_out ["can_mac_fsm_crc_tx_if_s2m_t"]
-    crc_out["crc<br/>(crc_vector_t)"]
+subgraph outputs ["**Outputs**"]
+  subgraph fsm_out ["**can_mac_fsm_crc_tx_if_s2m_t**"]
+    crc_out["**crc**<br/>(crc_vector_t)"]
   end
 end
 
