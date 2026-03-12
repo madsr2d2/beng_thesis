@@ -152,6 +152,7 @@ begin
         v_stuff_valid_prev := bs_o.valid;
         v_bs_o             := bs_o;
         v_bs_o.valid       := false;
+        v_bs_o.data        := recessive;
 
         -------------------------------------------------------------------
         -- Logic evaluation
@@ -185,8 +186,8 @@ begin
 -- Environment assumptions
 --------------------------------------------------------------
 -- psl assume_no_unknown_data : assume always (bs_i.data = dominant or bs_i.data = recessive);
--- psl assume_reset_init : assume {rst_i = '1'};
--- psl assume_reset_done_init : assume {not reset_done};
+-- psl assume_reset_init : assume (rst_i = '1');
+-- psl assume_reset_done_init : assume (not reset_done);
 --------------------------------------------------------------
 
 --------------------------------------------------------------
@@ -255,6 +256,12 @@ begin
 -- { stuff_count = stuff_count_prev }
 -- report "Stuff count changed without stuff bit event";
 --------------------------------------------------------------
+-- psl psl_8 : assert always
+-- { bs_o.valid }
+-- |=>
+-- { not bs_o.valid }
+-- report "Back-to-back stuff events detected";
+--------------------------------------------------------------
 
 --------------------------------------------------------------
 -- Cover points
@@ -264,6 +271,8 @@ begin
 -- psl cover_3 : cover { bs_i.valid and bs_i.data /= last_polarity };
 -- psl cover_4 : cover { bs_i.start };
 -- psl cover_5 : cover { not bs_i.valid and not bs_i.start and rst_i = '0' };
+-- psl cover_6 : cover { stuff_count = "111" };
+-- psl cover_7 : cover { stuff_count = "000" and reset_done };
 --------------------------------------------------------------
 
 end architecture rtl;

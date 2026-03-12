@@ -76,7 +76,6 @@ begin
       v_consecutive_count := consecutive_count;
       v_last_polarity     := last_polarity;
       same_polarity_run_v := consecutive_count /= stuff_width_c
-                             and consecutive_count /= 0
                              and bs_i.data = last_polarity;
 
       if (bs_i.valid) then
@@ -186,8 +185,12 @@ begin
 -- Environment assumptions
 --------------------------------------------------------------
 -- psl assume_no_unknown_data : assume always (bs_i.data = dominant or bs_i.data = recessive);
--- psl assume_reset_init : assume {rst_i = '1'};
--- psl assume_reset_done_init : assume {not reset_done};
+-- psl assume_reset_init : assume (rst_i = '1');
+-- psl assume_reset_done_init : assume (not reset_done);
+-- psl assume_no_backtoback_stuff : assume always
+-- { bs_o.valid }
+-- |=>
+-- { not bs_o.valid };
 --------------------------------------------------------------
 
 --------------------------------------------------------------
@@ -244,6 +247,8 @@ begin
 --------------------------------------------------------------
 -- psl psl_6 : assert always
 -- { reset_done and
+-- rst_i /= '1' and
+-- not bs_i.start and
 -- not bs_i.valid }
 -- |=>
 -- { consecutive_count = consecutive_count_prev }
@@ -251,6 +256,8 @@ begin
 --------------------------------------------------------------
 -- psl psl_7 : assert always
 -- { reset_done and
+-- rst_i /= '1' and
+-- not bs_i.start and
 -- not bs_o.valid }
 -- |->
 -- { stuff_count = stuff_count_prev }
@@ -265,6 +272,8 @@ begin
 -- psl cover_3 : cover { bs_i.valid and bs_i.data /= last_polarity };
 -- psl cover_4 : cover { bs_i.start };
 -- psl cover_5 : cover { not bs_i.valid and not bs_i.start and rst_i = '0' };
+-- psl cover_6 : cover { stuff_count = "111" };
+-- psl cover_7 : cover { stuff_count = "000" and reset_done };
 --------------------------------------------------------------
 
 end architecture rtl;
