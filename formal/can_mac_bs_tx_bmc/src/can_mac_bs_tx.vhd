@@ -32,17 +32,26 @@ end entity can_mac_bs_tx;
 architecture rtl of can_mac_bs_tx is
 
   ---------------------------------------------------------------------------
+  -- Reset-value constants
+  ---------------------------------------------------------------------------
+  constant consecutive_count_init_c : integer       := 0;
+  constant last_polarity_init_c     : polarity_t    := recessive;
+  constant stuff_count_init_c       : stuff_count_t := (others => '0');
+  constant stuff_valid_prev_init_c  : boolean       := false;
+  constant reset_done_init_c        : boolean       := false;
+
+  ---------------------------------------------------------------------------
   -- Registered state signals
   ---------------------------------------------------------------------------
-  signal consecutive_count : integer range 0 to stuff_width_c;
-  signal last_polarity     : polarity_t;
-  signal stuff_count       : stuff_count_t;
-  signal stuff_valid_prev  : boolean;
+  signal consecutive_count : integer range 0 to stuff_width_c := consecutive_count_init_c;
+  signal last_polarity     : polarity_t                       := last_polarity_init_c;
+  signal stuff_count       : stuff_count_t                    := stuff_count_init_c;
+  signal stuff_valid_prev  : boolean                          := stuff_valid_prev_init_c;
 
   -- Verification-only signals: not used in logic, only for formal assertions
-  signal reset_done             : boolean;
-  signal stuff_count_prev       : stuff_count_t;
-  signal consecutive_count_prev : integer range 0 to stuff_width_c;
+  signal reset_done             : boolean                          := reset_done_init_c;
+  signal stuff_count_prev       : stuff_count_t                    := stuff_count_init_c;
+  signal consecutive_count_prev : integer range 0 to stuff_width_c := consecutive_count_init_c;
 
 begin
 
@@ -125,13 +134,13 @@ begin
 
     if rising_edge(clk_i) then
       if (rst_i = '1' or bs_i.start) then
-        consecutive_count      <= 0;
-        consecutive_count_prev <= 0;
-        stuff_count            <= (others => '0');
-        stuff_count_prev       <= (others => '0');
-        last_polarity          <= recessive;
-        stuff_valid_prev       <= false;
-        reset_done             <= false;
+        consecutive_count      <= consecutive_count_init_c;
+        consecutive_count_prev <= consecutive_count_init_c;
+        stuff_count            <= stuff_count_init_c;
+        stuff_count_prev       <= stuff_count_init_c;
+        last_polarity          <= last_polarity_init_c;
+        stuff_valid_prev       <= stuff_valid_prev_init_c;
+        reset_done             <= reset_done_init_c;
 
         -- Reset interface
         bs_o <= can_mac_fsm_bs_tx_if_s2m_reset_c;

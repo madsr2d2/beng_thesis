@@ -3,13 +3,20 @@ autoidx 172
 attribute \top 1
 attribute \keep 1
 module \can_mac_bs_tx
+  attribute \init 1'0
   wire \stuff_valid_prev
+  attribute \init 3'000
   wire width 3 \stuff_count_prev
+  attribute \init 3'000
   wire width 3 \stuff_count
   wire input 2 \rst_i
+  attribute \init 1'0
   wire \reset_done
+  attribute \init 2'01
   wire width 2 \last_polarity
+  attribute \init 3'000
   wire width 3 \consecutive_count_prev
+  attribute \init 3'000
   wire width 3 \consecutive_count
   attribute \replaced_by_gclk 1'1
   attribute \keep 1
@@ -151,7 +158,7 @@ module \can_mac_bs_tx
   wire $auto$ghdl.cc:846:import_module$106
   wire $auto$ghdl.cc:846:import_module$105
   wire width 4 $auto$ghdl.cc:846:import_module$104
-  cell $eq \:146
+  cell $eq \:153
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -165,7 +172,7 @@ module \can_mac_bs_tx
     connect \EN 1'1
     connect \A $auto$ghdl.cc:846:import_module$135
   end
-  cell $mux \:124
+  cell $mux \:131
     parameter \WIDTH 3
     connect \Y $auto$ghdl.cc:846:import_module$33
     connect \S $auto$ghdl.cc:846:import_module$1
@@ -176,7 +183,7 @@ module \can_mac_bs_tx
     connect \EN 1'1
     connect \A $auto$ghdl.cc:846:import_module$127
   end
-  cell $mux \:122
+  cell $mux \:129
     parameter \WIDTH 3
     connect \Y $auto$ghdl.cc:846:import_module$32
     connect \S $auto$ghdl.cc:846:import_module$1
@@ -187,7 +194,7 @@ module \can_mac_bs_tx
     connect \EN 1'1
     connect \A $auto$ghdl.cc:846:import_module$120
   end
-  cell $mux \:120
+  cell $mux \:127
     parameter \WIDTH 1
     connect \Y $auto$ghdl.cc:846:import_module$31
     connect \S $auto$ghdl.cc:846:import_module$1
@@ -198,7 +205,7 @@ module \can_mac_bs_tx
     connect \EN 1'1
     connect \A $auto$ghdl.cc:846:import_module$108
   end
-  cell $mux \:117
+  cell $mux \:124
     parameter \WIDTH 1
     connect \Y $auto$ghdl.cc:846:import_module$30
     connect \S $auto$ghdl.cc:846:import_module$1
@@ -209,7 +216,7 @@ module \can_mac_bs_tx
     connect \EN 1'1
     connect \A $auto$ghdl.cc:846:import_module$93
   end
-  cell $mux \:115
+  cell $mux \:122
     parameter \WIDTH 3
     connect \Y $auto$ghdl.cc:846:import_module$29
     connect \S $auto$ghdl.cc:846:import_module$1
@@ -220,7 +227,7 @@ module \can_mac_bs_tx
     connect \EN 1'1
     connect \A $auto$ghdl.cc:846:import_module$76
   end
-  cell $mux \:113
+  cell $mux \:120
     parameter \WIDTH 2
     connect \Y $auto$ghdl.cc:846:import_module$28
     connect \S $auto$ghdl.cc:846:import_module$1
@@ -231,21 +238,21 @@ module \can_mac_bs_tx
     connect \EN 1'1
     connect \A $auto$ghdl.cc:846:import_module$66
   end
-  cell $mux \:111
+  cell $mux \:118
     parameter \WIDTH 3
     connect \Y $auto$ghdl.cc:846:import_module$27
     connect \S $auto$ghdl.cc:846:import_module$1
     connect \B 3'000
     connect \A $auto$ghdl.cc:846:import_module$16
   end
-  cell $mux \:109
+  cell $mux \:116
     parameter \WIDTH 7
     connect \Y $auto$ghdl.cc:846:import_module$26
     connect \S $auto$ghdl.cc:846:import_module$1
     connect \B 7'0000001
     connect \A { $auto$ghdl.cc:846:import_module$20 [2] $auto$ghdl.cc:846:import_module$21 $auto$ghdl.cc:846:import_module$22 $auto$ghdl.cc:846:import_module$25 $auto$ghdl.cc:846:import_module$14 }
   end
-  cell $xor \:104
+  cell $xor \:111
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -255,12 +262,12 @@ module \can_mac_bs_tx
     connect \B $auto$ghdl.cc:846:import_module$22
     connect \A $auto$ghdl.cc:846:import_module$24
   end
-  cell $anyinit \:441
+  cell $ff \:448
     parameter \WIDTH 3
     connect \D $auto$ghdl.cc:846:import_module$33
     connect \Q \consecutive_count_prev
   end
-  cell $not \:147
+  cell $not \:154
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 1
     parameter \A_SIGNED 0
@@ -279,7 +286,7 @@ module \can_mac_bs_tx
     connect \EN 1'1
     connect \A $auto$ghdl.cc:846:import_module$39
   end
-  cell $xor \:88
+  cell $xor \:95
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -289,7 +296,7 @@ module \can_mac_bs_tx
     connect \B $auto$ghdl.cc:846:import_module$20 [1]
     connect \A $auto$ghdl.cc:846:import_module$20 [0]
   end
-  cell $xor \:84
+  cell $xor \:91
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -299,14 +306,14 @@ module \can_mac_bs_tx
     connect \B $auto$ghdl.cc:846:import_module$20 [2]
     connect \A $auto$ghdl.cc:846:import_module$20 [1]
   end
-  cell $mux \:72
+  cell $mux \:79
     parameter \WIDTH 3
     connect \Y $auto$ghdl.cc:846:import_module$20
     connect \S $auto$ghdl.cc:846:import_module$18
     connect \B $auto$ghdl.cc:846:import_module$19
     connect \A \stuff_count
   end
-  cell $add \:71
+  cell $add \:78
     parameter \Y_WIDTH 3
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -316,7 +323,7 @@ module \can_mac_bs_tx
     connect \B 1'1
     connect \A \stuff_count
   end
-  cell $and \:69
+  cell $and \:76
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -326,56 +333,56 @@ module \can_mac_bs_tx
     connect \B $auto$ghdl.cc:846:import_module$14 [2]
     connect \A $auto$ghdl.cc:846:import_module$17
   end
-  cell $not \:68
+  cell $not \:75
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 1
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$17
     connect \A \stuff_valid_prev
   end
-  cell $mux \:58
+  cell $mux \:65
     parameter \WIDTH 3
     connect \Y $auto$ghdl.cc:846:import_module$16
     connect \S \bs_i[valid]
     connect \B $auto$ghdl.cc:846:import_module$9
     connect \A \consecutive_count
   end
-  cell $mux \:57
+  cell $mux \:64
     parameter \WIDTH 2
     connect \Y $auto$ghdl.cc:846:import_module$15
     connect \S \bs_i[valid]
     connect \B $auto$ghdl.cc:846:import_module$8
     connect \A \last_polarity
   end
-  cell $mux \:56
+  cell $mux \:63
     parameter \WIDTH 3
     connect \Y $auto$ghdl.cc:846:import_module$14
     connect \S \bs_i[valid]
     connect \B $auto$ghdl.cc:846:import_module$13
     connect \A { 1'0 \bs_o[data] }
   end
-  cell $mux \:54
+  cell $mux \:61
     parameter \WIDTH 3
     connect \Y $auto$ghdl.cc:846:import_module$13
     connect \S $auto$ghdl.cc:846:import_module$10
     connect \B { 2'10 $auto$ghdl.cc:846:import_module$12 }
     connect \A { 1'0 \bs_o[data] }
   end
-  cell $mux \:50
+  cell $mux \:57
     parameter \WIDTH 1
     connect \Y $auto$ghdl.cc:846:import_module$12
     connect \S $auto$ghdl.cc:846:import_module$11
     connect \B 1'1
     connect \A 1'0
   end
-  cell $logic_not \:48
+  cell $logic_not \:55
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 2
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$11
     connect \A $auto$ghdl.cc:846:import_module$8
   end
-  cell $ge \:45
+  cell $ge \:52
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 3
     parameter \B_SIGNED 0
@@ -385,37 +392,51 @@ module \can_mac_bs_tx
     connect \B 3'101
     connect \A $auto$ghdl.cc:846:import_module$9
   end
-  cell $anyinit \:440
+  cell $mux \:49
+    parameter \WIDTH 3
+    connect \Y $auto$ghdl.cc:846:import_module$9
+    connect \S $auto$ghdl.cc:846:import_module$6
+    connect \B $auto$ghdl.cc:846:import_module$7
+    connect \A 3'001
+  end
+  cell $mux \:47
+    parameter \WIDTH 2
+    connect \Y $auto$ghdl.cc:846:import_module$8
+    connect \S $auto$ghdl.cc:846:import_module$6
+    connect \B \last_polarity
+    connect \A \bs_i[data]
+  end
+  cell $ff \:447
     parameter \WIDTH 3
     connect \D $auto$ghdl.cc:846:import_module$32
     connect \Q \stuff_count_prev
   end
-  cell $anyinit \:439
+  cell $ff \:446
     parameter \WIDTH 1
     connect \D $auto$ghdl.cc:846:import_module$31
     connect \Q \reset_done
   end
-  cell $anyinit \:438
+  cell $ff \:445
     parameter \WIDTH 1
     connect \D $auto$ghdl.cc:846:import_module$30
     connect \Q \stuff_valid_prev
   end
-  cell $anyinit \:437
+  cell $ff \:444
     parameter \WIDTH 3
     connect \D $auto$ghdl.cc:846:import_module$29
     connect \Q \stuff_count
   end
-  cell $anyinit \:436
+  cell $ff \:443
     parameter \WIDTH 2
     connect \D $auto$ghdl.cc:846:import_module$28
     connect \Q \last_polarity
   end
-  cell $anyinit \:435
+  cell $ff \:442
     parameter \WIDTH 3
     connect \D $auto$ghdl.cc:846:import_module$27
     connect \Q \consecutive_count
   end
-  cell $anyinit \:434
+  cell $anyinit \:441
     parameter \WIDTH 7
     connect \D $auto$ghdl.cc:846:import_module$26
     connect \Q { \bs_o[sbc] \bs_o[valid] \bs_o[data] }
@@ -425,110 +446,7 @@ module \can_mac_bs_tx
     connect \D $auto$ghdl.cc:846:import_module$116
     connect \Q $auto$ghdl.cc:846:import_module$109 [1]
   end
-  cell $logic_not \:150
-    parameter \Y_WIDTH 1
-    parameter \A_WIDTH 2
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$36
-    connect \A \bs_i[data]
-  end
-  cell $not \:429
-    parameter \Y_WIDTH 1
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$110
-    connect \A \rst_i
-  end
-  cell $not \:151
-    parameter \Y_WIDTH 1
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$37
-    connect \A $auto$ghdl.cc:846:import_module$36
-  end
-  cell $not \:427
-    parameter \Y_WIDTH 1
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$112
-    connect \A \bs_i[start]
-  end
-  cell $not \:425
-    parameter \Y_WIDTH 1
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$122
-    connect \A \bs_i[valid]
-  end
-  cell $mux \:42
-    parameter \WIDTH 3
-    connect \Y $auto$ghdl.cc:846:import_module$9
-    connect \S $auto$ghdl.cc:846:import_module$6
-    connect \B $auto$ghdl.cc:846:import_module$7
-    connect \A 3'001
-  end
-  cell $and \:152
-    parameter \Y_WIDTH 1
-    parameter \B_WIDTH 1
-    parameter \B_SIGNED 0
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$38
-    connect \B $auto$ghdl.cc:846:import_module$37
-    connect \A $auto$ghdl.cc:846:import_module$35
-  end
-  cell $ne \:405
-    parameter \Y_WIDTH 1
-    parameter \B_WIDTH 2
-    parameter \B_SIGNED 0
-    parameter \A_WIDTH 2
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$115
-    connect \B \last_polarity
-    connect \A \bs_i[data]
-  end
-  cell $mux \:40
-    parameter \WIDTH 2
-    connect \Y $auto$ghdl.cc:846:import_module$8
-    connect \S $auto$ghdl.cc:846:import_module$6
-    connect \B \last_polarity
-    connect \A \bs_i[data]
-  end
-  cell $not \:156
-    parameter \Y_WIDTH 1
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$39
-    connect \A $auto$ghdl.cc:846:import_module$38
-  end
-  cell $eq \:393
-    parameter \Y_WIDTH 1
-    parameter \B_WIDTH 2
-    parameter \B_SIGNED 0
-    parameter \A_WIDTH 2
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$102
-    connect \B \last_polarity
-    connect \A \bs_i[data]
-  end
-  cell $not \:375
-    parameter \Y_WIDTH 1
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$135
-    connect \A $auto$ghdl.cc:846:import_module$134
-  end
-  cell $and \:370
-    parameter \Y_WIDTH 1
-    parameter \B_WIDTH 1
-    parameter \B_SIGNED 0
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$134
-    connect \B \reset_done
-    connect \A $auto$ghdl.cc:846:import_module$133
-  end
-  cell $add \:37
+  cell $add \:44
     parameter \Y_WIDTH 3
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -538,164 +456,79 @@ module \can_mac_bs_tx
     connect \B 1'1
     connect \A \consecutive_count
   end
-  cell $and \:369
+  cell $logic_not \:157
+    parameter \Y_WIDTH 1
+    parameter \A_WIDTH 2
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$36
+    connect \A \bs_i[data]
+  end
+  cell $not \:436
+    parameter \Y_WIDTH 1
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$110
+    connect \A \rst_i
+  end
+  cell $not \:158
+    parameter \Y_WIDTH 1
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$37
+    connect \A $auto$ghdl.cc:846:import_module$36
+  end
+  cell $not \:434
+    parameter \Y_WIDTH 1
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$112
+    connect \A \bs_i[start]
+  end
+  cell $not \:432
+    parameter \Y_WIDTH 1
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$122
+    connect \A \bs_i[valid]
+  end
+  cell $and \:159
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
     parameter \A_WIDTH 1
     parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$133
-    connect \B $auto$ghdl.cc:846:import_module$128
-    connect \A $auto$ghdl.cc:846:import_module$131
+    connect \Y $auto$ghdl.cc:846:import_module$38
+    connect \B $auto$ghdl.cc:846:import_module$37
+    connect \A $auto$ghdl.cc:846:import_module$35
   end
-  cell $not \:368
+  cell $ne \:412
     parameter \Y_WIDTH 1
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$128
-    connect \A \bs_o[valid]
-  end
-  cell $not \:366
-    parameter \Y_WIDTH 1
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$131
-    connect \A $auto$ghdl.cc:846:import_module$130
-  end
-  cell $eq \:365
-    parameter \Y_WIDTH 1
-    parameter \B_WIDTH 3
+    parameter \B_WIDTH 2
     parameter \B_SIGNED 0
-    parameter \A_WIDTH 3
+    parameter \A_WIDTH 2
     parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$130
-    connect \B \stuff_count_prev
-    connect \A \stuff_count
+    connect \Y $auto$ghdl.cc:846:import_module$115
+    connect \B \last_polarity
+    connect \A \bs_i[data]
   end
-  cell $and \:162
+  cell $not \:163
     parameter \Y_WIDTH 1
-    parameter \B_WIDTH 1
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$39
+    connect \A $auto$ghdl.cc:846:import_module$38
+  end
+  cell $eq \:400
+    parameter \Y_WIDTH 1
+    parameter \B_WIDTH 2
     parameter \B_SIGNED 0
-    parameter \A_WIDTH 1
+    parameter \A_WIDTH 2
     parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$42
-    connect \B $auto$ghdl.cc:846:import_module$110
-    connect \A $auto$ghdl.cc:846:import_module$44 [0]
+    connect \Y $auto$ghdl.cc:846:import_module$102
+    connect \B \last_polarity
+    connect \A \bs_i[data]
   end
-  cell $not \:355
-    parameter \Y_WIDTH 1
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$127
-    connect \A $auto$ghdl.cc:846:import_module$126
-  end
-  cell $and \:351
-    parameter \Y_WIDTH 1
-    parameter \B_WIDTH 1
-    parameter \B_SIGNED 0
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$126
-    connect \B $auto$ghdl.cc:846:import_module$125
-    connect \A $auto$ghdl.cc:846:import_module$121 [1]
-  end
-  cell $not \:350
-    parameter \Y_WIDTH 1
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$125
-    connect \A $auto$ghdl.cc:846:import_module$124
-  end
-  cell $eq \:349
-    parameter \Y_WIDTH 1
-    parameter \B_WIDTH 3
-    parameter \B_SIGNED 0
-    parameter \A_WIDTH 3
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$124
-    connect \B \consecutive_count_prev
-    connect \A \consecutive_count
-  end
-  cell $and \:345
-    parameter \Y_WIDTH 1
-    parameter \B_WIDTH 1
-    parameter \B_SIGNED 0
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$123
-    connect \B $auto$ghdl.cc:846:import_module$122
-    connect \A \reset_done
-  end
-  cell $ff $auto$ff.cc:337:slice$169
-    parameter \WIDTH 1
-    connect \D $auto$ghdl.cc:846:import_module$103
-    connect \Q $auto$ghdl.cc:846:import_module$94 [1]
-  end
-  cell $not \:336
-    parameter \Y_WIDTH 1
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$120
-    connect \A $auto$ghdl.cc:846:import_module$119
-  end
-  cell $and \:332
-    parameter \Y_WIDTH 1
-    parameter \B_WIDTH 1
-    parameter \B_SIGNED 0
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$119
-    connect \B $auto$ghdl.cc:846:import_module$118
-    connect \A $auto$ghdl.cc:846:import_module$109 [1]
-  end
-  cell $not \:331
-    parameter \Y_WIDTH 1
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$118
-    connect \A $auto$ghdl.cc:846:import_module$117
-  end
-  cell $eq \:330
-    parameter \Y_WIDTH 1
-    parameter \B_WIDTH 1
-    parameter \B_SIGNED 0
-    parameter \A_WIDTH 3
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$117
-    connect \B 1'1
-    connect \A \consecutive_count
-  end
-  cell $and \:326
-    parameter \Y_WIDTH 1
-    parameter \B_WIDTH 1
-    parameter \B_SIGNED 0
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$116
-    connect \B $auto$ghdl.cc:846:import_module$115
-    connect \A $auto$ghdl.cc:846:import_module$114
-  end
-  cell $and \:323
-    parameter \Y_WIDTH 1
-    parameter \B_WIDTH 1
-    parameter \B_SIGNED 0
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$114
-    connect \B \bs_i[valid]
-    connect \A $auto$ghdl.cc:846:import_module$113
-  end
-  cell $and \:321
-    parameter \Y_WIDTH 1
-    parameter \B_WIDTH 1
-    parameter \B_SIGNED 0
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$113
-    connect \B $auto$ghdl.cc:846:import_module$112
-    connect \A $auto$ghdl.cc:846:import_module$111
-  end
-  cell $and \:32
+  cell $and \:39
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -705,7 +538,198 @@ module \can_mac_bs_tx
     connect \B $auto$ghdl.cc:846:import_module$4
     connect \A $auto$ghdl.cc:846:import_module$102
   end
-  cell $and \:318
+  cell $not \:382
+    parameter \Y_WIDTH 1
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$135
+    connect \A $auto$ghdl.cc:846:import_module$134
+  end
+  cell $and \:377
+    parameter \Y_WIDTH 1
+    parameter \B_WIDTH 1
+    parameter \B_SIGNED 0
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$134
+    connect \B \reset_done
+    connect \A $auto$ghdl.cc:846:import_module$133
+  end
+  cell $and \:376
+    parameter \Y_WIDTH 1
+    parameter \B_WIDTH 1
+    parameter \B_SIGNED 0
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$133
+    connect \B $auto$ghdl.cc:846:import_module$128
+    connect \A $auto$ghdl.cc:846:import_module$131
+  end
+  cell $not \:375
+    parameter \Y_WIDTH 1
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$128
+    connect \A \bs_o[valid]
+  end
+  cell $not \:373
+    parameter \Y_WIDTH 1
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$131
+    connect \A $auto$ghdl.cc:846:import_module$130
+  end
+  cell $eq \:372
+    parameter \Y_WIDTH 1
+    parameter \B_WIDTH 3
+    parameter \B_SIGNED 0
+    parameter \A_WIDTH 3
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$130
+    connect \B \stuff_count_prev
+    connect \A \stuff_count
+  end
+  cell $and \:169
+    parameter \Y_WIDTH 1
+    parameter \B_WIDTH 1
+    parameter \B_SIGNED 0
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$42
+    connect \B $auto$ghdl.cc:846:import_module$110
+    connect \A $auto$ghdl.cc:846:import_module$44 [0]
+  end
+  cell $not \:362
+    parameter \Y_WIDTH 1
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$127
+    connect \A $auto$ghdl.cc:846:import_module$126
+  end
+  cell $and \:36
+    parameter \Y_WIDTH 1
+    parameter \B_WIDTH 1
+    parameter \B_SIGNED 0
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$4
+    connect \B $auto$ghdl.cc:846:import_module$100
+    connect \A $auto$ghdl.cc:846:import_module$3
+  end
+  cell $and \:358
+    parameter \Y_WIDTH 1
+    parameter \B_WIDTH 1
+    parameter \B_SIGNED 0
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$126
+    connect \B $auto$ghdl.cc:846:import_module$125
+    connect \A $auto$ghdl.cc:846:import_module$121 [1]
+  end
+  cell $not \:357
+    parameter \Y_WIDTH 1
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$125
+    connect \A $auto$ghdl.cc:846:import_module$124
+  end
+  cell $eq \:356
+    parameter \Y_WIDTH 1
+    parameter \B_WIDTH 3
+    parameter \B_SIGNED 0
+    parameter \A_WIDTH 3
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$124
+    connect \B \consecutive_count_prev
+    connect \A \consecutive_count
+  end
+  cell $and \:352
+    parameter \Y_WIDTH 1
+    parameter \B_WIDTH 1
+    parameter \B_SIGNED 0
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$123
+    connect \B $auto$ghdl.cc:846:import_module$122
+    connect \A \reset_done
+  end
+  cell $reduce_bool \:35
+    parameter \Y_WIDTH 1
+    parameter \A_WIDTH 3
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$3
+    connect \A \consecutive_count
+  end
+  cell $ff $auto$ff.cc:337:slice$169
+    parameter \WIDTH 1
+    connect \D $auto$ghdl.cc:846:import_module$103
+    connect \Q $auto$ghdl.cc:846:import_module$94 [1]
+  end
+  cell $not \:343
+    parameter \Y_WIDTH 1
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$120
+    connect \A $auto$ghdl.cc:846:import_module$119
+  end
+  cell $and \:339
+    parameter \Y_WIDTH 1
+    parameter \B_WIDTH 1
+    parameter \B_SIGNED 0
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$119
+    connect \B $auto$ghdl.cc:846:import_module$118
+    connect \A $auto$ghdl.cc:846:import_module$109 [1]
+  end
+  cell $not \:338
+    parameter \Y_WIDTH 1
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$118
+    connect \A $auto$ghdl.cc:846:import_module$117
+  end
+  cell $eq \:337
+    parameter \Y_WIDTH 1
+    parameter \B_WIDTH 1
+    parameter \B_SIGNED 0
+    parameter \A_WIDTH 3
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$117
+    connect \B 1'1
+    connect \A \consecutive_count
+  end
+  cell $and \:333
+    parameter \Y_WIDTH 1
+    parameter \B_WIDTH 1
+    parameter \B_SIGNED 0
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$116
+    connect \B $auto$ghdl.cc:846:import_module$115
+    connect \A $auto$ghdl.cc:846:import_module$114
+  end
+  cell $and \:330
+    parameter \Y_WIDTH 1
+    parameter \B_WIDTH 1
+    parameter \B_SIGNED 0
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$114
+    connect \B \bs_i[valid]
+    connect \A $auto$ghdl.cc:846:import_module$113
+  end
+  cell $and \:328
+    parameter \Y_WIDTH 1
+    parameter \B_WIDTH 1
+    parameter \B_SIGNED 0
+    parameter \A_WIDTH 1
+    parameter \A_SIGNED 0
+    connect \Y $auto$ghdl.cc:846:import_module$113
+    connect \B $auto$ghdl.cc:846:import_module$112
+    connect \A $auto$ghdl.cc:846:import_module$111
+  end
+  cell $and \:325
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -720,14 +744,14 @@ module \can_mac_bs_tx
     connect \D $auto$ghdl.cc:846:import_module$1
     connect \Q $auto$ghdl.cc:846:import_module$47 [1]
   end
-  cell $not \:309
+  cell $not \:316
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 1
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$108
     connect \A $auto$ghdl.cc:846:import_module$107
   end
-  cell $and \:305
+  cell $and \:312
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -737,14 +761,14 @@ module \can_mac_bs_tx
     connect \B $auto$ghdl.cc:846:import_module$106
     connect \A $auto$ghdl.cc:846:import_module$94 [1]
   end
-  cell $not \:304
+  cell $not \:311
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 1
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$106
     connect \A $auto$ghdl.cc:846:import_module$105
   end
-  cell $eq \:303
+  cell $eq \:310
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 4
     parameter \B_SIGNED 0
@@ -754,7 +778,7 @@ module \can_mac_bs_tx
     connect \B $auto$ghdl.cc:846:import_module$104
     connect \A \consecutive_count
   end
-  cell $add \:302
+  cell $add \:309
     parameter \Y_WIDTH 4
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -764,7 +788,7 @@ module \can_mac_bs_tx
     connect \B 1'1
     connect \A \consecutive_count_prev
   end
-  cell $and \:297
+  cell $and \:304
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -774,7 +798,7 @@ module \can_mac_bs_tx
     connect \B $auto$ghdl.cc:846:import_module$102
     connect \A $auto$ghdl.cc:846:import_module$101
   end
-  cell $and \:294
+  cell $and \:301
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -784,7 +808,7 @@ module \can_mac_bs_tx
     connect \B $auto$ghdl.cc:846:import_module$100
     connect \A $auto$ghdl.cc:846:import_module$114
   end
-  cell $ne \:293
+  cell $ne \:300
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 3
     parameter \B_SIGNED 0
@@ -794,36 +818,19 @@ module \can_mac_bs_tx
     connect \B 3'101
     connect \A \consecutive_count
   end
-  cell $and \:29
-    parameter \Y_WIDTH 1
-    parameter \B_WIDTH 1
-    parameter \B_SIGNED 0
-    parameter \A_WIDTH 1
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$4
-    connect \B $auto$ghdl.cc:846:import_module$100
-    connect \A $auto$ghdl.cc:846:import_module$3
-  end
   cell $ff $auto$ff.cc:337:slice$171
     parameter \WIDTH 1
     connect \D $auto$ghdl.cc:846:import_module$123
     connect \Q $auto$ghdl.cc:846:import_module$121 [1]
   end
-  cell $reduce_bool \:28
-    parameter \Y_WIDTH 1
-    parameter \A_WIDTH 3
-    parameter \A_SIGNED 0
-    connect \Y $auto$ghdl.cc:846:import_module$3
-    connect \A \consecutive_count
-  end
-  cell $not \:276
+  cell $not \:283
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 1
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$93
     connect \A $auto$ghdl.cc:846:import_module$92
   end
-  cell $or \:271
+  cell $or \:278
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -833,7 +840,7 @@ module \can_mac_bs_tx
     connect \B $auto$ghdl.cc:846:import_module$91
     connect \A $auto$ghdl.cc:846:import_module$86
   end
-  cell $and \:270
+  cell $and \:277
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -843,7 +850,7 @@ module \can_mac_bs_tx
     connect \B \reset_done
     connect \A $auto$ghdl.cc:846:import_module$90
   end
-  cell $and \:269
+  cell $and \:276
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -853,14 +860,14 @@ module \can_mac_bs_tx
     connect \B \bs_o[valid]
     connect \A $auto$ghdl.cc:846:import_module$89
   end
-  cell $not \:267
+  cell $not \:274
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 1
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$89
     connect \A $auto$ghdl.cc:846:import_module$88
   end
-  cell $eq \:266
+  cell $eq \:273
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 3
     parameter \B_SIGNED 0
@@ -870,7 +877,7 @@ module \can_mac_bs_tx
     connect \B $auto$ghdl.cc:846:import_module$87
     connect \A \stuff_count
   end
-  cell $add \:265
+  cell $add \:272
     parameter \Y_WIDTH 3
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -880,7 +887,7 @@ module \can_mac_bs_tx
     connect \B 1'1
     connect \A \stuff_count_prev
   end
-  cell $or \:263
+  cell $or \:270
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -890,7 +897,7 @@ module \can_mac_bs_tx
     connect \B $auto$ghdl.cc:846:import_module$85
     connect \A $auto$ghdl.cc:846:import_module$81
   end
-  cell $and \:262
+  cell $and \:269
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -900,7 +907,7 @@ module \can_mac_bs_tx
     connect \B \reset_done
     connect \A $auto$ghdl.cc:846:import_module$84
   end
-  cell $and \:261
+  cell $and \:268
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -910,14 +917,14 @@ module \can_mac_bs_tx
     connect \B \bs_o[valid]
     connect \A $auto$ghdl.cc:846:import_module$83
   end
-  cell $not \:259
+  cell $not \:266
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 1
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$83
     connect \A $auto$ghdl.cc:846:import_module$82
   end
-  cell $ne \:258
+  cell $ne \:265
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 2
     parameter \B_SIGNED 0
@@ -927,7 +934,7 @@ module \can_mac_bs_tx
     connect \B \last_polarity
     connect \A \bs_o[data]
   end
-  cell $and \:256
+  cell $and \:263
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -937,7 +944,7 @@ module \can_mac_bs_tx
     connect \B \reset_done
     connect \A $auto$ghdl.cc:846:import_module$80
   end
-  cell $and \:255
+  cell $and \:262
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -947,14 +954,14 @@ module \can_mac_bs_tx
     connect \B \bs_o[valid]
     connect \A $auto$ghdl.cc:846:import_module$79
   end
-  cell $not \:253
+  cell $not \:260
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 1
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$79
     connect \A $auto$ghdl.cc:846:import_module$78
   end
-  cell $eq \:252
+  cell $eq \:259
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 3
     parameter \B_SIGNED 0
@@ -964,21 +971,21 @@ module \can_mac_bs_tx
     connect \B 3'101
     connect \A \consecutive_count
   end
-  cell $not \:167
+  cell $not \:174
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 1
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$43
     connect \A $auto$ghdl.cc:846:import_module$42
   end
-  cell $not \:241
+  cell $not \:248
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 1
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$76
     connect \A $auto$ghdl.cc:846:import_module$75
   end
-  cell $or \:236
+  cell $or \:243
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -988,7 +995,7 @@ module \can_mac_bs_tx
     connect \B $auto$ghdl.cc:846:import_module$74
     connect \A $auto$ghdl.cc:846:import_module$69
   end
-  cell $and \:235
+  cell $and \:242
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -998,14 +1005,14 @@ module \can_mac_bs_tx
     connect \B \reset_done
     connect \A $auto$ghdl.cc:846:import_module$73
   end
-  cell $not \:234
+  cell $not \:241
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 1
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$73
     connect \A $auto$ghdl.cc:846:import_module$72
   end
-  cell $eq \:233
+  cell $eq \:240
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -1015,7 +1022,7 @@ module \can_mac_bs_tx
     connect \B $auto$ghdl.cc:846:import_module$71
     connect \A \bs_o[sbc] [0]
   end
-  cell $xor \:232
+  cell $xor \:239
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -1025,7 +1032,7 @@ module \can_mac_bs_tx
     connect \B \bs_o[sbc] [1]
     connect \A $auto$ghdl.cc:846:import_module$70
   end
-  cell $xor \:230
+  cell $xor \:237
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -1035,7 +1042,7 @@ module \can_mac_bs_tx
     connect \B \bs_o[sbc] [2]
     connect \A \bs_o[sbc] [3]
   end
-  cell $and \:226
+  cell $and \:233
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -1045,14 +1052,14 @@ module \can_mac_bs_tx
     connect \B \reset_done
     connect \A $auto$ghdl.cc:846:import_module$68
   end
-  cell $not \:225
+  cell $not \:232
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 1
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$68
     connect \A $auto$ghdl.cc:846:import_module$67
   end
-  cell $le \:224
+  cell $le \:231
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 3
     parameter \B_SIGNED 0
@@ -1062,14 +1069,14 @@ module \can_mac_bs_tx
     connect \B 3'101
     connect \A \consecutive_count
   end
-  cell $not \:215
+  cell $not \:222
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 1
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$66
     connect \A $auto$ghdl.cc:846:import_module$65
   end
-  cell $and \:211
+  cell $and \:218
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -1079,7 +1086,7 @@ module \can_mac_bs_tx
     connect \B $auto$ghdl.cc:846:import_module$64
     connect \A $auto$ghdl.cc:846:import_module$47 [1]
   end
-  cell $or \:210
+  cell $or \:217
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -1089,7 +1096,7 @@ module \can_mac_bs_tx
     connect \B \bs_o[valid]
     connect \A $auto$ghdl.cc:846:import_module$63
   end
-  cell $or \:208
+  cell $or \:215
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -1099,7 +1106,7 @@ module \can_mac_bs_tx
     connect \B \stuff_valid_prev
     connect \A $auto$ghdl.cc:846:import_module$62
   end
-  cell $or \:207
+  cell $or \:214
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -1109,21 +1116,21 @@ module \can_mac_bs_tx
     connect \B $auto$ghdl.cc:846:import_module$61
     connect \A $auto$ghdl.cc:846:import_module$59
   end
-  cell $not \:206
+  cell $not \:213
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 1
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$61
     connect \A $auto$ghdl.cc:846:import_module$60
   end
-  cell $logic_not \:205
+  cell $logic_not \:212
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 4
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$60
     connect \A \bs_o[sbc]
   end
-  cell $or \:202
+  cell $or \:209
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -1133,14 +1140,14 @@ module \can_mac_bs_tx
     connect \B $auto$ghdl.cc:846:import_module$58
     connect \A $auto$ghdl.cc:846:import_module$56
   end
-  cell $not \:201
+  cell $not \:208
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 1
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$58
     connect \A $auto$ghdl.cc:846:import_module$57
   end
-  cell $eq \:200
+  cell $eq \:207
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -1150,7 +1157,7 @@ module \can_mac_bs_tx
     connect \B 1'1
     connect \A \bs_o[data]
   end
-  cell $or \:197
+  cell $or \:204
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -1160,21 +1167,21 @@ module \can_mac_bs_tx
     connect \B $auto$ghdl.cc:846:import_module$55
     connect \A $auto$ghdl.cc:846:import_module$53
   end
-  cell $not \:196
+  cell $not \:203
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 1
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$55
     connect \A $auto$ghdl.cc:846:import_module$54
   end
-  cell $logic_not \:195
+  cell $logic_not \:202
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 3
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$54
     connect \A \stuff_count
   end
-  cell $or \:193
+  cell $or \:200
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -1184,14 +1191,14 @@ module \can_mac_bs_tx
     connect \B $auto$ghdl.cc:846:import_module$52
     connect \A $auto$ghdl.cc:846:import_module$50
   end
-  cell $not \:192
+  cell $not \:199
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 1
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$52
     connect \A $auto$ghdl.cc:846:import_module$51
   end
-  cell $eq \:191
+  cell $eq \:198
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -1201,21 +1208,21 @@ module \can_mac_bs_tx
     connect \B 1'1
     connect \A \last_polarity
   end
-  cell $not \:189
+  cell $not \:196
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 1
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$50
     connect \A $auto$ghdl.cc:846:import_module$49
   end
-  cell $logic_not \:188
+  cell $logic_not \:195
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 3
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$49
     connect \A \consecutive_count
   end
-  cell $or \:184
+  cell $or \:191
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -1225,19 +1232,19 @@ module \can_mac_bs_tx
     connect \B \bs_i[start]
     connect \A \rst_i
   end
-  cell $ff \:170
+  cell $ff \:177
     parameter \WIDTH 1
     connect \D 1'0
     connect \Q $auto$ghdl.cc:846:import_module$44 [0]
   end
-  cell $not \:177
+  cell $not \:184
     parameter \Y_WIDTH 1
     parameter \A_WIDTH 1
     parameter \A_SIGNED 0
     connect \Y $auto$ghdl.cc:846:import_module$46
     connect \A $auto$ghdl.cc:846:import_module$45
   end
-  cell $and \:172
+  cell $and \:179
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
@@ -1247,7 +1254,7 @@ module \can_mac_bs_tx
     connect \B \reset_done
     connect \A $auto$ghdl.cc:846:import_module$44 [0]
   end
-  cell $xor \:102
+  cell $xor \:109
     parameter \Y_WIDTH 1
     parameter \B_WIDTH 1
     parameter \B_SIGNED 0
