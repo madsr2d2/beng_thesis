@@ -74,7 +74,7 @@ entity can_pcs_tx is
     rx_bus_i : in    std_logic;
 
     -- Debug port (test visibility)
-    debug_state_o : out can_pcs_tx_state_t
+    debug_state_o : out   can_pcs_tx_state_t
   );
 end entity can_pcs_tx;
 

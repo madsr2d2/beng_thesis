@@ -349,17 +349,17 @@ if __name__ == "__main__":
 All VHDL source files must use this header format:
 
 ```vhdl
--- =============================================================================
+--------------------------------------------------------------------------------
 -- Title      : <Short descriptive title>
 -- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
--- =============================================================================
+--------------------------------------------------------------------------------
 -- File       : <filename>.vhd
 -- Author     : Mads Richardt
 -- Standard   : VHDL-2008
--- =============================================================================
+--------------------------------------------------------------------------------
 -- Description: <Concise description of the module's purpose and behavior.
 --              Mention PSL assertions if the file contains them.>
--- =============================================================================
+--------------------------------------------------------------------------------
 ```
 
 Rules:
@@ -367,7 +367,9 @@ Rules:
 - Project line is always the report title
 - Author is always `Mads Richardt`
 - No ISO references in the header (those belong in PSL section comments or inline)
-- Description should mention PSL assertions if present
+- Description should mention formal assertions if present
+- Never write "PSL" after `--` in non-PSL comments (the `-fpsl` parser treats `-- psl` as a directive)
+- Use `----` separators, never `====` (ghdl-yosys-plugin misinterprets `==` in comments)
 
 ---
 

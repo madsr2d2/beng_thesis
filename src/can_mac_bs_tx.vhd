@@ -1,4 +1,4 @@
--- =============================================================================
+--------------------------------------------------------------------------------
 -- Title      : CAN FD Bit Stuffer
 -- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
 --------------------------------------------------------------------------------
@@ -10,9 +10,9 @@
 --              Counts consecutive same-polarity bits, inserts inverse stuff
 --              bits at the configurable threshold (stuff_width_c), and
 --              maintains a Gray-coded Stuff Bit Count (SBC) with parity.
---              PSL assertions at the end of the architecture provide dual-flow
---              verification (GHDL simulation and SymbiYosys formal proving).
--- =============================================================================
+--              Formal assertions at the end of the architecture provide
+--              dual-flow verification (GHDL simulation and SymbiYosys proving).
+--------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;
@@ -21,9 +21,6 @@ library ieee;
   use work.can_protocol_pkg.all;
 
 entity can_mac_bs_tx is
-  generic (
-    stuff_width_c : integer := 5
-  );
   port (
     clk_i : in    std_logic;
     rst_i : in    std_logic;
@@ -39,12 +36,12 @@ architecture rtl of can_mac_bs_tx is
   ---------------------------------------------------------------------------
   signal consecutive_count : integer range 0 to stuff_width_c;
   signal last_polarity     : polarity_t;
-  signal stuff_count       : unsigned(2 downto 0);
+  signal stuff_count       : stuff_count_t;
   signal stuff_valid_prev  : boolean;
 
-  -- psl verification signals: not used in logic, only for psl assertions
+  -- Verification-only signals: not used in logic, only for formal assertions
   signal reset_done             : boolean;
-  signal stuff_count_prev       : unsigned(2 downto 0);
+  signal stuff_count_prev       : stuff_count_t;
   signal consecutive_count_prev : integer range 0 to stuff_width_c;
 
 begin
@@ -59,7 +56,7 @@ begin
     ---------------------------------------------------------------------------
     -- Detection of N consecutive bits and drive stuff bit output
     ---------------------------------------------------------------------------
-    procedure manage_bit_counting is
+    procedure bit_counting is
 
       variable v_last_polarity     : polarity_t;
       variable v_consecutive_count : integer range 0 to stuff_width_c;
@@ -94,16 +91,16 @@ begin
       consecutive_count <= v_consecutive_count;
       last_polarity     <= v_last_polarity;
 
-    end procedure manage_bit_counting;
+    end procedure bit_counting;
 
     ---------------------------------------------------------------------------
     -- Update Gray-coded SBC calculation on stuff bit events
     ---------------------------------------------------------------------------
-    procedure manage_sbc_encoding is
+    procedure sbc_encoding is
 
       variable gray_bits_v   : std_logic_vector(2 downto 0);
       variable parity_bit_v  : std_logic;
-      variable v_stuff_count : unsigned(2 downto 0);
+      variable v_stuff_count : stuff_count_t;
 
     begin
 
@@ -122,37 +119,37 @@ begin
       -- Update register
       stuff_count <= v_stuff_count;
 
-    end procedure manage_sbc_encoding;
+    end procedure sbc_encoding;
 
   begin
 
     if rising_edge(clk_i) then
       if (rst_i = '1' or bs_i.start) then
         consecutive_count      <= 0;
-        last_polarity          <= recessive;
+        consecutive_count_prev <= 0;
         stuff_count            <= (others => '0');
+        stuff_count_prev       <= (others => '0');
+        last_polarity          <= recessive;
         stuff_valid_prev       <= false;
         reset_done             <= false;
-        stuff_count_prev       <= (others => '0');
-        consecutive_count_prev <= 0;
 
         -- Reset interface
         bs_o <= can_mac_fsm_bs_tx_if_s2m_reset_c;
       else
         reset_done <= true;
+
         -------------------------------------------------------------------
-        -- Defaults: hold current registered values
+        -- Defaults
         -------------------------------------------------------------------
         v_stuff_valid_prev := bs_o.valid;
         v_bs_o             := bs_o;
-        -- Clear pulses
-        v_bs_o.valid := false;
+        v_bs_o.valid       := false;
 
         -------------------------------------------------------------------
         -- Logic evaluation
         -------------------------------------------------------------------
-        manage_bit_counting;
-        manage_sbc_encoding;
+        bit_counting;
+        sbc_encoding;
 
         -------------------------------------------------------------------
         -- Register next-cycle values
@@ -166,27 +163,26 @@ begin
 
   end process bit_stuffing_process;
 
--- ===========================================================
+--------------------------------------------------------------
 -- REQ-MAC-063 and REQ-MAC-056: Bit counting and SBC generation
--- ===========================================================
+--------------------------------------------------------------
 
--- ===========================================================
+--------------------------------------------------------------
 -- Default clock
--- ===========================================================
+--------------------------------------------------------------
 -- psl default clock is rising_edge(clk_i);
 --------------------------------------------------------------
 
--- ===========================================================
+--------------------------------------------------------------
 -- Environment assumptions
--- ===========================================================
+--------------------------------------------------------------
 -- psl assume_no_unknown_data : assume always (bs_i.data = dominant or bs_i.data = recessive);
 -- psl assume_reset_init : assume {rst_i = '1'};
 -- psl assume_reset_done_init : assume {not reset_done};
 --------------------------------------------------------------
 
--- ===========================================================
+--------------------------------------------------------------
 -- Assertions
--- ===========================================================
 --------------------------------------------------------------
 -- psl psl_1 : assert always
 -- { rst_i = '1' or bs_i.start }

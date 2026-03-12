@@ -166,6 +166,7 @@ package can_types_pkg is
   subtype position_t is integer range 0 to max_mac_frame_length_c;
   subtype byte_t is std_logic_vector(byte_width_c - 1 downto 0);
   subtype dlc_t is integer range 0 to dlc_max_decimal_value;
+  subtype stuff_count_t is unsigned(2 downto 0);
   subtype sbc_t is std_logic_vector(sbc_field_width_c - 1 downto 0);
   subtype crc_vector_t is std_logic_vector(crc_poly_21_vec_c'left downto 0);
   subtype fifo_write_ptr_t is integer range 0 to transmitted_bits_fifo_depth_c - 1;
