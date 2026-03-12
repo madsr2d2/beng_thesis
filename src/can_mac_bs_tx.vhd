@@ -43,15 +43,15 @@ architecture rtl of can_mac_bs_tx is
   ---------------------------------------------------------------------------
   -- Registered state signals
   ---------------------------------------------------------------------------
-  signal consecutive_count : integer range 0 to stuff_width_c := consecutive_count_init_c;
-  signal last_polarity     : polarity_t                       := last_polarity_init_c;
-  signal stuff_count       : stuff_count_t                    := stuff_count_init_c;
-  signal stuff_valid_prev  : boolean                          := stuff_valid_prev_init_c;
+  signal consecutive_count : integer range 0 to stuff_width_c;
+  signal last_polarity     : polarity_t;
+  signal stuff_count       : stuff_count_t;
+  signal stuff_valid_prev  : boolean;
 
   -- Verification-only signals: not used in logic, only for formal assertions
-  signal reset_done             : boolean                          := reset_done_init_c;
-  signal stuff_count_prev       : stuff_count_t                    := stuff_count_init_c;
-  signal consecutive_count_prev : integer range 0 to stuff_width_c := consecutive_count_init_c;
+  signal reset_done             : boolean;
+  signal stuff_count_prev       : stuff_count_t;
+  signal consecutive_count_prev : integer range 0 to stuff_width_c;
 
 begin
 

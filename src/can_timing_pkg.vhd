@@ -79,8 +79,11 @@ package body can_timing_pkg is
     delay_with_offset : integer;
     data_bit_time     : integer
   ) return integer is
+
     variable index : integer;
+
   begin
+
     -- Integer division: number of complete data bit times in delay
     index := delay_with_offset / data_bit_time;
 
@@ -90,6 +93,7 @@ package body can_timing_pkg is
     end if;
 
     return index;
+
   end function calculate_fifo_delay_index;
 
 end package body can_timing_pkg;

@@ -145,8 +145,7 @@ entity can_mac_fsm_tx_err_tb is
     data_phase_seg1                 : integer := 8;
     data_phase_seg2                 : integer := 6;
     ssp_offset_cfg                  : ssp_offset := 1;
-    system_clock_freq_hz            : integer := 100_000_000;
-    pcs_to_pma_propagation_delay_ns : integer := 600
+    system_clock_freq_hz            : integer := 100_000_000
   );
 end entity can_mac_fsm_tx_err_tb;
 

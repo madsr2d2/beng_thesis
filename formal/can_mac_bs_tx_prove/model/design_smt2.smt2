@@ -47,7 +47,7 @@
 ; yosys-smt2-wire bs_i[valid] 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\bs_i[valid]"], "smtname": "bs_i[valid]", "smtoffset": 0, "type": "input", "width": 1}
 (define-fun |can_mac_bs_tx_n bs_i[valid]| ((state |can_mac_bs_tx_s|)) Bool (|can_mac_bs_tx#14| state))
-; yosys-smt2-anyinit can_mac_bs_tx#15 7 :473
+; yosys-smt2-anyinit can_mac_bs_tx#15 7 :466
 ; yosys-smt2-witness {"offset": 0, "path": ["\\bs_o[data]"], "smtname": 15, "smtoffset": 0, "type": "init", "width": 2}
 ; yosys-smt2-witness {"offset": 0, "path": ["\\bs_o[valid]"], "smtname": 15, "smtoffset": 2, "type": "init", "width": 1}
 ; yosys-smt2-witness {"offset": 0, "path": ["\\bs_o[sbc]"], "smtname": 15, "smtoffset": 3, "type": "init", "width": 4}
@@ -71,22 +71,26 @@
 ; yosys-smt2-witness {"offset": 0, "path": ["\\clk_i"], "smtname": "clk_i", "smtoffset": 0, "type": "posedge", "width": 1}
 ; yosys-smt2-witness {"offset": 0, "path": ["\\clk_i"], "smtname": "clk_i", "smtoffset": 0, "type": "input", "width": 1}
 (define-fun |can_mac_bs_tx_n clk_i| ((state |can_mac_bs_tx_s|)) Bool (|can_mac_bs_tx#16| state))
-; yosys-smt2-witness {"offset": 0, "path": ["\\consecutive_count"], "smtname": 17, "smtoffset": 0, "type": "reg", "width": 3}
+; yosys-smt2-anyinit can_mac_bs_tx#17 3 :467
+; yosys-smt2-witness {"offset": 0, "path": ["\\consecutive_count"], "smtname": 17, "smtoffset": 0, "type": "init", "width": 3}
 (declare-fun |can_mac_bs_tx#17| (|can_mac_bs_tx_s|) (_ BitVec 3)) ; \consecutive_count
 ; yosys-smt2-register consecutive_count 3
 ; yosys-smt2-wire consecutive_count 3
 (define-fun |can_mac_bs_tx_n consecutive_count| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (|can_mac_bs_tx#17| state))
-; yosys-smt2-witness {"offset": 0, "path": ["\\consecutive_count_prev"], "smtname": 18, "smtoffset": 0, "type": "reg", "width": 3}
+; yosys-smt2-anyinit can_mac_bs_tx#18 3 :473
+; yosys-smt2-witness {"offset": 0, "path": ["\\consecutive_count_prev"], "smtname": 18, "smtoffset": 0, "type": "init", "width": 3}
 (declare-fun |can_mac_bs_tx#18| (|can_mac_bs_tx_s|) (_ BitVec 3)) ; \consecutive_count_prev
 ; yosys-smt2-register consecutive_count_prev 3
 ; yosys-smt2-wire consecutive_count_prev 3
 (define-fun |can_mac_bs_tx_n consecutive_count_prev| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (|can_mac_bs_tx#18| state))
-; yosys-smt2-witness {"offset": 0, "path": ["\\last_polarity"], "smtname": 19, "smtoffset": 0, "type": "reg", "width": 2}
+; yosys-smt2-anyinit can_mac_bs_tx#19 2 :468
+; yosys-smt2-witness {"offset": 0, "path": ["\\last_polarity"], "smtname": 19, "smtoffset": 0, "type": "init", "width": 2}
 (declare-fun |can_mac_bs_tx#19| (|can_mac_bs_tx_s|) (_ BitVec 2)) ; \last_polarity
 ; yosys-smt2-register last_polarity 2
 ; yosys-smt2-wire last_polarity 2
 (define-fun |can_mac_bs_tx_n last_polarity| ((state |can_mac_bs_tx_s|)) (_ BitVec 2) (|can_mac_bs_tx#19| state))
-; yosys-smt2-witness {"offset": 0, "path": ["\\reset_done"], "smtname": 20, "smtoffset": 0, "type": "reg", "width": 1}
+; yosys-smt2-anyinit can_mac_bs_tx#20 1 :471
+; yosys-smt2-witness {"offset": 0, "path": ["\\reset_done"], "smtname": 20, "smtoffset": 0, "type": "init", "width": 1}
 (declare-fun |can_mac_bs_tx#20| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; \reset_done
 ; yosys-smt2-register reset_done 1
 ; yosys-smt2-wire reset_done 1
@@ -96,17 +100,20 @@
 ; yosys-smt2-wire rst_i 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\rst_i"], "smtname": "rst_i", "smtoffset": 0, "type": "input", "width": 1}
 (define-fun |can_mac_bs_tx_n rst_i| ((state |can_mac_bs_tx_s|)) Bool (|can_mac_bs_tx#21| state))
-; yosys-smt2-witness {"offset": 0, "path": ["\\stuff_count"], "smtname": 22, "smtoffset": 0, "type": "reg", "width": 3}
+; yosys-smt2-anyinit can_mac_bs_tx#22 3 :469
+; yosys-smt2-witness {"offset": 0, "path": ["\\stuff_count"], "smtname": 22, "smtoffset": 0, "type": "init", "width": 3}
 (declare-fun |can_mac_bs_tx#22| (|can_mac_bs_tx_s|) (_ BitVec 3)) ; \stuff_count
 ; yosys-smt2-register stuff_count 3
 ; yosys-smt2-wire stuff_count 3
 (define-fun |can_mac_bs_tx_n stuff_count| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (|can_mac_bs_tx#22| state))
-; yosys-smt2-witness {"offset": 0, "path": ["\\stuff_count_prev"], "smtname": 23, "smtoffset": 0, "type": "reg", "width": 3}
+; yosys-smt2-anyinit can_mac_bs_tx#23 3 :472
+; yosys-smt2-witness {"offset": 0, "path": ["\\stuff_count_prev"], "smtname": 23, "smtoffset": 0, "type": "init", "width": 3}
 (declare-fun |can_mac_bs_tx#23| (|can_mac_bs_tx_s|) (_ BitVec 3)) ; \stuff_count_prev
 ; yosys-smt2-register stuff_count_prev 3
 ; yosys-smt2-wire stuff_count_prev 3
 (define-fun |can_mac_bs_tx_n stuff_count_prev| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (|can_mac_bs_tx#23| state))
-; yosys-smt2-witness {"offset": 0, "path": ["\\stuff_valid_prev"], "smtname": 24, "smtoffset": 0, "type": "reg", "width": 1}
+; yosys-smt2-anyinit can_mac_bs_tx#24 1 :470
+; yosys-smt2-witness {"offset": 0, "path": ["\\stuff_valid_prev"], "smtname": 24, "smtoffset": 0, "type": "init", "width": 1}
 (declare-fun |can_mac_bs_tx#24| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; \stuff_valid_prev
 ; yosys-smt2-register stuff_valid_prev 1
 ; yosys-smt2-wire stuff_valid_prev 1
@@ -275,27 +282,20 @@
   (= (bvand (concat (|can_mac_bs_tx#7| state) (|can_mac_bs_tx#6| state)) #b01) #b01) ; $auto$ghdl.cc:846:import_module$42
   (= (bvand (concat (|can_mac_bs_tx#9| state) (concat (|can_mac_bs_tx#8| state) #b1)) #b010) #b000) ; $auto$ghdl.cc:846:import_module$45
   (= (bvand (concat (|can_mac_bs_tx#11| state) (concat (|can_mac_bs_tx#10| state) #b1)) #b010) #b000) ; $auto$ghdl.cc:846:import_module$92
-  (= (|can_mac_bs_tx#17| state) #b000) ; consecutive_count
-  (= (|can_mac_bs_tx#18| state) #b000) ; consecutive_count_prev
-  (= (|can_mac_bs_tx#19| state) #b01) ; last_polarity
-  (= (= ((_ extract 0 0) (|can_mac_bs_tx#20| state)) #b1) false) ; reset_done
-  (= (|can_mac_bs_tx#22| state) #b000) ; stuff_count
-  (= (|can_mac_bs_tx#23| state) #b000) ; stuff_count_prev
-  (= (= ((_ extract 0 0) (|can_mac_bs_tx#24| state)) #b1) false) ; stuff_valid_prev
 ))
 (define-fun |can_mac_bs_tx_h| ((state |can_mac_bs_tx_s|)) Bool true)
 (define-fun |can_mac_bs_tx_t| ((state |can_mac_bs_tx_s|) (next_state |can_mac_bs_tx_s|)) Bool (and
-  (= (|can_mac_bs_tx#103| state) (|can_mac_bs_tx#24| next_state)) ; :477 \stuff_valid_prev
-  (= (|can_mac_bs_tx#104| state) (|can_mac_bs_tx#23| next_state)) ; :479 \stuff_count_prev
-  (= (|can_mac_bs_tx#120| state) (|can_mac_bs_tx#22| next_state)) ; :476 \stuff_count
-  (= (|can_mac_bs_tx#121| state) (|can_mac_bs_tx#20| next_state)) ; :478 \reset_done
-  (= (|can_mac_bs_tx#123| state) (|can_mac_bs_tx#19| next_state)) ; :475 \last_polarity
-  (= (|can_mac_bs_tx#124| state) (|can_mac_bs_tx#18| next_state)) ; :480 \consecutive_count_prev
-  (= (|can_mac_bs_tx#126| state) (|can_mac_bs_tx#17| next_state)) ; :474 \consecutive_count
-  (= (|can_mac_bs_tx#131| state) (|can_mac_bs_tx#15| next_state)) ; :473 { \bs_o[sbc] \bs_o[valid] \bs_o[data] }
+  (= (|can_mac_bs_tx#103| state) (|can_mac_bs_tx#24| next_state)) ; :470 \stuff_valid_prev
+  (= (|can_mac_bs_tx#104| state) (|can_mac_bs_tx#23| next_state)) ; :472 \stuff_count_prev
+  (= (|can_mac_bs_tx#120| state) (|can_mac_bs_tx#22| next_state)) ; :469 \stuff_count
+  (= (|can_mac_bs_tx#121| state) (|can_mac_bs_tx#20| next_state)) ; :471 \reset_done
+  (= (|can_mac_bs_tx#123| state) (|can_mac_bs_tx#19| next_state)) ; :468 \last_polarity
+  (= (|can_mac_bs_tx#124| state) (|can_mac_bs_tx#18| next_state)) ; :473 \consecutive_count_prev
+  (= (|can_mac_bs_tx#126| state) (|can_mac_bs_tx#17| next_state)) ; :467 \consecutive_count
+  (= (|can_mac_bs_tx#131| state) (|can_mac_bs_tx#15| next_state)) ; :466 { \bs_o[sbc] \bs_o[valid] \bs_o[data] }
   (= (|can_mac_bs_tx#137| state) (|can_mac_bs_tx#10| next_state)) ; $auto$ff.cc:337:slice$175 $auto$ghdl.cc:846:import_module$92 [1]
   (= (|can_mac_bs_tx#102| state) (|can_mac_bs_tx#8| next_state)) ; $auto$ff.cc:337:slice$174 $auto$ghdl.cc:846:import_module$45 [1]
-  (= #b0 (|can_mac_bs_tx#6| next_state)) ; :174 $auto$ghdl.cc:846:import_module$42 [0]
+  (= #b0 (|can_mac_bs_tx#6| next_state)) ; :167 $auto$ghdl.cc:846:import_module$42 [0]
   (= ((_ extract 2 2) (|can_mac_bs_tx#15| state)) (|can_mac_bs_tx#4| next_state)) ; $auto$ff.cc:337:slice$178 $auto$ghdl.cc:846:import_module$134 [1]
   (= (|can_mac_bs_tx#139| state) (|can_mac_bs_tx#2| next_state)) ; $auto$ff.cc:337:slice$177 $auto$ghdl.cc:846:import_module$119 [1]
   (= (|can_mac_bs_tx#141| state) (|can_mac_bs_tx#0| next_state)) ; $auto$ff.cc:337:slice$176 $auto$ghdl.cc:846:import_module$107 [1]

@@ -64,22 +64,24 @@ package can_types_pkg is
   constant tdc_bit_time_max_c            : integer := 1000; -- ISO 11898-1: 7.3.4
 
   ---------------------------------------------------------------------------
-  -- 2. Bit Timing Configuration (ISO 11898-1 Table 13)
+  -- 2. Bit Timing Configuration (ISO 11898-1 Table 12, shared prescaler)
   ---------------------------------------------------------------------------
   -- Default reference clock used by timing helper calculations and tests.
   constant system_clock_freq_c : integer := 100_000_000; -- 100 MHz
-  -- ISO 11898-1:2015 Section 7.3.3 Table 13
-  subtype prescalar is integer range 1 to 32;
-  subtype sync_seg is integer range 1 to 1;
-  subtype nom_prop_seg is integer range 1 to 384;
-  subtype data_prop_seg is integer range 0 to 128;
-  subtype phase_seg1 is integer range 1 to 128;
-  subtype phase_seg2 is integer range 2 to 128;
-  subtype sjw is integer range 1 to 128;
+  subtype  prescaler is integer range 1 to 32;
+  subtype  nominal_prop_seg is integer range 0 to 96;
+  subtype  data_prop_seg is integer range 0 to 8;
+  subtype  nominal_phase_seg1 is integer range 1 to 32;
+  subtype  data_phase_seg1 is integer range 1 to 8;
+  subtype  nominal_phase_seg2 is integer range 2 to 32;
+  subtype  data_phase_seg2 is integer range 2 to 8;
+  subtype  nominal_sjw is integer range 1 to 32;
+  subtype  data_sjw is integer range 1 to 8;
   -- TDC configuration: settling margin added to measured delay (ISO 7.3.4).
   -- Must not exceed data_bit_time to avoid FIFO index pointing at the wrong bit.
-  subtype  ssp_offset is integer range 1 to 160;
+  subtype  ssp_offset is integer range 1 to 63;
   constant max_transmitter_delay_c : integer := 255; -- ISO 11898-1: 7.3.4
+  constant sync_seg_c              : integer := 1;
 
   ---------------------------------------------------------------------------
   -- 3. Core Enumerations

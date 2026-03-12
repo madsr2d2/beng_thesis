@@ -32,8 +32,8 @@ architecture tb of can_mac_bs_tx_tb is
   constant num_random_c : integer := 300;
 
   signal clk_i   : std_logic := '0';
-  signal rst_i   : std_logic := '0';
-  signal bs_fd_i : can_mac_fsm_bs_tx_if_m2s_t;
+  signal rst_i   : std_logic := '1';
+  signal bs_fd_i : can_mac_fsm_bs_tx_if_m2s_t := (valid => false, data => dominant, start => false);
   signal bs_fd_o : can_mac_fsm_bs_tx_if_s2m_t;
 
 begin
