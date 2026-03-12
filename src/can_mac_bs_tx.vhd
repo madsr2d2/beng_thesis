@@ -248,4 +248,14 @@ begin
 -- report "Stuff count changed without stuff bit event";
 --------------------------------------------------------------
 
+--------------------------------------------------------------
+-- Cover points
+--------------------------------------------------------------
+-- psl cover_1 : cover { bs_o.valid };
+-- psl cover_2 : cover { bs_i.valid and bs_i.data = last_polarity };
+-- psl cover_3 : cover { bs_i.valid and bs_i.data /= last_polarity };
+-- psl cover_4 : cover { bs_i.start };
+-- psl cover_5 : cover { not bs_i.valid and not bs_i.start and rst_i = '0' };
+--------------------------------------------------------------
+
 end architecture rtl;

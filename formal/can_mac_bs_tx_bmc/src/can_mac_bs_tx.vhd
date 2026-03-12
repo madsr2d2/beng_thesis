@@ -21,9 +21,6 @@ library ieee;
   use work.can_protocol_pkg.all;
 
 entity can_mac_bs_tx is
-  generic (
-    stuff_width_c : integer := 5
-  );
   port (
     clk_i : in    std_logic;
     rst_i : in    std_logic;
@@ -59,7 +56,7 @@ begin
     ---------------------------------------------------------------------------
     -- Detection of N consecutive bits and drive stuff bit output
     ---------------------------------------------------------------------------
-    procedure manage_bit_counting is
+    procedure bit_counting is
 
       variable v_last_polarity     : polarity_t;
       variable v_consecutive_count : integer range 0 to stuff_width_c;
@@ -94,12 +91,12 @@ begin
       consecutive_count <= v_consecutive_count;
       last_polarity     <= v_last_polarity;
 
-    end procedure manage_bit_counting;
+    end procedure bit_counting;
 
     ---------------------------------------------------------------------------
     -- Update Gray-coded SBC calculation on stuff bit events
     ---------------------------------------------------------------------------
-    procedure manage_sbc_encoding is
+    procedure sbc_encoding is
 
       variable gray_bits_v   : std_logic_vector(2 downto 0);
       variable parity_bit_v  : std_logic;
@@ -122,7 +119,7 @@ begin
       -- Update register
       stuff_count <= v_stuff_count;
 
-    end procedure manage_sbc_encoding;
+    end procedure sbc_encoding;
 
   begin
 
@@ -140,19 +137,19 @@ begin
         bs_o <= can_mac_fsm_bs_tx_if_s2m_reset_c;
       else
         reset_done <= true;
+
         -------------------------------------------------------------------
-        -- Defaults: hold current registered values
+        -- Defaults
         -------------------------------------------------------------------
         v_stuff_valid_prev := bs_o.valid;
         v_bs_o             := bs_o;
-        -- Clear pulses
-        v_bs_o.valid := false;
+        v_bs_o.valid       := false;
 
         -------------------------------------------------------------------
         -- Logic evaluation
         -------------------------------------------------------------------
-        manage_bit_counting;
-        manage_sbc_encoding;
+        bit_counting;
+        sbc_encoding;
 
         -------------------------------------------------------------------
         -- Register next-cycle values
@@ -186,7 +183,6 @@ begin
 
 --------------------------------------------------------------
 -- Assertions
---------------------------------------------------------------
 --------------------------------------------------------------
 -- psl psl_1 : assert always
 -- { rst_i = '1' or bs_i.start }
@@ -250,6 +246,16 @@ begin
 -- |->
 -- { stuff_count = stuff_count_prev }
 -- report "Stuff count changed without stuff bit event";
+--------------------------------------------------------------
+
+--------------------------------------------------------------
+-- Cover points
+--------------------------------------------------------------
+-- psl cover_1 : cover { bs_o.valid };
+-- psl cover_2 : cover { bs_i.valid and bs_i.data = last_polarity };
+-- psl cover_3 : cover { bs_i.valid and bs_i.data /= last_polarity };
+-- psl cover_4 : cover { bs_i.start };
+-- psl cover_5 : cover { not bs_i.valid and not bs_i.start and rst_i = '0' };
 --------------------------------------------------------------
 
 end architecture rtl;

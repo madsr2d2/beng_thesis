@@ -45,6 +45,7 @@ package can_types_pkg is
   constant dlc_field_width_c : integer                                        := 4;
   constant sbc_field_width_c : integer                                        := 4;
   constant byte_width_c      : integer                                        := 8;
+  constant stuff_width_c     : integer                                        := 5;
 
   -- Max frame: FD extended, DLC 15 -> eof_stop = 593.
   constant max_mac_frame_length_c        : integer := 640;

@@ -78,10 +78,10 @@ compile:
 	@echo "Compiling testbench $(TESTBENCHPATH)..."
 	@$(GHDL_CMD) -a $(GHDL_FLAGS) --workdir=$(SIMDIR) --work=work $(TESTBENCHPATH)
 	@echo "Elaborating $(TESTBENCHFILE)..."
-	@$(GHDL_CMD) -m $(GHDL_FLAGS) --workdir=$(SIMDIR) --work=work $(TESTBENCHFILE)
+	@$(GHDL_CMD) -m $(GHDL_FLAGS) --workdir=$(SIMDIR) --work=work -o $(SIMDIR)/$(TESTBENCHFILE) $(TESTBENCHFILE)
 
 run:
-	@$(GHDL_CMD) -r $(GHDL_FLAGS) --workdir=$(SIMDIR) --work=work $(TESTBENCHFILE) --wave=$(GHWFILE) --psl-report=$(SIMDIR)/$(TESTBENCHFILE)_psl.json $(GHDL_SIM_OPT)
+	@$(SIMDIR)/$(TESTBENCHFILE) --wave=$(GHWFILE) --psl-report=$(SIMDIR)/$(TESTBENCHFILE)_psl.json $(GHDL_SIM_OPT)
 	@echo "Simulation finished. Waveform saved to $(GHWFILE)"
 	@if [ -f "$(SIMDIR)/$(TESTBENCHFILE)_psl.json" ]; then echo "PSL report saved to $(SIMDIR)/$(TESTBENCHFILE)_psl.json"; fi
 
