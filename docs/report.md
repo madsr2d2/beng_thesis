@@ -791,9 +791,9 @@ stateDiagram-v2
 
 #### `can_mac_bs_tx` {#sec:can-mac-bs-tx}
 
-`can_mac_bs_tx` implements dynamic bit stuffing for both CAN Classic and CAN-FD frames [@iso11898_1, sec. 10.6]. It monitors the polarity stream from the FSM (@sec:can-mac-fsm-tx) and inserts an inverse-polarity stuff bit after every five consecutive identical bits. The module is not a state machine but a single clocked process built around two procedures: `manage_bit_counting` tracks consecutive identical polarities in a bounded counter and asserts a stuff-required flag with the inverse polarity when the count reaches the threshold, while `manage_sbc_encoding` detects each new stuff event and increments a 3-bit Gray-coded Stuff Bit Count with parity for the CAN-FD CRC field. A `start` pulse from the FSM resets all internal state at the beginning of each new frame. The dataflow through these two stages is shown in @fig:mac-bs-tx-dataflow. Six PSL properties (P1-P6) embedded in the source provide exhaustive formal verification of the stuffing invariants via SymbiYosys.
+`can_mac_bs_tx` performs dynamic bit stuffing for both CAN Classic and CAN-FD frames [@iso11898_1, sec. 10.6]. It monitors the polarity stream from the FSM (@sec:can-mac-fsm-tx) and inserts an inverse-polarity stuff bit after every five consecutive identical bits. It also maintains a Gray-coded Stuff Bit Count (SBC) with parity for the CAN-FD CRC field. The data path diagram is shown in @fig:mac-bs-tx-dataflow.
 
-```{.mermaid #fig:mac-bs-tx-dataflow caption="can_mac_bs_tx dataflow. The FSM presents each frame bit with a valid pulse. manage_bit_counting tracks consecutive identical polarities and, on reaching the stuff threshold, asserts valid with the inverse polarity. manage_sbc_encoding detects each new stuff event and updates the Gray-coded counter with parity for the CAN-FD CRC field. A start pulse or reset clears all registered state."}
+```{.mermaid #fig:mac-bs-tx-dataflow fig-width=0.8 caption="can_mac_bs_tx data path diagram. When valid and data = last_polarity, consecutive_count increments. Otherwise it restarts at 1 with last_polarity updated to data. When consecutive_count reaches stuff_width, valid and inverted data are driven and stuff_count increments. The to_gray() + calc_parity() block encodes stuff_count into the sbc output. All registers are clocked by clk_i. A rst_i or start pulse resets consecutive_count and stuff_count to zero. All outputs are registered."}
 ---
 config:
   layout: elk
@@ -809,42 +809,52 @@ config:
     primaryTextColor: "#000"
 ---
 flowchart TD
-  subgraph fsm_in ["can_mac_fsm_bs_tx_if_m2s_t"]
-    data_in["data<br/>(polarity_t)"]
-    valid_in["valid<br/>(boolean)"]
-    start_in["start<br/>(boolean)"]
+  subgraph inputs ["**Inputs**"]
+    subgraph clk_rst ["**Clock / Reset**"]
+      clk["**clk_i**<br/>(std_logic)"]
+      rst["**rst_i**<br/>(std_logic)"]
+    end
+
+    subgraph fsm_in ["**can_mac_fsm_bs_tx_if_m2s_t**"]
+      data_in["**data**<br/>(polarity_t)"]
+      valid_in["**valid**<br/>(boolean)"]
+      start_in["**start**<br/>(boolean)"]
+    end
   end
 
-  regs1["consecutive_count (0..5)<br/>last_polarity (polarity_t)"]
-  logic1{"count ≥<br/>stuff_width?"}
-  regs2["stuff_count (3-bit unsigned)<br/>stuff_valid_prev (boolean)"]
-  logic2["to_gray() +<br/>calc_parity()"]
+  same_pol{"valid and<br/>data = last_polarity?"}
+  inc["consecutive_count<br/>+= 1"]
+  restart["consecutive_count <= 1<br/>last_polarity <= data"]
+  thresh{"consecutive_count ≥<br/>stuff_width?"}
+  stuff_set["valid <= true<br/>data <= ¬last_polarity<br/>stuff_count += 1"]
+  gray["to_gray() + calc_parity()"]
 
-  regs1 --> logic1
-  regs2 --> logic2
-
-  subgraph fsm_out ["can_mac_fsm_bs_tx_if_s2m_t"]
-    stuff_valid["valid<br/>(boolean)"]
-    stuff_data["data<br/>(polarity_t)"]
-    sbc_out["sbc<br/>(3-bit Gray + parity)"]
+  subgraph outputs ["**Outputs**"]
+    subgraph fsm_out ["**can_mac_fsm_bs_tx_if_s2m_t**"]
+      stuff_valid["**valid**<br/>(boolean)"]
+      stuff_data["**data**<br/>(polarity_t)"]
+      sbc_out["**sbc**<br/>(3-bit Gray + parity)"]
+    end
   end
 
-  data_in --> regs1
-  valid_in --> regs1
-  logic1 -->|"count < 5:<br/>valid = false"| stuff_valid
-  logic1 -->|"count = 5:<br/>valid = true"| stuff_valid
-  logic1 -->|"count = 5:<br/>invert last_polarity"| stuff_data
-  logic1 -->|"count = 5:<br/>increment stuff_count"| regs2
-  logic2 --> sbc_out
-  start_in -->|clear| regs1
-  start_in -->|clear| regs2
+  valid_in --> same_pol
+  data_in --> same_pol
+  same_pol -->|yes| inc
+  same_pol -->|no| restart
+  inc ==> thresh
+  restart ==> thresh
+  thresh -->|yes| stuff_set
+  stuff_set -->|valid| stuff_valid
+  stuff_set -->|data| stuff_data
+  stuff_set ==>|stuff_count| gray
+  gray ==> sbc_out
 ```
 
 #### `can_mac_crc_tx` {#sec:can-mac-crc-tx}
 
-`can_mac_crc_tx` wraps three dedicated CRC engines - CRC-15, CRC-17, and CRC-21 - and selects the appropriate output based on the frame format communicated by the FSM via the `crc_poly_select` field (@tbl:mac-fsm-crc-if). CAN Classic frames use CRC-15, while CAN-FD frames use CRC-17 (data payloads up to 16 bytes) or CRC-21 (data payloads above 16 bytes) [@iso11898_1, sec. 10.4.2.6]. Each engine receives the serial bit stream gated by its selection signal, and the wrapper zero-pads the selected result into a common `crc_vector_t` output. The current implementation uses a placeholder CRC architecture (`can_mac_crc_dummy_tx`) that returns a fixed polynomial constant. This will be replaced with a serial-input polynomial division engine.
+`can_mac_crc_tx` provides CRC generation for both CAN Classic and CAN-FD frames. CAN Classic frames use CRC-15, while CAN-FD frames use CRC-17 (data payloads up to 16 bytes) or CRC-21 (data payloads above 16 bytes) [@iso11898_1, sec. 10.4.2.6]. The FSM selects the appropriate polynomial via the `crc_poly_select` field (@tbl:mac-fsm-crc-if). The data path diagram is shown in @fig:mac-crc-tx.
 
-```{.mermaid #fig:mac-crc-tx caption="can_mac_crc_tx selection architecture. Three CRC engine instances run in parallel. The FSM drives crc_poly_select to gate valid and start per engine so that only the selected polynomial accumulates data. A registered output mux selects the active engine result and zero-pads it into the common crc_vector_t format."}
+```{.mermaid #fig:mac-crc-tx caption="can_mac_crc_tx data path diagram. data, valid, and start are joined and demuxed by crc_poly_select to gate only the selected CRC engine. The mux selects the active engine result, which is zero-padded to the common crc_vector_t width. All registers are clocked by clk_i and cleared by rst_i. All outputs are registered."}
 ---
 config:
   layout: elk
@@ -880,7 +890,6 @@ flowchart TD
   crc17["**u_crc17**<br/>CRC-17<br/>(CAN-FD ≤ 16 Byte)"]
   crc21["**u_crc21**<br/>CRC-21<br/>(CAN-FD > 16 Byte)"]
   mux[\"**mux**"/]
-  reg["**register**<br/>(crc_vector_t)"]
   pad["**zero-pad right to crc_vector_t length**"]
 
 subgraph outputs ["**Outputs**"]
@@ -889,14 +898,6 @@ subgraph outputs ["**Outputs**"]
   end
 end
 
-  clk --> crc15
-  clk --> crc17
-  clk --> crc21
-  clk --> reg
-  rst --> crc15
-  rst --> crc17
-  rst --> crc21
-  rst --> reg
   valid_crc --> join
   start_crc --> join
   data_crc --> join
@@ -910,8 +911,7 @@ end
   crc21 ==> mux
   sel ==>|select| mux
   mux ==> pad
-  pad ==> reg
-  reg ==> crc_out
+  pad ==> crc_out
 ```
 
 ### `can_mac_rx` {#sec:can-mac-rx}
@@ -923,7 +923,7 @@ Handles bit timing and synchronization. It generates the sample point (SP) and s
 
 ### `can_pcs_tx` {#sec:can-pcs-tx}
 
-`can_pcs_tx` implements bit timing and Transmitter Delay Compensation for the TX path. It generates the sample point (SP) strobe used by the MAC FSM to advance frame state, and - when TDC is configured - a secondary sample point (SSP) strobe for data-phase bit monitoring. The FSM (@fig:can-pcs-tx) has four states reflecting the two bit rates and the TDC measurement window. In the `measuring_delay` state, the module counts the physical TX-to-RX propagation delay (TDCV, [@iso11898_1, sec. 7.3.4]) by timing the dominant edge on the looped-back RX input relative to the TX output edge, then adds the configured TDCO offset to derive the SSP position for subsequent data-phase bits.
+`can_pcs_tx` handles bit timing and Transmitter Delay Compensation (TDC) for the TX path [@iso11898_1, sec. 7.2-7.3]. It generates the sample point (SP) strobe used by the MAC FSM to advance frame state, and - when TDC is configured - a secondary sample point (SSP) strobe for data-phase bit monitoring. The FSM (@fig:can-pcs-tx) has four states reflecting the two bit rates and the TDC measurement window. The `measuring_delay` state determines the Transmitter Delay Compensation Value (TDCV, [@iso11898_1, sec. 7.3.4]) by observing the TX-to-RX propagation delay, which together with the configured TDCO offset defines the SSP position for subsequent data-phase bits.
 
 ```{.mermaid #fig:can-pcs-tx fig-width=0.6 caption="can_pcs_tx FSM. The measuring_delay state is entered on the FDF sample point to measure TDCV (Transmitter Delay Compensation Value, [@iso11898_1, sec. 7.3.4]). The BRS bit boundary determines whether data-phase timing is used. All non-idle states return to idle when the frame becomes inactive."}
 ---
