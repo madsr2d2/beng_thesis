@@ -1,10 +1,10 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Thu Mar 12 19:13:44 2026
+[*] Thu Mar 12 21:18:53 2026
 [*]
 [dumpfile] "/home/madsr2d2/beng_thesis/sim/can_pcs_tx_tb.ghw"
-[dumpfile_mtime] "Thu Mar 12 19:01:00 2026"
-[dumpfile_size] 624519
+[dumpfile_mtime] "Thu Mar 12 21:18:49 2026"
+[dumpfile_size] 623678
 [savefile] "/home/madsr2d2/beng_thesis/gtk_wave/can_pcs_tx_tb.gtkw"
 [timestart] 292243000000
 [size] 1920 1121
@@ -44,7 +44,6 @@ top.can_pcs_tx_tb.dut_tdc.prev_tx_bus
 top.can_pcs_tx_tb.dut_tdc.rst
 top.can_pcs_tx_tb.dut_tdc.rx_bus_i
 @420
-top.can_pcs_tx_tb.dut_tdc.rx_rising_edge_reg
 top.can_pcs_tx_tb.dut_tdc.ssp_position
 top.can_pcs_tx_tb.dut_tdc.state
 top.can_pcs_tx_tb.dut_tdc.tdc_counting
