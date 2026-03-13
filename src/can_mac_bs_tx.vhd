@@ -18,7 +18,6 @@ library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
   use work.can_types_pkg.all;
-  use work.can_protocol_pkg.all;
 
 entity can_mac_bs_tx is
   port (
@@ -52,6 +51,46 @@ architecture rtl of can_mac_bs_tx is
   signal reset_done             : boolean;
   signal stuff_count_prev       : stuff_count_t;
   signal consecutive_count_prev : integer range 0 to stuff_width_c;
+
+  ---------------------------------------------------------------------------
+  -- Calculates parity bit for as std_logic_vector
+  ---------------------------------------------------------------------------
+  function calc_parity (
+    v : std_logic_vector
+  ) return std_logic is
+
+    variable v_parity : std_logic := '0';
+
+  begin
+
+    for i in v'range loop
+      v_parity := v_parity xor v(i);
+    end loop;
+
+    return v_parity;
+
+  end function calc_parity;
+
+  ---------------------------------------------------------------------------
+  -- Gray encode a std_logic_vector
+  ---------------------------------------------------------------------------
+  function to_gray (
+    v : std_logic_vector
+  ) return std_logic_vector is
+
+    variable result : std_logic_vector(v'range);
+
+  begin
+
+    result(v'left) := v(v'left);
+
+    for i in v'left - 1 downto v'right loop
+      result(i) := v(i) xor v(i + 1);
+    end loop;
+
+    return result;
+
+  end function to_gray;
 
 begin
 

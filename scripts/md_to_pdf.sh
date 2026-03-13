@@ -321,6 +321,10 @@ main() {
     -o "$OUTPUT_PDF_ABS"
 
   popd >/dev/null
+
+  # Clean up any stale pandoc temp files in the input directory
+  find "$INPUT_DIR" -maxdepth 1 \( -name '.pandoc-*' -o -name 'mermaid-filter.err' \) -type f -delete
+
   echo "PDF generated: $OUTPUT_PDF_ABS"
 }
 

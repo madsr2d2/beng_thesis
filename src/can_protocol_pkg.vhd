@@ -61,20 +61,6 @@ package can_protocol_pkg is
     frame_params           : frame_params_t
   ) return observed_mac_frame_bit_info_t;
 
-  ---------------------------------------------------------------------------
-  -- Arithmetic and Encoding Utilities
-  ---------------------------------------------------------------------------
-
-  -- Standard Gray encoder for SBC field.
-  function to_gray (
-    v : std_logic_vector
-  ) return std_logic_vector;
-
-  -- Parity bit generator for SBC field.
-  function calc_parity (
-    v : std_logic_vector
-  ) return std_logic;
-
   -- Converters between polarity domain and std_logic domain.
   function polarity_to_std_logic (
     p : polarity_t
@@ -258,42 +244,6 @@ package body can_protocol_pkg is
     return result;
 
   end function get_observed_mac_frame_bit_info;
-
-  -- Function calculates the parity bit of a std_logic_vector
-  function calc_parity (
-    v : std_logic_vector
-  ) return std_logic is
-
-    variable v_parity : std_logic := '0';
-
-  begin
-
-    for i in v'range loop
-      v_parity := v_parity xor v(i);
-    end loop;
-
-    return v_parity;
-
-  end function calc_parity;
-
-  -- Function Gray encodes a std_logic_vector
-  function to_gray (
-    v : std_logic_vector
-  ) return std_logic_vector is
-
-    variable result : std_logic_vector(v'range);
-
-  begin
-
-    result(v'left) := v(v'left);
-
-    for i in v'left - 1 downto v'right loop
-      result(i) := v(i) xor v(i + 1);
-    end loop;
-
-    return result;
-
-  end function to_gray;
 
   -- Convert std_logic bit value to polarity enumeration
   function bit_to_polarity (
