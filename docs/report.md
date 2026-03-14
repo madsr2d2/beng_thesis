@@ -714,7 +714,10 @@ config:
 ---
 stateDiagram-v2
 
+  classDef reset stroke:#000,stroke-width:3px
+
   state "**bus_reintegration**<br/>─────────<br/>• Bus not driving<br/>• Await idle condition" as bus_reintegration
+  class bus_reintegration reset
   state "**bus_idle**<br/>─────────<br/>• Bus not driving<br/>• Await frame request" as bus_idle
   state "**transmitting_frame**<br/>─────────<br/>• Driving frame bits<br/>• Monitoring bus" as transmitting_frame
   state "**transmitting_active_error_flag**<br/>─────────<br/>• Driving dominant error flag<br/>• Signalling error to FCE" as transmitting_active_error_flag
@@ -724,7 +727,6 @@ stateDiagram-v2
   state "**suspend_transmission**<br/>─────────<br/>• Bus not driving<br/>• Error-passive hold-off" as suspend_transmission
 
 
-[*] --> bus_reintegration : reset
 bus_reintegration --> bus_idle : bus idle
 
 bus_idle --> transmitting_frame : frame pending
@@ -772,12 +774,13 @@ config:
 ---
 stateDiagram-v2
 
+  classDef reset stroke:#000,stroke-width:3px
+
   state "**load_config_byte_0**<br/>─────────<br/>• Idle, awaiting new frame" as s0
+  class s0 reset
   state "**load_config_byte_1**<br/>─────────<br/>• Awaiting config byte 1" as s1
   state "**load_llc_frame_byte**<br/>─────────<br/>• Fetching next byte from LLC stream" as s2
   state "**shift_out_bits**<br/>─────────<br/>• Shift out MSB on MAC FSM ready pulse" as s3
-
-  [*] --> s0 : reset
 
   s0 --> s1 : config byte 0 received from LLC
 
@@ -793,7 +796,7 @@ stateDiagram-v2
 
 `can_mac_bs_tx` performs dynamic bit stuffing for both CAN Classic and CAN-FD frames [@iso11898_1, sec. 10.6]. It monitors the polarity stream from the FSM (@sec:can-mac-fsm-tx) and inserts an inverse-polarity stuff bit after every five consecutive identical bits. It also maintains a Gray-coded Stuff Bit Count (SBC) with parity for the CAN-FD CRC field. The data path diagram is shown in @fig:mac-bs-tx-dataflow.
 
-```{.mermaid #fig:mac-bs-tx-dataflow fig-width=0.8 caption="can_mac_bs_tx data path diagram. When valid and data = last_polarity, consecutive_count increments. Otherwise it restarts at 1 with last_polarity updated to data. When consecutive_count reaches stuff_width, valid and inverted data are driven and stuff_count increments. The to_gray() + calc_parity() block encodes stuff_count into the sbc output. All registers are clocked by clk_i. A rst_i or start pulse resets consecutive_count and stuff_count to zero. All outputs are registered."}
+```{.mermaid #fig:mac-bs-tx-dataflow fig-width=0.5 caption="can_mac_bs_tx data path diagram. When valid and data = last_polarity, consecutive_count increments. Otherwise it restarts at 1 with last_polarity updated to data. When consecutive_count reaches stuff_width, valid and inverted data are driven and stuff_count increments. The to_gray() + calc_parity() block encodes stuff_count into the sbc output. The start pulse resets consecutive_count and stuff_count to zero. All outputs are registered."}
 ---
 config:
   layout: elk
@@ -810,11 +813,6 @@ config:
 ---
 flowchart TD
   subgraph inputs ["**Inputs**"]
-    subgraph clk_rst ["**Clock / Reset**"]
-      clk["**clk_i**<br/>(std_logic)"]
-      rst["**rst_i**<br/>(std_logic)"]
-    end
-
     subgraph fsm_in ["**can_mac_fsm_bs_tx_if_m2s_t**"]
       data_in["**data**<br/>(polarity_t)"]
       valid_in["**valid**<br/>(boolean)"]
@@ -854,7 +852,7 @@ flowchart TD
 
 `can_mac_crc_tx` provides CRC generation for both CAN Classic and CAN-FD frames. CAN Classic frames use CRC-15, while CAN-FD frames use CRC-17 (data payloads up to 16 bytes) or CRC-21 (data payloads above 16 bytes) [@iso11898_1, sec. 10.4.2.6]. The FSM selects the appropriate polynomial via the `crc_poly_select` field (@tbl:mac-fsm-crc-if). The data path diagram is shown in @fig:mac-crc-tx.
 
-```{.mermaid #fig:mac-crc-tx caption="can_mac_crc_tx data path diagram. data, valid, and start are joined and demuxed by crc_poly_select to gate only the selected CRC engine. The mux selects the active engine result, which is zero-padded to the common crc_vector_t width. All registers are clocked by clk_i and cleared by rst_i. All outputs are registered."}
+```{.mermaid #fig:mac-crc-tx fig-width=0.5 caption="can_mac_crc_tx data path diagram. data, valid, and start are joined and demuxed by crc_poly_select to gate only the selected CRC engine. The mux selects the active engine result, which is zero-padded to the common crc_vector_t width. All outputs are registered."}
 ---
 config:
   layout: elk
@@ -871,10 +869,6 @@ config:
 ---
 flowchart TD
   subgraph inputs ["**Inputs**"]
-    subgraph clk_rst ["**Clock / Reset**"]
-      clk["**clk**_i<br/>(std_logic)"]
-      rst["**rst_i**<br/>(std_logic)"]
-    end
 
     subgraph fsm_in ["**can_mac_fsm_crc_tx_if_m2s_t**"]
       data_crc["**data**<br/>(std_logic)"]
@@ -942,12 +936,14 @@ config:
 ---
 stateDiagram-v2
 
+  classDef reset stroke:#000,stroke-width:3px
+
   state "**idle**<br/>─────────<br/>• Awaiting frame activation<br/>• Nominal timing<br/>• Latch first bit on frame activation" as idle_s
+  class idle_s reset
   state "**transmitting_nominal**<br/>─────────<br/>• Nominal bit timing<br/>• Latch next bit at nominal bit boundary<br/>• SP strobe at end of Phase_Seg1" as nom_s
   state "**measuring_delay**<br/>─────────<br/>• Nominal bit timing<br/>• Measure TDCV<br/>• Latch SSP position and FIFO index on RX edge" as meas_s
   state "**transmitting_data**<br/>─────────<br/>• Data-phase bit timing<br/>• Latch next bit at data bit boundary<br/>• SP or SSP strobe per TDC configuration" as data_s
 
-  [*] --> idle_s : reset
   idle_s --> nom_s : frame active
 
   nom_s --> idle_s : frame inactive
@@ -993,6 +989,7 @@ Implementation details of the flexible CRC generator and the hybrid bit stuffer.
 : Testbench execution status and functional coverage summary. {#tbl:testbench-results-summary}
 
 ---
+
 
 # Discussion {#sec:discussion}
 Comparison of the implemented architecture against theoretical models. Performance analysis in high-load scenarios.

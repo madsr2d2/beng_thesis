@@ -18,7 +18,6 @@ library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
   use work.can_types_pkg.all;
-  use work.can_protocol_pkg.all;
 
 entity can_mac_bs_tx is
   port (
@@ -43,15 +42,55 @@ architecture rtl of can_mac_bs_tx is
   ---------------------------------------------------------------------------
   -- Registered state signals
   ---------------------------------------------------------------------------
-  signal consecutive_count : integer range 0 to stuff_width_c := consecutive_count_init_c;
-  signal last_polarity     : polarity_t                       := last_polarity_init_c;
-  signal stuff_count       : stuff_count_t                    := stuff_count_init_c;
-  signal stuff_valid_prev  : boolean                          := stuff_valid_prev_init_c;
+  signal consecutive_count : integer range 0 to stuff_width_c;
+  signal last_polarity     : polarity_t;
+  signal stuff_count       : stuff_count_t;
+  signal stuff_valid_prev  : boolean;
 
   -- Verification-only signals: not used in logic, only for formal assertions
-  signal reset_done             : boolean                          := reset_done_init_c;
-  signal stuff_count_prev       : stuff_count_t                    := stuff_count_init_c;
-  signal consecutive_count_prev : integer range 0 to stuff_width_c := consecutive_count_init_c;
+  signal reset_done             : boolean;
+  signal stuff_count_prev       : stuff_count_t;
+  signal consecutive_count_prev : integer range 0 to stuff_width_c;
+
+  ---------------------------------------------------------------------------
+  -- Calculates parity bit for as std_logic_vector
+  ---------------------------------------------------------------------------
+  function calc_parity (
+    v : std_logic_vector
+  ) return std_logic is
+
+    variable v_parity : std_logic := '0';
+
+  begin
+
+    for i in v'range loop
+      v_parity := v_parity xor v(i);
+    end loop;
+
+    return v_parity;
+
+  end function calc_parity;
+
+  ---------------------------------------------------------------------------
+  -- Gray encode a std_logic_vector
+  ---------------------------------------------------------------------------
+  function to_gray (
+    v : std_logic_vector
+  ) return std_logic_vector is
+
+    variable result : std_logic_vector(v'range);
+
+  begin
+
+    result(v'left) := v(v'left);
+
+    for i in v'left - 1 downto v'right loop
+      result(i) := v(i) xor v(i + 1);
+    end loop;
+
+    return result;
+
+  end function to_gray;
 
 begin
 
@@ -152,6 +191,7 @@ begin
         v_stuff_valid_prev := bs_o.valid;
         v_bs_o             := bs_o;
         v_bs_o.valid       := false;
+        v_bs_o.data        := recessive;
 
         -------------------------------------------------------------------
         -- Logic evaluation
@@ -187,10 +227,6 @@ begin
 -- psl assume_no_unknown_data : assume always (bs_i.data = dominant or bs_i.data = recessive);
 -- psl assume_reset_init : assume (rst_i = '1');
 -- psl assume_reset_done_init : assume (not reset_done);
--- psl assume_no_backtoback_stuff : assume always
--- { bs_o.valid }
--- |=>
--- { not bs_o.valid };
 --------------------------------------------------------------
 
 --------------------------------------------------------------
@@ -247,8 +283,6 @@ begin
 --------------------------------------------------------------
 -- psl psl_6 : assert always
 -- { reset_done and
--- rst_i /= '1' and
--- not bs_i.start and
 -- not bs_i.valid }
 -- |=>
 -- { consecutive_count = consecutive_count_prev }
@@ -256,14 +290,33 @@ begin
 --------------------------------------------------------------
 -- psl psl_7 : assert always
 -- { reset_done and
--- rst_i /= '1' and
--- not bs_i.start and
 -- not bs_o.valid }
 -- |->
 -- { stuff_count = stuff_count_prev }
 -- report "Stuff count changed without stuff bit event";
 --------------------------------------------------------------
+-- psl psl_8 : assert always
+-- { bs_o.valid }
+-- |=>
+-- { not bs_o.valid }
+-- report "Back-to-back stuff events detected";
+--------------------------------------------------------------
 
+--------------------------------------------------------------
+-- psl psl_9 : assert always
+-- { ( not bs_i.valid or bs_i.data = recessive ) ;
+-- ( bs_i.valid and bs_i.data = dominant )[*5] }
+-- |=>
+-- { bs_o.valid and bs_o.data = recessive }
+-- report "No stuff bit after 5 consecutive dominant bits";
+--------------------------------------------------------------
+-- psl psl_10 : assert always
+-- { ( not bs_i.valid or bs_i.data = dominant ) ;
+-- ( bs_i.valid and bs_i.data = recessive )[*5] }
+-- |=>
+-- { bs_o.valid and bs_o.data = dominant }
+-- report "No stuff bit after 5 consecutive recessive bits";
+--------------------------------------------------------------
 --------------------------------------------------------------
 -- Cover points
 --------------------------------------------------------------

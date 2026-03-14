@@ -387,6 +387,67 @@ vsg -c vsg_config.yaml -f src/can_pkg.vhd
 - Disabled: `length_001` (allows lines up to 120 chars for long signal names)
 - Otherwise: Standard VHDL-2008 conventions apply
 
+## Testbench Structure
+
+All testbenches follow a standard OSVVM-based structure. Use `can_mac_bs_tx_tb.vhd` as the reference template.
+
+### Infrastructure
+
+Use OSVVM procedures for clock, reset, and timing:
+
+```vhdl
+-- Clock and reset (concurrent, non-terminating)
+CreateClock(clk_i, c_clk_period);
+CreateReset(rst_i, '1', clk_i, c_clk_period * 3);
+
+-- In stimulus process: wait for reset, then drive
+wait until rst_i = '0';
+WaitForClock(clk_i);
+
+-- Single and multi-cycle waits
+WaitForClock(clk_i);
+WaitForClock(clk_i, 5);
+```
+
+Rules:
+- Declare `clk_i` without an initializer (let `CreateClock` handle it)
+- Declare `rst_i` with `:= '1'` to cover the gap before `CreateReset` takes over
+- Use `WaitForClock` instead of `wait for clk_period`
+- Use `std.env.finish` to terminate simulation (required since `CreateClock` runs forever)
+
+### Random Stimulus
+
+Use OSVVM `RandomPType` with `DistBool` for weighted distributions:
+
+```vhdl
+variable rnd : RandomPType;
+rnd.InitSeed(rnd'instance_name & to_string(now));
+
+-- Weighted boolean distributions (both weights required)
+rnd.DistBool((false => 95, true => 5))   -- 5% true
+rnd.DistBool((false => 50, true => 50))  -- 50/50
+rnd.DistBool((false => 25, true => 75))  -- 75% true
+```
+
+### PSL Assertions
+
+- **White-box assertions** (using internal signals): keep in the DUT for formal verification
+- **Black-box assertions** (using only port signals): duplicate in the TB for simulation verification
+- PSL's temporal operators (SERE sequences, `|=>`, `[*N]`) are the right tool for sequence checking - don't rewrite them as VHDL state machines
+- PSL in the TB follows the same formatting convention as in the DUT (see Formal Verification with PSL section)
+
+### File Layout
+
+1. Header, libraries, entity
+2. Constants (`c_clk_period`, `c_num_random`)
+3. DUT port signals
+4. `CreateClock` / `CreateReset` (concurrent)
+5. DUT instantiation
+6. Stimulus process (random driver with `std.env.finish`)
+7. Black-box PSL assertions
+
+---
+
 ## Mandatory RTL Optimization Rules
 
 For HDL implementation and refactor work, the following guide is mandatory:
@@ -854,3 +915,17 @@ See `OsvvmLibraries/README.md` for OSVVM build and usage.
 - Section selection (`--section`):
   - Best reliability comes from `sec:` IDs in headings.
   - Aliases like `design_and_architecture` are supported.
+- Mermaid `stateDiagram-v2` styling:
+  - Mark the reset/initial state with a thick outline using `classDef` and a separate `class` statement.
+  - Do **not** use `:::` inline on the `state` definition line (it breaks label rendering).
+  - Do **not** use `[*] -->` for the initial state arrow; the thick outline replaces it.
+  - Example:
+    ```
+    stateDiagram-v2
+      classDef reset stroke:#000,stroke-width:3px
+
+      state "**my_initial_state**<br/>─────────<br/>• Description" as s0
+      class s0 reset
+
+      s0 --> s1 : event
+    ```

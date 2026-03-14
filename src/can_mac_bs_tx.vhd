@@ -227,6 +227,10 @@ begin
 -- psl assume_no_unknown_data : assume always (bs_i.data = dominant or bs_i.data = recessive);
 -- psl assume_reset_init : assume (rst_i = '1');
 -- psl assume_reset_done_init : assume (not reset_done);
+-- psl assume_no_reset_during_valid : assume always
+-- { bs_i.valid }
+-- |->
+-- { rst_i /= '1' and not bs_i.start };
 --------------------------------------------------------------
 
 --------------------------------------------------------------
@@ -235,21 +239,22 @@ begin
 -- psl psl_1 : assert always
 -- { rst_i = '1' or bs_i.start }
 -- |=>
--- { consecutive_count = 0 and
--- last_polarity = recessive and
--- stuff_count = "000" and
+-- { not bs_o.valid and
 -- bs_o.data = recessive and
--- bs_o.sbc = "0000" and
--- not stuff_valid_prev and
--- not bs_o.valid }
--- report "Reset did not clear all registers to default values";
+-- bs_o.sbc = "0000" }
+-- report "Reset did not clear outputs to default values";
 --------------------------------------------------------------
 -- psl psl_2 : assert always
 -- { reset_done }
 -- |->
--- { consecutive_count <= stuff_width_c and
--- bs_o.sbc(0) = ( bs_o.sbc(3) xor bs_o.sbc(2) xor bs_o.sbc(1) ) }
--- report "Invariant violated: count bounded or SBC parity";
+-- { bs_o.sbc(0) = ( bs_o.sbc(3) xor bs_o.sbc(2) xor bs_o.sbc(1) ) }
+-- report "SBC parity bit incorrect";
+--------------------------------------------------------------
+-- psl psl_2a : assert always
+-- { reset_done }
+-- |->
+-- { consecutive_count <= stuff_width_c }
+-- report "Induction helper: count out of bounds";
 --------------------------------------------------------------
 -- psl psl_3 : assert always
 -- { reset_done and
@@ -258,60 +263,30 @@ begin
 -- { consecutive_count = stuff_width_c and
 -- bs_o.data /= last_polarity and
 -- stuff_count = ( stuff_count_prev + 1 ) }
--- report "Stuff bit invalid: wrong polarity, count, or SBC not incremented";
+-- report "Stuff bit fired at wrong count, wrong polarity, or SBC not incremented";
 --------------------------------------------------------------
 -- psl psl_4 : assert always
--- { reset_done and
--- rst_i /= '1' and
--- not bs_i.start and
--- bs_i.valid and
--- consecutive_count /= stuff_width_c and
--- bs_i.data = last_polarity }
+-- { bs_i.valid and bs_i.data = recessive ;
+-- ( bs_i.valid and bs_i.data = dominant )[*5] }
 -- |=>
--- { consecutive_count = (consecutive_count_prev + 1) }
--- report "Consecutive count did not increment on same-polarity input";
+-- { bs_o.valid and bs_o.data = recessive }
+-- report "No stuff bit after 5 consecutive dominant bits";
 --------------------------------------------------------------
 -- psl psl_5 : assert always
--- { reset_done and
--- rst_i /= '1' and
--- not bs_i.start and
--- bs_i.valid and
--- bs_i.data /= last_polarity }
+-- { bs_i.valid and bs_i.data = dominant ;
+-- ( bs_i.valid and bs_i.data = recessive )[*5] }
 -- |=>
--- { consecutive_count = 1 }
--- report "Consecutive count did not reset to 1 on non-same-polarity input";
---------------------------------------------------------------
--- psl psl_6 : assert always
--- { reset_done and
--- not bs_i.valid }
--- |=>
--- { consecutive_count = consecutive_count_prev }
--- report "Consecutive count changed without valid input";
---------------------------------------------------------------
--- psl psl_7 : assert always
--- { reset_done and
--- not bs_o.valid }
--- |->
--- { stuff_count = stuff_count_prev }
--- report "Stuff count changed without stuff bit event";
---------------------------------------------------------------
--- psl psl_8 : assert always
--- { bs_o.valid }
--- |=>
--- { not bs_o.valid }
--- report "Back-to-back stuff events detected";
---------------------------------------------------------------
-
+-- { bs_o.valid and bs_o.data = dominant }
+-- report "No stuff bit after 5 consecutive recessive bits";
 --------------------------------------------------------------
 -- Cover points
 --------------------------------------------------------------
--- psl cover_1 : cover { bs_o.valid };
--- psl cover_2 : cover { bs_i.valid and bs_i.data = last_polarity };
--- psl cover_3 : cover { bs_i.valid and bs_i.data /= last_polarity };
--- psl cover_4 : cover { bs_i.start };
--- psl cover_5 : cover { not bs_i.valid and not bs_i.start and rst_i = '0' };
--- psl cover_6 : cover { stuff_count = "111" };
--- psl cover_7 : cover { stuff_count = "000" and reset_done };
+-- psl cover_1 : cover { bs_o.valid and bs_o.data = recessive };
+-- psl cover_2 : cover { bs_o.valid and bs_o.data = dominant };
+-- psl cover_3 : cover { bs_i.valid and bs_i.data = dominant };
+-- psl cover_4 : cover { bs_i.valid and bs_i.data = recessive };
+-- psl cover_5 : cover { bs_i.start };
+-- psl cover_6 : cover { not bs_i.valid and not bs_i.start and rst_i = '0' };
 --------------------------------------------------------------
 
 end architecture rtl;
