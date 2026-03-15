@@ -1,19 +1,19 @@
-  ---------------------------------------------------------------------------
+-- ---------------------------------------------------------------------------
 -- Copyright 2025 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
-  ---------------------------------------------------------------------------
+-- ---------------------------------------------------------------------------
 --
 -- Requirements:
 --
--- Description:   OSVVM-based testbench for can_mac_bs_tx. Random stimulus
---                exercises bit counting, stuff bit insertion, and SBC encoding.
---                Spec-based checker processes verify reset behavior, stuff bit
+-- Description:   Testbench for can_mac_bs_tx. Random stimulus exercises
+--                bit counting, stuff bit insertion, and SBC encoding.
+--                Checker processes verify reset behavior, stuff bit
 --                sufficiency, and SBC parity. Functional coverage tracks
 --                input/output bins.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-15  TMYAES:     Initial implementation
+--                2026-03-15  TMYAES:   Initial implementation
 --
-  ---------------------------------------------------------------------------
+-- ---------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;
@@ -54,7 +54,7 @@ architecture tb of can_mac_bs_tx_tb is
 begin
 
   CreateClock(clk_i, c_clk_period);
-  CreateReset(rst_i, '1', clk_i, c_clk_period * 3);
+  CreateReset(rst_i, '1', clk_i, c_clk_period * 5);
 
   u_dut : entity work.can_mac_bs_tx
     port map (
@@ -71,7 +71,17 @@ begin
     wait;
   end process p_init;
 
-  p_main_tb : process
+  p_timeout : process
+  begin
+    WaitForClock(clk_i, 200 us / c_clk_period);
+    Alert("Testbench timeout", FAILURE);
+    std.env.finish;
+  end process p_timeout;
+
+  -- -------------------------------------------------------------------------
+  -- Drive DUT random stimulus
+  -- -------------------------------------------------------------------------
+  p_stim : process
 
     variable rnd : RandomPType;
 
@@ -111,14 +121,12 @@ begin
     bs_i.valid <= false;
     WaitForClock(clk_i, 5);
     WaitForBarrier(test_done);
-    EndOfTestReports(ReportAll => TRUE);
-    std.env.finish;
 
-  end process p_main_tb;
+  end process p_stim;
 
-  ---------------------------------------------------------------------------
+  -- -------------------------------------------------------------------------
   -- Checker: reset clears outputs to defaults
-  ---------------------------------------------------------------------------
+  -- -------------------------------------------------------------------------
   p_reset_checker : process
 
     variable checker_id : AlertLogIDType;
@@ -136,7 +144,7 @@ begin
 
       if (rst_i = '1' or bs_i.start) then
         WaitForClock(clk_i);
-        AffirmIf(checker_id, not bs_o.valid,
+        AffirmIf(checker_id, bs_o.valid = false,
                  "valid not cleared after reset/start");
         AffirmIf(checker_id, bs_o.data = recessive,
                  "data not recessive after reset/start");
@@ -148,14 +156,15 @@ begin
 
   end process p_reset_checker;
 
-  ---------------------------------------------------------------------------
+  -- -------------------------------------------------------------------------
   -- Checker: stuff bit insertion after 5 consecutive same-polarity bits
-  ---------------------------------------------------------------------------
+  -- -------------------------------------------------------------------------
   p_stuff_bit_checker : process
 
     variable checker_id       : AlertLogIDType;
     variable consecutive      : integer range 0 to stuff_width_c := 0;
     variable tracked_polarity : polarity_t                       := recessive;
+    variable expect_stuff     : boolean                          := false;
 
   begin
 
@@ -168,6 +177,20 @@ begin
 
       WaitForClock(clk_i);
 
+      -- Verify pending stuff bit expectation from previous cycle
+      if (expect_stuff) then
+        AffirmIf(checker_id, bs_o.valid = true,
+                 "No stuff bit after " & integer'image(stuff_width_c) &
+                 " consecutive " & polarity_t'image(tracked_polarity) & " bits");
+        if (bs_o.valid) then
+          AffirmIf(checker_id, bs_o.data /= tracked_polarity,
+                   "Stuff bit has wrong polarity: expected " &
+                   polarity_t'image(tracked_polarity) & " inversion");
+        end if;
+        expect_stuff := false;
+      end if;
+
+      -- Track consecutive same-polarity bits
       if (rst_i = '1' or bs_i.start) then
         consecutive      := 0;
         tracked_polarity := recessive;
@@ -180,24 +203,8 @@ begin
         end if;
 
         if (consecutive = stuff_width_c) then
-          WaitForClock(clk_i);
-          AffirmIf(checker_id, bs_o.valid,
-                   "No stuff bit after " & integer'image(stuff_width_c) &
-                   " consecutive " & polarity_t'image(tracked_polarity) & " bits");
-          if (bs_o.valid) then
-            AffirmIf(checker_id, bs_o.data /= tracked_polarity,
-                     "Stuff bit has wrong polarity: expected " &
-                     polarity_t'image(tracked_polarity) & " inversion");
-          end if;
-
-          -- Stuff bit feedback consumed during check cycle
-          if (bs_i.valid) then
-            consecutive      := 1;
-            tracked_polarity := bs_i.data;
-          else
-            consecutive      := 0;
-            tracked_polarity := recessive;
-          end if;
+          expect_stuff := true;
+          consecutive  := 0;
         end if;
       end if;
 
@@ -205,9 +212,9 @@ begin
 
   end process p_stuff_bit_checker;
 
-  ---------------------------------------------------------------------------
-  -- Checker: SBC parity is always correct
-  ---------------------------------------------------------------------------
+  -- -------------------------------------------------------------------------
+  -- Checker: SBC change and parity
+  -- -------------------------------------------------------------------------
   p_sbc_checker : process
 
     variable checker_id : AlertLogIDType;
@@ -245,19 +252,9 @@ begin
 
   end process p_sbc_checker;
 
-  ---------------------------------------------------------------------------
-  -- Timeout watchdog
-  ---------------------------------------------------------------------------
-  p_timeout : process
-  begin
-    WaitForClock(clk_i, 200 us / c_clk_period);
-    Alert("Testbench timeout - possible deadlock", FAILURE);
-    std.env.finish;
-  end process p_timeout;
-
-  ---------------------------------------------------------------------------
+  -- -------------------------------------------------------------------------
   -- Functional coverage
-  ---------------------------------------------------------------------------
+  -- -------------------------------------------------------------------------
   p_coverage : process
   begin
 
@@ -306,7 +303,18 @@ begin
 
     end loop;
 
-    -- Report coverage
+    WaitForBarrier(test_done);
+
+  end process p_coverage;
+
+  -- -------------------------------------------------------------------------
+  -- Test finalization
+  -- -------------------------------------------------------------------------
+  p_test_done : process
+  begin
+    WaitForBarrier(test_done);
+
+    -- Coverage reports
     WriteBin(cov_input);
     WriteBin(cov_output);
     AffirmIf(GetAlertLogID("Input Coverage"), IsCovered(cov_input),
@@ -315,8 +323,9 @@ begin
     AffirmIf(GetAlertLogID("Output Coverage"), IsCovered(cov_output),
              "All output bins covered",
              "Output coverage goal not met: " & to_string(GetCov(cov_output), 1) & "%");
-    WaitForBarrier(test_done);
 
-  end process p_coverage;
+    EndOfTestReports(ReportAll => TRUE);
+    std.env.finish;
+  end process p_test_done;
 
 end architecture tb;
