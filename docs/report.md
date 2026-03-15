@@ -796,14 +796,10 @@ stateDiagram-v2
 
 `can_mac_bs_tx` performs dynamic bit stuffing for both CAN Classic and CAN-FD frames [@iso11898_1, sec. 10.6]. It monitors the polarity stream from the FSM (@sec:can-mac-fsm-tx) and inserts an inverse-polarity stuff bit after every five consecutive identical bits. It also maintains a Gray-coded Stuff Bit Count (SBC) with parity for the CAN-FD CRC field. The data path diagram is shown in @fig:mac-bs-tx-dataflow.
 
-```{.mermaid #fig:mac-bs-tx-dataflow fig-width=0.5 caption="can_mac_bs_tx data path diagram. When valid and data = last_polarity, consecutive_count increments. Otherwise it restarts at 1 with last_polarity updated to data. When consecutive_count reaches stuff_width, valid and inverted data are driven and stuff_count increments. The to_gray() + calc_parity() block encodes stuff_count into the sbc output. The start pulse resets consecutive_count and stuff_count to zero. All outputs are registered."}
+```{.mermaid #fig:mac-bs-tx-dataflow fig-width=0.8 caption="can_mac_bs_tx data path diagram. When valid and data = last_polarity, consecutive_count increments. Otherwise it restarts at 1 with last_polarity updated to data. When consecutive_count reaches stuff_width, valid and inverted data are driven and stuff_count increments. The to_gray() + calc_parity() block encodes stuff_count into the sbc output. The start pulse resets consecutive_count and stuff_count to zero. All outputs are registered."}
 ---
 config:
   layout: elk
-  elk:
-    algorithm: layered
-    mergeEdges: false
-    nodePlacementStrategy: LINEAR_SEGMENTS
   look: classic
   theme: neutral
   themeVariables:
@@ -811,41 +807,36 @@ config:
     fontSize: "14px"
     primaryTextColor: "#000"
 ---
-flowchart TD
-  subgraph inputs ["**Inputs**"]
-    subgraph fsm_in ["**can_mac_fsm_bs_tx_if_m2s_t**"]
-      data_in["**data**<br/>(polarity_t)"]
-      valid_in["**valid**<br/>(boolean)"]
-      start_in["**start**<br/>(boolean)"]
-    end
-  end
+stateDiagram-v2
+  classDef reset stroke:#000,stroke-width:3px
 
-  same_pol{"valid and<br/>data = last_polarity?"}
-  inc["consecutive_count<br/>+= 1"]
-  restart["consecutive_count <= 1<br/>last_polarity <= data"]
-  thresh{"consecutive_count ≥<br/>stuff_width?"}
-  stuff_set["valid <= true<br/>data <= ¬last_polarity<br/>stuff_count += 1"]
-  gray["to_gray() + calc_parity()"]
+  state "consecutive_count <= 0<br/>stuff_count <= 0" as reset
+  class reset reset
 
-  subgraph outputs ["**Outputs**"]
-    subgraph fsm_out ["**can_mac_fsm_bs_tx_if_s2m_t**"]
-      stuff_valid["**valid**<br/>(boolean)"]
-      stuff_data["**data**<br/>(polarity_t)"]
-      sbc_out["**sbc**<br/>(3-bit Gray + parity)"]
-    end
-  end
+  state "Wait for valid_i" as wait
 
-  valid_in --> same_pol
-  data_in --> same_pol
-  same_pol -->|yes| inc
-  same_pol -->|no| restart
-  inc ==> thresh
-  restart ==> thresh
-  thresh -->|yes| stuff_set
-  stuff_set -->|valid| stuff_valid
-  stuff_set -->|data| stuff_data
-  stuff_set ==>|stuff_count| gray
-  gray ==> sbc_out
+  state "count ≠ stuff_width<br/>and data_i = last_polarity?" as compare
+  state "consecutive_count += 1" as inc
+  state "consecutive_count <= 1<br/>last_polarity <= data_i" as restart
+
+  state "consecutive_count ≥ stuff_width?" as thresh
+
+  state "valid_o <= true<br/>data_o <= ¬last_polarity<br/>stuff_count += 1<br/>sbc_o <= encode(stuff_count)" as stuff
+
+
+  reset --> wait
+  wait --> compare : valid
+
+  compare --> inc : yes
+  compare --> restart : no
+  restart --> wait
+
+  inc --> thresh
+
+  thresh --> stuff : yes
+  thresh --> wait : no
+
+  stuff --> wait
 ```
 
 #### `can_mac_crc_tx` {#sec:can-mac-crc-tx}
@@ -989,7 +980,6 @@ Implementation details of the flexible CRC generator and the hybrid bit stuffer.
 : Testbench execution status and functional coverage summary. {#tbl:testbench-results-summary}
 
 ---
-
 
 # Discussion {#sec:discussion}
 Comparison of the implemented architecture against theoretical models. Performance analysis in high-load scenarios.

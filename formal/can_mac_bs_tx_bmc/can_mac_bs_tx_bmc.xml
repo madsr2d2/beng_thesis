@@ -1,42 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <testsuites>
-<testsuite timestamp="2026-03-14T10:40:59" hostname="madsr2d2" package="can_mac_bs_tx" id="0" name="bmc" tests="26" errors="0" failures="2" time="0" skipped="25">
+<testsuite timestamp="2026-03-15T12:09:02" hostname="madsr2d2" package="can_mac_bs_tx" id="0" name="bmc" tests="11" errors="0" failures="0" time="0" skipped="5">
 <properties>
 <property name="os" value="Linux"/>
 <property name="expect" value="PASS"/>
-<property name="status" value="FAIL"/>
+<property name="status" value="PASS"/>
 </properties>
 <testcase classname="bmc" name="build execution" time="0">
-<failure type="FAIL" message="Task returned status FAIL." />
-</testcase>
-<testcase classname="bmc" name="Property COVER cover_1 in can_mac_bs_tx" time="0" type="COVER" location="" id="cover_1">
-<skipped />
-</testcase>
-<testcase classname="bmc" name="Property COVER cover_2 in can_mac_bs_tx" time="0" type="COVER" location="" id="cover_2">
-<skipped />
-</testcase>
-<testcase classname="bmc" name="Property COVER cover_3 in can_mac_bs_tx" time="0" type="COVER" location="" id="cover_3">
-<skipped />
-</testcase>
-<testcase classname="bmc" name="Property COVER cover_4 in can_mac_bs_tx" time="0" type="COVER" location="" id="cover_4">
-<skipped />
-</testcase>
-<testcase classname="bmc" name="Property COVER cover_5 in can_mac_bs_tx" time="0" type="COVER" location="" id="cover_5">
-<skipped />
-</testcase>
-<testcase classname="bmc" name="Property COVER cover_6 in can_mac_bs_tx" time="0" type="COVER" location="" id="cover_6">
-<skipped />
-</testcase>
-<testcase classname="bmc" name="Property COVER cover_7 in can_mac_bs_tx" time="0" type="COVER" location="" id="cover_7">
-<skipped />
 </testcase>
 <testcase classname="bmc" name="Property COVER psl_1.cover in can_mac_bs_tx" time="0" type="COVER" location="" id="psl_1.cover">
 <skipped />
 </testcase>
-<testcase classname="bmc" name="Property COVER psl_10.cover in can_mac_bs_tx" time="0" type="COVER" location="" id="psl_10.cover">
-<skipped />
-</testcase>
-<testcase classname="bmc" name="Property COVER psl_2.cover in can_mac_bs_tx" time="0" type="COVER" location="" id="psl_2.cover">
+<testcase classname="bmc" name="Property COVER psl_2a.cover in can_mac_bs_tx" time="0" type="COVER" location="" id="psl_2a.cover">
 <skipped />
 </testcase>
 <testcase classname="bmc" name="Property COVER psl_3.cover in can_mac_bs_tx" time="0" type="COVER" location="" id="psl_3.cover">
@@ -48,99 +23,101 @@
 <testcase classname="bmc" name="Property COVER psl_5.cover in can_mac_bs_tx" time="0" type="COVER" location="" id="psl_5.cover">
 <skipped />
 </testcase>
-<testcase classname="bmc" name="Property COVER psl_6.cover in can_mac_bs_tx" time="0" type="COVER" location="" id="psl_6.cover">
-<skipped />
-</testcase>
-<testcase classname="bmc" name="Property COVER psl_7.cover in can_mac_bs_tx" time="0" type="COVER" location="" id="psl_7.cover">
-<skipped />
-</testcase>
-<testcase classname="bmc" name="Property COVER psl_9.cover in can_mac_bs_tx" time="0" type="COVER" location="" id="psl_9.cover">
-<skipped />
-</testcase>
 <testcase classname="bmc" name="Property ASSERT psl_1 in can_mac_bs_tx" time="0" type="ASSERT" location="" id="psl_1">
-<skipped />
-</testcase>
-<testcase classname="bmc" name="Property ASSERT psl_10 in can_mac_bs_tx" time="0" type="ASSERT" location="" id="psl_10" tracefile="engine_0/trace.vcd">
-<failure type="ASSERT" message="Property ASSERT psl_10 in can_mac_bs_tx failed. Trace file: engine_0/trace.vcd" />
 </testcase>
 <testcase classname="bmc" name="Property ASSERT psl_2 in can_mac_bs_tx" time="0" type="ASSERT" location="" id="psl_2">
-<skipped />
+</testcase>
+<testcase classname="bmc" name="Property ASSERT psl_2a in can_mac_bs_tx" time="0" type="ASSERT" location="" id="psl_2a">
 </testcase>
 <testcase classname="bmc" name="Property ASSERT psl_3 in can_mac_bs_tx" time="0" type="ASSERT" location="" id="psl_3">
-<skipped />
 </testcase>
 <testcase classname="bmc" name="Property ASSERT psl_4 in can_mac_bs_tx" time="0" type="ASSERT" location="" id="psl_4">
-<skipped />
 </testcase>
 <testcase classname="bmc" name="Property ASSERT psl_5 in can_mac_bs_tx" time="0" type="ASSERT" location="" id="psl_5">
-<skipped />
 </testcase>
-<testcase classname="bmc" name="Property ASSERT psl_6 in can_mac_bs_tx" time="0" type="ASSERT" location="" id="psl_6">
-<skipped />
-</testcase>
-<testcase classname="bmc" name="Property ASSERT psl_7 in can_mac_bs_tx" time="0" type="ASSERT" location="" id="psl_7">
-<skipped />
-</testcase>
-<testcase classname="bmc" name="Property ASSERT psl_8 in can_mac_bs_tx" time="0" type="ASSERT" location="" id="psl_8">
-<skipped />
-</testcase>
-<testcase classname="bmc" name="Property ASSERT psl_9 in can_mac_bs_tx" time="0" type="ASSERT" location="" id="psl_9">
-<skipped />
-</testcase>
-<system-out>SBY 10:40:59 [formal/can_mac_bs_tx_bmc] Removing directory '/home/madsr2d2/beng_thesis/formal/can_mac_bs_tx_bmc'.
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] Copy '/home/madsr2d2/beng_thesis/src/can_types_pkg.vhd' to '/home/madsr2d2/beng_thesis/formal/can_mac_bs_tx_bmc/src/can_types_pkg.vhd'.
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] Copy '/home/madsr2d2/beng_thesis/src/can_protocol_pkg.vhd' to '/home/madsr2d2/beng_thesis/formal/can_mac_bs_tx_bmc/src/can_protocol_pkg.vhd'.
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] Copy '/home/madsr2d2/beng_thesis/src/can_mac_bs_tx.vhd' to '/home/madsr2d2/beng_thesis/formal/can_mac_bs_tx_bmc/src/can_mac_bs_tx.vhd'.
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: smtbmc z3
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] base: starting process &quot;cd formal/can_mac_bs_tx_bmc/src; yosys -ql ../model/design.log ../model/design.ys&quot;
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] base: can_types_pkg.vhd:344:13:warning: attribute &quot;fsm_encoding&quot; for type &quot;can_format_t&quot; is not kept in the netlist [-Wunkept-attribute]
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] base: attribute fsm_encoding of can_format_t           : type is &quot;one_hot&quot;;
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] base: ^
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] base: can_types_pkg.vhd:345:13:warning: attribute &quot;fsm_encoding&quot; for type &quot;transfer_status_t&quot; is not kept in the netlist [-Wunkept-attribute]
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] base: attribute fsm_encoding of transfer_status_t      : type is &quot;one_hot&quot;;
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] base: ^
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] base: can_types_pkg.vhd:346:13:warning: attribute &quot;fsm_encoding&quot; for type &quot;can_mac_ser_tx_state_t&quot; is not kept in the netlist [-Wunkept-attribute]
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] base: attribute fsm_encoding of can_mac_ser_tx_state_t : type is &quot;one_hot&quot;;
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] base: ^
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] base: can_types_pkg.vhd:347:13:warning: attribute &quot;fsm_encoding&quot; for type &quot;can_mac_fsm_tx_state_t&quot; is not kept in the netlist [-Wunkept-attribute]
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] base: attribute fsm_encoding of can_mac_fsm_tx_state_t : type is &quot;one_hot&quot;;
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] base: ^
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] base: finished (returncode=0)
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] prep: starting process &quot;cd formal/can_mac_bs_tx_bmc/model; yosys -ql design_prep.log design_prep.ys&quot;
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] prep: finished (returncode=0)
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] smt2: starting process &quot;cd formal/can_mac_bs_tx_bmc/model; yosys -ql design_smt2.log design_smt2.ys&quot;
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] smt2: finished (returncode=0)
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: starting process &quot;cd formal/can_mac_bs_tx_bmc; yosys-smtbmc -s z3 --presat --noprogress -t 25  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2&quot;
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Solver: z3
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 0..
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 0..
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 1..
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 1..
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 2..
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 2..
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 3..
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 3..
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 4..
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 4..
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 5..
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 5..
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 6..
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 6..
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  BMC failed!
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Assert failed in can_mac_bs_tx: psl_10
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Writing trace to VCD file: engine_0/trace.vcd
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Writing trace to Verilog testbench: engine_0/trace_tb.v
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Writing trace to constraints file: engine_0/trace.smtc
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Writing trace to Yosys witness file: engine_0/trace.yw
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Status: failed
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: finished (returncode=1)
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] engine_0: Status returned by engine: FAIL
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] summary: engine_0 (smtbmc z3) returned FAIL
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] summary: counterexample trace: formal/can_mac_bs_tx_bmc/engine_0/trace.vcd
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] summary:   failed assertion can_mac_bs_tx.psl_10 at  step 6
-SBY 10:40:59 [formal/can_mac_bs_tx_bmc] DONE (FAIL, rc=2)
+<system-out>SBY 12:09:01 [formal/can_mac_bs_tx_bmc] Removing directory '/home/madsr2d2/beng_thesis/formal/can_mac_bs_tx_bmc'.
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] Copy '/home/madsr2d2/beng_thesis/src/can_types_pkg.vhd' to '/home/madsr2d2/beng_thesis/formal/can_mac_bs_tx_bmc/src/can_types_pkg.vhd'.
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] Copy '/home/madsr2d2/beng_thesis/src/can_protocol_pkg.vhd' to '/home/madsr2d2/beng_thesis/formal/can_mac_bs_tx_bmc/src/can_protocol_pkg.vhd'.
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] Copy '/home/madsr2d2/beng_thesis/src/can_mac_bs_tx.vhd' to '/home/madsr2d2/beng_thesis/formal/can_mac_bs_tx_bmc/src/can_mac_bs_tx.vhd'.
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: smtbmc z3
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] base: starting process &quot;cd formal/can_mac_bs_tx_bmc/src; yosys -ql ../model/design.log ../model/design.ys&quot;
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] base: can_types_pkg.vhd:344:13:warning: attribute &quot;fsm_encoding&quot; for type &quot;can_format_t&quot; is not kept in the netlist [-Wunkept-attribute]
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] base: attribute fsm_encoding of can_format_t           : type is &quot;one_hot&quot;;
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] base: ^
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] base: can_types_pkg.vhd:345:13:warning: attribute &quot;fsm_encoding&quot; for type &quot;transfer_status_t&quot; is not kept in the netlist [-Wunkept-attribute]
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] base: attribute fsm_encoding of transfer_status_t      : type is &quot;one_hot&quot;;
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] base: ^
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] base: can_types_pkg.vhd:346:13:warning: attribute &quot;fsm_encoding&quot; for type &quot;can_mac_ser_tx_state_t&quot; is not kept in the netlist [-Wunkept-attribute]
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] base: attribute fsm_encoding of can_mac_ser_tx_state_t : type is &quot;one_hot&quot;;
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] base: ^
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] base: can_types_pkg.vhd:347:13:warning: attribute &quot;fsm_encoding&quot; for type &quot;can_mac_fsm_tx_state_t&quot; is not kept in the netlist [-Wunkept-attribute]
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] base: attribute fsm_encoding of can_mac_fsm_tx_state_t : type is &quot;one_hot&quot;;
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] base: ^
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] base: finished (returncode=0)
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] prep: starting process &quot;cd formal/can_mac_bs_tx_bmc/model; yosys -ql design_prep.log design_prep.ys&quot;
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] prep: finished (returncode=0)
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] smt2: starting process &quot;cd formal/can_mac_bs_tx_bmc/model; yosys -ql design_smt2.log design_smt2.ys&quot;
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] smt2: finished (returncode=0)
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: starting process &quot;cd formal/can_mac_bs_tx_bmc; yosys-smtbmc -s z3 --presat --noprogress -t 25  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2&quot;
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Solver: z3
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 0..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 0..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 1..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 1..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 2..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 2..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 3..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 3..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 4..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 4..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 5..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 5..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 6..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 6..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 7..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 7..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 8..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 8..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 9..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 9..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 10..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 10..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 11..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 11..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 12..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 12..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 13..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 13..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 14..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 14..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 15..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 15..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 16..
+SBY 12:09:01 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 16..
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 17..
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 17..
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 18..
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 18..
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 19..
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 19..
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 20..
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 20..
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 21..
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 21..
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 22..
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 22..
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 23..
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 23..
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assumptions in step 24..
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Checking assertions in step 24..
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] engine_0: ##   0:00:00  Status: passed
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] engine_0: finished (returncode=0)
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] engine_0: Status returned by engine: pass
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] summary: engine_0 (smtbmc z3) returned pass
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] summary: engine_0 did not produce any traces
+SBY 12:09:02 [formal/can_mac_bs_tx_bmc] DONE (PASS, rc=0)
 </system-out>
 <system-err>
 </system-err>

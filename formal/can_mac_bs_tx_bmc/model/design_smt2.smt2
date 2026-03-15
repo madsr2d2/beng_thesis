@@ -2,299 +2,230 @@
 ; yosys-smt2-module can_mac_bs_tx
 (declare-sort |can_mac_bs_tx_s| 0)
 (declare-fun |can_mac_bs_tx_is| (|can_mac_bs_tx_s|) Bool)
-; yosys-smt2-witness {"offset": 1, "path": ["$auto$ghdl.cc:846:import_module$107"], "smtname": 0, "smtoffset": 0, "type": "reg", "width": 1}
-(declare-fun |can_mac_bs_tx#0| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; $auto$ghdl.cc:846:import_module$107 [1]
-(declare-fun |can_mac_bs_tx#1| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; $auto$ghdl.cc:846:import_module$107 [2]
-; yosys-smt2-register $auto$ghdl.cc:846:import_module$107 3
-(define-fun |can_mac_bs_tx_n $auto$ghdl.cc:846:import_module$107| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (concat (|can_mac_bs_tx#1| state) (concat (|can_mac_bs_tx#0| state) #b1)))
-; yosys-smt2-witness {"offset": 1, "path": ["$auto$ghdl.cc:846:import_module$119"], "smtname": 2, "smtoffset": 0, "type": "reg", "width": 1}
-(declare-fun |can_mac_bs_tx#2| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; $auto$ghdl.cc:846:import_module$119 [1]
-(declare-fun |can_mac_bs_tx#3| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; $auto$ghdl.cc:846:import_module$119 [2]
-; yosys-smt2-register $auto$ghdl.cc:846:import_module$119 3
-(define-fun |can_mac_bs_tx_n $auto$ghdl.cc:846:import_module$119| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (concat (|can_mac_bs_tx#3| state) (concat (|can_mac_bs_tx#2| state) #b1)))
-; yosys-smt2-witness {"offset": 1, "path": ["$auto$ghdl.cc:846:import_module$134"], "smtname": 4, "smtoffset": 0, "type": "reg", "width": 1}
-(declare-fun |can_mac_bs_tx#4| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; $auto$ghdl.cc:846:import_module$134 [1]
-(declare-fun |can_mac_bs_tx#5| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; $auto$ghdl.cc:846:import_module$134 [2]
-; yosys-smt2-register $auto$ghdl.cc:846:import_module$134 3
-(define-fun |can_mac_bs_tx_n $auto$ghdl.cc:846:import_module$134| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (concat (|can_mac_bs_tx#5| state) (concat (|can_mac_bs_tx#4| state) #b1)))
-; yosys-smt2-witness {"offset": 1, "path": ["$auto$ghdl.cc:846:import_module$137"], "smtname": 6, "smtoffset": 0, "type": "reg", "width": 6}
-(declare-fun |can_mac_bs_tx#6| (|can_mac_bs_tx_s|) (_ BitVec 6)) ; $auto$ghdl.cc:846:import_module$137 [6:1]
-(declare-fun |can_mac_bs_tx#7| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; $auto$ghdl.cc:846:import_module$137 [7]
-; yosys-smt2-register $auto$ghdl.cc:846:import_module$137 8
-(define-fun |can_mac_bs_tx_n $auto$ghdl.cc:846:import_module$137| ((state |can_mac_bs_tx_s|)) (_ BitVec 8) (concat (|can_mac_bs_tx#7| state) (concat (|can_mac_bs_tx#6| state) #b1)))
-; yosys-smt2-witness {"offset": 1, "path": ["$auto$ghdl.cc:846:import_module$162"], "smtname": 8, "smtoffset": 0, "type": "reg", "width": 6}
-(declare-fun |can_mac_bs_tx#8| (|can_mac_bs_tx_s|) (_ BitVec 6)) ; $auto$ghdl.cc:846:import_module$162 [6:1]
-(declare-fun |can_mac_bs_tx#9| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; $auto$ghdl.cc:846:import_module$162 [7]
-; yosys-smt2-register $auto$ghdl.cc:846:import_module$162 8
-(define-fun |can_mac_bs_tx_n $auto$ghdl.cc:846:import_module$162| ((state |can_mac_bs_tx_s|)) (_ BitVec 8) (concat (|can_mac_bs_tx#9| state) (concat (|can_mac_bs_tx#8| state) #b1)))
-; yosys-smt2-witness {"offset": 0, "path": ["$auto$ghdl.cc:846:import_module$42"], "smtname": 10, "smtoffset": 0, "type": "reg", "width": 1}
-(declare-fun |can_mac_bs_tx#10| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; $auto$ghdl.cc:846:import_module$42 [0]
-(declare-fun |can_mac_bs_tx#11| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; $auto$ghdl.cc:846:import_module$42 [1]
-; yosys-smt2-register $auto$ghdl.cc:846:import_module$42 2
-(define-fun |can_mac_bs_tx_n $auto$ghdl.cc:846:import_module$42| ((state |can_mac_bs_tx_s|)) (_ BitVec 2) (concat (|can_mac_bs_tx#11| state) (|can_mac_bs_tx#10| state)))
-; yosys-smt2-witness {"offset": 1, "path": ["$auto$ghdl.cc:846:import_module$45"], "smtname": 12, "smtoffset": 0, "type": "reg", "width": 1}
-(declare-fun |can_mac_bs_tx#12| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; $auto$ghdl.cc:846:import_module$45 [1]
-(declare-fun |can_mac_bs_tx#13| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; $auto$ghdl.cc:846:import_module$45 [2]
-; yosys-smt2-register $auto$ghdl.cc:846:import_module$45 3
-(define-fun |can_mac_bs_tx_n $auto$ghdl.cc:846:import_module$45| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (concat (|can_mac_bs_tx#13| state) (concat (|can_mac_bs_tx#12| state) #b1)))
-; yosys-smt2-witness {"offset": 1, "path": ["$auto$ghdl.cc:846:import_module$92"], "smtname": 14, "smtoffset": 0, "type": "reg", "width": 1}
-(declare-fun |can_mac_bs_tx#14| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; $auto$ghdl.cc:846:import_module$92 [1]
-(declare-fun |can_mac_bs_tx#15| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; $auto$ghdl.cc:846:import_module$92 [2]
-; yosys-smt2-register $auto$ghdl.cc:846:import_module$92 3
-(define-fun |can_mac_bs_tx_n $auto$ghdl.cc:846:import_module$92| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (concat (|can_mac_bs_tx#15| state) (concat (|can_mac_bs_tx#14| state) #b1)))
-(declare-fun |can_mac_bs_tx#16| (|can_mac_bs_tx_s|) (_ BitVec 2)) ; \bs_i[data]
+; yosys-smt2-witness {"offset": 1, "path": ["$auto$ghdl.cc:846:import_module$113"], "smtname": 0, "smtoffset": 0, "type": "reg", "width": 6}
+(declare-fun |can_mac_bs_tx#0| (|can_mac_bs_tx_s|) (_ BitVec 6)) ; $auto$ghdl.cc:846:import_module$113 [6:1]
+(declare-fun |can_mac_bs_tx#1| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; $auto$ghdl.cc:846:import_module$113 [7]
+; yosys-smt2-register $auto$ghdl.cc:846:import_module$113 8
+(define-fun |can_mac_bs_tx_n $auto$ghdl.cc:846:import_module$113| ((state |can_mac_bs_tx_s|)) (_ BitVec 8) (concat (|can_mac_bs_tx#1| state) (concat (|can_mac_bs_tx#0| state) #b1)))
+; yosys-smt2-witness {"offset": 0, "path": ["$auto$ghdl.cc:846:import_module$43"], "smtname": 2, "smtoffset": 0, "type": "reg", "width": 1}
+(declare-fun |can_mac_bs_tx#2| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; $auto$ghdl.cc:846:import_module$43 [0]
+(declare-fun |can_mac_bs_tx#3| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; $auto$ghdl.cc:846:import_module$43 [1]
+; yosys-smt2-register $auto$ghdl.cc:846:import_module$43 2
+(define-fun |can_mac_bs_tx_n $auto$ghdl.cc:846:import_module$43| ((state |can_mac_bs_tx_s|)) (_ BitVec 2) (concat (|can_mac_bs_tx#3| state) (|can_mac_bs_tx#2| state)))
+; yosys-smt2-witness {"offset": 1, "path": ["$auto$ghdl.cc:846:import_module$52"], "smtname": 4, "smtoffset": 0, "type": "reg", "width": 1}
+(declare-fun |can_mac_bs_tx#4| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; $auto$ghdl.cc:846:import_module$52 [1]
+(declare-fun |can_mac_bs_tx#5| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; $auto$ghdl.cc:846:import_module$52 [2]
+; yosys-smt2-register $auto$ghdl.cc:846:import_module$52 3
+(define-fun |can_mac_bs_tx_n $auto$ghdl.cc:846:import_module$52| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (concat (|can_mac_bs_tx#5| state) (concat (|can_mac_bs_tx#4| state) #b1)))
+; yosys-smt2-witness {"offset": 1, "path": ["$auto$ghdl.cc:846:import_module$89"], "smtname": 6, "smtoffset": 0, "type": "reg", "width": 6}
+(declare-fun |can_mac_bs_tx#6| (|can_mac_bs_tx_s|) (_ BitVec 6)) ; $auto$ghdl.cc:846:import_module$89 [6:1]
+(declare-fun |can_mac_bs_tx#7| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; $auto$ghdl.cc:846:import_module$89 [7]
+; yosys-smt2-register $auto$ghdl.cc:846:import_module$89 8
+(define-fun |can_mac_bs_tx_n $auto$ghdl.cc:846:import_module$89| ((state |can_mac_bs_tx_s|)) (_ BitVec 8) (concat (|can_mac_bs_tx#7| state) (concat (|can_mac_bs_tx#6| state) #b1)))
+(declare-fun |can_mac_bs_tx#8| (|can_mac_bs_tx_s|) (_ BitVec 2)) ; \bs_i[data]
 ; yosys-smt2-input bs_i[data] 2
 ; yosys-smt2-wire bs_i[data] 2
 ; yosys-smt2-witness {"offset": 0, "path": ["\\bs_i[data]"], "smtname": "bs_i[data]", "smtoffset": 0, "type": "input", "width": 2}
-(define-fun |can_mac_bs_tx_n bs_i[data]| ((state |can_mac_bs_tx_s|)) (_ BitVec 2) (|can_mac_bs_tx#16| state))
-(declare-fun |can_mac_bs_tx#17| (|can_mac_bs_tx_s|) Bool) ; \bs_i[start]
+(define-fun |can_mac_bs_tx_n bs_i[data]| ((state |can_mac_bs_tx_s|)) (_ BitVec 2) (|can_mac_bs_tx#8| state))
+(declare-fun |can_mac_bs_tx#9| (|can_mac_bs_tx_s|) Bool) ; \bs_i[start]
 ; yosys-smt2-input bs_i[start] 1
 ; yosys-smt2-wire bs_i[start] 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\bs_i[start]"], "smtname": "bs_i[start]", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |can_mac_bs_tx_n bs_i[start]| ((state |can_mac_bs_tx_s|)) Bool (|can_mac_bs_tx#17| state))
-(declare-fun |can_mac_bs_tx#18| (|can_mac_bs_tx_s|) Bool) ; \bs_i[valid]
+(define-fun |can_mac_bs_tx_n bs_i[start]| ((state |can_mac_bs_tx_s|)) Bool (|can_mac_bs_tx#9| state))
+(declare-fun |can_mac_bs_tx#10| (|can_mac_bs_tx_s|) Bool) ; \bs_i[valid]
 ; yosys-smt2-input bs_i[valid] 1
 ; yosys-smt2-wire bs_i[valid] 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\bs_i[valid]"], "smtname": "bs_i[valid]", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |can_mac_bs_tx_n bs_i[valid]| ((state |can_mac_bs_tx_s|)) Bool (|can_mac_bs_tx#18| state))
-; yosys-smt2-anyinit can_mac_bs_tx#19 7 :586
-; yosys-smt2-witness {"offset": 0, "path": ["\\bs_o[data]"], "smtname": 19, "smtoffset": 0, "type": "init", "width": 2}
-; yosys-smt2-witness {"offset": 0, "path": ["\\bs_o[valid]"], "smtname": 19, "smtoffset": 2, "type": "init", "width": 1}
-; yosys-smt2-witness {"offset": 0, "path": ["\\bs_o[sbc]"], "smtname": 19, "smtoffset": 3, "type": "init", "width": 4}
-(declare-fun |can_mac_bs_tx#19| (|can_mac_bs_tx_s|) (_ BitVec 7)) ; { \bs_o[sbc] \bs_o[valid] \bs_o[data] }
+(define-fun |can_mac_bs_tx_n bs_i[valid]| ((state |can_mac_bs_tx_s|)) Bool (|can_mac_bs_tx#10| state))
+; yosys-smt2-anyinit can_mac_bs_tx#11 7 :404
+; yosys-smt2-witness {"offset": 0, "path": ["\\bs_o[data]"], "smtname": 11, "smtoffset": 0, "type": "init", "width": 2}
+; yosys-smt2-witness {"offset": 0, "path": ["\\bs_o[valid]"], "smtname": 11, "smtoffset": 2, "type": "init", "width": 1}
+; yosys-smt2-witness {"offset": 0, "path": ["\\bs_o[sbc]"], "smtname": 11, "smtoffset": 3, "type": "init", "width": 4}
+(declare-fun |can_mac_bs_tx#11| (|can_mac_bs_tx_s|) (_ BitVec 7)) ; { \bs_o[sbc] \bs_o[valid] \bs_o[data] }
 ; yosys-smt2-output bs_o[data] 2
 ; yosys-smt2-register bs_o[data] 2
 ; yosys-smt2-wire bs_o[data] 2
-(define-fun |can_mac_bs_tx_n bs_o[data]| ((state |can_mac_bs_tx_s|)) (_ BitVec 2) ((_ extract 1 0) (|can_mac_bs_tx#19| state)))
+(define-fun |can_mac_bs_tx_n bs_o[data]| ((state |can_mac_bs_tx_s|)) (_ BitVec 2) ((_ extract 1 0) (|can_mac_bs_tx#11| state)))
 ; yosys-smt2-output bs_o[sbc] 4
 ; yosys-smt2-register bs_o[sbc] 4
 ; yosys-smt2-wire bs_o[sbc] 4
-(define-fun |can_mac_bs_tx_n bs_o[sbc]| ((state |can_mac_bs_tx_s|)) (_ BitVec 4) ((_ extract 6 3) (|can_mac_bs_tx#19| state)))
+(define-fun |can_mac_bs_tx_n bs_o[sbc]| ((state |can_mac_bs_tx_s|)) (_ BitVec 4) ((_ extract 6 3) (|can_mac_bs_tx#11| state)))
 ; yosys-smt2-output bs_o[valid] 1
 ; yosys-smt2-register bs_o[valid] 1
 ; yosys-smt2-wire bs_o[valid] 1
-(define-fun |can_mac_bs_tx_n bs_o[valid]| ((state |can_mac_bs_tx_s|)) Bool (= ((_ extract 2 2) (|can_mac_bs_tx#19| state)) #b1))
-(declare-fun |can_mac_bs_tx#20| (|can_mac_bs_tx_s|) Bool) ; \clk_i
+(define-fun |can_mac_bs_tx_n bs_o[valid]| ((state |can_mac_bs_tx_s|)) Bool (= ((_ extract 2 2) (|can_mac_bs_tx#11| state)) #b1))
+(declare-fun |can_mac_bs_tx#12| (|can_mac_bs_tx_s|) Bool) ; \clk_i
 ; yosys-smt2-input clk_i 1
 ; yosys-smt2-wire clk_i 1
 ; yosys-smt2-clock clk_i posedge
 ; yosys-smt2-witness {"offset": 0, "path": ["\\clk_i"], "smtname": "clk_i", "smtoffset": 0, "type": "posedge", "width": 1}
 ; yosys-smt2-witness {"offset": 0, "path": ["\\clk_i"], "smtname": "clk_i", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |can_mac_bs_tx_n clk_i| ((state |can_mac_bs_tx_s|)) Bool (|can_mac_bs_tx#20| state))
-; yosys-smt2-anyinit can_mac_bs_tx#21 3 :587
-; yosys-smt2-witness {"offset": 0, "path": ["\\consecutive_count"], "smtname": 21, "smtoffset": 0, "type": "init", "width": 3}
-(declare-fun |can_mac_bs_tx#21| (|can_mac_bs_tx_s|) (_ BitVec 3)) ; \consecutive_count
+(define-fun |can_mac_bs_tx_n clk_i| ((state |can_mac_bs_tx_s|)) Bool (|can_mac_bs_tx#12| state))
+; yosys-smt2-anyinit can_mac_bs_tx#13 3 :405
+; yosys-smt2-witness {"offset": 0, "path": ["\\consecutive_count"], "smtname": 13, "smtoffset": 0, "type": "init", "width": 3}
+(declare-fun |can_mac_bs_tx#13| (|can_mac_bs_tx_s|) (_ BitVec 3)) ; \consecutive_count
 ; yosys-smt2-register consecutive_count 3
 ; yosys-smt2-wire consecutive_count 3
-(define-fun |can_mac_bs_tx_n consecutive_count| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (|can_mac_bs_tx#21| state))
-; yosys-smt2-anyinit can_mac_bs_tx#22 3 :593
-; yosys-smt2-witness {"offset": 0, "path": ["\\consecutive_count_prev"], "smtname": 22, "smtoffset": 0, "type": "init", "width": 3}
-(declare-fun |can_mac_bs_tx#22| (|can_mac_bs_tx_s|) (_ BitVec 3)) ; \consecutive_count_prev
-; yosys-smt2-register consecutive_count_prev 3
-; yosys-smt2-wire consecutive_count_prev 3
-(define-fun |can_mac_bs_tx_n consecutive_count_prev| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (|can_mac_bs_tx#22| state))
-; yosys-smt2-anyinit can_mac_bs_tx#23 2 :588
-; yosys-smt2-witness {"offset": 0, "path": ["\\last_polarity"], "smtname": 23, "smtoffset": 0, "type": "init", "width": 2}
-(declare-fun |can_mac_bs_tx#23| (|can_mac_bs_tx_s|) (_ BitVec 2)) ; \last_polarity
+(define-fun |can_mac_bs_tx_n consecutive_count| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (|can_mac_bs_tx#13| state))
+; yosys-smt2-anyinit can_mac_bs_tx#14 2 :406
+; yosys-smt2-witness {"offset": 0, "path": ["\\last_polarity"], "smtname": 14, "smtoffset": 0, "type": "init", "width": 2}
+(declare-fun |can_mac_bs_tx#14| (|can_mac_bs_tx_s|) (_ BitVec 2)) ; \last_polarity
 ; yosys-smt2-register last_polarity 2
 ; yosys-smt2-wire last_polarity 2
-(define-fun |can_mac_bs_tx_n last_polarity| ((state |can_mac_bs_tx_s|)) (_ BitVec 2) (|can_mac_bs_tx#23| state))
-; yosys-smt2-anyinit can_mac_bs_tx#24 1 :591
-; yosys-smt2-witness {"offset": 0, "path": ["\\reset_done"], "smtname": 24, "smtoffset": 0, "type": "init", "width": 1}
-(declare-fun |can_mac_bs_tx#24| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; \reset_done
+(define-fun |can_mac_bs_tx_n last_polarity| ((state |can_mac_bs_tx_s|)) (_ BitVec 2) (|can_mac_bs_tx#14| state))
+; yosys-smt2-anyinit can_mac_bs_tx#15 1 :409
+; yosys-smt2-witness {"offset": 0, "path": ["\\reset_done"], "smtname": 15, "smtoffset": 0, "type": "init", "width": 1}
+(declare-fun |can_mac_bs_tx#15| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; \reset_done
 ; yosys-smt2-register reset_done 1
 ; yosys-smt2-wire reset_done 1
-(define-fun |can_mac_bs_tx_n reset_done| ((state |can_mac_bs_tx_s|)) Bool (= ((_ extract 0 0) (|can_mac_bs_tx#24| state)) #b1))
-(declare-fun |can_mac_bs_tx#25| (|can_mac_bs_tx_s|) Bool) ; \rst_i
+(define-fun |can_mac_bs_tx_n reset_done| ((state |can_mac_bs_tx_s|)) Bool (= ((_ extract 0 0) (|can_mac_bs_tx#15| state)) #b1))
+(declare-fun |can_mac_bs_tx#16| (|can_mac_bs_tx_s|) Bool) ; \rst_i
 ; yosys-smt2-input rst_i 1
 ; yosys-smt2-wire rst_i 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\rst_i"], "smtname": "rst_i", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |can_mac_bs_tx_n rst_i| ((state |can_mac_bs_tx_s|)) Bool (|can_mac_bs_tx#25| state))
-; yosys-smt2-anyinit can_mac_bs_tx#26 3 :589
-; yosys-smt2-witness {"offset": 0, "path": ["\\stuff_count"], "smtname": 26, "smtoffset": 0, "type": "init", "width": 3}
-(declare-fun |can_mac_bs_tx#26| (|can_mac_bs_tx_s|) (_ BitVec 3)) ; \stuff_count
+(define-fun |can_mac_bs_tx_n rst_i| ((state |can_mac_bs_tx_s|)) Bool (|can_mac_bs_tx#16| state))
+; yosys-smt2-anyinit can_mac_bs_tx#17 3 :407
+; yosys-smt2-witness {"offset": 0, "path": ["\\stuff_count"], "smtname": 17, "smtoffset": 0, "type": "init", "width": 3}
+(declare-fun |can_mac_bs_tx#17| (|can_mac_bs_tx_s|) (_ BitVec 3)) ; \stuff_count
 ; yosys-smt2-register stuff_count 3
 ; yosys-smt2-wire stuff_count 3
-(define-fun |can_mac_bs_tx_n stuff_count| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (|can_mac_bs_tx#26| state))
-; yosys-smt2-anyinit can_mac_bs_tx#27 3 :592
-; yosys-smt2-witness {"offset": 0, "path": ["\\stuff_count_prev"], "smtname": 27, "smtoffset": 0, "type": "init", "width": 3}
-(declare-fun |can_mac_bs_tx#27| (|can_mac_bs_tx_s|) (_ BitVec 3)) ; \stuff_count_prev
+(define-fun |can_mac_bs_tx_n stuff_count| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (|can_mac_bs_tx#17| state))
+; yosys-smt2-anyinit can_mac_bs_tx#18 3 :410
+; yosys-smt2-witness {"offset": 0, "path": ["\\stuff_count_prev"], "smtname": 18, "smtoffset": 0, "type": "init", "width": 3}
+(declare-fun |can_mac_bs_tx#18| (|can_mac_bs_tx_s|) (_ BitVec 3)) ; \stuff_count_prev
 ; yosys-smt2-register stuff_count_prev 3
 ; yosys-smt2-wire stuff_count_prev 3
-(define-fun |can_mac_bs_tx_n stuff_count_prev| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (|can_mac_bs_tx#27| state))
-; yosys-smt2-anyinit can_mac_bs_tx#28 1 :590
-; yosys-smt2-witness {"offset": 0, "path": ["\\stuff_valid_prev"], "smtname": 28, "smtoffset": 0, "type": "init", "width": 1}
-(declare-fun |can_mac_bs_tx#28| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; \stuff_valid_prev
+(define-fun |can_mac_bs_tx_n stuff_count_prev| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (|can_mac_bs_tx#18| state))
+; yosys-smt2-anyinit can_mac_bs_tx#19 1 :408
+; yosys-smt2-witness {"offset": 0, "path": ["\\stuff_valid_prev"], "smtname": 19, "smtoffset": 0, "type": "init", "width": 1}
+(declare-fun |can_mac_bs_tx#19| (|can_mac_bs_tx_s|) (_ BitVec 1)) ; \stuff_valid_prev
 ; yosys-smt2-register stuff_valid_prev 1
 ; yosys-smt2-wire stuff_valid_prev 1
-(define-fun |can_mac_bs_tx_n stuff_valid_prev| ((state |can_mac_bs_tx_s|)) Bool (= ((_ extract 0 0) (|can_mac_bs_tx#28| state)) #b1))
-(define-fun |can_mac_bs_tx#29| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#20| state) #b1 #b0))) ; $auto$rtlil.cc:3339:Not$236
-; yosys-smt2-assume 0 $auto$formalff.cc:987:execute$237
-(define-fun |can_mac_bs_tx_u 0| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#29| state)) #b1) (not true))) ; $auto$formalff.cc:987:execute$237
-(define-fun |can_mac_bs_tx#30| ((state |can_mac_bs_tx_s|)) Bool (= (|can_mac_bs_tx#16| state) #b01)) ; $auto$ghdl.cc:846:import_module$139
-(define-fun |can_mac_bs_tx#31| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#30| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$33
-(define-fun |can_mac_bs_tx#32| ((state |can_mac_bs_tx_s|)) Bool (not (or  (= ((_ extract 0 0) (|can_mac_bs_tx#16| state)) #b1) (= ((_ extract 1 1) (|can_mac_bs_tx#16| state)) #b1)))) ; $auto$ghdl.cc:846:import_module$141
-(define-fun |can_mac_bs_tx#33| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#32| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$35
-(define-fun |can_mac_bs_tx#34| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#31| state) (|can_mac_bs_tx#33| state))) ; $auto$ghdl.cc:846:import_module$36
-(define-fun |can_mac_bs_tx#35| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#34| state))) ; $auto$ghdl.cc:846:import_module$37
-; yosys-smt2-assume 1 assume_no_unknown_data
-(define-fun |can_mac_bs_tx_u 1| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#35| state)) #b1) (not true))) ; assume_no_unknown_data
-(define-fun |can_mac_bs_tx#36| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#10| state) (|can_mac_bs_tx#24| state))) ; $auto$ghdl.cc:846:import_module$43
-(define-fun |can_mac_bs_tx#37| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#36| state))) ; $auto$ghdl.cc:846:import_module$44
-; yosys-smt2-assume 2 assume_reset_done_init
-(define-fun |can_mac_bs_tx_u 2| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#37| state)) #b1) (not true))) ; assume_reset_done_init
-(define-fun |can_mac_bs_tx#38| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#25| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$108
-(define-fun |can_mac_bs_tx#39| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#10| state) (|can_mac_bs_tx#38| state))) ; $auto$ghdl.cc:846:import_module$40
-(define-fun |can_mac_bs_tx#40| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#39| state))) ; $auto$ghdl.cc:846:import_module$41
-; yosys-smt2-assume 3 assume_reset_init
-(define-fun |can_mac_bs_tx_u 3| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#40| state)) #b1) (not true))) ; assume_reset_init
-(define-fun |can_mac_bs_tx#41| ((state |can_mac_bs_tx_s|)) Bool (not (or  (= ((_ extract 0 0) (|can_mac_bs_tx#21| state)) #b1) (= ((_ extract 1 1) (|can_mac_bs_tx#21| state)) #b1) (= ((_ extract 2 2) (|can_mac_bs_tx#21| state)) #b1)))) ; $auto$ghdl.cc:846:import_module$47
-(define-fun |can_mac_bs_tx#42| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#41| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$48
-(define-fun |can_mac_bs_tx#43| ((state |can_mac_bs_tx_s|)) Bool (= (|can_mac_bs_tx#23| state) #b01)) ; $auto$ghdl.cc:846:import_module$49
-(define-fun |can_mac_bs_tx#44| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#43| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$50
-(define-fun |can_mac_bs_tx#45| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (|can_mac_bs_tx#42| state) (|can_mac_bs_tx#44| state))) ; $auto$ghdl.cc:846:import_module$51
-(define-fun |can_mac_bs_tx#46| ((state |can_mac_bs_tx_s|)) Bool (not (or  (= ((_ extract 0 0) (|can_mac_bs_tx#26| state)) #b1) (= ((_ extract 1 1) (|can_mac_bs_tx#26| state)) #b1) (= ((_ extract 2 2) (|can_mac_bs_tx#26| state)) #b1)))) ; $auto$ghdl.cc:846:import_module$197
-(define-fun |can_mac_bs_tx#47| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#46| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$53
-(define-fun |can_mac_bs_tx#48| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (|can_mac_bs_tx#45| state) (|can_mac_bs_tx#47| state))) ; $auto$ghdl.cc:846:import_module$54
-(define-fun |can_mac_bs_tx#49| ((state |can_mac_bs_tx_s|)) Bool (= ((_ extract 1 0) (|can_mac_bs_tx#19| state)) #b01)) ; $auto$ghdl.cc:846:import_module$157
-(define-fun |can_mac_bs_tx#50| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#49| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$158
-(define-fun |can_mac_bs_tx#51| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (|can_mac_bs_tx#48| state) (|can_mac_bs_tx#50| state))) ; $auto$ghdl.cc:846:import_module$57
-(define-fun |can_mac_bs_tx#52| ((state |can_mac_bs_tx_s|)) Bool (not (or  (= ((_ extract 3 3) (|can_mac_bs_tx#19| state)) #b1) (= ((_ extract 4 4) (|can_mac_bs_tx#19| state)) #b1) (= ((_ extract 5 5) (|can_mac_bs_tx#19| state)) #b1) (= ((_ extract 6 6) (|can_mac_bs_tx#19| state)) #b1)))) ; $auto$ghdl.cc:846:import_module$58
-(define-fun |can_mac_bs_tx#53| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#52| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$59
-(define-fun |can_mac_bs_tx#54| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (|can_mac_bs_tx#51| state) (|can_mac_bs_tx#53| state))) ; $auto$ghdl.cc:846:import_module$60
-(define-fun |can_mac_bs_tx#55| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (|can_mac_bs_tx#54| state) (|can_mac_bs_tx#28| state))) ; $auto$ghdl.cc:846:import_module$61
-(define-fun |can_mac_bs_tx#56| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (|can_mac_bs_tx#55| state) ((_ extract 2 2) (|can_mac_bs_tx#19| state)))) ; $auto$ghdl.cc:846:import_module$62
-(define-fun |can_mac_bs_tx#57| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#12| state) (|can_mac_bs_tx#56| state))) ; $auto$ghdl.cc:846:import_module$63
-(define-fun |can_mac_bs_tx#58| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#57| state))) ; $auto$ghdl.cc:846:import_module$64
+(define-fun |can_mac_bs_tx_n stuff_valid_prev| ((state |can_mac_bs_tx_s|)) Bool (= ((_ extract 0 0) (|can_mac_bs_tx#19| state)) #b1))
+(define-fun |can_mac_bs_tx#20| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#12| state) #b1 #b0))) ; $auto$rtlil.cc:3339:Not$162
+; yosys-smt2-assume 0 $auto$formalff.cc:987:execute$163
+(define-fun |can_mac_bs_tx_u 0| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#20| state)) #b1) (not true))) ; $auto$formalff.cc:987:execute$163
+(define-fun |can_mac_bs_tx#21| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (ite (|can_mac_bs_tx#16| state) #b1 #b0) (ite (|can_mac_bs_tx#10| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$48
+(define-fun |can_mac_bs_tx#22| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (ite (|can_mac_bs_tx#9| state) #b1 #b0) (ite (|can_mac_bs_tx#10| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$49
+(define-fun |can_mac_bs_tx#23| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (|can_mac_bs_tx#21| state) (|can_mac_bs_tx#22| state))) ; $auto$ghdl.cc:846:import_module$50
+(define-fun |can_mac_bs_tx#24| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#23| state))) ; $auto$ghdl.cc:846:import_module$51
+; yosys-smt2-assume 1 assume_no_reset_during_valid
+(define-fun |can_mac_bs_tx_u 1| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#24| state)) #b1) (not true))) ; assume_no_reset_during_valid
+(define-fun |can_mac_bs_tx#25| ((state |can_mac_bs_tx_s|)) Bool (= (|can_mac_bs_tx#8| state) #b01)) ; $auto$ghdl.cc:846:import_module$116
+(define-fun |can_mac_bs_tx#26| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#25| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$34
+(define-fun |can_mac_bs_tx#27| ((state |can_mac_bs_tx_s|)) Bool (not (or  (= ((_ extract 0 0) (|can_mac_bs_tx#8| state)) #b1) (= ((_ extract 1 1) (|can_mac_bs_tx#8| state)) #b1)))) ; $auto$ghdl.cc:846:import_module$101
+(define-fun |can_mac_bs_tx#28| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#27| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$36
+(define-fun |can_mac_bs_tx#29| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#26| state) (|can_mac_bs_tx#28| state))) ; $auto$ghdl.cc:846:import_module$37
+(define-fun |can_mac_bs_tx#30| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#29| state))) ; $auto$ghdl.cc:846:import_module$38
+; yosys-smt2-assume 2 assume_no_unknown_data
+(define-fun |can_mac_bs_tx_u 2| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#30| state)) #b1) (not true))) ; assume_no_unknown_data
+(define-fun |can_mac_bs_tx#31| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#2| state) (|can_mac_bs_tx#15| state))) ; $auto$ghdl.cc:846:import_module$44
+(define-fun |can_mac_bs_tx#32| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#31| state))) ; $auto$ghdl.cc:846:import_module$45
+; yosys-smt2-assume 3 assume_reset_done_init
+(define-fun |can_mac_bs_tx_u 3| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#32| state)) #b1) (not true))) ; assume_reset_done_init
+(define-fun |can_mac_bs_tx#33| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#16| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$40
+(define-fun |can_mac_bs_tx#34| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#2| state) (|can_mac_bs_tx#33| state))) ; $auto$ghdl.cc:846:import_module$41
+(define-fun |can_mac_bs_tx#35| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#34| state))) ; $auto$ghdl.cc:846:import_module$42
+; yosys-smt2-assume 4 assume_reset_init
+(define-fun |can_mac_bs_tx_u 4| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#35| state)) #b1) (not true))) ; assume_reset_init
+(define-fun |can_mac_bs_tx#36| ((state |can_mac_bs_tx_s|)) Bool (= ((_ extract 1 0) (|can_mac_bs_tx#11| state)) #b01)) ; $auto$ghdl.cc:846:import_module$108
+(define-fun |can_mac_bs_tx#37| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#36| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$109
+(define-fun |can_mac_bs_tx#38| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor ((_ extract 2 2) (|can_mac_bs_tx#11| state)) (|can_mac_bs_tx#37| state))) ; $auto$ghdl.cc:846:import_module$56
+(define-fun |can_mac_bs_tx#39| ((state |can_mac_bs_tx_s|)) Bool (not (or  (= ((_ extract 3 3) (|can_mac_bs_tx#11| state)) #b1) (= ((_ extract 4 4) (|can_mac_bs_tx#11| state)) #b1) (= ((_ extract 5 5) (|can_mac_bs_tx#11| state)) #b1) (= ((_ extract 6 6) (|can_mac_bs_tx#11| state)) #b1)))) ; $auto$ghdl.cc:846:import_module$57
+(define-fun |can_mac_bs_tx#40| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#39| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$58
+(define-fun |can_mac_bs_tx#41| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (|can_mac_bs_tx#38| state) (|can_mac_bs_tx#40| state))) ; $auto$ghdl.cc:846:import_module$59
+(define-fun |can_mac_bs_tx#42| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#4| state) (|can_mac_bs_tx#41| state))) ; $auto$ghdl.cc:846:import_module$60
+(define-fun |can_mac_bs_tx#43| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#42| state))) ; $auto$ghdl.cc:846:import_module$61
 ; yosys-smt2-assert 0 psl_1
-(define-fun |can_mac_bs_tx_a 0| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#58| state)) #b1) (not true))) ; psl_1
-(define-fun |can_mac_bs_tx#59| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot ((_ extract 2 2) (|can_mac_bs_tx#19| state)))) ; $auto$ghdl.cc:846:import_module$126
-(define-fun |can_mac_bs_tx#60| ((state |can_mac_bs_tx_s|)) Bool (not (or  (= ((_ extract 0 0) (|can_mac_bs_tx#19| state)) #b1) (= ((_ extract 1 1) (|can_mac_bs_tx#19| state)) #b1)))) ; $auto$ghdl.cc:846:import_module$182
-(define-fun |can_mac_bs_tx#61| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#60| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$183
-(define-fun |can_mac_bs_tx#62| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (|can_mac_bs_tx#59| state) (|can_mac_bs_tx#61| state))) ; $auto$ghdl.cc:846:import_module$184
-(define-fun |can_mac_bs_tx#63| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 5 5) (|can_mac_bs_tx#8| state)) (|can_mac_bs_tx#62| state))) ; $auto$ghdl.cc:846:import_module$185
-(define-fun |can_mac_bs_tx#64| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#63| state))) ; $auto$ghdl.cc:846:import_module$186
-; yosys-smt2-assert 1 psl_10
-(define-fun |can_mac_bs_tx_a 1| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#64| state)) #b1) (not true))) ; psl_10
-(define-fun |can_mac_bs_tx#65| ((state |can_mac_bs_tx_s|)) Bool (bvule (|can_mac_bs_tx#21| state) #b101)) ; $auto$ghdl.cc:846:import_module$65
-(define-fun |can_mac_bs_tx#66| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#65| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$66
-(define-fun |can_mac_bs_tx#67| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#66| state) (|can_mac_bs_tx#24| state))) ; $auto$ghdl.cc:846:import_module$67
-(define-fun |can_mac_bs_tx#68| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvxor ((_ extract 6 6) (|can_mac_bs_tx#19| state)) ((_ extract 5 5) (|can_mac_bs_tx#19| state)))) ; $auto$ghdl.cc:846:import_module$68
-(define-fun |can_mac_bs_tx#69| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvxor (|can_mac_bs_tx#68| state) ((_ extract 4 4) (|can_mac_bs_tx#19| state)))) ; $auto$ghdl.cc:846:import_module$69
-(define-fun |can_mac_bs_tx#70| ((state |can_mac_bs_tx_s|)) Bool (= ((_ extract 3 3) (|can_mac_bs_tx#19| state)) (|can_mac_bs_tx#69| state))) ; $auto$ghdl.cc:846:import_module$70
-(define-fun |can_mac_bs_tx#71| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#70| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$71
-(define-fun |can_mac_bs_tx#72| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#71| state) (|can_mac_bs_tx#24| state))) ; $auto$ghdl.cc:846:import_module$72
-(define-fun |can_mac_bs_tx#73| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (|can_mac_bs_tx#67| state) (|can_mac_bs_tx#72| state))) ; $auto$ghdl.cc:846:import_module$73
-(define-fun |can_mac_bs_tx#74| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#73| state))) ; $auto$ghdl.cc:846:import_module$74
-; yosys-smt2-assert 2 psl_2
-(define-fun |can_mac_bs_tx_a 2| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#74| state)) #b1) (not true))) ; psl_2
-(define-fun |can_mac_bs_tx#75| ((state |can_mac_bs_tx_s|)) Bool (= (|can_mac_bs_tx#21| state) #b101)) ; $auto$ghdl.cc:846:import_module$76
-(define-fun |can_mac_bs_tx#76| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#75| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$77
-(define-fun |can_mac_bs_tx#77| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#76| state) ((_ extract 2 2) (|can_mac_bs_tx#19| state)))) ; $auto$ghdl.cc:846:import_module$78
-(define-fun |can_mac_bs_tx#78| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#77| state) (|can_mac_bs_tx#24| state))) ; $auto$ghdl.cc:846:import_module$79
-(define-fun |can_mac_bs_tx#79| ((state |can_mac_bs_tx_s|)) Bool (distinct ((_ extract 1 0) (|can_mac_bs_tx#19| state)) (|can_mac_bs_tx#23| state))) ; $auto$ghdl.cc:846:import_module$80
-(define-fun |can_mac_bs_tx#80| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#79| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$81
-(define-fun |can_mac_bs_tx#81| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#80| state) ((_ extract 2 2) (|can_mac_bs_tx#19| state)))) ; $auto$ghdl.cc:846:import_module$82
-(define-fun |can_mac_bs_tx#82| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#81| state) (|can_mac_bs_tx#24| state))) ; $auto$ghdl.cc:846:import_module$83
-(define-fun |can_mac_bs_tx#83| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (|can_mac_bs_tx#78| state) (|can_mac_bs_tx#82| state))) ; $auto$ghdl.cc:846:import_module$84
-(define-fun |can_mac_bs_tx#84| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (bvadd (|can_mac_bs_tx#27| state) #b001)) ; $auto$ghdl.cc:846:import_module$85
-(define-fun |can_mac_bs_tx#85| ((state |can_mac_bs_tx_s|)) Bool (= (|can_mac_bs_tx#26| state) (|can_mac_bs_tx#84| state))) ; $auto$ghdl.cc:846:import_module$86
-(define-fun |can_mac_bs_tx#86| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#85| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$87
-(define-fun |can_mac_bs_tx#87| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#86| state) ((_ extract 2 2) (|can_mac_bs_tx#19| state)))) ; $auto$ghdl.cc:846:import_module$88
-(define-fun |can_mac_bs_tx#88| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#87| state) (|can_mac_bs_tx#24| state))) ; $auto$ghdl.cc:846:import_module$89
-(define-fun |can_mac_bs_tx#89| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (|can_mac_bs_tx#83| state) (|can_mac_bs_tx#88| state))) ; $auto$ghdl.cc:846:import_module$90
-(define-fun |can_mac_bs_tx#90| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#89| state))) ; $auto$ghdl.cc:846:import_module$91
+(define-fun |can_mac_bs_tx_a 0| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#43| state)) #b1) (not true))) ; psl_1
+(define-fun |can_mac_bs_tx#44| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvxor ((_ extract 6 6) (|can_mac_bs_tx#11| state)) ((_ extract 5 5) (|can_mac_bs_tx#11| state)))) ; $auto$ghdl.cc:846:import_module$62
+(define-fun |can_mac_bs_tx#45| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvxor (|can_mac_bs_tx#44| state) ((_ extract 4 4) (|can_mac_bs_tx#11| state)))) ; $auto$ghdl.cc:846:import_module$63
+(define-fun |can_mac_bs_tx#46| ((state |can_mac_bs_tx_s|)) Bool (= ((_ extract 3 3) (|can_mac_bs_tx#11| state)) (|can_mac_bs_tx#45| state))) ; $auto$ghdl.cc:846:import_module$64
+(define-fun |can_mac_bs_tx#47| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#46| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$65
+(define-fun |can_mac_bs_tx#48| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#47| state) (|can_mac_bs_tx#15| state))) ; $auto$ghdl.cc:846:import_module$66
+(define-fun |can_mac_bs_tx#49| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#48| state))) ; $auto$ghdl.cc:846:import_module$67
+; yosys-smt2-assert 1 psl_2
+(define-fun |can_mac_bs_tx_a 1| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#49| state)) #b1) (not true))) ; psl_2
+(define-fun |can_mac_bs_tx#50| ((state |can_mac_bs_tx_s|)) Bool (bvule (|can_mac_bs_tx#13| state) #b101)) ; $auto$ghdl.cc:846:import_module$68
+(define-fun |can_mac_bs_tx#51| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#50| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$69
+(define-fun |can_mac_bs_tx#52| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#51| state) (|can_mac_bs_tx#15| state))) ; $auto$ghdl.cc:846:import_module$70
+(define-fun |can_mac_bs_tx#53| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#52| state))) ; $auto$ghdl.cc:846:import_module$71
+; yosys-smt2-assert 2 psl_2a
+(define-fun |can_mac_bs_tx_a 2| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#53| state)) #b1) (not true))) ; psl_2a
+(define-fun |can_mac_bs_tx#54| ((state |can_mac_bs_tx_s|)) Bool (= (|can_mac_bs_tx#13| state) #b101)) ; $auto$ghdl.cc:846:import_module$73
+(define-fun |can_mac_bs_tx#55| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#54| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$74
+(define-fun |can_mac_bs_tx#56| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#55| state) ((_ extract 2 2) (|can_mac_bs_tx#11| state)))) ; $auto$ghdl.cc:846:import_module$75
+(define-fun |can_mac_bs_tx#57| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#56| state) (|can_mac_bs_tx#15| state))) ; $auto$ghdl.cc:846:import_module$76
+(define-fun |can_mac_bs_tx#58| ((state |can_mac_bs_tx_s|)) Bool (distinct ((_ extract 1 0) (|can_mac_bs_tx#11| state)) (|can_mac_bs_tx#14| state))) ; $auto$ghdl.cc:846:import_module$77
+(define-fun |can_mac_bs_tx#59| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#58| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$78
+(define-fun |can_mac_bs_tx#60| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#59| state) ((_ extract 2 2) (|can_mac_bs_tx#11| state)))) ; $auto$ghdl.cc:846:import_module$79
+(define-fun |can_mac_bs_tx#61| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#60| state) (|can_mac_bs_tx#15| state))) ; $auto$ghdl.cc:846:import_module$80
+(define-fun |can_mac_bs_tx#62| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (|can_mac_bs_tx#57| state) (|can_mac_bs_tx#61| state))) ; $auto$ghdl.cc:846:import_module$81
+(define-fun |can_mac_bs_tx#63| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (bvadd (|can_mac_bs_tx#18| state) #b001)) ; $auto$ghdl.cc:846:import_module$82
+(define-fun |can_mac_bs_tx#64| ((state |can_mac_bs_tx_s|)) Bool (= (|can_mac_bs_tx#17| state) (|can_mac_bs_tx#63| state))) ; $auto$ghdl.cc:846:import_module$83
+(define-fun |can_mac_bs_tx#65| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#64| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$84
+(define-fun |can_mac_bs_tx#66| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#65| state) ((_ extract 2 2) (|can_mac_bs_tx#11| state)))) ; $auto$ghdl.cc:846:import_module$85
+(define-fun |can_mac_bs_tx#67| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#66| state) (|can_mac_bs_tx#15| state))) ; $auto$ghdl.cc:846:import_module$86
+(define-fun |can_mac_bs_tx#68| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (|can_mac_bs_tx#62| state) (|can_mac_bs_tx#67| state))) ; $auto$ghdl.cc:846:import_module$87
+(define-fun |can_mac_bs_tx#69| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#68| state))) ; $auto$ghdl.cc:846:import_module$88
 ; yosys-smt2-assert 3 psl_3
-(define-fun |can_mac_bs_tx_a 3| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#90| state)) #b1) (not true))) ; psl_3
-(define-fun |can_mac_bs_tx#91| ((state |can_mac_bs_tx_s|)) (_ BitVec 4) (bvadd (concat #b0 (|can_mac_bs_tx#22| state)) #b0001)) ; $auto$ghdl.cc:846:import_module$102
-(define-fun |can_mac_bs_tx#92| ((state |can_mac_bs_tx_s|)) Bool (= (concat #b0 (|can_mac_bs_tx#21| state)) (|can_mac_bs_tx#91| state))) ; $auto$ghdl.cc:846:import_module$103
-(define-fun |can_mac_bs_tx#93| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#92| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$104
-(define-fun |can_mac_bs_tx#94| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#14| state) (|can_mac_bs_tx#93| state))) ; $auto$ghdl.cc:846:import_module$105
-(define-fun |can_mac_bs_tx#95| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#94| state))) ; $auto$ghdl.cc:846:import_module$106
+(define-fun |can_mac_bs_tx_a 3| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#69| state)) #b1) (not true))) ; psl_3
+(define-fun |can_mac_bs_tx#70| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot ((_ extract 2 2) (|can_mac_bs_tx#11| state)))) ; $auto$ghdl.cc:846:import_module$107
+(define-fun |can_mac_bs_tx#71| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (|can_mac_bs_tx#70| state) (|can_mac_bs_tx#37| state))) ; $auto$ghdl.cc:846:import_module$110
+(define-fun |can_mac_bs_tx#72| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 5 5) (|can_mac_bs_tx#6| state)) (|can_mac_bs_tx#71| state))) ; $auto$ghdl.cc:846:import_module$111
+(define-fun |can_mac_bs_tx#73| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#72| state))) ; $auto$ghdl.cc:846:import_module$112
 ; yosys-smt2-assert 4 psl_4
-(define-fun |can_mac_bs_tx_a 4| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#95| state)) #b1) (not true))) ; psl_4
-(define-fun |can_mac_bs_tx#96| ((state |can_mac_bs_tx_s|)) Bool (= (|can_mac_bs_tx#21| state) #b001)) ; $auto$ghdl.cc:846:import_module$115
-(define-fun |can_mac_bs_tx#97| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#96| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$116
-(define-fun |can_mac_bs_tx#98| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#0| state) (|can_mac_bs_tx#97| state))) ; $auto$ghdl.cc:846:import_module$117
-(define-fun |can_mac_bs_tx#99| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#98| state))) ; $auto$ghdl.cc:846:import_module$118
+(define-fun |can_mac_bs_tx_a 4| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#73| state)) #b1) (not true))) ; psl_4
+(define-fun |can_mac_bs_tx#74| ((state |can_mac_bs_tx_s|)) Bool (not (or  (= ((_ extract 0 0) (|can_mac_bs_tx#11| state)) #b1) (= ((_ extract 1 1) (|can_mac_bs_tx#11| state)) #b1)))) ; $auto$ghdl.cc:846:import_module$132
+(define-fun |can_mac_bs_tx#75| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#74| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$133
+(define-fun |can_mac_bs_tx#76| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (|can_mac_bs_tx#70| state) (|can_mac_bs_tx#75| state))) ; $auto$ghdl.cc:846:import_module$134
+(define-fun |can_mac_bs_tx#77| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 5 5) (|can_mac_bs_tx#0| state)) (|can_mac_bs_tx#76| state))) ; $auto$ghdl.cc:846:import_module$135
+(define-fun |can_mac_bs_tx#78| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#77| state))) ; $auto$ghdl.cc:846:import_module$136
 ; yosys-smt2-assert 5 psl_5
-(define-fun |can_mac_bs_tx_a 5| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#99| state)) #b1) (not true))) ; psl_5
-(define-fun |can_mac_bs_tx#100| ((state |can_mac_bs_tx_s|)) Bool (= (|can_mac_bs_tx#21| state) (|can_mac_bs_tx#22| state))) ; $auto$ghdl.cc:846:import_module$122
-(define-fun |can_mac_bs_tx#101| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#100| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$123
-(define-fun |can_mac_bs_tx#102| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#2| state) (|can_mac_bs_tx#101| state))) ; $auto$ghdl.cc:846:import_module$124
-(define-fun |can_mac_bs_tx#103| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#102| state))) ; $auto$ghdl.cc:846:import_module$125
-; yosys-smt2-assert 6 psl_6
-(define-fun |can_mac_bs_tx_a 6| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#103| state)) #b1) (not true))) ; psl_6
-(define-fun |can_mac_bs_tx#104| ((state |can_mac_bs_tx_s|)) Bool (= (|can_mac_bs_tx#26| state) (|can_mac_bs_tx#27| state))) ; $auto$ghdl.cc:846:import_module$128
-(define-fun |can_mac_bs_tx#105| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#104| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$129
-(define-fun |can_mac_bs_tx#106| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#105| state) (|can_mac_bs_tx#59| state))) ; $auto$ghdl.cc:846:import_module$131
-(define-fun |can_mac_bs_tx#107| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#106| state) (|can_mac_bs_tx#24| state))) ; $auto$ghdl.cc:846:import_module$132
-(define-fun |can_mac_bs_tx#108| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#107| state))) ; $auto$ghdl.cc:846:import_module$133
-; yosys-smt2-assert 7 psl_7
-(define-fun |can_mac_bs_tx_a 7| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#108| state)) #b1) (not true))) ; psl_7
-(define-fun |can_mac_bs_tx#109| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#4| state) ((_ extract 2 2) (|can_mac_bs_tx#19| state)))) ; $auto$ghdl.cc:846:import_module$135
-(define-fun |can_mac_bs_tx#110| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#109| state))) ; $auto$ghdl.cc:846:import_module$136
-; yosys-smt2-assert 8 psl_8
-(define-fun |can_mac_bs_tx_a 8| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#110| state)) #b1) (not true))) ; psl_8
-(define-fun |can_mac_bs_tx#111| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (|can_mac_bs_tx#59| state) (|can_mac_bs_tx#50| state))) ; $auto$ghdl.cc:846:import_module$159
-(define-fun |can_mac_bs_tx#112| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 5 5) (|can_mac_bs_tx#6| state)) (|can_mac_bs_tx#111| state))) ; $auto$ghdl.cc:846:import_module$160
-(define-fun |can_mac_bs_tx#113| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#112| state))) ; $auto$ghdl.cc:846:import_module$161
-; yosys-smt2-assert 9 psl_9
-(define-fun |can_mac_bs_tx_a 9| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#113| state)) #b1) (not true))) ; psl_9
-(define-fun |can_mac_bs_tx#114| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (ite (|can_mac_bs_tx#25| state) #b1 #b0) (ite (|can_mac_bs_tx#17| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$1
-(define-fun |can_mac_bs_tx#115| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#114| state)) #b1) #b0 ((_ extract 2 2) (|can_mac_bs_tx#19| state)))) ; $auto$ghdl.cc:846:import_module$28
-(define-fun |can_mac_bs_tx#116| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#114| state)) #b1) #b000 (|can_mac_bs_tx#26| state))) ; $auto$ghdl.cc:846:import_module$30
-(define-fun |can_mac_bs_tx#117| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (bvadd (|can_mac_bs_tx#26| state) #b001)) ; $auto$ghdl.cc:846:import_module$17
-(define-fun |can_mac_bs_tx#118| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#28| state))) ; $auto$ghdl.cc:846:import_module$15
-(define-fun |can_mac_bs_tx#119| ((state |can_mac_bs_tx_s|)) Bool (= (|can_mac_bs_tx#16| state) (|can_mac_bs_tx#23| state))) ; $auto$ghdl.cc:846:import_module$100
-(define-fun |can_mac_bs_tx#120| ((state |can_mac_bs_tx_s|)) Bool (distinct (|can_mac_bs_tx#21| state) #b101)) ; $auto$ghdl.cc:846:import_module$2
-(define-fun |can_mac_bs_tx#121| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (ite (|can_mac_bs_tx#119| state) #b1 #b0) (ite (|can_mac_bs_tx#120| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$4
-(define-fun |can_mac_bs_tx#122| ((state |can_mac_bs_tx_s|)) (_ BitVec 2) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#121| state)) #b1) (|can_mac_bs_tx#23| state) (|can_mac_bs_tx#16| state))) ; $auto$ghdl.cc:846:import_module$6
-(define-fun |can_mac_bs_tx#123| ((state |can_mac_bs_tx_s|)) Bool (not (or  (= ((_ extract 0 0) (|can_mac_bs_tx#122| state)) #b1) (= ((_ extract 1 1) (|can_mac_bs_tx#122| state)) #b1)))) ; $auto$ghdl.cc:846:import_module$9
-(define-fun |can_mac_bs_tx#124| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (ite (|can_mac_bs_tx#123| state) #b1 #b0)) ; $auto$ghdl.cc:846:import_module$10
-(define-fun |can_mac_bs_tx#125| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (bvadd (|can_mac_bs_tx#21| state) #b001)) ; $auto$ghdl.cc:846:import_module$5
-(define-fun |can_mac_bs_tx#126| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#121| state)) #b1) (|can_mac_bs_tx#125| state) #b001)) ; $auto$ghdl.cc:846:import_module$7
-(define-fun |can_mac_bs_tx#127| ((state |can_mac_bs_tx_s|)) Bool (bvuge (|can_mac_bs_tx#126| state) #b101)) ; $auto$ghdl.cc:846:import_module$8
-(define-fun |can_mac_bs_tx#128| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (ite (|can_mac_bs_tx#127| state) (concat #b10 (|can_mac_bs_tx#124| state)) #b001)) ; $auto$ghdl.cc:846:import_module$11
-(define-fun |can_mac_bs_tx#129| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (ite (|can_mac_bs_tx#18| state) (|can_mac_bs_tx#128| state) #b001)) ; $auto$ghdl.cc:846:import_module$12
-(define-fun |can_mac_bs_tx#130| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#118| state) ((_ extract 2 2) (|can_mac_bs_tx#129| state)))) ; $auto$ghdl.cc:846:import_module$16
-(define-fun |can_mac_bs_tx#131| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#130| state)) #b1) (|can_mac_bs_tx#117| state) (|can_mac_bs_tx#26| state))) ; $auto$ghdl.cc:846:import_module$18
-(define-fun |can_mac_bs_tx#132| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#114| state)) #b1) #b000 (|can_mac_bs_tx#131| state))) ; $auto$ghdl.cc:846:import_module$27
-(define-fun |can_mac_bs_tx#133| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#114| state)) #b1) #b0 #b1)) ; $auto$ghdl.cc:846:import_module$29
-(define-fun |can_mac_bs_tx#134| ((state |can_mac_bs_tx_s|)) (_ BitVec 2) (ite (|can_mac_bs_tx#18| state) (|can_mac_bs_tx#122| state) (|can_mac_bs_tx#23| state))) ; $auto$ghdl.cc:846:import_module$13
-(define-fun |can_mac_bs_tx#135| ((state |can_mac_bs_tx_s|)) (_ BitVec 2) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#114| state)) #b1) #b01 (|can_mac_bs_tx#134| state))) ; $auto$ghdl.cc:846:import_module$26
-(define-fun |can_mac_bs_tx#136| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#114| state)) #b1) #b000 (|can_mac_bs_tx#21| state))) ; $auto$ghdl.cc:846:import_module$31
-(define-fun |can_mac_bs_tx#137| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (ite (|can_mac_bs_tx#18| state) (|can_mac_bs_tx#126| state) (|can_mac_bs_tx#21| state))) ; $auto$ghdl.cc:846:import_module$14
-(define-fun |can_mac_bs_tx#138| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#114| state)) #b1) #b000 (|can_mac_bs_tx#137| state))) ; $auto$ghdl.cc:846:import_module$25
-(define-fun |can_mac_bs_tx#139| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvxor ((_ extract 1 1) (|can_mac_bs_tx#131| state)) ((_ extract 2 2) (|can_mac_bs_tx#131| state)))) ; $auto$ghdl.cc:846:import_module$19
-(define-fun |can_mac_bs_tx#140| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvxor ((_ extract 2 2) (|can_mac_bs_tx#131| state)) (|can_mac_bs_tx#139| state))) ; $auto$ghdl.cc:846:import_module$22
-(define-fun |can_mac_bs_tx#141| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvxor ((_ extract 0 0) (|can_mac_bs_tx#131| state)) ((_ extract 1 1) (|can_mac_bs_tx#131| state)))) ; $auto$ghdl.cc:846:import_module$20
-(define-fun |can_mac_bs_tx#142| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvxor (|can_mac_bs_tx#140| state) (|can_mac_bs_tx#141| state))) ; $auto$ghdl.cc:846:import_module$23
-(define-fun |can_mac_bs_tx#143| ((state |can_mac_bs_tx_s|)) (_ BitVec 7) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#114| state)) #b1) #b0000001 (concat ((_ extract 2 2) (|can_mac_bs_tx#131| state)) (concat (|can_mac_bs_tx#139| state) (concat (|can_mac_bs_tx#141| state) (concat (|can_mac_bs_tx#142| state) (|can_mac_bs_tx#129| state))))))) ; $auto$ghdl.cc:846:import_module$24
-(define-fun |can_mac_bs_tx#144| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#24| state) (|can_mac_bs_tx#38| state))) ; $auto$ghdl.cc:846:import_module$109
-(define-fun |can_mac_bs_tx#145| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#17| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$110
-(define-fun |can_mac_bs_tx#146| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#144| state) (|can_mac_bs_tx#145| state))) ; $auto$ghdl.cc:846:import_module$111
-(define-fun |can_mac_bs_tx#147| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#146| state) (ite (|can_mac_bs_tx#18| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$112
-(define-fun |can_mac_bs_tx#148| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#147| state) (ite (|can_mac_bs_tx#120| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$99
-(define-fun |can_mac_bs_tx#149| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#148| state) (ite (|can_mac_bs_tx#119| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$101
-(define-fun |can_mac_bs_tx#150| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (ite (|can_mac_bs_tx#18| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$120
-(define-fun |can_mac_bs_tx#151| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (|can_mac_bs_tx#150| state) (ite (|can_mac_bs_tx#32| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$165
-(define-fun |can_mac_bs_tx#152| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (ite (|can_mac_bs_tx#18| state) #b1 #b0) (ite (|can_mac_bs_tx#30| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$167
-(define-fun |can_mac_bs_tx#153| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 0 0) (|can_mac_bs_tx#8| state)) (|can_mac_bs_tx#152| state))) ; $auto$ghdl.cc:846:import_module$168
-(define-fun |can_mac_bs_tx#154| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 1 1) (|can_mac_bs_tx#8| state)) (|can_mac_bs_tx#152| state))) ; $auto$ghdl.cc:846:import_module$171
-(define-fun |can_mac_bs_tx#155| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 2 2) (|can_mac_bs_tx#8| state)) (|can_mac_bs_tx#152| state))) ; $auto$ghdl.cc:846:import_module$174
-(define-fun |can_mac_bs_tx#156| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 3 3) (|can_mac_bs_tx#8| state)) (|can_mac_bs_tx#152| state))) ; $auto$ghdl.cc:846:import_module$177
-(define-fun |can_mac_bs_tx#157| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 4 4) (|can_mac_bs_tx#8| state)) (|can_mac_bs_tx#152| state))) ; $auto$ghdl.cc:846:import_module$180
-(define-fun |can_mac_bs_tx#158| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (|can_mac_bs_tx#150| state) (ite (|can_mac_bs_tx#30| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$140
-(define-fun |can_mac_bs_tx#159| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (ite (|can_mac_bs_tx#18| state) #b1 #b0) (ite (|can_mac_bs_tx#32| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$142
-(define-fun |can_mac_bs_tx#160| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 0 0) (|can_mac_bs_tx#6| state)) (|can_mac_bs_tx#159| state))) ; $auto$ghdl.cc:846:import_module$143
-(define-fun |can_mac_bs_tx#161| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 1 1) (|can_mac_bs_tx#6| state)) (|can_mac_bs_tx#159| state))) ; $auto$ghdl.cc:846:import_module$146
-(define-fun |can_mac_bs_tx#162| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 2 2) (|can_mac_bs_tx#6| state)) (|can_mac_bs_tx#159| state))) ; $auto$ghdl.cc:846:import_module$149
-(define-fun |can_mac_bs_tx#163| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 3 3) (|can_mac_bs_tx#6| state)) (|can_mac_bs_tx#159| state))) ; $auto$ghdl.cc:846:import_module$152
-(define-fun |can_mac_bs_tx#164| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 4 4) (|can_mac_bs_tx#6| state)) (|can_mac_bs_tx#159| state))) ; $auto$ghdl.cc:846:import_module$155
-(define-fun |can_mac_bs_tx#165| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#24| state) (|can_mac_bs_tx#150| state))) ; $auto$ghdl.cc:846:import_module$121
-(define-fun |can_mac_bs_tx#166| ((state |can_mac_bs_tx_s|)) Bool (distinct (|can_mac_bs_tx#16| state) (|can_mac_bs_tx#23| state))) ; $auto$ghdl.cc:846:import_module$113
-(define-fun |can_mac_bs_tx#167| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#147| state) (ite (|can_mac_bs_tx#166| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$114
+(define-fun |can_mac_bs_tx_a 5| ((state |can_mac_bs_tx_s|)) Bool (or (= ((_ extract 0 0) (|can_mac_bs_tx#78| state)) #b1) (not true))) ; psl_5
+(define-fun |can_mac_bs_tx#79| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvor (ite (|can_mac_bs_tx#16| state) #b1 #b0) (ite (|can_mac_bs_tx#9| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$1
+(define-fun |can_mac_bs_tx#80| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#79| state)) #b1) #b0 ((_ extract 2 2) (|can_mac_bs_tx#11| state)))) ; $auto$ghdl.cc:846:import_module$30
+(define-fun |can_mac_bs_tx#81| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#79| state)) #b1) #b000 (|can_mac_bs_tx#17| state))) ; $auto$ghdl.cc:846:import_module$32
+(define-fun |can_mac_bs_tx#82| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (bvadd (|can_mac_bs_tx#17| state) #b001)) ; $auto$ghdl.cc:846:import_module$19
+(define-fun |can_mac_bs_tx#83| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvnot (|can_mac_bs_tx#19| state))) ; $auto$ghdl.cc:846:import_module$17
+(define-fun |can_mac_bs_tx#84| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (bvadd (|can_mac_bs_tx#13| state) #b001)) ; $auto$ghdl.cc:846:import_module$5
+(define-fun |can_mac_bs_tx#85| ((state |can_mac_bs_tx_s|)) Bool (= (|can_mac_bs_tx#8| state) (|can_mac_bs_tx#14| state))) ; $auto$ghdl.cc:846:import_module$3
+(define-fun |can_mac_bs_tx#86| ((state |can_mac_bs_tx_s|)) Bool (distinct (|can_mac_bs_tx#13| state) #b101)) ; $auto$ghdl.cc:846:import_module$2
+(define-fun |can_mac_bs_tx#87| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (ite (|can_mac_bs_tx#85| state) #b1 #b0) (ite (|can_mac_bs_tx#86| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$4
+(define-fun |can_mac_bs_tx#88| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#87| state)) #b1) (|can_mac_bs_tx#84| state) #b001)) ; $auto$ghdl.cc:846:import_module$6
+(define-fun |can_mac_bs_tx#89| ((state |can_mac_bs_tx_s|)) Bool (bvuge (|can_mac_bs_tx#88| state) #b101)) ; $auto$ghdl.cc:846:import_module$8
+(define-fun |can_mac_bs_tx#90| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (ite (|can_mac_bs_tx#89| state) #b1 #b0)) ; $auto$ghdl.cc:846:import_module$11
+(define-fun |can_mac_bs_tx#91| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (ite (|can_mac_bs_tx#10| state) (|can_mac_bs_tx#90| state) #b0)) ; $auto$ghdl.cc:846:import_module$15
+(define-fun |can_mac_bs_tx#92| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (|can_mac_bs_tx#83| state) (|can_mac_bs_tx#91| state))) ; $auto$ghdl.cc:846:import_module$18
+(define-fun |can_mac_bs_tx#93| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#92| state)) #b1) (|can_mac_bs_tx#82| state) (|can_mac_bs_tx#17| state))) ; $auto$ghdl.cc:846:import_module$20
+(define-fun |can_mac_bs_tx#94| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#79| state)) #b1) #b000 (|can_mac_bs_tx#93| state))) ; $auto$ghdl.cc:846:import_module$29
+(define-fun |can_mac_bs_tx#95| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#79| state)) #b1) #b0 #b1)) ; $auto$ghdl.cc:846:import_module$31
+(define-fun |can_mac_bs_tx#96| ((state |can_mac_bs_tx_s|)) (_ BitVec 2) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#87| state)) #b1) (|can_mac_bs_tx#14| state) (|can_mac_bs_tx#8| state))) ; $auto$ghdl.cc:846:import_module$7
+(define-fun |can_mac_bs_tx#97| ((state |can_mac_bs_tx_s|)) (_ BitVec 2) (ite (|can_mac_bs_tx#10| state) (|can_mac_bs_tx#96| state) (|can_mac_bs_tx#14| state))) ; $auto$ghdl.cc:846:import_module$14
+(define-fun |can_mac_bs_tx#98| ((state |can_mac_bs_tx_s|)) (_ BitVec 2) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#79| state)) #b1) #b01 (|can_mac_bs_tx#97| state))) ; $auto$ghdl.cc:846:import_module$28
+(define-fun |can_mac_bs_tx#99| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (ite (|can_mac_bs_tx#10| state) (|can_mac_bs_tx#88| state) (|can_mac_bs_tx#13| state))) ; $auto$ghdl.cc:846:import_module$13
+(define-fun |can_mac_bs_tx#100| ((state |can_mac_bs_tx_s|)) (_ BitVec 3) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#79| state)) #b1) #b000 (|can_mac_bs_tx#99| state))) ; $auto$ghdl.cc:846:import_module$27
+(define-fun |can_mac_bs_tx#101| ((state |can_mac_bs_tx_s|)) Bool (not (or  (= ((_ extract 0 0) (|can_mac_bs_tx#96| state)) #b1) (= ((_ extract 1 1) (|can_mac_bs_tx#96| state)) #b1)))) ; $auto$ghdl.cc:846:import_module$9
+(define-fun |can_mac_bs_tx#102| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (ite (|can_mac_bs_tx#101| state) #b1 #b0)) ; $auto$ghdl.cc:846:import_module$10
+(define-fun |can_mac_bs_tx#103| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (ite (|can_mac_bs_tx#89| state) (|can_mac_bs_tx#102| state) #b1)) ; $auto$ghdl.cc:846:import_module$12
+(define-fun |can_mac_bs_tx#104| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (ite (|can_mac_bs_tx#10| state) (|can_mac_bs_tx#103| state) #b1)) ; $auto$ghdl.cc:846:import_module$16
+(define-fun |can_mac_bs_tx#105| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvxor ((_ extract 1 1) (|can_mac_bs_tx#93| state)) ((_ extract 2 2) (|can_mac_bs_tx#93| state)))) ; $auto$ghdl.cc:846:import_module$21
+(define-fun |can_mac_bs_tx#106| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvxor ((_ extract 2 2) (|can_mac_bs_tx#93| state)) (|can_mac_bs_tx#105| state))) ; $auto$ghdl.cc:846:import_module$24
+(define-fun |can_mac_bs_tx#107| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvxor ((_ extract 0 0) (|can_mac_bs_tx#93| state)) ((_ extract 1 1) (|can_mac_bs_tx#93| state)))) ; $auto$ghdl.cc:846:import_module$22
+(define-fun |can_mac_bs_tx#108| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvxor (|can_mac_bs_tx#106| state) (|can_mac_bs_tx#107| state))) ; $auto$ghdl.cc:846:import_module$25
+(define-fun |can_mac_bs_tx#109| ((state |can_mac_bs_tx_s|)) (_ BitVec 7) (ite (= ((_ extract 0 0) (|can_mac_bs_tx#79| state)) #b1) #b0000001 (concat ((_ extract 2 2) (|can_mac_bs_tx#93| state)) (concat (|can_mac_bs_tx#105| state) (concat (|can_mac_bs_tx#107| state) (concat (|can_mac_bs_tx#108| state) (concat (|can_mac_bs_tx#91| state) (concat #b0 (|can_mac_bs_tx#104| state))))))))) ; $auto$ghdl.cc:846:import_module$26
+(define-fun |can_mac_bs_tx#110| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (ite (|can_mac_bs_tx#10| state) #b1 #b0) (ite (|can_mac_bs_tx#25| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$117
+(define-fun |can_mac_bs_tx#111| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand (ite (|can_mac_bs_tx#10| state) #b1 #b0) (ite (|can_mac_bs_tx#27| state) #b1 #b0))) ; $auto$ghdl.cc:846:import_module$102
+(define-fun |can_mac_bs_tx#112| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 0 0) (|can_mac_bs_tx#6| state)) (|can_mac_bs_tx#111| state))) ; $auto$ghdl.cc:846:import_module$94
+(define-fun |can_mac_bs_tx#113| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 1 1) (|can_mac_bs_tx#6| state)) (|can_mac_bs_tx#111| state))) ; $auto$ghdl.cc:846:import_module$97
+(define-fun |can_mac_bs_tx#114| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 2 2) (|can_mac_bs_tx#6| state)) (|can_mac_bs_tx#111| state))) ; $auto$ghdl.cc:846:import_module$100
+(define-fun |can_mac_bs_tx#115| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 3 3) (|can_mac_bs_tx#6| state)) (|can_mac_bs_tx#111| state))) ; $auto$ghdl.cc:846:import_module$103
+(define-fun |can_mac_bs_tx#116| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 4 4) (|can_mac_bs_tx#6| state)) (|can_mac_bs_tx#111| state))) ; $auto$ghdl.cc:846:import_module$106
+(define-fun |can_mac_bs_tx#117| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 0 0) (|can_mac_bs_tx#0| state)) (|can_mac_bs_tx#110| state))) ; $auto$ghdl.cc:846:import_module$118
+(define-fun |can_mac_bs_tx#118| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 1 1) (|can_mac_bs_tx#0| state)) (|can_mac_bs_tx#110| state))) ; $auto$ghdl.cc:846:import_module$121
+(define-fun |can_mac_bs_tx#119| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 2 2) (|can_mac_bs_tx#0| state)) (|can_mac_bs_tx#110| state))) ; $auto$ghdl.cc:846:import_module$124
+(define-fun |can_mac_bs_tx#120| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 3 3) (|can_mac_bs_tx#0| state)) (|can_mac_bs_tx#110| state))) ; $auto$ghdl.cc:846:import_module$127
+(define-fun |can_mac_bs_tx#121| ((state |can_mac_bs_tx_s|)) (_ BitVec 1) (bvand ((_ extract 4 4) (|can_mac_bs_tx#0| state)) (|can_mac_bs_tx#110| state))) ; $auto$ghdl.cc:846:import_module$130
 (define-fun |can_mac_bs_tx_a| ((state |can_mac_bs_tx_s|)) Bool (and
   (|can_mac_bs_tx_a 0| state)
   (|can_mac_bs_tx_a 1| state)
@@ -302,45 +233,33 @@
   (|can_mac_bs_tx_a 3| state)
   (|can_mac_bs_tx_a 4| state)
   (|can_mac_bs_tx_a 5| state)
-  (|can_mac_bs_tx_a 6| state)
-  (|can_mac_bs_tx_a 7| state)
-  (|can_mac_bs_tx_a 8| state)
-  (|can_mac_bs_tx_a 9| state)
 ))
 (define-fun |can_mac_bs_tx_u| ((state |can_mac_bs_tx_s|)) Bool (and
   (|can_mac_bs_tx_u 0| state)
   (|can_mac_bs_tx_u 1| state)
   (|can_mac_bs_tx_u 2| state)
   (|can_mac_bs_tx_u 3| state)
+  (|can_mac_bs_tx_u 4| state)
 ))
 (define-fun |can_mac_bs_tx_i| ((state |can_mac_bs_tx_s|)) Bool (and
-  (= (bvand (concat (|can_mac_bs_tx#1| state) (concat (|can_mac_bs_tx#0| state) #b1)) #b010) #b000) ; $auto$ghdl.cc:846:import_module$107
-  (= (bvand (concat (|can_mac_bs_tx#3| state) (concat (|can_mac_bs_tx#2| state) #b1)) #b010) #b000) ; $auto$ghdl.cc:846:import_module$119
-  (= (bvand (concat (|can_mac_bs_tx#5| state) (concat (|can_mac_bs_tx#4| state) #b1)) #b010) #b000) ; $auto$ghdl.cc:846:import_module$134
-  (= (bvand (concat (|can_mac_bs_tx#7| state) (concat (|can_mac_bs_tx#6| state) #b1)) #b01111110) #b00000000) ; $auto$ghdl.cc:846:import_module$137
-  (= (bvand (concat (|can_mac_bs_tx#9| state) (concat (|can_mac_bs_tx#8| state) #b1)) #b01111110) #b00000000) ; $auto$ghdl.cc:846:import_module$162
-  (= (bvand (concat (|can_mac_bs_tx#11| state) (|can_mac_bs_tx#10| state)) #b01) #b01) ; $auto$ghdl.cc:846:import_module$42
-  (= (bvand (concat (|can_mac_bs_tx#13| state) (concat (|can_mac_bs_tx#12| state) #b1)) #b010) #b000) ; $auto$ghdl.cc:846:import_module$45
-  (= (bvand (concat (|can_mac_bs_tx#15| state) (concat (|can_mac_bs_tx#14| state) #b1)) #b010) #b000) ; $auto$ghdl.cc:846:import_module$92
+  (= (bvand (concat (|can_mac_bs_tx#1| state) (concat (|can_mac_bs_tx#0| state) #b1)) #b01111110) #b00000000) ; $auto$ghdl.cc:846:import_module$113
+  (= (bvand (concat (|can_mac_bs_tx#3| state) (|can_mac_bs_tx#2| state)) #b01) #b01) ; $auto$ghdl.cc:846:import_module$43
+  (= (bvand (concat (|can_mac_bs_tx#5| state) (concat (|can_mac_bs_tx#4| state) #b1)) #b010) #b000) ; $auto$ghdl.cc:846:import_module$52
+  (= (bvand (concat (|can_mac_bs_tx#7| state) (concat (|can_mac_bs_tx#6| state) #b1)) #b01111110) #b00000000) ; $auto$ghdl.cc:846:import_module$89
 ))
 (define-fun |can_mac_bs_tx_h| ((state |can_mac_bs_tx_s|)) Bool true)
 (define-fun |can_mac_bs_tx_t| ((state |can_mac_bs_tx_s|) (next_state |can_mac_bs_tx_s|)) Bool (and
-  (= (|can_mac_bs_tx#115| state) (|can_mac_bs_tx#28| next_state)) ; :590 \stuff_valid_prev
-  (= (|can_mac_bs_tx#116| state) (|can_mac_bs_tx#27| next_state)) ; :592 \stuff_count_prev
-  (= (|can_mac_bs_tx#132| state) (|can_mac_bs_tx#26| next_state)) ; :589 \stuff_count
-  (= (|can_mac_bs_tx#133| state) (|can_mac_bs_tx#24| next_state)) ; :591 \reset_done
-  (= (|can_mac_bs_tx#135| state) (|can_mac_bs_tx#23| next_state)) ; :588 \last_polarity
-  (= (|can_mac_bs_tx#136| state) (|can_mac_bs_tx#22| next_state)) ; :593 \consecutive_count_prev
-  (= (|can_mac_bs_tx#138| state) (|can_mac_bs_tx#21| next_state)) ; :587 \consecutive_count
-  (= (|can_mac_bs_tx#143| state) (|can_mac_bs_tx#19| next_state)) ; :586 { \bs_o[sbc] \bs_o[valid] \bs_o[data] }
-  (= (|can_mac_bs_tx#149| state) (|can_mac_bs_tx#14| next_state)) ; $auto$ff.cc:337:slice$229 $auto$ghdl.cc:846:import_module$92 [1]
-  (= (|can_mac_bs_tx#114| state) (|can_mac_bs_tx#12| next_state)) ; $auto$ff.cc:337:slice$228 $auto$ghdl.cc:846:import_module$45 [1]
-  (= #b0 (|can_mac_bs_tx#10| next_state)) ; :167 $auto$ghdl.cc:846:import_module$42 [0]
-  (= (concat (|can_mac_bs_tx#157| state) (concat (|can_mac_bs_tx#156| state) (concat (|can_mac_bs_tx#155| state) (concat (|can_mac_bs_tx#154| state) (concat (|can_mac_bs_tx#153| state) (|can_mac_bs_tx#151| state)))))) (|can_mac_bs_tx#8| next_state)) ; $auto$ff.cc:337:slice$234 $auto$ghdl.cc:846:import_module$162 [6:1]
-  (= (concat (|can_mac_bs_tx#164| state) (concat (|can_mac_bs_tx#163| state) (concat (|can_mac_bs_tx#162| state) (concat (|can_mac_bs_tx#161| state) (concat (|can_mac_bs_tx#160| state) (|can_mac_bs_tx#158| state)))))) (|can_mac_bs_tx#6| next_state)) ; $auto$ff.cc:337:slice$233 $auto$ghdl.cc:846:import_module$137 [6:1]
-  (= ((_ extract 2 2) (|can_mac_bs_tx#19| state)) (|can_mac_bs_tx#4| next_state)) ; $auto$ff.cc:337:slice$232 $auto$ghdl.cc:846:import_module$134 [1]
-  (= (|can_mac_bs_tx#165| state) (|can_mac_bs_tx#2| next_state)) ; $auto$ff.cc:337:slice$231 $auto$ghdl.cc:846:import_module$119 [1]
-  (= (|can_mac_bs_tx#167| state) (|can_mac_bs_tx#0| next_state)) ; $auto$ff.cc:337:slice$230 $auto$ghdl.cc:846:import_module$107 [1]
+  (= (|can_mac_bs_tx#80| state) (|can_mac_bs_tx#19| next_state)) ; :408 \stuff_valid_prev
+  (= (|can_mac_bs_tx#81| state) (|can_mac_bs_tx#18| next_state)) ; :410 \stuff_count_prev
+  (= (|can_mac_bs_tx#94| state) (|can_mac_bs_tx#17| next_state)) ; :407 \stuff_count
+  (= (|can_mac_bs_tx#95| state) (|can_mac_bs_tx#15| next_state)) ; :409 \reset_done
+  (= (|can_mac_bs_tx#98| state) (|can_mac_bs_tx#14| next_state)) ; :406 \last_polarity
+  (= (|can_mac_bs_tx#100| state) (|can_mac_bs_tx#13| next_state)) ; :405 \consecutive_count
+  (= (|can_mac_bs_tx#109| state) (|can_mac_bs_tx#11| next_state)) ; :404 { \bs_o[sbc] \bs_o[valid] \bs_o[data] }
+  (= (concat (|can_mac_bs_tx#116| state) (concat (|can_mac_bs_tx#115| state) (concat (|can_mac_bs_tx#114| state) (concat (|can_mac_bs_tx#113| state) (concat (|can_mac_bs_tx#112| state) (|can_mac_bs_tx#110| state)))))) (|can_mac_bs_tx#6| next_state)) ; $auto$ff.cc:337:slice$159 $auto$ghdl.cc:846:import_module$89 [6:1]
+  (= (|can_mac_bs_tx#79| state) (|can_mac_bs_tx#4| next_state)) ; $auto$ff.cc:337:slice$158 $auto$ghdl.cc:846:import_module$52 [1]
+  (= #b0 (|can_mac_bs_tx#2| next_state)) ; :162 $auto$ghdl.cc:846:import_module$43 [0]
+  (= (concat (|can_mac_bs_tx#121| state) (concat (|can_mac_bs_tx#120| state) (concat (|can_mac_bs_tx#119| state) (concat (|can_mac_bs_tx#118| state) (concat (|can_mac_bs_tx#117| state) (|can_mac_bs_tx#111| state)))))) (|can_mac_bs_tx#0| next_state)) ; $auto$ff.cc:337:slice$160 $auto$ghdl.cc:846:import_module$113 [6:1]
 )) ; end of module can_mac_bs_tx
 ; yosys-smt2-topmod can_mac_bs_tx
 ; end of yosys output
