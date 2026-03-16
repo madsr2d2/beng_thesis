@@ -65,7 +65,7 @@ architecture rtl of can_llc_tx is
   signal capture_index      : integer range 0 to c_max_llc_frame_bytes - 1;
   signal tx_index           : integer range 0 to c_max_llc_frame_bytes - 1;
   signal expected_len_bytes : integer range 0 to c_max_llc_frame_bytes;
-  signal retx_count         : integer range 0 to retransmission_limit_c;
+  signal retx_count         : integer range 0 to c_retransmission_limit;
   signal mac_status_armed   : boolean;
 
 begin
@@ -214,7 +214,7 @@ begin
                   tx_index <= 0;
                   state    <= c_st_send_frame;
                 when c_disturbed =>
-                  if (retx_count >= retransmission_limit_c) then
+                  if (retx_count >= c_retransmission_limit) then
                     llc_user_o.transfer_status <= c_aborted;
                     state                      <= c_st_idle;
                   else
@@ -262,7 +262,7 @@ begin
                   state    <= c_st_send_frame;
 
                 when c_disturbed =>
-                  if (retx_count >= retransmission_limit_c) then
+                  if (retx_count >= c_retransmission_limit) then
                     llc_user_o.transfer_status <= c_aborted;
                     state                      <= c_st_idle;
                   else
@@ -331,7 +331,7 @@ architecture legacy_rtl of can_llc_tx is
   signal frame_len_bytes  : integer range 0 to c_max_llc_frame_bytes;
   signal capture_index    : integer range 0 to c_legacy_frame_len - 1;
   signal tx_index         : integer range 0 to c_max_llc_frame_bytes - 1;
-  signal retx_count       : integer range 0 to retransmission_limit_c;
+  signal retx_count       : integer range 0 to c_retransmission_limit;
   signal mac_status_armed : boolean;
 
 begin
@@ -557,7 +557,7 @@ begin
                   tx_index <= 0;
                   state    <= c_st_send_frame;
                 when c_disturbed =>
-                  if (retx_count >= retransmission_limit_c) then
+                  if (retx_count >= c_retransmission_limit) then
                     llc_user_o.transfer_status <= c_aborted;
                     state                      <= c_st_idle;
                   else
@@ -605,7 +605,7 @@ begin
                   state    <= c_st_send_frame;
 
                 when c_disturbed =>
-                  if (retx_count >= retransmission_limit_c) then
+                  if (retx_count >= c_retransmission_limit) then
                     llc_user_o.transfer_status <= c_aborted;
                     state                      <= c_st_idle;
                   else

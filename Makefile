@@ -26,7 +26,6 @@ LAYERS = \
 	src/can_mac_tx.vhd \
 	src/can_pcs_tx.vhd \
 	src/can_llc_tx.vhd \
-	src/can_llc_adapter.vhd \
 	src/can_tx.vhd
 
 SRCFILES = $(PACKAGES) $(COMPONENTS) $(LAYERS)
