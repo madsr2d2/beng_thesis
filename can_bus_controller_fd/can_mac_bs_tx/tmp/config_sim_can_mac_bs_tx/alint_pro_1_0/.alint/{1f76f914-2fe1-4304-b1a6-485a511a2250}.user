@@ -1,0 +1,31 @@
+<!--ALINT-PRO 2024.12.1889. (c) 2010-2025 Aldec, Inc.-->
+<workspace-user-data>
+ <documents>
+  <document docked="1" path="../../../hdl_src/can_mac_bs_tx.vhd" virtual="0" type="vhdl">
+   <cursor column="0" line="0"/>
+   <code_analysis enabled="1"/>
+  </document>
+ </documents>
+ <plugins>
+  <plugin version="1" name="project_manager_gui">
+   <nodes_state>
+    <node name="Temp">
+     <node name="can_mac_bs_tx"/>
+    </node>
+   </nodes_state>
+  </plugin>
+  <plugin version="1" name="linting_flow_gui">
+   <nodes_state>
+    <node name="/">
+     <node name="CDC Report"/>
+     <node name="FSM Report"/>
+     <node name="Project Setup"/>
+     <node name="RDC Report"/>
+     <node name="Run Project"/>
+     <node name="Synthesis Report"/>
+     <node name="View Results"/>
+    </node>
+   </nodes_state>
+  </plugin>
+ </plugins>
+</workspace-user-data>

@@ -1,0 +1,98 @@
+Version: 1.0
+Coverage: 100.00
+Settings: 
+  WritePassFail: 0
+Models: 
+  - Name: "Input Coverage"
+    TestCases: 
+      - "AlertLogTop"
+    Coverage: 100.00
+    Settings: 
+      CovWeight: 1
+      Goal: 100.0
+      WeightMode: "AT_LEAST"
+      Seeds: [1223489919, 425339342]
+      CountMode: "COUNT_FIRST"
+      IllegalMode: "ILLEGAL_ON"
+      Threshold: 45.0
+      ThresholdEnable: "FALSE"
+      TotalCovCount: 260
+      TotalCovGoal: 260
+    BinInfo: 
+      Dimensions: 1
+      FieldNames: 
+        - "Bin1"
+      NumBins: 4
+    Bins: 
+      - Name: "idle"
+        Type: "COUNT"
+        Range: 
+          - {Min: 0, Max: 0}
+        Count: 175
+        AtLeast: 50
+        PercentCov: 350.0000
+      - Name: "valid_dominant"
+        Type: "COUNT"
+        Range: 
+          - {Min: 1, Max: 1}
+        Count: 198
+        AtLeast: 100
+        PercentCov: 198.0000
+      - Name: "valid_recessive"
+        Type: "COUNT"
+        Range: 
+          - {Min: 2, Max: 2}
+        Count: 220
+        AtLeast: 100
+        PercentCov: 220.0000
+      - Name: "start"
+        Type: "COUNT"
+        Range: 
+          - {Min: 3, Max: 3}
+        Count: 22
+        AtLeast: 10
+        PercentCov: 220.0000
+
+  - Name: "Output Coverage"
+    TestCases: 
+      - "AlertLogTop"
+    Coverage: 100.00
+    Settings: 
+      CovWeight: 1
+      Goal: 100.0
+      WeightMode: "AT_LEAST"
+      Seeds: [1223489919, 1317361944]
+      CountMode: "COUNT_FIRST"
+      IllegalMode: "ILLEGAL_ON"
+      Threshold: 45.0
+      ThresholdEnable: "FALSE"
+      TotalCovCount: 110
+      TotalCovGoal: 110
+    BinInfo: 
+      Dimensions: 1
+      FieldNames: 
+        - "Bin1"
+      NumBins: 3
+    Bins: 
+      - Name: "no_stuff_bit"
+        Type: "COUNT"
+        Range: 
+          - {Min: 0, Max: 0}
+        Count: 602
+        AtLeast: 100
+        PercentCov: 602.0000
+      - Name: "stuff_dominant"
+        Type: "COUNT"
+        Range: 
+          - {Min: 1, Max: 1}
+        Count: 8
+        AtLeast: 5
+        PercentCov: 160.0000
+      - Name: "stuff_recessive"
+        Type: "COUNT"
+        Range: 
+          - {Min: 2, Max: 2}
+        Count: 5
+        AtLeast: 5
+        PercentCov: 100.0000
+

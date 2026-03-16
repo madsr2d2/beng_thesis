@@ -1,0 +1,6 @@
+set_hierarchy_separator /
+create_clock -period 10 -name Input_Clk [ get_ports can_mac_bs_tx/clk_i ]
+set_hierarchy_separator /
+create_clock -period 10 -name Input_Clk [ get_ports can_mac_bs_tx/clk_i ]
+set_hierarchy_separator /
+create_clock -period 10 -name Input_Clk [ get_ports can_mac_bs_tx/clk_i ]
