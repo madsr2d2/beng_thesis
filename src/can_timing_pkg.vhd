@@ -12,7 +12,7 @@
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
-  use work.can_types_pkg.all;
+  use work.pk_can_types.all;
 
 package can_timing_pkg is
 
@@ -61,8 +61,8 @@ package body can_timing_pkg is
     -- Calculate nanoseconds per time quantum
     tq_period_ns := 1_000_000_000 / system_clock_freq;
 
-    -- Condition 1: SHOULD use TDC if bit_time <= tdc_bit_time_max_c (ISO 11898-1: 7.3.4)
-    if (bit_time_tq * tq_period_ns <= tdc_bit_time_max_c) then
+    -- Condition 1: SHOULD use TDC if bit_time <= c_tdc_bit_time_max (ISO 11898-1: 7.3.4)
+    if (bit_time_tq * tq_period_ns <= c_tdc_bit_time_max) then
       return true;
     end if;
 
@@ -88,8 +88,8 @@ package body can_timing_pkg is
     index := delay_with_offset / data_bit_time;
 
     -- Clamp to FIFO depth
-    if (index >= transmitted_bits_fifo_depth_c) then
-      index := transmitted_bits_fifo_depth_c - 1;
+    if (index >= c_transmitted_bits_fifo_depth) then
+      index := c_transmitted_bits_fifo_depth - 1;
     end if;
 
     return index;

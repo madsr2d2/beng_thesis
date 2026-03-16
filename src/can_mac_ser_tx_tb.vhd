@@ -4,9 +4,8 @@ library ieee;
 
 library osvvm;
   context osvvm.osvvmcontext;
-  use work.can_types_pkg.all;
+  use work.pk_can_types.all;
   use work.can_protocol_pkg.all;
-  use work.can_timing_pkg.all;
 
 entity can_mac_ser_tx_tb is
 end entity can_mac_ser_tx_tb;
@@ -19,12 +18,12 @@ architecture tb of can_mac_ser_tx_tb is
   signal rst_i : std_logic := '0';
 
   -- LLC interface signals
-  signal llc_i : can_llc_mac_tx_if_s2d_t;
-  signal llc_o : can_llc_mac_tx_if_d2s_t;
+  signal llc_i : t_can_llc_mac_tx_if_s2d;
+  signal llc_o : t_can_llc_mac_tx_if_d2s;
 
   -- can_mac_fsm_tx interface signals
-  signal tx_mac_fsm_i : can_mac_ser_fsm_tx_if_m2s_t;
-  signal tx_mac_fsm_o : can_mac_ser_fsm_tx_if_s2m_t;
+  signal tx_mac_fsm_i : t_can_mac_ser_fsm_tx_if_m2s;
+  signal tx_mac_fsm_o : t_can_mac_ser_fsm_tx_if_s2m;
 
 begin
 
@@ -64,8 +63,8 @@ begin
     llc_i.avalon_st_source.valid  <= '0';
     llc_i.avalon_st_source.sop    <= '0';
     llc_i.avalon_st_source.eop    <= '0';
-    tx_mac_fsm_i.ready            <= false;
-    tx_mac_fsm_i.transfer_status  <= transmitted;
+    tx_mac_fsm_i.ready            <= '0';
+    tx_mac_fsm_i.transfer_status  <= c_transmitted;
     wait for clk_period * 5;
 
     rst_i <= '0';
@@ -79,54 +78,50 @@ begin
     Print("Test 1: Load two config bytes when MAC FSM is idle");
     Print("-----------");
 
-    tx_mac_fsm_i.transfer_status  <= ongoing;
+    tx_mac_fsm_i.transfer_status  <= c_ongoing;
     wait for clk_period;
 
-    -- Check that ready is asserted in idle state
     AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted in idle state", FAILURE);
 
-    -- Send config byte 0 with SOP (Avalon-ST transfer)
-    llc_i.avalon_st_source.data  <= x"C8";                                                                                                           -- Config byte 0: 11001000 → FORMAT[7:5]=110(fd_extended), FTYP[4]=0, ESI[3]=1, BRS[2]=0
+    -- Send config byte 0 with SOP
+    llc_i.avalon_st_source.data  <= x"C8";
     llc_i.avalon_st_source.valid <= '1';
     llc_i.avalon_st_source.sop   <= '1';
     llc_i.avalon_st_source.eop   <= '0';
     wait for clk_period;
 
-    -- Clear valid after transfer
     llc_i.avalon_st_source.valid <= '0';
     wait for clk_period;
 
     Print("  Config byte 0 loaded: x""C8""");
 
-    -- Check that ready is still asserted (waiting for config byte 1)
     AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted waiting for config byte 1", FAILURE);
 
-    -- Send config byte 1 with SOP='0' (Avalon-ST transfer)
-    llc_i.avalon_st_source.data  <= x"50";                                                                                                           -- Config byte 1: 01010000 → DLC[7:4]=0101=5
+    -- Send config byte 1
+    llc_i.avalon_st_source.data  <= x"50";
     llc_i.avalon_st_source.valid <= '1';
     llc_i.avalon_st_source.sop   <= '0';
     llc_i.avalon_st_source.eop   <= '0';
     wait for clk_period;
 
-    -- Clear valid after transfer
     llc_i.avalon_st_source.valid <= '0';
     wait for clk_period;
 
     Print("  Config byte 1 loaded: x""50""");
 
     -- Verify frame_params extraction
-    -- Byte 0: x"C8" = 11001000 → FORMAT[7:5]=110(fd_extended), FTYP[4]=0, ESI[3]=1, BRS[2]=0
-    -- Byte 1: x"50" = 01010000 → DLC[7:4]=0101=5
+    -- Byte 0: x"C8" = 11001000 -> FORMAT[7:5]=110(FE), FTYP[4]=0, ESI[3]=1, BRS[2]=0
+    -- Byte 1: x"50" = 01010000 -> DLC[7:4]=0101=5
     Print("  Verifying frame_params extraction:");
-    AlertIf(tx_mac_fsm_o.frame_params.format /= fd_extended, "ERROR: FORMAT should be fd_extended (110)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.is_remote_frame /= false, "ERROR: is_remote_frame should be false (data_frame)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.esi_enable /= true, "ERROR: ESI should be true (1)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.has_brs /= false, "ERROR: BRS should be false (0)", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.format /= c_llc_fmt_fe, "ERROR: FORMAT should be FE (110)", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.is_remote_frame /= '0', "ERROR: is_remote_frame should be 0", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.esi_enable /= '1', "ERROR: ESI should be 1", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.has_brs /= '0', "ERROR: BRS should be 0", FAILURE);
     AlertIf(to_integer(unsigned(tx_mac_fsm_o.frame_params.dlc_vector)) /= 5, "ERROR: DLC should be 5", FAILURE);
-    Print("    FORMAT: fd_extended [PASS]");
+    Print("    FORMAT: FE [PASS]");
     Print("    FTYP: data_frame [PASS]");
-    Print("    ESI: true [PASS]");
-    Print("    BRS: false [PASS]");
+    Print("    ESI: 1 [PASS]");
+    Print("    BRS: 0 [PASS]");
     Print("    DLC: 5 [PASS]");
     Print("PASS: Both config bytes loaded successfully");
 
@@ -137,38 +132,33 @@ begin
     Print("Test 2: Data byte loading and bit shifting (8 bits)");
     Print("-----------");
 
-    test_data := x"F0";                                                                                                                              -- Data: 11110000
+    test_data := x"F0";
 
-    -- Verify ready is asserted in load_llc_frame_byte state
     AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted in load_llc_frame_byte state", FAILURE);
 
-    -- Send data byte when ready is asserted (Avalon-ST transfer)
     llc_i.avalon_st_source.data  <= test_data;
     llc_i.avalon_st_source.valid <= '1';
     llc_i.avalon_st_source.sop   <= '0';
     llc_i.avalon_st_source.eop   <= '0';
     wait for clk_period;
 
-    -- Check first bit is loaded
-    AlertIf(tx_mac_fsm_o.valid = false, "ERROR: frame_bit_valid should be asserted", FAILURE);
-    AlertIf(tx_mac_fsm_o.data /= bit_to_polarity(test_data(7)), "ERROR: first bit should be " & to_string(test_data(7)) &
+    AlertIf(tx_mac_fsm_o.valid = '0', "ERROR: frame_bit_valid should be asserted", FAILURE);
+    AlertIf(tx_mac_fsm_o.data /= test_data(7), "ERROR: first bit should be " & to_string(test_data(7)) &
             " but got " & to_string(tx_mac_fsm_o.data), FAILURE);
     Print("  Bit 0 (MSB): " & to_string(tx_mac_fsm_o.data) & " (Expected: " & to_string(test_data(7)) & ")");
 
     llc_i.avalon_st_source.valid <= '0';
     wait for clk_period;
 
-    -- Shift out remaining 7 bits
-    -- Note: registered shift means the new bit appears one clock AFTER ready pulse
     bit_count := 0;
 
     for i in 6 downto 0 loop
-      tx_mac_fsm_i.ready <= true;
+      tx_mac_fsm_i.ready <= '1';
       wait for clk_period;
-      tx_mac_fsm_i.ready <= false;
+      tx_mac_fsm_i.ready <= '0';
       wait for clk_period;
-      AlertIf(tx_mac_fsm_o.valid = false, "ERROR: bit " & to_string(i) & " not valid", FAILURE);
-      AlertIf(tx_mac_fsm_o.data /= bit_to_polarity(test_data(i)), "ERROR: bit " & to_string(i) & " mismatch", FAILURE);
+      AlertIf(tx_mac_fsm_o.valid = '0', "ERROR: bit " & to_string(i) & " not valid", FAILURE);
+      AlertIf(tx_mac_fsm_o.data /= test_data(i), "ERROR: bit " & to_string(i) & " mismatch", FAILURE);
       Print("  Bit " & to_string(7 - i) & ": " & to_string(tx_mac_fsm_o.data) & " (Expected: " & to_string(test_data(i)) & ")");
       bit_count := bit_count + 1;
     end loop;
@@ -183,15 +173,13 @@ begin
     Print("Test 3: Multiple data bytes transmission");
     Print("-----------");
 
-    -- Reset for next test
     rst_i <= '1';
     wait for clk_period * 2;
     rst_i <= '0';
     wait for clk_period;
 
-    tx_mac_fsm_i.transfer_status  <= ongoing;
+    tx_mac_fsm_i.transfer_status  <= c_ongoing;
 
-    -- Send config bytes
     llc_i.avalon_st_source.data  <= x"C0";
     llc_i.avalon_st_source.valid <= '1';
     llc_i.avalon_st_source.sop   <= '1';
@@ -204,22 +192,20 @@ begin
     llc_i.avalon_st_source.valid <= '0';
     wait for clk_period;
 
-    -- Verify frame_info extraction
-    -- Byte 0: x"C0" = 11000000 → FORMAT[7:5]=110(fd_extended), FTYP[4]=0, ESI[3]=0, BRS[2]=0
-    -- Byte 1: x"30" = 00110000 → DLC[7:4]=0011=3
+    -- Byte 0: x"C0" = 11000000 -> FORMAT[7:5]=110(FE), FTYP[4]=0, ESI[3]=0, BRS[2]=0
+    -- Byte 1: x"30" = 00110000 -> DLC[7:4]=0011=3
     Print("  Verifying frame_info extraction:");
-    AlertIf(tx_mac_fsm_o.frame_params.format /= fd_extended, "ERROR: FORMAT should be fd_extended (110)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.is_remote_frame /= false, "ERROR: FTYP should be data_frame (0)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.esi_enable /= false, "ERROR: ESI should be false (0)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.has_brs /= false, "ERROR: BRS should be false (0)", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.format /= c_llc_fmt_fe, "ERROR: FORMAT should be FE (110)", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.is_remote_frame /= '0', "ERROR: FTYP should be 0", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.esi_enable /= '0', "ERROR: ESI should be 0", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.has_brs /= '0', "ERROR: BRS should be 0", FAILURE);
     AlertIf(to_integer(unsigned(tx_mac_fsm_o.frame_params.dlc_vector)) /= 3, "ERROR: DLC should be 3", FAILURE);
-    Print("    FORMAT: fd_extended [PASS]");
+    Print("    FORMAT: FE [PASS]");
     Print("    FTYP: data_frame [PASS]");
-    Print("    ESI: false [PASS]");
-    Print("    BRS: false [PASS]");
+    Print("    ESI: 0 [PASS]");
+    Print("    BRS: 0 [PASS]");
     Print("    DLC: 3 [PASS]");
 
-    -- Send 3 data bytes with bit-level validation
     for byte_idx in 0 to 2 loop
       test_data                    := std_logic_vector(to_unsigned(byte_idx * 16 + 1, 8));
       llc_i.avalon_st_source.data  <= test_data;
@@ -233,30 +219,26 @@ begin
 
       Print("  Byte " & to_string(byte_idx) & ": " & to_hex_string(test_data));
 
-      -- First bit (MSB) is sent during load transition
-      AlertIf(tx_mac_fsm_o.valid = false, "ERROR: First bit not valid for byte " & to_string(byte_idx), FAILURE);
-      AlertIf(tx_mac_fsm_o.data /= bit_to_polarity(test_data(7)), "ERROR: First bit (MSB) mismatch for byte " & to_string(byte_idx), FAILURE);
+      AlertIf(tx_mac_fsm_o.valid = '0', "ERROR: First bit not valid for byte " & to_string(byte_idx), FAILURE);
+      AlertIf(tx_mac_fsm_o.data /= test_data(7), "ERROR: First bit (MSB) mismatch for byte " & to_string(byte_idx), FAILURE);
 
       llc_i.avalon_st_source.valid <= '0';
       wait for clk_period;
 
-      -- Shift remaining 7 bits with validation
-      -- Note: registered shift means the new bit appears one clock AFTER ready pulse
       for bit_idx in 6 downto 0 loop
-        tx_mac_fsm_i.ready <= true;
+        tx_mac_fsm_i.ready <= '1';
         wait for clk_period;
-        tx_mac_fsm_i.ready <= false;
+        tx_mac_fsm_i.ready <= '0';
         wait for clk_period;
-        AlertIf(tx_mac_fsm_o.valid = false, "ERROR: Bit not valid for byte " & to_string(byte_idx) & " bit " & to_string(bit_idx), FAILURE);
-        AlertIf(tx_mac_fsm_o.data /= bit_to_polarity(test_data(bit_idx)),
+        AlertIf(tx_mac_fsm_o.valid = '0', "ERROR: Bit not valid for byte " & to_string(byte_idx) & " bit " & to_string(bit_idx), FAILURE);
+        AlertIf(tx_mac_fsm_o.data /= test_data(bit_idx),
                 "ERROR: Bit mismatch for byte " & to_string(byte_idx) & " bit " & to_string(bit_idx) &
                 " (expected " & to_string(test_data(bit_idx)) & " got " & to_string(tx_mac_fsm_o.data) & ")", FAILURE);
       end loop;
 
-      -- Keep ready asserted one more cycle to allow count=0 transition back to load_llc_frame_byte
-      tx_mac_fsm_i.ready <= true;
+      tx_mac_fsm_i.ready <= '1';
       wait for clk_period;
-      tx_mac_fsm_i.ready <= false;
+      tx_mac_fsm_i.ready <= '0';
       wait for clk_period;
 
     end loop;
@@ -275,10 +257,9 @@ begin
     rst_i <= '0';
     wait for clk_period;
 
-    tx_mac_fsm_i.transfer_status  <= ongoing;
+    tx_mac_fsm_i.transfer_status  <= c_ongoing;
 
-    -- Send config bytes
-    llc_i.avalon_st_source.data  <= x"7F";
+    llc_i.avalon_st_source.data  <= x"5F";
     llc_i.avalon_st_source.valid <= '1';
     llc_i.avalon_st_source.sop   <= '1';
     wait for clk_period;
@@ -289,37 +270,34 @@ begin
     llc_i.avalon_st_source.valid <= '0';
     wait for clk_period;
 
-    -- Verify frame_info extraction
-    -- Byte 0: x"7F" = 01111111 → FORMAT[7:5]=011 (invalid), FTYP[4]=1, ESI[3]=1, BRS[2]=1
-    -- Byte 1: x"F0" = 11110000 → DLC[7:4]=1111=15
+    -- Byte 0: x"5F" = 01011111 -> FORMAT[7:5]=010 (FB), FTYP[4]=1, ESI[3]=1, BRS[2]=1
+    -- Byte 1: x"F0" = 11110000 -> DLC[7:4]=1111=15
     Print("  Verifying frame_info extraction:");
-    AlertIf(tx_mac_fsm_o.frame_params.format /= unknown, "ERROR: FORMAT should be unknown (011)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.is_remote_frame /= true, "ERROR: FTYP should be remote_frame (1)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.esi_enable /= true, "ERROR: ESI should be true (1)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.has_brs /= true, "ERROR: BRS should be true (1)", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.format /= c_llc_fmt_fb, "ERROR: FORMAT should be FB (010) but got " & to_hex_string(tx_mac_fsm_o.frame_params.format), FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.is_remote_frame /= '1', "ERROR: FTYP should be 1", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.esi_enable /= '1', "ERROR: ESI should be 1", FAILURE);
+    AlertIf(tx_mac_fsm_o.frame_params.has_brs /= '1', "ERROR: BRS should be 1", FAILURE);
     AlertIf(to_integer(unsigned(tx_mac_fsm_o.frame_params.dlc_vector)) /= 15, "ERROR: DLC should be 15", FAILURE);
-    Print("    FORMAT: unknown [PASS]");
+    Print("    FORMAT: FB [PASS]");
     Print("    FTYP: remote_frame [PASS]");
-    Print("    ESI: true [PASS]");
-    Print("    BRS: true [PASS]");
+    Print("    ESI: 1 [PASS]");
+    Print("    BRS: 1 [PASS]");
     Print("    DLC: 15 [PASS]");
 
-    -- Send data byte
     llc_i.avalon_st_source.data  <= x"33";
     llc_i.avalon_st_source.valid <= '1';
     wait for clk_period;
     llc_i.avalon_st_source.valid <= '0';
     wait for clk_period;
 
-    -- Start shifting, then change transfer status mid-transmission
-    tx_mac_fsm_i.ready <= true;
+    tx_mac_fsm_i.ready <= '1';
     wait for clk_period * 3;
 
     Print("  Changing transfer_status to transmitted mid-transmission...");
-    tx_mac_fsm_i.transfer_status <= transmitted;
+    tx_mac_fsm_i.transfer_status <= c_transmitted;
     wait for clk_period;
 
-    AlertIf(tx_mac_fsm_o.valid = true, "ERROR: bit_valid should be deasserted after status change", FAILURE);
+    AlertIf(tx_mac_fsm_o.valid = '1', "ERROR: bit_valid should be deasserted after status change", FAILURE);
     Print("PASS: Frame terminated correctly on status change");
 
     -- =====================================================================
@@ -334,39 +312,32 @@ begin
     rst_i <= '0';
     wait for clk_period;
 
-    tx_mac_fsm_i.transfer_status  <= ongoing;
+    tx_mac_fsm_i.transfer_status  <= c_ongoing;
     wait for clk_period;
 
-    -- Check ready is asserted in idle state
     AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted in idle state", FAILURE);
     Print("  Idle state ready asserted: PASS");
 
-    -- Send config byte 0 (Avalon-ST transfer)
     llc_i.avalon_st_source.data  <= x"BB";
     llc_i.avalon_st_source.valid <= '1';
     llc_i.avalon_st_source.sop   <= '1';
     wait for clk_period;
 
-    -- Clear valid, move to load_config_byte_1 state where ready is continuously asserted
     llc_i.avalon_st_source.valid <= '0';
     wait for clk_period;
 
-    -- Check ready is asserted in load_config_byte_1 state
     AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted in load_config_byte_1 state", FAILURE);
     Print("  Config byte 1 state ready asserted: PASS");
 
-    -- Send config byte 1 with sop='0' (Avalon-ST transfer)
     llc_i.avalon_st_source.data  <= x"44";
     llc_i.avalon_st_source.valid <= '1';
     llc_i.avalon_st_source.sop   <= '0';
     llc_i.avalon_st_source.eop   <= '0';
     wait for clk_period;
 
-    -- Clear valid after transfer
     llc_i.avalon_st_source.valid <= '0';
     wait for clk_period;
 
-    -- Check ready is asserted in load_llc_frame_byte state
     AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted in load_llc_frame_byte state", FAILURE);
     Print("  Data state ready asserted: PASS");
 

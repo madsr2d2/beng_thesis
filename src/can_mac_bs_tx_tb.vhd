@@ -1,6 +1,6 @@
--- ---------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Copyright 2025 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
--- ---------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
 -- Requirements:
 --
@@ -13,7 +13,7 @@
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-03-15  TMYAES:   Initial implementation
 --
--- ---------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;
@@ -22,7 +22,7 @@ library ieee;
 library osvvm;
   context osvvm.OsvvmContext;
 
-use work.can_types_pkg.all;
+use work.pk_can_types.all;
 
 entity can_mac_bs_tx_tb is
 end entity can_mac_bs_tx_tb;
@@ -45,8 +45,8 @@ architecture tb of can_mac_bs_tx_tb is
 
   signal clk_i      : std_logic;
   signal rst_i      : std_logic := '1';
-  signal bs_i       : can_mac_fsm_bs_tx_if_m2s_t;
-  signal bs_o       : can_mac_fsm_bs_tx_if_s2m_t;
+  signal bs_i       : t_can_mac_fsm_bs_tx_if_m2s;
+  signal bs_o       : t_can_mac_fsm_bs_tx_if_s2m;
   signal cov_input  : CoverageIdType;
   signal cov_output : CoverageIdType;
   signal test_done  : BarrierType;
@@ -97,28 +97,28 @@ begin
 
       -- Occasional start pulse
       if (rnd.DistBool((false => 95, true => 5))) then
-        bs_i.start <= true;
-        bs_i.valid <= false;
+        bs_i.start <= '1';
+        bs_i.valid <= '0';
         WaitForClock(clk_i);
-        bs_i.start <= false;
+        bs_i.start <= '0';
         WaitForClock(clk_i);
       end if;
 
       -- Random valid/data
-      bs_i.data  <= dominant when rnd.DistBool((false => 50, true => 50)) else recessive;
-      bs_i.valid <= rnd.DistBool((false => 25, true => 75));
+      bs_i.data  <= c_dominant when rnd.DistBool((false => 50, true => 50)) else c_recessive;
+      bs_i.valid <= '1' when rnd.DistBool((false => 25, true => 75)) else '0';
       WaitForClock(clk_i);
 
       -- Feed stuff bit back when asserted
-      if (bs_o.valid) then
+      if (bs_o.valid = '1') then
         bs_i.data  <= bs_o.data;
-        bs_i.valid <= true;
+        bs_i.valid <= '1';
         WaitForClock(clk_i);
       end if;
 
     end loop;
 
-    bs_i.valid <= false;
+    bs_i.valid <= '0';
     WaitForClock(clk_i, 5);
     WaitForBarrier(test_done);
 
@@ -142,11 +142,11 @@ begin
 
       WaitForClock(clk_i);
 
-      if (rst_i = '1' or bs_i.start) then
+      if (rst_i = '1' or bs_i.start = '1') then
         WaitForClock(clk_i);
-        AffirmIf(checker_id, bs_o.valid = false,
+        AffirmIf(checker_id, bs_o.valid = '0',
                  "valid not cleared after reset/start");
-        AffirmIf(checker_id, bs_o.data = recessive,
+        AffirmIf(checker_id, bs_o.data = c_recessive,
                  "data not recessive after reset/start");
         AffirmIf(checker_id, bs_o.sbc = "0000",
                  "sbc not cleared after reset/start");
@@ -162,8 +162,8 @@ begin
   p_stuff_bit_checker : process
 
     variable checker_id       : AlertLogIDType;
-    variable consecutive      : integer range 0 to stuff_width_c := 0;
-    variable tracked_polarity : polarity_t                       := recessive;
+    variable consecutive      : integer range 0 to c_stuff_width := 0;
+    variable tracked_polarity : std_logic                        := c_recessive;
     variable expect_stuff     : boolean                          := false;
 
   begin
@@ -179,22 +179,22 @@ begin
 
       -- Verify pending stuff bit expectation from previous cycle
       if (expect_stuff) then
-        AffirmIf(checker_id, bs_o.valid = true,
-                 "No stuff bit after " & integer'image(stuff_width_c) &
-                 " consecutive " & polarity_t'image(tracked_polarity) & " bits");
-        if (bs_o.valid) then
+        AffirmIf(checker_id, bs_o.valid = '1',
+                 "No stuff bit after " & integer'image(c_stuff_width) &
+                 " consecutive " & std_logic'image(tracked_polarity) & " bits");
+        if (bs_o.valid = '1') then
           AffirmIf(checker_id, bs_o.data /= tracked_polarity,
                    "Stuff bit has wrong polarity: expected " &
-                   polarity_t'image(tracked_polarity) & " inversion");
+                   std_logic'image(tracked_polarity) & " inversion");
         end if;
         expect_stuff := false;
       end if;
 
       -- Track consecutive same-polarity bits
-      if (rst_i = '1' or bs_i.start) then
+      if (rst_i = '1' or bs_i.start = '1') then
         consecutive      := 0;
-        tracked_polarity := recessive;
-      elsif (bs_i.valid) then
+        tracked_polarity := c_recessive;
+      elsif (bs_i.valid = '1') then
         if (bs_i.data /= tracked_polarity) then
           consecutive      := 1;
           tracked_polarity := bs_i.data;
@@ -202,7 +202,7 @@ begin
           consecutive := consecutive + 1;
         end if;
 
-        if (consecutive = stuff_width_c) then
+        if (consecutive = c_stuff_width) then
           expect_stuff := true;
           consecutive  := 0;
         end if;
@@ -218,7 +218,7 @@ begin
   p_sbc_checker : process
 
     variable checker_id : AlertLogIDType;
-    variable prev_sbc   : std_logic_vector(sbc_field_width_c - 1 downto 0) := "0000";
+    variable prev_sbc   : std_logic_vector(c_sbc_field_width - 1 downto 0) := "0000";
 
   begin
 
@@ -237,9 +237,9 @@ begin
                "SBC parity bit incorrect");
 
       -- SBC must change on stuff bit events, hold otherwise
-      if (rst_i = '1' or bs_i.start) then
+      if (rst_i = '1' or bs_i.start = '1') then
         prev_sbc := "0000";
-      elsif (bs_o.valid) then
+      elsif (bs_o.valid = '1') then
         AffirmIf(checker_id, bs_o.sbc /= prev_sbc,
                  "SBC did not change after stuff bit");
         prev_sbc := bs_o.sbc;
@@ -280,20 +280,20 @@ begin
       WaitForClock(clk_i);
 
       -- Sample inputs
-      if (bs_i.start) then
+      if (bs_i.start = '1') then
         ICover(cov_input, c_bin_start);
-      elsif (bs_i.valid and bs_i.data = dominant) then
+      elsif (bs_i.valid = '1' and bs_i.data = c_dominant) then
         ICover(cov_input, c_bin_valid_dominant);
-      elsif (bs_i.valid and bs_i.data = recessive) then
+      elsif (bs_i.valid = '1' and bs_i.data = c_recessive) then
         ICover(cov_input, c_bin_valid_recessive);
       else
         ICover(cov_input, c_bin_idle);
       end if;
 
       -- Sample outputs
-      if (bs_o.valid and bs_o.data = dominant) then
+      if (bs_o.valid = '1' and bs_o.data = c_dominant) then
         ICover(cov_output, c_bin_stuff_dominant);
-      elsif (bs_o.valid and bs_o.data = recessive) then
+      elsif (bs_o.valid = '1' and bs_o.data = c_recessive) then
         ICover(cov_output, c_bin_stuff_recessive);
       else
         ICover(cov_output, c_bin_no_stuff);

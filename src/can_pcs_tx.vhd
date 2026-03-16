@@ -10,119 +10,124 @@
 --              and Transmitter Delay Compensation (TDC) per ISO 11898-1:2015
 --              Section 7.2 (PCS Services) and 7.3.4 (TDC).
 --
+--              Contains PSL assertions for formal verification.
+--
 -- Responsibilities:
 --   - Bit timing generation (nominal and data bit rates)
 --   - Serial bit transmission to bus
---   - TDC delay measurement at FDF->res edge
+--   - TDC delay measurement (triggered by MAC via start_tdc pulse)
 --   - Sample Point (SP) and Secondary Sample Point (SSP) generation
 --   - Bus monitoring (RX input for loopback and delay measurement)
 --
+-- Interface:
+--   MAC tells PCS what to do via level signals, stable before each
+--   bit boundary and sampled by PCS at the start of each bit time:
+--     polarity      - bit value to transmit
+--     valid         - frame active (high during entire frame)
+--     use_data_rate - high during data bit rate phase
+--     start_tdc     - high during FDF bit (triggers TDC measurement)
+--
 -- FSM State Transitions:
---   idle -> transmitting_nominal              (mac_to_pcs_i.valid = true)
---   transmitting_nominal -> measuring_delay   (FDF sample point)
---   measuring_delay -> transmitting_data      (BRS bit boundary, BRS recessive)
---   measuring_delay -> transmitting_nominal   (BRS dominant)
---   transmitting_data -> transmitting_nominal (CRC delimiter or error flag)
---   any non-idle -> idle                      (mac_to_pcs_i.valid = false)
+--   idle -> transmitting                     (valid = '1')
+--   transmitting: nominal or data rate       (use_data_rate selects)
+--   transmitting -> measuring_delay          (start_tdc = '1')
+--   any non-idle -> idle                     (valid = '0')
 --------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
-  use work.can_types_pkg.all;
-  use work.can_protocol_pkg.all;
+  use work.pk_can_types.all;
   use work.can_timing_pkg.all;
 
 entity can_pcs_tx is
   generic (
-    -- Set generics to middle of ISO specified ranges
-    -- Nominal values
-    prescaler      : prescaler          := prescaler'high / 2;
-    nom_sync_seg   : integer            := sync_seg_c;
-    nom_prop_seg   : nominal_prop_seg   := nominal_prop_seg'high / 2;
-    nom_phase_seg1 : nominal_phase_seg1 := nominal_phase_seg1'high / 2;
-    nom_phase_seg2 : nominal_phase_seg2 := nominal_phase_seg2'high / 2;
-
-    -- Data values
-    data_sync_seg   : integer         := nom_sync_seg;
-    data_prop_seg   : data_prop_seg   := data_prop_seg'high / 2;
-    data_phase_seg1 : data_phase_seg1 := data_phase_seg1'high / 2;
-    data_phase_seg2 : data_phase_seg2 := data_phase_seg2'high / 2;
-    ssp_offset      : ssp_offset      := ssp_offset'high / 2;
-    tdc_enable      : boolean         := true
+    gc_prescaler       : t_prescaler          := t_prescaler'high / 2;
+    gc_nom_sync_seg    : integer              := c_sync_seg;
+    gc_nom_prop_seg    : t_nominal_prop_seg   := t_nominal_prop_seg'high / 2;
+    gc_nom_phase_seg1  : t_nominal_phase_seg1 := t_nominal_phase_seg1'high / 2;
+    gc_nom_phase_seg2  : t_nominal_phase_seg2 := t_nominal_phase_seg2'high / 2;
+    gc_data_sync_seg   : integer              := c_sync_seg;
+    gc_data_prop_seg   : t_data_prop_seg      := t_data_prop_seg'high / 2;
+    gc_data_phase_seg1 : t_data_phase_seg1    := t_data_phase_seg1'high / 2;
+    gc_data_phase_seg2 : t_data_phase_seg2    := t_data_phase_seg2'high / 2;
+    gc_ssp_offset      : t_ssp_offset         := t_ssp_offset'high / 2;
+    gc_tdc_enable      : std_logic            := '1'
   );
   port (
-    clk : in    std_logic;
-    rst : in    std_logic;
+    clk_i : in    std_logic;
+    rst_i : in    std_logic;
 
-    mac_to_pcs_i : in    can_mac_pcs_tx_if_m2s_t;
-    pcs_to_mac_o : out   can_mac_pcs_tx_if_s2m_t;
+    mac_to_pcs_i : in    t_can_mac_pcs_tx_if_m2s;
+    pcs_to_mac_o : out   t_can_mac_pcs_tx_if_s2m;
 
     tx_bus_o : out   std_logic;
     rx_bus_i : in    std_logic;
 
-    -- Debug port (test visibility)
-    debug_state_o : out   can_pcs_tx_state_t
+    -- Debug port
+    debug_state_o : out   std_logic_vector(1 downto 0)
   );
 end entity can_pcs_tx;
 
 architecture rtl of can_pcs_tx is
 
-  -- Bit timing constants
-  constant nom_bit_time     : integer := nom_sync_seg + nom_prop_seg + nom_phase_seg1 + nom_phase_seg2;
-  constant data_bit_time    : integer := data_sync_seg + data_prop_seg + data_phase_seg1 + data_phase_seg2;
-  constant sp_position      : integer := nom_sync_seg + nom_prop_seg + nom_phase_seg1;
-  constant data_sp_position : integer := data_sync_seg + data_prop_seg + data_phase_seg1;
+  -- Local state encoding
+  constant c_st_idle       : std_logic_vector(1 downto 0) := "00";
+  constant c_st_nominal    : std_logic_vector(1 downto 0) := "01";
+  constant c_st_measuring  : std_logic_vector(1 downto 0) := "10";
+  constant c_st_data       : std_logic_vector(1 downto 0) := "11";
 
-  -- Prescaler must be 1 or 2 (ISO 7.3.4).
-  constant tdc_prescaler_valid_c : boolean := (prescaler = 1 or prescaler = 2);
-  constant use_tdc_c             : boolean := tdc_enable and tdc_prescaler_valid_c;
+  -- Bit timing constants
+  constant c_nom_bit_time     : integer := gc_nom_sync_seg + gc_nom_prop_seg + gc_nom_phase_seg1 + gc_nom_phase_seg2;
+  constant c_data_bit_time    : integer := gc_data_sync_seg + gc_data_prop_seg + gc_data_phase_seg1 + gc_data_phase_seg2;
+  constant c_sp_position      : integer := gc_nom_sync_seg + gc_nom_prop_seg + gc_nom_phase_seg1;
+  constant c_data_sp_position : integer := gc_data_sync_seg + gc_data_prop_seg + gc_data_phase_seg1;
+
+  -- TDC requires prescaler = 1 or 2 (ISO 7.3.4)
+  constant c_tdc_prescaler_valid : boolean := (gc_prescaler = 1 or gc_prescaler = 2);
+  constant c_use_tdc             : boolean := gc_tdc_enable = '1' and c_tdc_prescaler_valid;
 
   ---------------------------------------------------------------------------
   -- Registered signals
   ---------------------------------------------------------------------------
-  signal state           : can_pcs_tx_state_t;
-  signal clk_count       : integer range 0 to prescaler - 1;
-  signal tq_count        : integer range 0 to nom_bit_time;
-  signal current_bit     : mac_frame_bit_t;
-  signal delay_count_clk : integer range 0 to max_transmitter_delay_c;
-  signal tdc_counting    : boolean;
-  signal ssp_position    : integer range 0 to data_bit_time - 1;
-  signal fifo_index      : integer range 0 to transmitted_bits_fifo_depth_c - 1;
+  signal state           : std_logic_vector(1 downto 0);
+  signal clk_count       : integer range 0 to gc_prescaler - 1;
+  signal tq_count        : integer range 0 to c_nom_bit_time;
+  signal delay_count_clk : integer range 0 to c_max_transmitter_delay;
+  signal tdc_counting    : std_logic;
+  signal ssp_position    : integer range 0 to c_data_bit_time - 1;
+  signal fifo_index      : integer range 0 to c_transmitted_bits_fifo_depth - 1;
   signal prev_rx_bus     : std_logic;
   signal prev_tx_bus     : std_logic;
+  signal in_data_phase   : std_logic;
 
-  -- PSL-only: guards assertions from firing before valid state
-  signal reset_done : boolean;
+  -- PSL-only
+  signal reset_done : std_logic;
 
 begin
 
   ---------------------------------------------------------------------------
   -- FSM process
   ---------------------------------------------------------------------------
-  fsm : process (clk) is
+  fsm : process (clk_i) is
 
-    variable v_state      : can_pcs_tx_state_t;
-    variable v_pcs_to_mac : can_mac_pcs_tx_if_s2m_t;
+    variable v_state      : std_logic_vector(1 downto 0);
+    variable v_pcs_to_mac : t_can_mac_pcs_tx_if_s2m;
 
     -- Guard variables
-    variable frame_active_v    : boolean;
-    variable tq_tick_v         : boolean;
-    variable bit_boundary_v    : boolean;
-    variable fdf_at_sp_v       : boolean;
-    variable brs_at_boundary_v : boolean;
-    variable exit_data_phase_v : boolean;
+    variable v_frame_active : boolean;
+    variable v_tq_tick      : boolean;
+    variable v_bit_boundary : boolean;
+    variable v_active_bt    : integer;
+    variable v_active_sp    : integer;
 
-    ---------------------------------------------------------------------------
-    -- Advance clk_count and set tq_tick_v.
     ---------------------------------------------------------------------------
     procedure tick_prescaler is
-
     begin
 
-      tq_tick_v := false;
-      if (clk_count = prescaler - 1) then
-        tq_tick_v := true;
+      v_tq_tick := false;
+      if (clk_count = gc_prescaler - 1) then
+        v_tq_tick := true;
         clk_count <= 0;
       else
         clk_count <= clk_count + 1;
@@ -131,199 +136,178 @@ begin
     end procedure tick_prescaler;
 
     ---------------------------------------------------------------------------
-    -- Advance TQ counter and latch next bit boundary.
-    ---------------------------------------------------------------------------
     procedure latch_next_bit (
       bit_time : in integer
     ) is
-
     begin
 
-      bit_boundary_v := tq_tick_v and (tq_count = bit_time - 1);
+      v_bit_boundary := v_tq_tick and (tq_count = bit_time - 1);
 
-      if (bit_boundary_v) then
-        current_bit <= mac_to_pcs_i.data;
-        tq_count    <= 0;
-        tx_bus_o    <= polarity_to_std_logic(mac_to_pcs_i.data.polarity);
-      elsif (tq_tick_v) then
+      if (v_bit_boundary) then
+        tq_count <= 0;
+        tx_bus_o <= mac_to_pcs_i.polarity;
+      elsif (v_tq_tick) then
         tq_count <= tq_count + 1;
       end if;
 
     end procedure latch_next_bit;
 
     ---------------------------------------------------------------------------
-    -- Emit sample point strobe at the given TQ position.
-    ---------------------------------------------------------------------------
     procedure emit_sp (
       sp_pos : in integer
     ) is
     begin
 
-      if (tq_tick_v and tq_count = sp_pos - 1) then
-        v_pcs_to_mac.sample_strobe := '1';
-        v_pcs_to_mac.strobe_type   := sp_strobe;
+      if (v_tq_tick and tq_count = sp_pos - 1) then
+        v_pcs_to_mac.sp := '1';
       end if;
 
     end procedure emit_sp;
 
     ---------------------------------------------------------------------------
-    -- Emit secondary sample point strobe (TDC monitoring).
-    ---------------------------------------------------------------------------
     procedure emit_ssp is
-
-      variable ssp_due_v : boolean;
-
     begin
 
-      ssp_due_v := use_tdc_c and
-                   tq_tick_v and tq_count = ssp_position and
-                   (current_bit.bit_name = esi_bit or
-                    current_bit.bit_name = data_bit or
-                    current_bit.bit_name = stuff_bit or
-                    current_bit.bit_name = fixed_stuff_bit or
-                    current_bit.bit_name = sbs_bit or
-                    current_bit.bit_name = dlc_bit or
-                    current_bit.bit_name = crc_bit);
-
-      if (ssp_due_v) then
-        v_pcs_to_mac.sample_strobe := '1';
-        v_pcs_to_mac.strobe_type   := ssp_strobe;
-        v_pcs_to_mac.fifo_index    := fifo_index;
+      if (c_use_tdc and in_data_phase = '1' and
+          v_tq_tick and tq_count = ssp_position) then
+        v_pcs_to_mac.ssp        := '1';
+        v_pcs_to_mac.fifo_index := std_logic_vector(to_unsigned(fifo_index, v_pcs_to_mac.fifo_index'length));
       end if;
 
     end procedure emit_ssp;
 
     ---------------------------------------------------------------------------
-    -- TDC delay measurement (ISO 11898-1: 7.3.4).
-    ---------------------------------------------------------------------------
     procedure measure_tdc is
 
-      variable tx_rising_edge_v : boolean;
-      variable rx_rising_edge_v : boolean;
-      variable delay_tq_v       : integer;
+      variable v_tx_rising_edge : boolean;
+      variable v_rx_rising_edge : boolean;
+      variable v_delay_tq       : integer;
 
     begin
 
-      tx_rising_edge_v := (prev_tx_bus = recessive_bit_c and tx_bus_o = dominant_bit_c);
-      rx_rising_edge_v := (prev_rx_bus = recessive_bit_c and rx_bus_i = dominant_bit_c);
+      v_tx_rising_edge := (prev_tx_bus = c_recessive and tx_bus_o = c_dominant);
+      v_rx_rising_edge := (prev_rx_bus = c_recessive and rx_bus_i = c_dominant);
 
-      -- Start counter on TX output edge
-      if (use_tdc_c and not tdc_counting and tx_rising_edge_v) then
-        tdc_counting    <= true;
+      if (c_use_tdc and tdc_counting = '0' and v_tx_rising_edge) then
+        tdc_counting    <= '1';
         delay_count_clk <= 0;
-      elsif (tdc_counting and not rx_rising_edge_v and
-             delay_count_clk < max_transmitter_delay_c) then
+      elsif (tdc_counting = '1' and not v_rx_rising_edge and
+             delay_count_clk < c_max_transmitter_delay) then
         delay_count_clk <= delay_count_clk + 1;
       end if;
 
-      -- Latch on registered RX recessive->dominant edge
-      if (rx_rising_edge_v and tdc_counting) then
-        delay_tq_v   := (delay_count_clk + prescaler - 1) / prescaler + ssp_offset;
-        fifo_index   <= calculate_fifo_delay_index(delay_tq_v, data_bit_time);
-        ssp_position <= delay_tq_v mod data_bit_time;
-        tdc_counting <= false;
+      if (v_rx_rising_edge and tdc_counting = '1') then
+        v_delay_tq   := (delay_count_clk + gc_prescaler - 1) / gc_prescaler + gc_ssp_offset;
+        fifo_index   <= calculate_fifo_delay_index(v_delay_tq, c_data_bit_time);
+        ssp_position <= v_delay_tq mod c_data_bit_time;
+        tdc_counting <= '0';
       end if;
 
     end procedure measure_tdc;
 
   begin
 
-    if rising_edge(clk) then
-      if (rst = '1') then
-        state           <= idle;
+    if rising_edge(clk_i) then
+      if (rst_i = '1') then
+        state           <= c_st_idle;
         clk_count       <= 0;
         tq_count        <= 0;
-        current_bit     <= reset_mac_frame_bit_c;
         delay_count_clk <= 0;
-        tdc_counting    <= false;
+        tdc_counting    <= '0';
         ssp_position    <= 0;
         fifo_index      <= 0;
-        prev_rx_bus     <= recessive_bit_c;
-        prev_tx_bus     <= recessive_bit_c;
-        pcs_to_mac_o    <= pcs_to_mac_if_reset_c;
-        tx_bus_o        <= recessive_bit_c;
+        prev_rx_bus     <= c_recessive;
+        prev_tx_bus     <= c_recessive;
+        in_data_phase   <= '0';
+        pcs_to_mac_o    <= c_pcs_to_mac_if_reset;
+        tx_bus_o        <= c_recessive;
       else
         -- Evaluate guards
-        frame_active_v := mac_to_pcs_i.valid;
-        fdf_at_sp_v    := current_bit.bit_name = fdf_bit and
-                          clk_count = prescaler - 1 and tq_count = sp_position - 1;
+        v_frame_active := mac_to_pcs_i.valid = '1';
 
-        -- Initialize state variable from register
         v_state := state;
 
         -- Output defaults
-        v_pcs_to_mac.bus_polarity  := std_logic_to_polarity(rx_bus_i);
-        v_pcs_to_mac.sample_strobe := '0';
-        v_pcs_to_mac.strobe_type   := sp_strobe;
-        v_pcs_to_mac.fifo_index    := 0;
+        v_pcs_to_mac.bus_polarity := rx_bus_i;
+        v_pcs_to_mac.sp           := '0';
+        v_pcs_to_mac.ssp          := '0';
+        v_pcs_to_mac.fifo_index   := (others => '0');
+
+        -- Select active bit time and SP position based on data phase
+        if (in_data_phase = '1') then
+          v_active_bt := c_data_bit_time;
+          v_active_sp := c_data_sp_position;
+        else
+          v_active_bt := c_nom_bit_time;
+          v_active_sp := c_sp_position;
+        end if;
 
         case state is
 
-          when idle =>
+          when c_st_idle =>
             tick_prescaler;
-            latch_next_bit(nom_bit_time);
-            emit_sp(sp_position);
-            -- Transition: latch first bit on valid
-            if (frame_active_v) then
-              current_bit <= mac_to_pcs_i.data;
-              tq_count    <= 0;
-              tx_bus_o    <= polarity_to_std_logic(mac_to_pcs_i.data.polarity);
-              v_state     := transmitting_nominal;
+            latch_next_bit(c_nom_bit_time);
+            emit_sp(c_sp_position);
+            if (v_frame_active) then
+              tq_count <= 0;
+              tx_bus_o <= mac_to_pcs_i.polarity;
+              v_state  := c_st_nominal;
             end if;
 
-          when transmitting_nominal =>
+          when c_st_nominal =>
             tick_prescaler;
-            latch_next_bit(nom_bit_time);
-            emit_sp(sp_position);
-            -- Transition to measuring_delay at FDF bit sample point.
-            if (fdf_at_sp_v) then
-              tdc_counting    <= false;
+            latch_next_bit(c_nom_bit_time);
+            emit_sp(c_sp_position);
+            -- At bit boundary: check start_tdc (FDF bit latched)
+            if (v_bit_boundary and mac_to_pcs_i.start_tdc = '1') then
+              tdc_counting    <= '0';
               delay_count_clk <= 0;
-              v_state         := measuring_delay;
+              v_state         := c_st_measuring;
+            end if;
+            -- At bit boundary: check use_data_rate
+            if (v_bit_boundary and mac_to_pcs_i.use_data_rate = '1') then
+              in_data_phase <= '1';
+              v_state       := c_st_data;
             end if;
 
-          when measuring_delay =>
+          when c_st_measuring =>
             tick_prescaler;
-            latch_next_bit(nom_bit_time);
-            emit_sp(sp_position);
+            latch_next_bit(c_nom_bit_time);
+            emit_sp(c_sp_position);
             measure_tdc;
-            -- Transition at BRS bit boundary
-            brs_at_boundary_v := bit_boundary_v and current_bit.bit_name = brs_bit;
-            if (brs_at_boundary_v) then
-              if (current_bit.polarity = recessive) then
-                v_state := transmitting_data;
-              else
-                v_state := transmitting_nominal;
-              end if;
+            -- At bit boundary: MAC asserts use_data_rate when BRS is recessive
+            if (v_bit_boundary and mac_to_pcs_i.use_data_rate = '1') then
+              in_data_phase <= '1';
+              v_state       := c_st_data;
             end if;
 
-          when transmitting_data =>
+          when c_st_data =>
             tick_prescaler;
-            latch_next_bit(data_bit_time);
-            emit_sp(data_sp_position);
+            latch_next_bit(c_data_bit_time);
+            emit_sp(c_data_sp_position);
             emit_ssp;
-            -- Return to nominal on error flag or CRC delimiter
-            exit_data_phase_v := bit_boundary_v and
-                                 (mac_to_pcs_i.data.bit_name = active_error_flag_bit or
-                                  mac_to_pcs_i.data.bit_name = passive_error_flag_bit or
-                                  mac_to_pcs_i.data.bit_name = crc_delimiter_bit);
-            if (exit_data_phase_v) then
-              v_state := transmitting_nominal;
+            -- At bit boundary: MAC drops use_data_rate at CRC delimiter or error flag
+            if (v_bit_boundary and mac_to_pcs_i.use_data_rate = '0') then
+              in_data_phase <= '0';
+              v_state       := c_st_nominal;
             end if;
+
+          when others =>
+            v_state := c_st_idle;
 
         end case;
 
-        -- Return to idle when frame ends (overrides any state transition).
-        if (not frame_active_v) then
-          v_state      := idle;
-          tdc_counting <= false;
+        -- Return to idle when frame ends
+        if (not v_frame_active) then
+          v_state       := c_st_idle;
+          tdc_counting  <= '0';
+          in_data_phase <= '0';
         end if;
 
-        -- Register remaining updates
+        -- Register updates
         state        <= v_state;
         pcs_to_mac_o <= v_pcs_to_mac;
 
-        -- Edge detection registers
         prev_rx_bus <= rx_bus_i;
         prev_tx_bus <= tx_bus_o;
       end if;
@@ -334,131 +318,96 @@ begin
   debug_state_o <= state;
 
   ---------------------------------------------------------------------------
-  -- PSL-only shadow signals (optimized away by synthesis)
+  -- PSL-only shadow signals
   ---------------------------------------------------------------------------
-  -- PSL-only: one cycle after reset deasserts
-  psl_reset_done : process (clk) is
+  psl_reset_done : process (clk_i) is
   begin
 
-    if rising_edge(clk) then
-      if (rst = '1') then
-        reset_done <= false;
+    if rising_edge(clk_i) then
+      if (rst_i = '1') then
+        reset_done <= '0';
       else
-        reset_done <= true;
+        reset_done <= '1';
       end if;
     end if;
 
   end process psl_reset_done;
 
 --------------------------------------------------------------
--- REQ-PCS-001: D_Transmit active/passive at data phase boundaries
--- REQ-PCS-004: FD data bit time only in FD data phase
--- REQ-PCS-005: Time quantum derived from prescaler
--- REQ-PCS-008: Sample point at end of Phase_Seg1
--- REQ-PCS-017: TDC mechanism support
--- REQ-PCS-018: TDC only with BRS recessive and prescaler in {1,2}
--- REQ-PCS-022: SSP = measured delay + ssp_offset
--- REQ-PCS-034: Output symbol on Output_Unit from MAC
---------------------------------------------------------------
-
---------------------------------------------------------------
 -- Default clock
 --------------------------------------------------------------
--- psl default clock is rising_edge(clk);
+-- psl default clock is rising_edge(clk_i);
 --------------------------------------------------------------
 
 --------------------------------------------------------------
 -- Environment assumptions
 --------------------------------------------------------------
--- psl assume_reset_init : assume (rst = '1');
--- psl assume_reset_done_init : assume (not reset_done);
---------------------------------------------------------------
--- psl assume_no_unknown_polarity : assume always
--- (mac_to_pcs_i.data.polarity = dominant or
--- mac_to_pcs_i.data.polarity = recessive);
+-- psl assume_reset_init : assume (rst_i = '1');
+-- psl assume_reset_done_init : assume (reset_done = '0');
 --------------------------------------------------------------
 
 --------------------------------------------------------------
 -- Assertions
 --------------------------------------------------------------
 -- psl psl_1 : assert always
--- { rst = '1' }
+-- { rst_i = '1' }
 -- |=>
--- { state = idle and
+-- { state = c_st_idle and
 -- clk_count = 0 and
 -- tq_count = 0 and
 -- delay_count_clk = 0 and
--- not tdc_counting and
+-- tdc_counting = '0' and
 -- ssp_position = 0 and
 -- fifo_index = 0 and
--- tx_bus_o = recessive_bit_c and
--- pcs_to_mac_o.sample_strobe = '0' }
+-- in_data_phase = '0' and
+-- tx_bus_o = c_recessive and
+-- pcs_to_mac_o.sp = '0' }
 -- report "Reset did not clear all registers to default values";
 --------------------------------------------------------------
 -- psl psl_2 : assert always
--- { reset_done }
+-- { reset_done = '1' }
 -- |->
--- { clk_count <= prescaler - 1 and
--- tq_count <= nom_bit_time and
--- delay_count_clk <= max_transmitter_delay_c }
+-- { clk_count <= gc_prescaler - 1 and
+-- tq_count <= c_nom_bit_time and
+-- delay_count_clk <= c_max_transmitter_delay }
 -- report "Counter out of valid range";
 --------------------------------------------------------------
 -- psl psl_3 : assert always
--- { reset_done and
--- state /= idle and
--- not mac_to_pcs_i.valid }
+-- { reset_done = '1' and
+-- state /= c_st_idle and
+-- mac_to_pcs_i.valid = '0' }
 -- |=>
--- { state = idle and
--- not tdc_counting }
--- report "REQ-PCS-001: Did not return to idle when frame ended";
+-- { state = c_st_idle and
+-- tdc_counting = '0' and
+-- in_data_phase = '0' }
+-- report "Did not return to idle when frame ended";
 --------------------------------------------------------------
 -- psl psl_4 : assert always
--- { reset_done and
--- state = transmitting_data }
--- |->
--- { use_tdc_c or
--- pcs_to_mac_o.strobe_type = sp_strobe }
--- report "REQ-PCS-018: Data phase SSP without TDC enabled";
+-- { reset_done = '1' and
+-- state = c_st_idle and
+-- mac_to_pcs_i.valid = '1' }
+-- |=>
+-- { state = c_st_nominal and
+-- tq_count = 0 }
+-- report "Frame start did not transition to nominal";
 --------------------------------------------------------------
 -- psl psl_5 : assert always
--- { reset_done and
--- state = idle and
--- mac_to_pcs_i.valid }
+-- { reset_done = '1' and
+-- pcs_to_mac_o.sp = '1' }
 -- |=>
--- { state = transmitting_nominal and
--- tq_count = 0 }
--- report "Frame start did not transition to transmitting_nominal";
---------------------------------------------------------------
--- psl psl_6 : assert always
--- { reset_done and
--- state = transmitting_nominal and
--- current_bit.bit_name = fdf_bit and
--- clk_count = prescaler - 1 and
--- tq_count = sp_position - 1 }
--- |=>
--- { state = measuring_delay and
--- not tdc_counting and
--- delay_count_clk = 0 }
--- report "REQ-PCS-017: FDF sample point did not trigger TDC measurement";
---------------------------------------------------------------
--- psl psl_7 : assert always
--- { reset_done and
--- pcs_to_mac_o.sample_strobe = '1' }
--- |=>
--- { pcs_to_mac_o.sample_strobe = '0' }
--- report "REQ-PCS-008: Sample strobe not single-cycle pulse";
+-- { pcs_to_mac_o.sp = '0' }
+-- report "SP strobe not single-cycle pulse";
 --------------------------------------------------------------
 
 --------------------------------------------------------------
 -- Cover points
 --------------------------------------------------------------
--- psl cover_1 : cover { state = transmitting_nominal };
--- psl cover_2 : cover { state = measuring_delay };
--- psl cover_3 : cover { state = transmitting_data };
--- psl cover_4 : cover { pcs_to_mac_o.sample_strobe = '1' and pcs_to_mac_o.strobe_type = sp_strobe };
--- psl cover_5 : cover { pcs_to_mac_o.sample_strobe = '1' and pcs_to_mac_o.strobe_type = ssp_strobe };
--- psl cover_6 : cover { tdc_counting };
--- psl cover_7 : cover { state = transmitting_data and pcs_to_mac_o.sample_strobe = '1' };
+-- psl cover_1 : cover { state = c_st_nominal };
+-- psl cover_2 : cover { state = c_st_measuring };
+-- psl cover_3 : cover { state = c_st_data };
+-- psl cover_4 : cover { pcs_to_mac_o.sp = '1' };
+-- psl cover_5 : cover { pcs_to_mac_o.ssp = '1' };
+-- psl cover_6 : cover { tdc_counting = '1' };
 --------------------------------------------------------------
 
 end architecture rtl;

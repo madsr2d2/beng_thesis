@@ -1,8 +1,9 @@
 --------------------------------------------------------------------------------
 -- Title      : CAN TX Protocol Testbench
--- Project    : CAN Bus Transmitter
+-- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
 --------------------------------------------------------------------------------
 -- File       : can_tx_protocol_tb.vhd
+-- Author     : Mads Richardt
 -- Standard   : VHDL-2008
 --------------------------------------------------------------------------------
 -- Description: Protocol-focused TX integration testbench.
@@ -19,7 +20,7 @@ library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
   use work.can_protocol_pkg.all;
-  use work.can_types_pkg.all;
+  use work.pk_can_types.all;
 
 library osvvm;
   use osvvm.AlertLogPkg.all;
@@ -51,10 +52,10 @@ architecture tb of can_tx_protocol_tb is
   ------------------------------------------------------------------------------
   -- DUT interfaces
   ------------------------------------------------------------------------------
-  signal llc_user_i : can_user_llc_tx_if_s2d_t;
-  signal llc_user_o : can_user_llc_tx_if_d2s_t;
-  signal fce_i      : can_mac_fce_if_s2m_t;
-  signal fce_o      : can_mac_fce_if_m2s_t;
+  signal llc_user_i : t_can_user_llc_tx_if_s2d;
+  signal llc_user_o : t_can_user_llc_tx_if_d2s;
+  signal fce_i      : t_can_mac_fce_if_s2m;
+  signal fce_o      : t_can_mac_fce_if_m2s;
   signal tx_bus_o   : std_logic;
   signal rx_bus_i   : std_logic;
 
@@ -62,12 +63,13 @@ architecture tb of can_tx_protocol_tb is
   -- Bus/ACK model control
   ------------------------------------------------------------------------------
   signal inject_ack      : boolean := true;
-  signal bus_override    : std_logic := recessive_bit_c;
+  signal bus_override    : std_logic := c_recessive;
   signal bus_override_en : boolean := false;
 
   -- Debug signals for ACK injection timing
-  signal debug_mac_to_pcs : can_mac_pcs_tx_if_m2s_t;
-  signal debug_pcs_to_mac : can_mac_pcs_tx_if_s2m_t;
+  signal debug_mac_to_pcs : t_can_mac_pcs_tx_if_m2s;
+  signal debug_pcs_to_mac : t_can_mac_pcs_tx_if_s2m;
+  signal debug_bit_name   : t_mac_frame_bit_name;
 
   ------------------------------------------------------------------------------
   -- Protocol checker control
@@ -75,12 +77,12 @@ architecture tb of can_tx_protocol_tb is
   signal checker_enable         : boolean := false;
   signal checker_request_id     : integer := 0;
   signal checker_done_id        : integer := 0;
-  signal checker_expected_frame : llc_frame_t;
-  signal checker_expected_params : frame_params_t := frame_params_reset_c;
+  signal checker_expected_frame : t_llc_frame;
+  signal checker_expected_params : t_frame_params := c_frame_params_reset;
 
-  constant max_raw_bits_c : integer := max_mac_frame_length_c * 2;
+  constant max_raw_bits_c : integer := c_max_mac_frame_length * 2;
   type raw_bits_t is array (0 to max_raw_bits_c - 1) of std_logic;
-  type logical_bits_t is array (0 to max_mac_frame_length_c - 1) of std_logic;
+  type logical_bits_t is array (0 to c_max_mac_frame_length - 1) of std_logic;
 
 begin
 
@@ -88,8 +90,8 @@ begin
 
   dut : entity work.can_tx
     port map (
-      clk                => clk,
-      rst                => rst,
+      clk_i              => clk,
+      rst_i              => rst,
       llc_user_i         => llc_user_i,
       llc_user_o         => llc_user_o,
       fce_i              => fce_i,
@@ -97,13 +99,20 @@ begin
       tx_bus_o           => tx_bus_o,
       rx_bus_i           => rx_bus_i,
       debug_mac_to_pcs_o => debug_mac_to_pcs,
-      debug_pcs_to_mac_o => debug_pcs_to_mac
+      debug_pcs_to_mac_o => debug_pcs_to_mac,
+      debug_ack_error_o  => open,
+      debug_form_error_o => open,
+      debug_data_exit_o  => open,
+      debug_pcs_state_o  => open,
+      debug_fsm_state_o  => open,
+      debug_bit_name_o   => debug_bit_name
     );
 
   -- Loopback + optional ACK-slot override.
   rx_bus_i <= bus_override when bus_override_en else tx_bus_o;
-  fce_i.error_passive <= false;
-  fce_i.bus_off       <= false;
+  fce_i.error_passive_request <= '0';
+  fce_i.error_active_request  <= '1';
+  fce_i.bus_off               <= '0';
 
   ------------------------------------------------------------------------------
   -- ACK injection: synchronized to DUT bit boundaries via debug signals
@@ -113,9 +122,8 @@ begin
     wait until rst = '0';
     loop
       wait until rising_edge(clk);
-      if (inject_ack and debug_pcs_to_mac.sample_strobe = '1' and
-          debug_mac_to_pcs.valid and debug_mac_to_pcs.data.bit_name = crc_delimiter_bit) then
-        bus_override    <= dominant_bit_c;
+      if (inject_ack and debug_bit_name = ack_bit) then
+        bus_override    <= c_dominant;
         bus_override_en <= true;
         wait for nom_bit_time_clk_c * clk_period_c;
         bus_override_en <= false;
@@ -128,7 +136,7 @@ begin
   ------------------------------------------------------------------------------
   protocol_checker : process is
     variable alert_id : AlertLogIDType;
-    variable params_v : frame_params_t;
+    variable params_v : t_frame_params;
     variable raw_bits_v : raw_bits_t;
     variable logical_bits_v : logical_bits_t;
     variable raw_count_v : integer;
@@ -139,12 +147,16 @@ begin
     variable sampled_bit_v : std_logic;
     variable is_stuff_bit_v : boolean;
     variable req_id_v : integer;
+    variable crc_stop_int : integer;
+    variable eof_stop_int : integer;
+    variable ack_delimiter_int : integer;
+    variable eof_start_int : integer;
   begin
     alert_id := GetAlertLogID("can_tx_protocol_tb/checker");
     wait until rst = '0';
 
     loop
-      wait until tx_bus_o = dominant_bit_c and tx_bus_o'event;
+      wait until tx_bus_o = c_dominant and tx_bus_o'event;
 
       if (not checker_enable) then
         next;
@@ -152,13 +164,20 @@ begin
 
       req_id_v := checker_request_id;
       params_v := checker_expected_params;
+
+      -- Convert t_mac_frame_position_vec to integer for comparison
+      crc_stop_int      := to_integer(unsigned(params_v.crc_stop));
+      eof_stop_int      := to_integer(unsigned(params_v.eof_stop));
+      ack_delimiter_int := to_integer(unsigned(params_v.ack_delimiter));
+      eof_start_int     := to_integer(unsigned(params_v.eof_start));
+
       raw_count_v := 1;
       logical_count_v := 1;
       frame_position_v := 0;
       consecutive_count_v := 1;
-      last_polarity_v := dominant_bit_c;
-      raw_bits_v(0) := dominant_bit_c;
-      logical_bits_v(0) := dominant_bit_c;
+      last_polarity_v := c_dominant;
+      raw_bits_v(0) := c_dominant;
+      logical_bits_v(0) := c_dominant;
 
       for bit_idx in 1 to 260 loop
         if (raw_count_v >= max_raw_bits_c) then
@@ -172,9 +191,7 @@ begin
         raw_bits_v(raw_count_v) := sampled_bit_v;
         raw_count_v := raw_count_v + 1;
 
-        -- Dynamic stuffing applies only up to the CRC sequence (excluding
-        -- CRC delimiter) and only when opposite-polarity stuff bit is seen.
-        if (frame_position_v < params_v.crc_stop - 1 and
+        if (frame_position_v < crc_stop_int - 1 and
             consecutive_count_v >= 5 and
             sampled_bit_v /= last_polarity_v) then
           is_stuff_bit_v := true;
@@ -193,19 +210,19 @@ begin
           end if;
         end if;
 
-        if (frame_position_v >= params_v.eof_stop - 1) then
+        if (frame_position_v >= eof_stop_int - 1) then
           exit;
         end if;
       end loop;
 
       -- Basic logical frame structure checks.
-      AffirmIf(alert_id, logical_count_v = params_v.eof_stop,
-               "Logical frame length check, expected " & integer'image(params_v.eof_stop) &
+      AffirmIf(alert_id, logical_count_v = eof_stop_int,
+               "Logical frame length check, expected " & integer'image(eof_stop_int) &
                " got " & integer'image(logical_count_v));
-      AffirmIf(alert_id, logical_bits_v(sof_c) = dominant_bit_c, "SOF must be dominant");
-      AffirmIf(alert_id, logical_bits_v(params_v.ack_delimiter) = recessive_bit_c, "ACK delimiter must be recessive");
-      for p in params_v.eof_start to params_v.eof_stop - 1 loop
-        AffirmIf(alert_id, logical_bits_v(p) = recessive_bit_c,
+      AffirmIf(alert_id, logical_bits_v(c_sof) = c_dominant, "SOF must be dominant");
+      AffirmIf(alert_id, logical_bits_v(ack_delimiter_int) = c_recessive, "ACK delimiter must be recessive");
+      for p in eof_start_int to eof_stop_int - 1 loop
+        AffirmIf(alert_id, logical_bits_v(p) = c_recessive,
                  "EOF bit must be recessive at pos " & integer'image(p));
       end loop;
 
@@ -218,9 +235,9 @@ begin
   ------------------------------------------------------------------------------
   test_runner : process is
     variable alert_id : AlertLogIDType;
-    variable frame_v : llc_frame_t;
-    variable config_0_v : byte_t;
-    variable config_1_v : byte_t;
+    variable frame_v : t_llc_frame;
+    variable config_0_v : t_byte;
+    variable config_1_v : t_byte;
 
     procedure wait_clocks (
       n : positive
@@ -241,7 +258,7 @@ begin
     end procedure set_frame_inputs;
 
     procedure send_user_byte (
-      value : byte_t;
+      value : t_byte;
       sop   : std_logic;
       eop   : std_logic
     ) is
@@ -257,28 +274,26 @@ begin
     end procedure send_user_byte;
 
     procedure submit_frame (
-      frame : llc_frame_t
+      frame : t_llc_frame
     ) is
       variable data_byte_count_v : integer;
       variable data_bit_start_v  : integer;
       variable id_v              : std_logic_vector(28 downto 0);
       variable is_extended_v     : boolean;
-      variable byte0_v           : byte_t;
-      variable byte1_v           : byte_t;
-      variable byte2_v           : byte_t;
-      variable byte3_v           : byte_t;
-      variable byte4_v           : byte_t;
-      variable byte69_v          : byte_t;
-      variable byte70_v          : byte_t;
+      variable byte0_v           : t_byte;
+      variable byte1_v           : t_byte;
+      variable byte2_v           : t_byte;
+      variable byte3_v           : t_byte;
+      variable byte4_v           : t_byte;
+      variable byte69_v          : t_byte;
+      variable byte70_v          : t_byte;
     begin
-      -- Set config bytes for protocol checker (used by run_classic_protocol_test)
       config_0_v := frame.config_0.format & frame.config_0.ftyp & frame.config_0.esi & frame.config_0.brs & "00";
       config_1_v := frame.config_1.dlc & "0000";
 
       id_v          := frame.id(28 downto 0);
       is_extended_v := frame.config_0.format(2) = '1';
 
-      -- Bytes 0-3: ID (right-aligned per legacy spec)
       if (is_extended_v) then
         byte0_v := "000" & id_v(28 downto 24);
         byte1_v := id_v(23 downto 16);
@@ -291,28 +306,21 @@ begin
         byte3_v := id_v(7 downto 0);
       end if;
 
-      -- Byte 4: FMT and DLC
       byte4_v := "0" & frame.config_0.format & frame.config_1.dlc;
-
-      -- Byte 69: IDE flag
       byte69_v := "0000000" & frame.config_0.format(2);
-
-      -- Byte 70: BRS, ESI, RTR
       byte70_v := "00000" & frame.config_0.brs & frame.config_0.esi & frame.config_0.ftyp;
 
       data_byte_count_v := dlc_to_data_length(
-                              dlc_t(to_integer(unsigned(frame.config_1.dlc))),
-                              decode_llc_format(frame.config_0.format)
+                              t_dlc(to_integer(unsigned(frame.config_1.dlc))),
+                              frame.config_0.format
                             );
 
-      -- Stream 71 legacy bytes: SOP on byte 0, EOP on byte 70
       send_user_byte(byte0_v, '1', '0');
       send_user_byte(byte1_v, '0', '0');
       send_user_byte(byte2_v, '0', '0');
       send_user_byte(byte3_v, '0', '0');
       send_user_byte(byte4_v, '0', '0');
 
-      -- Bytes 5-68: data payload then zero-padding
       for i in 0 to 63 loop
         if (i < data_byte_count_v) then
           data_bit_start_v := frame.data'left - i * 8;
@@ -323,7 +331,7 @@ begin
       end loop;
 
       send_user_byte(byte69_v, '0', '0');
-      send_user_byte(byte70_v, '0', '1'); -- EOP on last byte
+      send_user_byte(byte70_v, '0', '1');
 
       llc_user_i.avalon_st_source.valid <= '0';
       llc_user_i.avalon_st_source.sop   <= '0';
@@ -331,7 +339,7 @@ begin
     end procedure submit_frame;
 
     procedure wait_for_transfer_status (
-      exp_status : transfer_status_t;
+      exp_status : std_logic_vector(2 downto 0);
       timeout    : time;
       constant test_name : string
     ) is
@@ -342,8 +350,8 @@ begin
         exit when llc_user_o.transfer_status = exp_status;
       end loop;
       AffirmIf(alert_id, llc_user_o.transfer_status = exp_status,
-               test_name & ": expected status " & transfer_status_t'image(exp_status) &
-               " got " & transfer_status_t'image(llc_user_o.transfer_status));
+               test_name & ": expected status " & to_hstring(exp_status) &
+               " got " & to_hstring(llc_user_o.transfer_status));
     end procedure wait_for_transfer_status;
 
     procedure wait_for_checker_done (
@@ -366,7 +374,7 @@ begin
 
     procedure run_classic_protocol_test (
       constant test_name : string;
-      constant frame     : llc_frame_t
+      constant frame     : t_llc_frame
     ) is
       variable req_id_v : integer;
     begin
@@ -389,7 +397,7 @@ begin
       submit_frame(frame);
       wait_clocks(2);
       AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '0', test_name & ": tx_ready should drop after submit");
-      wait_for_transfer_status(transmitted, 220 us, test_name);
+      wait_for_transfer_status(c_transmitted, 220 us, test_name);
       wait_for_checker_done(req_id_v, 220 us, test_name);
 
       checker_enable <= false;
@@ -417,7 +425,7 @@ begin
     -- Test 1: CC basic data frame (DLC=1)
     frame_v.id                 := (others => '0');
     frame_v.id(10 downto 0)    := std_logic_vector(to_unsigned(16#555#, 11));
-    frame_v.config_0.format    := llc_fmt_cb_c;
+    frame_v.config_0.format    := c_llc_fmt_cb;
     frame_v.config_0.ftyp      := '0';
     frame_v.config_0.brs       := '0';
     frame_v.config_0.esi       := '0';
@@ -425,19 +433,19 @@ begin
     frame_v.config_1.dlc       := std_logic_vector(to_unsigned(1, 4));
     frame_v.config_1.unused    := "0000";
     frame_v.data               := (others => '0');
-    frame_v.data(max_data_bytes_c * byte_width_c - 1 downto max_data_bytes_c * byte_width_c - 8) := x"A5";
+    frame_v.data(c_max_data_bytes * c_byte_width - 1 downto c_max_data_bytes * c_byte_width - 8) := x"A5";
     run_classic_protocol_test("Test 1: CC basic data frame protocol check", frame_v);
 
     -- Test 2: CC extended data frame (DLC=2)
     frame_v.id                 := std_logic_vector(to_unsigned(16#1ABCDE1#, 32));
-    frame_v.config_0.format    := llc_fmt_ce_c;
+    frame_v.config_0.format    := c_llc_fmt_ce;
     frame_v.config_0.ftyp      := '0';
     frame_v.config_0.brs       := '0';
     frame_v.config_0.esi       := '0';
     frame_v.config_1.dlc       := std_logic_vector(to_unsigned(2, 4));
     frame_v.data   := (others => '0');
-    frame_v.data(max_data_bytes_c * byte_width_c - 1 downto max_data_bytes_c * byte_width_c - 8) := x"12";
-    frame_v.data(max_data_bytes_c * byte_width_c - 9 downto max_data_bytes_c * byte_width_c - 16) := x"34";
+    frame_v.data(c_max_data_bytes * c_byte_width - 1 downto c_max_data_bytes * c_byte_width - 8) := x"12";
+    frame_v.data(c_max_data_bytes * c_byte_width - 9 downto c_max_data_bytes * c_byte_width - 16) := x"34";
     run_classic_protocol_test("Test 2: CC extended data frame protocol check", frame_v);
 
     Log(alert_id, "All can_tx protocol tests completed", PASSED);
