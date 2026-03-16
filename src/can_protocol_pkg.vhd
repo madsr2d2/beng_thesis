@@ -88,6 +88,10 @@ package can_protocol_pkg is
   ---------------------------------------------------------------------------
   function fifo_init return transmitted_bits_fifo_t;
 
+  function is_fixed_stuff_bit_position (
+    position_in_crc_field : integer
+  ) return boolean;
+
   procedure fifo_write (
     signal fifo           : inout transmitted_bits_fifo_t;
     signal fifo_write_ptr : inout fifo_write_ptr_t;
@@ -667,10 +671,10 @@ package body can_protocol_pkg is
     variable crc_length_v        : integer;
     variable fixed_stuff_count_v : integer;
     variable crc_field_length_v  : integer;
-    variable sbc_start_v         : position_t;
-    variable rtr_polarity_v      : polarity_t;
-    variable brs_polarity_v      : polarity_t;
-    variable esi_polarity_v      : polarity_t;
+
+    variable rtr_polarity_v : polarity_t;
+    variable brs_polarity_v : polarity_t;
+    variable esi_polarity_v : polarity_t;
 
   begin
 
@@ -710,69 +714,67 @@ package body can_protocol_pkg is
 
     data_bits_v := data_length_v * byte_width_c;
 
+    -- Default control bit fields (overridden per-format below)
+    result.rtr_bit           := unknown_bit_c;
+    result.ide_bit           := unknown_bit_c;
+    result.srr_bit           := unknown_bit_c;
+    result.rrs_bit           := unknown_bit_c;
+    result.fdf_bit           := unknown_bit_c;
+    result.res_bit           := unknown_bit_c;
+    result.r0_bit            := unknown_bit_c;
+    result.r1_bit            := unknown_bit_c;
+    result.brs_bit           := unknown_bit_c;
+    result.esi_bit           := unknown_bit_c;
+    result.extended_id_start := 0;
+    result.extended_id_stop  := 0;
+
     -- Populate field boundaries based on format
     case result.format is
       when cc_basic =>
-        data_start_v             := cb_data_start_c.position;
-        result.dlc_start         := cb_dlc_start_c.position;
-        result.base_id_start     := cb_base_id_start_c.position;
-        result.base_id_stop      := cb_base_id_start_c.position + base_id_width_c - 1;
-        result.extended_id_start := 0;
-        result.extended_id_stop  := 0;
-        result.rtr_bit           := (position => cb_rtr_c.position, polarity => rtr_polarity_v);
-        result.ide_bit           := cb_ide_c;
-        result.r0_bit            := cb_r0_c;
-        result.srr_bit           := unknown_bit_c;
-        result.rrs_bit           := unknown_bit_c;
-        result.fdf_bit           := unknown_bit_c;
-        result.res_bit           := unknown_bit_c;
-        result.r1_bit            := unknown_bit_c;
-        result.brs_bit           := unknown_bit_c;
-        result.esi_bit           := unknown_bit_c;
+        data_start_v         := cb_data_start_c.position;
+        result.dlc_start     := cb_dlc_start_c.position;
+        result.dlc_stop      := cb_dlc_stop_c.position;
+        result.base_id_start := cb_base_id_start_c.position;
+        result.base_id_stop  := cb_base_id_stop_c.position;
+        result.rtr_bit       := (position => cb_rtr_c.position, polarity => rtr_polarity_v);
+        result.ide_bit       := cb_ide_c;
+        result.r0_bit        := cb_r0_c;
 
       when cc_extended =>
         data_start_v             := ce_data_start_c.position;
         result.dlc_start         := ce_dlc_start_c.position;
+        result.dlc_stop          := ce_dlc_stop_c.position;
         result.base_id_start     := ce_base_id_start_c.position;
-        result.base_id_stop      := ce_base_id_start_c.position + base_id_width_c - 1;
+        result.base_id_stop      := ce_base_id_stop_c.position;
         result.extended_id_start := ce_extended_id_start_c.position;
-        result.extended_id_stop  := ce_extended_id_start_c.position + extended_id_width_c - 1;
+        result.extended_id_stop  := ce_extended_id_stop_c.position;
         result.srr_bit           := ce_srr_c;
         result.ide_bit           := ce_ide_c;
         result.rtr_bit           := (position => ce_rtr_c.position, polarity => rtr_polarity_v);
         result.r1_bit            := ce_r1_c;
         result.r0_bit            := ce_r0_c;
-        result.rrs_bit           := unknown_bit_c;
-        result.fdf_bit           := unknown_bit_c;
-        result.res_bit           := unknown_bit_c;
-        result.brs_bit           := unknown_bit_c;
-        result.esi_bit           := unknown_bit_c;
 
       when fd_basic =>
-        data_start_v             := fb_data_start_c.position;
-        result.dlc_start         := fb_dlc_start_c.position;
-        result.base_id_start     := fd_base_id_start_c.position;
-        result.base_id_stop      := fd_base_id_start_c.position + base_id_width_c - 1;
-        result.extended_id_start := 0;
-        result.extended_id_stop  := 0;
-        result.rrs_bit           := fb_rrs_c;
-        result.ide_bit           := fb_ide_c;
-        result.fdf_bit           := fb_fdf_c;
-        result.res_bit           := fb_res_c;
-        result.brs_bit           := (position => fb_brs_c.position, polarity => brs_polarity_v);
-        result.esi_bit           := (position => fb_esi_c.position, polarity => esi_polarity_v);
-        result.srr_bit           := unknown_bit_c;
-        result.rtr_bit           := unknown_bit_c;
-        result.r0_bit            := unknown_bit_c;
-        result.r1_bit            := unknown_bit_c;
+        data_start_v         := fb_data_start_c.position;
+        result.dlc_start     := fb_dlc_start_c.position;
+        result.dlc_stop      := fb_dlc_stop_c.position;
+        result.base_id_start := fd_base_id_start_c.position;
+        result.base_id_stop  := fd_base_id_stop_c.position;
+        result.rrs_bit       := fb_rrs_c;
+        result.ide_bit       := fb_ide_c;
+        result.fdf_bit       := fb_fdf_c;
+        result.res_bit       := fb_res_c;
+        result.brs_bit       := (position => fb_brs_c.position, polarity => brs_polarity_v);
+        result.esi_bit       := (position => fb_esi_c.position, polarity => esi_polarity_v);
 
       when fd_extended =>
         data_start_v             := fe_data_start_c.position;
         result.dlc_start         := fe_dlc_start_c.position;
+        result.dlc_stop          := fe_dlc_stop_c.position;
         result.base_id_start     := fe_base_id_start_c.position;
-        result.base_id_stop      := fe_base_id_start_c.position + base_id_width_c - 1;
+        result.base_id_stop      := fe_base_id_stop_c.position;
         result.extended_id_start := fe_extended_id_start_c.position;
-        result.extended_id_stop  := fe_extended_id_start_c.position + extended_id_width_c - 1;
+        result.extended_id_stop  := fe_extended_id_stop_c.position;
         result.srr_bit           := fe_srr_c;
         result.ide_bit           := fe_ide_c;
         result.rrs_bit           := fe_rrs_c;
@@ -780,27 +782,12 @@ package body can_protocol_pkg is
         result.res_bit           := fe_res_c;
         result.brs_bit           := (position => fe_brs_c.position, polarity => brs_polarity_v);
         result.esi_bit           := (position => fe_esi_c.position, polarity => esi_polarity_v);
-        result.rtr_bit           := unknown_bit_c;
-        result.r0_bit            := unknown_bit_c;
-        result.r1_bit            := unknown_bit_c;
 
       when others =>
-        data_start_v             := 0;
-        result.dlc_start         := 0;
-        result.base_id_start     := 0;
-        result.base_id_stop      := 0;
-        result.extended_id_start := 0;
-        result.extended_id_stop  := 0;
-        result.rtr_bit           := unknown_bit_c;
-        result.ide_bit           := unknown_bit_c;
-        result.srr_bit           := unknown_bit_c;
-        result.rrs_bit           := unknown_bit_c;
-        result.fdf_bit           := unknown_bit_c;
-        result.res_bit           := unknown_bit_c;
-        result.r0_bit            := unknown_bit_c;
-        result.r1_bit            := unknown_bit_c;
-        result.brs_bit           := unknown_bit_c;
-        result.esi_bit           := unknown_bit_c;
+        data_start_v         := 0;
+        result.dlc_start     := 0;
+        result.base_id_start := 0;
+        result.base_id_stop  := 0;
     end case;
 
     -- Calculate all data and CRC field positions
@@ -812,27 +799,21 @@ package body can_protocol_pkg is
       result.data_stop := data_start_v;
     end if;
 
-    -- DLC field boundaries
-    result.dlc_stop := result.dlc_start + dlc_field_width_c;
-
-    crc_length_v     := get_crc_length(result.format, data_length_v);
-    result.crc_start := result.data_stop + 1;
+    crc_length_v := get_crc_length(result.format, data_length_v);
 
     -- CAN FD has SBC field after data, CAN Classic goes directly to CRC
     if (result.is_fd_frame) then
-      sbc_start_v         := result.crc_start;
-      result.sbc_start    := sbc_start_v;
-      result.sbc_stop     := sbc_start_v + sbc_field_width_c;
+      result.sbc_start    := result.data_stop + 1;
+      result.sbc_stop     := result.sbc_start + sbc_field_width_c;
       result.crc_start    := result.sbc_stop;
       fixed_stuff_count_v := get_fixed_stuff_bit_count(sbc_field_width_c + crc_length_v);
       crc_field_length_v  := crc_length_v + fixed_stuff_count_v;
       result.crc_stop     := result.crc_start + crc_field_length_v;
     else
-      result.sbc_start   := 0;
-      result.sbc_stop    := 0;
-      crc_field_length_v := crc_length_v;
-      result.crc_start   := result.data_stop + 1;
-      result.crc_stop    := result.crc_start + crc_length_v;
+      result.sbc_start := 0;
+      result.sbc_stop  := 0;
+      result.crc_start := result.data_stop + 1;
+      result.crc_stop  := result.crc_start + crc_length_v;
     end if;
 
     result.crc_delimiter := result.crc_stop;

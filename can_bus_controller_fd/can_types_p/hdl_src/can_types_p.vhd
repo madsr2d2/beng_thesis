@@ -2,7 +2,7 @@
 -- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
--- Requirements:  
+-- Requirements:
 --
 -- Description: Centralized type and constant definitions for the CAN/CAN-FD design per ISO 11898-1:2015.
 --
@@ -15,25 +15,25 @@
 --                6. Frame Constants          -- bit positions for CB/CE/FB/FE on-wire frames
 --                7. Interface Types          -- all _if_t records with reset constants
 --                8. LLC frame format         -- FMT encodings, legacy frame layout, config byte bit positions
---             
+--
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-03-15  TMYAES:   Initial implementation
 --
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
-use ieee.math_real.all;
-use work.pk_man_global.all;
+  use ieee.std_logic_1164.all;
+  use ieee.numeric_std.all;
+  use ieee.math_real.all;
+  use work.pk_man_global.all;
 
 package pk_can_types is
 
   ---------------------------------------------------------------------------
   -- 1. Protocol Constants
   ---------------------------------------------------------------------------
-  constant c_dominant    : std_logic                                      := '0';
-  constant c_recessive   : std_logic                                      := '1';
+  constant c_dominant        : std_logic                                      := '0';
+  constant c_recessive       : std_logic                                      := '1';
   constant c_sof             : integer                                        := 0;
   constant c_crc_15_length   : integer                                        := 15;
   constant c_crc_17_length   : integer                                        := 17;
@@ -49,7 +49,7 @@ package pk_can_types is
   constant c_byte_width      : integer                                        := 8;
   constant c_stuff_width     : integer                                        := 5;
 
-  constant c_max_mac_frame_length        : integer := 640; -- TODO: Check this is right
+  constant c_max_mac_frame_length        : integer := 640;  -- TODO: Check this is right
   subtype  t_bit_count is integer range 0 to c_max_mac_frame_length;
   constant c_base_id_width               : integer := 11;
   constant c_extended_id_width           : integer := 18;
@@ -59,23 +59,23 @@ package pk_can_types is
   constant c_bus_idle_condition_width    : integer := 11;   -- ISO 11898-1: 3.34
   constant c_intermission_width          : integer := 3;    -- ISO 11898-1: 6.6.7.2
   constant c_suspend_transmission_width  : integer := 8;    -- ISO 11898-1: 6.6.7.4
-  constant c_transmitted_bits_fifo_depth : integer := 32; 
+  constant c_transmitted_bits_fifo_depth : integer := 32;
   constant c_dlc_max_decimal_value       : integer := 15;
   constant c_max_data_bytes              : integer := 64;
   constant c_tdc_bit_time_max            : integer := 1000; -- ISO 11898-1: 7.3.4
-  
+
   -- FMT field encodings (3-bit field in config byte 0 / legacy byte 4 [6:4])
   constant c_llc_fmt_cb : std_logic_vector(2 downto 0) := "000"; -- Classic Basic
   constant c_llc_fmt_ce : std_logic_vector(2 downto 0) := "100"; -- Classic Extended
   constant c_llc_fmt_fb : std_logic_vector(2 downto 0) := "010"; -- FD Basic
   constant c_llc_fmt_fe : std_logic_vector(2 downto 0) := "110"; -- FD Extended
 
-  constant c_ongoing   : std_logic_vector(2 downto 0) := "000";
-  constant c_lost_arb   : std_logic_vector(2 downto 0) := "100";
-  constant c_transmitted   : std_logic_vector(2 downto 0) := "010";
-  constant c_aborted   : std_logic_vector(2 downto 0) := "001";
+  constant c_ongoing     : std_logic_vector(2 downto 0) := "000";
+  constant c_lost_arb    : std_logic_vector(2 downto 0) := "100";
+  constant c_transmitted : std_logic_vector(2 downto 0) := "010";
+  constant c_aborted     : std_logic_vector(2 downto 0) := "001";
   constant c_disturbed   : std_logic_vector(2 downto 0) := "110";
-  
+
   subtype t_mac_frame_position_vec is std_logic_vector(integer(ceil(log2(real(c_max_mac_frame_length)))) - 1 downto 0);
   subtype t_fifo_index_vec is std_logic_vector(integer(ceil(log2(real(c_transmitted_bits_fifo_depth)))) - 1 downto 0);
 
@@ -94,7 +94,7 @@ package pk_can_types is
   subtype  t_ssp_offset is integer range 1 to 63;
   constant c_max_transmitter_delay : integer := 255; -- ISO 11898-1: 7.3.4
   constant c_sync_seg              : integer := 1;
-  
+
   ---------------------------------------------------------------------------
   -- 3. Core Enumerations
   ---------------------------------------------------------------------------
@@ -172,7 +172,7 @@ package pk_can_types is
     bit_name : t_mac_frame_bit_name;
   end record t_mac_frame_bit;
 
-  constant c_reset_mac_frame_bit   : t_mac_frame_bit := (polarity => c_recessive, bit_name => unknown);
+  constant c_reset_mac_frame_bit : t_mac_frame_bit := (polarity => c_recessive, bit_name => unknown);
 
   type t_observed_mac_frame_bit_info is record
     event_type        : t_tx_mac_monitor_event;
@@ -189,7 +189,7 @@ package pk_can_types is
     observed_polarity => c_recessive
   );
 
-  --Buffer of recently transmitted bits
+  -- Buffer of recently transmitted bits
   type t_transmitted_bits_fifo is array (c_transmitted_bits_fifo_depth - 1 downto 0) of t_mac_frame_bit;
 
   -- Frame-specific parameters, calculated once per frame
@@ -439,18 +439,18 @@ package pk_can_types is
 
   -- PCS -> MAC (ISO 11898-1:2015 Section 7.2 PCS_Data.Indicate service).
   type t_can_mac_pcs_tx_if_s2m is record
-    bus_polarity  : std_logic;
-    sp : std_logic;
-    ssp   : std_logic;
-    fifo_index : t_fifo_index_vec;
+    bus_polarity : std_logic;
+    sp           : std_logic;
+    ssp          : std_logic;
+    fifo_index   : t_fifo_index_vec;
   end record t_can_mac_pcs_tx_if_s2m;
 
   constant c_pcs_to_mac_if_reset : t_can_mac_pcs_tx_if_s2m :=
   (
-    bus_polarity  => c_recessive,
-    sp => '0',
-    ssp => '0',
-    fifo_index    => (others => '0')
+    bus_polarity => c_recessive,
+    sp           => '0',
+    ssp          => '0',
+    fifo_index   => (others => '0')
   );
 
   -- MAC FSM -> Bit Stuffer FD
@@ -531,7 +531,7 @@ package pk_can_types is
   -- Fault Confinement Entity -> MAC
   type t_can_mac_fce_if_s2m is record
     error_passive_request : std_logic;
-    error_active_request : std_logic;
+    error_active_request  : std_logic;
   end record t_can_mac_fce_if_s2m;
 
   constant c_fce_to_mac_if_reset : t_can_mac_fce_if_s2m :=
@@ -547,7 +547,7 @@ package pk_can_types is
     bus_off
   );
 
----------------------------------------------------------------------------
+  ---------------------------------------------------------------------------
   -- 8. LLC Frame Formats
   --
   -- Two frame formats exist at the LLC/MAC boundary. Both carry the same
@@ -579,7 +579,6 @@ package pk_can_types is
   -- must buffer the full 71 bytes before it can emit the first internal byte.
   ---------------------------------------------------------------------------
 
-
   -- Legacy frame layout constants
   constant c_legacy_frame_len    : integer := 71;
   constant c_legacy_fmt_dlc_byte : integer := 4;
@@ -589,7 +588,7 @@ package pk_can_types is
   type t_legacy_frame is array (0 to c_legacy_frame_len - 1) of t_byte;
 
   -- Internal format: config byte 0 bit positions
-  constant c_llc_frame_config_byte_0_format_start : integer := c_byte_width - 1;                         -- bit 7
+  constant c_llc_frame_config_byte_0_format_start : integer := c_byte_width - 1;                           -- bit 7
   constant c_llc_frame_config_byte_0_format_end   : integer := c_llc_frame_config_byte_0_format_start - 2; -- bit 5
   constant c_llc_frame_config_byte_0_ftyp         : integer := c_llc_frame_config_byte_0_format_end - 1;   -- bit 4
   constant c_llc_frame_config_byte_0_esi          : integer := c_llc_frame_config_byte_0_ftyp - 1;         -- bit 3
@@ -597,7 +596,7 @@ package pk_can_types is
   constant c_llc_frame_config_byte_0_extended_bit : integer := c_llc_frame_config_byte_0_format_start;     -- bit 7 (MSB of FMT)
 
   -- Internal format: config byte 1 bit positions
-  constant c_llc_frame_config_byte_1_dlc_start : integer := c_byte_width - 1;                      -- bit 7
+  constant c_llc_frame_config_byte_1_dlc_start : integer := c_byte_width - 1;                        -- bit 7
   constant c_llc_frame_config_byte_1_dlc_end   : integer := c_llc_frame_config_byte_1_dlc_start - 3; -- bit 4
 
   -- ID stream layout (4 bytes, MSB-first, left-aligned in 32-bit vector)
@@ -629,6 +628,7 @@ package pk_can_types is
 
   -- ISO 11898-1 Section 6.4: minimum 6 retransmission attempts
   constant retransmission_limit_c : integer := 6;
+
 end package pk_can_types;
 
 -- eof

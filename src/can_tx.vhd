@@ -20,7 +20,7 @@ library ieee;
 
 entity can_tx is
   generic (
-    -- Keep top-level defaults aligned with can_pcs_tx defaults (100 MHz profile).
+    -- Keep top-level defaults within can_pcs_tx subtype ranges (see can_types_pkg).
     nom_prescaler                   : integer := 4;
     nom_sync_seg                    : integer := 1;
     nom_prop_seg                    : integer := 24;
@@ -29,8 +29,8 @@ entity can_tx is
     data_prescaler                  : integer := 2;
     data_sync_seg                   : integer := 1;
     data_prop_seg                   : integer := 8;
-    data_phase_seg1                 : integer := 10;
-    data_phase_seg2                 : integer := 6;
+    data_phase_seg1                 : integer := 4;
+    data_phase_seg2                 : integer := 4;
     ssp_offset_cfg                  : ssp_offset := 1;
     tdc_enable_cfg                  : boolean := true
   );

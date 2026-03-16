@@ -111,9 +111,15 @@ begin
     log("", ALWAYS);
 
     -- Send config byte 0: CC Basic format
-    llc_user_i.avalon_st_source.data(7 downto 0) <= x"00";  -- Format: CC Basic
-    llc_user_i.avalon_st_source.data(15 downto 8) <= x"08";  -- DLC: 8 bytes
+    llc_user_i.avalon_st_source.data <= x"00";  -- Format: CC Basic
     llc_user_i.avalon_st_source.sop <= '1';
+    llc_user_i.avalon_st_source.valid <= '1';
+    wait until rising_edge(clk);
+    wait until llc_user_o.avalon_st_sink.ready = '1';
+
+    -- Send config byte 1: DLC
+    llc_user_i.avalon_st_source.data <= x"80";  -- DLC: 8 (upper nibble)
+    llc_user_i.avalon_st_source.sop <= '0';
     llc_user_i.avalon_st_source.valid <= '1';
     wait until rising_edge(clk);
     wait until llc_user_o.avalon_st_sink.ready = '1';

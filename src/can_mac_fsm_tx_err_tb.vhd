@@ -298,7 +298,6 @@ architecture testbench of can_mac_fsm_tx_err_tb is
   signal debug_phase_seg2_active : boolean;
   signal debug_error_at_ssp : boolean;
   signal debug_error_at_sp : boolean;
-  signal pcs_current_bit : mac_frame_bit_t;
 
   -- Test state tracking
   signal current_test : current_test_t := test_idle;  -- Visible in waveform for test identification
@@ -706,7 +705,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     for i in 1 to 40000 loop
       wait until rising_edge(clk);
       if (debug_pcs_to_mac.sample_strobe = '1' and
-          pcs_current_bit.bit_name = data_bit and
+          debug_mac_to_pcs.data.bit_name = data_bit and
           tx_bus = dominant_bit_c) then
         injected_v := true;
         exit;
@@ -809,7 +808,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
       wait until rising_edge(clk);
       if (debug_current_bit_rate = '1' and
           debug_pcs_to_mac.sample_strobe = '1' and
-          pcs_current_bit.bit_name = data_bit) then
+          debug_mac_to_pcs.data.bit_name = data_bit) then
         injected_v := true;
         exit;
       end if;
@@ -906,7 +905,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
       wait until rising_edge(clk);
       if (debug_current_bit_rate = '1' and
           debug_pcs_to_mac.sample_strobe = '1' and
-          pcs_current_bit.bit_name = data_bit) then
+          debug_mac_to_pcs.data.bit_name = data_bit) then
         data_bit_count_v := data_bit_count_v + 1;
         if (data_bit_count_v >= 25 and tx_bus = dominant_bit_c) then
           injected_v := true;
@@ -1007,7 +1006,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
       if (debug_current_bit_rate = '1' and
           debug_pcs_to_mac.sample_strobe = '1' and
           debug_strobe_type = ssp_strobe and
-          pcs_current_bit.bit_name = data_bit and
+          debug_mac_to_pcs.data.bit_name = data_bit and
           tx_bus = dominant_bit_c) then
         injected_v := true;
         exit;
@@ -1168,7 +1167,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
       if (debug_current_bit_rate = '1' and
           debug_pcs_to_mac.sample_strobe = '1' and
           debug_strobe_type = ssp_strobe and
-          pcs_current_bit.bit_name = data_bit and
+          debug_mac_to_pcs.data.bit_name = data_bit and
           tx_bus = dominant_bit_c) then
         injected_v := true;
         exit;
@@ -1286,9 +1285,9 @@ architecture testbench of can_mac_fsm_tx_err_tb is
       end if;
 
       if (not ef_req_seen_v) then
-        if (pcs_current_bit.bit_name = crc_delimiter_bit) then
+        if (debug_mac_to_pcs.data.bit_name = crc_delimiter_bit) then
           saw_crc_delim_before_ef_req_v := true;
-        elsif (pcs_current_bit.bit_name = ack_bit) then
+        elsif (debug_mac_to_pcs.data.bit_name = ack_bit) then
           saw_ack_before_ef_req_v := true;
         end if;
       end if;
@@ -1312,8 +1311,8 @@ architecture testbench of can_mac_fsm_tx_err_tb is
       end if;
 
       if ef_req_seen_v and (not pcs_ef_seen_v) and
-         (pcs_current_bit.bit_name = active_error_flag_bit or
-          pcs_current_bit.bit_name = passive_error_flag_bit) then
+         (debug_mac_to_pcs.data.bit_name = active_error_flag_bit or
+          debug_mac_to_pcs.data.bit_name = passive_error_flag_bit) then
         pcs_ef_seen_v := true;
         pcs_ef_cycle_v := i;
         bit_rate_at_pcs_ef_v := debug_current_bit_rate;
@@ -1321,10 +1320,10 @@ architecture testbench of can_mac_fsm_tx_err_tb is
       end if;
 
       if pcs_ef_seen_v and debug_pcs_to_mac.sample_strobe = '1' and debug_strobe_type = sp_strobe then
-        if (pcs_current_bit.bit_name = active_error_flag_bit or
-            pcs_current_bit.bit_name = passive_error_flag_bit) then
+        if (debug_mac_to_pcs.data.bit_name = active_error_flag_bit or
+            debug_mac_to_pcs.data.bit_name = passive_error_flag_bit) then
           ef_dom_count_v := ef_dom_count_v + 1;
-        elsif (pcs_current_bit.bit_name = error_delimiter_bit) then
+        elsif (debug_mac_to_pcs.data.bit_name = error_delimiter_bit) then
           ef_delim_seen_v := true;
           exit;
         end if;
@@ -1400,7 +1399,8 @@ begin
       debug_ipt_active_o => debug_ipt_active,
       debug_phase_seg2_active_o => debug_phase_seg2_active,
       debug_error_at_ssp_o => debug_error_at_ssp,
-      debug_error_at_sp_o => debug_error_at_sp
+      debug_error_at_sp_o => debug_error_at_sp,
+      debug_fsm_state_o   => fsm_state
     );
 
   -- Clock generation
@@ -1421,9 +1421,7 @@ begin
             passive_rx_bus when (debug_mac_to_pcs.data.bit_name = ack_bit and current_test /= test_1_ack_error) else
             tx_bus after propagation_delay_c;
 
-  -- Force-accessible access to FSM internals (VHDL 2008)
-  fsm_state <= << signal dut.mac_tx_inst.tx_mac_fsm_inst.state : can_mac_fsm_tx_state_t >>;
-  pcs_current_bit <= << signal dut.tx_pcs_inst.current_bit : mac_frame_bit_t >>;
+  -- FSM state and current bit are available via debug ports (no external names needed)
 
   -- ============================================================================
   -- SECTION 8: Monitoring Processes (concurrent)
