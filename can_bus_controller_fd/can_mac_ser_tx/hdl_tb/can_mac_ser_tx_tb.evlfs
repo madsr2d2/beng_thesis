@@ -22,6 +22,8 @@ import $abs_path/modules/common_tb_pkgs.evlfs
 # Module Files
 # ---------------------------------------------------------------------------- #
 import $abs_path/modules/ip_lib/can_bus_controller_fd/can_mac_ser_tx/hdl_src/can_mac_ser_tx.evlfs
+import $abs_path/modules/ip_lib/eth_st/hdl_src/eth_st.evlfs
+
 
 # ---------------------------------------------------------------------------- #
 # TB
