@@ -17,7 +17,7 @@
 --                8. LLC frame format         -- FMT encodings, legacy frame layout, config byte bit positions
 --             
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-15  TMYAES:   Initial implementation
+--                2026-03-15  TMYAES:   [TRIT-4336] Initial implementation
 --
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -209,31 +209,15 @@ package pk_can_types is
   type t_frame_params is record
     format          : std_logic_vector(2 downto 0);
     dlc_vector      : std_logic_vector(c_dlc_field_width - 1 downto 0);
-    is_fd_frame     : std_logic;
     is_remote_frame : std_logic;
     has_brs         : std_logic;
     esi_enable      : std_logic;
 
-    base_id_start     : t_mac_frame_position_vec;
-    base_id_stop      : t_mac_frame_position_vec;
-    extended_id_start : t_mac_frame_position_vec;
-    extended_id_stop  : t_mac_frame_position_vec;
-    dlc_start         : t_mac_frame_position_vec;
-    dlc_stop          : t_mac_frame_position_vec;
     data_start        : t_mac_frame_position_vec;
     data_stop         : t_mac_frame_position_vec;
-
     crc_start     : t_mac_frame_position_vec;
-    crc_stop      : t_mac_frame_position_vec;
     crc_delimiter : t_mac_frame_position_vec;
     sbc_start     : t_mac_frame_position_vec;
-    sbc_stop      : t_mac_frame_position_vec;
-
-    ack_slot      : t_mac_frame_position_vec;
-    ack_delimiter : t_mac_frame_position_vec;
-    eof_start     : t_mac_frame_position_vec;
-    eof_stop      : t_mac_frame_position_vec;
-
     crc_poly_select : std_logic_vector(1 downto 0);
   end record t_frame_params;
 
@@ -241,27 +225,14 @@ package pk_can_types is
   (
     format            => c_llc_fmt_cb,
     dlc_vector        => (others => '0'),
-    is_fd_frame       => '0',
     is_remote_frame   => '0',
     has_brs           => '0',
     esi_enable        => '0',
-    base_id_start     => (others => '0'),
-    base_id_stop      => (others => '0'),
-    extended_id_start => (others => '0'),
-    extended_id_stop  => (others => '0'),
-    dlc_start         => (others => '0'),
-    dlc_stop          => (others => '0'),
     data_start        => (others => '0'),
     data_stop         => (others => '0'),
     crc_start         => (others => '0'),
-    crc_stop          => (others => '0'),
     crc_delimiter     => (others => '0'),
     sbc_start         => (others => '0'),
-    sbc_stop          => (others => '0'),
-    ack_slot          => (others => '0'),
-    ack_delimiter     => (others => '0'),
-    eof_start         => (others => '0'),
-    eof_stop          => (others => '0'),
     crc_poly_select   => "00"
   );
 
@@ -572,7 +543,7 @@ package pk_can_types is
   -- 8. LLC Frame Format
   --
   -- Internal format (variable length, streamed by can_llc_tx to can_mac_ser_tx):
-  --   Byte 0 (SOP): [7:5]=FMT, [4]=FTYP(RTR), [3]=ESI, [2]=BRS, [1:0]=00
+  --   Byte 0:       [7:5]=FMT, [4]=FTYP(RTR), [3]=ESI, [2]=BRS, [1:0]=00
   --   Byte 1:       [7:4]=DLC, [3:0]=0000
   --   Bytes 2-5:    ID (32-bit, MSB first, left-aligned; CB uses [31:21])
   --   Bytes 6+:     Data (DLC count, no padding), EOP on last byte

@@ -10,7 +10,7 @@
 --                maintains a Gray-coded Stuff Bit Count (SBC) with parity.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-15  TMYAES:     Initial implementation
+--                2026-03-15  TMYAES:   [TRIT-4336] Initial implementation
 --
 ---------------------------------------------------------------------------
 

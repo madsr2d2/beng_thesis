@@ -11,7 +11,7 @@
 --                input/output bins.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-15  TMYAES:   Initial implementation
+--                2026-03-15  TMYAES:   [TRIT-4336] Initial implementation
 --
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 

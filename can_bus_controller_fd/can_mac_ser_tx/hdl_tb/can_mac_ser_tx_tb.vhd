@@ -7,7 +7,7 @@
 -- Description:
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-16  TMYAES    Initial implementation
+--                2026-03-16  TMYAES    [TRIT-4336] Initial implementation
 --
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -193,7 +193,6 @@ begin
     WaitForClock(clk);
     llc_i.avalon_st_source.valid <= '0';
     WaitForClock(clk);
-     WaitForClock(clk);
 
     -- Byte 0: x"C0" = 11000000 -> FORMAT[7:5]=110(FE), FTYP[4]=0, ESI[3]=0, BRS[2]=0
     -- Byte 1: x"30" = 00110000 -> DLC[7:4]=0011=3
@@ -231,7 +230,6 @@ begin
         tx_mac_fsm_i.ready <= '1';
         WaitForClock(clk);
         tx_mac_fsm_i.ready <= '0';
-        WaitForClock(clk);
         WaitForClock(clk);
         AlertIf(tx_mac_fsm_o.valid = '0', "ERROR: Bit not valid for byte " & to_string(byte_idx) & " bit " & to_string(bit_idx), FAILURE);
         AlertIf(tx_mac_fsm_o.data /= v_test_data(bit_idx),
@@ -298,6 +296,7 @@ begin
 
     Message("  Changing transfer_status to transmitted mid-transmission...");
     tx_mac_fsm_i.transfer_status <= c_transmitted;
+
     WaitForClock(clk);
     WaitForClock(clk);
 
