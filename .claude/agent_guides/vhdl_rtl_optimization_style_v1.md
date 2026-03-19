@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Define mandatory low-risk RTL optimization patterns used in this project for timing clarity, lower switching activity, and synthesis-friendly arithmetic.
+Define mandatory RTL style patterns used in this project for clarity, minimal complexity, and synthesis-friendly design.
 
 Apply these rules to new RTL and when refactoring existing modules.
 
@@ -16,74 +16,98 @@ Apply these rules to new RTL and when refactoring existing modules.
 2. Avoid `% mod` in hot sequential datapath logic
 - In clocked processes on frequently-active paths, prefer compare/subtract or bounded helper logic over `% mod`.
 - Keep behavior equivalent and bounded by existing subtype/range constraints.
-- If a package helper already exists for related arithmetic (for example FIFO index derivation), use it.
 
-3. Use named local guard booleans in FSM control logic
-- In the synchronous FSM process, evaluate guard conditions once at the top and store in process-level variables.
-- Keep guard names close to RTL intent (for example `frame_active_v`, `rx_dominant_v`, `tdc_timeout_v`).
-- Reuse these guard variables across state and output logic to reduce duplicated comparisons and improve reviewability.
-- Example: evaluate `llc_valid_v := llc_i.valid = '1'` once, then use in multiple if/case branches.
+3. Prefer direct signal assignments over variables
+- Use signal assignments (`<=`) directly in the clocked process. Avoid the `v_*` variable-then-register pattern unless a variable is genuinely needed (e.g. a value read-back within the same cycle, or a function return value used in multiple places).
+- This eliminates variable declarations, default-copy blocks, and end-of-process register-copy blocks.
+- Procedures within the process can assign signals directly.
 
-## FSM Structure Guidance
+4. Use top-level guards for global conditions
+- Conditions that apply across all states (e.g. transfer completion, abort) should wrap the case statement as a single if-else, not be repeated in every state.
+- Example: `if (transfer_status /= c_ongoing) then reset; else case state is ...`
 
-**Preferred**: Single synchronous process with procedures for complex logic.
+5. Keep defaults minimal and visible
+- Set pulse-type output defaults (e.g. `valid <= '0'`) once before the case statement, not in a separate procedure.
+- Combinational defaults that depend on state can use conditional expressions: `ready <= '0' when (state = busy) else '1'`.
 
-- Single `fsm_sequential` process (clocked on rising_edge)
-- All state/output updates using local `v_*` variables initialized with current registered values
-- Guard booleans evaluated once at cycle start, stored in process-level variables
-- Extract complex state or output logic into local procedures to keep main FSM case statement clean
-- Each procedure operates on and modifies `v_*` variables (closure scope)
-- Register all outputs at end of process in the else branch (non-reset side)
+6. Use named constants from `pk_can_types` for all magic numbers
+- Never hardcode field widths, offsets, or positions. Use the constants defined in the types package.
+- Example: use `c_stuff_width` not `5`, use `c_ack_delimiter_offset` not `2`.
 
-**Benefits**:
-- Removes boilerplate of 3-process architectures (next_state_logic, output_logic, state_update)
-- Eliminates redundant signal declarations (`next_*` signals)
-- Guard variables evaluated once per cycle, reused across state and output logic
-- Procedures keep FSM case statement readable while handling complex transitions
-- All updates atomic within single clock edge—no intermediate signal propagation
+## FSM Structure
+
+**Preferred**: Single synchronous process with procedures for complex logic and direct signal assignments.
+
+- Single process, clocked on `rising_edge`
+- Direct signal assignments (`<=`) throughout, no `v_*` variable pattern
+- Extract reusable logic into procedures that assign signals directly
+- Top-level guard wrapping the case statement for global conditions (reset, abort, completion)
+- Pulse defaults cleared before the case statement
 
 **Structure template**:
 ```vhdl
-fsm_sequential : process (clk_i) is
-  variable v_state : my_state_t;
-  variable v_output : my_output_t;
-  variable guard_v : boolean;
+p_fsm : process (clk_i) is
+
+  procedure do_complex_thing is
+  begin
+    output_signal <= computed_value;
+  end procedure do_complex_thing;
+
 begin
   if rising_edge(clk_i) then
     if (rst_i = '1') then
-      -- Reset logic
+      -- Reset all signals
     else
-      -- Evaluate guards once at top
-      guard_v := condition_check;
+      -- Pulse defaults
+      valid_o <= '0';
 
-      -- Initialize all v_* with current registered values
-      v_state := state;
-      v_output := output;
-
-      -- Case statement for state transitions and output logic
-      case state is
-        when my_state =>
-          if (guard_v) then
-            v_state := next_state;
-            -- Output updates
-          end if;
-      end case;
-
-      -- Register all updates
-      state <= v_state;
-      output <= v_output;
+      if (global_abort_condition) then
+        state <= idle;
+      else
+        case state is
+          when idle =>
+            ...
+          when active =>
+            do_complex_thing;
+            ...
+        end case;
+      end if;
     end if;
   end if;
-end process;
+end process p_fsm;
 ```
 
-Register module-boundary outputs by default unless the interface contract requires same-cycle combinational response.
+## Comment Style
+
+1. **File header**: Use company header format with Description listing numbered responsibilities.
+
+2. **State descriptions**: Each state in a case statement gets a short description between `-----` separator lines:
+```vhdl
+case state is
+  -----------------------------------------------------------------
+  -- Wait for valid SOP from LLC.
+  -----------------------------------------------------------------
+  when idle =>
+    ...
+
+  -----------------------------------------------------------------
+  -- Shift out remaining bits of current byte to MAC FSM.
+  -----------------------------------------------------------------
+  when shift_out =>
+    ...
+end case;
+```
+
+3. **Procedure comments**: One-line summary above the procedure declaration describing *what* it does, not *how*.
+
+4. **Inline comments**: Only where the logic is non-obvious. No comments on self-explanatory assignments. Keep inline comments short and specific.
+
+5. **No trailing summaries or section markers** for signal registration blocks - the code is self-documenting.
 
 ## Verification Requirements
 
 Any optimization/refactor under this guide must:
 1. Preserve externally visible behavior.
-2. Keep/reset semantics explicit.
+2. Keep reset semantics explicit.
 3. Pass the relevant unit/integration testbenches.
 4. Include test updates when timing contracts or edge cases change.
-

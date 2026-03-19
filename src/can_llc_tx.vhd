@@ -114,6 +114,10 @@ begin
         mac_o.avalon_st_source.eop      <= '0';
 
         case state is
+
+          -----------------------------------------------------------------
+          -- Wait for valid SOP from LLC user.
+          -----------------------------------------------------------------
           when c_st_idle =>
             llc_user_o.avalon_st_sink.ready <= '1';
             retx_count                      <= 0;
@@ -136,6 +140,9 @@ begin
               end if;
             end if;
 
+          -----------------------------------------------------------------
+          -- Buffer incoming frame bytes until EOP.
+          -----------------------------------------------------------------
           when c_st_capture_frame =>
             llc_user_o.avalon_st_sink.ready <= '1';
 
@@ -202,6 +209,9 @@ begin
               end if;
             end if;
 
+          -----------------------------------------------------------------
+          -- Stream buffered frame bytes to MAC.
+          -----------------------------------------------------------------
           when c_st_send_frame =>
             if (mac_i.transfer_status = c_ongoing) then
               mac_status_armed <= true;
@@ -246,6 +256,9 @@ begin
               state <= c_st_wait_for_result;
             end if;
 
+          -----------------------------------------------------------------
+          -- Wait for MAC to report terminal transfer status.
+          -----------------------------------------------------------------
           when c_st_wait_for_result =>
             if (not mac_status_armed) then
               if (mac_i.transfer_status = c_ongoing) then
@@ -279,6 +292,9 @@ begin
               end case;
             end if;
 
+          -----------------------------------------------------------------
+          -- Wait for MAC ready before retransmission attempt.
+          -----------------------------------------------------------------
           when c_st_wait_for_idle =>
             -- Abort is accepted between attempts.
             if (llc_user_i.abort_request = '1') then
@@ -434,6 +450,10 @@ begin
         mac_o.avalon_st_source.eop      <= '0';
 
         case state is
+
+          -----------------------------------------------------------------
+          -- Wait for valid SOP from LLC user (legacy 71-byte format).
+          -----------------------------------------------------------------
           when c_st_idle =>
             llc_user_o.avalon_st_sink.ready <= '1';
             retx_count                      <= 0;
@@ -455,6 +475,9 @@ begin
               end if;
             end if;
 
+          -----------------------------------------------------------------
+          -- Buffer 71 legacy bytes, convert header on EOP.
+          -----------------------------------------------------------------
           when c_st_capture_frame =>
             llc_user_o.avalon_st_sink.ready <= '1';
 
@@ -542,9 +565,8 @@ begin
             end if;
 
           -----------------------------------------------------------------
-          -- send_frame, wait_for_result, wait_for_idle are identical to rtl
+          -- Stream buffered frame bytes to MAC.
           -----------------------------------------------------------------
-
           when c_st_send_frame =>
             if (mac_i.transfer_status = c_ongoing) then
               mac_status_armed <= true;
@@ -589,6 +611,9 @@ begin
               state <= c_st_wait_for_result;
             end if;
 
+          -----------------------------------------------------------------
+          -- Wait for MAC to report terminal transfer status.
+          -----------------------------------------------------------------
           when c_st_wait_for_result =>
             if (not mac_status_armed) then
               if (mac_i.transfer_status = c_ongoing) then
@@ -622,6 +647,9 @@ begin
               end case;
             end if;
 
+          -----------------------------------------------------------------
+          -- Wait for MAC ready before retransmission attempt.
+          -----------------------------------------------------------------
           when c_st_wait_for_idle =>
             -- Abort is accepted between attempts.
             if (llc_user_i.abort_request = '1') then

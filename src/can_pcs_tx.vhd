@@ -244,6 +244,9 @@ begin
 
         case state is
 
+          -----------------------------------------------------------------
+          -- Bus idle. Tick prescaler and emit SP for bus monitoring.
+          -----------------------------------------------------------------
           when c_st_idle =>
             tick_prescaler;
             latch_next_bit(c_nom_bit_time);
@@ -254,6 +257,9 @@ begin
               v_state  := c_st_nominal;
             end if;
 
+          -----------------------------------------------------------------
+          -- Nominal bit rate transmission.
+          -----------------------------------------------------------------
           when c_st_nominal =>
             tick_prescaler;
             latch_next_bit(c_nom_bit_time);
@@ -270,6 +276,9 @@ begin
               v_state       := c_st_data;
             end if;
 
+          -----------------------------------------------------------------
+          -- TDC delay measurement at nominal rate.
+          -----------------------------------------------------------------
           when c_st_measuring =>
             tick_prescaler;
             latch_next_bit(c_nom_bit_time);
@@ -281,6 +290,9 @@ begin
               v_state       := c_st_data;
             end if;
 
+          -----------------------------------------------------------------
+          -- Data bit rate transmission with SSP generation.
+          -----------------------------------------------------------------
           when c_st_data =>
             tick_prescaler;
             latch_next_bit(c_data_bit_time);

@@ -106,9 +106,17 @@ begin
 
   fsm_sequential : process (clk_i) is
 
-    -- Temporary per-cycle values
+    -- Temporary per-cycle values (read-back within same cycle)
     variable v_tx_bit             : t_mac_frame_bit;
     variable v_monitored_bit_info : t_observed_mac_frame_bit_info;
+
+    -- Next-value variables (read-back within same cycle)
+    variable v_state          : std_logic_vector(2 downto 0);
+    variable v_bit_count      : t_bit_count;
+    variable v_frame_params   : t_frame_params;
+    variable v_fifo           : t_transmitted_bits_fifo;
+    variable v_fifo_write_ptr : t_fifo_write_ptr;
+    variable v_in_data_phase  : std_logic;
 
     -- Named guard variables
     variable frame_transmitted_v          : boolean;
@@ -130,31 +138,6 @@ begin
     variable ack_delimiter_v : t_position;
     variable eof_stop_v      : t_position;
 
-    -- Registered next-value variables
-    variable v_state                         : std_logic_vector(2 downto 0);
-    variable v_bit_count                     : t_bit_count;
-    variable v_frame_params                  : t_frame_params;
-    variable v_fifo                          : t_transmitted_bits_fifo;
-    variable v_fifo_write_ptr                : t_fifo_write_ptr;
-    variable v_last_transmitted_bit_polarity : std_logic;
-    variable v_monitored_bit_event           : t_tx_mac_monitor_event;
-    variable v_was_previous_frame_tx         : boolean;
-    variable v_ack_success_seen              : boolean;
-    variable v_bit_count_monitored           : boolean;
-    variable v_overload_condition            : boolean;
-    variable v_ssp_error_pending             : boolean;
-    variable v_ack_error_caused_flag         : boolean;
-    variable v_dominant_seen_during_flag     : boolean;
-    variable v_dominant_run_count            : integer range 0 to 15;
-    variable v_in_data_phase                 : std_logic;
-
-    -- Registered output next-value variables
-    variable v_mac_ser_o : t_can_mac_ser_fsm_tx_if_m2s;
-    variable v_pcs_o     : t_can_mac_pcs_tx_if_m2s;
-    variable v_bs_fd_o   : t_can_mac_fsm_bs_tx_if_m2s;
-    variable v_crc_o     : t_can_mac_fsm_crc_tx_if_m2s;
-    variable v_fce_o     : t_can_mac_fce_if_m2s;
-
     -- Handles logic common to quiet states:
     -- entry-side interface reset/deassertion and SP-based idle-run counting.
     procedure process_quiet_phase_common is
@@ -162,13 +145,13 @@ begin
 
       if (state_entry_v) then
         -- Deactivate transmit levels on entry to quiet states
-        v_pcs_o             := c_mac_to_pcs_if_reset;
-        v_fce_o             := c_mac_to_fce_if_reset;
-        v_ssp_error_pending := false;
-        v_in_data_phase     := '0';
+        pcs_o            <= c_mac_to_pcs_if_reset;
+        fce_o            <= c_mac_to_fce_if_reset;
+        ssp_error_pending <= false;
+        v_in_data_phase  := '0';
 
         -- Clear terminal transfer status when entering any quiet state.
-        v_mac_ser_o.transfer_status := c_ongoing;
+        mac_ser_o.transfer_status <= c_ongoing;
 
       elsif (sp_sample_strobe_v) then
         if (pcs_i.bus_polarity = c_recessive) then
@@ -192,32 +175,32 @@ begin
       v_frame_params := calculate_frame_params(mac_ser_i.llc_metadata);
 
       -- Initialize interfaces to clean state
-      v_fce_o     := c_mac_to_fce_if_reset;
-      v_pcs_o     := c_mac_to_pcs_if_reset;
-      v_mac_ser_o := c_tx_mac_fsm_to_ser_if_reset;
-      v_crc_o     := c_mac_fsm_to_crc_if_reset;
+      fce_o     <= c_mac_to_fce_if_reset;
+      pcs_o     <= c_mac_to_pcs_if_reset;
+      mac_ser_o <= c_tx_mac_fsm_to_ser_if_reset;
+      crc_o     <= c_mac_fsm_to_crc_if_reset;
 
       -- Select CRC polynomial and signal start of new computation
-      v_crc_o.crc_poly_select := v_frame_params.crc_poly_select;
-      v_crc_o.start           := '1';
+      crc_o.crc_poly_select <= v_frame_params.crc_poly_select;
+      crc_o.start           <= '1';
 
       -- Activate transmit levels
-      v_fce_o.transmitting := '1';
-      v_pcs_o.valid        := '1';
+      fce_o.transmitting <= '1';
+      pcs_o.valid        <= '1';
 
       -- Frame initialization
-      v_bit_count                 := 0;
-      v_fifo                      := (others => c_reset_mac_frame_bit);
-      v_fifo_write_ptr            := 0;
-      v_ack_success_seen          := false;
-      v_bit_count_monitored       := false;
-      v_ssp_error_pending         := false;
-      v_ack_error_caused_flag     := false;
-      v_dominant_seen_during_flag := false;
-      v_dominant_run_count        := 0;
-      v_in_data_phase             := '0';
+      v_bit_count      := 0;
+      v_fifo           := (others => c_reset_mac_frame_bit);
+      v_fifo_write_ptr := 0;
+      ack_success_seen          <= false;
+      bit_count_monitored       <= false;
+      ssp_error_pending         <= false;
+      ack_error_caused_flag     <= false;
+      dominant_seen_during_flag <= false;
+      dominant_run_count        <= 0;
+      v_in_data_phase  := '0';
 
-      v_bs_fd_o.start := '1';
+      bs_fd_o.start <= '1';
 
       -- Initialize first bit (SOF)
       v_tx_bit     := get_next_mac_frame_bit(
@@ -228,16 +211,16 @@ begin
                                           sbc               => (others => '0'),
                                           crc               => (others => '0')
                                         );
-      v_pcs_o.polarity := v_tx_bit.polarity;
+      pcs_o.polarity <= v_tx_bit.polarity;
 
       -- Add SOF to FIFO
-      v_fifo(0)                       := v_tx_bit;
-      v_fifo_write_ptr                := 1;
-      v_last_transmitted_bit_polarity := v_tx_bit.polarity;
+      v_fifo(0)                        := v_tx_bit;
+      v_fifo_write_ptr                 := 1;
+      last_transmitted_bit_polarity    <= v_tx_bit.polarity;
 
       -- SOF is always fed to CRC
-      v_crc_o.valid := '1';
-      v_crc_o.data  := v_tx_bit.polarity;
+      crc_o.valid <= '1';
+      crc_o.data  <= v_tx_bit.polarity;
 
     end procedure initialize_frame_transmission;
 
@@ -260,12 +243,12 @@ begin
         v_fifo_write_ptr := fifo_write_ptr + 1;
       end if;
 
-      v_bit_count_monitored           := false;
-      v_last_transmitted_bit_polarity := v_tx_bit.polarity;
+      bit_count_monitored           <= false;
+      last_transmitted_bit_polarity <= v_tx_bit.polarity;
 
       -- Send to PCS
-      v_pcs_o.valid    := '1';
-      v_pcs_o.polarity := v_tx_bit.polarity;
+      pcs_o.valid    <= '1';
+      pcs_o.polarity <= v_tx_bit.polarity;
 
       -- Feed bit stuffer (recursive loop)
       if (frame_params.is_fd_frame = '1') then
@@ -275,16 +258,16 @@ begin
       end if;
 
       if (dynamic_stuff_eligible_v) then
-        v_bs_fd_o.valid := '1';
-        v_bs_fd_o.data  := v_tx_bit.polarity;
+        bs_fd_o.valid <= '1';
+        bs_fd_o.data  <= v_tx_bit.polarity;
       end if;
 
       -- ISO 11898-1: 10.6.3 - Stuff bits in FD frames are included in CRC
       crc_fd_stuff_eligible_v := frame_params.is_fd_frame = '1' and
                                  bit_count < crc_start_v;
       if (crc_fd_stuff_eligible_v) then
-        v_crc_o.valid := '1';
-        v_crc_o.data  := v_tx_bit.polarity;
+        crc_o.valid <= '1';
+        crc_o.data  <= v_tx_bit.polarity;
       end if;
 
     end procedure transmit_stuff_bit;
@@ -319,13 +302,13 @@ begin
         v_fifo_write_ptr := fifo_write_ptr + 1;
       end if;
 
-      v_bit_count_monitored           := false;
-      v_last_transmitted_bit_polarity := v_tx_bit.polarity;
+      bit_count_monitored           <= false;
+      last_transmitted_bit_polarity <= v_tx_bit.polarity;
 
       -- Send to PCS only if bit is valid (not beyond frame end)
       if (v_tx_bit.bit_name /= unknown) then
-        v_pcs_o.valid    := '1';
-        v_pcs_o.polarity := v_tx_bit.polarity;
+        pcs_o.valid    <= '1';
+        pcs_o.polarity <= v_tx_bit.polarity;
       end if;
 
       -- Increment logical bit counter on non-stuff bits
@@ -337,28 +320,28 @@ begin
                                 v_tx_bit.bit_name = extended_id_bit or
                                 v_tx_bit.bit_name = data_bit;
         if (serializer_sourced_v) then
-          v_mac_ser_o.ready := '1';
+          mac_ser_o.ready <= '1';
         end if;
 
         -- ISO 11898-1: 10.6.3 - Logical bits fed to CRC
         crc_cc_eligible_v := prepare_position_v < crc_start_v and
                              v_tx_bit.bit_name /= fixed_stuff_bit;
         if (crc_cc_eligible_v) then
-          v_crc_o.valid := '1';
-          v_crc_o.data  := v_tx_bit.polarity;
+          crc_o.valid <= '1';
+          crc_o.data  <= v_tx_bit.polarity;
         end if;
       end if;
 
       -- Feed bit stuffer (prepare_position_v: the bit being prepared is within dynamic stuff region)
       if (frame_params.is_fd_frame = '1') then
         if (prepare_position_v < sbc_start_v) then
-          v_bs_fd_o.valid := '1';
-          v_bs_fd_o.data  := v_tx_bit.polarity;
+          bs_fd_o.valid <= '1';
+          bs_fd_o.data  <= v_tx_bit.polarity;
         end if;
       else
         if (prepare_position_v < frame_params.crc_stop) then
-          v_bs_fd_o.valid := '1';
-          v_bs_fd_o.data  := v_tx_bit.polarity;
+          bs_fd_o.valid <= '1';
+          bs_fd_o.data  <= v_tx_bit.polarity;
         end if;
       end if;
 
@@ -370,8 +353,8 @@ begin
       end if;
 
       -- Drive PCS control signals based on prepared bit
-      v_pcs_o.start_tdc     := '1' when v_tx_bit.bit_name = fdf_bit else '0';
-      v_pcs_o.use_data_rate := v_in_data_phase;
+      pcs_o.start_tdc     <= '1' when v_tx_bit.bit_name = fdf_bit else '0';
+      pcs_o.use_data_rate <= v_in_data_phase;
 
     end procedure transmit_normal_bit;
 
@@ -401,14 +384,14 @@ begin
       if (react_ssp_error_at_sp_v) then
         -- ISO 11898-1: 6.6.21.3.1 (see Figure 30):
         -- react at SP to an error detected earlier at SSP.
-        v_was_previous_frame_tx     := true;
-        v_fce_o.error               := '1';
-        v_mac_ser_o.transfer_status := c_disturbed;
-        v_monitored_bit_event       := bit_error;
-        v_ssp_error_pending         := false;
-        v_pcs_o.valid               := '1';
-        v_pcs_o.polarity            := error_flag_bit_v.polarity;
-        v_in_data_phase             := '0';
+        was_previous_frame_tx     <= true;
+        fce_o.error               <= '1';
+        mac_ser_o.transfer_status <= c_disturbed;
+        monitored_bit_event       <= bit_error;
+        ssp_error_pending         <= false;
+        pcs_o.valid               <= '1';
+        pcs_o.polarity            <= error_flag_bit_v.polarity;
+        v_in_data_phase           := '0';
         return;
       end if;
 
@@ -422,56 +405,56 @@ begin
                                                                 frame_params           => frame_params
                                                               );
         if (not ssp_sample_strobe_v) then
-          v_mac_ser_o.transfer_status := v_monitored_bit_info.transfer_status;
-          v_monitored_bit_event       := v_monitored_bit_info.event_type;
+          mac_ser_o.transfer_status <= v_monitored_bit_info.transfer_status;
+          monitored_bit_event       <= v_monitored_bit_info.event_type;
         end if;
-        v_bit_count_monitored := true;
+        bit_count_monitored <= true;
       end if;
 
       if (ssp_sample_strobe_v) then
         -- ISO 11898-1: 6.6.21.3.1 (see Figure 30/Figure 31):
         -- detect bit error at SSP and defer reaction to following SP.
-        v_ssp_error_pending := v_ssp_error_pending or (v_monitored_bit_info.event_type = bit_error);
+        ssp_error_pending <= ssp_error_pending or (v_monitored_bit_info.event_type = bit_error);
         return;
       end if;
 
       case v_monitored_bit_info.event_type is
         when lost_arbitration =>
-          v_was_previous_frame_tx     := false;
-          v_mac_ser_o.transfer_status := c_lost_arb;
+          was_previous_frame_tx     <= false;
+          mac_ser_o.transfer_status <= c_lost_arb;
 
         when ack_detected =>
-          v_was_previous_frame_tx := true;
-          v_ack_success_seen      := true;
+          was_previous_frame_tx <= true;
+          ack_success_seen      <= true;
           transmit_normal_bit;
 
         when bit_error =>
-          v_was_previous_frame_tx     := true;
-          v_fce_o.error               := '1';
-          v_mac_ser_o.transfer_status := c_disturbed;
-          v_pcs_o.valid               := '1';
-          v_pcs_o.polarity            := error_flag_bit_v.polarity;
-          v_in_data_phase             := '0';
+          was_previous_frame_tx     <= true;
+          fce_o.error               <= '1';
+          mac_ser_o.transfer_status <= c_disturbed;
+          pcs_o.valid               <= '1';
+          pcs_o.polarity            <= error_flag_bit_v.polarity;
+          v_in_data_phase           := '0';
 
         when ack_error =>
-          v_was_previous_frame_tx     := true;
-          v_fce_o.error               := '1';
-          v_mac_ser_o.transfer_status := c_disturbed;
-          v_ack_error_caused_flag     := true;
-          v_pcs_o.valid               := '1';
-          v_pcs_o.polarity            := error_flag_bit_v.polarity;
-          v_in_data_phase             := '0';
+          was_previous_frame_tx     <= true;
+          fce_o.error               <= '1';
+          mac_ser_o.transfer_status <= c_disturbed;
+          ack_error_caused_flag     <= true;
+          pcs_o.valid               <= '1';
+          pcs_o.polarity            <= error_flag_bit_v.polarity;
+          v_in_data_phase           := '0';
 
         when none =>
           if (bit_count = ack_delimiter_v and (not ack_success_seen)) then
-            v_mac_ser_o.transfer_status := c_disturbed;
-            v_monitored_bit_event       := ack_error;
-            v_was_previous_frame_tx     := true;
-            v_ack_error_caused_flag     := true;
-            ack_error_detected          <= '1';
-            v_pcs_o.valid               := '1';
-            v_pcs_o.polarity            := error_flag_bit_v.polarity;
-            v_in_data_phase             := '0';
+            mac_ser_o.transfer_status <= c_disturbed;
+            monitored_bit_event       <= ack_error;
+            was_previous_frame_tx     <= true;
+            ack_error_caused_flag     <= true;
+            ack_error_detected        <= '1';
+            pcs_o.valid               <= '1';
+            pcs_o.polarity            <= error_flag_bit_v.polarity;
+            v_in_data_phase           := '0';
           elsif (bs_fd_i.valid = '1' and dynamic_stuff_eligible_v) then
             transmit_stuff_bit;
           else
@@ -495,24 +478,24 @@ begin
 
     begin
 
-      v_fce_o.error                       := '1';
-      v_fce_o.sending_error_overload_flag := '1';
-      v_mac_ser_o.transfer_status         := c_disturbed;
+      fce_o.error                       <= '1';
+      fce_o.sending_error_overload_flag <= '1';
+      mac_ser_o.transfer_status         <= c_disturbed;
 
       if (state_entry_v) then
         -- Activate transmit levels
-        v_fce_o.transmitting := '1';
-        v_pcs_o.valid        := '1';
+        fce_o.transmitting <= '1';
+        pcs_o.valid        <= '1';
 
-        v_bit_count                 := 0;
-        v_dominant_seen_during_flag := false;
-        v_dominant_run_count        := 0;
-        v_in_data_phase             := '0';
+        v_bit_count := 0;
+        dominant_seen_during_flag <= false;
+        dominant_run_count        <= 0;
+        v_in_data_phase := '0';
 
         -- Initialize first bit of flag
-        v_pcs_o.polarity      := flag_bit_c.polarity;
-        v_pcs_o.use_data_rate := '0';
-        v_pcs_o.start_tdc     := '0';
+        pcs_o.polarity      <= flag_bit_c.polarity;
+        pcs_o.use_data_rate <= '0';
+        pcs_o.start_tdc     <= '0';
       else
         in_flag_field_v      := (bit_count < c_error_flag_width);
         in_delimiter_field_v := not in_flag_field_v;
@@ -524,7 +507,7 @@ begin
           v_tx_bit := c_error_delimiter_bit;
         end if;
 
-        v_pcs_o.polarity := v_tx_bit.polarity;
+        pcs_o.polarity <= v_tx_bit.polarity;
 
         if (sp_sample_strobe_v) then
           if (not error_sequence_complete_v) then
@@ -536,19 +519,19 @@ begin
           track_delimiter_run_v := track_error_delimiter_too_late_c and in_delimiter_field_v;
           if (track_delimiter_run_v) then
             if (pcs_i.bus_polarity = c_recessive) then
-              v_dominant_run_count := 0;
+              dominant_run_count <= 0;
             elsif (dominant_run_count = c_delimiter_dominant_run_limit) then
-              v_fce_o.error_delimiter_too_late := '1';
-              v_dominant_run_count             := 0;
+              fce_o.error_delimiter_too_late <= '1';
+              dominant_run_count             <= 0;
             else
-              v_dominant_run_count := dominant_run_count + 1;
+              dominant_run_count <= dominant_run_count + 1;
             end if;
           end if;
 
           -- ISO 11898-1: 6.6.21.3.2 b) reactive OF:
           -- dominant at last bit of error/overload delimiter triggers OF.
           if (error_sequence_complete_v and pcs_i.bus_polarity = c_dominant) then
-            v_overload_condition := true;
+            overload_condition <= true;
           end if;
         end if;
       end if;
@@ -568,7 +551,7 @@ begin
       -- ISO 11898-1: 8.1.3.3 Table 16 - Primary_error:
       -- dominant detected while sending an error flag.
       if (primary_error_condition_v) then
-        v_fce_o.primary_error := '1';
+        fce_o.primary_error <= '1';
       end if;
 
     end procedure apply_primary_error_guard;
@@ -594,11 +577,11 @@ begin
       -- ISO 11898-1: 8.1.4.2 rule c), Exception 1:
       -- passive transmitter ACK error without dominant seen in passive EF.
       if (passive_ack_dominant_in_flag_v) then
-        v_dominant_seen_during_flag := true;
+        dominant_seen_during_flag <= true;
       end if;
 
       if (passive_ack_no_dominant_end_v) then
-        v_fce_o.counters_unchanged := '1';
+        fce_o.counters_unchanged <= '1';
       end if;
 
     end procedure apply_passive_ack_exception;
@@ -641,10 +624,17 @@ begin
         form_error_detected    <= '0';
         data_phase_exit_strobe <= '0';
 
-        -- Per-cycle defaults
+        -- Per-cycle temporary defaults
         v_tx_bit             := c_reset_mac_frame_bit;
         v_monitored_bit_info := c_reset_observed_mac_frame_bit_info;
-        v_frame_params       := frame_params;
+
+        -- Hold defaults for retained variables
+        v_state          := state;
+        v_bit_count      := bit_count;
+        v_frame_params   := frame_params;
+        v_fifo           := fifo;
+        v_fifo_write_ptr := fifo_write_ptr;
+        v_in_data_phase  := in_data_phase;
 
         -- Derive positions from frame_params.data_stop and crc_stop
         if (frame_params.is_fd_frame = '1') then
@@ -672,57 +662,46 @@ begin
         error_flag_ended_v           := bit_count = c_error_flag_width + c_error_delimiter_width - 1;
 
         ---------------------------------------------------------------------
-        -- Defaults: hold current registered values
+        -- Pulse defaults (cleared every cycle, set only when active)
         ---------------------------------------------------------------------
-        v_state                         := state;
-        v_bit_count                     := bit_count;
-        v_fifo                          := fifo;
-        v_fifo_write_ptr                := fifo_write_ptr;
-        v_last_transmitted_bit_polarity := last_transmitted_bit_polarity;
-        v_was_previous_frame_tx         := was_previous_frame_tx;
-        v_ack_success_seen              := ack_success_seen;
-        v_bit_count_monitored           := bit_count_monitored;
-        v_ssp_error_pending             := ssp_error_pending;
-        v_ack_error_caused_flag         := ack_error_caused_flag;
-        v_dominant_seen_during_flag     := dominant_seen_during_flag;
-        v_dominant_run_count            := dominant_run_count;
-        v_monitored_bit_event           := none;
-        v_overload_condition            := false;
-        v_in_data_phase                 := in_data_phase;
-
-        v_mac_ser_o := mac_ser_o;
-        v_pcs_o     := pcs_o;
-        v_fce_o     := fce_o;
-        v_crc_o     := crc_o;
-        v_bs_fd_o   := c_mac_fsm_to_bs_fd_if_reset;
-
-        -- Explicitly clear pulses in level-holding interfaces
-        v_mac_ser_o.ready              := c_tx_mac_fsm_to_ser_if_reset.ready;
-        v_crc_o.valid                  := c_mac_fsm_to_crc_if_reset.valid;
-        v_fce_o.error                  := c_mac_to_fce_if_reset.error;
-        v_fce_o.primary_error          := c_mac_to_fce_if_reset.primary_error;
-        v_fce_o.counters_unchanged     := c_mac_to_fce_if_reset.counters_unchanged;
-        v_fce_o.successful_transfer    := c_mac_to_fce_if_reset.successful_transfer;
-        v_fce_o.error_delimiter_too_late := c_mac_to_fce_if_reset.error_delimiter_too_late;
+        bs_fd_o                        <= c_mac_fsm_to_bs_fd_if_reset;
+        mac_ser_o.ready                <= '0';
+        crc_o.valid                    <= '0';
+        crc_o.start                    <= '0';
+        fce_o.error                    <= '0';
+        fce_o.primary_error            <= '0';
+        fce_o.counters_unchanged       <= '0';
+        fce_o.successful_transfer      <= '0';
+        fce_o.error_delimiter_too_late <= '0';
+        fce_o.sending_error_overload_flag <= '0';
+        monitored_bit_event            <= none;
+        overload_condition             <= false;
 
         ---------------------------------------------------------------------
-        -- Unified state logic: output and next-state in one case statement
+        -- State machine
         ---------------------------------------------------------------------
         case state is
+
+          -----------------------------------------------------------------
+          -- Wait for 11 consecutive recessive bits.
+          -----------------------------------------------------------------
           when c_st_bus_reintegration =>
             process_quiet_phase_common;
-            v_pcs_o.polarity := c_recessive;
+            pcs_o.polarity <= c_recessive;
             if (bus_is_idle_v) then
               v_state := c_st_bus_idle;
             end if;
 
+          -----------------------------------------------------------------
+          -- 3-bit inter-frame spacing.
+          -----------------------------------------------------------------
           when c_st_intermission =>
             process_quiet_phase_common;
-            v_pcs_o.polarity := c_recessive;
+            pcs_o.polarity <= c_recessive;
             -- ISO 11898-1: 10.4.4.3 condition b) - dominant detected during first
             -- two intermission bits triggers overload handling.
             if (sp_sample_strobe_v and pcs_i.bus_polarity = c_dominant and bit_count < 2) then
-              v_overload_condition := true;
+              overload_condition <= true;
             end if;
             if (overload_condition) then
               v_state := c_st_overload_flag;
@@ -734,34 +713,43 @@ begin
               end if;
             end if;
 
+          -----------------------------------------------------------------
+          -- Error-passive extra wait after own transmission.
+          -----------------------------------------------------------------
           when c_st_suspend_transmission =>
             process_quiet_phase_common;
-            v_pcs_o.polarity := c_recessive;
+            pcs_o.polarity <= c_recessive;
             if (overload_condition) then
               v_state := c_st_overload_flag;
             elsif (suspend_transmission_ended_v) then
               v_state := c_st_bus_idle;
             end if;
 
+          -----------------------------------------------------------------
+          -- Ready for new frame.
+          -----------------------------------------------------------------
           when c_st_bus_idle =>
             process_quiet_phase_common;
-            v_pcs_o.polarity := c_recessive;
+            pcs_o.polarity <= c_recessive;
             if (state_entry_v) then
               -- Reset all handshake signals once we reach bus_idle.
-              v_mac_ser_o := c_tx_mac_fsm_to_ser_if_reset;
+              mac_ser_o <= c_tx_mac_fsm_to_ser_if_reset;
             end if;
             -- ISO 11898-1: 8.1.4.1 - bus_off nodes shall not initiate transmissions
             if (mac_ser_i.valid = '1' and sp_sample_strobe_v and fce_i.bus_off = '0') then
               v_state := c_st_transmitting_frame;
             end if;
 
+          -----------------------------------------------------------------
+          -- Active frame transmission with bit-level monitoring.
+          -----------------------------------------------------------------
           when c_st_transmitting_frame =>
             if (state_entry_v) then
               initialize_frame_transmission;
             elsif (frame_transmitted_v) then
-              v_mac_ser_o.transfer_status := c_transmitted;
-              v_was_previous_frame_tx     := true;
-              v_fce_o.successful_transfer := '1';
+              mac_ser_o.transfer_status <= c_transmitted;
+              was_previous_frame_tx     <= true;
+              fce_o.successful_transfer <= '1';
             elsif (sample_strobe_v) then
               transmit_frame_bit;
             end if;
@@ -781,6 +769,9 @@ begin
               v_in_data_phase := '0';
             end if;
 
+          -----------------------------------------------------------------
+          -- 6 dominant + 8 recessive delimiter.
+          -----------------------------------------------------------------
           when c_st_active_error_flag =>
             process_flag_transmission(c_active_error_flag_bit, true);
             apply_primary_error_guard;
@@ -790,6 +781,9 @@ begin
               v_state := c_st_intermission;
             end if;
 
+          -----------------------------------------------------------------
+          -- 6 recessive + 8 recessive delimiter.
+          -----------------------------------------------------------------
           when c_st_passive_error_flag =>
             process_flag_transmission(c_passive_error_flag_bit, true);
             apply_primary_error_guard;
@@ -800,6 +794,9 @@ begin
               v_state := c_st_intermission;
             end if;
 
+          -----------------------------------------------------------------
+          -- Overload flag + delimiter.
+          -----------------------------------------------------------------
           when c_st_overload_flag =>
             process_flag_transmission(c_overload_flag_bit, false);
             if (overload_condition) then
@@ -813,37 +810,20 @@ begin
 
         end case;
 
-        -- Register all next-cycle values
+        -- Register retained variables
         state      <= v_state;
         prev_state <= state;
 
-        -- Reset bit_count on first cycle of a new state
         if (state /= v_state) then
           bit_count <= 0;
         else
           bit_count <= v_bit_count;
         end if;
 
-        fifo                          <= v_fifo;
-        fifo_write_ptr                <= v_fifo_write_ptr;
-        last_transmitted_bit_polarity <= v_last_transmitted_bit_polarity;
-        monitored_bit_event           <= v_monitored_bit_event;
-        was_previous_frame_tx         <= v_was_previous_frame_tx;
-        ack_success_seen              <= v_ack_success_seen;
-        bit_count_monitored           <= v_bit_count_monitored;
-        overload_condition            <= v_overload_condition;
-        ssp_error_pending             <= v_ssp_error_pending;
-        ack_error_caused_flag         <= v_ack_error_caused_flag;
-        dominant_seen_during_flag     <= v_dominant_seen_during_flag;
-        dominant_run_count            <= v_dominant_run_count;
-        in_data_phase                 <= v_in_data_phase;
-        frame_params                  <= v_frame_params;
-
-        mac_ser_o        <= v_mac_ser_o;
-        pcs_o            <= v_pcs_o;
-        bs_fd_o          <= v_bs_fd_o;
-        crc_o            <= v_crc_o;
-        fce_o            <= v_fce_o;
+        fifo           <= v_fifo;
+        fifo_write_ptr <= v_fifo_write_ptr;
+        in_data_phase  <= v_in_data_phase;
+        frame_params   <= v_frame_params;
         current_bit_name <= v_tx_bit.bit_name;
       end if;
     end if;
