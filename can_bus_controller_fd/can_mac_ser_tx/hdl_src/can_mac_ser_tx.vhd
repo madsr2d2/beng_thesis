@@ -12,7 +12,7 @@
 --                  4) Forward transfer status from MAC FSM back to LLC.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-16  TMYAES    [TRIT-4336] Initial implementation
+--                2026-03-16  TMYAES    [TRIT-4340] Initial implementation
 --
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -62,7 +62,7 @@ begin
     begin
 
       if (llc_i.avalon_st_source.valid = '1') then
-        if (llc_i.avalon_st_source.sop = '1') then
+        if (llc_i.avalon_st_source.startofpacket = '1') then
           -- Re-sync: unexpected SOP restarts config capture
           config_byte_0 <= llc_i.avalon_st_source.data;
         else
@@ -95,7 +95,7 @@ begin
         count            <= 0;
 
         -- Suppress valid during padding: MSBs above actual ID width are not frame data
-        if (id_bits_remaining > 0 or padding_bits_remaining = 0) then
+        if (id_bits_remaining > 0) or (padding_bits_remaining = 0) then
           tx_mac_fsm_o.data  <= llc_i.avalon_st_source.data(t_byte'left);
           tx_mac_fsm_o.valid <= '1';
         end if;
@@ -166,7 +166,7 @@ begin
             -- Capture first config byte from LLC on SOP.
             -----------------------------------------------------------------
             when load_config_byte_0 =>
-              if (llc_i.avalon_st_source.valid = '1' and llc_i.avalon_st_source.sop = '1') then
+              if (llc_i.avalon_st_source.valid = '1') and (llc_i.avalon_st_source.startofpacket = '1') then
                 config_byte_0 <= llc_i.avalon_st_source.data;
                 state         <= load_config_byte_1;
               end if;
@@ -178,7 +178,7 @@ begin
             when load_config_byte_1 =>
               capture_config_byte_1;
               if (llc_i.avalon_st_source.valid = '1') then
-                if (llc_i.avalon_st_source.sop = '1') then
+                if (llc_i.avalon_st_source.startofpacket = '1') then
                   state <= load_config_byte_1;
                 else
                   state <= load_llc_frame_byte;
@@ -191,7 +191,7 @@ begin
             when load_llc_frame_byte =>
               load_byte;
               if (llc_i.avalon_st_source.valid = '1') then
-                if (llc_i.avalon_st_source.sop = '1') then
+                if (llc_i.avalon_st_source.startofpacket = '1') then
                   config_byte_0 <= llc_i.avalon_st_source.data;
                   state         <= load_config_byte_1;
                 else
@@ -204,14 +204,14 @@ begin
             -- in the ID stream without presenting them to the MAC FSM.
             -----------------------------------------------------------------
             when shift_out_bits =>
-              if (id_bits_remaining = 0 and padding_bits_remaining > 0) then
+              if (id_bits_remaining = 0) and (padding_bits_remaining > 0) then
                 consume_padding_bit;
                 if (count = t_byte'left) then
                   state <= load_llc_frame_byte;
                 end if;
               else
                 drive_normal_bit;
-                if (tx_mac_fsm_i.ready = '1' and count = t_byte'left) then
+                if (tx_mac_fsm_i.ready = '1') and (count = t_byte'left) then
                   state <= load_llc_frame_byte;
                 end if;
               end if;

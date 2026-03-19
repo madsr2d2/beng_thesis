@@ -1,35 +1,35 @@
-timestamp=1773736224109
+timestamp=1773937192928
 
 [~A]
-ModifyID=25
+ModifyID=26
 Version=74
 
 [~MFT]
-0=22|0can_mac_bs_tx.mgf|435908|263986
-1=10|1can_mac_bs_tx.mgf|450055|371438
-3=10|3can_mac_bs_tx.mgf|573891|481565
+0=42|0can_mac_bs_tx.mgf|479165|303133
+1=11|1can_mac_bs_tx.mgf|488736|408017
+3=11|3can_mac_bs_tx.mgf|602811|508286
 
 [can_mac_bs_tx]
-A/rtl=21|../../../../hdl_src/can_mac_bs_tx.vhd|31|1*448142
-BinW64/rtl=3*570855
-I=0*433359
-I/rtl=0*432996
-M=11|2|vf9|1773736224036|../../../../hdl_src/can_mac_bs_tx.vhd|0*238697*0xb6787037d0670c9e29c034f038feaf5151e3813a|0*239081*0xd986fd7175c8cf28cd774bcadde79966
-M/rtl=21|2|vf9|1773736224040|../../../../hdl_src/can_mac_bs_tx.vhd|0*365208*0x3ad97875b145070c823177d32df6d1aa89dd485b|0*366588*0x3666052002612506830c83371aef600f
+A/rtl=21|../../../../hdl_src/can_mac_bs_tx.vhd|31|1*486823
+BinW64/rtl=3*599790
+I=0*470372
+I/rtl=0*469976
+M=11|2|vf9|1773937192856|../../../../hdl_src/can_mac_bs_tx.vhd|0*238697*0xb6787037d0670c9e29c034f038feaf5151e3813a|0*239081*0xd986fd7175c8cf28cd774bcadde79966
+M/rtl=21|2|vf9|1773937192857|../../../../hdl_src/can_mac_bs_tx.vhd|0*468482*0xae1207d298cbbfdadcf460325bdba1badf2213f0|0*469865*0x3666052002612506830c83371aef600f
 R=../../../../hdl_src/can_mac_bs_tx.vhd|22
-Version=2024.10.102 (Windows64)|0000000a789cd34d494a57d0353230b000000ec20272|a4c7dcb14306b81fa2770aa96a30af2fbcefc3864dacfdf038300576f97aa4572ab3af0edfbad5c4290f95272aa44d12
-Version/rtl=2024.10.102 (Windows64)|0000000a789cd34d494a57d0353230b000000ec20272|9dbb47eebe7da777b751efca131652c562f8a87184b0ba7ba91cec801735afcd
+Version=2024.10.102 (Windows64)|0000000a789cd34d494a57d0353230b000000ec20272|a4c7dcb14306b81fa2770aa96a30af2fbcefc3864dacfdf038300576f97aa457730024d9c9f2ceafc71714a2e3dda30a
+Version/rtl=2024.10.102 (Windows64)|0000000a789cd34d494a57d0353230b000000ec20272|9dbb47eebe7da777b751efca131652c5c926bda97ca6ec85b57262cd1ba46b22
 
 [can_mac_bs_tx_tb]
-A/tb=21|../../../../hdl_tb/can_mac_bs_tx_tb.vhd|40|1*450055
-BinW64/tb=3*573891
-I=0*435908
-I/tb=0*433718
-M=11|2|vf9|1773736224066|../../../../hdl_tb/can_mac_bs_tx_tb.vhd|0*136624*0x63b4038df30919ace56623907bd147497cb0cd95|0*137078*0xd986fd7175c8cf28cd774bcadde79966
-M/tb=21|2|vf9|1773736224079|../../../../hdl_tb/can_mac_bs_tx_tb.vhd|0*381821*0x3f0c2e3379a4229f0d02a09ef938484443a520af|0*387874*0x3666052002612506830c83371aef600f
+A/tb=21|../../../../hdl_tb/can_mac_bs_tx_tb.vhd|39|1*488736
+BinW64/tb=3*602811
+I=0*479165
+I/tb=0*476944
+M=11|2|vf9|1773937192888|../../../../hdl_tb/can_mac_bs_tx_tb.vhd|0*136624*0x63b4038df30919ace56623907bd147497cb0cd95|0*137078*0xd986fd7175c8cf28cd774bcadde79966
+M/tb=21|2|vf9|1773937192893|../../../../hdl_tb/can_mac_bs_tx_tb.vhd|0*470764*0x6ba0c56acd7803f74bc34a86d5ed042a8fe27c2a|0*476829*0x3666052002612506830c83371aef600f
 R=../../../../hdl_tb/can_mac_bs_tx_tb.vhd|31
-Version=2024.10.102 (Windows64)|0000000a789cd34d494a57d0353230b000000ec20272|a4c7dcb14306b81fa2770aa96a30af2fb677867b622e3ab20cf09a412dab5f2ad48d6eeaeab5daeb149d8274bc65f7ef
-Version/tb=2024.10.102 (Windows64)|0000000a789cd34d494a57d0353230b000000ec20272|8db8692708dc0985d408d2497dbc95fa7f1ed53f58ab8f961877b1c8583e0401
+Version=2024.10.102 (Windows64)|0000000a789cd34d494a57d0353230b000000ec20272|a4c7dcb14306b81fa2770aa96a30af2fb677867b622e3ab20cf09a412dab5f2af722460dd17cc436214680ccce0660c7
+Version/tb=2024.10.102 (Windows64)|0000000a789cd34d494a57d0353230b000000ec20272|8db8692708dc0985d408d2497dbc95fa44b17e54dff52f3c7efdf40e2cd9ef0c
 
 [common_register_interface_pkg]
 BinW64/common_register_interface_pkg=3*21645
@@ -97,34 +97,45 @@ Version=2024.10.102 (Windows64)|0000000a789cd34d494a57d0353230b000000ec20272|f18
 Version/pk_avalon_mm_extif_defs=2024.10.102 (Windows64)|0000000a789cd34d494a57d0353230b000000ec20272|f1819b07456f28347fd7f7b15baa002a39a132d3e95a0a7294973c15843a8f2f26527262ddaa47cb266f3a3c4d9b973a173e6302a2a26bcca37cca2a95758674
 
 [pk_can_types]
-BinW64/pk_can_types=3*569995
-E=1*431004
-I=0*432672
-M=3|2|vf9|1773736224006|../../../../../can_types_p/hdl_src/can_types_p.vhd|0*415653*0xf8955ebc67c178d35bf3087110d21503432ca4a4|0*432556*0xd986fd7175c8cf28cd774bcadde79966
-R=../../../../../can_types_p/hdl_src/can_types_p.vhd|30
-Version=2024.10.102 (Windows64)|0000000a789cd34d494a57d0353230b000000ec20272|b79d7b8caf80ce0cbfcf9377bc84779b233fe2982bebab2f64f2d185aeeff8fdb45eaa9dcfe2bec78ecbccd25aca594b
+BinW64/pk_can_types=3*599359
+E=1*469600
+I=0*468127
+M=3|2|vf9|1773937192802|../../../../../can_types_p/hdl_src/can_types_p.vhd|0*451899*0xb24def6053e5d21ec92ecfa873b43977b86e2982|0*468011*0xd986fd7175c8cf28cd774bcadde79966
+R=../../../../../can_types_p/hdl_src/can_types_p.vhd|32
+Version=2024.10.102 (Windows64)|0000000a789cd34d494a57d0353230b000000ec20272|b79d7b8caf80ce0cbfcf9377bc84779b233fe2982bebab2f64f2d185aeeff8fd7b8371acd5349ec3ba9927edb5abbf8b
+
+[pk_eth_st]
+BinW64/pk_eth_st=3*596716
+E=1*467583
+I=0*444524
+I/pk_eth_st=0*446571
+M=3|2|vf9|1773937192778|../../../../../../eth_st/hdl_src/eth_st_p.vhd|0*442829*0x8934c4846b2029c1f2f8eb74ce769819fbde0a05|0*444416*0xd986fd7175c8cf28cd774bcadde79966
+M/pk_eth_st=4|2|vf9|1773937192781|../../../../../../eth_st/hdl_src/eth_st_p.vhd|0*444767*0xd6f98f158f14d0a05a6440a280f6e62d4cbdda18|0*446451*0x3666052002612506830c83371aef600f
+R=../../../../../../eth_st/hdl_src/eth_st_p.vhd|19
+Version=2024.10.102 (Windows64)|0000000a789cd34d494a57d0353230b000000ec20272|6f758e5e2ce98abd525f4de8c5cca17db47390a3fca90f02da94c6585948d109f424bf632d6095be533e09cf9116556a
+Version/pk_eth_st=2024.10.102 (Windows64)|0000000a789cd34d494a57d0353230b000000ec20272|6f758e5e2ce98abd525f4de8c5cca17db47390a3fca90f02da94c6585948d109f424bf632d6095be533e09cf9116556a
 
 [pk_event_handler_vc]
-BinW64/pk_event_handler_vc=3*562201
-E=1*427139
+BinW64/pk_event_handler_vc=3*588922
+E=1*463718
 I=0*152861
-I/pk_event_handler_vc=0*408457
-M=3|2|vf9|1773736223965|../../../../../../../simlib/verification_components/event_handler/hdl_src/event_handler_vc_pkg.vhd|0*149396*0x64f9239bf8b2f2552da9e95ad1dde05caf3e9200|0*152690*0xd986fd7175c8cf28cd774bcadde79966
-M/pk_event_handler_vc=4|2|vf9|1773736223981|../../../../../../../simlib/verification_components/event_handler/hdl_src/event_handler_vc_pkg.vhd|0*154815*0x4b26db03e929b5348d43f194a70d7fa36a3fad15|0*160827*0x3666052002612506830c83371aef600f
+I/pk_event_handler_vc=0*439945
+M=3|2|vf9|1773937192740|../../../../../../../simlib/verification_components/event_handler/hdl_src/event_handler_vc_pkg.vhd|0*149396*0x64f9239bf8b2f2552da9e95ad1dde05caf3e9200|0*152690*0xd986fd7175c8cf28cd774bcadde79966
+M/pk_event_handler_vc=4|2|vf9|1773937192754|../../../../../../../simlib/verification_components/event_handler/hdl_src/event_handler_vc_pkg.vhd|0*154815*0x4b26db03e929b5348d43f194a70d7fa36a3fad15|0*160827*0x3666052002612506830c83371aef600f
 R=../../../../../../../simlib/verification_components/event_handler/hdl_src/event_handler_vc_pkg.vhd|31
 Version=2024.10.102 (Windows64)|0000000a789cd34d494a57d0353230b000000ec20272|cddca3f6506e48300c0a1370a0e3d8fc8bd7ac1e22bdeb5578310938ba44cb36d11e9d64fafaa8feed8bf5c2af4e8e18
-Version/pk_event_handler_vc=2024.10.102 (Windows64)|0000000a789cd34d494a57d0353230b000000ec20272|cddca3f6506e48300c0a1370a0e3d8fc8bd7ac1e22bdeb5578310938ba44cb3635d4b3a5b130056d5762680a6aff97b2
+Version/pk_event_handler_vc=2024.10.102 (Windows64)|0000000a789cd34d494a57d0353230b000000ec20272|cddca3f6506e48300c0a1370a0e3d8fc8bd7ac1e22bdeb5578310938ba44cb3608f30bd318b6291cd4f845c59f27967b
 
 [pk_extif_transaction_vc]
-BinW64/pk_extif_transaction_vc=3*553642
-E=1*421312
+BinW64/pk_extif_transaction_vc=3*580363
+E=1*457891
 I=0*47690
-I/pk_extif_transaction_vc=0*406407
-M=3|2|vf9|1773736223920|../../../../../../../simlib/verification_components/extif/hdl_src/extif_transaction_vc_pkg.vhd|0*44160*0x14f807568f1e3335b508539d7b0f5fdbff7bee18|0*47519*0xd986fd7175c8cf28cd774bcadde79966
-M/pk_extif_transaction_vc=4|2|vf9|1773736223933|../../../../../../../simlib/verification_components/extif/hdl_src/extif_transaction_vc_pkg.vhd|0*49611*0x98abbb9b18fb6ce27b1c2f6ab108194be29591f3|0*54304*0x3666052002612506830c83371aef600f
+I/pk_extif_transaction_vc=0*437895
+M=3|2|vf9|1773937192703|../../../../../../../simlib/verification_components/extif/hdl_src/extif_transaction_vc_pkg.vhd|0*44160*0x14f807568f1e3335b508539d7b0f5fdbff7bee18|0*47519*0xd986fd7175c8cf28cd774bcadde79966
+M/pk_extif_transaction_vc=4|2|vf9|1773937192715|../../../../../../../simlib/verification_components/extif/hdl_src/extif_transaction_vc_pkg.vhd|0*49611*0x98abbb9b18fb6ce27b1c2f6ab108194be29591f3|0*54304*0x3666052002612506830c83371aef600f
 R=../../../../../../../simlib/verification_components/extif/hdl_src/extif_transaction_vc_pkg.vhd|43
 Version=2024.10.102 (Windows64)|0000000a789cd34d494a57d0353230b000000ec20272|4632bed3b2c653f6ae6a7337085a90d4c8f885d9930793d58c37e6a4405c807d26527262ddaa47cb266f3a3c4d9b973ae564162f19885502138ccd7349ae5376
-Version/pk_extif_transaction_vc=2024.10.102 (Windows64)|0000000a789cd34d494a57d0353230b000000ec20272|4632bed3b2c653f6ae6a7337085a90d4c8f885d9930793d58c37e6a4405c807d26527262ddaa47cb266f3a3c4d9b973aba6850defae49cedca482356d9e9618e
+Version/pk_extif_transaction_vc=2024.10.102 (Windows64)|0000000a789cd34d494a57d0353230b000000ec20272|4632bed3b2c653f6ae6a7337085a90d4c8f885d9930793d58c37e6a4405c807d26527262ddaa47cb266f3a3c4d9b973a2b168dd356f7cdef529e2f70ddebb5b3
 
 [pk_global_random_seed]
 E=1*5781
@@ -153,7 +164,8 @@ event_handler_vc=11|0*163027|
 extif_memory_vc=11|0*124245|
 extif_transaction_vc=11|0*111746|
 pk_avalon_mm_extif_defs=3|0*4178|0*4580
-pk_can_types=3|0*410464|0*411908
+pk_can_types=3|0*446824|0*448197
+pk_eth_st=3|0*441952|0*442247
 pk_event_handler_vc=3|0*147528|0*174301
 pk_extif_transaction_vc=3|0*42874|0*43184
 pk_global_random_seed=3|0*8241|0*8389

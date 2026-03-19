@@ -10,7 +10,7 @@
 --                maintains a Gray-coded Stuff Bit Count (SBC) with parity.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-15  TMYAES:   [TRIT-4336] Initial implementation
+--                2026-03-15  TMYAES:   [TRIT-4338] Initial implementation
 --
 ---------------------------------------------------------------------------
 
@@ -94,7 +94,7 @@ begin
 
         if (bs_i.data = last_polarity) then
           count <= count + 1;
-          if (count = c_stuff_width - 1) then
+          if count = (c_stuff_width - 1) then
             count       <= 0;
             bs_o.data   <= not last_polarity;
             bs_o.valid  <= '1';

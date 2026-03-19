@@ -11,16 +11,14 @@
 --                input/output bins.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-15  TMYAES:   [TRIT-4336] Initial implementation
+--                2026-03-15  TMYAES:   [TRIT-4338] Initial implementation
 --
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
-
   use work.pk_man_global.all;
-
   use work.common_register_interface_pkg.all;
   use work.common_tb_pkg.all;
   use work.pk_can_types.all;
@@ -30,9 +28,8 @@ context osvvm.OsvvmContext;
 
 entity can_mac_bs_tx_tb is
   generic (
-    -- Constant Generics which can be set before simulation start to test multiple settings.
-    gc_TbTimeOut   : time := 2 ms;   -- Simulator Time out. If the test exceeds this time an error will occur.
-    gc_TbClkPeriod : time := 10 ns      -- Set the test clock period, Default 100MHz
+    gc_TbTimeOut   : time := 2 ms;
+    gc_TbClkPeriod : time := 10 ns
     --
   );
 end entity;

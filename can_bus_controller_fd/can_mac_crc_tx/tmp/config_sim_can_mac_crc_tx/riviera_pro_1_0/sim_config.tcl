@@ -81,6 +81,7 @@ dict set core_files can_mac_crc_tx [dict create \
     "C:/git_folder/triton_func/modules/simlib/verification_components/event_handler/hdl_src/event_handler_vc.vhd"
     "C:/git_folder/triton_func/modules/simlib/verification_components/event_handler/hdl_src/event_handler_vc_pkg.vhd"
     "C:/git_folder/triton_func/modules/simlib/global_random_seed.vhd"
+    "C:/git_folder/triton_func/modules/ip_lib/eth_st/hdl_src/eth_st_p.vhd"
     "C:/git_folder/triton_func/modules/ip_lib/can_bus_controller_fd/can_types_p/hdl_src/can_types_p.vhd"
     "C:/git_folder/triton_func/modules/ip_lib/gen_crc/hdl_src/gen_crc_p.vhd"
     "C:/git_folder/triton_func/modules/ip_lib/gen_crc/hdl_src/gen_crc.vhd"

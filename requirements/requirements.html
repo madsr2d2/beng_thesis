@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>CAN Requirements</title>
+  <style>
+    body { margin: 0; padding: 16px; background: #1e1e1e; color: #d4d4d4; }
+    h1   { font-family: monospace; font-size: 16px; color: #888; margin-bottom: 12px; }
+    .wrap { overflow-x: auto; }
+    th.asc::after  { content: " ▲"; font-size: 10px; }
+    th.desc::after { content: " ▼"; font-size: 10px; }
+    th:hover { background: #3a3a3a !important; }
+  </style>
+</head>
+<body>
+  <h1>CAN Requirements &mdash; 63 rows</h1>
+  <div class="wrap">
+    <style type="text/css">
+#T_0e888 table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: monospace;
+  font-size: 13px;
+  background: #1e1e1e;
+  color: #d4d4d4;
+}
+#T_0e888 thead tr th {
+  background: #2d2d2d;
+  color: #ffffff;
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 2px solid #444;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  cursor: pointer;
+  user-select: none;
+}
+#T_0e888 td {
+  padding: 6px 12px;
+  border-bottom: 1px solid #333;
+  vertical-align: top;
+}
+#T_0e888 tbody tr:hover {
+  background: #2a2a2a;
+}
+#T_0e888_row0_col0, #T_0e888_row1_col0, #T_0e888_row2_col0, #T_0e888_row3_col0, #T_0e888_row4_col0, #T_0e888_row5_col0, #T_0e888_row6_col0, #T_0e888_row7_col0, #T_0e888_row8_col0, #T_0e888_row9_col0, #T_0e888_row10_col0, #T_0e888_row11_col0, #T_0e888_row12_col0, #T_0e888_row13_col0, #T_0e888_row14_col0, #T_0e888_row15_col0, #T_0e888_row16_col0, #T_0e888_row17_col0, #T_0e888_row18_col0, #T_0e888_row19_col0, #T_0e888_row20_col0, #T_0e888_row21_col0, #T_0e888_row22_col0, #T_0e888_row23_col0, #T_0e888_row24_col0, #T_0e888_row25_col0, #T_0e888_row26_col0, #T_0e888_row27_col0, #T_0e888_row28_col0, #T_0e888_row29_col0, #T_0e888_row30_col0, #T_0e888_row31_col0 {
+  color: #00bcd4;
+  font-weight: bold;
+  white-space: normal;
+  word-wrap: break-word;
+  white-space: nowrap;
+}
+#T_0e888_row0_col1, #T_0e888_row0_col7, #T_0e888_row0_col9, #T_0e888_row0_col10, #T_0e888_row1_col1, #T_0e888_row1_col7, #T_0e888_row1_col9, #T_0e888_row1_col10, #T_0e888_row2_col1, #T_0e888_row2_col7, #T_0e888_row2_col9, #T_0e888_row2_col10, #T_0e888_row3_col1, #T_0e888_row3_col7, #T_0e888_row3_col9, #T_0e888_row3_col10, #T_0e888_row4_col1, #T_0e888_row4_col7, #T_0e888_row4_col9, #T_0e888_row4_col10, #T_0e888_row5_col1, #T_0e888_row5_col7, #T_0e888_row5_col9, #T_0e888_row5_col10, #T_0e888_row6_col1, #T_0e888_row6_col7, #T_0e888_row6_col9, #T_0e888_row6_col10, #T_0e888_row7_col1, #T_0e888_row7_col7, #T_0e888_row7_col9, #T_0e888_row7_col10, #T_0e888_row8_col1, #T_0e888_row8_col7, #T_0e888_row8_col9, #T_0e888_row8_col10, #T_0e888_row9_col1, #T_0e888_row9_col7, #T_0e888_row9_col9, #T_0e888_row9_col10, #T_0e888_row10_col1, #T_0e888_row10_col7, #T_0e888_row10_col9, #T_0e888_row10_col10, #T_0e888_row11_col1, #T_0e888_row11_col7, #T_0e888_row11_col9, #T_0e888_row11_col10, #T_0e888_row12_col1, #T_0e888_row12_col7, #T_0e888_row12_col9, #T_0e888_row12_col10, #T_0e888_row13_col1, #T_0e888_row13_col7, #T_0e888_row13_col9, #T_0e888_row13_col10, #T_0e888_row14_col1, #T_0e888_row14_col7, #T_0e888_row14_col9, #T_0e888_row14_col10, #T_0e888_row15_col1, #T_0e888_row15_col7, #T_0e888_row15_col9, #T_0e888_row15_col10, #T_0e888_row16_col1, #T_0e888_row16_col7, #T_0e888_row16_col9, #T_0e888_row16_col10, #T_0e888_row17_col1, #T_0e888_row17_col7, #T_0e888_row17_col9, #T_0e888_row17_col10, #T_0e888_row18_col1, #T_0e888_row18_col7, #T_0e888_row18_col9, #T_0e888_row18_col10, #T_0e888_row19_col1, #T_0e888_row19_col7, #T_0e888_row19_col9, #T_0e888_row19_col10, #T_0e888_row20_col1, #T_0e888_row20_col7, #T_0e888_row20_col9, #T_0e888_row20_col10, #T_0e888_row21_col1, #T_0e888_row21_col7, #T_0e888_row21_col9, #T_0e888_row21_col10, #T_0e888_row22_col1, #T_0e888_row22_col7, #T_0e888_row22_col9, #T_0e888_row22_col10, #T_0e888_row23_col1, #T_0e888_row23_col7, #T_0e888_row23_col9, #T_0e888_row23_col10, #T_0e888_row24_col1, #T_0e888_row24_col7, #T_0e888_row24_col9, #T_0e888_row24_col10, #T_0e888_row25_col1, #T_0e888_row25_col7, #T_0e888_row25_col9, #T_0e888_row25_col10, #T_0e888_row26_col1, #T_0e888_row26_col7, #T_0e888_row26_col9, #T_0e888_row26_col10, #T_0e888_row27_col1, #T_0e888_row27_col7, #T_0e888_row27_col9, #T_0e888_row27_col10, #T_0e888_row28_col1, #T_0e888_row28_col7, #T_0e888_row28_col9, #T_0e888_row28_col10, #T_0e888_row29_col1, #T_0e888_row29_col7, #T_0e888_row29_col9, #T_0e888_row29_col10, #T_0e888_row30_col1, #T_0e888_row30_col7, #T_0e888_row30_col9, #T_0e888_row30_col10, #T_0e888_row31_col1, #T_0e888_row31_col7, #T_0e888_row31_col9, #T_0e888_row31_col10, #T_0e888_row32_col1, #T_0e888_row32_col7, #T_0e888_row32_col9, #T_0e888_row32_col10, #T_0e888_row33_col1, #T_0e888_row33_col7, #T_0e888_row33_col9, #T_0e888_row33_col10, #T_0e888_row34_col1, #T_0e888_row34_col7, #T_0e888_row34_col9, #T_0e888_row34_col10, #T_0e888_row35_col1, #T_0e888_row35_col7, #T_0e888_row35_col9, #T_0e888_row35_col10, #T_0e888_row36_col1, #T_0e888_row36_col7, #T_0e888_row36_col9, #T_0e888_row36_col10, #T_0e888_row37_col1, #T_0e888_row37_col7, #T_0e888_row37_col9, #T_0e888_row37_col10, #T_0e888_row38_col1, #T_0e888_row38_col7, #T_0e888_row38_col9, #T_0e888_row38_col10, #T_0e888_row39_col1, #T_0e888_row39_col7, #T_0e888_row39_col9, #T_0e888_row39_col10, #T_0e888_row40_col1, #T_0e888_row40_col7, #T_0e888_row40_col9, #T_0e888_row40_col10, #T_0e888_row41_col1, #T_0e888_row41_col7, #T_0e888_row41_col9, #T_0e888_row41_col10, #T_0e888_row42_col1, #T_0e888_row42_col7, #T_0e888_row42_col9, #T_0e888_row42_col10, #T_0e888_row43_col1, #T_0e888_row43_col7, #T_0e888_row43_col9, #T_0e888_row43_col10, #T_0e888_row44_col1, #T_0e888_row44_col7, #T_0e888_row44_col9, #T_0e888_row44_col10, #T_0e888_row45_col1, #T_0e888_row45_col7, #T_0e888_row45_col9, #T_0e888_row45_col10, #T_0e888_row46_col1, #T_0e888_row46_col7, #T_0e888_row46_col9, #T_0e888_row46_col10, #T_0e888_row47_col1, #T_0e888_row47_col7, #T_0e888_row47_col9, #T_0e888_row47_col10, #T_0e888_row48_col1, #T_0e888_row48_col7, #T_0e888_row48_col9, #T_0e888_row48_col10, #T_0e888_row49_col1, #T_0e888_row49_col7, #T_0e888_row49_col9, #T_0e888_row49_col10, #T_0e888_row50_col1, #T_0e888_row50_col7, #T_0e888_row50_col9, #T_0e888_row50_col10, #T_0e888_row51_col1, #T_0e888_row51_col7, #T_0e888_row51_col9, #T_0e888_row51_col10, #T_0e888_row52_col1, #T_0e888_row52_col7, #T_0e888_row52_col9, #T_0e888_row52_col10, #T_0e888_row53_col1, #T_0e888_row53_col7, #T_0e888_row53_col9, #T_0e888_row53_col10, #T_0e888_row54_col1, #T_0e888_row54_col7, #T_0e888_row54_col9, #T_0e888_row54_col10, #T_0e888_row55_col1, #T_0e888_row55_col7, #T_0e888_row55_col9, #T_0e888_row55_col10, #T_0e888_row56_col1, #T_0e888_row56_col7, #T_0e888_row56_col9, #T_0e888_row56_col10, #T_0e888_row57_col1, #T_0e888_row57_col7, #T_0e888_row57_col9, #T_0e888_row57_col10, #T_0e888_row58_col1, #T_0e888_row58_col7, #T_0e888_row58_col9, #T_0e888_row58_col10, #T_0e888_row59_col1, #T_0e888_row59_col7, #T_0e888_row59_col9, #T_0e888_row59_col10, #T_0e888_row60_col1, #T_0e888_row60_col7, #T_0e888_row60_col9, #T_0e888_row60_col10, #T_0e888_row61_col1, #T_0e888_row61_col7, #T_0e888_row61_col9, #T_0e888_row61_col10, #T_0e888_row62_col1, #T_0e888_row62_col7, #T_0e888_row62_col9, #T_0e888_row62_col10 {
+  white-space: normal;
+  word-wrap: break-word;
+}
+#T_0e888_row0_col2, #T_0e888_row0_col3, #T_0e888_row0_col5, #T_0e888_row0_col6, #T_0e888_row0_col8, #T_0e888_row1_col2, #T_0e888_row1_col3, #T_0e888_row1_col6, #T_0e888_row1_col8, #T_0e888_row2_col2, #T_0e888_row2_col3, #T_0e888_row2_col6, #T_0e888_row2_col8, #T_0e888_row3_col2, #T_0e888_row3_col3, #T_0e888_row3_col6, #T_0e888_row3_col8, #T_0e888_row4_col2, #T_0e888_row4_col3, #T_0e888_row4_col6, #T_0e888_row4_col8, #T_0e888_row5_col2, #T_0e888_row5_col3, #T_0e888_row5_col6, #T_0e888_row5_col8, #T_0e888_row6_col2, #T_0e888_row6_col3, #T_0e888_row6_col6, #T_0e888_row6_col8, #T_0e888_row7_col2, #T_0e888_row7_col3, #T_0e888_row7_col6, #T_0e888_row7_col8, #T_0e888_row8_col2, #T_0e888_row8_col3, #T_0e888_row8_col6, #T_0e888_row8_col8, #T_0e888_row9_col2, #T_0e888_row9_col3, #T_0e888_row9_col6, #T_0e888_row9_col8, #T_0e888_row10_col2, #T_0e888_row10_col3, #T_0e888_row10_col6, #T_0e888_row10_col8, #T_0e888_row11_col2, #T_0e888_row11_col3, #T_0e888_row11_col6, #T_0e888_row11_col8, #T_0e888_row12_col2, #T_0e888_row12_col3, #T_0e888_row12_col6, #T_0e888_row12_col8, #T_0e888_row13_col2, #T_0e888_row13_col3, #T_0e888_row13_col6, #T_0e888_row13_col8, #T_0e888_row14_col2, #T_0e888_row14_col3, #T_0e888_row14_col6, #T_0e888_row14_col8, #T_0e888_row15_col2, #T_0e888_row15_col3, #T_0e888_row15_col6, #T_0e888_row15_col8, #T_0e888_row16_col2, #T_0e888_row16_col3, #T_0e888_row16_col6, #T_0e888_row16_col8, #T_0e888_row17_col2, #T_0e888_row17_col3, #T_0e888_row17_col6, #T_0e888_row17_col8, #T_0e888_row18_col2, #T_0e888_row18_col3, #T_0e888_row18_col6, #T_0e888_row18_col8, #T_0e888_row19_col2, #T_0e888_row19_col3, #T_0e888_row19_col6, #T_0e888_row19_col8, #T_0e888_row20_col2, #T_0e888_row20_col3, #T_0e888_row20_col6, #T_0e888_row20_col8, #T_0e888_row21_col2, #T_0e888_row21_col3, #T_0e888_row21_col6, #T_0e888_row21_col8, #T_0e888_row22_col2, #T_0e888_row22_col3, #T_0e888_row22_col6, #T_0e888_row22_col8, #T_0e888_row23_col2, #T_0e888_row23_col3, #T_0e888_row23_col6, #T_0e888_row23_col8, #T_0e888_row24_col2, #T_0e888_row24_col3, #T_0e888_row24_col6, #T_0e888_row24_col8, #T_0e888_row25_col2, #T_0e888_row25_col3, #T_0e888_row25_col6, #T_0e888_row25_col8, #T_0e888_row26_col2, #T_0e888_row26_col3, #T_0e888_row26_col6, #T_0e888_row26_col8, #T_0e888_row27_col2, #T_0e888_row27_col3, #T_0e888_row27_col6, #T_0e888_row27_col8, #T_0e888_row28_col2, #T_0e888_row28_col3, #T_0e888_row28_col6, #T_0e888_row28_col8, #T_0e888_row29_col2, #T_0e888_row29_col3, #T_0e888_row29_col6, #T_0e888_row29_col8, #T_0e888_row30_col2, #T_0e888_row30_col3, #T_0e888_row30_col6, #T_0e888_row30_col8, #T_0e888_row31_col2, #T_0e888_row31_col3, #T_0e888_row31_col6, #T_0e888_row31_col8, #T_0e888_row32_col2, #T_0e888_row32_col3, #T_0e888_row32_col6, #T_0e888_row32_col8, #T_0e888_row33_col2, #T_0e888_row33_col3, #T_0e888_row33_col6, #T_0e888_row33_col8, #T_0e888_row34_col2, #T_0e888_row34_col3, #T_0e888_row34_col6, #T_0e888_row34_col8, #T_0e888_row35_col2, #T_0e888_row35_col3, #T_0e888_row35_col6, #T_0e888_row35_col8, #T_0e888_row36_col2, #T_0e888_row36_col3, #T_0e888_row36_col6, #T_0e888_row36_col8, #T_0e888_row37_col2, #T_0e888_row37_col3, #T_0e888_row37_col6, #T_0e888_row37_col8, #T_0e888_row38_col2, #T_0e888_row38_col3, #T_0e888_row38_col6, #T_0e888_row38_col8, #T_0e888_row39_col2, #T_0e888_row39_col3, #T_0e888_row39_col6, #T_0e888_row39_col8, #T_0e888_row40_col2, #T_0e888_row40_col3, #T_0e888_row40_col6, #T_0e888_row40_col8, #T_0e888_row41_col2, #T_0e888_row41_col3, #T_0e888_row41_col6, #T_0e888_row41_col8, #T_0e888_row42_col2, #T_0e888_row42_col3, #T_0e888_row42_col6, #T_0e888_row42_col8, #T_0e888_row43_col2, #T_0e888_row43_col3, #T_0e888_row43_col6, #T_0e888_row43_col8, #T_0e888_row44_col2, #T_0e888_row44_col3, #T_0e888_row44_col6, #T_0e888_row44_col8, #T_0e888_row45_col2, #T_0e888_row45_col3, #T_0e888_row45_col6, #T_0e888_row45_col8, #T_0e888_row46_col2, #T_0e888_row46_col3, #T_0e888_row46_col6, #T_0e888_row46_col8, #T_0e888_row47_col2, #T_0e888_row47_col3, #T_0e888_row47_col6, #T_0e888_row47_col8, #T_0e888_row48_col2, #T_0e888_row48_col3, #T_0e888_row48_col6, #T_0e888_row48_col8, #T_0e888_row49_col2, #T_0e888_row49_col3, #T_0e888_row49_col6, #T_0e888_row49_col8, #T_0e888_row50_col2, #T_0e888_row50_col3, #T_0e888_row50_col6, #T_0e888_row50_col8, #T_0e888_row51_col2, #T_0e888_row51_col3, #T_0e888_row51_col6, #T_0e888_row51_col8, #T_0e888_row52_col2, #T_0e888_row52_col3, #T_0e888_row52_col6, #T_0e888_row52_col8, #T_0e888_row53_col2, #T_0e888_row53_col3, #T_0e888_row53_col6, #T_0e888_row53_col8, #T_0e888_row54_col2, #T_0e888_row54_col3, #T_0e888_row54_col6, #T_0e888_row54_col8, #T_0e888_row55_col2, #T_0e888_row55_col3, #T_0e888_row55_col6, #T_0e888_row55_col8, #T_0e888_row56_col2, #T_0e888_row56_col3, #T_0e888_row56_col6, #T_0e888_row56_col8, #T_0e888_row57_col2, #T_0e888_row57_col3, #T_0e888_row57_col6, #T_0e888_row57_col8, #T_0e888_row58_col2, #T_0e888_row58_col3, #T_0e888_row58_col6, #T_0e888_row58_col8, #T_0e888_row59_col2, #T_0e888_row59_col3, #T_0e888_row59_col6, #T_0e888_row59_col8, #T_0e888_row60_col2, #T_0e888_row60_col3, #T_0e888_row60_col6, #T_0e888_row60_col8, #T_0e888_row61_col2, #T_0e888_row61_col3, #T_0e888_row61_col6, #T_0e888_row61_col8, #T_0e888_row62_col2, #T_0e888_row62_col3, #T_0e888_row62_col6, #T_0e888_row62_col8 {
+  white-space: normal;
+  word-wrap: break-word;
+  white-space: nowrap;
+}
+#T_0e888_row0_col4, #T_0e888_row1_col4, #T_0e888_row1_col5, #T_0e888_row2_col4, #T_0e888_row2_col5, #T_0e888_row3_col4, #T_0e888_row3_col5, #T_0e888_row5_col4, #T_0e888_row6_col4, #T_0e888_row6_col5, #T_0e888_row7_col4, #T_0e888_row7_col5, #T_0e888_row8_col4, #T_0e888_row8_col5, #T_0e888_row9_col4, #T_0e888_row9_col5, #T_0e888_row10_col4, #T_0e888_row10_col5, #T_0e888_row11_col4, #T_0e888_row12_col4, #T_0e888_row13_col4, #T_0e888_row14_col4, #T_0e888_row14_col5, #T_0e888_row15_col4, #T_0e888_row15_col5, #T_0e888_row16_col4, #T_0e888_row16_col5, #T_0e888_row17_col4, #T_0e888_row17_col5, #T_0e888_row18_col4, #T_0e888_row18_col5, #T_0e888_row19_col4, #T_0e888_row20_col4, #T_0e888_row20_col5, #T_0e888_row22_col4, #T_0e888_row22_col5, #T_0e888_row23_col4, #T_0e888_row25_col4, #T_0e888_row26_col4, #T_0e888_row26_col5, #T_0e888_row27_col4, #T_0e888_row27_col5, #T_0e888_row28_col4, #T_0e888_row28_col5, #T_0e888_row31_col4, #T_0e888_row31_col5, #T_0e888_row36_col5, #T_0e888_row37_col5, #T_0e888_row43_col4, #T_0e888_row43_col5, #T_0e888_row44_col4, #T_0e888_row44_col5, #T_0e888_row45_col4, #T_0e888_row48_col4, #T_0e888_row49_col4, #T_0e888_row49_col5, #T_0e888_row50_col4, #T_0e888_row50_col5, #T_0e888_row51_col4, #T_0e888_row51_col5, #T_0e888_row52_col5, #T_0e888_row54_col4, #T_0e888_row57_col4, #T_0e888_row57_col5, #T_0e888_row58_col5, #T_0e888_row59_col5, #T_0e888_row60_col4 {
+  color: #2ecc71;
+  font-weight: bold;
+  white-space: normal;
+  word-wrap: break-word;
+  white-space: nowrap;
+}
+#T_0e888_row4_col4, #T_0e888_row4_col5, #T_0e888_row5_col5, #T_0e888_row11_col5, #T_0e888_row12_col5, #T_0e888_row19_col5, #T_0e888_row21_col4, #T_0e888_row23_col5, #T_0e888_row24_col4, #T_0e888_row24_col5, #T_0e888_row25_col5, #T_0e888_row29_col4, #T_0e888_row30_col4, #T_0e888_row32_col4, #T_0e888_row32_col5, #T_0e888_row33_col4, #T_0e888_row33_col5, #T_0e888_row34_col4, #T_0e888_row34_col5, #T_0e888_row35_col4, #T_0e888_row36_col4, #T_0e888_row37_col4, #T_0e888_row38_col4, #T_0e888_row38_col5, #T_0e888_row39_col4, #T_0e888_row39_col5, #T_0e888_row40_col5, #T_0e888_row41_col5, #T_0e888_row42_col4, #T_0e888_row45_col5, #T_0e888_row46_col5, #T_0e888_row48_col5, #T_0e888_row53_col5, #T_0e888_row54_col5, #T_0e888_row55_col4, #T_0e888_row55_col5, #T_0e888_row56_col4, #T_0e888_row58_col4, #T_0e888_row59_col4, #T_0e888_row60_col5, #T_0e888_row61_col4 {
+  color: #f39c12;
+  white-space: normal;
+  word-wrap: break-word;
+  white-space: nowrap;
+}
+#T_0e888_row13_col5, #T_0e888_row21_col5, #T_0e888_row29_col5, #T_0e888_row30_col5, #T_0e888_row35_col5, #T_0e888_row42_col5, #T_0e888_row46_col4, #T_0e888_row47_col4, #T_0e888_row47_col5, #T_0e888_row56_col5, #T_0e888_row61_col5, #T_0e888_row62_col4, #T_0e888_row62_col5 {
+  color: #95a5a6;
+  white-space: normal;
+  word-wrap: break-word;
+  white-space: nowrap;
+}
+#T_0e888_row32_col0, #T_0e888_row33_col0, #T_0e888_row34_col0, #T_0e888_row35_col0, #T_0e888_row36_col0, #T_0e888_row37_col0, #T_0e888_row38_col0, #T_0e888_row39_col0, #T_0e888_row40_col0, #T_0e888_row41_col0, #T_0e888_row42_col0 {
+  color: #3f51b5;
+  font-weight: bold;
+  white-space: normal;
+  word-wrap: break-word;
+  white-space: nowrap;
+}
+#T_0e888_row40_col4, #T_0e888_row41_col4, #T_0e888_row52_col4, #T_0e888_row53_col4 {
+  color: #e67e22;
+  white-space: normal;
+  word-wrap: break-word;
+  white-space: nowrap;
+}
+#T_0e888_row43_col0, #T_0e888_row44_col0, #T_0e888_row45_col0, #T_0e888_row46_col0, #T_0e888_row47_col0, #T_0e888_row48_col0, #T_0e888_row49_col0, #T_0e888_row50_col0, #T_0e888_row51_col0, #T_0e888_row52_col0, #T_0e888_row53_col0, #T_0e888_row54_col0, #T_0e888_row55_col0, #T_0e888_row56_col0 {
+  color: #e74c3c;
+  font-weight: bold;
+  white-space: normal;
+  word-wrap: break-word;
+  white-space: nowrap;
+}
+#T_0e888_row57_col0, #T_0e888_row58_col0, #T_0e888_row59_col0, #T_0e888_row60_col0, #T_0e888_row61_col0, #T_0e888_row62_col0 {
+  color: #9c27b0;
+  font-weight: bold;
+  white-space: normal;
+  word-wrap: break-word;
+  white-space: nowrap;
+}
+</style>
+<table id="T_0e888">
+  <thead>
+    <tr>
+      <th class="blank level0" >&nbsp;</th>
+      <th id="T_0e888_level0_col0" class="col_heading level0 col0" >id</th>
+      <th id="T_0e888_level0_col1" class="col_heading level0 col1" >description</th>
+      <th id="T_0e888_level0_col2" class="col_heading level0 col2" >iso_reference</th>
+      <th id="T_0e888_level0_col3" class="col_heading level0 col3" >format</th>
+      <th id="T_0e888_level0_col4" class="col_heading level0 col4" >status</th>
+      <th id="T_0e888_level0_col5" class="col_heading level0 col5" >priority</th>
+      <th id="T_0e888_level0_col6" class="col_heading level0 col6" >tests</th>
+      <th id="T_0e888_level0_col7" class="col_heading level0 col7" >acceptance_criteria</th>
+      <th id="T_0e888_level0_col8" class="col_heading level0 col8" >verification</th>
+      <th id="T_0e888_level0_col9" class="col_heading level0 col9" >dependencies</th>
+      <th id="T_0e888_level0_col10" class="col_heading level0 col10" >notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th id="T_0e888_level0_row0" class="row_heading level0 row0" >0</th>
+      <td id="T_0e888_row0_col0" class="data row0 col0" >FRM001TX</td>
+      <td id="T_0e888_row0_col1" class="data row0 col1" >SOF shall be 1 dominant bit marking frame start</td>
+      <td id="T_0e888_row0_col2" class="data row0 col2" >6.6.8</td>
+      <td id="T_0e888_row0_col3" class="data row0 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row0_col4" class="data row0 col4" >Verified</td>
+      <td id="T_0e888_row0_col5" class="data row0 col5" ></td>
+      <td id="T_0e888_row0_col6" class="data row0 col6" >T1, T4, T5</td>
+      <td id="T_0e888_row0_col7" class="data row0 col7" >SOF always dominant, exactly 1 bit</td>
+      <td id="T_0e888_row0_col8" class="data row0 col8" >WAVE</td>
+      <td id="T_0e888_row0_col9" class="data row0 col9" ></td>
+      <td id="T_0e888_row0_col10" class="data row0 col10" >Every frame starts with SOF</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row1" class="row_heading level0 row1" >1</th>
+      <td id="T_0e888_row1_col0" class="data row1 col0" >FRM002TX</td>
+      <td id="T_0e888_row1_col1" class="data row1 col1" >Frame shall contain SOF, arbitration, control, data (optional), CRC, ACK, EOF</td>
+      <td id="T_0e888_row1_col2" class="data row1 col2" >6.6.9</td>
+      <td id="T_0e888_row1_col3" class="data row1 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row1_col4" class="data row1 col4" >Verified</td>
+      <td id="T_0e888_row1_col5" class="data row1 col5" >C</td>
+      <td id="T_0e888_row1_col6" class="data row1 col6" >T1</td>
+      <td id="T_0e888_row1_col7" class="data row1 col7" >All fields present in correct order</td>
+      <td id="T_0e888_row1_col8" class="data row1 col8" >ASSERT</td>
+      <td id="T_0e888_row1_col9" class="data row1 col9" >FRM001TX</td>
+      <td id="T_0e888_row1_col10" class="data row1 col10" >Field ordering critical</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row2" class="row_heading level0 row2" >2</th>
+      <td id="T_0e888_row2_col0" class="data row2 col0" >FRM003TX</td>
+      <td id="T_0e888_row2_col1" class="data row2 col1" >DLC field shall match LLC DLC value</td>
+      <td id="T_0e888_row2_col2" class="data row2 col2" >6.6.10.3, Table 5</td>
+      <td id="T_0e888_row2_col3" class="data row2 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row2_col4" class="data row2 col4" >Verified</td>
+      <td id="T_0e888_row2_col5" class="data row2 col5" >C</td>
+      <td id="T_0e888_row2_col6" class="data row2 col6" >T1</td>
+      <td id="T_0e888_row2_col7" class="data row2 col7" >DLC encoded correctly per table</td>
+      <td id="T_0e888_row2_col8" class="data row2 col8" >CVRG</td>
+      <td id="T_0e888_row2_col9" class="data row2 col9" ></td>
+      <td id="T_0e888_row2_col10" class="data row2 col10" >Maps to data length</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row3" class="row_heading level0 row3" >3</th>
+      <td id="T_0e888_row3_col0" class="data row3 col0" >FRM004TX</td>
+      <td id="T_0e888_row3_col1" class="data row3 col1" >Data field byte order: byte 0 first, MSB first</td>
+      <td id="T_0e888_row3_col2" class="data row3 col2" >6.6.10.4</td>
+      <td id="T_0e888_row3_col3" class="data row3 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row3_col4" class="data row3 col4" >Verified</td>
+      <td id="T_0e888_row3_col5" class="data row3 col5" >C</td>
+      <td id="T_0e888_row3_col6" class="data row3 col6" >T1</td>
+      <td id="T_0e888_row3_col7" class="data row3 col7" >Bytes transmitted sequentially</td>
+      <td id="T_0e888_row3_col8" class="data row3 col8" >SIM</td>
+      <td id="T_0e888_row3_col9" class="data row3 col9" ></td>
+      <td id="T_0e888_row3_col10" class="data row3 col10" >8 bits per byte</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row4" class="row_heading level0 row4" >4</th>
+      <td id="T_0e888_row4_col0" class="data row4 col0" >FRM005TX</td>
+      <td id="T_0e888_row4_col1" class="data row4 col1" >CRC field shall contain FCRC sequence + delimiter</td>
+      <td id="T_0e888_row4_col2" class="data row4 col2" >6.6.10.5, 6.6.11.5</td>
+      <td id="T_0e888_row4_col3" class="data row4 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row4_col4" class="data row4 col4" >Implemented</td>
+      <td id="T_0e888_row4_col5" class="data row4 col5" >H</td>
+      <td id="T_0e888_row4_col6" class="data row4 col6" >None</td>
+      <td id="T_0e888_row4_col7" class="data row4 col7" >CRC bits correct, delimiter recessive</td>
+      <td id="T_0e888_row4_col8" class="data row4 col8" >WAVE</td>
+      <td id="T_0e888_row4_col9" class="data row4 col9" >CRC001TX</td>
+      <td id="T_0e888_row4_col10" class="data row4 col10" >Polynomial selection</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row5" class="row_heading level0 row5" >5</th>
+      <td id="T_0e888_row5_col0" class="data row5 col0" >FRM006TX</td>
+      <td id="T_0e888_row5_col1" class="data row5 col1" >ACK field: ACK slot + ACK delimiter (8 bits total)</td>
+      <td id="T_0e888_row5_col2" class="data row5 col2" >6.6.10.6</td>
+      <td id="T_0e888_row5_col3" class="data row5 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row5_col4" class="data row5 col4" >Verified</td>
+      <td id="T_0e888_row5_col5" class="data row5 col5" >H</td>
+      <td id="T_0e888_row5_col6" class="data row5 col6" >T1, T11</td>
+      <td id="T_0e888_row5_col7" class="data row5 col7" >TX sends recessive, monitors for dominant</td>
+      <td id="T_0e888_row5_col8" class="data row5 col8" >WAVE</td>
+      <td id="T_0e888_row5_col9" class="data row5 col9" ></td>
+      <td id="T_0e888_row5_col10" class="data row5 col10" >Part of frame completion</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row6" class="row_heading level0 row6" >6</th>
+      <td id="T_0e888_row6_col0" class="data row6 col0" >FRM007TX</td>
+      <td id="T_0e888_row6_col1" class="data row6 col1" >EOF shall be 7 recessive bits</td>
+      <td id="T_0e888_row6_col2" class="data row6 col2" >6.6.10.7, 6.6.11.7</td>
+      <td id="T_0e888_row6_col3" class="data row6 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row6_col4" class="data row6 col4" >Verified</td>
+      <td id="T_0e888_row6_col5" class="data row6 col5" >C</td>
+      <td id="T_0e888_row6_col6" class="data row6 col6" >T1</td>
+      <td id="T_0e888_row6_col7" class="data row6 col7" >EOF always recessive, 7 bits</td>
+      <td id="T_0e888_row6_col8" class="data row6 col8" >WAVE</td>
+      <td id="T_0e888_row6_col9" class="data row6 col9" ></td>
+      <td id="T_0e888_row6_col10" class="data row6 col10" >Marks frame end</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row7" class="row_heading level0 row7" >7</th>
+      <td id="T_0e888_row7_col0" class="data row7 col0" >FRM008TX</td>
+      <td id="T_0e888_row7_col1" class="data row7 col1" >CBFF base ID: 11-bit identifier</td>
+      <td id="T_0e888_row7_col2" class="data row7 col2" >6.6.10.2</td>
+      <td id="T_0e888_row7_col3" class="data row7 col3" >CB</td>
+      <td id="T_0e888_row7_col4" class="data row7 col4" >Verified</td>
+      <td id="T_0e888_row7_col5" class="data row7 col5" >C</td>
+      <td id="T_0e888_row7_col6" class="data row7 col6" >T1</td>
+      <td id="T_0e888_row7_col7" class="data row7 col7" >ID bits 10-0 transmitted MSB first</td>
+      <td id="T_0e888_row7_col8" class="data row7 col8" >CVRG</td>
+      <td id="T_0e888_row7_col9" class="data row7 col9" ></td>
+      <td id="T_0e888_row7_col10" class="data row7 col10" >CC Basic only</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row8" class="row_heading level0 row8" >8</th>
+      <td id="T_0e888_row8_col0" class="data row8 col0" >FRM009TX</td>
+      <td id="T_0e888_row8_col1" class="data row8 col1" >CEFF extended ID: 29-bit identifier (11+18)</td>
+      <td id="T_0e888_row8_col2" class="data row8 col2" >6.6.10.2</td>
+      <td id="T_0e888_row8_col3" class="data row8 col3" >CE</td>
+      <td id="T_0e888_row8_col4" class="data row8 col4" >Verified</td>
+      <td id="T_0e888_row8_col5" class="data row8 col5" >C</td>
+      <td id="T_0e888_row8_col6" class="data row8 col6" >T4</td>
+      <td id="T_0e888_row8_col7" class="data row8 col7" >Base ID (11-bit) + extended ID (18-bit)</td>
+      <td id="T_0e888_row8_col8" class="data row8 col8" >CVRG</td>
+      <td id="T_0e888_row8_col9" class="data row8 col9" ></td>
+      <td id="T_0e888_row8_col10" class="data row8 col10" >CC Extended only</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row9" class="row_heading level0 row9" >9</th>
+      <td id="T_0e888_row9_col0" class="data row9 col0" >FRM010TX</td>
+      <td id="T_0e888_row9_col1" class="data row9 col1" >FBFF base ID: 11-bit identifier</td>
+      <td id="T_0e888_row9_col2" class="data row9 col2" >6.6.11.2</td>
+      <td id="T_0e888_row9_col3" class="data row9 col3" >FB</td>
+      <td id="T_0e888_row9_col4" class="data row9 col4" >Verified</td>
+      <td id="T_0e888_row9_col5" class="data row9 col5" >C</td>
+      <td id="T_0e888_row9_col6" class="data row9 col6" >T5</td>
+      <td id="T_0e888_row9_col7" class="data row9 col7" >ID bits 10-0 transmitted MSB first</td>
+      <td id="T_0e888_row9_col8" class="data row9 col8" >CVRG</td>
+      <td id="T_0e888_row9_col9" class="data row9 col9" ></td>
+      <td id="T_0e888_row9_col10" class="data row9 col10" >FD Basic only</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row10" class="row_heading level0 row10" >10</th>
+      <td id="T_0e888_row10_col0" class="data row10 col0" >FRM011TX</td>
+      <td id="T_0e888_row10_col1" class="data row10 col1" >FEFF extended ID: 29-bit identifier (11+18)</td>
+      <td id="T_0e888_row10_col2" class="data row10 col2" >6.6.11.2</td>
+      <td id="T_0e888_row10_col3" class="data row10 col3" >FE</td>
+      <td id="T_0e888_row10_col4" class="data row10 col4" >Verified</td>
+      <td id="T_0e888_row10_col5" class="data row10 col5" >C</td>
+      <td id="T_0e888_row10_col6" class="data row10 col6" >T6</td>
+      <td id="T_0e888_row10_col7" class="data row10 col7" >Base ID (11-bit) + extended ID (18-bit)</td>
+      <td id="T_0e888_row10_col8" class="data row10 col8" >CVRG</td>
+      <td id="T_0e888_row10_col9" class="data row10 col9" ></td>
+      <td id="T_0e888_row10_col10" class="data row10 col10" >FD Extended only</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row11" class="row_heading level0 row11" >11</th>
+      <td id="T_0e888_row11_col0" class="data row11 col0" >FRM012TX</td>
+      <td id="T_0e888_row11_col1" class="data row11 col1" >RTR bit: dominant in DF, recessive in RF (CC only)</td>
+      <td id="T_0e888_row11_col2" class="data row11 col2" >6.6.10.2</td>
+      <td id="T_0e888_row11_col3" class="data row11 col3" >CB/CE</td>
+      <td id="T_0e888_row11_col4" class="data row11 col4" >Verified</td>
+      <td id="T_0e888_row11_col5" class="data row11 col5" >H</td>
+      <td id="T_0e888_row11_col6" class="data row11 col6" >T1</td>
+      <td id="T_0e888_row11_col7" class="data row11 col7" >Correct polarity based on frame type</td>
+      <td id="T_0e888_row11_col8" class="data row11 col8" >CVRG</td>
+      <td id="T_0e888_row11_col9" class="data row11 col9" ></td>
+      <td id="T_0e888_row11_col10" class="data row11 col10" >CAN Classic only</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row12" class="row_heading level0 row12" >12</th>
+      <td id="T_0e888_row12_col0" class="data row12 col0" >FRM013TX</td>
+      <td id="T_0e888_row12_col1" class="data row12 col1" >RRS bit: dominant in FBFF/FEFF</td>
+      <td id="T_0e888_row12_col2" class="data row12 col2" >6.6.11.2</td>
+      <td id="T_0e888_row12_col3" class="data row12 col3" >FB/FE</td>
+      <td id="T_0e888_row12_col4" class="data row12 col4" >Verified</td>
+      <td id="T_0e888_row12_col5" class="data row12 col5" >H</td>
+      <td id="T_0e888_row12_col6" class="data row12 col6" >T5, T6</td>
+      <td id="T_0e888_row12_col7" class="data row12 col7" >RRS always dominant</td>
+      <td id="T_0e888_row12_col8" class="data row12 col8" >CVRG</td>
+      <td id="T_0e888_row12_col9" class="data row12 col9" ></td>
+      <td id="T_0e888_row12_col10" class="data row12 col10" >CAN FD only</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row13" class="row_heading level0 row13" >13</th>
+      <td id="T_0e888_row13_col0" class="data row13 col0" >FRM014TX</td>
+      <td id="T_0e888_row13_col1" class="data row13 col1" >SRR bit: transmitted recessive (CC extended only)</td>
+      <td id="T_0e888_row13_col2" class="data row13 col2" >6.6.10.2</td>
+      <td id="T_0e888_row13_col3" class="data row13 col3" >CE</td>
+      <td id="T_0e888_row13_col4" class="data row13 col4" >Verified</td>
+      <td id="T_0e888_row13_col5" class="data row13 col5" >M</td>
+      <td id="T_0e888_row13_col6" class="data row13 col6" >T4</td>
+      <td id="T_0e888_row13_col7" class="data row13 col7" >SRR bit always recessive</td>
+      <td id="T_0e888_row13_col8" class="data row13 col8" >CVRG</td>
+      <td id="T_0e888_row13_col9" class="data row13 col9" ></td>
+      <td id="T_0e888_row13_col10" class="data row13 col10" >Arbitration helper bit</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row14" class="row_heading level0 row14" >14</th>
+      <td id="T_0e888_row14_col0" class="data row14 col0" >FRM015TX</td>
+      <td id="T_0e888_row14_col1" class="data row14 col1" >IDE bit: dominant in CBFF/FBFF, recessive in CEFF/FEFF</td>
+      <td id="T_0e888_row14_col2" class="data row14 col2" >6.6.10.2, 6.6.11.2</td>
+      <td id="T_0e888_row14_col3" class="data row14 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row14_col4" class="data row14 col4" >Verified</td>
+      <td id="T_0e888_row14_col5" class="data row14 col5" >C</td>
+      <td id="T_0e888_row14_col6" class="data row14 col6" >T1, T4, T5, T6</td>
+      <td id="T_0e888_row14_col7" class="data row14 col7" >Correct polarity based on format</td>
+      <td id="T_0e888_row14_col8" class="data row14 col8" >CVRG</td>
+      <td id="T_0e888_row14_col9" class="data row14 col9" ></td>
+      <td id="T_0e888_row14_col10" class="data row14 col10" >Format indicator</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row15" class="row_heading level0 row15" >15</th>
+      <td id="T_0e888_row15_col0" class="data row15 col0" >FRM016TX</td>
+      <td id="T_0e888_row15_col1" class="data row15 col1" >Arbitration ends at RTR/RRS bit; loser becomes receiver</td>
+      <td id="T_0e888_row15_col2" class="data row15 col2" >6.6.10.2</td>
+      <td id="T_0e888_row15_col3" class="data row15 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row15_col4" class="data row15 col4" >Verified</td>
+      <td id="T_0e888_row15_col5" class="data row15 col5" >C</td>
+      <td id="T_0e888_row15_col6" class="data row15 col6" >T12</td>
+      <td id="T_0e888_row15_col7" class="data row15 col7" >FSM transitions to receive on arbitration loss</td>
+      <td id="T_0e888_row15_col8" class="data row15 col8" >SIM</td>
+      <td id="T_0e888_row15_col9" class="data row15 col9" ></td>
+      <td id="T_0e888_row15_col10" class="data row15 col10" >Arbitration loss withdrawal</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row16" class="row_heading level0 row16" >16</th>
+      <td id="T_0e888_row16_col0" class="data row16 col0" >FRM017TX</td>
+      <td id="T_0e888_row16_col1" class="data row16 col1" >IDE/r1 bit: dominant (CC r0, FD FDF)</td>
+      <td id="T_0e888_row16_col2" class="data row16 col2" >6.6.10.3, 6.6.11.3</td>
+      <td id="T_0e888_row16_col3" class="data row16 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row16_col4" class="data row16 col4" >Verified</td>
+      <td id="T_0e888_row16_col5" class="data row16 col5" >C</td>
+      <td id="T_0e888_row16_col6" class="data row16 col6" >T1</td>
+      <td id="T_0e888_row16_col7" class="data row16 col7" >Control field bits correct polarity</td>
+      <td id="T_0e888_row16_col8" class="data row16 col8" >CVRG</td>
+      <td id="T_0e888_row16_col9" class="data row16 col9" ></td>
+      <td id="T_0e888_row16_col10" class="data row16 col10" >Format control bits</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row17" class="row_heading level0 row17" >17</th>
+      <td id="T_0e888_row17_col0" class="data row17 col0" >FRM018TX</td>
+      <td id="T_0e888_row17_col1" class="data row17 col1" >r0 bit: dominant in CC frames</td>
+      <td id="T_0e888_row17_col2" class="data row17 col2" >6.6.10.3</td>
+      <td id="T_0e888_row17_col3" class="data row17 col3" >CB/CE</td>
+      <td id="T_0e888_row17_col4" class="data row17 col4" >Verified</td>
+      <td id="T_0e888_row17_col5" class="data row17 col5" >C</td>
+      <td id="T_0e888_row17_col6" class="data row17 col6" >T1</td>
+      <td id="T_0e888_row17_col7" class="data row17 col7" >r0 always dominant</td>
+      <td id="T_0e888_row17_col8" class="data row17 col8" >CVRG</td>
+      <td id="T_0e888_row17_col9" class="data row17 col9" ></td>
+      <td id="T_0e888_row17_col10" class="data row17 col10" >CAN Classic only</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row18" class="row_heading level0 row18" >18</th>
+      <td id="T_0e888_row18_col0" class="data row18 col0" >FRM019TX</td>
+      <td id="T_0e888_row18_col1" class="data row18 col1" >FDF bit: recessive for CC, dominant for FD</td>
+      <td id="T_0e888_row18_col2" class="data row18 col2" >6.6.11.3</td>
+      <td id="T_0e888_row18_col3" class="data row18 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row18_col4" class="data row18 col4" >Verified</td>
+      <td id="T_0e888_row18_col5" class="data row18 col5" >C</td>
+      <td id="T_0e888_row18_col6" class="data row18 col6" >T1, T5</td>
+      <td id="T_0e888_row18_col7" class="data row18 col7" >Correct format indicator</td>
+      <td id="T_0e888_row18_col8" class="data row18 col8" >CVRG</td>
+      <td id="T_0e888_row18_col9" class="data row18 col9" ></td>
+      <td id="T_0e888_row18_col10" class="data row18 col10" >Differentiates CC/FD</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row19" class="row_heading level0 row19" >19</th>
+      <td id="T_0e888_row19_col0" class="data row19 col0" >FRM020TX</td>
+      <td id="T_0e888_row19_col1" class="data row19 col1" >res bit: dominant (FD frames only, between FDF and BRS)</td>
+      <td id="T_0e888_row19_col2" class="data row19 col2" >6.6.11.3</td>
+      <td id="T_0e888_row19_col3" class="data row19 col3" >FB/FE</td>
+      <td id="T_0e888_row19_col4" class="data row19 col4" >Verified</td>
+      <td id="T_0e888_row19_col5" class="data row19 col5" >H</td>
+      <td id="T_0e888_row19_col6" class="data row19 col6" >T5, T6, T14</td>
+      <td id="T_0e888_row19_col7" class="data row19 col7" >res bit always dominant</td>
+      <td id="T_0e888_row19_col8" class="data row19 col8" >CVRG</td>
+      <td id="T_0e888_row19_col9" class="data row19 col9" ></td>
+      <td id="T_0e888_row19_col10" class="data row19 col10" >FD format only</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row20" class="row_heading level0 row20" >20</th>
+      <td id="T_0e888_row20_col0" class="data row20 col0" >FRM021TX</td>
+      <td id="T_0e888_row20_col1" class="data row20 col1" >BRS bit: recessive if data phase, dominant otherwise</td>
+      <td id="T_0e888_row20_col2" class="data row20 col2" >6.6.11.3</td>
+      <td id="T_0e888_row20_col3" class="data row20 col3" >FB/FE</td>
+      <td id="T_0e888_row20_col4" class="data row20 col4" >Verified</td>
+      <td id="T_0e888_row20_col5" class="data row20 col5" >C</td>
+      <td id="T_0e888_row20_col6" class="data row20 col6" >T5, T6, T14</td>
+      <td id="T_0e888_row20_col7" class="data row20 col7" >Polarity matches config</td>
+      <td id="T_0e888_row20_col8" class="data row20 col8" >CVRG</td>
+      <td id="T_0e888_row20_col9" class="data row20 col9" ></td>
+      <td id="T_0e888_row20_col10" class="data row20 col10" >Enables bit rate switch</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row21" class="row_heading level0 row21" >21</th>
+      <td id="T_0e888_row21_col0" class="data row21 col0" >FRM022TX</td>
+      <td id="T_0e888_row21_col1" class="data row21 col1" >ESI bit: polarity based on node error state</td>
+      <td id="T_0e888_row21_col2" class="data row21 col2" >6.6.11.3</td>
+      <td id="T_0e888_row21_col3" class="data row21 col3" >FB/FE</td>
+      <td id="T_0e888_row21_col4" class="data row21 col4" >Implemented</td>
+      <td id="T_0e888_row21_col5" class="data row21 col5" >M</td>
+      <td id="T_0e888_row21_col6" class="data row21 col6" >None</td>
+      <td id="T_0e888_row21_col7" class="data row21 col7" >ESI=dominant (error-active), recessive (error-passive)</td>
+      <td id="T_0e888_row21_col8" class="data row21 col8" >CVRG</td>
+      <td id="T_0e888_row21_col9" class="data row21 col9" ></td>
+      <td id="T_0e888_row21_col10" class="data row21 col10" >Error state indicator</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row22" class="row_heading level0 row22" >22</th>
+      <td id="T_0e888_row22_col0" class="data row22 col0" >FRM023TX</td>
+      <td id="T_0e888_row22_col1" class="data row22 col1" >Dynamic stuff rule: no more than 4 consecutive bits of same polarity in arb/ctrl/data</td>
+      <td id="T_0e888_row22_col2" class="data row22 col2" >6.6.13.2</td>
+      <td id="T_0e888_row22_col3" class="data row22 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row22_col4" class="data row22 col4" >Verified</td>
+      <td id="T_0e888_row22_col5" class="data row22 col5" >C</td>
+      <td id="T_0e888_row22_col6" class="data row22 col6" >T7</td>
+      <td id="T_0e888_row22_col7" class="data row22 col7" >Stuff bit inserted after 4 same bits</td>
+      <td id="T_0e888_row22_col8" class="data row22 col8" >CVRG</td>
+      <td id="T_0e888_row22_col9" class="data row22 col9" ></td>
+      <td id="T_0e888_row22_col10" class="data row22 col10" >5-in-a-row rule</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row23" class="row_heading level0 row23" >23</th>
+      <td id="T_0e888_row23_col0" class="data row23 col0" >FRM024TX</td>
+      <td id="T_0e888_row23_col1" class="data row23 col1" >Fixed stuff bits: CAN FD SBC field (Stuff Bit Count)</td>
+      <td id="T_0e888_row23_col2" class="data row23 col2" >6.6.13.3</td>
+      <td id="T_0e888_row23_col3" class="data row23 col3" >FB/FE</td>
+      <td id="T_0e888_row23_col4" class="data row23 col4" >Verified</td>
+      <td id="T_0e888_row23_col5" class="data row23 col5" >H</td>
+      <td id="T_0e888_row23_col6" class="data row23 col6" >None</td>
+      <td id="T_0e888_row23_col7" class="data row23 col7" >SBC field contains stuff count</td>
+      <td id="T_0e888_row23_col8" class="data row23 col8" >CVRG</td>
+      <td id="T_0e888_row23_col9" class="data row23 col9" ></td>
+      <td id="T_0e888_row23_col10" class="data row23 col10" >FD frames only</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row24" class="row_heading level0 row24" >24</th>
+      <td id="T_0e888_row24_col0" class="data row24 col0" >FRM025TX</td>
+      <td id="T_0e888_row24_col1" class="data row24 col1" >Fixed stuff bit positions: every 5th bit in CRC field</td>
+      <td id="T_0e888_row24_col2" class="data row24 col2" >6.6.13.3.1</td>
+      <td id="T_0e888_row24_col3" class="data row24 col3" >FB/FE</td>
+      <td id="T_0e888_row24_col4" class="data row24 col4" >Implemented</td>
+      <td id="T_0e888_row24_col5" class="data row24 col5" >H</td>
+      <td id="T_0e888_row24_col6" class="data row24 col6" >None</td>
+      <td id="T_0e888_row24_col7" class="data row24 col7" >Positions calculated correctly</td>
+      <td id="T_0e888_row24_col8" class="data row24 col8" >CVRG</td>
+      <td id="T_0e888_row24_col9" class="data row24 col9" ></td>
+      <td id="T_0e888_row24_col10" class="data row24 col10" >FD CRC field</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row25" class="row_heading level0 row25" >25</th>
+      <td id="T_0e888_row25_col0" class="data row25 col0" >FRM026TX</td>
+      <td id="T_0e888_row25_col1" class="data row25 col1" >Stuff bit polarity: opposite of preceding 4 bits</td>
+      <td id="T_0e888_row25_col2" class="data row25 col2" >6.6.13.2</td>
+      <td id="T_0e888_row25_col3" class="data row25 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row25_col4" class="data row25 col4" >Verified</td>
+      <td id="T_0e888_row25_col5" class="data row25 col5" >H</td>
+      <td id="T_0e888_row25_col6" class="data row25 col6" >T7</td>
+      <td id="T_0e888_row25_col7" class="data row25 col7" >Stuff bit correct</td>
+      <td id="T_0e888_row25_col8" class="data row25 col8" >CVRG</td>
+      <td id="T_0e888_row25_col9" class="data row25 col9" >FRM023TX</td>
+      <td id="T_0e888_row25_col10" class="data row25 col10" >Dynamic stuffing</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row26" class="row_heading level0 row26" >26</th>
+      <td id="T_0e888_row26_col0" class="data row26 col0" >FRM027TX</td>
+      <td id="T_0e888_row26_col1" class="data row26 col1" >ACK handling: TX sends recessive, expects dominant from receivers</td>
+      <td id="T_0e888_row26_col2" class="data row26 col2" >6.6.10.6</td>
+      <td id="T_0e888_row26_col3" class="data row26 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row26_col4" class="data row26 col4" >Verified</td>
+      <td id="T_0e888_row26_col5" class="data row26 col5" >C</td>
+      <td id="T_0e888_row26_col6" class="data row26 col6" >T1, T11</td>
+      <td id="T_0e888_row26_col7" class="data row26 col7" >ACK slot monitoring logic</td>
+      <td id="T_0e888_row26_col8" class="data row26 col8" >SIM</td>
+      <td id="T_0e888_row26_col9" class="data row26 col9" ></td>
+      <td id="T_0e888_row26_col10" class="data row26 col10" >Frame acknowledgement</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row27" class="row_heading level0 row27" >27</th>
+      <td id="T_0e888_row27_col0" class="data row27 col0" >FRM028TX</td>
+      <td id="T_0e888_row27_col1" class="data row27 col1" >Frame transmitted status: reported after EOF completion</td>
+      <td id="T_0e888_row27_col2" class="data row27 col2" >6.4.5.5.5</td>
+      <td id="T_0e888_row27_col3" class="data row27 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row27_col4" class="data row27 col4" >Verified</td>
+      <td id="T_0e888_row27_col5" class="data row27 col5" >C</td>
+      <td id="T_0e888_row27_col6" class="data row27 col6" >T1</td>
+      <td id="T_0e888_row27_col7" class="data row27 col7" >Transfer_status=transmitted signal</td>
+      <td id="T_0e888_row27_col8" class="data row27 col8" >SIM</td>
+      <td id="T_0e888_row27_col9" class="data row27 col9" ></td>
+      <td id="T_0e888_row27_col10" class="data row27 col10" >LLC notification</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row28" class="row_heading level0 row28" >28</th>
+      <td id="T_0e888_row28_col0" class="data row28 col0" >FRM029TX</td>
+      <td id="T_0e888_row28_col1" class="data row28 col1" >Frame abort: on abort request, stop transmission</td>
+      <td id="T_0e888_row28_col2" class="data row28 col2" >6.4.5.5.3</td>
+      <td id="T_0e888_row28_col3" class="data row28 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row28_col4" class="data row28 col4" >Verified</td>
+      <td id="T_0e888_row28_col5" class="data row28 col5" >C</td>
+      <td id="T_0e888_row28_col6" class="data row28 col6" >T2, T3</td>
+      <td id="T_0e888_row28_col7" class="data row28 col7" >FSM transitions to idle</td>
+      <td id="T_0e888_row28_col8" class="data row28 col8" >SIM</td>
+      <td id="T_0e888_row28_col9" class="data row28 col9" ></td>
+      <td id="T_0e888_row28_col10" class="data row28 col10" >Abort handling</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row29" class="row_heading level0 row29" >29</th>
+      <td id="T_0e888_row29_col0" class="data row29 col0" >FRM030TX</td>
+      <td id="T_0e888_row29_col1" class="data row29 col1" >Intermission: 3 recessive bits after EOF</td>
+      <td id="T_0e888_row29_col2" class="data row29 col2" >6.6.7.2</td>
+      <td id="T_0e888_row29_col3" class="data row29 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row29_col4" class="data row29 col4" >Implemented</td>
+      <td id="T_0e888_row29_col5" class="data row29 col5" >M</td>
+      <td id="T_0e888_row29_col6" class="data row29 col6" >None</td>
+      <td id="T_0e888_row29_col7" class="data row29 col7" >Intermission state</td>
+      <td id="T_0e888_row29_col8" class="data row29 col8" >SIM</td>
+      <td id="T_0e888_row29_col9" class="data row29 col9" ></td>
+      <td id="T_0e888_row29_col10" class="data row29 col10" >Recovery phase</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row30" class="row_heading level0 row30" >30</th>
+      <td id="T_0e888_row30_col0" class="data row30 col0" >FRM031TX</td>
+      <td id="T_0e888_row30_col1" class="data row30 col1" >Bus idle: recognized after 11 recessive bits in re-integration</td>
+      <td id="T_0e888_row30_col2" class="data row30 col2" >6.6.7.5</td>
+      <td id="T_0e888_row30_col3" class="data row30 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row30_col4" class="data row30 col4" >Implemented</td>
+      <td id="T_0e888_row30_col5" class="data row30 col5" >M</td>
+      <td id="T_0e888_row30_col6" class="data row30 col6" >None</td>
+      <td id="T_0e888_row30_col7" class="data row30 col7" >Re-integration counter</td>
+      <td id="T_0e888_row30_col8" class="data row30 col8" >SIM</td>
+      <td id="T_0e888_row30_col9" class="data row30 col9" ></td>
+      <td id="T_0e888_row30_col10" class="data row30 col10" >Idle detection</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row31" class="row_heading level0 row31" >31</th>
+      <td id="T_0e888_row31_col0" class="data row31 col0" >FRM032TX</td>
+      <td id="T_0e888_row31_col1" class="data row31 col1" >Frame status transitions: idle to transmitting to intermission to idle</td>
+      <td id="T_0e888_row31_col2" class="data row31 col2" >6.6.7, 6.6.21</td>
+      <td id="T_0e888_row31_col3" class="data row31 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row31_col4" class="data row31 col4" >Verified</td>
+      <td id="T_0e888_row31_col5" class="data row31 col5" >C</td>
+      <td id="T_0e888_row31_col6" class="data row31 col6" >T1</td>
+      <td id="T_0e888_row31_col7" class="data row31 col7" >FSM state machine flow</td>
+      <td id="T_0e888_row31_col8" class="data row31 col8" >SIM</td>
+      <td id="T_0e888_row31_col9" class="data row31 col9" ></td>
+      <td id="T_0e888_row31_col10" class="data row31 col10" >State management</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row32" class="row_heading level0 row32" >32</th>
+      <td id="T_0e888_row32_col0" class="data row32 col0" >TMG001TX</td>
+      <td id="T_0e888_row32_col1" class="data row32 col1" >Nominal bit time: Sync_Seg + Prop_Seg + Phase_Seg1 + Phase_Seg2</td>
+      <td id="T_0e888_row32_col2" class="data row32 col2" >7.2</td>
+      <td id="T_0e888_row32_col3" class="data row32 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row32_col4" class="data row32 col4" >Implemented</td>
+      <td id="T_0e888_row32_col5" class="data row32 col5" >H</td>
+      <td id="T_0e888_row32_col6" class="data row32 col6" >None</td>
+      <td id="T_0e888_row32_col7" class="data row32 col7" >Bit timing per Table 10/11</td>
+      <td id="T_0e888_row32_col8" class="data row32 col8" >SIM</td>
+      <td id="T_0e888_row32_col9" class="data row32 col9" ></td>
+      <td id="T_0e888_row32_col10" class="data row32 col10" >Arbitration phase</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row33" class="row_heading level0 row33" >33</th>
+      <td id="T_0e888_row33_col0" class="data row33 col0" >TMG002TX</td>
+      <td id="T_0e888_row33_col1" class="data row33 col1" >Data bit time (FD only): shorter data_bit_time when BRS recessive</td>
+      <td id="T_0e888_row33_col2" class="data row33 col2" >7.2, 7.3.3</td>
+      <td id="T_0e888_row33_col3" class="data row33 col3" >FB/FE</td>
+      <td id="T_0e888_row33_col4" class="data row33 col4" >Implemented</td>
+      <td id="T_0e888_row33_col5" class="data row33 col5" >H</td>
+      <td id="T_0e888_row33_col6" class="data row33 col6" >T14</td>
+      <td id="T_0e888_row33_col7" class="data row33 col7" >Bit time switches at BRS SP</td>
+      <td id="T_0e888_row33_col8" class="data row33 col8" >SIM</td>
+      <td id="T_0e888_row33_col9" class="data row33 col9" >FRM021TX</td>
+      <td id="T_0e888_row33_col10" class="data row33 col10" >FD frames only</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row34" class="row_heading level0 row34" >34</th>
+      <td id="T_0e888_row34_col0" class="data row34 col0" >TMG003TX</td>
+      <td id="T_0e888_row34_col1" class="data row34 col1" >Sample Point (SP): configurable within bit time</td>
+      <td id="T_0e888_row34_col2" class="data row34 col2" >7.2 Table 10</td>
+      <td id="T_0e888_row34_col3" class="data row34 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row34_col4" class="data row34 col4" >Implemented</td>
+      <td id="T_0e888_row34_col5" class="data row34 col5" >H</td>
+      <td id="T_0e888_row34_col6" class="data row34 col6" >None</td>
+      <td id="T_0e888_row34_col7" class="data row34 col7" >SP pulse at correct position</td>
+      <td id="T_0e888_row34_col8" class="data row34 col8" >SIM</td>
+      <td id="T_0e888_row34_col9" class="data row34 col9" >TMG001TX</td>
+      <td id="T_0e888_row34_col10" class="data row34 col10" >Per configuration</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row35" class="row_heading level0 row35" >35</th>
+      <td id="T_0e888_row35_col0" class="data row35 col0" >TMG004TX</td>
+      <td id="T_0e888_row35_col1" class="data row35 col1" >Bit time quantization: measured in time quanta (tq)</td>
+      <td id="T_0e888_row35_col2" class="data row35 col2" >7.2</td>
+      <td id="T_0e888_row35_col3" class="data row35 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row35_col4" class="data row35 col4" >Implemented</td>
+      <td id="T_0e888_row35_col5" class="data row35 col5" >M</td>
+      <td id="T_0e888_row35_col6" class="data row35 col6" >None</td>
+      <td id="T_0e888_row35_col7" class="data row35 col7" >Prescaler sets tq length</td>
+      <td id="T_0e888_row35_col8" class="data row35 col8" >SIM</td>
+      <td id="T_0e888_row35_col9" class="data row35 col9" ></td>
+      <td id="T_0e888_row35_col10" class="data row35 col10" >Clock division</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row36" class="row_heading level0 row36" >36</th>
+      <td id="T_0e888_row36_col0" class="data row36 col0" >TMG005TX</td>
+      <td id="T_0e888_row36_col1" class="data row36 col1" >Data phase entry: at SP of BRS bit when BRS recessive</td>
+      <td id="T_0e888_row36_col2" class="data row36 col2" >7.3.3</td>
+      <td id="T_0e888_row36_col3" class="data row36 col3" >FB/FE</td>
+      <td id="T_0e888_row36_col4" class="data row36 col4" >Implemented</td>
+      <td id="T_0e888_row36_col5" class="data row36 col5" >C</td>
+      <td id="T_0e888_row36_col6" class="data row36 col6" >T14</td>
+      <td id="T_0e888_row36_col7" class="data row36 col7" >State transition to data phase</td>
+      <td id="T_0e888_row36_col8" class="data row36 col8" >SIM</td>
+      <td id="T_0e888_row36_col9" class="data row36 col9" >TMG002TX</td>
+      <td id="T_0e888_row36_col10" class="data row36 col10" >FD frames, BRS=recessive</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row37" class="row_heading level0 row37" >37</th>
+      <td id="T_0e888_row37_col0" class="data row37 col0" >TMG006TX</td>
+      <td id="T_0e888_row37_col1" class="data row37 col1" >Data phase exit: at SP of CRC delimiter</td>
+      <td id="T_0e888_row37_col2" class="data row37 col2" >6.6.21.3.1</td>
+      <td id="T_0e888_row37_col3" class="data row37 col3" >FB/FE</td>
+      <td id="T_0e888_row37_col4" class="data row37 col4" >Implemented</td>
+      <td id="T_0e888_row37_col5" class="data row37 col5" >C</td>
+      <td id="T_0e888_row37_col6" class="data row37 col6" >None</td>
+      <td id="T_0e888_row37_col7" class="data row37 col7" >State transition back to nominal</td>
+      <td id="T_0e888_row37_col8" class="data row37 col8" >SIM</td>
+      <td id="T_0e888_row37_col9" class="data row37 col9" ></td>
+      <td id="T_0e888_row37_col10" class="data row37 col10" >FD frames only</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row38" class="row_heading level0 row38" >38</th>
+      <td id="T_0e888_row38_col0" class="data row38 col0" >TMG007TX</td>
+      <td id="T_0e888_row38_col1" class="data row38 col1" >TDC measurement: at res bit FDF to res edge (FD only)</td>
+      <td id="T_0e888_row38_col2" class="data row38 col2" >7.3.4</td>
+      <td id="T_0e888_row38_col3" class="data row38 col3" >FB/FE</td>
+      <td id="T_0e888_row38_col4" class="data row38 col4" >Implemented</td>
+      <td id="T_0e888_row38_col5" class="data row38 col5" >H</td>
+      <td id="T_0e888_row38_col6" class="data row38 col6" >T14</td>
+      <td id="T_0e888_row38_col7" class="data row38 col7" >Delay measured at res bit SP</td>
+      <td id="T_0e888_row38_col8" class="data row38 col8" >SIM</td>
+      <td id="T_0e888_row38_col9" class="data row38 col9" ></td>
+      <td id="T_0e888_row38_col10" class="data row38 col10" >Recently fixed (Issue B)</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row39" class="row_heading level0 row39" >39</th>
+      <td id="T_0e888_row39_col0" class="data row39 col0" >TMG008TX</td>
+      <td id="T_0e888_row39_col1" class="data row39 col1" >Secondary Sample Point (SSP): configured from TDC measurement</td>
+      <td id="T_0e888_row39_col2" class="data row39 col2" >7.3.4</td>
+      <td id="T_0e888_row39_col3" class="data row39 col3" >FB/FE</td>
+      <td id="T_0e888_row39_col4" class="data row39 col4" >Implemented</td>
+      <td id="T_0e888_row39_col5" class="data row39 col5" >H</td>
+      <td id="T_0e888_row39_col6" class="data row39 col6" >None</td>
+      <td id="T_0e888_row39_col7" class="data row39 col7" >SSP position calculated per config</td>
+      <td id="T_0e888_row39_col8" class="data row39 col8" >SIM</td>
+      <td id="T_0e888_row39_col9" class="data row39 col9" >TMG007TX</td>
+      <td id="T_0e888_row39_col10" class="data row39 col10" >Within bit time</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row40" class="row_heading level0 row40" >40</th>
+      <td id="T_0e888_row40_col0" class="data row40 col0" >TMG009TX</td>
+      <td id="T_0e888_row40_col1" class="data row40 col1" >TDC error at SSP: detect at following SP</td>
+      <td id="T_0e888_row40_col2" class="data row40 col2" >6.6.21.3.1</td>
+      <td id="T_0e888_row40_col3" class="data row40 col3" >FB/FE</td>
+      <td id="T_0e888_row40_col4" class="data row40 col4" >Diagnostic</td>
+      <td id="T_0e888_row40_col5" class="data row40 col5" >H</td>
+      <td id="T_0e888_row40_col6" class="data row40 col6" >T5</td>
+      <td id="T_0e888_row40_col7" class="data row40 col7" >Error confirmed at SP after SSP</td>
+      <td id="T_0e888_row40_col8" class="data row40 col8" >SIM</td>
+      <td id="T_0e888_row40_col9" class="data row40 col9" ></td>
+      <td id="T_0e888_row40_col10" class="data row40 col10" >TDC error path - Test 5 diagnostic (waveform inspection)</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row41" class="row_heading level0 row41" >41</th>
+      <td id="T_0e888_row41_col0" class="data row41 col0" >TMG010TX</td>
+      <td id="T_0e888_row41_col1" class="data row41 col1" >TDC error timing: SSP to SP to IPT to nominal rate back</td>
+      <td id="T_0e888_row41_col2" class="data row41 col2" >6.6.21.3.1</td>
+      <td id="T_0e888_row41_col3" class="data row41 col3" >FB/FE</td>
+      <td id="T_0e888_row41_col4" class="data row41 col4" >Diagnostic</td>
+      <td id="T_0e888_row41_col5" class="data row41 col5" >H</td>
+      <td id="T_0e888_row41_col6" class="data row41 col6" >T6</td>
+      <td id="T_0e888_row41_col7" class="data row41 col7" >Bit timing sequence correct</td>
+      <td id="T_0e888_row41_col8" class="data row41 col8" >WAVE</td>
+      <td id="T_0e888_row41_col9" class="data row41 col9" >TMG009TX</td>
+      <td id="T_0e888_row41_col10" class="data row41 col10" >Complex timing - Test 6 diagnostic (multi-signal analysis)</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row42" class="row_heading level0 row42" >42</th>
+      <td id="T_0e888_row42_col0" class="data row42 col0" >TMG011TX</td>
+      <td id="T_0e888_row42_col1" class="data row42 col1" >SSP used for FD data phase bits (not control field)</td>
+      <td id="T_0e888_row42_col2" class="data row42 col2" >7.3.4</td>
+      <td id="T_0e888_row42_col3" class="data row42 col3" >FB/FE</td>
+      <td id="T_0e888_row42_col4" class="data row42 col4" >Implemented</td>
+      <td id="T_0e888_row42_col5" class="data row42 col5" >M</td>
+      <td id="T_0e888_row42_col6" class="data row42 col6" >None</td>
+      <td id="T_0e888_row42_col7" class="data row42 col7" >SSP only in data phase</td>
+      <td id="T_0e888_row42_col8" class="data row42 col8" >SIM</td>
+      <td id="T_0e888_row42_col9" class="data row42 col9" ></td>
+      <td id="T_0e888_row42_col10" class="data row42 col10" >ESI excluded from SSP</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row43" class="row_heading level0 row43" >43</th>
+      <td id="T_0e888_row43_col0" class="data row43 col0" >ERR001TX</td>
+      <td id="T_0e888_row43_col1" class="data row43 col1" >Bit error: detected when TX bit != monitored bus bit</td>
+      <td id="T_0e888_row43_col2" class="data row43 col2" >6.6.21.2</td>
+      <td id="T_0e888_row43_col3" class="data row43 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row43_col4" class="data row43 col4" >Verified</td>
+      <td id="T_0e888_row43_col5" class="data row43 col5" >C</td>
+      <td id="T_0e888_row43_col6" class="data row43 col6" >T2</td>
+      <td id="T_0e888_row43_col7" class="data row43 col7" >Comparison triggered at SP/SSP</td>
+      <td id="T_0e888_row43_col8" class="data row43 col8" >SIM</td>
+      <td id="T_0e888_row43_col9" class="data row43 col9" ></td>
+      <td id="T_0e888_row43_col10" class="data row43 col10" >Monitoring logic - VERIFIED (polarity mismatch detected)</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row44" class="row_heading level0 row44" >44</th>
+      <td id="T_0e888_row44_col0" class="data row44 col0" >ERR002TX</td>
+      <td id="T_0e888_row44_col1" class="data row44 col1" >Bit error in arbitration: frame loss (not an error)</td>
+      <td id="T_0e888_row44_col2" class="data row44 col2" >6.6.21.3.1</td>
+      <td id="T_0e888_row44_col3" class="data row44 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row44_col4" class="data row44 col4" >Verified</td>
+      <td id="T_0e888_row44_col5" class="data row44 col5" >C</td>
+      <td id="T_0e888_row44_col6" class="data row44 col6" >T12</td>
+      <td id="T_0e888_row44_col7" class="data row44 col7" >FSM withdraws to receiver mode</td>
+      <td id="T_0e888_row44_col8" class="data row44 col8" >SIM</td>
+      <td id="T_0e888_row44_col9" class="data row44 col9" ></td>
+      <td id="T_0e888_row44_col10" class="data row44 col10" >Arbitration loss handling</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row45" class="row_heading level0 row45" >45</th>
+      <td id="T_0e888_row45_col0" class="data row45 col0" >ERR003TX</td>
+      <td id="T_0e888_row45_col1" class="data row45 col1" >Stuff error: violation of 5-consecutive-bit rule</td>
+      <td id="T_0e888_row45_col2" class="data row45 col2" >6.6.21.2</td>
+      <td id="T_0e888_row45_col3" class="data row45 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row45_col4" class="data row45 col4" >Verified</td>
+      <td id="T_0e888_row45_col5" class="data row45 col5" >H</td>
+      <td id="T_0e888_row45_col6" class="data row45 col6" >T6</td>
+      <td id="T_0e888_row45_col7" class="data row45 col7" >Stuff rule check during TX</td>
+      <td id="T_0e888_row45_col8" class="data row45 col8" >CVRG</td>
+      <td id="T_0e888_row45_col9" class="data row45 col9" ></td>
+      <td id="T_0e888_row45_col10" class="data row45 col10" >Detected at bit level</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row46" class="row_heading level0 row46" >46</th>
+      <td id="T_0e888_row46_col0" class="data row46 col0" >ERR004TX</td>
+      <td id="T_0e888_row46_col1" class="data row46 col1" >Form error: illegal bit sequence detected</td>
+      <td id="T_0e888_row46_col2" class="data row46 col2" >6.6.21.2</td>
+      <td id="T_0e888_row46_col3" class="data row46 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row46_col4" class="data row46 col4" >Not Applicable</td>
+      <td id="T_0e888_row46_col5" class="data row46 col5" >H</td>
+      <td id="T_0e888_row46_col6" class="data row46 col6" >None</td>
+      <td id="T_0e888_row46_col7" class="data row46 col7" >TX ignores form errors per 6.6.21.3.1; RX-side only</td>
+      <td id="T_0e888_row46_col8" class="data row46 col8" >CVRG</td>
+      <td id="T_0e888_row46_col9" class="data row46 col9" ></td>
+      <td id="T_0e888_row46_col10" class="data row46 col10" >TX ignores form errors (SOF to AH2); caught as bit errors</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row47" class="row_heading level0 row47" >47</th>
+      <td id="T_0e888_row47_col0" class="data row47 col0" >ERR005TX</td>
+      <td id="T_0e888_row47_col1" class="data row47 col1" >PCRC error: CRC mismatch during arbitration phase (XL frames only)</td>
+      <td id="T_0e888_row47_col2" class="data row47 col2" >6.6.21.2</td>
+      <td id="T_0e888_row47_col3" class="data row47 col3" >XB/XL-E (Out of Scope)</td>
+      <td id="T_0e888_row47_col4" class="data row47 col4" >Not Applicable</td>
+      <td id="T_0e888_row47_col5" class="data row47 col5" >M</td>
+      <td id="T_0e888_row47_col6" class="data row47 col6" >N/A</td>
+      <td id="T_0e888_row47_col7" class="data row47 col7" >N/A - XL frames not in current scope</td>
+      <td id="T_0e888_row47_col8" class="data row47 col8" >N/A</td>
+      <td id="T_0e888_row47_col9" class="data row47 col9" ></td>
+      <td id="T_0e888_row47_col10" class="data row47 col10" >XL frame feature - Project scope: ISO 11898-1:2015 CC/FD only</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row48" class="row_heading level0 row48" >48</th>
+      <td id="T_0e888_row48_col0" class="data row48 col0" >ERR006TX</td>
+      <td id="T_0e888_row48_col1" class="data row48 col1" >ACK error: no dominant in ACK slot when expected</td>
+      <td id="T_0e888_row48_col2" class="data row48 col2" >6.6.21.2</td>
+      <td id="T_0e888_row48_col3" class="data row48 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row48_col4" class="data row48 col4" >Verified</td>
+      <td id="T_0e888_row48_col5" class="data row48 col5" >H</td>
+      <td id="T_0e888_row48_col6" class="data row48 col6" >T1</td>
+      <td id="T_0e888_row48_col7" class="data row48 col7" >ACK slot monitoring</td>
+      <td id="T_0e888_row48_col8" class="data row48 col8" >SIM</td>
+      <td id="T_0e888_row48_col9" class="data row48 col9" ></td>
+      <td id="T_0e888_row48_col10" class="data row48 col10" >TX monitors for ACK - VERIFIED</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row49" class="row_heading level0 row49" >49</th>
+      <td id="T_0e888_row49_col0" class="data row49 col0" >ERR007TX</td>
+      <td id="T_0e888_row49_col1" class="data row49 col1" >Error flag: 6 consecutive dominant bits (active error)</td>
+      <td id="T_0e888_row49_col2" class="data row49 col2" >6.6.5.2</td>
+      <td id="T_0e888_row49_col3" class="data row49 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row49_col4" class="data row49 col4" >Verified</td>
+      <td id="T_0e888_row49_col5" class="data row49 col5" >C</td>
+      <td id="T_0e888_row49_col6" class="data row49 col6" >T9</td>
+      <td id="T_0e888_row49_col7" class="data row49 col7" >EF format correct</td>
+      <td id="T_0e888_row49_col8" class="data row49 col8" >WAVE</td>
+      <td id="T_0e888_row49_col9" class="data row49 col9" ></td>
+      <td id="T_0e888_row49_col10" class="data row49 col10" >Error signalling</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row50" class="row_heading level0 row50" >50</th>
+      <td id="T_0e888_row50_col0" class="data row50 col0" >ERR008TX</td>
+      <td id="T_0e888_row50_col1" class="data row50 col1" >Error flag start: next bit after error detection</td>
+      <td id="T_0e888_row50_col2" class="data row50 col2" >6.6.21.3.1</td>
+      <td id="T_0e888_row50_col3" class="data row50 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row50_col4" class="data row50 col4" >Verified</td>
+      <td id="T_0e888_row50_col5" class="data row50 col5" >C</td>
+      <td id="T_0e888_row50_col6" class="data row50 col6" >T9</td>
+      <td id="T_0e888_row50_col7" class="data row50 col7" >FSM state transitions to transmitting_error_flag</td>
+      <td id="T_0e888_row50_col8" class="data row50 col8" >SIM</td>
+      <td id="T_0e888_row50_col9" class="data row50 col9" >ERR007TX</td>
+      <td id="T_0e888_row50_col10" class="data row50 col10" >Timing critical</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row51" class="row_heading level0 row51" >51</th>
+      <td id="T_0e888_row51_col0" class="data row51 col0" >ERR009TX</td>
+      <td id="T_0e888_row51_col1" class="data row51 col1" >Arbitration phase error: send EF immediately</td>
+      <td id="T_0e888_row51_col2" class="data row51 col2" >6.6.21.3.1</td>
+      <td id="T_0e888_row51_col3" class="data row51 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row51_col4" class="data row51 col4" >Verified</td>
+      <td id="T_0e888_row51_col5" class="data row51 col5" >C</td>
+      <td id="T_0e888_row51_col6" class="data row51 col6" >T7</td>
+      <td id="T_0e888_row51_col7" class="data row51 col7" >EF triggered at arb error</td>
+      <td id="T_0e888_row51_col8" class="data row51 col8" >SIM</td>
+      <td id="T_0e888_row51_col9" class="data row51 col9" >ERR007TX</td>
+      <td id="T_0e888_row51_col10" class="data row51 col10" >Stuff errors in arb</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row52" class="row_heading level0 row52" >52</th>
+      <td id="T_0e888_row52_col0" class="data row52 col0" >ERR010TX</td>
+      <td id="T_0e888_row52_col1" class="data row52 col1" >Data phase error (FD): switch bit rate back to nominal before EF</td>
+      <td id="T_0e888_row52_col2" class="data row52 col2" >6.6.21.3.1</td>
+      <td id="T_0e888_row52_col3" class="data row52 col3" >FB/FE</td>
+      <td id="T_0e888_row52_col4" class="data row52 col4" >Diagnostic</td>
+      <td id="T_0e888_row52_col5" class="data row52 col5" >C</td>
+      <td id="T_0e888_row52_col6" class="data row52 col6" >T3</td>
+      <td id="T_0e888_row52_col7" class="data row52 col7" >Bit time switches data to nominal</td>
+      <td id="T_0e888_row52_col8" class="data row52 col8" >WAVE</td>
+      <td id="T_0e888_row52_col9" class="data row52 col9" >TMG002TX</td>
+      <td id="T_0e888_row52_col10" class="data row52 col10" >Test 3 implemented - requires waveform inspection for verification</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row53" class="row_heading level0 row53" >53</th>
+      <td id="T_0e888_row53_col0" class="data row53 col0" >ERR011TX</td>
+      <td id="T_0e888_row53_col1" class="data row53 col1" >FD data phase error: complete phase after SP where error detected</td>
+      <td id="T_0e888_row53_col2" class="data row53 col2" >6.6.21.3.1</td>
+      <td id="T_0e888_row53_col3" class="data row53 col3" >FB/FE</td>
+      <td id="T_0e888_row53_col4" class="data row53 col4" >Diagnostic</td>
+      <td id="T_0e888_row53_col5" class="data row53 col5" >H</td>
+      <td id="T_0e888_row53_col6" class="data row53 col6" >T4</td>
+      <td id="T_0e888_row53_col7" class="data row53 col7" >Data phase finishes at SP</td>
+      <td id="T_0e888_row53_col8" class="data row53 col8" >SIM</td>
+      <td id="T_0e888_row53_col9" class="data row53 col9" ></td>
+      <td id="T_0e888_row53_col10" class="data row53 col10" >FD only - Test 4 diagnostic (waveform inspection)</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row54" class="row_heading level0 row54" >54</th>
+      <td id="T_0e888_row54_col0" class="data row54 col0" >ERR012TX</td>
+      <td id="T_0e888_row54_col1" class="data row54 col1" >FD data-phase error: defer first EF bit until nominal timing is active</td>
+      <td id="T_0e888_row54_col2" class="data row54 col2" >6.6.21.3.1</td>
+      <td id="T_0e888_row54_col3" class="data row54 col3" >FB/FE</td>
+      <td id="T_0e888_row54_col4" class="data row54 col4" >Verified</td>
+      <td id="T_0e888_row54_col5" class="data row54 col5" >H</td>
+      <td id="T_0e888_row54_col6" class="data row54 col6" >T7</td>
+      <td id="T_0e888_row54_col7" class="data row54 col7" >First EF bit appears only after nominal-rate handover</td>
+      <td id="T_0e888_row54_col8" class="data row54 col8" >SIM</td>
+      <td id="T_0e888_row54_col9" class="data row54 col9" >ERR010TX</td>
+      <td id="T_0e888_row54_col10" class="data row54 col10" >Explicit assertion-based check in tx_error_detection_tb</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row55" class="row_heading level0 row55" >55</th>
+      <td id="T_0e888_row55_col0" class="data row55 col0" >ERR013TX</td>
+      <td id="T_0e888_row55_col1" class="data row55 col1" >Error delimiter: 8 recessive bits after error flag</td>
+      <td id="T_0e888_row55_col2" class="data row55 col2" >6.6.5.3</td>
+      <td id="T_0e888_row55_col3" class="data row55 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row55_col4" class="data row55 col4" >Implemented</td>
+      <td id="T_0e888_row55_col5" class="data row55 col5" >H</td>
+      <td id="T_0e888_row55_col6" class="data row55 col6" >None</td>
+      <td id="T_0e888_row55_col7" class="data row55 col7" >Delimiter format correct</td>
+      <td id="T_0e888_row55_col8" class="data row55 col8" >SIM</td>
+      <td id="T_0e888_row55_col9" class="data row55 col9" >ERR007TX</td>
+      <td id="T_0e888_row55_col10" class="data row55 col10" >Follows error flag</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row56" class="row_heading level0 row56" >56</th>
+      <td id="T_0e888_row56_col0" class="data row56 col0" >ERR014TX</td>
+      <td id="T_0e888_row56_col1" class="data row56 col1" >Intermission after error: 3 recessive bits before next frame</td>
+      <td id="T_0e888_row56_col2" class="data row56 col2" >6.6.7.2</td>
+      <td id="T_0e888_row56_col3" class="data row56 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row56_col4" class="data row56 col4" >Implemented</td>
+      <td id="T_0e888_row56_col5" class="data row56 col5" >M</td>
+      <td id="T_0e888_row56_col6" class="data row56 col6" >None</td>
+      <td id="T_0e888_row56_col7" class="data row56 col7" >Intermission timing</td>
+      <td id="T_0e888_row56_col8" class="data row56 col8" >SIM</td>
+      <td id="T_0e888_row56_col9" class="data row56 col9" ></td>
+      <td id="T_0e888_row56_col10" class="data row56 col10" >Recovery sequence</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row57" class="row_heading level0 row57" >57</th>
+      <td id="T_0e888_row57_col0" class="data row57 col0" >CRC001TX</td>
+      <td id="T_0e888_row57_col1" class="data row57 col1" >CC frames use CRC-15 polynomial</td>
+      <td id="T_0e888_row57_col2" class="data row57 col2" >6.6.4.4</td>
+      <td id="T_0e888_row57_col3" class="data row57 col3" >CB/CE</td>
+      <td id="T_0e888_row57_col4" class="data row57 col4" >Verified</td>
+      <td id="T_0e888_row57_col5" class="data row57 col5" >C</td>
+      <td id="T_0e888_row57_col6" class="data row57 col6" >T1</td>
+      <td id="T_0e888_row57_col7" class="data row57 col7" >CRC-15 (0xC599) applied</td>
+      <td id="T_0e888_row57_col8" class="data row57 col8" >CVRG</td>
+      <td id="T_0e888_row57_col9" class="data row57 col9" ></td>
+      <td id="T_0e888_row57_col10" class="data row57 col10" >Classic frames</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row58" class="row_heading level0 row58" >58</th>
+      <td id="T_0e888_row58_col0" class="data row58 col0" >CRC002TX</td>
+      <td id="T_0e888_row58_col1" class="data row58 col1" >FD frames ≤16 bytes: use CRC-17 polynomial</td>
+      <td id="T_0e888_row58_col2" class="data row58 col2" >6.6.4.4</td>
+      <td id="T_0e888_row58_col3" class="data row58 col3" >FB/FE</td>
+      <td id="T_0e888_row58_col4" class="data row58 col4" >Implemented</td>
+      <td id="T_0e888_row58_col5" class="data row58 col5" >C</td>
+      <td id="T_0e888_row58_col6" class="data row58 col6" >None</td>
+      <td id="T_0e888_row58_col7" class="data row58 col7" >CRC-17 (0x3685B) for small payloads</td>
+      <td id="T_0e888_row58_col8" class="data row58 col8" >CVRG</td>
+      <td id="T_0e888_row58_col9" class="data row58 col9" ></td>
+      <td id="T_0e888_row58_col10" class="data row58 col10" >FD selection logic</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row59" class="row_heading level0 row59" >59</th>
+      <td id="T_0e888_row59_col0" class="data row59 col0" >CRC003TX</td>
+      <td id="T_0e888_row59_col1" class="data row59 col1" >FD frames >16 bytes: use CRC-21 polynomial</td>
+      <td id="T_0e888_row59_col2" class="data row59 col2" >6.6.4.4</td>
+      <td id="T_0e888_row59_col3" class="data row59 col3" >FB/FE</td>
+      <td id="T_0e888_row59_col4" class="data row59 col4" >Implemented</td>
+      <td id="T_0e888_row59_col5" class="data row59 col5" >C</td>
+      <td id="T_0e888_row59_col6" class="data row59 col6" >None</td>
+      <td id="T_0e888_row59_col7" class="data row59 col7" >CRC-21 (0x302899) for large payloads</td>
+      <td id="T_0e888_row59_col8" class="data row59 col8" >CVRG</td>
+      <td id="T_0e888_row59_col9" class="data row59 col9" ></td>
+      <td id="T_0e888_row59_col10" class="data row59 col10" >FD selection logic</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row60" class="row_heading level0 row60" >60</th>
+      <td id="T_0e888_row60_col0" class="data row60 col0" >CRC004TX</td>
+      <td id="T_0e888_row60_col1" class="data row60 col1" >CRC calculated over: SOF + arb + ctrl + data (no stuff bits)</td>
+      <td id="T_0e888_row60_col2" class="data row60 col2" >6.6.4.4</td>
+      <td id="T_0e888_row60_col3" class="data row60 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row60_col4" class="data row60 col4" >Verified</td>
+      <td id="T_0e888_row60_col5" class="data row60 col5" >H</td>
+      <td id="T_0e888_row60_col6" class="data row60 col6" >None</td>
+      <td id="T_0e888_row60_col7" class="data row60 col7" >Correct bit stream selected</td>
+      <td id="T_0e888_row60_col8" class="data row60 col8" >CVRG</td>
+      <td id="T_0e888_row60_col9" class="data row60 col9" ></td>
+      <td id="T_0e888_row60_col10" class="data row60 col10" >Excludes stuff bits</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row61" class="row_heading level0 row61" >61</th>
+      <td id="T_0e888_row61_col0" class="data row61 col0" >CRC005TX</td>
+      <td id="T_0e888_row61_col1" class="data row61 col1" >CRC initialized: 0x0000 (CRC-15), 0x10000 (CRC-17/21)</td>
+      <td id="T_0e888_row61_col2" class="data row61 col2" >6.6.4.4</td>
+      <td id="T_0e888_row61_col3" class="data row61 col3" >CB/CE/FB/FE</td>
+      <td id="T_0e888_row61_col4" class="data row61 col4" >Implemented</td>
+      <td id="T_0e888_row61_col5" class="data row61 col5" >M</td>
+      <td id="T_0e888_row61_col6" class="data row61 col6" >None</td>
+      <td id="T_0e888_row61_col7" class="data row61 col7" >Init vector per polynomial</td>
+      <td id="T_0e888_row61_col8" class="data row61 col8" >CVRG</td>
+      <td id="T_0e888_row61_col9" class="data row61 col9" ></td>
+      <td id="T_0e888_row61_col10" class="data row61 col10" >Hamming distance 6</td>
+    </tr>
+    <tr>
+      <th id="T_0e888_level0_row62" class="row_heading level0 row62" >62</th>
+      <td id="T_0e888_row62_col0" class="data row62 col0" >CRC006TX</td>
+      <td id="T_0e888_row62_col1" class="data row62 col1" >Provisional CRC (PCRC): calculated in arbitration phase (XL frames only)</td>
+      <td id="T_0e888_row62_col2" class="data row62 col2" >6.6.12.3 (XL ref)</td>
+      <td id="T_0e888_row62_col3" class="data row62 col3" >XB/XL-E (Out of Scope)</td>
+      <td id="T_0e888_row62_col4" class="data row62 col4" >Not Applicable</td>
+      <td id="T_0e888_row62_col5" class="data row62 col5" >M</td>
+      <td id="T_0e888_row62_col6" class="data row62 col6" >None</td>
+      <td id="T_0e888_row62_col7" class="data row62 col7" >N/A - XL frames not in current scope</td>
+      <td id="T_0e888_row62_col8" class="data row62 col8" >N/A</td>
+      <td id="T_0e888_row62_col9" class="data row62 col9" ></td>
+      <td id="T_0e888_row62_col10" class="data row62 col10" >XL frame feature - Project scope: ISO 11898-1:2015 CC/FD only</td>
+    </tr>
+  </tbody>
+</table>
+
+  </div>
+  <script>
+    const table = document.querySelector("table");
+    const headers = table.querySelectorAll("th");
+    let sortCol = -1, sortAsc = true;
+    headers.forEach((th, col) => {
+      th.addEventListener("click", () => {
+        const tbody = table.querySelector("tbody");
+        const rows  = Array.from(tbody.querySelectorAll("tr"));
+        sortAsc = sortCol === col ? !sortAsc : true;
+        sortCol = col;
+        rows.sort((a, b) => {
+          const av = a.cells[col]?.innerText.trim() || "";
+          const bv = b.cells[col]?.innerText.trim() || "";
+          return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+        });
+        rows.forEach(r => tbody.appendChild(r));
+        headers.forEach(h => h.classList.remove("asc", "desc"));
+        th.classList.add(sortAsc ? "asc" : "desc");
+      });
+    });
+  </script>
+</body>
+</html>

@@ -10,7 +10,7 @@
 --                handshaking.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-16  TMYAES    [TRIT-4336] Initial implementation
+--                2026-03-16  TMYAES    [TRIT-4340] Initial implementation
 --
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -52,6 +52,7 @@ architecture tb of can_mac_ser_tx_tb is
   signal tx_mac_fsm_o : t_can_mac_ser_fsm_tx_if_s2m;
 
   signal test_id : AlertLogIDType;
+  signal reset_id : AlertLogIDType;
 
 begin
 
@@ -64,15 +65,15 @@ begin
     SetAlertStopCount(ERROR, 10);
     v_test_id := NewId("can_mac_ser_tx");
     test_id   <= v_test_id;
+    reset_id  <= NewId("Reset at Output", v_test_id);
     wait for 0 ns;
     wait;
   end process;
 
   ----------------------------------------------------------------------------
-  -- Clock / reset
+  -- Clock
   ----------------------------------------------------------------------------
   CreateClock(clk, gc_TbClkPeriod);
-  CreateReset(reset, '1', clk, gc_TbClkPeriod * 5);
 
   ----------------------------------------------------------------------------
   -- Timeout watchdog
@@ -108,7 +109,9 @@ begin
 
   begin
 
-    wait until reset = '0';
+    reset <= '1';
+    WaitForClock(clk, 5);
+    reset <= '0';
     WaitForClock(clk);
 
     Message("TX MAC Serializer Testbench Started");
@@ -124,7 +127,7 @@ begin
     tx_mac_fsm_i.transfer_status <= c_ongoing;
     WaitForClock(clk);
 
-    AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted in idle state", FAILURE);
+    AlertIf(test_id, llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted in idle state", FAILURE);
 
     -- Send config byte 0 with SOP
     llc_i.avalon_st_source.data           <= x"C8";
@@ -232,10 +235,10 @@ begin
     -- Byte 0: x"C0" = 11000000 -> FORMAT[7:5]=110(FE), FTYP[4]=0, ESI[3]=0, BRS[2]=0
     -- Byte 1: x"30" = 00110000 -> DLC[7:4]=0011=3
     Message("  Verifying llc_metadata extraction:");
-    AlertIf(tx_mac_fsm_o.llc_metadata.format /= c_llc_fmt_fe, "ERROR: FORMAT should be FE (110)", FAILURE);
-    AlertIf(tx_mac_fsm_o.llc_metadata.is_remote_frame /= '0', "ERROR: FTYP should be 0", FAILURE);
-    AlertIf(tx_mac_fsm_o.llc_metadata.esi_enable /= '0', "ERROR: ESI should be 0", FAILURE);
-    AlertIf(tx_mac_fsm_o.llc_metadata.has_brs /= '0', "ERROR: BRS should be 0", FAILURE);
+    AlertIf(test_id, tx_mac_fsm_o.llc_metadata.format /= c_llc_fmt_fe, "ERROR: FORMAT should be FE (110)", FAILURE);
+    AlertIf(test_id, tx_mac_fsm_o.llc_metadata.is_remote_frame /= '0', "ERROR: FTYP should be 0", FAILURE);
+    AlertIf(test_id, tx_mac_fsm_o.llc_metadata.esi_enable /= '0', "ERROR: ESI should be 0", FAILURE);
+    AlertIf(test_id, tx_mac_fsm_o.llc_metadata.has_brs /= '0', "ERROR: BRS should be 0", FAILURE);
     AlertIf(to_integer(unsigned(tx_mac_fsm_o.llc_metadata.dlc_vector)) /= 3, "ERROR: DLC should be 3", FAILURE);
     Message("    FORMAT: FE [PASS]");
     Message("    FTYP: data_frame [PASS]");
@@ -258,16 +261,16 @@ begin
 
       Message("  Byte " & to_string(byte_idx) & ": " & to_hex_string(v_test_data));
 
-      AlertIf(tx_mac_fsm_o.valid = '0', "ERROR: First bit not valid for byte " & to_string(byte_idx), FAILURE);
-      AlertIf(tx_mac_fsm_o.data /= v_test_data(7), "ERROR: First bit (MSB) mismatch for byte " & to_string(byte_idx), FAILURE);
+      AlertIf(test_id, tx_mac_fsm_o.valid = '0', "ERROR: First bit not valid for byte " & to_string(byte_idx), FAILURE);
+      AlertIf(test_id, tx_mac_fsm_o.data /= v_test_data(7), "ERROR: First bit (MSB) mismatch for byte " & to_string(byte_idx), FAILURE);
 
       for bit_idx in 6 downto 0 loop
         tx_mac_fsm_i.ready <= '1';
         WaitForClock(clk);
         tx_mac_fsm_i.ready <= '0';
         WaitForClock(clk);
-        AlertIf(tx_mac_fsm_o.valid = '0', "ERROR: Bit not valid for byte " & to_string(byte_idx) & " bit " & to_string(bit_idx), FAILURE);
-        AlertIf(tx_mac_fsm_o.data /= v_test_data(bit_idx),
+        AlertIf(test_id, tx_mac_fsm_o.valid = '0', "ERROR: Bit not valid for byte " & to_string(byte_idx) & " bit " & to_string(bit_idx), FAILURE);
+        AlertIf(test_id, tx_mac_fsm_o.data /= v_test_data(bit_idx),
                 "ERROR: Bit mismatch for byte " & to_string(byte_idx) & " bit " & to_string(bit_idx) &
                 " (expected " & to_string(v_test_data(bit_idx)) & " got " & to_string(tx_mac_fsm_o.data) & ")", FAILURE);
       end loop;
@@ -309,10 +312,10 @@ begin
     -- Byte 0: x"5F" = 01011111 -> FORMAT[7:5]=010 (FB), FTYP[4]=1, ESI[3]=1, BRS[2]=1
     -- Byte 1: x"F0" = 11110000 -> DLC[7:4]=1111=15
     Message("  Verifying llc_metadata extraction:");
-    AlertIf(tx_mac_fsm_o.llc_metadata.format /= c_llc_fmt_fb, "ERROR: FORMAT should be FB (010) but got " & to_hex_string(tx_mac_fsm_o.llc_metadata.format), FAILURE);
-    AlertIf(tx_mac_fsm_o.llc_metadata.is_remote_frame /= '1', "ERROR: FTYP should be 1", FAILURE);
-    AlertIf(tx_mac_fsm_o.llc_metadata.esi_enable /= '1', "ERROR: ESI should be 1", FAILURE);
-    AlertIf(tx_mac_fsm_o.llc_metadata.has_brs /= '1', "ERROR: BRS should be 1", FAILURE);
+    AlertIf(test_id, tx_mac_fsm_o.llc_metadata.format /= c_llc_fmt_fb, "ERROR: FORMAT should be FB (010) but got " & to_hex_string(tx_mac_fsm_o.llc_metadata.format), FAILURE);
+    AlertIf(test_id, tx_mac_fsm_o.llc_metadata.is_remote_frame /= '1', "ERROR: FTYP should be 1", FAILURE);
+    AlertIf(test_id, tx_mac_fsm_o.llc_metadata.esi_enable /= '1', "ERROR: ESI should be 1", FAILURE);
+    AlertIf(test_id, tx_mac_fsm_o.llc_metadata.has_brs /= '1', "ERROR: BRS should be 1", FAILURE);
     AlertIf(to_integer(unsigned(tx_mac_fsm_o.llc_metadata.dlc_vector)) /= 15, "ERROR: DLC should be 15", FAILURE);
     Message("    FORMAT: FB [PASS]");
     Message("    FTYP: remote_frame [PASS]");
@@ -335,7 +338,7 @@ begin
     WaitForClock(clk);
     WaitForClock(clk);
 
-    AlertIf(tx_mac_fsm_o.valid = '1', "ERROR: bit_valid should be deasserted after status change", FAILURE);
+    AlertIf(test_id, tx_mac_fsm_o.valid = '1', "ERROR: bit_valid should be deasserted after status change", FAILURE);
     Message("PASS: Frame terminated correctly on status change");
 
     -- =====================================================================
@@ -353,7 +356,7 @@ begin
     tx_mac_fsm_i.transfer_status <= c_ongoing;
     WaitForClock(clk);
 
-    AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted in idle state", FAILURE);
+    AlertIf(test_id, llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted in idle state", FAILURE);
     Message("  Idle state ready asserted: PASS");
 
     llc_i.avalon_st_source.data           <= x"BB";
@@ -364,7 +367,7 @@ begin
     llc_i.avalon_st_source.valid <= '0';
     WaitForClock(clk);
 
-    AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted in load_config_byte_1 state", FAILURE);
+    AlertIf(test_id, llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted in load_config_byte_1 state", FAILURE);
     Message("  Config byte 1 state ready asserted: PASS");
 
     llc_i.avalon_st_source.data           <= x"44";
@@ -376,7 +379,7 @@ begin
     llc_i.avalon_st_source.valid <= '0';
     WaitForClock(clk);
 
-    AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted in load_llc_frame_byte state", FAILURE);
+    AlertIf(test_id, llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted in load_llc_frame_byte state", FAILURE);
     Message("  Data state ready asserted: PASS");
 
     Message("PASS: Ready/Valid handshaking correct");

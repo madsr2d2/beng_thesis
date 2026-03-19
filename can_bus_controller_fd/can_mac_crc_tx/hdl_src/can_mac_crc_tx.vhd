@@ -9,7 +9,7 @@
 --                the appropriate output based on frame configuration.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-15  TMYAES    [TRIT-4336] Initial implementation
+--                2026-03-15  TMYAES    [TRIT-4341] Initial implementation
 --
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
