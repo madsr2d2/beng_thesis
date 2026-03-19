@@ -188,16 +188,14 @@ begin
     function frame_to_params (
       frame : t_llc_frame
     ) return t_frame_params is
-      variable config_0_v : t_byte;
-      variable config_1_v : t_byte;
+      variable meta_v : t_llc_metadata;
     begin
-      config_0_v := frame.config_0.format
-                    & frame.config_0.ftyp
-                    & frame.config_0.esi
-                    & frame.config_0.brs
-                    & "00";
-      config_1_v := frame.config_1.dlc & "0000";
-      return calculate_frame_params(config_0_v, config_1_v);
+      meta_v.format          := frame.config_0.format;
+      meta_v.dlc_vector      := frame.config_1.dlc;
+      meta_v.is_remote_frame := frame.config_0.ftyp;
+      meta_v.has_brs         := frame.config_0.brs;
+      meta_v.esi_enable      := frame.config_0.esi;
+      return calculate_frame_params(meta_v);
     end function frame_to_params;
 
     -- Helper: build default LLC frame (CC Basic, DLC=1, ID=0x555, data=0xAA)

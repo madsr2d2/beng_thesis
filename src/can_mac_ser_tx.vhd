@@ -18,7 +18,6 @@ library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
   use work.pk_can_types.all;
-  use work.can_protocol_pkg.all;
 
 entity can_mac_ser_tx is
   port (
@@ -114,7 +113,11 @@ begin
         if (v_llc_sop) then
           v_config_byte_0 := llc_i.avalon_st_source.data;
         else
-          v_tx_mac_fsm_o.frame_params := calculate_frame_params(config_byte_0, llc_i.avalon_st_source.data);
+          v_tx_mac_fsm_o.llc_metadata.format          := config_byte_0(c_llc_frame_config_byte_0_format_start downto c_llc_frame_config_byte_0_format_end);
+          v_tx_mac_fsm_o.llc_metadata.dlc_vector      := llc_i.avalon_st_source.data(c_llc_frame_config_byte_1_dlc_start downto c_llc_frame_config_byte_1_dlc_end);
+          v_tx_mac_fsm_o.llc_metadata.is_remote_frame := config_byte_0(c_llc_frame_config_byte_0_ftyp);
+          v_tx_mac_fsm_o.llc_metadata.has_brs         := config_byte_0(c_llc_frame_config_byte_0_brs);
+          v_tx_mac_fsm_o.llc_metadata.esi_enable      := config_byte_0(c_llc_frame_config_byte_0_esi);
 
           if (config_byte_0(c_llc_frame_config_byte_0_extended_bit) = '1') then
             v_id_bits_remaining      := c_base_id_width + c_extended_id_width;
