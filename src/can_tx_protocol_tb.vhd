@@ -165,11 +165,11 @@ begin
       req_id_v := checker_request_id;
       params_v := checker_expected_params;
 
-      -- Convert t_mac_frame_position_vec to integer for comparison
-      crc_stop_int      := to_integer(unsigned(params_v.crc_stop));
-      eof_stop_int      := to_integer(unsigned(params_v.eof_stop));
-      ack_delimiter_int := to_integer(unsigned(params_v.ack_delimiter));
-      eof_start_int     := to_integer(unsigned(params_v.eof_start));
+      -- Derive positions from crc_stop (integer)
+      crc_stop_int      := params_v.crc_stop;
+      ack_delimiter_int := crc_stop_int + c_ack_delimiter_offset;
+      eof_start_int     := crc_stop_int + c_eof_start_offset;
+      eof_stop_int      := eof_start_int + c_eof_field_width;
 
       raw_count_v := 1;
       logical_count_v := 1;
@@ -236,8 +236,6 @@ begin
   test_runner : process is
     variable alert_id : AlertLogIDType;
     variable frame_v : t_llc_frame;
-    variable config_0_v : t_byte;
-    variable config_1_v : t_byte;
 
     procedure wait_clocks (
       n : positive
@@ -288,9 +286,6 @@ begin
       variable byte69_v          : t_byte;
       variable byte70_v          : t_byte;
     begin
-      config_0_v := frame.config_0.format & frame.config_0.ftyp & frame.config_0.esi & frame.config_0.brs & "00";
-      config_1_v := frame.config_1.dlc & "0000";
-
       id_v          := frame.id(28 downto 0);
       is_extended_v := frame.config_0.format(2) = '1';
 
@@ -386,11 +381,14 @@ begin
       req_id_v := checker_request_id + 1;
       checker_request_id <= req_id_v;
 
-      config_0_v := frame.config_0.format & frame.config_0.ftyp & frame.config_0.esi & frame.config_0.brs & "00";
-      config_1_v := frame.config_1.dlc & "0000";
-
       checker_expected_frame <= frame;
-      checker_expected_params <= calculate_frame_params(config_0_v, config_1_v);
+      checker_expected_params <= calculate_frame_params((
+        format          => frame.config_0.format,
+        dlc_vector      => frame.config_1.dlc,
+        is_remote_frame => frame.config_0.ftyp,
+        has_brs         => frame.config_0.brs,
+        esi_enable      => frame.config_0.esi
+      ));
 
       wait until rising_edge(clk);
       checker_enable <= true;

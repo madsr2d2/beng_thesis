@@ -113,11 +113,11 @@ begin
     -- Byte 0: x"C8" = 11001000 -> FORMAT[7:5]=110(FE), FTYP[4]=0, ESI[3]=1, BRS[2]=0
     -- Byte 1: x"50" = 01010000 -> DLC[7:4]=0101=5
     Print("  Verifying frame_params extraction:");
-    AlertIf(tx_mac_fsm_o.frame_params.format /= c_llc_fmt_fe, "ERROR: FORMAT should be FE (110)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.is_remote_frame /= '0', "ERROR: is_remote_frame should be 0", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.esi_enable /= '1', "ERROR: ESI should be 1", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.has_brs /= '0', "ERROR: BRS should be 0", FAILURE);
-    AlertIf(to_integer(unsigned(tx_mac_fsm_o.frame_params.dlc_vector)) /= 5, "ERROR: DLC should be 5", FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.format /= c_llc_fmt_fe, "ERROR: FORMAT should be FE (110)", FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.is_remote_frame /= '0', "ERROR: is_remote_frame should be 0", FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.esi_enable /= '1', "ERROR: ESI should be 1", FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.has_brs /= '0', "ERROR: BRS should be 0", FAILURE);
+    AlertIf(to_integer(unsigned(tx_mac_fsm_o.llc_metadata.dlc_vector)) /= 5, "ERROR: DLC should be 5", FAILURE);
     Print("    FORMAT: FE [PASS]");
     Print("    FTYP: data_frame [PASS]");
     Print("    ESI: 1 [PASS]");
@@ -195,11 +195,11 @@ begin
     -- Byte 0: x"C0" = 11000000 -> FORMAT[7:5]=110(FE), FTYP[4]=0, ESI[3]=0, BRS[2]=0
     -- Byte 1: x"30" = 00110000 -> DLC[7:4]=0011=3
     Print("  Verifying frame_info extraction:");
-    AlertIf(tx_mac_fsm_o.frame_params.format /= c_llc_fmt_fe, "ERROR: FORMAT should be FE (110)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.is_remote_frame /= '0', "ERROR: FTYP should be 0", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.esi_enable /= '0', "ERROR: ESI should be 0", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.has_brs /= '0', "ERROR: BRS should be 0", FAILURE);
-    AlertIf(to_integer(unsigned(tx_mac_fsm_o.frame_params.dlc_vector)) /= 3, "ERROR: DLC should be 3", FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.format /= c_llc_fmt_fe, "ERROR: FORMAT should be FE (110)", FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.is_remote_frame /= '0', "ERROR: FTYP should be 0", FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.esi_enable /= '0', "ERROR: ESI should be 0", FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.has_brs /= '0', "ERROR: BRS should be 0", FAILURE);
+    AlertIf(to_integer(unsigned(tx_mac_fsm_o.llc_metadata.dlc_vector)) /= 3, "ERROR: DLC should be 3", FAILURE);
     Print("    FORMAT: FE [PASS]");
     Print("    FTYP: data_frame [PASS]");
     Print("    ESI: 0 [PASS]");
@@ -273,11 +273,11 @@ begin
     -- Byte 0: x"5F" = 01011111 -> FORMAT[7:5]=010 (FB), FTYP[4]=1, ESI[3]=1, BRS[2]=1
     -- Byte 1: x"F0" = 11110000 -> DLC[7:4]=1111=15
     Print("  Verifying frame_info extraction:");
-    AlertIf(tx_mac_fsm_o.frame_params.format /= c_llc_fmt_fb, "ERROR: FORMAT should be FB (010) but got " & to_hex_string(tx_mac_fsm_o.frame_params.format), FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.is_remote_frame /= '1', "ERROR: FTYP should be 1", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.esi_enable /= '1', "ERROR: ESI should be 1", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.has_brs /= '1', "ERROR: BRS should be 1", FAILURE);
-    AlertIf(to_integer(unsigned(tx_mac_fsm_o.frame_params.dlc_vector)) /= 15, "ERROR: DLC should be 15", FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.format /= c_llc_fmt_fb, "ERROR: FORMAT should be FB (010) but got " & to_hex_string(tx_mac_fsm_o.llc_metadata.format), FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.is_remote_frame /= '1', "ERROR: FTYP should be 1", FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.esi_enable /= '1', "ERROR: ESI should be 1", FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.has_brs /= '1', "ERROR: BRS should be 1", FAILURE);
+    AlertIf(to_integer(unsigned(tx_mac_fsm_o.llc_metadata.dlc_vector)) /= 15, "ERROR: DLC should be 15", FAILURE);
     Print("    FORMAT: FB [PASS]");
     Print("    FTYP: remote_frame [PASS]");
     Print("    ESI: 1 [PASS]");

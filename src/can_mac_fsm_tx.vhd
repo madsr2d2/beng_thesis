@@ -93,6 +93,9 @@ architecture rtl of can_mac_fsm_tx is
   signal dominant_seen_during_flag : boolean;
   signal dominant_run_count        : integer range 0 to 15;
 
+  -- Cached frame parameters (calculated once per frame from LLC metadata)
+  signal frame_params : t_frame_params;
+
   -- Debug signals for test visibility
   signal ack_error_detected     : std_logic;
   signal form_error_detected    : std_logic;
@@ -121,9 +124,16 @@ begin
     variable sp_sample_strobe_v           : boolean;
     variable ssp_sample_strobe_v          : boolean;
 
+    -- Derived position variables (from frame_params.data_stop / crc_stop)
+    variable sbc_start_v     : t_position;
+    variable crc_start_v     : t_position;
+    variable ack_delimiter_v : t_position;
+    variable eof_stop_v      : t_position;
+
     -- Registered next-value variables
     variable v_state                         : std_logic_vector(2 downto 0);
     variable v_bit_count                     : t_bit_count;
+    variable v_frame_params                  : t_frame_params;
     variable v_fifo                          : t_transmitted_bits_fifo;
     variable v_fifo_write_ptr                : t_fifo_write_ptr;
     variable v_last_transmitted_bit_polarity : std_logic;
@@ -178,6 +188,9 @@ begin
     procedure initialize_frame_transmission is
     begin
 
+      -- Calculate frame parameters from LLC metadata
+      v_frame_params := calculate_frame_params(mac_ser_i.llc_metadata);
+
       -- Initialize interfaces to clean state
       v_fce_o     := c_mac_to_fce_if_reset;
       v_pcs_o     := c_mac_to_pcs_if_reset;
@@ -185,7 +198,7 @@ begin
       v_crc_o     := c_mac_fsm_to_crc_if_reset;
 
       -- Select CRC polynomial and signal start of new computation
-      v_crc_o.crc_poly_select := mac_ser_i.frame_params.crc_poly_select;
+      v_crc_o.crc_poly_select := v_frame_params.crc_poly_select;
       v_crc_o.start           := '1';
 
       -- Activate transmit levels
@@ -194,7 +207,7 @@ begin
 
       -- Frame initialization
       v_bit_count                 := 0;
-      v_fifo                      := fifo_init;
+      v_fifo                      := (others => c_reset_mac_frame_bit);
       v_fifo_write_ptr            := 0;
       v_ack_success_seen          := false;
       v_bit_count_monitored       := false;
@@ -209,7 +222,8 @@ begin
       -- Initialize first bit (SOF)
       v_tx_bit     := get_next_mac_frame_bit(
                                           bit_count         => 0,
-                                          mac_ser_to_fsm    => mac_ser_i,
+                                          ser_data          => mac_ser_i.data,
+                                          frame_params      => v_frame_params,
                                           previous_polarity => c_recessive,
                                           sbc               => (others => '0'),
                                           crc               => (others => '0')
@@ -254,10 +268,10 @@ begin
       v_pcs_o.polarity := v_tx_bit.polarity;
 
       -- Feed bit stuffer (recursive loop)
-      if (mac_ser_i.frame_params.is_fd_frame = '1') then
-        dynamic_stuff_eligible_v := bit_count < to_integer(unsigned(mac_ser_i.frame_params.sbc_start));
+      if (frame_params.is_fd_frame = '1') then
+        dynamic_stuff_eligible_v := bit_count < sbc_start_v;
       else
-        dynamic_stuff_eligible_v := bit_count < to_integer(unsigned(mac_ser_i.frame_params.crc_stop));
+        dynamic_stuff_eligible_v := bit_count < frame_params.crc_stop;
       end if;
 
       if (dynamic_stuff_eligible_v) then
@@ -266,8 +280,8 @@ begin
       end if;
 
       -- ISO 11898-1: 10.6.3 - Stuff bits in FD frames are included in CRC
-      crc_fd_stuff_eligible_v := mac_ser_i.frame_params.is_fd_frame = '1' and
-                                 bit_count < to_integer(unsigned(mac_ser_i.frame_params.crc_start));
+      crc_fd_stuff_eligible_v := frame_params.is_fd_frame = '1' and
+                                 bit_count < crc_start_v;
       if (crc_fd_stuff_eligible_v) then
         v_crc_o.valid := '1';
         v_crc_o.data  := v_tx_bit.polarity;
@@ -290,7 +304,8 @@ begin
       -- Calculate NEXT position for registered output alignment
       v_tx_bit := get_next_mac_frame_bit(
                                          bit_count         => prepare_position_v,
-                                         mac_ser_to_fsm    => mac_ser_i,
+                                         ser_data          => mac_ser_i.data,
+                                         frame_params      => frame_params,
                                          previous_polarity => last_transmitted_bit_polarity,
                                          sbc               => bs_fd_i.sbc,
                                          crc               => crc_i.crc
@@ -326,7 +341,7 @@ begin
         end if;
 
         -- ISO 11898-1: 10.6.3 - Logical bits fed to CRC
-        crc_cc_eligible_v := prepare_position_v < to_integer(unsigned(mac_ser_i.frame_params.crc_start)) and
+        crc_cc_eligible_v := prepare_position_v < crc_start_v and
                              v_tx_bit.bit_name /= fixed_stuff_bit;
         if (crc_cc_eligible_v) then
           v_crc_o.valid := '1';
@@ -335,20 +350,20 @@ begin
       end if;
 
       -- Feed bit stuffer (prepare_position_v: the bit being prepared is within dynamic stuff region)
-      if (mac_ser_i.frame_params.is_fd_frame = '1') then
-        if (prepare_position_v < to_integer(unsigned(mac_ser_i.frame_params.sbc_start))) then
+      if (frame_params.is_fd_frame = '1') then
+        if (prepare_position_v < sbc_start_v) then
           v_bs_fd_o.valid := '1';
           v_bs_fd_o.data  := v_tx_bit.polarity;
         end if;
       else
-        if (prepare_position_v < to_integer(unsigned(mac_ser_i.frame_params.crc_stop))) then
+        if (prepare_position_v < frame_params.crc_stop) then
           v_bs_fd_o.valid := '1';
           v_bs_fd_o.data  := v_tx_bit.polarity;
         end if;
       end if;
 
       -- Track data phase transitions for PCS rate control
-      if (mac_ser_i.frame_params.has_brs = '1' and v_tx_bit.bit_name = esi_bit) then
+      if (frame_params.has_brs = '1' and v_tx_bit.bit_name = esi_bit) then
         v_in_data_phase := '1';
       elsif (v_tx_bit.bit_name = crc_delimiter_bit) then
         v_in_data_phase := '0';
@@ -370,10 +385,10 @@ begin
 
     begin
 
-      if (mac_ser_i.frame_params.is_fd_frame = '1') then
-        dynamic_stuff_eligible_v := bit_count < to_integer(unsigned(mac_ser_i.frame_params.sbc_start));
+      if (frame_params.is_fd_frame = '1') then
+        dynamic_stuff_eligible_v := bit_count < sbc_start_v;
       else
-        dynamic_stuff_eligible_v := bit_count < to_integer(unsigned(mac_ser_i.frame_params.crc_stop));
+        dynamic_stuff_eligible_v := bit_count < frame_params.crc_stop;
       end if;
 
       react_ssp_error_at_sp_v := ssp_error_pending and sp_sample_strobe_v;
@@ -404,7 +419,7 @@ begin
                                                                 fifo_index             => to_integer(unsigned(pcs_i.fifo_index)),
                                                                 fifo_write_ptr         => fifo_write_ptr,
                                                                 monitored_bit_polarity => pcs_i.bus_polarity,
-                                                                frame_params           => mac_ser_i.frame_params
+                                                                frame_params           => frame_params
                                                               );
         if (not ssp_sample_strobe_v) then
           v_mac_ser_o.transfer_status := v_monitored_bit_info.transfer_status;
@@ -448,7 +463,7 @@ begin
           v_in_data_phase             := '0';
 
         when none =>
-          if (bit_count = to_integer(unsigned(mac_ser_i.frame_params.ack_delimiter)) and (not ack_success_seen)) then
+          if (bit_count = ack_delimiter_v and (not ack_success_seen)) then
             v_mac_ser_o.transfer_status := c_disturbed;
             v_monitored_bit_event       := ack_error;
             v_was_previous_frame_tx     := true;
@@ -596,7 +611,7 @@ begin
         state                         <= c_st_bus_reintegration;
         prev_state                    <= c_st_bus_reintegration;
         bit_count                     <= 0;
-        fifo                          <= fifo_init;
+        fifo                          <= (others => c_reset_mac_frame_bit);
         fifo_write_ptr                <= 0;
         last_transmitted_bit_polarity <= c_recessive;
         monitored_bit_event           <= none;
@@ -609,6 +624,7 @@ begin
         dominant_seen_during_flag     <= false;
         dominant_run_count            <= 0;
         in_data_phase                 <= '0';
+        frame_params                  <= c_frame_params_reset;
         ack_error_detected            <= '0';
         form_error_detected           <= '0';
         data_phase_exit_strobe        <= '0';
@@ -628,9 +644,21 @@ begin
         -- Per-cycle defaults
         v_tx_bit             := c_reset_mac_frame_bit;
         v_monitored_bit_info := c_reset_observed_mac_frame_bit_info;
+        v_frame_params       := frame_params;
+
+        -- Derive positions from frame_params.data_stop and crc_stop
+        if (frame_params.is_fd_frame = '1') then
+          sbc_start_v := frame_params.data_stop + 1;
+          crc_start_v := sbc_start_v + c_sbc_field_width;
+        else
+          sbc_start_v := 0;
+          crc_start_v := frame_params.data_stop + 1;
+        end if;
+        ack_delimiter_v := frame_params.crc_stop + c_ack_delimiter_offset;
+        eof_stop_v      := frame_params.crc_stop + c_eof_start_offset + c_eof_field_width;
 
         -- Evaluate guards
-        frame_transmitted_v          := bit_count = to_integer(unsigned(mac_ser_i.frame_params.eof_stop));
+        frame_transmitted_v          := bit_count = eof_stop_v;
         sp_sample_strobe_v           := pcs_i.sp = '1';
         ssp_sample_strobe_v          := pcs_i.ssp = '1';
         sample_strobe_v              := sp_sample_strobe_v or ssp_sample_strobe_v;
@@ -809,6 +837,7 @@ begin
         dominant_seen_during_flag     <= v_dominant_seen_during_flag;
         dominant_run_count            <= v_dominant_run_count;
         in_data_phase                 <= v_in_data_phase;
+        frame_params                  <= v_frame_params;
 
         mac_ser_o        <= v_mac_ser_o;
         pcs_o            <= v_pcs_o;
