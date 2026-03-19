@@ -286,6 +286,7 @@ package body can_protocol_pkg is
 
     procedure extract_arbitration_field is
     begin
+
       found := false;
       if (bit_count >= base_id_start_v and bit_count <= base_id_stop_v) then
         result_v := (bit_name => base_id_bit, polarity => mac_ser_to_fsm.data);
@@ -341,10 +342,12 @@ package body can_protocol_pkg is
             null;
         end case;
       end if;
+
     end procedure extract_arbitration_field;
 
     procedure extract_control_field is
     begin
+
       found := false;
       case fp.format is
         when c_llc_fmt_cb =>
@@ -398,30 +401,38 @@ package body can_protocol_pkg is
         when others =>
           null;
       end case;
+
     end procedure extract_control_field;
 
     procedure extract_dlc_field is
     begin
+
       found := false;
       if (bit_count >= dlc_start_v and bit_count < dlc_stop_v) then
         result_v.bit_name := dlc_bit;
         result_v.polarity := fp.dlc_vector(fp.dlc_vector'left - (bit_count - dlc_start_v));
         found             := true;
       end if;
+
     end procedure extract_dlc_field;
 
     procedure extract_data_field is
     begin
+
       found := false;
       if (bit_count >= data_start_v and bit_count <= data_stop_v) then
         result_v := (bit_name => data_bit, polarity => mac_ser_to_fsm.data);
         found    := true;
       end if;
+
     end procedure extract_data_field;
 
     procedure extract_crc_sbc_field is
+
       variable pos_in_field : t_position;
+
     begin
+
       found := false;
       if ((fp.is_fd_frame = '1' and bit_count >= sbc_start_v and bit_count < crc_stop_v) or
           (fp.is_fd_frame = '0' and bit_count >= crc_start_v and bit_count < crc_stop_v)) then
@@ -449,14 +460,17 @@ package body can_protocol_pkg is
         end if;
         found := true;
       end if;
+
     end procedure extract_crc_sbc_field;
 
     procedure extract_ack_eof_field is
     begin
+
       found := false;
       if (bit_count >= eof_stop_v) then
         return;
       end if;
+
       if (bit_count = crc_delimiter_v) then
         result_v := c_crc_delimiter_bit;
         found    := true;
@@ -470,6 +484,7 @@ package body can_protocol_pkg is
         result_v := c_eof_bit;
         found    := true;
       end if;
+
     end procedure extract_ack_eof_field;
 
   begin
@@ -507,22 +522,34 @@ package body can_protocol_pkg is
 
     -- Walk frame fields in order
     extract_arbitration_field;
-    if (found) then return result_v; end if;
+    if (found) then
+      return result_v;
+    end if;
 
     extract_control_field;
-    if (found) then return result_v; end if;
+    if (found) then
+      return result_v;
+    end if;
 
     extract_dlc_field;
-    if (found) then return result_v; end if;
+    if (found) then
+      return result_v;
+    end if;
 
     extract_data_field;
-    if (found) then return result_v; end if;
+    if (found) then
+      return result_v;
+    end if;
 
     extract_crc_sbc_field;
-    if (found) then return result_v; end if;
+    if (found) then
+      return result_v;
+    end if;
 
     extract_ack_eof_field;
-    if (found) then return result_v; end if;
+    if (found) then
+      return result_v;
+    end if;
 
     return result_v;
 
@@ -588,9 +615,13 @@ package body can_protocol_pkg is
     variable eof_stop_v          : t_position;
 
     -- Helper: convert integer position to t_mac_frame_position_vec
-    function to_pos_vec (val : t_position) return t_mac_frame_position_vec is
+    function to_pos_vec (
+      val : t_position
+    ) return t_mac_frame_position_vec is
     begin
+
       return std_logic_vector(to_unsigned(val, t_mac_frame_position_vec'length));
+
     end function to_pos_vec;
 
   begin
