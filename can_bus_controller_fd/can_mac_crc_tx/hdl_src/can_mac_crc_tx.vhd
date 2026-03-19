@@ -2,9 +2,11 @@
 -- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
--- Requirements:  
+-- Requirements:
 --
--- Description:
+-- Description:   CRC engine wrapper for CAN/CAN-FD TX path. Instantiates
+--                dedicated engines for CRC-15, CRC-17, and CRC-21 and selects
+--                the appropriate output based on frame configuration.
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-03-15  TMYAES    [TRIT-4336] Initial implementation
@@ -12,11 +14,11 @@
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
+  use ieee.std_logic_1164.all;
+  use ieee.numeric_std.all;
 
-use work.pk_man_global.all;
-use work.pk_can_types.all;
+  use work.pk_man_global.all;
+  use work.pk_can_types.all;
 
 entity can_mac_crc_tx is
   port (
@@ -36,19 +38,15 @@ architecture rtl of can_mac_crc_tx is
   signal crc17_out : std_logic_vector(c_crc_17_length - 1 downto 0);
   signal crc21_out : std_logic_vector(c_crc_21_length - 1 downto 0);
 
-  signal sel_crc15  : std_logic;
-  signal sel_crc17  : std_logic;
-  signal sel_crc21  : std_logic;
-  signal start   : std_logic;
-  signal valid   : std_logic;
+  signal sel_crc15 : std_logic;
+  signal sel_crc17 : std_logic;
+  signal sel_crc21 : std_logic;
 
 begin
 
   sel_crc15 <= '1' when crc_i.crc_poly_select = "00" else '0';
   sel_crc17 <= '1' when crc_i.crc_poly_select = "01" else '0';
   sel_crc21 <= '1' when crc_i.crc_poly_select = "10" else '0';
-  start  <= '1' when crc_i.start else '0';
-  valid  <= '1' when crc_i.valid else '0';
 
   ---------------------------------------------------------------------------
   -- Component Instantiations
@@ -66,9 +64,9 @@ begin
     port map (
       clk_i        => clk_i,
       reset_i      => rst_i,
-      start_crc_i  => start and sel_crc15,
+      start_crc_i  => crc_i.start and sel_crc15,
       data_i(0)    => crc_i.data,
-      data_valid_i => valid and sel_crc15,
+      data_valid_i => crc_i.valid and sel_crc15,
       crc_o        => crc15_out
     );
 
@@ -85,9 +83,9 @@ begin
     port map (
       clk_i        => clk_i,
       reset_i      => rst_i,
-      start_crc_i  => start and sel_crc17,
+      start_crc_i  => crc_i.start and sel_crc17,
       data_i(0)    => crc_i.data,
-      data_valid_i => valid and sel_crc17,
+      data_valid_i => crc_i.valid and sel_crc17,
       crc_o        => crc17_out
     );
 
@@ -104,30 +102,42 @@ begin
     port map (
       clk_i        => clk_i,
       reset_i      => rst_i,
-      start_crc_i  => start and sel_crc21,
+      start_crc_i  => crc_i.start and sel_crc21,
       data_i(0)    => crc_i.data,
-      data_valid_i => valid and sel_crc21,
+      data_valid_i => crc_i.valid and sel_crc21,
       crc_o        => crc21_out
     );
 
-p_output_reg : process (clk_i) is
+  p_output_reg : process (clk_i) is
+  begin
 
-begin
-  if rising_edge(clk_i) then
-    if rst_i = '1' then
-      crc_o.crc <= (others => '0');
-      
-    else
-      -- Output mux: crc_o reflects the currently selected engine's registered output
-      crc_o.crc <= crc15_out & (t_crc_vector'left - c_crc_15_length downto 0 => '0') when crc_i.crc_poly_select = "00" else
-                   crc17_out & (t_crc_vector'left - c_crc_17_length downto 0 => '0') when crc_i.crc_poly_select = "01" else
-                   crc21_out                                                         when crc_i.crc_poly_select = "10" else
-                   (others => '0');
-      
+    if rising_edge(clk_i) then
+      if (rst_i = '1') then
+        crc_o.crc <= (others => '0');
+      else
+        case crc_i.crc_poly_select is
+          ---------------------------------------------------------
+          -- CRC-15: Classic CAN. Left-align in t_crc_vector.
+          ---------------------------------------------------------
+          when "00" =>
+            crc_o.crc <= crc15_out & (t_crc_vector'left - c_crc_15_length downto 0 => '0');
+          ---------------------------------------------------------
+          -- CRC-17: CAN-FD frames with data <= 16 bytes.
+          ---------------------------------------------------------
+          when "01" =>
+            crc_o.crc <= crc17_out & (t_crc_vector'left - c_crc_17_length downto 0 => '0');
+          ---------------------------------------------------------
+          -- CRC-21: CAN-FD frames with data > 16 bytes.
+          ---------------------------------------------------------
+          when "10" =>
+            crc_o.crc <= crc21_out;
+          when others =>
+            crc_o.crc <= (others => '0');
+        end case;
+      end if;
     end if;
-  end if;
-end process p_output_reg;
 
+  end process p_output_reg;
 
 end architecture rtl;
 

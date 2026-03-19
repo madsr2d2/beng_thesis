@@ -16,13 +16,13 @@
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
+  use ieee.std_logic_1164.all;
+  use ieee.numeric_std.all;
 
-use work.pk_man_global.all;
-use work.common_register_interface_pkg.all;
-use work.common_tb_pkg.all;
-use work.pk_can_types.all;
+  use work.pk_man_global.all;
+  use work.common_register_interface_pkg.all;
+  use work.common_tb_pkg.all;
+  use work.pk_can_types.all;
 
 library osvvm;
 context osvvm.OsvvmContext;
@@ -155,7 +155,6 @@ begin
     Message("################################################################################");
     Message("Test 3: CRC-17");
     Message("################################################################################");
-    crc_i.crc_poly_select <= "00";
     crc_i.crc_poly_select <= "01";
     crc_i.start           <= '1';
     crc_i.valid           <= '0';

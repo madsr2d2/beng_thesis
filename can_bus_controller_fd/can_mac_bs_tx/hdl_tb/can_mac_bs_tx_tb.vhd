@@ -16,14 +16,14 @@
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
+  use ieee.std_logic_1164.all;
+  use ieee.numeric_std.all;
 
-use work.pk_man_global.all;
+  use work.pk_man_global.all;
 
-use work.common_register_interface_pkg.all;
-use work.common_tb_pkg.all;
-use work.pk_can_types.all;
+  use work.common_register_interface_pkg.all;
+  use work.common_tb_pkg.all;
+  use work.pk_can_types.all;
 
 library osvvm;
 context osvvm.OsvvmContext;
@@ -157,7 +157,7 @@ begin
       WaitForClock(clk);
 
       -- Feed stuff bit back when asserted
-      if (bs_o.valid) then
+      if (bs_o.valid = '1') then
         bs_i.data  <= bs_o.data;
         bs_i.valid <= '1';
         WaitForClock(clk);
@@ -235,7 +235,7 @@ begin
       if (reset = '1' or bs_i.start = '1') then
         consecutive      := 0;
         tracked_polarity := c_recessive;
-      elsif (bs_i.valid) then
+      elsif (bs_i.valid = '1') then
         if (bs_i.data /= tracked_polarity) then
           consecutive      := 1;
           tracked_polarity := bs_i.data;
@@ -277,7 +277,7 @@ begin
       -- SBC must change on stuff bit events, hold otherwise
       if (reset = '1' or bs_i.start='1') then
         prev_sbc := "0000";
-      elsif (bs_o.valid) then
+      elsif (bs_o.valid = '1') then
         AffirmIf(test_id, bs_o.sbc /= prev_sbc,
                  "SBC did not change after stuff bit");
         prev_sbc := bs_o.sbc;
@@ -318,7 +318,7 @@ begin
       WaitForClock(clk);
 
       -- Sample inputs
-      if (bs_i.start) then
+      if (bs_i.start = '1') then
         ICover(cov_input, c_bin_start);
       elsif (bs_i.valid ='1' and bs_i.data = c_dominant) then
         ICover(cov_input, c_bin_valid_dominant);

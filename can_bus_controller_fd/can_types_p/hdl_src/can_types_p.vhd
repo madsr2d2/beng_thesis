@@ -2,31 +2,32 @@
 -- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
--- Requirements:  
+-- Requirements:
 --
 -- Description: Centralized type and constant definitions for the CAN/CAN-FD design per ISO 11898-1:2015.
 --
 --              Section map (in order):
---                1. Protocol Constants       -- field widths, max sizes, CRC polynomials
---                2. Bit Timing Configuration -- ISO Table 13 subtypes
+--                1. Protocol Constants       -- bus polarity, field widths, CRC polynomials
+--                2. Bit Timing Configuration -- ISO Table 12 subtypes and limits
 --                3. Core Enumerations        -- all enum types
---                4. Scalar Subtypes          -- byte_t, dlc_t, position_t, etc.
+--                4. Scalar Subtypes          -- byte, DLC, position, CRC vectors
 --                5. Composite Types          -- bit_t, mac_frame_bit_t, frame_params_t, FIFO
 --                6. Frame Constants          -- bit positions for CB/CE/FB/FE on-wire frames
 --                7. Interface Types          -- all _if_t records with reset constants
---                8. LLC frame format         -- FMT encodings, legacy frame layout, config byte bit positions
---             
+--                8. LLC Frame Format         -- FMT encodings, legacy frame layout, config byte bit positions
+--
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-03-15  TMYAES:   [TRIT-4336] Initial implementation
 --
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
-use ieee.math_real.all;
-use work.pk_man_global.all;
-use work.pk_eth_st;
+  use ieee.std_logic_1164.all;
+  use ieee.numeric_std.all;
+  use ieee.math_real.all;
+
+  use work.pk_man_global.all;
+  use work.pk_eth_st;
 
 package pk_can_types is
 
@@ -39,29 +40,33 @@ package pk_can_types is
   constant c_recessive : std_logic := '1';
 
   -- Field widths
-  constant c_byte_width      : integer := 8;
-  constant c_dlc_field_width : integer := 4;
-  constant c_sbc_field_width : integer := 4;
-  constant c_stuff_width     : integer := 5;
-  constant c_base_id_width   : integer := 11;
-  constant c_extended_id_width       : integer := 18;
-  constant c_eof_field_width         : integer := 7;
-  constant c_error_flag_width        : integer := 6;
-  constant c_error_delimiter_width   : integer := 8;
-  constant c_intermission_width      : integer := 3;    -- ISO 6.6.7.2
+  constant c_byte_width                 : integer := 8;
+  constant c_dlc_field_width            : integer := 4;
+  constant c_sbc_field_width            : integer := 4;
+  constant c_stuff_width                : integer := 5;
+  constant c_base_id_width              : integer := 11;
+  constant c_extended_id_width          : integer := 18;
+  constant c_eof_field_width            : integer := 7;
+  constant c_crc_delimiter_offset       : integer := 0;  -- offset from crc_stop
+  constant c_ack_slot_offset            : integer := 1;  -- offset from crc_stop
+  constant c_ack_delimiter_offset       : integer := 2;  -- offset from crc_stop
+  constant c_eof_start_offset           : integer := 3;  -- offset from crc_stop
+  constant c_error_flag_width           : integer := 6;
+  constant c_error_delimiter_width      : integer := 8;
+  constant c_intermission_width         : integer := 3;  -- ISO 6.6.7.2
   constant c_suspend_transmission_width : integer := 8;  -- ISO 6.6.7.4
-  constant c_bus_idle_condition_width : integer := 11;   -- ISO 3.34
+  constant c_bus_idle_condition_width   : integer := 11; -- ISO 3.34
 
   -- Frame limits
-  constant c_sof               : integer := 0;
-  constant c_dlc_max           : integer := 15;
-  constant c_max_data_bytes    : integer := 64;
-  constant c_max_mac_frame_length : integer := 640; -- TODO: Calculate this number correctly
+  constant c_sof                  : integer := 0;
+  constant c_dlc_max              : integer := 15;
+  constant c_max_data_bytes       : integer := 64;
+  constant c_max_mac_frame_length : integer := 640;
 
   -- CRC polynomials and initial values (ISO 8.5.4)
-  constant c_crc_15_length   : integer := 15;
-  constant c_crc_17_length   : integer := 17;
-  constant c_crc_21_length   : integer := 21;
+  constant c_crc_15_length   : integer                                        := 15;
+  constant c_crc_17_length   : integer                                        := 17;
+  constant c_crc_21_length   : integer                                        := 21;
   constant c_crc_poly_15_vec : std_logic_vector(c_crc_15_length - 1 downto 0) := 15x"4599";
   constant c_crc_poly_17_vec : std_logic_vector(c_crc_17_length - 1 downto 0) := 17x"1685B";
   constant c_crc_poly_21_vec : std_logic_vector(c_crc_21_length - 1 downto 0) := 21x"102899";
@@ -83,20 +88,19 @@ package pk_can_types is
   constant c_llc_fmt_fe : std_logic_vector(2 downto 0) := "110"; -- FD Extended
 
   -- FIFO
-  constant c_transmitted_bits_fifo_depth : integer := 32; -- TODO: Think about the size requirements on this fifo. 32 is probably larger than necessary.
+  constant c_transmitted_bits_fifo_depth : integer := 32;
 
   -- Retransmission (ISO 6.4)
   constant c_retransmission_limit : integer := 6;
 
   -- Derived vector subtypes
-  subtype t_mac_frame_position_vec is std_logic_vector(integer(ceil(log2(real(c_max_mac_frame_length)))) - 1 downto 0);
   subtype t_fifo_index_vec is std_logic_vector(integer(ceil(log2(real(c_transmitted_bits_fifo_depth)))) - 1 downto 0);
 
   ---------------------------------------------------------------------------
   -- 2. Bit Timing (ISO Table 12)
   ---------------------------------------------------------------------------
   constant c_sync_seg              : integer := 1;
-  constant c_max_transmitter_delay : integer := 255; -- ISO 7.3.4
+  constant c_max_transmitter_delay : integer := 255;  -- ISO 7.3.4
   constant c_tdc_bit_time_max      : integer := 1000; -- ISO 7.3.4
 
   subtype t_prescaler        is integer range 1 to 32;
@@ -164,13 +168,13 @@ package pk_can_types is
   ---------------------------------------------------------------------------
   -- 4. Scalar Subtypes
   ---------------------------------------------------------------------------
-  subtype t_bit_count   is integer range 0 to c_max_mac_frame_length;
-  subtype t_position    is integer range 0 to c_max_mac_frame_length;
-  subtype t_byte        is std_logic_vector(c_byte_width - 1 downto 0);
-  subtype t_dlc         is integer range 0 to c_dlc_max;
+  subtype t_bit_count is integer range 0 to c_max_mac_frame_length;
+  subtype t_position is integer range 0 to c_max_mac_frame_length;
+  subtype t_byte is std_logic_vector(c_byte_width - 1 downto 0);
+  subtype t_dlc is integer range 0 to c_dlc_max;
   subtype t_stuff_count is unsigned(2 downto 0);
-  subtype t_sbc         is std_logic_vector(c_sbc_field_width - 1 downto 0);
-  subtype t_crc_vector  is std_logic_vector(c_crc_poly_21_vec'left downto 0);
+  subtype t_sbc is std_logic_vector(c_sbc_field_width - 1 downto 0);
+  subtype t_crc_vector is std_logic_vector(c_crc_poly_21_vec'left downto 0);
   subtype t_fifo_write_ptr is integer range 0 to c_transmitted_bits_fifo_depth - 1;
 
   ---------------------------------------------------------------------------
@@ -205,35 +209,50 @@ package pk_can_types is
 
   type t_transmitted_bits_fifo is array (c_transmitted_bits_fifo_depth - 1 downto 0) of t_mac_frame_bit;
 
-  -- Frame parameters, calculated once per frame by the serializer
-  type t_frame_params is record
+  -- LLC metadata: the 5 fields that originate from the LLC layer
+  type t_llc_metadata is record
     format          : std_logic_vector(2 downto 0);
     dlc_vector      : std_logic_vector(c_dlc_field_width - 1 downto 0);
     is_remote_frame : std_logic;
     has_brs         : std_logic;
     esi_enable      : std_logic;
+  end record t_llc_metadata;
 
-    data_start        : t_mac_frame_position_vec;
-    data_stop         : t_mac_frame_position_vec;
-    crc_start     : t_mac_frame_position_vec;
-    crc_delimiter : t_mac_frame_position_vec;
-    sbc_start     : t_mac_frame_position_vec;
+  constant c_llc_metadata_reset : t_llc_metadata :=
+  (
+    format          => c_llc_fmt_cb,
+    dlc_vector      => (others => '0'),
+    is_remote_frame => '0',
+    has_brs         => '0',
+    esi_enable      => '0'
+  );
+
+  -- Frame parameters, calculated once per frame from LLC metadata.
+  -- Only non-trivial derived values are stored; fixed-per-format
+  -- positions are looked up from c_cb_*/c_ce_*/c_fb_*/c_fe_* constants.
+  type t_frame_params is record
+    format          : std_logic_vector(2 downto 0);
+    dlc_vector      : std_logic_vector(c_dlc_field_width - 1 downto 0);
+    is_fd_frame     : std_logic;
+    is_remote_frame : std_logic;
+    has_brs         : std_logic;
+    esi_enable      : std_logic;
+    data_stop       : t_position;
+    crc_stop        : t_position;
     crc_poly_select : std_logic_vector(1 downto 0);
   end record t_frame_params;
 
   constant c_frame_params_reset : t_frame_params :=
   (
-    format            => c_llc_fmt_cb,
-    dlc_vector        => (others => '0'),
-    is_remote_frame   => '0',
-    has_brs           => '0',
-    esi_enable        => '0',
-    data_start        => (others => '0'),
-    data_stop         => (others => '0'),
-    crc_start         => (others => '0'),
-    crc_delimiter     => (others => '0'),
-    sbc_start         => (others => '0'),
-    crc_poly_select   => "00"
+    format          => c_llc_fmt_cb,
+    dlc_vector      => (others => '0'),
+    is_fd_frame     => '0',
+    is_remote_frame => '0',
+    has_brs         => '0',
+    esi_enable      => '0',
+    data_stop       => 0,
+    crc_stop        => 0,
+    crc_poly_select => "00"
   );
 
   ---------------------------------------------------------------------------
@@ -321,14 +340,14 @@ package pk_can_types is
   type t_can_mac_ser_fsm_tx_if_s2m is record
     data         : std_logic;
     valid        : std_logic;
-    frame_params : t_frame_params;
+    llc_metadata : t_llc_metadata;
   end record t_can_mac_ser_fsm_tx_if_s2m;
 
   constant c_tx_mac_ser_to_fsm_if_reset : t_can_mac_ser_fsm_tx_if_s2m :=
   (
     data         => c_recessive,
     valid        => '0',
-    frame_params => c_frame_params_reset
+    llc_metadata => c_llc_metadata_reset
   );
 
   -- FSM -> Serializer
@@ -368,7 +387,7 @@ package pk_can_types is
 
   -- LLC -> User
   type t_can_user_llc_tx_if_d2s is record
-    avalon_st_sink  :  pk_eth_st.t_eth_st_d2s;
+    avalon_st_sink  : pk_eth_st.t_eth_st_d2s;
     transfer_status : std_logic_vector(2 downto 0);
   end record t_can_user_llc_tx_if_d2s;
 
@@ -543,7 +562,7 @@ package pk_can_types is
   -- 8. LLC Frame Format
   --
   -- Internal format (variable length, streamed by can_llc_tx to can_mac_ser_tx):
-  --   Byte 0:       [7:5]=FMT, [4]=FTYP(RTR), [3]=ESI, [2]=BRS, [1:0]=00
+  --   Byte 0 (SOP): [7:5]=FMT, [4]=FTYP(RTR), [3]=ESI, [2]=BRS, [1:0]=00
   --   Byte 1:       [7:4]=DLC, [3:0]=0000
   --   Bytes 2-5:    ID (32-bit, MSB first, left-aligned; CB uses [31:21])
   --   Bytes 6+:     Data (DLC count, no padding), EOP on last byte
@@ -583,7 +602,6 @@ package pk_can_types is
   constant c_legacy_frame_len    : integer := 71;
   constant c_legacy_fmt_dlc_byte : integer := 4;
   constant c_legacy_data_offset  : integer := 5;
-  constant c_legacy_flags_byte   : integer := 70;
 
   type t_legacy_frame is array (0 to c_legacy_frame_len - 1) of t_byte;
 
@@ -604,6 +622,5 @@ package pk_can_types is
   constant c_llc_id_stream_width : integer := c_llc_id_byte_count * c_byte_width;
 
 end package pk_can_types;
-
 
 -- eof

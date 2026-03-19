@@ -2,9 +2,12 @@
 -- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
--- Requirements:  
+-- Requirements:
 --
--- Description:
+-- Description:   Testbench for can_mac_ser_tx. Verifies config byte loading,
+--                LLC metadata extraction, data byte serialization, frame
+--                termination on transfer status change, and ready/valid
+--                handshaking.
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-03-16  TMYAES    [TRIT-4336] Initial implementation
@@ -12,20 +15,21 @@
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
-use work.pk_can_types.all;
-use work.pk_man_global.all;
-use work.pk_eth_st.all;
+  use ieee.std_logic_1164.all;
+  use ieee.numeric_std.all;
 
-use work.common_register_interface_pkg.all;
-use work.common_tb_pkg.all;
+  use work.pk_can_types.all;
+  use work.pk_man_global.all;
+  use work.pk_eth_st.all;
+
+  use work.common_register_interface_pkg.all;
+  use work.common_tb_pkg.all;
 
 library osvvm;
-context osvvm.OsvvmContext;
+  context osvvm.OsvvmContext;
 
-
-entity can_mac_ser_tx_tb is  generic (
+entity can_mac_ser_tx_tb is
+  generic (
     gc_TbTimeOut   : time := 2 ms;
     gc_TbClkPeriod : time := 10 ns
   );
@@ -33,25 +37,58 @@ end entity can_mac_ser_tx_tb;
 
 architecture tb of can_mac_ser_tx_tb is
 
-  signal clk : std_logic := '0';
-  signal reset : std_logic := '0';
+  ----------------------------------------------------------------------------
+  -- Signals
+  ----------------------------------------------------------------------------
+  signal clk   : std_logic;
+  signal reset : std_logic := '1';
 
   -- LLC interface signals
-  signal llc_i : t_can_llc_mac_tx_if_s2d := (avalon_st_source => c_eth_st_s2d_zero_idle );
-  signal llc_o : t_can_llc_mac_tx_if_d2s := (avalon_st_sink => c_eth_st_d2s_idle, transfer_status => c_transmitted);
+  signal llc_i : t_can_llc_mac_tx_if_s2d := (avalon_st_source => c_eth_st_s2d_zero_idle);
+  signal llc_o : t_can_llc_mac_tx_if_d2s;
 
-  -- can_mac_fsm_tx interface signals
+  -- MAC FSM interface signals
   signal tx_mac_fsm_i : t_can_mac_ser_fsm_tx_if_m2s;
   signal tx_mac_fsm_o : t_can_mac_ser_fsm_tx_if_s2m;
+
+  signal test_id : AlertLogIDType;
 
 begin
 
   ----------------------------------------------------------------------------
-  -- Clock
+  -- Initialisation
+  ----------------------------------------------------------------------------
+  p_init : process
+    variable v_test_id : AlertLogIDType;
+  begin
+    SetAlertStopCount(ERROR, 10);
+    v_test_id := NewId("can_mac_ser_tx");
+    test_id   <= v_test_id;
+    wait for 0 ns;
+    wait;
+  end process;
+
+  ----------------------------------------------------------------------------
+  -- Clock / reset
   ----------------------------------------------------------------------------
   CreateClock(clk, gc_TbClkPeriod);
+  CreateReset(reset, '1', clk, gc_TbClkPeriod * 5);
 
-  -- DUT instantiation
+  ----------------------------------------------------------------------------
+  -- Timeout watchdog
+  ----------------------------------------------------------------------------
+  p_timeout : process
+  begin
+    WaitForClock(clk, gc_TbTimeOut);
+    WaitForClock(clk, 1 us);
+    report "Time Out detected";
+    assert false report "ERROR TEST FAILED, due to time out" severity error;
+    std.env.stop(1);
+  end process p_timeout;
+
+  ----------------------------------------------------------------------------
+  -- DUT
+  ----------------------------------------------------------------------------
   u_dut : entity work.can_mac_ser_tx
     port map (
       clk_i        => clk,
@@ -62,22 +99,20 @@ begin
       tx_mac_fsm_o => tx_mac_fsm_o
     );
 
+  -- -------------------------------------------------------------------------
   -- Main test process
+  -- -------------------------------------------------------------------------
   main_tb_p : process is
 
     variable v_test_data : std_logic_vector(7 downto 0);
 
   begin
 
+    wait until reset = '0';
+    WaitForClock(clk);
 
     Message("TX MAC Serializer Testbench Started");
     Message("==========================================");
-
-    -- Initial reset
-    reset <= '1';
-    WaitForClock(clk, 5);
-    reset <= '0';
-    WaitForClock(clk);
 
     -- =====================================================================
     -- Test 1: Config byte loading (2 bytes with SOP)
@@ -86,16 +121,16 @@ begin
     Message("Test 1: Load two config bytes when MAC FSM is idle");
     Message("-----------");
 
-    tx_mac_fsm_i.transfer_status  <= c_ongoing;
+    tx_mac_fsm_i.transfer_status <= c_ongoing;
     WaitForClock(clk);
 
     AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted in idle state", FAILURE);
 
     -- Send config byte 0 with SOP
-    llc_i.avalon_st_source.data  <= x"C8";
-    llc_i.avalon_st_source.valid <= '1';
-    llc_i.avalon_st_source.startofpacket   <= '1';
-    llc_i.avalon_st_source.endofpacket   <= '0';
+    llc_i.avalon_st_source.data           <= x"C8";
+    llc_i.avalon_st_source.valid          <= '1';
+    llc_i.avalon_st_source.startofpacket  <= '1';
+    llc_i.avalon_st_source.endofpacket    <= '0';
     WaitForClock(clk);
 
     llc_i.avalon_st_source.valid <= '0';
@@ -106,10 +141,10 @@ begin
     AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted waiting for config byte 1", FAILURE);
 
     -- Send config byte 1
-    llc_i.avalon_st_source.data  <= x"50";
-    llc_i.avalon_st_source.valid <= '1';
-    llc_i.avalon_st_source.startofpacket   <= '0';
-    llc_i.avalon_st_source.endofpacket   <= '0';
+    llc_i.avalon_st_source.data           <= x"50";
+    llc_i.avalon_st_source.valid          <= '1';
+    llc_i.avalon_st_source.startofpacket  <= '0';
+    llc_i.avalon_st_source.endofpacket    <= '0';
     WaitForClock(clk);
 
     llc_i.avalon_st_source.valid <= '0';
@@ -117,15 +152,15 @@ begin
 
     Message("  Config byte 1 loaded: x""50""");
 
-    -- Verify frame_params extraction
+    -- Verify llc_metadata extraction
     -- Byte 0: x"C8" = 11001000 -> FORMAT[7:5]=110(FE), FTYP[4]=0, ESI[3]=1, BRS[2]=0
     -- Byte 1: x"50" = 01010000 -> DLC[7:4]=0101=5
-    Message("  Verifying frame_params extraction:");
-    AlertIf(tx_mac_fsm_o.frame_params.format /= c_llc_fmt_fe, "ERROR: FORMAT should be FE (110)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.is_remote_frame /= '0', "ERROR: is_remote_frame should be 0", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.esi_enable /= '1', "ERROR: ESI should be 1", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.has_brs /= '0', "ERROR: BRS should be 0", FAILURE);
-    AlertIf(to_integer(unsigned(tx_mac_fsm_o.frame_params.dlc_vector)) /= 5, "ERROR: DLC should be 5", FAILURE);
+    Message("  Verifying llc_metadata extraction:");
+    AlertIf(tx_mac_fsm_o.llc_metadata.format /= c_llc_fmt_fe, "ERROR: FORMAT should be FE (110)", FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.is_remote_frame /= '0', "ERROR: is_remote_frame should be 0", FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.esi_enable /= '1', "ERROR: ESI should be 1", FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.has_brs /= '0', "ERROR: BRS should be 0", FAILURE);
+    AlertIf(to_integer(unsigned(tx_mac_fsm_o.llc_metadata.dlc_vector)) /= 5, "ERROR: DLC should be 5", FAILURE);
     Message("    FORMAT: FE [PASS]");
     Message("    FTYP: data_frame [PASS]");
     Message("    ESI: 1 [PASS]");
@@ -144,10 +179,10 @@ begin
 
     AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted in load_llc_frame_byte state", FAILURE);
 
-    llc_i.avalon_st_source.data  <= v_test_data;
-    llc_i.avalon_st_source.valid <= '1';
-    llc_i.avalon_st_source.startofpacket   <= '0';
-    llc_i.avalon_st_source.endofpacket   <= '0';
+    llc_i.avalon_st_source.data           <= v_test_data;
+    llc_i.avalon_st_source.valid          <= '1';
+    llc_i.avalon_st_source.startofpacket  <= '0';
+    llc_i.avalon_st_source.endofpacket    <= '0';
     WaitForClock(clk);
     llc_i.avalon_st_source.valid <= '0';
     WaitForClock(clk);
@@ -180,28 +215,28 @@ begin
     reset <= '0';
     WaitForClock(clk);
 
-    tx_mac_fsm_i.transfer_status  <= c_ongoing;
+    tx_mac_fsm_i.transfer_status <= c_ongoing;
 
-    llc_i.avalon_st_source.data  <= x"C0";
-    llc_i.avalon_st_source.valid <= '1';
-    llc_i.avalon_st_source.startofpacket   <= '1';
+    llc_i.avalon_st_source.data           <= x"C0";
+    llc_i.avalon_st_source.valid          <= '1';
+    llc_i.avalon_st_source.startofpacket  <= '1';
     WaitForClock(clk);
 
-    llc_i.avalon_st_source.data  <= x"30";
-    llc_i.avalon_st_source.startofpacket   <= '0';
-    llc_i.avalon_st_source.endofpacket   <= '0';
+    llc_i.avalon_st_source.data           <= x"30";
+    llc_i.avalon_st_source.startofpacket  <= '0';
+    llc_i.avalon_st_source.endofpacket    <= '0';
     WaitForClock(clk);
     llc_i.avalon_st_source.valid <= '0';
     WaitForClock(clk);
 
     -- Byte 0: x"C0" = 11000000 -> FORMAT[7:5]=110(FE), FTYP[4]=0, ESI[3]=0, BRS[2]=0
     -- Byte 1: x"30" = 00110000 -> DLC[7:4]=0011=3
-    Message("  Verifying frame_info extraction:");
-    AlertIf(tx_mac_fsm_o.frame_params.format /= c_llc_fmt_fe, "ERROR: FORMAT should be FE (110)", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.is_remote_frame /= '0', "ERROR: FTYP should be 0", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.esi_enable /= '0', "ERROR: ESI should be 0", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.has_brs /= '0', "ERROR: BRS should be 0", FAILURE);
-    AlertIf(to_integer(unsigned(tx_mac_fsm_o.frame_params.dlc_vector)) /= 3, "ERROR: DLC should be 3", FAILURE);
+    Message("  Verifying llc_metadata extraction:");
+    AlertIf(tx_mac_fsm_o.llc_metadata.format /= c_llc_fmt_fe, "ERROR: FORMAT should be FE (110)", FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.is_remote_frame /= '0', "ERROR: FTYP should be 0", FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.esi_enable /= '0', "ERROR: ESI should be 0", FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.has_brs /= '0', "ERROR: BRS should be 0", FAILURE);
+    AlertIf(to_integer(unsigned(tx_mac_fsm_o.llc_metadata.dlc_vector)) /= 3, "ERROR: DLC should be 3", FAILURE);
     Message("    FORMAT: FE [PASS]");
     Message("    FTYP: data_frame [PASS]");
     Message("    ESI: 0 [PASS]");
@@ -209,9 +244,9 @@ begin
     Message("    DLC: 3 [PASS]");
 
     for byte_idx in 0 to 2 loop
-      v_test_data                    := std_logic_vector(to_unsigned(byte_idx * 16 + 1, 8));
-      llc_i.avalon_st_source.data  <= v_test_data;
-      llc_i.avalon_st_source.valid <= '1';
+      v_test_data                           := std_logic_vector(to_unsigned(byte_idx * 16 + 1, 8));
+      llc_i.avalon_st_source.data           <= v_test_data;
+      llc_i.avalon_st_source.valid          <= '1';
 
       if (byte_idx = 2) then
         llc_i.avalon_st_source.endofpacket <= '1';
@@ -258,27 +293,27 @@ begin
     reset <= '0';
     WaitForClock(clk);
 
-    tx_mac_fsm_i.transfer_status  <= c_ongoing;
+    tx_mac_fsm_i.transfer_status <= c_ongoing;
 
-    llc_i.avalon_st_source.data  <= x"5F";
-    llc_i.avalon_st_source.valid <= '1';
-    llc_i.avalon_st_source.startofpacket   <= '1';
+    llc_i.avalon_st_source.data           <= x"5F";
+    llc_i.avalon_st_source.valid          <= '1';
+    llc_i.avalon_st_source.startofpacket  <= '1';
     WaitForClock(clk);
 
-    llc_i.avalon_st_source.data  <= x"F0";
-    llc_i.avalon_st_source.startofpacket   <= '0';
+    llc_i.avalon_st_source.data           <= x"F0";
+    llc_i.avalon_st_source.startofpacket  <= '0';
     WaitForClock(clk);
     llc_i.avalon_st_source.valid <= '0';
     WaitForClock(clk);
 
     -- Byte 0: x"5F" = 01011111 -> FORMAT[7:5]=010 (FB), FTYP[4]=1, ESI[3]=1, BRS[2]=1
     -- Byte 1: x"F0" = 11110000 -> DLC[7:4]=1111=15
-    Print("  Verifying frame_info extraction:");
-    AlertIf(tx_mac_fsm_o.frame_params.format /= c_llc_fmt_fb, "ERROR: FORMAT should be FB (010) but got " & to_hex_string(tx_mac_fsm_o.frame_params.format), FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.is_remote_frame /= '1', "ERROR: FTYP should be 1", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.esi_enable /= '1', "ERROR: ESI should be 1", FAILURE);
-    AlertIf(tx_mac_fsm_o.frame_params.has_brs /= '1', "ERROR: BRS should be 1", FAILURE);
-    AlertIf(to_integer(unsigned(tx_mac_fsm_o.frame_params.dlc_vector)) /= 15, "ERROR: DLC should be 15", FAILURE);
+    Message("  Verifying llc_metadata extraction:");
+    AlertIf(tx_mac_fsm_o.llc_metadata.format /= c_llc_fmt_fb, "ERROR: FORMAT should be FB (010) but got " & to_hex_string(tx_mac_fsm_o.llc_metadata.format), FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.is_remote_frame /= '1', "ERROR: FTYP should be 1", FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.esi_enable /= '1', "ERROR: ESI should be 1", FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.has_brs /= '1', "ERROR: BRS should be 1", FAILURE);
+    AlertIf(to_integer(unsigned(tx_mac_fsm_o.llc_metadata.dlc_vector)) /= 15, "ERROR: DLC should be 15", FAILURE);
     Message("    FORMAT: FB [PASS]");
     Message("    FTYP: remote_frame [PASS]");
     Message("    ESI: 1 [PASS]");
@@ -292,7 +327,7 @@ begin
     WaitForClock(clk);
 
     tx_mac_fsm_i.ready <= '1';
-    WaitForClock(clk,3);
+    WaitForClock(clk, 3);
 
     Message("  Changing transfer_status to transmitted mid-transmission...");
     tx_mac_fsm_i.transfer_status <= c_transmitted;
@@ -315,15 +350,15 @@ begin
     reset <= '0';
     WaitForClock(clk);
 
-    tx_mac_fsm_i.transfer_status  <= c_ongoing;
+    tx_mac_fsm_i.transfer_status <= c_ongoing;
     WaitForClock(clk);
 
     AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted in idle state", FAILURE);
     Message("  Idle state ready asserted: PASS");
 
-    llc_i.avalon_st_source.data  <= x"BB";
-    llc_i.avalon_st_source.valid <= '1';
-    llc_i.avalon_st_source.startofpacket   <= '1';
+    llc_i.avalon_st_source.data           <= x"BB";
+    llc_i.avalon_st_source.valid          <= '1';
+    llc_i.avalon_st_source.startofpacket  <= '1';
     WaitForClock(clk);
 
     llc_i.avalon_st_source.valid <= '0';
@@ -332,10 +367,10 @@ begin
     AlertIf(llc_o.avalon_st_sink.ready = '0', "ERROR: ready should be asserted in load_config_byte_1 state", FAILURE);
     Message("  Config byte 1 state ready asserted: PASS");
 
-    llc_i.avalon_st_source.data  <= x"44";
-    llc_i.avalon_st_source.valid <= '1';
-    llc_i.avalon_st_source.startofpacket   <= '0';
-    llc_i.avalon_st_source.endofpacket   <= '0';
+    llc_i.avalon_st_source.data           <= x"44";
+    llc_i.avalon_st_source.valid          <= '1';
+    llc_i.avalon_st_source.startofpacket  <= '0';
+    llc_i.avalon_st_source.endofpacket    <= '0';
     WaitForClock(clk);
 
     llc_i.avalon_st_source.valid <= '0';
@@ -365,3 +400,4 @@ begin
 
 end architecture tb;
 
+-- eof

@@ -608,7 +608,6 @@ package pk_can_types is
   constant c_legacy_frame_len    : integer := 71;
   constant c_legacy_fmt_dlc_byte : integer := 4;
   constant c_legacy_data_offset  : integer := 5;
-  constant c_legacy_flags_byte   : integer := 70;
 
   type t_legacy_frame is array (0 to c_legacy_frame_len - 1) of t_byte;
 
