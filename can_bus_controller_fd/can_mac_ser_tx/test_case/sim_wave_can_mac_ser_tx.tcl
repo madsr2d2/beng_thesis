@@ -4,7 +4,9 @@ transcript off
 
 add wave -vgroup TB \
 	( -logic /can_mac_ser_tx_tb/clk ) \
-	( -logic /can_mac_ser_tx_tb/reset )
+	( -logic /can_mac_ser_tx_tb/reset ) \
+	( -decimal /can_mac_ser_tx_tb/byte_count ) \
+	( -literal /can_mac_ser_tx_tb/llc_frame )
 
 add wave -vgroup "LLC Input" \
 	( -logic   /can_mac_ser_tx_tb/llc_i/avalon_st_source/valid ) \
@@ -49,9 +51,9 @@ add wave -vgroup "MAC FSM Output" \
 	( -binary  /can_mac_ser_tx_tb/tx_mac_fsm_o/frame_params/crc_poly_select )
 
 add wave -vgroup "DUT Internals" \
+	( -literal /can_mac_ser_tx_tb/u_dut/llc_frame_buffer ) \
 	( -literal /can_mac_ser_tx_tb/u_dut/state ) \
 	( -decimal /can_mac_ser_tx_tb/u_dut/count ) \
-	( -literal /can_mac_ser_tx_tb/u_dut/llc_frame_buffer ) \
 	( -literal /can_mac_ser_tx_tb/u_dut/config_byte_0 ) \
 	( -decimal /can_mac_ser_tx_tb/u_dut/id_bits_remaining ) \
 	( -decimal /can_mac_ser_tx_tb/u_dut/padding_bits_remaining )
