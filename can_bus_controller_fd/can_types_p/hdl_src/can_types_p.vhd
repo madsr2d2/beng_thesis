@@ -90,7 +90,7 @@ package pk_can_types is
   -- FIFO
   constant c_transmitted_bits_fifo_depth : integer := 32;
 
-  -- Retransmission (ISO 6.4)
+  -- Retransmission (ISO 6.5.3)
   constant c_retransmission_limit : integer := 6;
 
   -- Derived vector subtypes
@@ -562,12 +562,12 @@ package pk_can_types is
   -- 8. LLC Frame Format
   --
   -- Internal format (variable length, streamed by can_llc_tx to can_mac_ser_tx):
-  --   Byte 0 (SOP): [7:5]=FMT, [4]=FTYP(RTR), [3]=ESI, [2]=BRS, [1:0]=00
+  --   Byte 0:       [7:5]=FMT, [4]=FTYP(RTR), [3]=ESI, [2]=BRS, [1:0]=00
   --   Byte 1:       [7:4]=DLC, [3:0]=0000
   --   Bytes 2-5:    ID (32-bit, MSB first, left-aligned; CB uses [31:21])
   --   Bytes 6+:     Data (DLC count, no padding), EOP on last byte
   --
-  -- Legacy format (fixed 71 bytes, presented at user interface):
+  -- External format (presented at user interface):
   --   Bytes 0-3:  ID bytes
   --   Byte  4:    [7]=reserved, [6:4]=FMT, [3:0]=DLC
   --   Bytes 5-68: Data (zero-padded to 64)
@@ -575,28 +575,31 @@ package pk_can_types is
   --   Byte  70:   [2]=BRS, [1]=ESI, [0]=RTR
   ---------------------------------------------------------------------------
 
+  constant c_internal_llc_frame_len    : integer := 70;
+  type t_llc_frame is array (0 to c_internal_llc_frame_len  - 1) of t_byte;
+
   -- Config byte 0: [7:5]=FMT, [4]=FTYP(RTR), [3]=ESI, [2]=BRS, [1:0]=00
-  type t_llc_config_byte_0 is record
-    format : std_logic_vector(2 downto 0);
-    ftyp   : std_logic;
-    esi    : std_logic;
-    brs    : std_logic;
-    unused : std_logic_vector(1 downto 0);
-  end record t_llc_config_byte_0;
+  -- type t_llc_config_byte_0 is record
+  --   format : std_logic_vector(2 downto 0);
+  --   ftyp   : std_logic;
+  --   esi    : std_logic;
+  --   brs    : std_logic;
+  --   unused : std_logic_vector(1 downto 0);
+  -- end record t_llc_config_byte_0;
 
-  -- Config byte 1: [7:4]=DLC, [3:0]=0000
-  type t_llc_config_byte_1 is record
-    dlc    : std_logic_vector(3 downto 0);
-    unused : std_logic_vector(3 downto 0);
-  end record t_llc_config_byte_1;
+  -- -- Config byte 1: [7:4]=DLC, [3:0]=0000
+  -- type t_llc_config_byte_1 is record
+  --   dlc    : std_logic_vector(3 downto 0);
+  --   unused : std_logic_vector(3 downto 0);
+  -- end record t_llc_config_byte_1;
 
-  -- Internal LLC frame (testbench convenience type)
-  type t_llc_frame is record
-    config_0 : t_llc_config_byte_0;
-    config_1 : t_llc_config_byte_1;
-    id       : std_logic_vector(31 downto 0);
-    data     : std_logic_vector(c_max_data_bytes * 8 - 1 downto 0);
-  end record t_llc_frame;
+  -- -- Internal LLC frame (testbench convenience type)
+  -- type t_llc_frame is record
+  --   config_0 : t_llc_config_byte_0;
+  --   config_1 : t_llc_config_byte_1;
+  --   id       : std_logic_vector(31 downto 0);
+  --   data     : std_logic_vector(c_max_data_bytes * 8 - 1 downto 0);
+  -- end record t_llc_frame;
 
   -- Legacy frame constants
   constant c_legacy_frame_len    : integer := 71;
