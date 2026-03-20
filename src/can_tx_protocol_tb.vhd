@@ -251,8 +251,8 @@ begin
       llc_user_i.abort_request <= '0';
       llc_user_i.avalon_st_source.data  <= (others => '0');
       llc_user_i.avalon_st_source.valid <= '0';
-      llc_user_i.avalon_st_source.sop   <= '0';
-      llc_user_i.avalon_st_source.eop   <= '0';
+      llc_user_i.avalon_st_source.startofpacket   <= '0';
+      llc_user_i.avalon_st_source.endofpacket   <= '0';
     end procedure set_frame_inputs;
 
     procedure send_user_byte (
@@ -263,8 +263,8 @@ begin
     begin
       llc_user_i.avalon_st_source.data  <= value;
       llc_user_i.avalon_st_source.valid <= '1';
-      llc_user_i.avalon_st_source.sop   <= sop;
-      llc_user_i.avalon_st_source.eop   <= eop;
+      llc_user_i.avalon_st_source.startofpacket   <= sop;
+      llc_user_i.avalon_st_source.endofpacket   <= eop;
       loop
         wait until rising_edge(clk);
         exit when llc_user_o.avalon_st_sink.ready = '1';
@@ -329,8 +329,8 @@ begin
       send_user_byte(byte70_v, '0', '1');
 
       llc_user_i.avalon_st_source.valid <= '0';
-      llc_user_i.avalon_st_source.sop   <= '0';
-      llc_user_i.avalon_st_source.eop   <= '0';
+      llc_user_i.avalon_st_source.startofpacket   <= '0';
+      llc_user_i.avalon_st_source.endofpacket   <= '0';
     end procedure submit_frame;
 
     procedure wait_for_transfer_status (
@@ -411,8 +411,8 @@ begin
 
     llc_user_i.avalon_st_source.data  <= (others => '0');
     llc_user_i.avalon_st_source.valid <= '0';
-    llc_user_i.avalon_st_source.sop   <= '0';
-    llc_user_i.avalon_st_source.eop   <= '0';
+    llc_user_i.avalon_st_source.startofpacket   <= '0';
+    llc_user_i.avalon_st_source.endofpacket   <= '0';
     llc_user_i.abort_request <= '0';
 
     rst <= '1';

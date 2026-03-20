@@ -104,14 +104,14 @@ begin
 
         mac_o.avalon_st_source.data  <= (others => '0');
         mac_o.avalon_st_source.valid <= '0';
-        mac_o.avalon_st_source.sop   <= '0';
-        mac_o.avalon_st_source.eop   <= '0';
+        mac_o.avalon_st_source.startofpacket   <= '0';
+        mac_o.avalon_st_source.endofpacket   <= '0';
       else
         -- Defaults.
         llc_user_o.avalon_st_sink.ready <= '0';
         mac_o.avalon_st_source.valid    <= '0';
-        mac_o.avalon_st_source.sop      <= '0';
-        mac_o.avalon_st_source.eop      <= '0';
+        mac_o.avalon_st_source.startofpacket      <= '0';
+        mac_o.avalon_st_source.endofpacket      <= '0';
 
         case state is
 
@@ -127,9 +127,9 @@ begin
             tx_index                        <= 0;
             expected_len_bytes              <= 0;
 
-            if (llc_user_i.avalon_st_source.valid = '1' and llc_user_i.avalon_st_source.sop = '1') then
+            if (llc_user_i.avalon_st_source.valid = '1' and llc_user_i.avalon_st_source.startofpacket = '1') then
               -- Canonical LLC frame requires at least 6 header bytes.
-              if (llc_user_i.avalon_st_source.eop = '1') then
+              if (llc_user_i.avalon_st_source.endofpacket = '1') then
                 llc_user_o.transfer_status <= c_aborted;
                 state                      <= c_st_idle;
               else
@@ -181,10 +181,10 @@ begin
 
                 if (not cfg_valid_v) then
                   null;
-                elsif (llc_user_i.avalon_st_source.eop = '1' and accepted_idx_v + 1 < c_llc_header_bytes) then
+                elsif (llc_user_i.avalon_st_source.endofpacket = '1' and accepted_idx_v + 1 < c_llc_header_bytes) then
                   llc_user_o.transfer_status <= c_aborted;
                   state                      <= c_st_idle;
-                elsif (llc_user_i.avalon_st_source.eop = '1') then
+                elsif (llc_user_i.avalon_st_source.endofpacket = '1') then
                   if (expected_len_v > 0 and accepted_idx_v + 1 = expected_len_v) then
                     frame_len_bytes <= expected_len_v;
                     tx_index        <= 0;
@@ -239,10 +239,10 @@ begin
               mac_o.avalon_st_source.data  <= frame_buf(tx_index);
               mac_o.avalon_st_source.valid <= '1';
               if (tx_index = 0) then
-                mac_o.avalon_st_source.sop <= '1';
+                mac_o.avalon_st_source.startofpacket <= '1';
               end if;
               if (tx_index = frame_len_bytes - 1) then
-                mac_o.avalon_st_source.eop <= '1';
+                mac_o.avalon_st_source.endofpacket <= '1';
               end if;
 
               if (mac_i.avalon_st_sink.ready = '1') then
@@ -440,14 +440,14 @@ begin
 
         mac_o.avalon_st_source.data  <= (others => '0');
         mac_o.avalon_st_source.valid <= '0';
-        mac_o.avalon_st_source.sop   <= '0';
-        mac_o.avalon_st_source.eop   <= '0';
+        mac_o.avalon_st_source.startofpacket   <= '0';
+        mac_o.avalon_st_source.endofpacket   <= '0';
       else
         -- Defaults.
         llc_user_o.avalon_st_sink.ready <= '0';
         mac_o.avalon_st_source.valid    <= '0';
-        mac_o.avalon_st_source.sop      <= '0';
-        mac_o.avalon_st_source.eop      <= '0';
+        mac_o.avalon_st_source.startofpacket      <= '0';
+        mac_o.avalon_st_source.endofpacket      <= '0';
 
         case state is
 
@@ -462,9 +462,9 @@ begin
             capture_index                   <= 0;
             tx_index                        <= 0;
 
-            if (llc_user_i.avalon_st_source.valid = '1' and llc_user_i.avalon_st_source.sop = '1') then
+            if (llc_user_i.avalon_st_source.valid = '1' and llc_user_i.avalon_st_source.startofpacket = '1') then
               -- Legacy frame is always 71 bytes. Single-byte SOP+EOP is invalid.
-              if (llc_user_i.avalon_st_source.eop = '1') then
+              if (llc_user_i.avalon_st_source.endofpacket = '1') then
                 llc_user_o.transfer_status <= c_aborted;
                 state                      <= c_st_idle;
               else
@@ -489,7 +489,7 @@ begin
               if (capture_index < c_legacy_frame_len) then
                 frame_buf(capture_index) <= llc_user_i.avalon_st_source.data;
 
-                if (llc_user_i.avalon_st_source.eop = '1') then
+                if (llc_user_i.avalon_st_source.endofpacket = '1') then
                   if (capture_index = c_legacy_frame_len - 1) then
                     -- Full 71-byte legacy frame received. Perform in-place conversion.
 
@@ -594,10 +594,10 @@ begin
               mac_o.avalon_st_source.data  <= frame_buf(tx_index);
               mac_o.avalon_st_source.valid <= '1';
               if (tx_index = 0) then
-                mac_o.avalon_st_source.sop <= '1';
+                mac_o.avalon_st_source.startofpacket <= '1';
               end if;
               if (tx_index = frame_len_bytes - 1) then
-                mac_o.avalon_st_source.eop <= '1';
+                mac_o.avalon_st_source.endofpacket <= '1';
               end if;
 
               if (mac_i.avalon_st_sink.ready = '1') then

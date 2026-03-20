@@ -329,8 +329,8 @@ architecture testbench of can_mac_fsm_tx_err_tb is
   begin
     llc_i.avalon_st_source.data  <= value;
     llc_i.avalon_st_source.valid <= '1';
-    llc_i.avalon_st_source.sop   <= sop;
-    llc_i.avalon_st_source.eop   <= eop;
+    llc_i.avalon_st_source.startofpacket   <= sop;
+    llc_i.avalon_st_source.endofpacket   <= eop;
     loop
       wait until rising_edge(clk);
       exit when llc_user_o.avalon_st_sink.ready = '1';
@@ -402,8 +402,8 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     send_user_byte(llc_i, clk, byte70_v, '0', '1');  -- Byte 70: BRS/ESI/RTR (eop)
 
     llc_i.avalon_st_source.valid <= '0';
-    llc_i.avalon_st_source.sop   <= '0';
-    llc_i.avalon_st_source.eop   <= '0';
+    llc_i.avalon_st_source.startofpacket   <= '0';
+    llc_i.avalon_st_source.endofpacket   <= '0';
   end procedure send_frame;
 
   -- ============================================================================

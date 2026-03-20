@@ -322,7 +322,7 @@ packet
 
 The interface bundles shown in @fig:can-node-architecture are defined in full below, with each signal mapped to its corresponding ISO 11898-1 service primitive, [@iso11898_1]. This normative anchoring provides a direct traceability path from protocol clauses to VHDL ports. The types used in these interfaces are defined in @sec:protocol-driven-type-system.
 
-The semantic protocol types described in @sec:protocol-driven-type-system are used internally within the MAC layer and at the MAC-PCS boundary, where frame context must be carried alongside each bit. The LLC layer operates purely on bytes - the LLC frame format (@sec:llc-frame-format) is defined in terms of plain data fields with no protocol-semantic typing. The AUI interface (`aui_if`) uses `std_logic` throughout, as it crosses outside the ISO protocol domain into the physical medium. The one exception is `transfer_status_t`, which propagates a frame outcome from the MAC layer back through the LLC to the user. The LLC-User interface (`llc_tx_if`, `llc_rx_if`) is implemented as an Avalon-ST byte stream to maintain backward compatibility with the existing CAN bus controller, which uses the same `valid`/`ready`/`startofpacket` handshake convention.
+All module interfaces use `std_logic` and `std_logic_vector` exclusively, as mandated for synthesis compatibility. Protocol semantics such as polarity, frame format, and transfer status are encoded as named `std_logic`/`std_logic_vector` constants rather than enumeration types. The enumeration types and composite record types described in @sec:protocol-driven-type-system are used only internally within the MAC layer and on simulation-only debug ports. The LLC-User interface (`llc_tx_if`, `llc_rx_if`) is implemented as an Avalon-ST byte stream to maintain backward compatibility with the existing CAN bus controller, which uses the same `valid`/`ready`/`startofpacket` handshake convention.
 
 ::: {.landscape-tables}
 
@@ -344,7 +344,7 @@ The semantic protocol types described in @sec:protocol-driven-type-system are us
 | 6.4.5.5.5 | `L_Data.Indication` | `LLC Frame`, `Timestamp` | Deliver received LLC frame to user | `LLC -> User` | `llc_rx_if.data` (`byte_t`), `llc_rx_if.valid` (`std_logic`) | `valid` high; `sop` and `eop` deasserted on intermediate bytes |
 | 6.4.5.5.5 | `L_Data.Indication` | `LLC Frame`, `Timestamp` | Deliver received LLC frame to user | `LLC -> User` | `llc_rx_if.data` (`byte_t`), `llc_rx_if.valid` (`std_logic`), `llc_rx_if.eop` (`std_logic`) | `valid` high with byte on data; `eop` asserted on last byte |
 | 6.4.5.5.5 | `L_Data.Indication` | | Flow control | `User -> LLC` | `llc_rx_if.ready` (`std_logic`) | Asserted by user when able to consume next byte |
-| 6.4.5.5.4 | `L_Data.Confirm` | `Transfer_Status`, `Timestamp`, `Handle` | Report outcome of prior `L_Data.Request` | `LLC -> User` | `llc_rx_if.transfer_status` (`transfer_status_t`) | Issued on frame completion, loss, or error |
+| 6.4.5.5.4 | `L_Data.Confirm` | `Transfer_Status`, `Timestamp`, `Handle` | Report outcome of prior `L_Data.Request` | `LLC -> User` | `llc_rx_if.transfer_status` (`std_logic_vector(2:0)`) | Issued on frame completion, loss, or error |
 
 : Interface definition for `llc_rx_if`. Implements `L_Data.Indication` as an Avalon-ST byte stream. `Timestamp` is included for complete ISO service coverage but is not yet implemented. {#tbl:llc-rx-if}
 
@@ -353,7 +353,7 @@ The semantic protocol types described in @sec:protocol-driven-type-system are us
 | --- | --- | --- | --- | --- | --- | --- |
 | 6.3, 6.6.4.2 | `DLL SDU` | `LLC Frame` | Transfer LLC frame to MAC for serialization | `LLC -> MAC` | `llc_mac_tx_if.data` (`byte_t`), `llc_mac_tx_if.valid` (`std_logic`), `llc_mac_tx_if.sop` (`std_logic`) | `valid` high with byte on data; `sop` marks first byte of new frame |
 | 6.3, 6.6.4.2 | `DLL SDU` | | Flow control | `MAC -> LLC` | `llc_mac_tx_if.ready` (`std_logic`) | Asserted by MAC serializer when able to consume next byte |
-| 6.6.4.2 | Interface control information | `Transfer_Status` | Report frame transmission outcome | `MAC -> LLC` | `llc_mac_tx_if.transfer_status` (`transfer_status_t`) | Updated by MAC on completion, loss, or error |
+| 6.6.4.2 | Interface control information | `Transfer_Status` | Report frame transmission outcome | `MAC -> LLC` | `llc_mac_tx_if.transfer_status` (`std_logic_vector(2:0)`) | Updated by MAC on completion, loss, or error |
 
 : Interface definition for `llc_mac_tx_if`. Frame length is self-describing from the DLC config bytes; the MAC serializer does not consume `eop`. {#tbl:llc-mac-tx-if}
 
@@ -368,12 +368,12 @@ The semantic protocol types described in @sec:protocol-driven-type-system are us
 
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| 7.2.1, 7.2.2 | `PCS_Data.Request` | `Output_Unit` | Present next bit for transmission | `MAC -> PCS` | `mac_pcs_if.data` (`mac_frame_bit_t`) | MAC holds bit stable; PCS samples `data` at each bit boundary autonomously |
-| 7.2.1, 7.2.5 | `PCS_Status.Transmitter` | `D_Transmit` | Indicate FD data-phase interval to PCS | `MAC -> PCS` | `mac_pcs_if.data.bit_name` (`mac_frame_bit_name_t`) | PCS enters data phase at `fdf_bit` SP, exits at `crc_delimiter_bit` or error flag boundary |
-| 7.2.1, 7.2.3 | `PCS_Data.Indicate` | `Input_Unit` | Indicate bus polarity at sample point | `PCS -> MAC` | `mac_pcs_if.bus_polarity` (`polarity_t`), `mac_pcs_if.sample_strobe` (`std_logic`), `mac_pcs_if.strobe_type` (`strobe_type_t`), `mac_pcs_if.fifo_index` (`integer`) | `sample_strobe` pulses once per SP/SSP; `strobe_type` distinguishes SP from SSP for TDC |
+| 7.2.1, 7.2.2 | `PCS_Data.Request` | `Output_Unit` | Present next bit for transmission | `MAC -> PCS` | `mac_pcs_if.polarity` (`std_logic`), `mac_pcs_if.valid` (`std_logic`) | MAC holds polarity stable; PCS samples at each bit boundary autonomously |
+| 7.2.1, 7.2.5 | `PCS_Status.Transmitter` | `D_Transmit` | Indicate FD data-phase interval to PCS | `MAC -> PCS` | `mac_pcs_if.use_data_rate` (`std_logic`), `mac_pcs_if.start_tdc` (`std_logic`) | `use_data_rate` asserted during FD data phase; `start_tdc` pulsed at BRS to begin delay measurement |
+| 7.2.1, 7.2.3 | `PCS_Data.Indicate` | `Input_Unit` | Indicate bus polarity at sample point | `PCS -> MAC` | `mac_pcs_if.bus_polarity` (`std_logic`), `mac_pcs_if.sp` (`std_logic`), `mac_pcs_if.ssp` (`std_logic`), `mac_pcs_if.fifo_index` (`t_fifo_index_vec`) | `sp` pulses once per nominal sample point; `ssp` pulses once per secondary sample point for TDC |
 | 7.2.1, 7.2.6 | `PCS_Status.Receiver` | `D_Receive` | Indicate FD data-phase interval to PCS | `MAC -> PCS` | not yet implemented | Asserted during FD data-phase reception |
 
-: Interface definition for `mac_pcs_if`. The `D_Transmit` status is encoded directly in `mac_pcs_if.data.bit_name` rather than as a separate signal - the PCS derives data-phase entry and exit from the protocol-semantic bit name, eliminating the need for a redundant boolean flag. {#tbl:mac-pcs-if}
+: Interface definition for `mac_pcs_if`. The `D_Transmit` status is signalled via a dedicated `use_data_rate` flag rather than encoding it in a semantic bit name. The PCS switches between nominal and data-phase bit timing based on this flag, keeping the interface to plain `std_logic` signals. {#tbl:mac-pcs-if}
 
 
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
@@ -388,45 +388,45 @@ The semantic protocol types described in @sec:protocol-driven-type-system are us
 
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| 8.1.3.2 | `Normal_mode_request` | `Mode request` | Request reset to normal mode | `LLC -> FCE` | `fce_llc_if.normal_mode_request` (`boolean`) | Issued on startup/restart |
-| 8.1.3.2 | `Normal_mode_response` | `Mode response` | Acknowledge normal-mode request | `FCE -> LLC` | `fce_llc_if.normal_mode_response` (`boolean`) | Returned after FCE processing |
-| 8.1.3.2 | `Bus_off` | `Bus-off status` | Indicate node is bus-off | `FCE -> LLC` | `fce_llc_if.bus_off` (`boolean`) | Asserted on bus-off transition |
+| 8.1.3.2 | `Normal_mode_request` | `Mode request` | Request reset to normal mode | `LLC -> FCE` | `fce_llc_if.normal_mode_request` (`std_logic`) | Issued on startup/restart |
+| 8.1.3.2 | `Normal_mode_response` | `Mode response` | Acknowledge normal-mode request | `FCE -> LLC` | `fce_llc_if.normal_mode_response` (`std_logic`) | Returned after FCE processing |
+| 8.1.3.2 | `Bus_off` | `Bus-off status` | Indicate node is bus-off | `FCE -> LLC` | `fce_llc_if.bus_off` (`std_logic`) | Asserted on bus-off transition |
 
 : Interface definition for `fce_llc_if`. Carries bus-off status and mode-request handshake between the FCE and LLC layers [@iso11898_1, sec. 8.1.3.2]. {#tbl:fce-llc-if}
 
 
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| 8.1.3.3 | `Transmit/receive` | `Transfer mode context` | Report current TX/RX context | `MAC -> FCE` | `fce_mac_if.transmitting` (`boolean`) | Updated with MAC transfer context |
-| 8.1.3.3 | `Error` | `Error event` | Report detected protocol error | `MAC -> FCE` | `fce_mac_if.error` (`boolean`) | Pulse on bit/stuff/CRC/form/ACK error |
-| 8.1.3.3 | `Primary_error` | `Primary error event` | Report primary error condition | `MAC -> FCE` | `fce_mac_if.primary_error` (`boolean`) | Pulse on primary error condition |
-| 8.1.3.3 | `Error/overload flag` | `EF/OF state` | Report EF/OF transmission state | `MAC -> FCE` | `fce_mac_if.sending_error_flag` (`boolean`) | Asserted during EF/OF transmission |
-| 8.1.3.3 | `Counters_unchanged` | `Counter-update qualifier` | Qualify counter exception path | `MAC -> FCE` | `fce_mac_if.counters_unchanged` (`boolean`) | Asserted on rule-c exception cases |
-| 8.1.3.3 | `Error_delimiter_too_late` | `Late delimiter event` | Report late error-delimiter condition | `MAC -> FCE` | `fce_mac_if.error_delimiter_too_late` (`boolean`) | Asserted on late delimiter condition |
-| 8.1.3.3 | `Successful_transfer` | `Transfer completion event` | Report successful TX/RX completion | `MAC -> FCE` | `fce_mac_if.successful_transfer` (`boolean`) | Pulse on successful frame transfer |
-| 8.1.3.3 | `Error_passive_response` | `State response` | Report entry into error-passive state | `MAC -> FCE` | `fce_mac_if.error_passive_response` (`boolean`) | On state transition completion |
-| 8.1.3.3 | `Error_active_response` | `State response` | Report return to error-active state | `MAC -> FCE` | `fce_mac_if.error_active_response` (`boolean`) | On state transition completion |
-| 8.1.3.3 | `Error_passive_request` | `State request` | Request MAC enter error-passive state | `FCE -> MAC` | `fce_mac_if.error_passive` (`boolean`) | On TEC/REC threshold crossing |
-| 8.1.3.3 | `Error_active_request` | `State request` | Request MAC return to error-active state | `FCE -> MAC` | `fce_mac_if.error_active` (`boolean`) | On TEC/REC recovery |
+| 8.1.3.3 | `Transmit/receive` | `Transfer mode context` | Report current TX/RX context | `MAC -> FCE` | `fce_mac_if.transmitting` (`std_logic`) | Updated with MAC transfer context |
+| 8.1.3.3 | `Error` | `Error event` | Report detected protocol error | `MAC -> FCE` | `fce_mac_if.error` (`std_logic`) | Pulse on bit/stuff/CRC/form/ACK error |
+| 8.1.3.3 | `Primary_error` | `Primary error event` | Report primary error condition | `MAC -> FCE` | `fce_mac_if.primary_error` (`std_logic`) | Pulse on primary error condition |
+| 8.1.3.3 | `Error/overload flag` | `EF/OF state` | Report EF/OF transmission state | `MAC -> FCE` | `fce_mac_if.sending_error_overload_flag` (`std_logic`) | Asserted during EF/OF transmission |
+| 8.1.3.3 | `Counters_unchanged` | `Counter-update qualifier` | Qualify counter exception path | `MAC -> FCE` | `fce_mac_if.counters_unchanged` (`std_logic`) | Asserted on rule-c exception cases |
+| 8.1.3.3 | `Error_delimiter_too_late` | `Late delimiter event` | Report late error-delimiter condition | `MAC -> FCE` | `fce_mac_if.error_delimiter_too_late` (`std_logic`) | Asserted on late delimiter condition |
+| 8.1.3.3 | `Successful_transfer` | `Transfer completion event` | Report successful TX/RX completion | `MAC -> FCE` | `fce_mac_if.successful_transfer` (`std_logic`) | Pulse on successful frame transfer |
+| 8.1.3.3 | `Error_passive_response` | `State response` | Report entry into error-passive state | `MAC -> FCE` | `fce_mac_if.error_passive_response` (`std_logic`) | On state transition completion |
+| 8.1.3.3 | `Error_active_response` | `State response` | Report return to error-active state | `MAC -> FCE` | `fce_mac_if.error_active_response` (`std_logic`) | On state transition completion |
+| 8.1.3.3 | `Error_passive_request` | `State request` | Request MAC enter error-passive state | `FCE -> MAC` | `fce_mac_if.error_passive_request` (`std_logic`) | On TEC/REC threshold crossing |
+| 8.1.3.3 | `Error_active_request` | `State request` | Request MAC return to error-active state | `FCE -> MAC` | `fce_mac_if.error_active_request` (`std_logic`) | On TEC/REC recovery |
 
 : Interface definition for `fce_mac_if`. The MAC reports error events and frame outcomes to the FCE; the FCE returns the current error-active/passive state to the MAC [@iso11898_1, sec. 8.1.3.3]. {#tbl:fce-mac-if}
 
 
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| 8.1.3.4 | `Bus_off_request` | `Bus-off request` | Request node switch-off from bus | `FCE -> PCS` | `fce_pcs_if.bus_off_request` (`boolean`) | On bus-off transition condition |
-| 8.1.3.4 | `Bus_off_release_request` | `Bus-off release request` | Request node re-enable from bus-off | `FCE -> PCS` | `fce_pcs_if.bus_off_release_request` (`boolean`) | On restart/reintegration |
-| 8.1.3.4 | `Bus_off_response` | `Bus-off response` | Acknowledge bus-off request | `PCS -> FCE` | `fce_pcs_if.bus_off_response` (`boolean`) | Returned after bus-off action |
-| 8.1.3.4 | `Bus_off_release_response` | `Bus-off release response` | Acknowledge bus-off-release request | `PCS -> FCE` | `fce_pcs_if.bus_off_release_response` (`boolean`) | Returned after release action |
+| 8.1.3.4 | `Bus_off_request` | `Bus-off request` | Request node switch-off from bus | `FCE -> PCS` | `fce_pcs_if.bus_off_request` (`std_logic`) | On bus-off transition condition |
+| 8.1.3.4 | `Bus_off_release_request` | `Bus-off release request` | Request node re-enable from bus-off | `FCE -> PCS` | `fce_pcs_if.bus_off_release_request` (`std_logic`) | On restart/reintegration |
+| 8.1.3.4 | `Bus_off_response` | `Bus-off response` | Acknowledge bus-off request | `PCS -> FCE` | `fce_pcs_if.bus_off_response` (`std_logic`) | Returned after bus-off action |
+| 8.1.3.4 | `Bus_off_release_response` | `Bus-off release response` | Acknowledge bus-off-release request | `PCS -> FCE` | `fce_pcs_if.bus_off_release_response` (`std_logic`) | Returned after release action |
 
 : Interface definition for `fce_pcs_if`. Carries bus-off and bus-off-release request/response handshakes between the FCE and PCS layers [@iso11898_1, sec. 8.1.3.4]. {#tbl:fce-pcs-if}
 :::
 
 ## Protocol-Driven Type System {#sec:protocol-driven-type-system}
 
-The type system encodes protocol semantics directly into the interface bundles defined in @sec:interface-definition-tables. This makes the protocol semantics visible in the implementation and in simulation waveforms. As shown in @fig:types-diagram, the hierarchy is rooted in ISO-derived protocol constants, from which frame layout constants, semantic enumeration types, and composite record types are derived.
+The type system encodes protocol semantics into named constants and internal record types, as shown in @fig:types-diagram. At module boundaries, all signals use `std_logic` and `std_logic_vector` exclusively - protocol concepts such as polarity, frame format, and transfer status are represented as named constant groups. Internally, enumeration types (`t_mac_frame_bit_name`, `t_tx_mac_monitor_event`) and composite record types (`t_bit`, `t_mac_frame_bit`, `t_frame_params`) make protocol semantics visible in simulation waveforms and debug ports.
 
-```{.mermaid #fig:types-diagram caption="Type and constant hierarchy. The Semantic Protocol Primitives namespace groups the enumeration types and subtypes that comprise the protocol semantic primitives. Compound record types compose these primitives: bit_t pairs a bit position with a polarity and underpins the frame layout constants. mac_frame_bit_t carries semantic context by combining a polarity with a protocol bit name, so each transmitted bit remains identifiable throughout the design. frame_params_t aggregates format flags, field boundary positions, and format-specific control bit positions, computed once per frame (@sec:can-mac-ser-tx). observed_mac_frame_bit_info_t and transmitted_bits_fifo_t support bus monitoring and TDC-delayed bit comparison (@sec:can-mac-fsm-tx). Constant groups derive from the root protocol constants."}
+```{.mermaid #fig:types-diagram caption="Type and constant hierarchy. The Interface Constants namespace groups the std_logic and std_logic_vector constants that encode protocol semantics at module boundaries. The Internal Enumerations namespace contains enumeration types used only within the MAC layer and on simulation-only debug ports. Compound record types compose these primitives: t_bit pairs a bit position with a polarity and underpins the frame layout constants. t_mac_frame_bit carries semantic context by combining a polarity with a protocol bit name, so each transmitted bit remains identifiable throughout the design. t_llc_metadata captures the five LLC config byte fields passed from the serializer to the FSM. t_frame_params aggregates derived field boundary positions and CRC polynomial selection, computed once per frame by the FSM (@sec:can-mac-fsm-tx). t_observed_mac_frame_bit_info and t_transmitted_bits_fifo support bus monitoring and TDC-delayed bit comparison (@sec:can-mac-fsm-tx). Constant groups derive from the root protocol constants."}
 ---
 config:
   layout: elk
@@ -446,145 +446,149 @@ config:
 ---
 classDiagram
 
-    %% 1. Semantic Protocol Primitives ========================================
+    %% 1. Interface Constants (std_logic / std_logic_vector) ===================
 
-    namespace `**Semantic Protocol Primitives**` {
-        class polarity_t["type polarity_t"]
-        class can_format_t["type can_format_t"]
-        class mac_frame_bit_name_t["type mac_frame_bit_name_t"]
-        class position_t["subtype position_t"]
-        class strobe_type_t["type strobe_type_t"]
-        class transfer_status_t["type transfer_status_t"]
-        class tx_mac_monitor_event_t["type tx_mac_monitor_event_t"]
+    namespace `**Interface Constants**` {
+        class polarity_constants["constants (std_logic)"]
+        class format_constants["constants (std_logic_vector)"]
+        class status_constants["constants (std_logic_vector)"]
     }
 
-    polarity_t : dominant
-    polarity_t : recessive
+    polarity_constants : c_dominant = '0'
+    polarity_constants : c_recessive = '1'
 
-    can_format_t : cc_basic
-    can_format_t : cc_extended
-    can_format_t : fd_basic
-    can_format_t : fd_extended
+    format_constants : c_llc_fmt_cb = "000"
+    format_constants : c_llc_fmt_ce = "100"
+    format_constants : c_llc_fmt_fb = "010"
+    format_constants : c_llc_fmt_fe = "110"
 
-    mac_frame_bit_name_t : active_error_flag_bit
-    mac_frame_bit_name_t : passive_error_flag_bit
-    mac_frame_bit_name_t : overload_flag_bit
-    mac_frame_bit_name_t : bus_integration_bit
-    mac_frame_bit_name_t : intermission_bit
-    mac_frame_bit_name_t : suspend_transmission_bit
-    mac_frame_bit_name_t : idle_bit
-    mac_frame_bit_name_t : stuff_bit
-    mac_frame_bit_name_t : fixed_stuff_bit
-    mac_frame_bit_name_t : sof_bit
-    mac_frame_bit_name_t : base_id_bit
-    mac_frame_bit_name_t : extended_id_bit
-    mac_frame_bit_name_t : rtr_bit
-    mac_frame_bit_name_t : srr_bit
-    mac_frame_bit_name_t : rrs_bit
-    mac_frame_bit_name_t : ide_bit
-    mac_frame_bit_name_t : r0_bit
-    mac_frame_bit_name_t : r1_bit
-    mac_frame_bit_name_t : fdf_bit
-    mac_frame_bit_name_t : res_bit
-    mac_frame_bit_name_t : brs_bit
-    mac_frame_bit_name_t : esi_bit
-    mac_frame_bit_name_t : dlc_bit
-    mac_frame_bit_name_t : data_bit
-    mac_frame_bit_name_t : sbs_bit
-    mac_frame_bit_name_t : crc_bit
-    mac_frame_bit_name_t : crc_delimiter_bit
-    mac_frame_bit_name_t : ack_bit
-    mac_frame_bit_name_t : ack_delimiter_bit
-    mac_frame_bit_name_t : eof_bit
-    mac_frame_bit_name_t : error_delimiter_bit
+    status_constants : c_ongoing = "000"
+    status_constants : c_lost_arb = "100"
+    status_constants : c_transmitted = "010"
+    status_constants : c_aborted = "001"
+    status_constants : c_disturbed = "110"
 
-    position_t : integer range 0 to max_mac_frame_length_c
+    %% 2. Internal Enumerations (MAC-internal and debug ports only) ============
 
-    strobe_type_t : sp_strobe
-    strobe_type_t : ssp_strobe
+    namespace `**Internal Enumerations**` {
+        class t_mac_frame_bit_name["type t_mac_frame_bit_name"]
+        class t_position["subtype t_position"]
+        class t_tx_mac_monitor_event["type t_tx_mac_monitor_event"]
+    }
 
-    transfer_status_t : ongoing
-    transfer_status_t : lost_arbitration
-    transfer_status_t : transmitted
-    transfer_status_t : aborted
-    transfer_status_t : disturbed
+    t_mac_frame_bit_name : active_error_flag_bit
+    t_mac_frame_bit_name : passive_error_flag_bit
+    t_mac_frame_bit_name : overload_flag_bit
+    t_mac_frame_bit_name : bus_integration_bit
+    t_mac_frame_bit_name : intermission_bit
+    t_mac_frame_bit_name : suspend_transmission_bit
+    t_mac_frame_bit_name : idle_bit
+    t_mac_frame_bit_name : stuff_bit
+    t_mac_frame_bit_name : fixed_stuff_bit
+    t_mac_frame_bit_name : sof_bit
+    t_mac_frame_bit_name : base_id_bit
+    t_mac_frame_bit_name : extended_id_bit
+    t_mac_frame_bit_name : rtr_bit
+    t_mac_frame_bit_name : srr_bit
+    t_mac_frame_bit_name : rrs_bit
+    t_mac_frame_bit_name : ide_bit
+    t_mac_frame_bit_name : r0_bit
+    t_mac_frame_bit_name : r1_bit
+    t_mac_frame_bit_name : fdf_bit
+    t_mac_frame_bit_name : res_bit
+    t_mac_frame_bit_name : brs_bit
+    t_mac_frame_bit_name : esi_bit
+    t_mac_frame_bit_name : dlc_bit
+    t_mac_frame_bit_name : data_bit
+    t_mac_frame_bit_name : sbs_bit
+    t_mac_frame_bit_name : crc_bit
+    t_mac_frame_bit_name : crc_delimiter_bit
+    t_mac_frame_bit_name : ack_bit
+    t_mac_frame_bit_name : ack_delimiter_bit
+    t_mac_frame_bit_name : eof_bit
+    t_mac_frame_bit_name : error_delimiter_bit
 
-    tx_mac_monitor_event_t : none
-    tx_mac_monitor_event_t : ack_detected
-    tx_mac_monitor_event_t : ack_error
-    tx_mac_monitor_event_t : bit_error
-    tx_mac_monitor_event_t : lost_arbitration
+    t_position : integer range 0 to c_max_mac_frame_length
 
-    %% 2. Compound Record Types =====================================
+    t_tx_mac_monitor_event : none
+    t_tx_mac_monitor_event : ack_detected
+    t_tx_mac_monitor_event : ack_error
+    t_tx_mac_monitor_event : bit_error
+    t_tx_mac_monitor_event : lost_arbitration
 
-    class bit_t["record bit_t"]
-    bit_t : position position_t
-    bit_t : polarity polarity_t
+    %% 3. Compound Record Types =====================================
 
-    class mac_frame_bit_t["record mac_frame_bit_t"]
-    mac_frame_bit_t : polarity polarity_t
-    mac_frame_bit_t : bit_name mac_frame_bit_name_t
+    class t_bit["record t_bit"]
+    t_bit : position integer
+    t_bit : polarity std_logic
 
-    class frame_params_t["record frame_params_t"]
-    frame_params_t : format can_format_t
-    frame_params_t : is_fd_frame boolean
-    frame_params_t : ⋮
-    frame_params_t : data_start position_t
-    frame_params_t : crc_start position_t
-    frame_params_t : ⋮
-    frame_params_t : fdf_bit bit_t
-    frame_params_t : brs_bit bit_t
-    frame_params_t : ⋮
+    class t_mac_frame_bit["record t_mac_frame_bit"]
+    t_mac_frame_bit : polarity std_logic
+    t_mac_frame_bit : bit_name t_mac_frame_bit_name
 
-    class observed_mac_frame_bit_info_t["record observed_mac_frame_bit_info_t"]
-    observed_mac_frame_bit_info_t : event_type tx_mac_monitor_event_t
-    observed_mac_frame_bit_info_t : transfer_status transfer_status_t
-    observed_mac_frame_bit_info_t : expected_bit mac_frame_bit_t
-    observed_mac_frame_bit_info_t : observed_polarity polarity_t
+    class t_llc_metadata["record t_llc_metadata"]
+    t_llc_metadata : format slv3
+    t_llc_metadata : dlc_vector slv4
+    t_llc_metadata : is_remote_frame std_logic
+    t_llc_metadata : has_brs std_logic
+    t_llc_metadata : esi_enable std_logic
 
-    class transmitted_bits_fifo_t["type transmitted_bits_fifo_t"]
-    transmitted_bits_fifo_t : array of mac_frame_bit_t
+    class t_frame_params["record t_frame_params"]
+    t_frame_params : format slv3
+    t_frame_params : dlc_vector slv4
+    t_frame_params : is_fd_frame std_logic
+    t_frame_params : is_remote_frame std_logic
+    t_frame_params : has_brs std_logic
+    t_frame_params : esi_enable std_logic
+    t_frame_params : data_stop t_position
+    t_frame_params : crc_stop t_position
+    t_frame_params : crc_poly_select slv2
 
-    %% 3. Constant Groups ==============================================
+    class t_observed_mac_frame_bit_info["record t_observed_mac_frame_bit_info"]
+    t_observed_mac_frame_bit_info : event_type t_tx_mac_monitor_event
+    t_observed_mac_frame_bit_info : transfer_status slv3
+    t_observed_mac_frame_bit_info : expected_bit t_mac_frame_bit
+    t_observed_mac_frame_bit_info : observed_polarity std_logic
+
+    class t_transmitted_bits_fifo["type t_transmitted_bits_fifo"]
+    t_transmitted_bits_fifo : array of t_mac_frame_bit
+
+    %% 4. Constant Groups ==============================================
 
     class protocol_constants["Protocol Constants"]
-    protocol_constants : constant sof_c integer = 0
-    protocol_constants : constant max_mac_frame_length_c integer = 640
-    protocol_constants : constant base_id_width_c integer = 11
+    protocol_constants : constant c_sof integer = 0
+    protocol_constants : constant c_max_mac_frame_length integer = 640
+    protocol_constants : constant c_base_id_width integer = 11
     protocol_constants : ⋮
 
     class frame_layout_constants["Frame Layout Constants"]
-    frame_layout_constants : constant cb_ide_c bit_t
-    frame_layout_constants : constant fb_fdf_c bit_t
-    frame_layout_constants : constant fe_brs_c bit_t
+    frame_layout_constants : constant c_cb_ide t_bit
+    frame_layout_constants : constant c_fb_fdf t_bit
+    frame_layout_constants : constant c_fe_brs t_bit
     frame_layout_constants : ⋮
 
     class common_frame_bits["Common Frame Bits"]
-    common_frame_bits : constant sof_bit_c mac_frame_bit_t
-    common_frame_bits : constant active_error_flag_bit_c mac_frame_bit_t
-    common_frame_bits : constant eof_bit_c mac_frame_bit_t
+    common_frame_bits : constant c_sof_bit t_mac_frame_bit
+    common_frame_bits : constant c_active_error_flag_bit t_mac_frame_bit
+    common_frame_bits : constant c_eof_bit t_mac_frame_bit
     common_frame_bits : ⋮
 
-    %% 4. Relationships ===============================================
+    %% 5. Relationships ===============================================
 
-    position_t ..> protocol_constants
+    t_position ..> protocol_constants
     frame_layout_constants ..> protocol_constants
     common_frame_bits ..> protocol_constants
-    bit_t *-- position_t
-    bit_t *-- polarity_t
-    mac_frame_bit_t *-- polarity_t
-    mac_frame_bit_t *-- mac_frame_bit_name_t
-    frame_layout_constants ..> bit_t
-    common_frame_bits ..> mac_frame_bit_t
-    frame_params_t *-- can_format_t
-    frame_params_t *-- position_t
-    frame_params_t *-- bit_t
-    frame_params_t ..> frame_layout_constants
-    observed_mac_frame_bit_info_t *-- tx_mac_monitor_event_t
-    observed_mac_frame_bit_info_t *-- transfer_status_t
-    observed_mac_frame_bit_info_t *-- mac_frame_bit_t
-    observed_mac_frame_bit_info_t *-- polarity_t
-    transmitted_bits_fifo_t ..> mac_frame_bit_t
+    t_bit *-- t_position
+    t_mac_frame_bit *-- t_mac_frame_bit_name
+    frame_layout_constants ..> t_bit
+    common_frame_bits ..> t_mac_frame_bit
+    t_llc_metadata ..> format_constants
+    t_llc_metadata ..> status_constants
+    t_frame_params *-- t_position
+    t_frame_params ..> t_llc_metadata
+    t_observed_mac_frame_bit_info *-- t_tx_mac_monitor_event
+    t_observed_mac_frame_bit_info *-- t_mac_frame_bit
+    t_transmitted_bits_fifo ..> t_mac_frame_bit
 ```
 
 ## LLC Sub-layer {#sec:llc-sub-layer}
@@ -609,8 +613,8 @@ The current design restructures these modules around the ISO 11898-1 [@iso11898_
 
 The `can_mac_tx` (@fig:mac-tx-architecture) is composed of four main components:
 
-1. **can_mac_ser_tx**: Converts LLC bytes into a serial bit stream with polarity information
-2. **can_mac_fsm_tx**: Coordinates frame transmission, controls all submodules
+1. **can_mac_ser_tx**: Converts LLC bytes into a serial bit stream, extracts LLC metadata from config bytes
+2. **can_mac_fsm_tx**: Coordinates frame transmission, computes frame parameters from LLC metadata, controls all submodules
 3. **can_mac_bs_tx**: Implements CAN/CAN-FD bit stuffing rules
 4. **can_mac_crc_tx**: Generates CRC-15/CRC-17/CRC-21 based on frame type
 
@@ -658,22 +662,22 @@ The interfaces between MAC sub-components are implementation-defined and carry n
 
 | field | type | direction | description |
 | --- | --- | --- | --- |
-| `data` | `polarity_t` | `ser → fsm` | current bit polarity; fsm reads this when `valid` is asserted |
-| `valid` | `boolean` | `ser → fsm` | asserted while a bit is available for the fsm to consume |
-| `frame_params` | `frame_params_t` | `ser → fsm` | frame parameters computed from the two config bytes; valid for the lifetime of the frame |
-| `ready` | `boolean` | `fsm → ser` | pulsed when the fsm has consumed the current bit; advances the serializer to the next bit |
-| `transfer_status` | `transfer_status_t` | `fsm → ser` | frame outcome; any non-`ongoing` value terminates serialization |
+| `data` | `std_logic` | `ser → fsm` | current bit polarity; fsm reads this when `valid` is asserted |
+| `valid` | `std_logic` | `ser → fsm` | asserted while a bit is available for the fsm to consume |
+| `llc_metadata` | `t_llc_metadata` | `ser → fsm` | LLC config byte fields (format, DLC, flags) extracted by the serializer; valid for the lifetime of the frame |
+| `ready` | `std_logic` | `fsm → ser` | pulsed when the fsm has consumed the current bit; advances the serializer to the next bit |
+| `transfer_status` | `std_logic_vector(2:0)` | `fsm → ser` | frame outcome; any non-`c_ongoing` value terminates serialization |
 
 : interface definition for `can_mac_fsm_ser_tx_if`, connecting `can_mac_ser_tx` and `can_mac_fsm_tx` (see @fig:mac-tx-architecture). {#tbl:mac-fsm-ser-if}
 
 
 | field | type | direction | description |
 | --- | --- | --- | --- |
-| `data` | `polarity_t` | `fsm → bs` | bit polarity fed into the bit stuffer |
-| `valid` | `boolean` | `fsm → bs` | pulsed when a new bit is presented to the stuffer |
-| `start` | `boolean` | `fsm → bs` | pulsed at frame start to reinitialize the stuffer state |
-| `data` | `polarity_t` | `bs → fsm` | polarity of the required stuff bit |
-| `valid` | `boolean` | `bs → fsm` | asserted when a stuff bit insertion is required |
+| `data` | `std_logic` | `fsm → bs` | bit polarity fed into the bit stuffer |
+| `valid` | `std_logic` | `fsm → bs` | pulsed when a new bit is presented to the stuffer |
+| `start` | `std_logic` | `fsm → bs` | pulsed at frame start to reinitialize the stuffer state |
+| `data` | `std_logic` | `bs → fsm` | polarity of the required stuff bit |
+| `valid` | `std_logic` | `bs → fsm` | asserted when a stuff bit insertion is required |
 | `sbc` | `std_logic_vector(3:0)` | `bs → fsm` | gray-coded stuff bit count with parity, used in the fd fixed-stuffing region |
 
 : interface definition for `can_mac_fsm_bs_tx_if`, connecting `can_mac_fsm_tx` and `can_mac_bs_tx` (see @fig:mac-tx-architecture). {#tbl:mac-fsm-bs-if}
@@ -682,9 +686,10 @@ The interfaces between MAC sub-components are implementation-defined and carry n
 | field | type | direction | description |
 | --- | --- | --- | --- |
 | `crc_poly_select` | `std_logic_vector(1:0)` | `fsm → crc` | selects the active crc polynomial: crc-15, crc-17, or crc-21 |
-| `valid` | `boolean` | `fsm → crc` | pulsed when `data` should be included in the crc accumulation |
+| `valid` | `std_logic` | `fsm → crc` | pulsed when `data` should be included in the crc accumulation |
 | `data` | `std_logic` | `fsm → crc` | bit value to feed into the crc engine |
-| `crc` | `crc_vector_t` | `crc → fsm` | current crc register value; fsm reads this when serializing the crc field |
+| `start` | `std_logic` | `fsm → crc` | pulsed to reinitialize the crc engine |
+| `crc` | `t_crc_vector` | `crc → fsm` | current crc register value; fsm reads this when serializing the crc field |
 
 : interface definition for `can_mac_fsm_crc_tx_if`, connecting `can_mac_fsm_tx` and `can_mac_crc_tx` (see @fig:mac-tx-architecture). {#tbl:mac-fsm-crc-if}
 
@@ -755,9 +760,9 @@ suspend_transmission --> transmitting_overload_flag : overload detected
 
 #### `can_mac_ser_tx` {#sec:can-mac-ser-tx}
 
-`can_mac_ser_tx` converts the LLC byte stream into a serial polarity bit stream for the MAC FSM. Its four-state FSM (@fig:mac-ser-fsm-tx) manages the two-byte configuration handshake, byte fetching, and bit-by-bit serialization.
+`can_mac_ser_tx` converts the LLC byte stream into a serial polarity bit stream for the MAC FSM. Its four-state FSM (@fig:mac-ser-fsm-tx) manages the two-byte configuration handshake, byte fetching, and bit-by-bit serialization. The serializer extracts LLC metadata (format, DLC, flags) from the two config bytes and passes it to the FSM via `t_llc_metadata`. The FSM then computes `t_frame_params` internally from this metadata.
 
-```{.mermaid #fig:mac-ser-fsm-tx fig-width=0.6 caption="can_mac_ser_tx FSM. The serializer accepts LLC frame bytes over a ready/valid handshake and shifts them out MSB-first to the MAC FSM one bit per ready pulse. Frame parameters are computed once from the two config bytes and cached in frame_params_t for use by the FSM throughout the frame."}
+```{.mermaid #fig:mac-ser-fsm-tx fig-width=0.6 caption="can_mac_ser_tx FSM. The serializer accepts LLC frame bytes over a ready/valid handshake and shifts them out MSB-first to the MAC FSM one bit per ready pulse. LLC metadata is extracted from the two config bytes and registered in t_llc_metadata for use by the FSM throughout the frame."}
 ---
 config:
   layout: elk
@@ -784,7 +789,7 @@ stateDiagram-v2
 
   s0 --> s1 : config byte 0 received from LLC
 
-  s1 --> s2 : config byte 1 received from LLC, frame_params_t computed
+  s1 --> s2 : config byte 1 received from LLC, llc_metadata extracted
 
   s2 --> s3 : data byte received from LLC
 

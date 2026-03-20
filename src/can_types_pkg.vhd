@@ -330,17 +330,17 @@ package pk_can_types is
   -- Each record is followed by its reset constant.
   ---------------------------------------------------------------------------
 
-  -- Avalon-ST streaming (source and sink)
-  type t_avalon_st_source is record
-    data  : t_byte;
-    valid : std_logic;
-    sop   : std_logic;
-    eop   : std_logic;
-  end record t_avalon_st_source;
+  -- Avalon-ST streaming interface (matches company pk_eth_st)
+  type t_eth_st_s2d is record
+    data          : t_byte;
+    valid         : std_logic;
+    startofpacket : std_logic;
+    endofpacket   : std_logic;
+  end record t_eth_st_s2d;
 
-  type t_avalon_st_sink is record
+  type t_eth_st_d2s is record
     ready : std_logic;
-  end record t_avalon_st_sink;
+  end record t_eth_st_d2s;
 
   -- Serializer -> FSM
   type t_can_mac_ser_fsm_tx_if_s2m is record
@@ -370,12 +370,12 @@ package pk_can_types is
 
   -- LLC -> MAC (downstream)
   type t_can_llc_mac_tx_if_s2d is record
-    avalon_st_source : t_avalon_st_source;
+    avalon_st_source : t_eth_st_s2d;
   end record t_can_llc_mac_tx_if_s2d;
 
   -- MAC -> LLC (upstream)
   type t_can_llc_mac_tx_if_d2s is record
-    avalon_st_sink  : t_avalon_st_sink;
+    avalon_st_sink  : t_eth_st_d2s;
     transfer_status : std_logic_vector(2 downto 0);
   end record t_can_llc_mac_tx_if_d2s;
 
@@ -387,13 +387,13 @@ package pk_can_types is
 
   -- User -> LLC
   type t_can_user_llc_tx_if_s2d is record
-    avalon_st_source : t_avalon_st_source;
+    avalon_st_source : t_eth_st_s2d;
     abort_request    : std_logic;
   end record t_can_user_llc_tx_if_s2d;
 
   -- LLC -> User
   type t_can_user_llc_tx_if_d2s is record
-    avalon_st_sink  : t_avalon_st_sink;
+    avalon_st_sink  : t_eth_st_d2s;
     transfer_status : std_logic_vector(2 downto 0);
   end record t_can_user_llc_tx_if_d2s;
 
@@ -596,13 +596,9 @@ package pk_can_types is
     unused : std_logic_vector(3 downto 0);
   end record t_llc_config_byte_1;
 
-  -- Internal LLC frame (testbench convenience type)
-  type t_llc_frame is record
-    config_0 : t_llc_config_byte_0;
-    config_1 : t_llc_config_byte_1;
-    id       : std_logic_vector(31 downto 0);
-    data     : std_logic_vector(c_max_data_bytes * 8 - 1 downto 0);
-  end record t_llc_frame;
+  -- Internal LLC frame: config_byte_0 + config_byte_1 + 4 ID bytes + 64 data bytes = 70 bytes
+  constant c_internal_llc_frame_len : integer := 70;
+  type t_llc_frame is array (0 to c_internal_llc_frame_len - 1) of t_byte;
 
   -- Legacy frame constants
   constant c_legacy_frame_len    : integer := 71;

@@ -1,74 +1,80 @@
 [*]
-[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Mon Feb  9 16:01:55 2026
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Fri Mar 20 16:08:06 2026
 [*]
 [dumpfile] "/home/madsr2d2/beng_thesis/sim/can_mac_ser_tx_tb.ghw"
-[dumpfile_mtime] "Mon Feb  9 15:55:03 2026"
-[dumpfile_size] 5595
+[dumpfile_mtime] "Fri Mar 20 16:07:35 2026"
+[dumpfile_size] 5686
 [savefile] "/home/madsr2d2/beng_thesis/gtk_wave/can_mac_ser_tx_tb.gtkw"
-[timestart] 779600000
-[size] 1920 1121
+[timestart] 0
+[size] 1920 1153
 [pos] -27 -24
-*-25.079729 935000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-25.079729 150700000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.can_mac_ser_tx_tb.
-[treeopen] top.can_mac_ser_tx_tb.u_dut.
+[treeopen] top.can_mac_ser_tx_tb.tx_mac_fsm_o.llc_metadata.
 [treeopen] top.can_mac_ser_tx_tb.u_dut.llc_i.
 [treeopen] top.can_mac_ser_tx_tb.u_dut.llc_o.
 [treeopen] top.can_mac_ser_tx_tb.u_dut.tx_mac_fsm_o.
-[sst_width] 278
+[sst_width] 297
 [signals_width] 206
 [sst_expanded] 1
-[sst_vpaned_height] 338
-@29
-top.can_mac_ser_tx_tb.u_dut.clk_i
-@28
-top.can_mac_ser_tx_tb.u_dut.rst_i
-@420
-top.can_mac_ser_tx_tb.u_dut.count
-top.can_mac_ser_tx_tb.u_dut.state_reg
-@22
-#{top.can_mac_ser_tx_tb.u_dut.config_byte_reg_0[7:0]} top.can_mac_ser_tx_tb.u_dut.config_byte_reg_0[7] top.can_mac_ser_tx_tb.u_dut.config_byte_reg_0[6] top.can_mac_ser_tx_tb.u_dut.config_byte_reg_0[5] top.can_mac_ser_tx_tb.u_dut.config_byte_reg_0[4] top.can_mac_ser_tx_tb.u_dut.config_byte_reg_0[3] top.can_mac_ser_tx_tb.u_dut.config_byte_reg_0[2] top.can_mac_ser_tx_tb.u_dut.config_byte_reg_0[1] top.can_mac_ser_tx_tb.u_dut.config_byte_reg_0[0]
-#{top.can_mac_ser_tx_tb.u_dut.config_byte_reg_1[7:0]} top.can_mac_ser_tx_tb.u_dut.config_byte_reg_1[7] top.can_mac_ser_tx_tb.u_dut.config_byte_reg_1[6] top.can_mac_ser_tx_tb.u_dut.config_byte_reg_1[5] top.can_mac_ser_tx_tb.u_dut.config_byte_reg_1[4] top.can_mac_ser_tx_tb.u_dut.config_byte_reg_1[3] top.can_mac_ser_tx_tb.u_dut.config_byte_reg_1[2] top.can_mac_ser_tx_tb.u_dut.config_byte_reg_1[1] top.can_mac_ser_tx_tb.u_dut.config_byte_reg_1[0]
-#{top.can_mac_ser_tx_tb.u_dut.llc_frame_buffer[7:0]} top.can_mac_ser_tx_tb.u_dut.llc_frame_buffer[7] top.can_mac_ser_tx_tb.u_dut.llc_frame_buffer[6] top.can_mac_ser_tx_tb.u_dut.llc_frame_buffer[5] top.can_mac_ser_tx_tb.u_dut.llc_frame_buffer[4] top.can_mac_ser_tx_tb.u_dut.llc_frame_buffer[3] top.can_mac_ser_tx_tb.u_dut.llc_frame_buffer[2] top.can_mac_ser_tx_tb.u_dut.llc_frame_buffer[1] top.can_mac_ser_tx_tb.u_dut.llc_frame_buffer[0]
-@c00200
--mac_fsm_o
-@28
-top.can_mac_ser_tx_tb.u_dut.tx_mac_fsm_o.valid
-top.can_mac_ser_tx_tb.u_dut.tx_mac_fsm_o.data
-@420
-top.can_mac_ser_tx_tb.u_dut.tx_mac_fsm_o.frame_info.dlc
-top.can_mac_ser_tx_tb.u_dut.tx_mac_fsm_o.frame_info.esi_enable
-top.can_mac_ser_tx_tb.u_dut.tx_mac_fsm_o.frame_info.brs_enable
-top.can_mac_ser_tx_tb.u_dut.tx_mac_fsm_o.frame_info.ftyp
-top.can_mac_ser_tx_tb.u_dut.tx_mac_fsm_o.frame_info.format
-@1401200
--mac_fsm_o
-@c00200
--mac_fsm_i
-@28
-top.can_mac_ser_tx_tb.u_dut.tx_mac_fsm_i.ready
-@420
-top.can_mac_ser_tx_tb.u_dut.tx_mac_fsm_i.tx_mac_fsm_state
-top.can_mac_ser_tx_tb.u_dut.tx_mac_fsm_i.transfer_status
-@1401200
--mac_fsm_i
+[sst_vpaned_height] 348
 @800200
+-TB
+@420
+top.can_mac_ser_tx_tb.byte_count
+top.can_mac_ser_tx_tb.test_id
+@28
+top.can_mac_ser_tx_tb.reset
+top.can_mac_ser_tx_tb.clk
+@1000200
+-TB
+@800200
+-DUT_internal
+@420
+top.can_mac_ser_tx_tb.u_dut.padding_bits_remaining
+top.can_mac_ser_tx_tb.u_dut.id_bits_remaining
+top.can_mac_ser_tx_tb.u_dut.count
+top.can_mac_ser_tx_tb.u_dut.state
+@1000200
+-DUT_internal
+@c00200
+-fsm_o
+@28
+top.can_mac_ser_tx_tb.tx_mac_fsm_o.data
+@22
+#{top.can_mac_ser_tx_tb.tx_mac_fsm_o.llc_metadata.dlc_vector[3:0]} top.can_mac_ser_tx_tb.tx_mac_fsm_o.llc_metadata.dlc_vector[3] top.can_mac_ser_tx_tb.tx_mac_fsm_o.llc_metadata.dlc_vector[2] top.can_mac_ser_tx_tb.tx_mac_fsm_o.llc_metadata.dlc_vector[1] top.can_mac_ser_tx_tb.tx_mac_fsm_o.llc_metadata.dlc_vector[0]
+@28
+top.can_mac_ser_tx_tb.tx_mac_fsm_o.llc_metadata.esi_enable
+#{top.can_mac_ser_tx_tb.tx_mac_fsm_o.llc_metadata.format[2:0]} top.can_mac_ser_tx_tb.tx_mac_fsm_o.llc_metadata.format[2] top.can_mac_ser_tx_tb.tx_mac_fsm_o.llc_metadata.format[1] top.can_mac_ser_tx_tb.tx_mac_fsm_o.llc_metadata.format[0]
+top.can_mac_ser_tx_tb.tx_mac_fsm_o.llc_metadata.has_brs
+top.can_mac_ser_tx_tb.tx_mac_fsm_o.llc_metadata.is_remote_frame
+top.can_mac_ser_tx_tb.tx_mac_fsm_o.valid
+@1401200
+-fsm_o
+@c00200
 -llc_o
 @28
-top.can_mac_ser_tx_tb.u_dut.llc_o.avalon_st_sink.ready
-@420
-top.can_mac_ser_tx_tb.u_dut.llc_o.transfer_status
-@1000200
+top.can_mac_ser_tx_tb.llc_o.avalon_st_sink.ready
+#{top.can_mac_ser_tx_tb.llc_o.transfer_status[2:0]} top.can_mac_ser_tx_tb.llc_o.transfer_status[2] top.can_mac_ser_tx_tb.llc_o.transfer_status[1] top.can_mac_ser_tx_tb.llc_o.transfer_status[0]
+@1401200
 -llc_o
+@c00200
+-fsm_i
+@28
+top.can_mac_ser_tx_tb.tx_mac_fsm_i.ready
+#{top.can_mac_ser_tx_tb.tx_mac_fsm_i.transfer_status[2:0]} top.can_mac_ser_tx_tb.tx_mac_fsm_i.transfer_status[2] top.can_mac_ser_tx_tb.tx_mac_fsm_i.transfer_status[1] top.can_mac_ser_tx_tb.tx_mac_fsm_i.transfer_status[0]
+@1401200
+-fsm_i
 @800200
 -llc_i
 @22
-#{top.can_mac_ser_tx_tb.u_dut.llc_i.avalon_st_source.data[7:0]} top.can_mac_ser_tx_tb.u_dut.llc_i.avalon_st_source.data[7] top.can_mac_ser_tx_tb.u_dut.llc_i.avalon_st_source.data[6] top.can_mac_ser_tx_tb.u_dut.llc_i.avalon_st_source.data[5] top.can_mac_ser_tx_tb.u_dut.llc_i.avalon_st_source.data[4] top.can_mac_ser_tx_tb.u_dut.llc_i.avalon_st_source.data[3] top.can_mac_ser_tx_tb.u_dut.llc_i.avalon_st_source.data[2] top.can_mac_ser_tx_tb.u_dut.llc_i.avalon_st_source.data[1] top.can_mac_ser_tx_tb.u_dut.llc_i.avalon_st_source.data[0]
+#{top.can_mac_ser_tx_tb.llc_i.avalon_st_source.data[7:0]} top.can_mac_ser_tx_tb.llc_i.avalon_st_source.data[7] top.can_mac_ser_tx_tb.llc_i.avalon_st_source.data[6] top.can_mac_ser_tx_tb.llc_i.avalon_st_source.data[5] top.can_mac_ser_tx_tb.llc_i.avalon_st_source.data[4] top.can_mac_ser_tx_tb.llc_i.avalon_st_source.data[3] top.can_mac_ser_tx_tb.llc_i.avalon_st_source.data[2] top.can_mac_ser_tx_tb.llc_i.avalon_st_source.data[1] top.can_mac_ser_tx_tb.llc_i.avalon_st_source.data[0]
 @28
-top.can_mac_ser_tx_tb.u_dut.llc_i.avalon_st_source.eop
-top.can_mac_ser_tx_tb.u_dut.llc_i.avalon_st_source.sop
-top.can_mac_ser_tx_tb.u_dut.llc_i.avalon_st_source.valid
+top.can_mac_ser_tx_tb.llc_i.avalon_st_source.eop
+top.can_mac_ser_tx_tb.llc_i.avalon_st_source.sop
+top.can_mac_ser_tx_tb.llc_i.avalon_st_source.valid
 @1000200
 -llc_i
 [pattern_trace] 1
