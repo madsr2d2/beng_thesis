@@ -102,16 +102,16 @@ architecture testbench of can_mac_fsm_tx_err_tb is
   constant c_st_passive_error_flag   : std_logic_vector(2 downto 0) := "110";
   constant c_st_overload_flag        : std_logic_vector(2 downto 0) := "111";
 
-  -- Helper functions to pack config records to std_logic_vector
-  function config_byte_0_to_slv (cfg : t_llc_config_byte_0) return std_logic_vector is
-  begin
-    return cfg.format & cfg.ftyp & cfg.esi & cfg.brs & cfg.unused;
-  end function config_byte_0_to_slv;
-
-  function config_byte_1_to_slv (cfg : t_llc_config_byte_1) return std_logic_vector is
-  begin
-    return cfg.dlc & cfg.unused;
-  end function config_byte_1_to_slv;
+  -- Local frame record for test procedures (flat fields, no nested sub-records)
+  type t_tb_frame is record
+    format  : std_logic_vector(2 downto 0);
+    ftyp    : std_logic;
+    esi     : std_logic;
+    brs     : std_logic;
+    dlc     : std_logic_vector(3 downto 0);
+    id      : std_logic_vector(31 downto 0);
+    data    : std_logic_vector(c_max_data_bytes * c_byte_width - 1 downto 0);
+  end record t_tb_frame;
 
   constant frame_cc_basic_default_c : frame_config_t := (
     format     => c_llc_fmt_cb,
@@ -255,8 +255,8 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     rtr_default : in boolean := false;
     random_frame : in boolean := false;
     seed_in : in integer := 42
-  ) return t_llc_frame is
-    variable frame : t_llc_frame;
+  ) return t_tb_frame is
+    variable frame : t_tb_frame;
     variable unified_id : std_logic_vector(28 downto 0);
     variable dlc_val : integer;
     variable data_len : integer;
@@ -303,14 +303,12 @@ architecture testbench of can_mac_fsm_tx_err_tb is
       data_len := 0;
     end if;
 
-    frame.config_0.format := format;
-    frame.config_0.ftyp := '1' when rtr_flag else '0';
-    frame.config_0.esi := '1' when esi_flag else '0';
-    frame.config_0.brs := '1' when brs_flag else '0';
-    frame.config_0.unused := "00";
-    frame.config_1.dlc := std_logic_vector(to_unsigned(dlc_val, 4));
-    frame.config_1.unused := "0000";
-    frame.id := pack_llc_id_bytes(unified_id, format);
+    frame.format := format;
+    frame.ftyp   := '1' when rtr_flag else '0';
+    frame.esi    := '1' when esi_flag else '0';
+    frame.brs    := '1' when brs_flag else '0';
+    frame.dlc    := std_logic_vector(to_unsigned(dlc_val, 4));
+    frame.id     := pack_llc_id_bytes(unified_id, format);
 
     log("[CFG] Generated LLC frame: Format=" & to_hstring(format) &
         " DLC=" & integer'image(dlc_val) & " DataLen=" & integer'image(data_len), ALWAYS);
@@ -343,9 +341,9 @@ architecture testbench of can_mac_fsm_tx_err_tb is
   procedure send_frame (
     signal llc_i : out t_can_user_llc_tx_if_s2d;
     signal clk : in std_logic;
-    frame : in t_llc_frame
+    frame : in t_tb_frame
   ) is
-    variable id_v              : std_logic_vector(28 downto 0);
+    variable id_29_v           : std_logic_vector(28 downto 0);
     variable is_extended_v     : boolean;
     variable byte0_v           : t_byte;
     variable byte1_v           : t_byte;
@@ -357,28 +355,28 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     variable data_byte_count_v : integer;
     variable data_bit_start_v  : integer;
   begin
-    id_v          := frame.id(28 downto 0);
-    is_extended_v := frame.config_0.format(2) = '1';
+    id_29_v       := frame.id(28 downto 0);
+    is_extended_v := frame.format(2) = '1';
 
     if is_extended_v then
-      byte0_v := "000" & id_v(28 downto 24);
-      byte1_v := id_v(23 downto 16);
-      byte2_v := id_v(15 downto 8);
-      byte3_v := id_v(7 downto 0);
+      byte0_v := "000" & id_29_v(28 downto 24);
+      byte1_v := id_29_v(23 downto 16);
+      byte2_v := id_29_v(15 downto 8);
+      byte3_v := id_29_v(7 downto 0);
     else
       byte0_v := (others => '0');
       byte1_v := (others => '0');
-      byte2_v := "00000" & id_v(10 downto 8);
-      byte3_v := id_v(7 downto 0);
+      byte2_v := "00000" & id_29_v(10 downto 8);
+      byte3_v := id_29_v(7 downto 0);
     end if;
 
-    byte4_v  := "0" & frame.config_0.format & frame.config_1.dlc;
-    byte69_v := "0000000" & frame.config_0.format(2);
-    byte70_v := "00000" & frame.config_0.brs & frame.config_0.esi & frame.config_0.ftyp;
+    byte4_v  := "0" & frame.format & frame.dlc;
+    byte69_v := "0000000" & frame.format(2);
+    byte70_v := "00000" & frame.brs & frame.esi & frame.ftyp;
 
     data_byte_count_v := dlc_to_data_length(
-                            t_dlc(to_integer(unsigned(frame.config_1.dlc))),
-                            frame.config_0.format
+                            t_dlc(to_integer(unsigned(frame.dlc))),
+                            frame.format
                           );
 
     -- Send 71-byte legacy frame
@@ -401,9 +399,9 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     send_user_byte(llc_i, clk, byte69_v, '0', '0');  -- Byte 69: IDE
     send_user_byte(llc_i, clk, byte70_v, '0', '1');  -- Byte 70: BRS/ESI/RTR (eop)
 
-    llc_i.avalon_st_source.valid <= '0';
-    llc_i.avalon_st_source.startofpacket   <= '0';
-    llc_i.avalon_st_source.endofpacket   <= '0';
+    llc_i.avalon_st_source.valid          <= '0';
+    llc_i.avalon_st_source.startofpacket  <= '0';
+    llc_i.avalon_st_source.endofpacket    <= '0';
   end procedure send_frame;
 
   -- ============================================================================
@@ -417,7 +415,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     variable test_start_time : time;
     variable test_duration : time;
     variable error_detected : boolean := false;
-    variable frame : t_llc_frame;
+    variable frame : t_tb_frame;
   begin
     log("", ALWAYS);
     log("Test 1: ACK Error Detection Framework (REQ-TX-ERR006)", ALWAYS);
@@ -449,7 +447,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
   ) is
     variable test_start_time : time;
     variable test_duration : time;
-    variable frame : t_llc_frame;
+    variable frame : t_tb_frame;
     variable injected_v : boolean := false;
   begin
     log("", ALWAYS);
@@ -502,7 +500,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
   ) is
     variable test_start_time : time;
     variable test_duration : time;
-    variable frame : t_llc_frame;
+    variable frame : t_tb_frame;
     variable injected_v : boolean := false;
   begin
     log("", ALWAYS);
@@ -552,7 +550,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
   ) is
     variable test_start_time : time;
     variable test_duration : time;
-    variable frame : t_llc_frame;
+    variable frame : t_tb_frame;
     variable injected_v : boolean := false;
     variable data_bit_count_v : integer := 0;
   begin
@@ -605,7 +603,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
   ) is
     variable test_start_time : time;
     variable test_duration : time;
-    variable frame : t_llc_frame;
+    variable frame : t_tb_frame;
     variable injected_v : boolean := false;
   begin
     log("", ALWAYS);
@@ -654,7 +652,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     variable test_start_time : time;
     variable test_duration : time;
     variable seed : integer := 12345;
-    variable frame : t_llc_frame;
+    variable frame : t_tb_frame;
   begin
     log("", ALWAYS);
     log("Test 8: Constraint Random Verification (Coverage-Driven)", ALWAYS);
@@ -685,7 +683,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
   ) is
     variable test_start_time : time;
     variable test_duration : time;
-    variable frame : t_llc_frame;
+    variable frame : t_tb_frame;
     variable injected_v : boolean := false;
   begin
     log("", ALWAYS);
@@ -736,7 +734,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
   ) is
     variable test_start_time : time;
     variable test_duration : time;
-    variable frame : t_llc_frame;
+    variable frame : t_tb_frame;
     variable ef_req_seen_v : boolean := false;
     variable pcs_ef_seen_v : boolean := false;
     variable injected_v : boolean := false;

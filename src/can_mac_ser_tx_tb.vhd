@@ -108,6 +108,7 @@ architecture tb of can_mac_ser_tx_tb is
     signal llc_frame    : in t_llc_frame
   ) is
   begin
+    wait until falling_edge(clk);
     AlertIf(tx_mac_fsm_o.llc_metadata.format /= llc_frame(0)(c_llc_frame_config_byte_0_format_start downto c_llc_frame_config_byte_0_format_end),
             "ERROR: FORMAT mismatch", FAILURE);
     AlertIf(tx_mac_fsm_o.llc_metadata.is_remote_frame /= llc_frame(0)(c_llc_frame_config_byte_0_ftyp),
@@ -131,7 +132,7 @@ begin
     SetAlertStopCount(ERROR, 10);
     v_test_id := NewId("can_mac_ser_tx");
     test_id   <= v_test_id;
-    wait for 0 ns;
+    wait until falling_edge(clk);
     wait;
   end process p_init;
 
@@ -169,7 +170,7 @@ begin
 
     reset <= '1';
     WaitForClock(clk, 5);
-    wait for 0 ns;
+    wait until falling_edge(clk);
 
     Print("==========================================");
     Print("TX MAC Serializer Testbench Started");
@@ -189,7 +190,7 @@ begin
 
     reset <= '0';
     WaitForClock(clk);
-    wait for 0 ns;
+    wait until falling_edge(clk);
 
     AlertIf(test_id, llc_o.avalon_st_sink.ready = '0',
             "ERROR: ready should be asserted after reset release", FAILURE);
@@ -206,6 +207,7 @@ begin
       tx_mac_fsm_i.transfer_status <= c_ongoing;
       WaitForClock(clk);
 
+      wait until falling_edge(clk);
       AlertIf(test_id, llc_o.avalon_st_sink.ready = '0',
               "ERROR: ready should be asserted in idle state", FAILURE);
 
@@ -252,7 +254,7 @@ begin
             tx_mac_fsm_i.ready <= '1';
             WaitForClock(clk);
             tx_mac_fsm_i.ready <= '0';
-            wait for 0 ns;
+            wait until falling_edge(clk);
           else
             WaitForClock(clk);
             wait for 0 ns;

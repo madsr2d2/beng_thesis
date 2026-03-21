@@ -259,6 +259,7 @@ package body can_protocol_pkg is
         elsif (bit_count = c_cb_r0.position) then
           return (bit_name => r0_bit, polarity => c_cb_r0.polarity);
         end if;
+
         dlc_start_v  := c_cb_dlc_start.position;
         data_start_v := c_cb_data_start.position;
 
@@ -278,6 +279,7 @@ package body can_protocol_pkg is
         elsif (bit_count = c_ce_r0.position) then
           return (bit_name => r0_bit, polarity => c_ce_r0.polarity);
         end if;
+
         dlc_start_v  := c_ce_dlc_start.position;
         data_start_v := c_ce_data_start.position;
 
@@ -297,6 +299,7 @@ package body can_protocol_pkg is
           polarity_v := c_recessive when fp.esi_enable = '1' else c_dominant;
           return (bit_name => esi_bit, polarity => polarity_v);
         end if;
+
         dlc_start_v  := c_fb_dlc_start.position;
         data_start_v := c_fb_data_start.position;
 
@@ -321,6 +324,7 @@ package body can_protocol_pkg is
           polarity_v := c_recessive when fp.esi_enable = '1' else c_dominant;
           return (bit_name => esi_bit, polarity => polarity_v);
         end if;
+
         dlc_start_v  := c_fe_dlc_start.position;
         data_start_v := c_fe_data_start.position;
 

@@ -43,12 +43,13 @@ package pk_can_types is
   constant c_base_id_width              : integer := 11;
   constant c_extended_id_width          : integer := 18;
   constant c_eof_field_width            : integer := 7;
-  constant c_crc_delimiter_offset      : integer := 0;  -- offset from crc_stop
-  constant c_ack_slot_offset           : integer := 1;  -- offset from crc_stop
-  constant c_ack_delimiter_offset      : integer := 2;  -- offset from crc_stop
-  constant c_eof_start_offset          : integer := 3;  -- offset from crc_stop
+  constant c_crc_delimiter_offset       : integer := 0;  -- offset from crc_stop
+  constant c_ack_slot_offset            : integer := 1;  -- offset from crc_stop
+  constant c_ack_delimiter_offset       : integer := 2;  -- offset from crc_stop
+  constant c_eof_start_offset           : integer := 3;  -- offset from crc_stop
   constant c_error_flag_width           : integer := 6;
   constant c_error_delimiter_width      : integer := 8;
+  constant c_error_sequence_width       : integer := c_error_flag_width + c_error_delimiter_width;
   constant c_intermission_width         : integer := 3;  -- ISO 6.6.7.2
   constant c_suspend_transmission_width : integer := 8;  -- ISO 6.6.7.4
   constant c_bus_idle_condition_width   : integer := 11; -- ISO 3.34
@@ -598,7 +599,7 @@ package pk_can_types is
 
   -- Internal LLC frame: config_byte_0 + config_byte_1 + 4 ID bytes + 64 data bytes = 70 bytes
   constant c_internal_llc_frame_len : integer := 70;
-  type t_llc_frame is array (0 to c_internal_llc_frame_len - 1) of t_byte;
+  type     t_llc_frame is array (0 to c_internal_llc_frame_len - 1) of t_byte;
 
   -- Legacy frame constants
   constant c_legacy_frame_len    : integer := 71;

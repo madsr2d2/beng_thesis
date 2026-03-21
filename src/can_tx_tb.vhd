@@ -183,36 +183,27 @@ begin
 
     variable alert_id : AlertLogIDType;
     variable dlc_v    : integer;
-    variable frame_v  : t_llc_frame;
 
-    function frame_to_params (
-      frame : t_llc_frame
-    ) return t_frame_params is
-      variable meta_v : t_llc_metadata;
-    begin
-      meta_v.format          := frame.config_0.format;
-      meta_v.dlc_vector      := frame.config_1.dlc;
-      meta_v.is_remote_frame := frame.config_0.ftyp;
-      meta_v.has_brs         := frame.config_0.brs;
-      meta_v.esi_enable      := frame.config_0.esi;
-      return calculate_frame_params(meta_v);
-    end function frame_to_params;
+    -- Local frame descriptor (flat fields, no nested records)
+    variable fmt_v  : std_logic_vector(2 downto 0) := c_llc_fmt_cb;
+    variable ftyp_v : std_logic := '0';
+    variable esi_v  : std_logic := '0';
+    variable brs_v  : std_logic := '0';
+    variable dlc_vec_v : std_logic_vector(3 downto 0) := "0001";
+    variable id_v   : std_logic_vector(31 downto 0) := std_logic_vector(to_unsigned(16#555#, 32));
+    variable data_v : std_logic_vector(c_max_data_bytes * 8 - 1 downto 0) := (others => '0');
 
     -- Helper: build default LLC frame (CC Basic, DLC=1, ID=0x555, data=0xAA)
-    procedure setup_default_frame (
-      variable frame : out t_llc_frame
-    ) is
+    procedure setup_default_frame is
     begin
-      frame.id               := std_logic_vector(to_unsigned(16#555#, 32));
-      frame.config_0.format  := c_llc_fmt_cb;
-      frame.config_0.ftyp    := '0'; -- Data frame
-      frame.config_0.esi     := '0';
-      frame.config_0.brs     := '0';
-      frame.config_0.unused  := "00";
-      frame.config_1.dlc     := "0001"; -- DLC=1
-      frame.config_1.unused  := "0000";
-      frame.data   := (others => '0');
-      frame.data(c_max_data_bytes * 8 - 1 downto c_max_data_bytes * 8 - 8) := x"AA";
+      id_v      := std_logic_vector(to_unsigned(16#555#, 32));
+      fmt_v     := c_llc_fmt_cb;
+      ftyp_v    := '0';
+      esi_v     := '0';
+      brs_v     := '0';
+      dlc_vec_v := "0001";
+      data_v    := (others => '0');
+      data_v(c_max_data_bytes * 8 - 1 downto c_max_data_bytes * 8 - 8) := x"AA";
     end procedure setup_default_frame;
 
     procedure send_user_byte (
@@ -232,43 +223,44 @@ begin
     end procedure send_user_byte;
 
     -- Helper: stream frame as 71-byte legacy LLC format to can_llc_tx(legacy_rtl).
-    procedure submit_frame (
-      frame : t_llc_frame
-    ) is
-      variable id_v             : std_logic_vector(28 downto 0);
-      variable is_extended_v    : boolean;
-      variable byte0_v          : t_byte;
-      variable byte1_v          : t_byte;
-      variable byte2_v          : t_byte;
-      variable byte3_v          : t_byte;
-      variable byte4_v          : t_byte;
-      variable byte69_v         : t_byte;
-      variable byte70_v         : t_byte;
+    procedure submit_frame is
+
+      variable id_29_v           : std_logic_vector(28 downto 0);
+      variable is_extended_v     : boolean;
+      variable byte0_v           : t_byte;
+      variable byte1_v           : t_byte;
+      variable byte2_v           : t_byte;
+      variable byte3_v           : t_byte;
+      variable byte4_v           : t_byte;
+      variable byte69_v          : t_byte;
+      variable byte70_v          : t_byte;
       variable data_byte_count_v : integer;
-      variable data_bit_start_v : integer;
+      variable data_bit_start_v  : integer;
+
     begin
-      id_v          := frame.id(28 downto 0);
-      is_extended_v := frame.config_0.format(2) = '1';
+
+      id_29_v       := id_v(28 downto 0);
+      is_extended_v := fmt_v(2) = '1';
 
       if is_extended_v then
-        byte0_v := "000" & id_v(28 downto 24);
-        byte1_v := id_v(23 downto 16);
-        byte2_v := id_v(15 downto 8);
-        byte3_v := id_v(7 downto 0);
+        byte0_v := "000" & id_29_v(28 downto 24);
+        byte1_v := id_29_v(23 downto 16);
+        byte2_v := id_29_v(15 downto 8);
+        byte3_v := id_29_v(7 downto 0);
       else
         byte0_v := (others => '0');
         byte1_v := (others => '0');
-        byte2_v := "00000" & id_v(10 downto 8);
-        byte3_v := id_v(7 downto 0);
+        byte2_v := "00000" & id_29_v(10 downto 8);
+        byte3_v := id_29_v(7 downto 0);
       end if;
 
-      byte4_v := "0" & frame.config_0.format & frame.config_1.dlc;
-      byte69_v := "0000000" & frame.config_0.format(2);
-      byte70_v := "00000" & frame.config_0.brs & frame.config_0.esi & frame.config_0.ftyp;
+      byte4_v  := "0" & fmt_v & dlc_vec_v;
+      byte69_v := "0000000" & fmt_v(2);
+      byte70_v := "00000" & brs_v & esi_v & ftyp_v;
 
       data_byte_count_v := dlc_to_data_length(
-                              t_dlc(to_integer(unsigned(frame.config_1.dlc))),
-                              frame.config_0.format
+                              t_dlc(to_integer(unsigned(dlc_vec_v))),
+                              fmt_v
                             );
 
       send_user_byte(byte0_v, '1', '0');
@@ -279,8 +271,8 @@ begin
 
       for i in 0 to 63 loop
         if i < data_byte_count_v then
-          data_bit_start_v := frame.data'left - i * 8;
-          send_user_byte(frame.data(data_bit_start_v downto data_bit_start_v - 7), '0', '0');
+          data_bit_start_v := data_v'left - i * 8;
+          send_user_byte(data_v(data_bit_start_v downto data_bit_start_v - 7), '0', '0');
         else
           send_user_byte((others => '0'), '0', '0');
         end if;
@@ -289,9 +281,10 @@ begin
       send_user_byte(byte69_v, '0', '0');
       send_user_byte(byte70_v, '0', '1');
 
-      llc_user_i.avalon_st_source.valid <= '0';
-      llc_user_i.avalon_st_source.startofpacket   <= '0';
-      llc_user_i.avalon_st_source.endofpacket   <= '0';
+      llc_user_i.avalon_st_source.valid          <= '0';
+      llc_user_i.avalon_st_source.startofpacket  <= '0';
+      llc_user_i.avalon_st_source.endofpacket    <= '0';
+
     end procedure submit_frame;
 
     -- Helper: wait for transfer completion with timeout
@@ -490,12 +483,12 @@ begin
     Log(alert_id, "Test 1: Successful CC Basic transmission");
     inject_ack <= true;
 
-    setup_default_frame(frame_v);
+    setup_default_frame;
     wait until rising_edge(clk);
 
     AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '1', "Test 1: tx_ready high before submit");
 
-    submit_frame(frame_v);
+    submit_frame;
 
     wait for 2 * clk_period_c;
     AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '0', "Test 1: tx_ready low during transmission");
@@ -514,10 +507,10 @@ begin
     current_test_id <= test_2_c;
     Log(alert_id, "Test 2: Abort before MAC acceptance");
     inject_ack <= true;
-    setup_default_frame(frame_v);
+    setup_default_frame;
     wait until rising_edge(clk);
 
-    send_user_byte("00000" & frame_v.id(10 downto 8), '1', '0');
+    send_user_byte("00000" & id_v(10 downto 8), '1', '0');
     llc_user_i.avalon_st_source.valid <= '0';
     llc_user_i.avalon_st_source.startofpacket   <= '0';
 
@@ -543,10 +536,10 @@ begin
     current_test_id <= test_3_c;
     Log(alert_id, "Test 3: Abort ignored after MAC acceptance");
     inject_ack <= true;
-    setup_default_frame(frame_v);
+    setup_default_frame;
     wait until rising_edge(clk);
 
-    submit_frame(frame_v);
+    submit_frame;
 
     wait_for_sof(200 us, "Test 3 SOF");
 
@@ -567,12 +560,12 @@ begin
     current_test_id <= test_4_c;
     Log(alert_id, "Test 4: CC Extended format smoke test (no ACK)");
     inject_ack <= false;
-    setup_default_frame(frame_v);
-    frame_v.config_0.format := c_llc_fmt_ce;
-    frame_v.id(28 downto 0) := std_logic_vector(to_unsigned(16#1ABCDEF#, 29));
+    setup_default_frame;
+    fmt_v := c_llc_fmt_ce;
+    id_v(28 downto 0) := std_logic_vector(to_unsigned(16#1ABCDEF#, 29));
     wait until rising_edge(clk);
 
-    submit_frame(frame_v);
+    submit_frame;
 
     wait_for_completion(2 ms, c_aborted, "Test 4");
     wait for 2 * clk_period_c;
@@ -585,13 +578,13 @@ begin
     current_test_id <= test_5_c;
     Log(alert_id, "Test 5: FD Basic format smoke test (no ACK)");
     inject_ack <= false;
-    setup_default_frame(frame_v);
-    frame_v.config_0.format := c_llc_fmt_fb;
-    frame_v.config_0.brs    := '0';
-    frame_v.config_1.dlc    := std_logic_vector(to_unsigned(9, 4));
+    setup_default_frame;
+    fmt_v := c_llc_fmt_fb;
+    brs_v    := '0';
+    dlc_vec_v    := std_logic_vector(to_unsigned(9, 4));
     wait until rising_edge(clk);
 
-    submit_frame(frame_v);
+    submit_frame;
     wait for 2 * clk_period_c;
     AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '0', "Test 5: tx_ready low after submit");
     wait_for_sof(80 us, "Test 5");
@@ -611,14 +604,14 @@ begin
     current_test_id <= test_6_c;
     Log(alert_id, "Test 6: FD Extended format smoke test (no ACK)");
     inject_ack <= false;
-    setup_default_frame(frame_v);
-    frame_v.config_0.format := c_llc_fmt_fe;
-    frame_v.config_0.brs    := '0';
-    frame_v.config_1.dlc    := std_logic_vector(to_unsigned(10, 4));
-    frame_v.id(28 downto 0) := std_logic_vector(to_unsigned(16#1234567#, 29));
+    setup_default_frame;
+    fmt_v := c_llc_fmt_fe;
+    brs_v    := '0';
+    dlc_vec_v    := std_logic_vector(to_unsigned(10, 4));
+    id_v(28 downto 0) := std_logic_vector(to_unsigned(16#1234567#, 29));
     wait until rising_edge(clk);
 
-    submit_frame(frame_v);
+    submit_frame;
     wait for 2 * clk_period_c;
     AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '0', "Test 6: tx_ready low after submit");
     wait_for_sof(120 us, "Test 6");
@@ -638,10 +631,10 @@ begin
     current_test_id <= test_7_c;
     Log(alert_id, "Test 7: Retransmission limit exceeded");
     inject_ack <= false;
-    setup_default_frame(frame_v);
+    setup_default_frame;
     wait until rising_edge(clk);
 
-    submit_frame(frame_v);
+    submit_frame;
 
     wait_for_completion(2 ms, c_aborted, "Test 7");
 
@@ -664,20 +657,20 @@ begin
       llc_user_i.abort_request <= '0';
       wait until rising_edge(clk);
 
-      setup_default_frame(frame_v);
+      setup_default_frame;
       dlc_v := (iter mod 8) + 8;
-      frame_v.config_1.dlc := std_logic_vector(to_unsigned(dlc_v, 4));
-      frame_v.id  := std_logic_vector(to_unsigned(16#100# + iter, 32));
+      dlc_vec_v := std_logic_vector(to_unsigned(dlc_v, 4));
+      id_v  := std_logic_vector(to_unsigned(16#100# + iter, 32));
       if ((iter mod 2) = 0) then
-        frame_v.config_0.format := c_llc_fmt_fb;
+        fmt_v := c_llc_fmt_fb;
       else
-        frame_v.config_0.format := c_llc_fmt_fe;
+        fmt_v := c_llc_fmt_fe;
       end if;
 
       wait until rising_edge(clk);
       wait until rising_edge(clk);
 
-      submit_frame(frame_v);
+      submit_frame;
       wait for 2 * clk_period_c;
       AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '0', "Test 8: tx_ready low after submit");
       wait_for_sof(140 us, "Test 8");
@@ -693,10 +686,10 @@ begin
     reset_and_prepare;
 
     inject_ack <= false;
-    setup_default_frame(frame_v);
+    setup_default_frame;
     wait until rising_edge(clk);
 
-    submit_frame(frame_v);
+    submit_frame;
     wait_for_fsm_bit_name(data_bit, 500 us, "Test 9 data field arrival");
     wait_for_sample_strobe(50 us, "Test 9 data SP");
     inject_bit_error;
@@ -716,10 +709,10 @@ begin
     reset_and_prepare;
 
     inject_ack <= true;
-    setup_default_frame(frame_v);
+    setup_default_frame;
     wait until rising_edge(clk);
 
-    submit_frame(frame_v);
+    submit_frame;
     wait_for_completion(300 us, c_transmitted, "Test 9 recovery frame");
 
     wait for 2 * clk_period_c;
@@ -745,10 +738,10 @@ begin
     wait for 20 * nom_bit_time_clk_c * clk_period_c;
 
     inject_ack <= true;
-    setup_default_frame(frame_v);
+    setup_default_frame;
     wait until rising_edge(clk);
 
-    submit_frame(frame_v);
+    submit_frame;
 
     wait_for_fsm_bit_name(eof_bit, 500 us, "Test 10 eof arrival");
     wait_for_n_strobes(7, "Test 10 EOF");
@@ -775,10 +768,10 @@ begin
     reset_and_prepare;
 
     inject_ack <= true;
-    setup_default_frame(frame_v);
+    setup_default_frame;
     wait until rising_edge(clk);
 
-    submit_frame(frame_v);
+    submit_frame;
     wait_for_completion(300 us, c_transmitted, "Test 10 second frame");
 
     wait for 2 * clk_period_c;
@@ -796,11 +789,11 @@ begin
 
     inject_ack <= false;
 
-    setup_default_frame(frame_v);
-    frame_v.config_0.format := c_llc_fmt_fb;
+    setup_default_frame;
+    fmt_v := c_llc_fmt_fb;
     wait until rising_edge(clk);
 
-    submit_frame(frame_v);
+    submit_frame;
 
     wait_for_bit_at_strobe(ack_delimiter_bit, 500 us, "Test 11");
 
@@ -821,11 +814,11 @@ begin
     Log(alert_id, "Test 12: Arbitration Loss Withdrawal (monitored dominant while sending recessive ID)");
 
     inject_ack <= true;
-    setup_default_frame(frame_v);
-    frame_v.id := (others => '1');
+    setup_default_frame;
+    id_v := (others => '1');
     wait until rising_edge(clk);
 
-    submit_frame(frame_v);
+    submit_frame;
 
     wait_for_fsm_bit_name(base_id_bit, 500 us, "Test 12 ID arrival");
     wait_for_sample_strobe(50 us, "Test 12 ID SP");
@@ -853,12 +846,12 @@ begin
     Log(alert_id, "Test 13: Remote Frame Support (RTR=1, DLC=8, Data omitted)");
 
     inject_ack <= true;
-    setup_default_frame(frame_v);
-    frame_v.config_0.ftyp   := '1';
-    frame_v.config_1.dlc    := "1000";
+    setup_default_frame;
+    ftyp_v   := '1';
+    dlc_vec_v    := "1000";
     wait until rising_edge(clk);
 
-    submit_frame(frame_v);
+    submit_frame;
 
     wait_for_sof(100 us, "Test 13 SOF arrival");
     wait_for_fsm_bit_name(rtr_bit, 500 us, "Test 13 RTR arrival");
@@ -881,12 +874,12 @@ begin
       wait until rising_edge(clk);
     end loop;
 
-    setup_default_frame(frame_v);
-    frame_v.config_0.format := c_llc_fmt_fb;
-    frame_v.config_0.brs    := '1';
+    setup_default_frame;
+    fmt_v := c_llc_fmt_fb;
+    brs_v    := '1';
     wait until rising_edge(clk);
 
-    submit_frame(frame_v);
+    submit_frame;
 
     wait_for_fsm_bit_name(brs_bit, 500 us, "Test 14 BRS arrival");
 

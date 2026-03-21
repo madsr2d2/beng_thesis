@@ -66,18 +66,26 @@ architecture tb of can_tx_protocol_tb is
   signal bus_override    : std_logic := c_recessive;
   signal bus_override_en : boolean := false;
 
-  -- Debug signals for ACK injection timing
+  -- Debug signals from DUT
   signal debug_mac_to_pcs : t_can_mac_pcs_tx_if_m2s;
   signal debug_pcs_to_mac : t_can_mac_pcs_tx_if_s2m;
   signal debug_bit_name   : t_mac_frame_bit_name;
+  signal debug_fsm_state  : std_logic_vector(2 downto 0);
+
+  -- Frame config visibility (driven by test runner for waveform inspection)
+  signal dbg_fmt     : std_logic_vector(2 downto 0) := c_llc_fmt_cb;
+  signal dbg_ftyp    : std_logic := '0';
+  signal dbg_brs     : std_logic := '0';
+  signal dbg_esi     : std_logic := '0';
+  signal dbg_dlc     : std_logic_vector(3 downto 0) := "0000";
+  signal dbg_id      : std_logic_vector(31 downto 0) := (others => '0');
 
   ------------------------------------------------------------------------------
   -- Protocol checker control
   ------------------------------------------------------------------------------
-  signal checker_enable         : boolean := false;
-  signal checker_request_id     : integer := 0;
-  signal checker_done_id        : integer := 0;
-  signal checker_expected_frame : t_llc_frame;
+  signal checker_enable          : boolean := false;
+  signal checker_request_id      : integer := 0;
+  signal checker_done_id         : integer := 0;
   signal checker_expected_params : t_frame_params := c_frame_params_reset;
 
   constant max_raw_bits_c : integer := c_max_mac_frame_length * 2;
@@ -104,7 +112,7 @@ begin
       debug_form_error_o => open,
       debug_data_exit_o  => open,
       debug_pcs_state_o  => open,
-      debug_fsm_state_o  => open,
+      debug_fsm_state_o  => debug_fsm_state,
       debug_bit_name_o   => debug_bit_name
     );
 
@@ -234,8 +242,16 @@ begin
   -- Test runner
   ------------------------------------------------------------------------------
   test_runner : process is
-    variable alert_id : AlertLogIDType;
-    variable frame_v : t_llc_frame;
+    variable alert_id  : AlertLogIDType;
+
+    -- Local frame descriptor (flat fields)
+    variable fmt_v     : std_logic_vector(2 downto 0) := c_llc_fmt_cb;
+    variable ftyp_v    : std_logic := '0';
+    variable esi_v     : std_logic := '0';
+    variable brs_v     : std_logic := '0';
+    variable dlc_vec_v : std_logic_vector(3 downto 0) := "0001";
+    variable id_v      : std_logic_vector(31 downto 0) := (others => '0');
+    variable data_v    : std_logic_vector(c_max_data_bytes * c_byte_width - 1 downto 0) := (others => '0');
 
     procedure wait_clocks (
       n : positive
@@ -271,12 +287,11 @@ begin
       end loop;
     end procedure send_user_byte;
 
-    procedure submit_frame (
-      frame : t_llc_frame
-    ) is
+    procedure submit_frame is
+
       variable data_byte_count_v : integer;
       variable data_bit_start_v  : integer;
-      variable id_v              : std_logic_vector(28 downto 0);
+      variable id_29_v           : std_logic_vector(28 downto 0);
       variable is_extended_v     : boolean;
       variable byte0_v           : t_byte;
       variable byte1_v           : t_byte;
@@ -285,29 +300,31 @@ begin
       variable byte4_v           : t_byte;
       variable byte69_v          : t_byte;
       variable byte70_v          : t_byte;
+
     begin
-      id_v          := frame.id(28 downto 0);
-      is_extended_v := frame.config_0.format(2) = '1';
+
+      id_29_v       := id_v(28 downto 0);
+      is_extended_v := fmt_v(2) = '1';
 
       if (is_extended_v) then
-        byte0_v := "000" & id_v(28 downto 24);
-        byte1_v := id_v(23 downto 16);
-        byte2_v := id_v(15 downto 8);
-        byte3_v := id_v(7 downto 0);
+        byte0_v := "000" & id_29_v(28 downto 24);
+        byte1_v := id_29_v(23 downto 16);
+        byte2_v := id_29_v(15 downto 8);
+        byte3_v := id_29_v(7 downto 0);
       else
         byte0_v := (others => '0');
         byte1_v := (others => '0');
-        byte2_v := "00000" & id_v(10 downto 8);
-        byte3_v := id_v(7 downto 0);
+        byte2_v := "00000" & id_29_v(10 downto 8);
+        byte3_v := id_29_v(7 downto 0);
       end if;
 
-      byte4_v := "0" & frame.config_0.format & frame.config_1.dlc;
-      byte69_v := "0000000" & frame.config_0.format(2);
-      byte70_v := "00000" & frame.config_0.brs & frame.config_0.esi & frame.config_0.ftyp;
+      byte4_v  := "0" & fmt_v & dlc_vec_v;
+      byte69_v := "0000000" & fmt_v(2);
+      byte70_v := "00000" & brs_v & esi_v & ftyp_v;
 
       data_byte_count_v := dlc_to_data_length(
-                              t_dlc(to_integer(unsigned(frame.config_1.dlc))),
-                              frame.config_0.format
+                              t_dlc(to_integer(unsigned(dlc_vec_v))),
+                              fmt_v
                             );
 
       send_user_byte(byte0_v, '1', '0');
@@ -318,8 +335,8 @@ begin
 
       for i in 0 to 63 loop
         if (i < data_byte_count_v) then
-          data_bit_start_v := frame.data'left - i * 8;
-          send_user_byte(frame.data(data_bit_start_v downto data_bit_start_v - 7), '0', '0');
+          data_bit_start_v := data_v'left - i * 8;
+          send_user_byte(data_v(data_bit_start_v downto data_bit_start_v - 7), '0', '0');
         else
           send_user_byte((others => '0'), '0', '0');
         end if;
@@ -328,9 +345,10 @@ begin
       send_user_byte(byte69_v, '0', '0');
       send_user_byte(byte70_v, '0', '1');
 
-      llc_user_i.avalon_st_source.valid <= '0';
-      llc_user_i.avalon_st_source.startofpacket   <= '0';
+      llc_user_i.avalon_st_source.valid         <= '0';
+      llc_user_i.avalon_st_source.startofpacket <= '0';
       llc_user_i.avalon_st_source.endofpacket   <= '0';
+
     end procedure submit_frame;
 
     procedure wait_for_transfer_status (
@@ -368,8 +386,7 @@ begin
     end procedure wait_for_checker_done;
 
     procedure run_classic_protocol_test (
-      constant test_name : string;
-      constant frame     : t_llc_frame
+      constant test_name : string
     ) is
       variable req_id_v : integer;
     begin
@@ -381,18 +398,25 @@ begin
       req_id_v := checker_request_id + 1;
       checker_request_id <= req_id_v;
 
-      checker_expected_frame <= frame;
       checker_expected_params <= calculate_frame_params((
-        format          => frame.config_0.format,
-        dlc_vector      => frame.config_1.dlc,
-        is_remote_frame => frame.config_0.ftyp,
-        has_brs         => frame.config_0.brs,
-        esi_enable      => frame.config_0.esi
+        format          => fmt_v,
+        dlc_vector      => dlc_vec_v,
+        is_remote_frame => ftyp_v,
+        has_brs         => brs_v,
+        esi_enable      => esi_v
       ));
+
+      -- Drive frame config to waveform-visible signals
+      dbg_fmt  <= fmt_v;
+      dbg_ftyp <= ftyp_v;
+      dbg_brs  <= brs_v;
+      dbg_esi  <= esi_v;
+      dbg_dlc  <= dlc_vec_v;
+      dbg_id   <= id_v;
 
       wait until rising_edge(clk);
       checker_enable <= true;
-      submit_frame(frame);
+      submit_frame;
       wait_clocks(2);
       AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '0', test_name & ": tx_ready should drop after submit");
       wait_for_transfer_status(c_transmitted, 220 us, test_name);
@@ -421,30 +445,28 @@ begin
     wait_clocks(2);
 
     -- Test 1: CC basic data frame (DLC=1)
-    frame_v.id                 := (others => '0');
-    frame_v.id(10 downto 0)    := std_logic_vector(to_unsigned(16#555#, 11));
-    frame_v.config_0.format    := c_llc_fmt_cb;
-    frame_v.config_0.ftyp      := '0';
-    frame_v.config_0.brs       := '0';
-    frame_v.config_0.esi       := '0';
-    frame_v.config_0.unused    := "00";
-    frame_v.config_1.dlc       := std_logic_vector(to_unsigned(1, 4));
-    frame_v.config_1.unused    := "0000";
-    frame_v.data               := (others => '0');
-    frame_v.data(c_max_data_bytes * c_byte_width - 1 downto c_max_data_bytes * c_byte_width - 8) := x"A5";
-    run_classic_protocol_test("Test 1: CC basic data frame protocol check", frame_v);
+    id_v      := (others => '0');
+    id_v(10 downto 0) := std_logic_vector(to_unsigned(16#555#, 11));
+    fmt_v     := c_llc_fmt_cb;
+    ftyp_v    := '0';
+    brs_v     := '0';
+    esi_v     := '0';
+    dlc_vec_v := std_logic_vector(to_unsigned(1, 4));
+    data_v    := (others => '0');
+    data_v(c_max_data_bytes * c_byte_width - 1 downto c_max_data_bytes * c_byte_width - 8) := x"A5";
+    run_classic_protocol_test("Test 1: CC basic data frame protocol check");
 
     -- Test 2: CC extended data frame (DLC=2)
-    frame_v.id                 := std_logic_vector(to_unsigned(16#1ABCDE1#, 32));
-    frame_v.config_0.format    := c_llc_fmt_ce;
-    frame_v.config_0.ftyp      := '0';
-    frame_v.config_0.brs       := '0';
-    frame_v.config_0.esi       := '0';
-    frame_v.config_1.dlc       := std_logic_vector(to_unsigned(2, 4));
-    frame_v.data   := (others => '0');
-    frame_v.data(c_max_data_bytes * c_byte_width - 1 downto c_max_data_bytes * c_byte_width - 8) := x"12";
-    frame_v.data(c_max_data_bytes * c_byte_width - 9 downto c_max_data_bytes * c_byte_width - 16) := x"34";
-    run_classic_protocol_test("Test 2: CC extended data frame protocol check", frame_v);
+    id_v      := std_logic_vector(to_unsigned(16#1ABCDE1#, 32));
+    fmt_v     := c_llc_fmt_ce;
+    ftyp_v    := '0';
+    brs_v     := '0';
+    esi_v     := '0';
+    dlc_vec_v := std_logic_vector(to_unsigned(2, 4));
+    data_v    := (others => '0');
+    data_v(c_max_data_bytes * c_byte_width - 1 downto c_max_data_bytes * c_byte_width - 8) := x"12";
+    data_v(c_max_data_bytes * c_byte_width - 9 downto c_max_data_bytes * c_byte_width - 16) := x"34";
+    run_classic_protocol_test("Test 2: CC extended data frame protocol check");
 
     Log(alert_id, "All can_tx protocol tests completed", PASSED);
     ReportAlerts;
