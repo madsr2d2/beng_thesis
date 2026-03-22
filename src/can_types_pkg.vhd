@@ -794,7 +794,7 @@ package body pk_can_types is
     -- every 5th position (pos_in_field mod 5 = 0).
     -- SBC bits occupy positions 1-4, CRC data follows from crc_start.
     if (bit_count >= frame_params.data_stop and bit_count < frame_params.crc_delimiter) then
-      if (metadata.format(1) = '1') then
+      if (metadata.format(1) = '1') then -- FD format
         pos_in_field := bit_count - frame_params.data_stop;
 
         -- Fixed stuff bit at every 5th position (including the initial one)
@@ -916,12 +916,13 @@ package body pk_can_types is
 
   begin
 
-    -- ACK detection (ISO 6.6.10.6, 6.6.11.6)
-    -- FD frames accept dominant during both ACK slot and ACK delimiter.
-    if (monitored_bit_polarity = c_dominant and
-        (bit_name = ack_bit or
-          (metadata.format(1) = '1' and bit_name = ack_delimiter_bit))) then
-      result.event_type := ack_detected;
+    -- ACK handling (ISO 6.6.10.6, 6.6.11.6)
+    -- Returns ack_detected on dominant, none otherwise.
+    if (bit_name = ack_bit or
+        (metadata.format(1) = '1' and bit_name = ack_delimiter_bit)) then
+      if (monitored_bit_polarity = c_dominant) then
+        result.event_type := ack_detected;
+      end if;
       return result;
     end if;
 

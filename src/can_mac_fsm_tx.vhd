@@ -297,12 +297,11 @@ begin
           mac_ser_o.transfer_status <= c_disturbed;
           pcs_o.valid               <= '1';
           pcs_o.polarity            <= error_flag_bit_v.polarity;
-          if (v_monitored_bit_info.event_type = ack_error) then
-            ack_error_caused_flag <= true;
-          end if;
 
         when none =>
-          if (bit_count = frame_params.crc_delimiter + c_ack_delimiter_offset and (not ack_success_seen)) then
+          -- ACK error: no dominant seen during ACK window (CC and FD)
+          if (bit_count = frame_params.crc_delimiter + c_ack_delimiter_offset and
+              (not ack_success_seen)) then
             was_previous_frame_tx     <= true;
             fce_o.error               <= '1';
             mac_ser_o.transfer_status <= c_disturbed;

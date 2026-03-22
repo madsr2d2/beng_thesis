@@ -1,15 +1,17 @@
---------------------------------------------------------------------------------
--- Title      : CAN Types Package Testbench
--- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
---------------------------------------------------------------------------------
--- File       : can_types_pkg_tb.vhd
--- Author     : Mads Richardt
--- Standard   : VHDL-2008
---------------------------------------------------------------------------------
--- Description: Walks every bit position of one CB, CE, FB, and FE frame,
---              checking that get_mac_frame_bit returns the correct
---              bit_name and polarity. Also exercises get_frame_params.
---------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+--
+-- Requirements:
+--
+-- Description:   Testbench for pk_can_types. Exercises get_mac_frame_bit
+--                across all four frame formats (CB, CE, FB, FE) and
+--                get_bit_info for ACK, bit error, and arbitration events.
+--
+-- Revision log:  Date:       Initial:  JIRA:
+--                2026-03-22  TMYAES:   Initial implementation
+--
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;
@@ -21,14 +23,12 @@ library osvvm;
 
 entity can_types_pkg_tb is
   generic (
-    gc_tbtimeout   : time := 2 ms;
-    gc_tbclkperiod : time := 10 ns
+    gc_tbtimeout : time := 2 ms
   );
 end entity can_types_pkg_tb;
 
 architecture tb of can_types_pkg_tb is
 
-  -- Helper: build t_llc_metadata from config bytes
   function make_metadata (
     config_byte_0 : t_byte;
     config_byte_1 : t_byte
@@ -47,105 +47,7 @@ architecture tb of can_types_pkg_tb is
 
   end function make_metadata;
 
-  -- Position helpers derived from t_frame_params
-  function ack_slot_of (
-    fp : t_frame_params
-  ) return t_position is
-  begin
-
-    return fp.crc_delimiter + c_ack_slot_offset;
-
-  end function ack_slot_of;
-
-  function ack_delimiter_of (
-    fp : t_frame_params
-  ) return t_position is
-  begin
-
-    return fp.crc_delimiter + c_ack_delimiter_offset;
-
-  end function ack_delimiter_of;
-
-  function eof_start_of (
-    fp : t_frame_params
-  ) return t_position is
-  begin
-
-    return fp.crc_delimiter + c_eof_start_offset;
-
-  end function eof_start_of;
-
-  function eof_stop_of (
-    fp : t_frame_params
-  ) return t_position is
-  begin
-
-    return fp.crc_delimiter + c_eof_start_offset + c_eof_field_width;
-
-  end function eof_stop_of;
-
-  function data_start_of (
-    md : t_llc_metadata
-  ) return t_position is
-  begin
-
-    case md.format is
-      when c_llc_fmt_cb => return c_cb_data_start;
-      when c_llc_fmt_ce => return c_ce_data_start;
-      when c_llc_fmt_fb => return c_fb_data_start;
-      when c_llc_fmt_fe => return c_fe_data_start;
-      when others => return 0;
-    end case;
-
-  end function data_start_of;
-
-  function sbc_start_of (
-    md : t_llc_metadata;
-    fp : t_frame_params
-  ) return t_position is
-  begin
-
-    if (md.format(1) = '1') then
-      return fp.data_stop;
-    else
-      return 0;
-    end if;
-
-  end function sbc_start_of;
-
-  function sbc_stop_of (
-    md : t_llc_metadata;
-    fp : t_frame_params
-  ) return t_position is
-  begin
-
-    if (md.format(1) = '1') then
-      return fp.data_stop + 1 + c_sbc_field_width;
-    else
-      return 0;
-    end if;
-
-  end function sbc_stop_of;
-
-  function crc_start_of (
-    md : t_llc_metadata;
-    fp : t_frame_params
-  ) return t_position is
-  begin
-
-    if (md.format(1) = '1') then
-      return fp.data_stop + 1 + c_sbc_field_width;
-    else
-      return fp.data_stop;
-    end if;
-
-  end function crc_start_of;
-
-  signal clk : std_logic;
-
 begin
-
-  CreateClock(clk, gc_TbClkPeriod);
 
   p_init : process is
   begin
@@ -165,263 +67,323 @@ begin
 
   end process p_timeout;
 
-  -- -------------------------------------------------------------------------
-  -- Main test process
-  -- -------------------------------------------------------------------------
   p_main_tester : process is
 
     variable md         : t_llc_metadata;
     variable fp         : t_frame_params;
-    variable ser_data_v : std_logic;
+    variable ser_data_v : std_logic              := c_recessive;
     variable fb         : t_mac_frame_bit;
-    variable crc_vec    : t_crc_vector := (others => '0');
-    variable sbc_vec    : t_sbc        := (others => '0');
-    variable prev_pol   : std_logic    := c_recessive;
-
-    variable cb_id : alertlogidtype;
-    variable ce_id : alertlogidtype;
-    variable fb_id : alertlogidtype;
-    variable fe_id : alertlogidtype;
-
-    -- Check one bit: verify bit_name and polarity
-    procedure check_bit (
-      alert_id      : in alertlogidtype;
-      bit_pos       : in integer;
-      expected_name : in t_mac_frame_bit_name;
-      expected_pol  : in std_logic;
-      tag           : in string := ""
-    ) is
-    begin
-
-      fb := get_mac_frame_bit(bit_pos, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
-      AffirmIf(alert_id,
-               fb.bit_name = expected_name,
-               tag & " pos " & integer'image(bit_pos) & " bit_name correct",
-               tag & " pos " & integer'image(bit_pos) &
-               " expected " & t_mac_frame_bit_name'image(expected_name) &
-               " got " & t_mac_frame_bit_name'image(fb.bit_name));
-      AffirmIf(alert_id,
-               fb.polarity = expected_pol,
-               tag & " pos " & integer'image(bit_pos) & " polarity correct",
-               tag & " pos " & integer'image(bit_pos) &
-               " expected polarity " & std_logic'image(expected_pol) &
-               " got " & std_logic'image(fb.polarity));
-
-    end procedure check_bit;
-
-    -- Check one bit: verify bit_name only (polarity not checked)
-    procedure check_bit (
-      alert_id      : in alertlogidtype;
-      bit_pos       : in integer;
-      expected_name : in t_mac_frame_bit_name;
-      tag           : in string := ""
-    ) is
-    begin
-
-      fb := get_mac_frame_bit(bit_pos, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
-      AffirmIf(alert_id,
-               fb.bit_name = expected_name,
-               tag & " pos " & integer'image(bit_pos) & " bit_name correct",
-               tag & " pos " & integer'image(bit_pos) &
-               " expected " & t_mac_frame_bit_name'image(expected_name) &
-               " got " & t_mac_frame_bit_name'image(fb.bit_name));
-
-    end procedure check_bit;
-
-    -- Check a range of bits all have the same expected name and polarity
-    procedure check_range (
-      alert_id      : in alertlogidtype;
-      first         : in integer;
-      last          : in integer;
-      expected_name : in t_mac_frame_bit_name;
-      expected_pol  : in std_logic;
-      tag           : in string := ""
-    ) is
-    begin
-
-      for i in first to last loop
-        check_bit(alert_id, i, expected_name, expected_pol, tag);
-      end loop;
-
-    end procedure check_range;
-
-    -- Check a range of bits all have the same expected name (polarity not checked)
-    procedure check_range (
-      alert_id      : in alertlogidtype;
-      first         : in integer;
-      last          : in integer;
-      expected_name : in t_mac_frame_bit_name;
-      tag           : in string := ""
-    ) is
-    begin
-
-      for i in first to last loop
-        check_bit(alert_id, i, expected_name, tag);
-      end loop;
-
-    end procedure check_range;
-
-    -- Check FD SBC+CRC region (interleaved with fixed stuff bits)
-    procedure check_fd_region (
-      alert_id  : in alertlogidtype;
-      first     : in integer;
-      last      : in integer;
-      data_name : in t_mac_frame_bit_name;
-      tag       : in string := ""
-    ) is
-    begin
-
-      for i in first to last loop
-        fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
-        AffirmIf(alert_id,
-                 fb.bit_name = data_name or fb.bit_name = fixed_stuff_bit,
-                 tag & " pos " & integer'image(i) & " in " &
-                 t_mac_frame_bit_name'image(data_name) & " region correct",
-                 tag & " pos " & integer'image(i) & " unexpected " &
-                 t_mac_frame_bit_name'image(fb.bit_name));
-      end loop;
-
-    end procedure check_fd_region;
+    variable crc_vec    : t_crc_vector           := (others => '0');
+    variable sbc_vec    : t_sbc                  := (others => '0');
+    variable prev_pol   : std_logic              := c_recessive;
+    variable tid        : alertlogidtype;
+    variable bi         : t_bit_info;
+    variable pol_hist   : t_tdc_polarity_history := (others => c_recessive);
+    variable tid_bi     : alertlogidtype;
 
   begin
 
     wait for 0 ns;
-    wait for 0 ns;
+    tid    := GetAlertLogID("get_mac_frame_bit");
+    tid_bi := GetAlertLogID("get_bit_info");
 
-    cb_id := GetAlertLogID("CB Frame");
-    ce_id := GetAlertLogID("CE Frame");
-    fb_id := GetAlertLogID("FB Frame");
-    fe_id := GetAlertLogID("FE Frame");
-
-    -- Common setup: serializer drives all-recessive data
-    ser_data_v := c_recessive;
-
-    -- ==================================================================
-    -- Frame 1: CAN Classic Basic (CB) - DLC=2, data frame
-    -- Config: format=000, ftyp=0, esi=0, brs=0 -> byte0 = x"00"
-    --         dlc=2                              -> byte1 = x"20"
-    -- ==================================================================
-    Log(cb_id, "--- CB frame (DLC=2) ---");
+    -- CB: Classic Basic, DLC=2
     md := make_metadata(x"00", x"20");
     fp := get_frame_params(md);
 
-    AffirmIf(cb_id, md.format = c_llc_fmt_cb, "CB: format correct");
-    AffirmIf(cb_id, md.format(1) = '0',       "CB: not FD");
+    fb := get_mac_frame_bit(c_sof, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = sof_bit and fb.polarity = c_dominant, "CB SOF");
 
-    check_bit(cb_id, c_sof, sof_bit, c_dominant, "CB");
-    check_range(cb_id, c_cb_base_id_start, c_cb_base_id_stop, base_id_bit, tag => "CB");
-    check_bit(cb_id, c_cb_rtr, rtr_bit, c_dominant, "CB");
-    check_bit(cb_id, c_cb_ide, ide_bit, c_dominant, "CB");
-    check_bit(cb_id, c_cb_r0, r0_bit, c_dominant, "CB");
-    check_range(cb_id, c_cb_dlc_start, c_cb_dlc_stop, dlc_bit, tag => "CB");
-    check_range(cb_id, data_start_of(md), fp.data_stop - 1, data_bit, tag => "CB");
-    check_range(cb_id, crc_start_of(md, fp), fp.crc_delimiter - 1, crc_bit, tag => "CB");
-    check_bit(cb_id, fp.crc_delimiter, crc_delimiter_bit, c_recessive, "CB");
-    check_bit(cb_id, ack_slot_of(fp), ack_bit, c_recessive, "CB");
-    check_bit(cb_id, ack_delimiter_of(fp), ack_delimiter_bit, c_recessive, "CB");
-    check_range(cb_id, eof_start_of(fp), eof_stop_of(fp) - 1, eof_bit, c_recessive, "CB");
+    for i in c_cb_base_id_start to c_cb_base_id_stop loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = base_id_bit, "CB base_id " & integer'image(i));
+    end loop;
 
-    Log(cb_id, "CB: all bits checked");
+    fb := get_mac_frame_bit(c_cb_rtr, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = rtr_bit and fb.polarity = c_dominant, "CB RTR");
+    fb := get_mac_frame_bit(c_cb_ide, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = ide_bit and fb.polarity = c_dominant, "CB IDE");
+    fb := get_mac_frame_bit(c_cb_r0, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = r0_bit and fb.polarity = c_dominant, "CB R0");
 
-    -- ==================================================================
-    -- Frame 2: CAN Classic Extended (CE) - DLC=4, data frame
-    -- Config: format=100, ftyp=0, esi=0, brs=0 -> byte0 = x"80"
-    --         dlc=4                              -> byte1 = x"40"
-    -- ==================================================================
-    Log(ce_id, "--- CE frame (DLC=4) ---");
+    for i in c_cb_dlc_start to c_cb_dlc_stop loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = dlc_bit, "CB DLC " & integer'image(i));
+    end loop;
+
+    for i in c_cb_data_start to fp.data_stop - 1 loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = data_bit, "CB data " & integer'image(i));
+    end loop;
+
+    for i in fp.data_stop to fp.crc_delimiter - 1 loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = crc_bit, "CB CRC " & integer'image(i));
+    end loop;
+
+    fb := get_mac_frame_bit(fp.crc_delimiter, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = crc_delimiter_bit and fb.polarity = c_recessive, "CB CRC delim");
+    fb := get_mac_frame_bit(fp.crc_delimiter + c_ack_slot_offset, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = ack_bit and fb.polarity = c_recessive, "CB ACK");
+    fb := get_mac_frame_bit(fp.crc_delimiter + c_ack_delimiter_offset, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = ack_delimiter_bit and fb.polarity = c_recessive, "CB ACK delim");
+
+    for i in fp.crc_delimiter + c_eof_start_offset to fp.crc_delimiter + c_eof_start_offset + c_eof_field_width - 1 loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = eof_bit and fb.polarity = c_recessive, "CB EOF " & integer'image(i));
+    end loop;
+
+    -- CE: Classic Extended, DLC=4
     md := make_metadata(x"80", x"40");
     fp := get_frame_params(md);
 
-    AffirmIf(ce_id, md.format = c_llc_fmt_ce, "CE: format correct");
+    fb := get_mac_frame_bit(c_sof, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = sof_bit and fb.polarity = c_dominant, "CE SOF");
 
-    check_bit(ce_id, c_sof, sof_bit, c_dominant, "CE");
-    check_range(ce_id, c_ce_base_id_start, c_ce_base_id_stop, base_id_bit, tag => "CE");
-    check_bit(ce_id, c_ce_srr, srr_bit, c_recessive, "CE");
-    check_bit(ce_id, c_ce_ide, ide_bit, c_recessive, "CE");
-    check_range(ce_id, c_ce_extended_id_start, c_ce_extended_id_stop, extended_id_bit, tag => "CE");
-    check_bit(ce_id, c_ce_rtr, rtr_bit, c_dominant, "CE");
-    check_bit(ce_id, c_ce_r1, r1_bit, c_dominant, "CE");
-    check_bit(ce_id, c_ce_r0, r0_bit, c_dominant, "CE");
-    check_range(ce_id, c_ce_dlc_start, c_ce_dlc_stop, dlc_bit, tag => "CE");
-    check_range(ce_id, data_start_of(md), fp.data_stop - 1, data_bit, tag => "CE");
-    check_range(ce_id, crc_start_of(md, fp), fp.crc_delimiter - 1, crc_bit, tag => "CE");
-    check_bit(ce_id, fp.crc_delimiter, crc_delimiter_bit, c_recessive, "CE");
-    check_bit(ce_id, ack_slot_of(fp), ack_bit, c_recessive, "CE");
-    check_bit(ce_id, ack_delimiter_of(fp), ack_delimiter_bit, c_recessive, "CE");
-    check_range(ce_id, eof_start_of(fp), eof_stop_of(fp) - 1, eof_bit, c_recessive, "CE");
+    for i in c_ce_base_id_start to c_ce_base_id_stop loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = base_id_bit, "CE base_id " & integer'image(i));
+    end loop;
 
-    Log(ce_id, "CE: all bits checked");
+    fb := get_mac_frame_bit(c_ce_srr, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = srr_bit and fb.polarity = c_recessive, "CE SRR");
+    fb := get_mac_frame_bit(c_ce_ide, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = ide_bit and fb.polarity = c_recessive, "CE IDE");
 
-    -- ==================================================================
-    -- Frame 3: CAN FD Basic (FB) - DLC=8, BRS=1, ESI=0
-    -- Config: format=010, ftyp=0, esi=0, brs=1 -> byte0 = x"44"
-    --         dlc=8                              -> byte1 = x"80"
-    -- ==================================================================
-    Log(fb_id, "--- FB frame (DLC=8, BRS=1) ---");
+    for i in c_ce_extended_id_start to c_ce_extended_id_stop loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = extended_id_bit, "CE ext_id " & integer'image(i));
+    end loop;
+
+    fb := get_mac_frame_bit(c_ce_rtr, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = rtr_bit and fb.polarity = c_dominant, "CE RTR");
+    fb := get_mac_frame_bit(c_ce_r1, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = r1_bit and fb.polarity = c_dominant, "CE R1");
+    fb := get_mac_frame_bit(c_ce_r0, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = r0_bit and fb.polarity = c_dominant, "CE R0");
+
+    for i in c_ce_dlc_start to c_ce_dlc_stop loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = dlc_bit, "CE DLC " & integer'image(i));
+    end loop;
+
+    for i in c_ce_data_start to fp.data_stop - 1 loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = data_bit, "CE data " & integer'image(i));
+    end loop;
+
+    for i in fp.data_stop to fp.crc_delimiter - 1 loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = crc_bit, "CE CRC " & integer'image(i));
+    end loop;
+
+    fb := get_mac_frame_bit(fp.crc_delimiter, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = crc_delimiter_bit and fb.polarity = c_recessive, "CE CRC delim");
+    fb := get_mac_frame_bit(fp.crc_delimiter + c_ack_slot_offset, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = ack_bit and fb.polarity = c_recessive, "CE ACK");
+    fb := get_mac_frame_bit(fp.crc_delimiter + c_ack_delimiter_offset, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = ack_delimiter_bit and fb.polarity = c_recessive, "CE ACK delim");
+
+    for i in fp.crc_delimiter + c_eof_start_offset to fp.crc_delimiter + c_eof_start_offset + c_eof_field_width - 1 loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = eof_bit and fb.polarity = c_recessive, "CE EOF " & integer'image(i));
+    end loop;
+
+    -- FB: FD Basic, DLC=8, BRS=1
     md := make_metadata(x"44", x"80");
     fp := get_frame_params(md);
 
-    AffirmIf(fb_id, md.format = c_llc_fmt_fb, "FB: format correct");
-    AffirmIf(fb_id, md.format(1) = '1',       "FB: is FD");
-    AffirmIf(fb_id, md.brs = '1',             "FB: BRS set");
+    fb := get_mac_frame_bit(c_sof, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = sof_bit and fb.polarity = c_dominant, "FB SOF");
 
-    check_bit(fb_id, c_sof, sof_bit, c_dominant, "FB");
-    check_range(fb_id, c_fd_base_id_start, c_fd_base_id_stop, base_id_bit, tag => "FB");
-    check_bit(fb_id, c_fb_rrs, rrs_bit, c_dominant, "FB");
-    check_bit(fb_id, c_fb_ide, ide_bit, c_dominant, "FB");
-    check_bit(fb_id, c_fb_fdf, fdf_bit, c_recessive, "FB");
-    check_bit(fb_id, c_fb_res, res_bit, c_dominant, "FB");
-    check_bit(fb_id, c_fb_brs, brs_bit, c_recessive, "FB");
-    check_bit(fb_id, c_fb_esi, esi_bit, c_dominant, "FB");
-    check_range(fb_id, c_fb_dlc_start, c_fb_dlc_stop, dlc_bit, tag => "FB");
-    check_range(fb_id, data_start_of(md), fp.data_stop - 1, data_bit, tag => "FB");
-    check_fd_region(fb_id, sbc_start_of(md, fp), sbc_stop_of(md, fp) - 1, sbs_bit, "FB");
-    check_fd_region(fb_id, crc_start_of(md, fp), fp.crc_delimiter - 1, crc_bit, "FB");
-    check_bit(fb_id, fp.crc_delimiter, crc_delimiter_bit, c_recessive, "FB");
-    check_bit(fb_id, ack_slot_of(fp), ack_bit, c_recessive, "FB");
-    check_bit(fb_id, ack_delimiter_of(fp), ack_delimiter_bit, c_recessive, "FB");
-    check_range(fb_id, eof_start_of(fp), eof_stop_of(fp) - 1, eof_bit, c_recessive, "FB");
+    for i in c_fd_base_id_start to c_fd_base_id_stop loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = base_id_bit, "FB base_id " & integer'image(i));
+    end loop;
 
-    Log(fb_id, "FB: all bits checked");
+    fb := get_mac_frame_bit(c_fb_rrs, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = rrs_bit and fb.polarity = c_dominant, "FB RRS");
+    fb := get_mac_frame_bit(c_fb_ide, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = ide_bit and fb.polarity = c_dominant, "FB IDE");
+    fb := get_mac_frame_bit(c_fb_fdf, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = fdf_bit and fb.polarity = c_recessive, "FB FDF");
+    fb := get_mac_frame_bit(c_fb_res, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = res_bit and fb.polarity = c_dominant, "FB RES");
+    fb := get_mac_frame_bit(c_fb_brs, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = brs_bit and fb.polarity = c_recessive, "FB BRS");
+    fb := get_mac_frame_bit(c_fb_esi, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = esi_bit and fb.polarity = c_dominant, "FB ESI");
 
-    -- ==================================================================
-    -- Frame 4: CAN FD Extended (FE) - DLC=12 (=16 bytes), BRS=1, ESI=1
-    -- Config: format=110, ftyp=0, esi=1, brs=1 -> byte0 = x"CC"
-    --         dlc=12                             -> byte1 = x"C0"
-    -- ==================================================================
-    Log(fe_id, "--- FE frame (DLC=12, BRS=1, ESI=1) ---");
+    for i in c_fb_dlc_start to c_fb_dlc_stop loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = dlc_bit, "FB DLC " & integer'image(i));
+    end loop;
+
+    for i in c_fb_data_start to fp.data_stop - 1 loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = data_bit, "FB data " & integer'image(i));
+    end loop;
+
+    -- FD SBC region (interleaved with fixed stuff bits)
+    for i in fp.data_stop to fp.data_stop + c_sbc_field_width loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = sbs_bit or fb.bit_name = fixed_stuff_bit, "FB SBC " & integer'image(i));
+    end loop;
+
+    -- FD CRC region (interleaved with fixed stuff bits)
+    for i in fp.data_stop + 1 + c_sbc_field_width to fp.crc_delimiter - 1 loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = crc_bit or fb.bit_name = fixed_stuff_bit, "FB CRC " & integer'image(i));
+    end loop;
+
+    fb := get_mac_frame_bit(fp.crc_delimiter, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = crc_delimiter_bit and fb.polarity = c_recessive, "FB CRC delim");
+    fb := get_mac_frame_bit(fp.crc_delimiter + c_ack_slot_offset, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = ack_bit and fb.polarity = c_recessive, "FB ACK");
+    fb := get_mac_frame_bit(fp.crc_delimiter + c_ack_delimiter_offset, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = ack_delimiter_bit and fb.polarity = c_recessive, "FB ACK delim");
+
+    for i in fp.crc_delimiter + c_eof_start_offset to fp.crc_delimiter + c_eof_start_offset + c_eof_field_width - 1 loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = eof_bit and fb.polarity = c_recessive, "FB EOF " & integer'image(i));
+    end loop;
+
+    -- FE: FD Extended, DLC=12, BRS=1, ESI=1
     md := make_metadata(x"CC", x"C0");
     fp := get_frame_params(md);
 
-    AffirmIf(fe_id, md.format = c_llc_fmt_fe, "FE: format correct");
-    AffirmIf(fe_id, md.format(1) = '1',       "FE: is FD");
-    AffirmIf(fe_id, md.brs = '1',             "FE: BRS set");
-    AffirmIf(fe_id, md.esi = '1',             "FE: ESI set");
+    fb := get_mac_frame_bit(c_sof, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = sof_bit and fb.polarity = c_dominant, "FE SOF");
 
-    check_bit(fe_id, c_sof, sof_bit, c_dominant, "FE");
-    check_range(fe_id, c_fe_base_id_start, c_fe_base_id_stop, base_id_bit, tag => "FE");
-    check_bit(fe_id, c_fe_srr, srr_bit, c_recessive, "FE");
-    check_bit(fe_id, c_fe_ide, ide_bit, c_recessive, "FE");
-    check_range(fe_id, c_fe_extended_id_start, c_fe_extended_id_stop, extended_id_bit, tag => "FE");
-    check_bit(fe_id, c_fe_rrs, rrs_bit, c_dominant, "FE");
-    check_bit(fe_id, c_fe_fdf, fdf_bit, c_recessive, "FE");
-    check_bit(fe_id, c_fe_res, res_bit, c_dominant, "FE");
-    check_bit(fe_id, c_fe_brs, brs_bit, c_recessive, "FE");
-    check_bit(fe_id, c_fe_esi, esi_bit, c_recessive, "FE");
-    check_range(fe_id, c_fe_dlc_start, c_fe_dlc_stop, dlc_bit, tag => "FE");
-    check_range(fe_id, data_start_of(md), fp.data_stop - 1, data_bit, tag => "FE");
-    check_fd_region(fe_id, sbc_start_of(md, fp), sbc_stop_of(md, fp) - 1, sbs_bit, "FE");
-    check_fd_region(fe_id, crc_start_of(md, fp), fp.crc_delimiter - 1, crc_bit, "FE");
-    check_bit(fe_id, fp.crc_delimiter, crc_delimiter_bit, c_recessive, "FE");
-    check_bit(fe_id, ack_slot_of(fp), ack_bit, c_recessive, "FE");
-    check_bit(fe_id, ack_delimiter_of(fp), ack_delimiter_bit, c_recessive, "FE");
-    check_range(fe_id, eof_start_of(fp), eof_stop_of(fp) - 1, eof_bit, c_recessive, "FE");
+    for i in c_fe_base_id_start to c_fe_base_id_stop loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = base_id_bit, "FE base_id " & integer'image(i));
+    end loop;
 
-    Log(fe_id, "FE: all bits checked");
+    fb := get_mac_frame_bit(c_fe_srr, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = srr_bit and fb.polarity = c_recessive, "FE SRR");
+    fb := get_mac_frame_bit(c_fe_ide, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = ide_bit and fb.polarity = c_recessive, "FE IDE");
 
-    -- ==================================================================
-    -- Finalization
-    -- ==================================================================
+    for i in c_fe_extended_id_start to c_fe_extended_id_stop loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = extended_id_bit, "FE ext_id " & integer'image(i));
+    end loop;
+
+    fb := get_mac_frame_bit(c_fe_rrs, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = rrs_bit and fb.polarity = c_dominant, "FE RRS");
+    fb := get_mac_frame_bit(c_fe_fdf, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = fdf_bit and fb.polarity = c_recessive, "FE FDF");
+    fb := get_mac_frame_bit(c_fe_res, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = res_bit and fb.polarity = c_dominant, "FE RES");
+    fb := get_mac_frame_bit(c_fe_brs, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = brs_bit and fb.polarity = c_recessive, "FE BRS");
+    fb := get_mac_frame_bit(c_fe_esi, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = esi_bit and fb.polarity = c_recessive, "FE ESI");
+
+    for i in c_fe_dlc_start to c_fe_dlc_stop loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = dlc_bit, "FE DLC " & integer'image(i));
+    end loop;
+
+    for i in c_fe_data_start to fp.data_stop - 1 loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = data_bit, "FE data " & integer'image(i));
+    end loop;
+
+    for i in fp.data_stop to fp.data_stop + c_sbc_field_width loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = sbs_bit or fb.bit_name = fixed_stuff_bit, "FE SBC " & integer'image(i));
+    end loop;
+
+    for i in fp.data_stop + 1 + c_sbc_field_width to fp.crc_delimiter - 1 loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = crc_bit or fb.bit_name = fixed_stuff_bit, "FE CRC " & integer'image(i));
+    end loop;
+
+    fb := get_mac_frame_bit(fp.crc_delimiter, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = crc_delimiter_bit and fb.polarity = c_recessive, "FE CRC delim");
+    fb := get_mac_frame_bit(fp.crc_delimiter + c_ack_slot_offset, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = ack_bit and fb.polarity = c_recessive, "FE ACK");
+    fb := get_mac_frame_bit(fp.crc_delimiter + c_ack_delimiter_offset, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+    AffirmIf(tid, fb.bit_name = ack_delimiter_bit and fb.polarity = c_recessive, "FE ACK delim");
+
+    for i in fp.crc_delimiter + c_eof_start_offset to fp.crc_delimiter + c_eof_start_offset + c_eof_field_width - 1 loop
+      fb := get_mac_frame_bit(i, ser_data_v, md, fp, prev_pol, sbc_vec, crc_vec);
+      AffirmIf(tid, fb.bit_name = eof_bit and fb.polarity = c_recessive, "FE EOF " & integer'image(i));
+    end loop;
+
+    ---------------------------------------------------------------------------
+    -- get_bit_info
+    ---------------------------------------------------------------------------
+
+    -- CC metadata for arbitration tests
+    md := make_metadata(x"00", x"20");
+
+    -- CC ACK: dominant => ack_detected, recessive => none
+    bi := get_bit_info(ack_bit, pol_hist, 0, c_dominant, md);
+    AffirmIf(tid_bi, bi.event_type = ack_detected, "CC ACK dominant");
+    bi := get_bit_info(ack_bit, pol_hist, 0, c_recessive, md);
+    AffirmIf(tid_bi, bi.event_type = none, "CC ACK recessive");
+
+    -- CC ACK delimiter is not an ACK field
+    bi := get_bit_info(ack_delimiter_bit, pol_hist, 0, c_dominant, md);
+    AffirmIf(tid_bi, bi.event_type /= ack_detected, "CC ACK delim not ack_detected");
+
+    md := make_metadata(x"44", x"80");
+
+    -- FD ACK: dominant => ack_detected at both slot and delimiter
+    bi := get_bit_info(ack_bit, pol_hist, 0, c_dominant, md);
+    AffirmIf(tid_bi, bi.event_type = ack_detected, "FD ACK slot dominant");
+    bi := get_bit_info(ack_delimiter_bit, pol_hist, 0, c_dominant, md);
+    AffirmIf(tid_bi, bi.event_type = ack_detected, "FD ACK delim dominant");
+
+    -- FD ACK: recessive => none
+    bi := get_bit_info(ack_bit, pol_hist, 0, c_recessive, md);
+    AffirmIf(tid_bi, bi.event_type = none, "FD ACK slot recessive");
+    bi := get_bit_info(ack_delimiter_bit, pol_hist, 0, c_recessive, md);
+    AffirmIf(tid_bi, bi.event_type = none, "FD ACK delim recessive");
+
+    -- Polarity match: no error (history[0] = recessive, bus = recessive)
+    pol_hist := (others => c_recessive);
+    bi       := get_bit_info(data_bit, pol_hist, 0, c_recessive, md);
+    AffirmIf(tid_bi, bi.event_type = none and bi.transfer_status = c_ongoing, "polarity match => none");
+
+    -- Polarity match with TDC delay: history[5] = dominant, bus = dominant
+    pol_hist    := (others => c_recessive);
+    pol_hist(5) := c_dominant;
+    bi          := get_bit_info(data_bit, pol_hist, 5, c_dominant, md);
+    AffirmIf(tid_bi, bi.event_type = none, "TDC delay match => none");
+
+    -- Bit error: polarity mismatch on data bit
+    pol_hist := (others => c_recessive);
+    bi       := get_bit_info(data_bit, pol_hist, 0, c_dominant, md);
+    AffirmIf(tid_bi, bi.event_type = bit_error and bi.transfer_status = c_disturbed, "data bit error");
+
+    -- Lost arbitration: dominant observed on base_id (tx recessive)
+    md       := make_metadata(x"00", x"20");
+    pol_hist := (others => c_recessive);
+    bi       := get_bit_info(base_id_bit, pol_hist, 0, c_dominant, md);
+    AffirmIf(tid_bi, bi.event_type = lost_arbitration and bi.transfer_status = c_lost_arb, "lost arb base_id");
+
+    -- Lost arbitration: dominant observed on rtr
+    bi := get_bit_info(rtr_bit, pol_hist, 0, c_dominant, md);
+    AffirmIf(tid_bi, bi.event_type = lost_arbitration and bi.transfer_status = c_lost_arb, "lost arb rtr");
+
+    -- CE: lost arbitration on extended_id
+    md := make_metadata(x"80", x"40");
+    bi := get_bit_info(extended_id_bit, pol_hist, 0, c_dominant, md);
+    AffirmIf(tid_bi, bi.event_type = lost_arbitration and bi.transfer_status = c_lost_arb, "lost arb ext_id");
+
+    -- CE: lost arbitration on srr
+    bi := get_bit_info(srr_bit, pol_hist, 0, c_dominant, md);
+    AffirmIf(tid_bi, bi.event_type = lost_arbitration and bi.transfer_status = c_lost_arb, "lost arb srr");
+
+    -- CB: srr on basic format is bit error (not arbitration field)
+    md := make_metadata(x"00", x"20");
+    bi := get_bit_info(srr_bit, pol_hist, 0, c_dominant, md);
+    AffirmIf(tid_bi, bi.event_type = bit_error, "CB srr mismatch => bit_error not lost_arb");
+
     EndOfTestReports(reportall => TRUE);
     std.env.finish;
     wait;
