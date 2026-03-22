@@ -24,7 +24,6 @@ library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
   use work.pk_can_types.all;
-  use work.can_protocol_pkg.all;
 
 library osvvm;
   use osvvm.AlertLogPkg.all;
@@ -794,7 +793,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
         injected_v := true;
       end if;
 
-      if (not ef_req_seen_v) and debug_mac_to_pcs.valid = '1' and debug_mac_to_pcs.use_data_rate = '1' and
+      if (not ef_req_seen_v) and debug_mac_to_pcs.valid = '1' and
          (debug_bit_name = active_error_flag_bit or
           debug_bit_name = passive_error_flag_bit) then
         ef_req_seen_v  := true;
@@ -828,7 +827,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
             "Did not inject the planned data-phase mismatch",
             ERROR);
     AlertIf(not ef_req_seen_v,
-            "Did not observe error-flag request while still in FD data-rate context",
+            "Did not observe error-flag request from MAC after data-phase injection",
             ERROR);
     AlertIf(saw_crc_delim_before_ef_req_v or saw_ack_before_ef_req_v,
             "Error-flag request occurred after leaving data phase (not a data-phase error)",
@@ -972,7 +971,7 @@ begin
 
   -- Monitor for error pulses
   error_monitor : process (clk) is
-    variable last_bit_name : t_mac_frame_bit_name := unknown;
+    variable last_bit_name : t_mac_frame_bit_name := idle_bit;
     variable debug_sample_count : integer := 0;
   begin
     if rising_edge(clk) then

@@ -638,14 +638,14 @@ begin
     current_test_id <= 11;
     Log("Test 11: Timing helper functions", INFO);
 
-    AlertIf(calculate_fifo_delay_index(0, 49) /= 0,
-            "Delay 0 should map to FIFO index 0", ERROR);
-    AlertIf(calculate_fifo_delay_index(49, 49) /= 1,
-            "Delay 49 should map to FIFO index 1", ERROR);
-    AlertIf(calculate_fifo_delay_index(98, 49) /= 2,
-            "Delay 98 should map to FIFO index 2", ERROR);
-    AlertIf(calculate_fifo_delay_index(1600, 49) /= c_transmitted_bits_fifo_depth - 1,
-            "Large delay should clamp to FIFO depth-1", ERROR);
+    AlertIf(calculate_tdc_delay(0, 49) /= 0,
+            "Delay 0 should map to TDC delay 0", ERROR);
+    AlertIf(calculate_tdc_delay(49, 49) /= 1,
+            "Delay 49 should map to TDC delay 1", ERROR);
+    AlertIf(calculate_tdc_delay(98, 49) /= 2,
+            "Delay 98 should map to TDC delay 2", ERROR);
+    AlertIf(calculate_tdc_delay(1600, 49) /= c_tdc_polarity_depth - 1,
+            "Large delay should clamp to TDC depth-1", ERROR);
 
     AlertIf(not should_use_tdc(
               100_000_000,

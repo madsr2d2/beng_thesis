@@ -113,10 +113,10 @@ begin
               if (llc_i.avalon_st_source.valid = '1') then
                 -- Extract LLC metadata from config byte pair
                 tx_mac_fsm_o.llc_metadata.format          <= config_byte_0(c_llc_frame_config_byte_0_format_start downto c_llc_frame_config_byte_0_format_end);
-                tx_mac_fsm_o.llc_metadata.dlc_vector      <= llc_i.avalon_st_source.data(c_llc_frame_config_byte_1_dlc_start downto c_llc_frame_config_byte_1_dlc_end);
-                tx_mac_fsm_o.llc_metadata.is_remote_frame <= config_byte_0(c_llc_frame_config_byte_0_ftyp);
-                tx_mac_fsm_o.llc_metadata.has_brs         <= config_byte_0(c_llc_frame_config_byte_0_brs);
-                tx_mac_fsm_o.llc_metadata.esi_enable      <= config_byte_0(c_llc_frame_config_byte_0_esi);
+                tx_mac_fsm_o.llc_metadata.dlc      <= llc_i.avalon_st_source.data(c_llc_frame_config_byte_1_dlc_start downto c_llc_frame_config_byte_1_dlc_end);
+                tx_mac_fsm_o.llc_metadata.ftyp <= config_byte_0(c_llc_frame_config_byte_0_ftyp);
+                tx_mac_fsm_o.llc_metadata.brs         <= config_byte_0(c_llc_frame_config_byte_0_brs);
+                tx_mac_fsm_o.llc_metadata.esi      <= config_byte_0(c_llc_frame_config_byte_0_esi);
                 state                                     <= s_load_llc_frame_byte;
 
                 -- ID is right-aligned in 32-bit stream: extended uses 29 bits, basic uses 11

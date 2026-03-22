@@ -19,7 +19,6 @@
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
-  use work.can_protocol_pkg.all;
   use work.pk_can_types.all;
 
 library osvvm;
@@ -155,7 +154,7 @@ begin
     variable sampled_bit_v : std_logic;
     variable is_stuff_bit_v : boolean;
     variable req_id_v : integer;
-    variable crc_stop_int : integer;
+    variable crc_delimiter_int : integer;
     variable eof_stop_int : integer;
     variable ack_delimiter_int : integer;
     variable eof_start_int : integer;
@@ -173,10 +172,10 @@ begin
       req_id_v := checker_request_id;
       params_v := checker_expected_params;
 
-      -- Derive positions from crc_stop (integer)
-      crc_stop_int      := params_v.crc_stop;
-      ack_delimiter_int := crc_stop_int + c_ack_delimiter_offset;
-      eof_start_int     := crc_stop_int + c_eof_start_offset;
+      -- Derive positions from crc_delimiter (integer)
+      crc_delimiter_int := params_v.crc_delimiter;
+      ack_delimiter_int := crc_delimiter_int + c_ack_delimiter_offset;
+      eof_start_int     := crc_delimiter_int + c_eof_start_offset;
       eof_stop_int      := eof_start_int + c_eof_field_width;
 
       raw_count_v := 1;
@@ -199,7 +198,7 @@ begin
         raw_bits_v(raw_count_v) := sampled_bit_v;
         raw_count_v := raw_count_v + 1;
 
-        if (frame_position_v < crc_stop_int - 1 and
+        if (frame_position_v < crc_delimiter_int - 1 and
             consecutive_count_v >= 5 and
             sampled_bit_v /= last_polarity_v) then
           is_stuff_bit_v := true;
@@ -398,12 +397,12 @@ begin
       req_id_v := checker_request_id + 1;
       checker_request_id <= req_id_v;
 
-      checker_expected_params <= calculate_frame_params((
+      checker_expected_params <= get_frame_params((
         format          => fmt_v,
-        dlc_vector      => dlc_vec_v,
-        is_remote_frame => ftyp_v,
-        has_brs         => brs_v,
-        esi_enable      => esi_v
+        dlc      => dlc_vec_v,
+        ftyp => ftyp_v,
+        brs         => brs_v,
+        esi      => esi_v
       ));
 
       -- Drive frame config to waveform-visible signals

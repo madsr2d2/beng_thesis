@@ -111,13 +111,13 @@ architecture tb of can_mac_ser_tx_tb is
     wait until falling_edge(clk);
     AlertIf(tx_mac_fsm_o.llc_metadata.format /= llc_frame(0)(c_llc_frame_config_byte_0_format_start downto c_llc_frame_config_byte_0_format_end),
             "ERROR: FORMAT mismatch", FAILURE);
-    AlertIf(tx_mac_fsm_o.llc_metadata.is_remote_frame /= llc_frame(0)(c_llc_frame_config_byte_0_ftyp),
-            "ERROR: is_remote_frame mismatch", FAILURE);
-    AlertIf(tx_mac_fsm_o.llc_metadata.esi_enable /= llc_frame(0)(c_llc_frame_config_byte_0_esi),
+    AlertIf(tx_mac_fsm_o.llc_metadata.ftyp /= llc_frame(0)(c_llc_frame_config_byte_0_ftyp),
+            "ERROR: ftyp mismatch", FAILURE);
+    AlertIf(tx_mac_fsm_o.llc_metadata.esi /= llc_frame(0)(c_llc_frame_config_byte_0_esi),
             "ERROR: ESI mismatch", FAILURE);
-    AlertIf(tx_mac_fsm_o.llc_metadata.has_brs /= llc_frame(0)(c_llc_frame_config_byte_0_brs),
+    AlertIf(tx_mac_fsm_o.llc_metadata.brs /= llc_frame(0)(c_llc_frame_config_byte_0_brs),
             "ERROR: BRS mismatch", FAILURE);
-    AlertIf(tx_mac_fsm_o.llc_metadata.dlc_vector /= llc_frame(1)(c_llc_frame_config_byte_1_dlc_start downto c_llc_frame_config_byte_1_dlc_end),
+    AlertIf(tx_mac_fsm_o.llc_metadata.dlc /= llc_frame(1)(c_llc_frame_config_byte_1_dlc_start downto c_llc_frame_config_byte_1_dlc_end),
             "ERROR: DLC mismatch", FAILURE);
   end procedure verify_llc_metadata;
 

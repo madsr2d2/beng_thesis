@@ -96,7 +96,7 @@ architecture rtl of can_pcs_tx is
   signal delay_count_clk : integer range 0 to c_max_transmitter_delay;
   signal tdc_counting    : std_logic;
   signal ssp_position    : integer range 0 to c_data_bit_time - 1;
-  signal fifo_index      : integer range 0 to c_transmitted_bits_fifo_depth - 1;
+  signal tdc_delay       : integer range 0 to c_tdc_polarity_depth - 1;
   signal prev_rx_bus     : std_logic;
   signal prev_tx_bus     : std_logic;
   signal in_data_phase   : std_logic;
@@ -170,8 +170,8 @@ begin
 
       if (c_use_tdc and in_data_phase = '1' and
           v_tq_tick and tq_count = ssp_position) then
-        v_pcs_to_mac.ssp        := '1';
-        v_pcs_to_mac.fifo_index := std_logic_vector(to_unsigned(fifo_index, v_pcs_to_mac.fifo_index'length));
+        v_pcs_to_mac.ssp       := '1';
+        v_pcs_to_mac.tdc_delay := std_logic_vector(to_unsigned(tdc_delay, v_pcs_to_mac.tdc_delay'length));
       end if;
 
     end procedure emit_ssp;
@@ -198,7 +198,7 @@ begin
 
       if (v_rx_rising_edge and tdc_counting = '1') then
         v_delay_tq   := (delay_count_clk + gc_prescaler - 1) / gc_prescaler + gc_ssp_offset;
-        fifo_index   <= calculate_fifo_delay_index(v_delay_tq, c_data_bit_time);
+        tdc_delay    <= calculate_tdc_delay(v_delay_tq, c_data_bit_time);
         ssp_position <= v_delay_tq mod c_data_bit_time;
         tdc_counting <= '0';
       end if;
@@ -215,7 +215,7 @@ begin
         delay_count_clk <= 0;
         tdc_counting    <= '0';
         ssp_position    <= 0;
-        fifo_index      <= 0;
+        tdc_delay       <= 0;
         prev_rx_bus     <= c_recessive;
         prev_tx_bus     <= c_recessive;
         in_data_phase   <= '0';
@@ -231,7 +231,7 @@ begin
         v_pcs_to_mac.bus_polarity := rx_bus_i;
         v_pcs_to_mac.sp           := '0';
         v_pcs_to_mac.ssp          := '0';
-        v_pcs_to_mac.fifo_index   := (others => '0');
+        v_pcs_to_mac.tdc_delay    := (others => '0');
 
         -- Select active bit time and SP position based on data phase
         if (in_data_phase = '1') then
@@ -370,7 +370,7 @@ begin
 -- delay_count_clk = 0 and
 -- tdc_counting = '0' and
 -- ssp_position = 0 and
--- fifo_index = 0 and
+-- tdc_delay = 0 and
 -- in_data_phase = '0' and
 -- tx_bus_o = c_recessive and
 -- pcs_to_mac_o.sp = '0' }

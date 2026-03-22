@@ -424,9 +424,9 @@ All module interfaces use `std_logic` and `std_logic_vector` exclusively, as man
 
 ## Protocol-Driven Type System {#sec:protocol-driven-type-system}
 
-The type system encodes protocol semantics into named constants and internal record types, as shown in @fig:types-diagram. At module boundaries, all signals use `std_logic` and `std_logic_vector` exclusively - protocol concepts such as polarity, frame format, and transfer status are represented as named constant groups. Internally, enumeration types (`t_mac_frame_bit_name`, `t_tx_mac_monitor_event`) and composite record types (`t_bit`, `t_mac_frame_bit`, `t_frame_params`) make protocol semantics visible in simulation waveforms and debug ports.
+The type system encodes protocol semantics into named constants and internal record types, as shown in @fig:types-diagram. At module boundaries, all signals use `std_logic` and `std_logic_vector` exclusively - protocol concepts such as polarity, frame format, and transfer status are represented as named constant groups. Internally, enumeration types (`t_mac_frame_bit_name`, `t_monitor_event_tx`) and composite record types (`t_bit`, `t_mac_frame_bit`, `t_frame_params`) make protocol semantics visible in simulation waveforms and debug ports.
 
-```{.mermaid #fig:types-diagram caption="Type and constant hierarchy. The Interface Constants namespace groups the std_logic and std_logic_vector constants that encode protocol semantics at module boundaries. The Internal Enumerations namespace contains enumeration types used only within the MAC layer and on simulation-only debug ports. Compound record types compose these primitives: t_bit pairs a bit position with a polarity and underpins the frame layout constants. t_mac_frame_bit carries semantic context by combining a polarity with a protocol bit name, so each transmitted bit remains identifiable throughout the design. t_llc_metadata captures the five LLC config byte fields passed from the serializer to the FSM. t_frame_params aggregates derived field boundary positions and CRC polynomial selection, computed once per frame by the FSM (@sec:can-mac-fsm-tx). t_observed_mac_frame_bit_info and t_transmitted_bits_fifo support bus monitoring and TDC-delayed bit comparison (@sec:can-mac-fsm-tx). Constant groups derive from the root protocol constants."}
+```{.mermaid #fig:types-diagram caption="Type and constant hierarchy. The Interface Constants namespace groups the std_logic and std_logic_vector constants that encode protocol semantics at module boundaries. The Internal Enumerations namespace contains enumeration types used only within the MAC layer and on simulation-only debug ports. Compound record types compose these primitives: t_mac_frame_bit carries semantic context by combining a polarity with a protocol bit name, so each transmitted bit remains identifiable throughout the design. t_llc_metadata captures the five LLC config byte fields - named to match their ISO 11898-1 definitions - passed from the serializer to the FSM. t_frame_params aggregates derived field boundary positions and CRC polynomial selection, computed once per frame by the FSM (@sec:can-mac-fsm-tx). t_bit_info supports bus monitoring for error detection and arbitration loss (@sec:can-mac-fsm-tx). Constant groups derive from the root protocol constants."}
 ---
 config:
   layout: elk
@@ -473,7 +473,7 @@ classDiagram
     namespace `**Internal Enumerations**` {
         class t_mac_frame_bit_name["type t_mac_frame_bit_name"]
         class t_position["subtype t_position"]
-        class t_tx_mac_monitor_event["type t_tx_mac_monitor_event"]
+        class t_monitor_event_tx["type t_monitor_event_tx"]
     }
 
     t_mac_frame_bit_name : active_error_flag_bit
@@ -510,48 +510,36 @@ classDiagram
 
     t_position : integer range 0 to c_max_mac_frame_length
 
-    t_tx_mac_monitor_event : none
-    t_tx_mac_monitor_event : ack_detected
-    t_tx_mac_monitor_event : ack_error
-    t_tx_mac_monitor_event : bit_error
-    t_tx_mac_monitor_event : lost_arbitration
+    t_monitor_event_tx : none
+    t_monitor_event_tx : ack_detected
+    t_monitor_event_tx : ack_error
+    t_monitor_event_tx : bit_error
+    t_monitor_event_tx : lost_arbitration
 
     %% 3. Compound Record Types =====================================
 
-    class t_bit["record t_bit"]
-    t_bit : position integer
-    t_bit : polarity std_logic
-
     class t_mac_frame_bit["record t_mac_frame_bit"]
-    t_mac_frame_bit : polarity std_logic
+    t_mac_frame_bit : polarity sl
     t_mac_frame_bit : bit_name t_mac_frame_bit_name
 
     class t_llc_metadata["record t_llc_metadata"]
     t_llc_metadata : format slv3
-    t_llc_metadata : dlc_vector slv4
-    t_llc_metadata : is_remote_frame std_logic
-    t_llc_metadata : has_brs std_logic
-    t_llc_metadata : esi_enable std_logic
+    t_llc_metadata : dlc slv4
+    t_llc_metadata : ftyp sl
+    t_llc_metadata : brs sl
+    t_llc_metadata : esi sl
 
     class t_frame_params["record t_frame_params"]
-    t_frame_params : format slv3
-    t_frame_params : dlc_vector slv4
-    t_frame_params : is_fd_frame std_logic
-    t_frame_params : is_remote_frame std_logic
-    t_frame_params : has_brs std_logic
-    t_frame_params : esi_enable std_logic
+    t_frame_params : dlc_start t_position
     t_frame_params : data_stop t_position
-    t_frame_params : crc_stop t_position
+    t_frame_params : dynamic_stuff_stop t_position
+    t_frame_params : crc_start t_position
+    t_frame_params : crc_delimiter t_position
     t_frame_params : crc_poly_select slv2
 
-    class t_observed_mac_frame_bit_info["record t_observed_mac_frame_bit_info"]
-    t_observed_mac_frame_bit_info : event_type t_tx_mac_monitor_event
-    t_observed_mac_frame_bit_info : transfer_status slv3
-    t_observed_mac_frame_bit_info : expected_bit t_mac_frame_bit
-    t_observed_mac_frame_bit_info : observed_polarity std_logic
-
-    class t_transmitted_bits_fifo["type t_transmitted_bits_fifo"]
-    t_transmitted_bits_fifo : array of t_mac_frame_bit
+    class t_bit_info["record t_bit_info"]
+    t_bit_info : event_type t_monitor_event_tx
+    t_bit_info : transfer_status slv3
 
     %% 4. Constant Groups ==============================================
 
@@ -562,9 +550,9 @@ classDiagram
     protocol_constants : ⋮
 
     class frame_layout_constants["Frame Layout Constants"]
-    frame_layout_constants : constant c_cb_ide t_bit
-    frame_layout_constants : constant c_fb_fdf t_bit
-    frame_layout_constants : constant c_fe_brs t_bit
+    frame_layout_constants : constant c_cb_ide integer
+    frame_layout_constants : constant c_fb_fdf integer
+    frame_layout_constants : constant c_fe_brs integer
     frame_layout_constants : ⋮
 
     class common_frame_bits["Common Frame Bits"]
@@ -578,17 +566,12 @@ classDiagram
     t_position ..> protocol_constants
     frame_layout_constants ..> protocol_constants
     common_frame_bits ..> protocol_constants
-    t_bit *-- t_position
     t_mac_frame_bit *-- t_mac_frame_bit_name
-    frame_layout_constants ..> t_bit
     common_frame_bits ..> t_mac_frame_bit
     t_llc_metadata ..> format_constants
-    t_llc_metadata ..> status_constants
     t_frame_params *-- t_position
-    t_frame_params ..> t_llc_metadata
-    t_observed_mac_frame_bit_info *-- t_tx_mac_monitor_event
-    t_observed_mac_frame_bit_info *-- t_mac_frame_bit
-    t_transmitted_bits_fifo ..> t_mac_frame_bit
+    t_bit_info *-- t_monitor_event_tx
+    t_bit_info ..> status_constants
 ```
 
 ## LLC Sub-layer {#sec:llc-sub-layer}
@@ -695,14 +678,47 @@ The interfaces between MAC sub-components are implementation-defined and carry n
 
 #### `can_mac_fsm_tx` {#sec:can-mac-fsm-tx}
 
-`can_mac_fsm_tx` (@fig:mac-tx-fsm) orchestrates frame transmission, coordinating the serializer (@sec:can-mac-ser-tx), bit stuffer (@sec:can-mac-bs-tx), and CRC engine (@sec:can-mac-crc-tx). On each sample-point strobe from `can_pcs_tx` (@sec:can-pcs-tx), the `transmitting_frame` state executes the following sequence:
+`can_mac_fsm_tx` (@fig:mac-tx-fsm) orchestrates frame transmission, coordinating the serializer (@sec:can-mac-ser-tx), bit stuffer (@sec:can-mac-bs-tx), and CRC engine (@sec:can-mac-crc-tx). When a frame request arrives in `s_bus_idle`, the FSM transitions to `s_transmitting_frame` and computes all format-dependent field boundaries up front:
 
-1. The observed bus polarity is compared against the transmitted bit to detect errors and arbitration loss.
-2. In the CAN-FD data phase, any pending SSP observation from the previous bit period is evaluated first [@iso11898_1, sec. 7.3.4].
-3. The next output bit is determined - stuff bit or next frame bit - and the CRC is updated.
-4. Any detected error triggers a transition to the appropriate error flag state based on the FCE fault confinement status [@iso11898_1, sec. 8.1.3-8.1.4].
+```vhdl
+get_frame_params(metadata : t_llc_metadata) -> t_frame_params
+```
 
-```{.mermaid #fig:mac-tx-fsm caption="can_mac_fsm_tx FSM. After a successful frame or arbitration loss the FSM passes through intermission before returning to idle. Detected errors branch to either the active (dominant) or passive (recessive) error flag state depending on FCE fault confinement status. Both paths then rejoin the common intermission sequence. Overload frames can be injected from intermission or from either error flag state."}
+This call derives `dlc_start`, `data_stop`, `dynamic_stuff_stop`, `crc_start`, `crc_delimiter`, and `crc_poly_select` from the LLC metadata, so the per-bit loop never recalculates frame geometry.
+
+On each sample-point strobe from `can_pcs_tx` (@sec:can-pcs-tx), the `s_transmitting_frame` state executes the following sequence:
+
+1. **Monitor the bus.** The sampled bus polarity is compared against the previously transmitted bit to detect errors, ACK, and arbitration loss. In the CAN-FD data phase, any pending SSP observation from the previous bit period is evaluated first [@iso11898_1, sec. 7.3.4].
+
+    ```vhdl
+    get_bit_info(bit_name               : t_mac_frame_bit_name,
+                 polarity_history       : t_tdc_polarity_history,
+                 tdc_delay              : integer,
+                 monitored_bit_polarity : std_logic,
+                 metadata               : t_llc_metadata) -> t_bit_info
+    ```
+
+    The returned `t_bit_info` carries a `t_monitor_event_tx` (none, ack_detected, ack_error, bit_error, or lost_arbitration) and a `transfer_status` encoding. A detected error triggers a transition to the appropriate error flag state based on the FCE fault confinement status [@iso11898_1, sec. 8.1.3-8.1.4]. Arbitration loss causes the FSM to stop driving and return to `s_intermission`.
+
+2. **Determine the next bit.** If the bit stuffer has a pending stuff bit, that takes priority. Otherwise, the next protocol bit is computed from the current `bit_count` and the cached `t_frame_params`:
+
+    ```vhdl
+    get_mac_frame_bit(bit_count         : t_position,
+                      ser_data          : std_logic,
+                      metadata          : t_llc_metadata,
+                      frame_params      : t_frame_params,
+                      previous_polarity : std_logic,
+                      sbc               : t_sbc,
+                      crc               : t_crc_vector) -> t_mac_frame_bit
+    ```
+
+    The returned `t_mac_frame_bit` pairs a polarity with a `t_mac_frame_bit_name`, identifying both the value to drive and the protocol field it belongs to.
+
+3. **Feed the CRC engine and bit stuffer, increment `bit_count`.** The output polarity is forwarded to the CRC engine (for bits within the CRC-protected region) and to the bit stuffer (for bits within the dynamic stuffing region, bounded by `dynamic_stuff_stop` in `t_frame_params`). The FSM then advances `bit_count` for the next sample point.
+
+4. **Present the bit at the PCS interface.** The resolved polarity is driven onto the `t_can_mac_pcs_tx_if_m2s` interface together with the appropriate control signals: `use_data_rate` is asserted during the CAN-FD data phase to switch the PCS to the faster bit timing, and `start_tdc` is pulsed at the FDF bit to initiate transmitter delay compensation [@iso11898_1, sec. 7.3.4].
+
+```{.mermaid #fig:mac-tx-fsm caption="can_mac_fsm_tx FSM. After a successful frame or arbitration loss the FSM passes through intermission before returning to idle. Detected errors branch to either the active (dominant) or passive (recessive) error flag state depending on FCE fault confinement status. Both paths then rejoin the common intermission sequence. Overload frames can be injected from intermission or from either error flag state. The s_transmitting_frame state bullet points show the per-bit operation: on entry, get_frame_params computes field boundaries from t_llc_metadata. Then, on each sample point, get_bit_info first evaluates the sampled bus polarity against the previously transmitted bit, then get_mac_frame_bit produces the next t_mac_frame_bit to transmit."}
 ---
 config:
   layout: elk
@@ -721,41 +737,40 @@ stateDiagram-v2
 
   classDef reset stroke:#000,stroke-width:3px
 
-  state "**bus_reintegration**<br/>─────────<br/>• Bus not driving<br/>• Await idle condition" as bus_reintegration
-  class bus_reintegration reset
-  state "**bus_idle**<br/>─────────<br/>• Bus not driving<br/>• Await frame request" as bus_idle
-  state "**transmitting_frame**<br/>─────────<br/>• Driving frame bits<br/>• Monitoring bus" as transmitting_frame
-  state "**transmitting_active_error_flag**<br/>─────────<br/>• Driving dominant error flag<br/>• Signalling error to FCE" as transmitting_active_error_flag
-  state "**transmitting_passive_error_flag**<br/>─────────<br/>• Driving recessive error flag<br/>• Signalling error to FCE" as transmitting_passive_error_flag
-  state "**transmitting_overload_flag**<br/>─────────<br/>• Driving dominant overload flag<br/>• Signalling error to FCE" as transmitting_overload_flag
-  state "**intermission**<br/>─────────<br/>• Bus not driving<br/>• Monitoring for overload" as intermission
-  state "**suspend_transmission**<br/>─────────<br/>• Bus not driving<br/>• Error-passive hold-off" as suspend_transmission
+  state "**s_bus_reintegration**<br/>─────────<br/>• Bus not driving<br/>• Await 11 recessive bits, or<br/>  128 x 11 recessive bits if bus-off" as s_bus_reintegration
+  class s_bus_reintegration reset
+  state "**s_bus_idle**<br/>─────────<br/>• Bus not driving<br/>• Await frame request" as s_bus_idle
+  state "**s_transmitting_frame**<br/>─────────<br/>• On entry: get_frame_params(t_llc_metadata)<br/>  -> t_frame_params<br/>• Per SP:<br/>  1) get_bit_info(bus_polarity)<br/>  -> t_bit_info<br/>  2) get_mac_frame_bit(bit_count, t_frame_params)<br/>  -> t_mac_frame_bit<br/>  3) Feed CRC engine and bit stuffer,<br/>  increment bit_count" as s_transmitting_frame
+  state "**s_active_error_flag**<br/>─────────<br/>• Driving dominant error flag<br/>• Signalling error to FCE" as s_active_error_flag
+  state "**s_passive_error_flag**<br/>─────────<br/>• Driving recessive error flag<br/>• Signalling error to FCE" as s_passive_error_flag
+  state "**s_overload_flag**<br/>─────────<br/>• Driving dominant overload flag<br/>• Signalling error to FCE" as s_overload_flag
+  state "**s_intermission**<br/>─────────<br/>• Bus not driving<br/>• Monitoring for overload" as s_intermission
+  state "**s_suspend_transmission**<br/>─────────<br/>• Bus not driving<br/>• Error-passive hold-off" as s_suspend_transmission
 
+s_bus_reintegration --> s_bus_idle : 11 recessive bits
 
-bus_reintegration --> bus_idle : bus idle
+s_bus_idle --> s_transmitting_frame : frame pending
 
-bus_idle --> transmitting_frame : frame pending
+s_transmitting_frame --> s_intermission : frame complete
+s_transmitting_frame --> s_intermission : lost arbitration
+s_transmitting_frame --> s_active_error_flag : error (active)
+s_transmitting_frame --> s_passive_error_flag : error (passive)
 
-transmitting_frame --> intermission : frame complete
-transmitting_frame --> intermission : lost arbitration
-transmitting_frame --> transmitting_active_error_flag : error detected
-transmitting_frame --> transmitting_passive_error_flag : error detected
+s_active_error_flag --> s_intermission : sequence complete
+s_active_error_flag --> s_overload_flag : overload detected
 
-transmitting_active_error_flag --> intermission : sequence complete
-transmitting_active_error_flag --> transmitting_overload_flag : overload detected
+s_passive_error_flag --> s_intermission : sequence complete
+s_passive_error_flag --> s_overload_flag : overload detected
 
-transmitting_passive_error_flag --> intermission : sequence complete
-transmitting_passive_error_flag --> transmitting_overload_flag : overload detected
+s_overload_flag --> s_intermission : sequence complete
+s_overload_flag --> s_overload_flag : overload detected
 
-transmitting_overload_flag --> intermission : sequence complete
-transmitting_overload_flag --> transmitting_overload_flag : overload detected
+s_intermission --> s_bus_idle : intermission complete
+s_intermission --> s_suspend_transmission : error-passive transmitter
+s_intermission --> s_overload_flag : overload detected
 
-intermission --> bus_idle : intermission complete
-intermission --> suspend_transmission : error-passive transmitter
-intermission --> transmitting_overload_flag : overload detected
-
-suspend_transmission --> bus_idle : suspend complete
-suspend_transmission --> transmitting_overload_flag : overload detected
+s_suspend_transmission --> s_bus_idle : suspend complete
+s_suspend_transmission --> s_overload_flag : overload detected
 ```
 
 #### `can_mac_ser_tx` {#sec:can-mac-ser-tx}

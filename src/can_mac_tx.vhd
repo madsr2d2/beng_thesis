@@ -17,7 +17,6 @@ library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
   use work.pk_can_types.all;
-  use work.can_protocol_pkg.all;
 
 entity can_mac_tx is
   port (

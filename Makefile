@@ -10,7 +10,6 @@
 # 1. Packages
 PACKAGES = \
 	src/can_types_pkg.vhd \
-	src/can_protocol_pkg.vhd \
 	src/can_timing_pkg.vhd
 
 # 2. Components and Sub-modules
