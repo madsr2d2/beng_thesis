@@ -112,12 +112,12 @@ begin
             when s_load_config_byte_1 =>
               if (llc_i.avalon_st_source.valid = '1') then
                 -- Extract LLC metadata from config byte pair
-                tx_mac_fsm_o.llc_metadata.format          <= config_byte_0(c_llc_frame_config_byte_0_format_start downto c_llc_frame_config_byte_0_format_end);
-                tx_mac_fsm_o.llc_metadata.dlc      <= llc_i.avalon_st_source.data(c_llc_frame_config_byte_1_dlc_start downto c_llc_frame_config_byte_1_dlc_end);
-                tx_mac_fsm_o.llc_metadata.ftyp <= config_byte_0(c_llc_frame_config_byte_0_ftyp);
-                tx_mac_fsm_o.llc_metadata.brs         <= config_byte_0(c_llc_frame_config_byte_0_brs);
-                tx_mac_fsm_o.llc_metadata.esi      <= config_byte_0(c_llc_frame_config_byte_0_esi);
-                state                                     <= s_load_llc_frame_byte;
+                tx_mac_fsm_o.llc_metadata.format <= config_byte_0(c_llc_frame_config_byte_0_format_start downto c_llc_frame_config_byte_0_format_end);
+                tx_mac_fsm_o.llc_metadata.dlc    <= llc_i.avalon_st_source.data(c_llc_frame_config_byte_1_dlc_start downto c_llc_frame_config_byte_1_dlc_end);
+                tx_mac_fsm_o.llc_metadata.ftyp   <= config_byte_0(c_llc_frame_config_byte_0_ftyp);
+                tx_mac_fsm_o.llc_metadata.brs    <= config_byte_0(c_llc_frame_config_byte_0_brs);
+                tx_mac_fsm_o.llc_metadata.esi    <= config_byte_0(c_llc_frame_config_byte_0_esi);
+                state                            <= s_load_llc_frame_byte;
 
                 -- ID is right-aligned in 32-bit stream: extended uses 29 bits, basic uses 11
                 if (config_byte_0(c_llc_frame_config_byte_0_extended_bit) = '1') then
@@ -134,25 +134,9 @@ begin
             -----------------------------------------------------------------
             when s_load_llc_frame_byte =>
               if (llc_i.avalon_st_source.valid = '1') then
-                count            <= 1;
+                count            <= 0;
                 llc_frame_buffer <= llc_i.avalon_st_source.data;
                 state            <= s_shift_out_bits;
-
-                -- Determine whether MSB is a real bit or padding.
-                -- Padding only exists when all ID bits have been sent
-                if ((padding_bits_remaining > 0) and (id_bits_remaining = 0)) then
-                  -- MSB is a padding bit: skip it, no valid to MAC FSM
-                  padding_bits_remaining <= padding_bits_remaining - 1;
-                else
-                  -- MSB is a real bit (ID or data): present to MAC FSM
-                  tx_mac_fsm_o.data  <= llc_i.avalon_st_source.data(c_byte_width - 1);
-                  tx_mac_fsm_o.valid <= '1';
-
-                  if (id_bits_remaining > 0) then
-                    id_bits_remaining <= id_bits_remaining - 1;
-                  end if;
-
-                end if;
               end if;
 
             -----------------------------------------------------------------

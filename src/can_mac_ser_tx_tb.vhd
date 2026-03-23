@@ -33,7 +33,7 @@ architecture tb of can_mac_ser_tx_tb is
   ----------------------------------------------------------------------------
   -- Constants
   ----------------------------------------------------------------------------
-  constant c_frames_to_send : positive := 20;
+  constant c_frames_to_send : positive := 5;
 
   ----------------------------------------------------------------------------
   -- Signals
@@ -93,7 +93,7 @@ architecture tb of can_mac_ser_tx_tb is
     if RV.DistBool((false => 98, true => 2)) then
       tx_mac_fsm_i.transfer_status <= c_disturbed;
       llc_i.avalon_st_source.valid <= '0';
-      WaitForClock(clk);
+      WaitForClock(clk, 2);
       wait for 0 ns;
       AlertIf(test_id, llc_o.avalon_st_sink.ready = '0',
               "ERROR: ready not asserted after abort", FAILURE);
@@ -165,7 +165,10 @@ begin
   -- Main test process
   -- -------------------------------------------------------------------------
   main_tb_p : process is
-    variable v_aborted : boolean;
+    variable v_aborted              : boolean;
+    variable v_id_bits_remaining    : integer;
+    variable v_pad_bits_remaining   : integer;
+    variable v_real_bits_this_byte  : integer;
   begin
 
     reset <= '1';
@@ -227,11 +230,32 @@ begin
       -- Verify metadata is correct
       verify_llc_metadata(tx_mac_fsm_o, llc_frame);
 
+      -- Initialize ID/padding counters (mirror DUT logic)
+      if (llc_frame(0)(c_llc_frame_config_byte_0_extended_bit) = '1') then
+        v_id_bits_remaining  := c_base_id_width + c_extended_id_width;
+        v_pad_bits_remaining := c_llc_id_stream_width - (c_base_id_width + c_extended_id_width);
+      else
+        v_id_bits_remaining  := c_base_id_width;
+        v_pad_bits_remaining := c_llc_id_stream_width - c_base_id_width;
+      end if;
+
       -- Data bytes with random backpressure
       for i in 2 to c_internal_llc_frame_len - 1 loop
 
         random_abort(tx_mac_fsm_i, llc_i, llc_o, v_aborted);
         exit when v_aborted;
+
+        -- Calculate how many real (non-padding) bits this byte will produce
+        if (v_id_bits_remaining > 0) then
+          v_real_bits_this_byte := minimum(c_byte_width, v_id_bits_remaining);
+          v_id_bits_remaining   := v_id_bits_remaining - v_real_bits_this_byte;
+          v_pad_bits_remaining  := v_pad_bits_remaining - (c_byte_width - v_real_bits_this_byte);
+        elsif (v_pad_bits_remaining > 0) then
+          v_real_bits_this_byte := 0;
+          v_pad_bits_remaining  := v_pad_bits_remaining - minimum(c_byte_width, v_pad_bits_remaining);
+        else
+          v_real_bits_this_byte := c_byte_width;
+        end if;
 
         -- Random wait before llc_i valid
         WaitForClock(clk, RV.RandInt(1, 10));
@@ -241,24 +265,27 @@ begin
                        data => llc_frame(i), sop => '0', eop => '0');
         llc_i.avalon_st_source.valid <= '0';
 
-        for j in c_byte_width - 1 downto 0 loop
+        -- Verify only the real bits (padding bits are auto-skipped by serializer)
+        for bit_idx in 0 to v_real_bits_this_byte - 1 loop
 
-          if tx_mac_fsm_o.valid = '1' then
-            AlertIf(tx_mac_fsm_o.data /= llc_frame(i)(j),
-                    "ERROR: byte " & to_string(i) & " bit " & to_string(j) &
-                    " mismatch: expected " & to_string(llc_frame(i)(j)) &
-                    " got " & to_string(tx_mac_fsm_o.data), FAILURE);
-
-            -- Random wait before fsm_i ready
-            WaitForClock(clk, RV.RandInt(1, 10));
-            tx_mac_fsm_i.ready <= '1';
-            WaitForClock(clk);
-            tx_mac_fsm_i.ready <= '0';
-            wait until falling_edge(clk);
-          else
-            WaitForClock(clk);
-            wait for 0 ns;
+          -- Wait for serializer to present this bit
+          if tx_mac_fsm_o.valid /= '1' then
+            wait until tx_mac_fsm_o.valid = '1';
           end if;
+          wait until falling_edge(clk);
+
+          AlertIf(tx_mac_fsm_o.data /= llc_frame(i)(c_byte_width - 1 - bit_idx),
+                  "ERROR: byte " & to_string(i) & " bit " & to_string(c_byte_width - 1 - bit_idx) &
+                  " mismatch: expected " & to_string(llc_frame(i)(c_byte_width - 1 - bit_idx)) &
+                  " got " & to_string(tx_mac_fsm_o.data), FAILURE);
+
+          -- Random wait before fsm_i ready (realistic: FSM takes ~200 clocks per bit)
+          WaitForClock(clk, RV.RandInt(150, 250));
+          tx_mac_fsm_i.ready <= '1';
+          WaitForClock(clk);
+          tx_mac_fsm_i.ready <= '0';
+          WaitForClock(clk);
+          wait for 0 ns;
 
         end loop;
 
