@@ -179,14 +179,14 @@ begin
       prepare_position_v := bit_count + 1;
 
       v_tx_bit := get_mac_frame_bit(
-                                         bit_count         => prepare_position_v,
-                                         ser_data          => mac_ser_i.data,
-                                         metadata          => mac_ser_i.llc_metadata,
-                                         frame_params      => frame_params,
-                                         previous_polarity => last_transmitted_bit_polarity,
-                                         sbc               => bs_fd_i.sbc,
-                                         crc               => crc_i.crc
-                                       );
+                                    bit_count         => prepare_position_v,
+                                    ser_data          => mac_ser_i.data,
+                                    metadata          => mac_ser_i.llc_metadata,
+                                    frame_params      => frame_params,
+                                    previous_polarity => last_transmitted_bit_polarity,
+                                    sbc               => bs_fd_i.sbc,
+                                    crc               => crc_i.crc
+                                  );
 
       polarity_history              <= polarity_history(polarity_history'high - 1 downto 0) & v_tx_bit.polarity;
       last_transmitted_bit          <= v_tx_bit;
@@ -261,12 +261,12 @@ begin
 
       if (not bit_count_monitored) then
         v_monitored_bit_info := get_bit_info(
-                                                                bit_name               => last_transmitted_bit.bit_name,
-                                                                polarity_history       => polarity_history,
-                                                                tdc_delay              => to_integer(unsigned(pcs_i.tdc_delay)),
-                                                                monitored_bit_polarity => pcs_i.bus_polarity,
-                                                                metadata               => mac_ser_i.llc_metadata
-                                                              );
+                                             bit_name               => last_transmitted_bit.bit_name,
+                                             polarity_history       => polarity_history,
+                                             tdc_delay              => to_integer(unsigned(pcs_i.tdc_delay)),
+                                             monitored_bit_polarity => pcs_i.bus_polarity,
+                                             metadata               => mac_ser_i.llc_metadata
+                                           );
         if (pcs_i.ssp = '0') then
           mac_ser_o.transfer_status <= v_monitored_bit_info.transfer_status;
           monitored_bit_event       <= v_monitored_bit_info.event_type;
@@ -409,7 +409,7 @@ begin
         if (overload_condition) then
           state       <= s_overload_flag;
           v_bit_count := 0;
-        elsif (bit_count = c_error_sequence_width - 1) then
+        elsif (bit_count = c_error_sequence_width - 1 and pcs_i.sp = '1') then
           state       <= s_intermission;
           v_bit_count := 0;
         end if;
