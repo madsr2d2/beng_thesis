@@ -33,16 +33,7 @@ entity can_mac_tx is
 
     -- Fault Confinement Entity interface
     fce_i : in    t_can_mac_fce_if_s2m;
-    fce_o : out   t_can_mac_fce_if_m2s;
-
-    -- Debug interface
-    debug_mac_to_pcs_o  : out t_can_mac_pcs_tx_if_m2s;
-    debug_pcs_to_mac_o  : out t_can_mac_pcs_tx_if_s2m;
-    debug_ack_error_o   : out std_logic;
-    debug_form_error_o  : out std_logic;
-    debug_data_exit_o   : out std_logic;
-    debug_fsm_state_o   : out std_logic_vector(2 downto 0);
-    debug_bit_name_o    : out t_mac_frame_bit_name
+    fce_o : out   t_can_mac_fce_if_m2s
   );
 end entity can_mac_tx;
 
@@ -94,12 +85,7 @@ begin
       crc_i              => crc_to_fsm,
       crc_o              => fsm_to_crc,
       fce_i              => fce_i,
-      fce_o              => fce_o,
-      debug_ack_error_o  => debug_ack_error_o,
-      debug_form_error_o => debug_form_error_o,
-      debug_data_exit_o  => debug_data_exit_o,
-      debug_fsm_state_o  => debug_fsm_state_o,
-      debug_bit_name_o   => debug_bit_name_o
+      fce_o              => fce_o
     );
 
   -- =========================================================================
@@ -123,9 +109,5 @@ begin
       crc_i => fsm_to_crc,
       crc_o => crc_to_fsm
     );
-
-  -- Wire debug ports
-  debug_mac_to_pcs_o <= pcs_o;
-  debug_pcs_to_mac_o <= pcs_i;
 
 end architecture rtl;

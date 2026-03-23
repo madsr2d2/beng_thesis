@@ -219,6 +219,7 @@ begin
 
     variable checker_id : AlertLogIDType;
     variable prev_sbc   : std_logic_vector(c_sbc_field_width - 1 downto 0) := "0000";
+    variable prev_valid : std_logic := '0';
 
   begin
 
@@ -236,17 +237,21 @@ begin
                bs_o.sbc(0) = (bs_o.sbc(3) xor bs_o.sbc(2) xor bs_o.sbc(1)),
                "SBC parity bit incorrect");
 
-      -- SBC must change on stuff bit events, hold otherwise
+      -- SBC must change on the rising edge of valid (stuff bit event), hold otherwise.
+      -- stuff_pending may hold valid high across multiple cycles; only check on the
+      -- first cycle valid goes high.
       if (rst_i = '1' or bs_i.start = '1') then
-        prev_sbc := "0000";
-      elsif (bs_o.valid = '1') then
+        prev_sbc   := "0000";
+        prev_valid := '0';
+      elsif (bs_o.valid = '1' and prev_valid = '0') then
         AffirmIf(checker_id, bs_o.sbc /= prev_sbc,
                  "SBC did not change after stuff bit");
         prev_sbc := bs_o.sbc;
-      else
+      elsif (bs_o.valid = '0') then
         AffirmIf(checker_id, bs_o.sbc = prev_sbc,
                  "SBC changed without stuff bit");
       end if;
+      prev_valid := bs_o.valid;
 
     end loop;
 

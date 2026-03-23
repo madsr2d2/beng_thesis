@@ -62,10 +62,7 @@ entity can_pcs_tx is
     pcs_to_mac_o : out   t_can_mac_pcs_tx_if_s2m;
 
     tx_bus_o : out   std_logic;
-    rx_bus_i : in    std_logic;
-
-    -- Debug port
-    debug_state_o : out   std_logic_vector(1 downto 0)
+    rx_bus_i : in    std_logic
   );
 end entity can_pcs_tx;
 
@@ -252,9 +249,10 @@ begin
             latch_next_bit(c_nom_bit_time);
             emit_sp(c_sp_position);
             if (v_frame_active) then
-              tq_count <= 0;
-              tx_bus_o <= mac_to_pcs_i.polarity;
-              v_state  := c_st_nominal;
+              clk_count <= 0;
+              tq_count  <= 0;
+              tx_bus_o  <= mac_to_pcs_i.polarity;
+              v_state   := c_st_nominal;
             end if;
 
           -----------------------------------------------------------------
@@ -326,8 +324,6 @@ begin
     end if;
 
   end process fsm;
-
-  debug_state_o <= state;
 
   ---------------------------------------------------------------------------
   -- PSL-only shadow signals

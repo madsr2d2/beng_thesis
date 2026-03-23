@@ -101,8 +101,7 @@ begin
       mac_to_pcs_i  => mac_to_pcs_1,
       pcs_to_mac_o  => pcs_to_mac_1,
       tx_bus_o      => tx_bus_1,
-      rx_bus_i      => rx_bus_1,
-      debug_state_o => open
+      rx_bus_i      => rx_bus_1
     );
 
   dut_tdc : entity work.can_pcs_tx
@@ -115,8 +114,7 @@ begin
       mac_to_pcs_i  => mac_to_pcs_2,
       pcs_to_mac_o  => pcs_to_mac_2,
       tx_bus_o      => tx_bus_2,
-      rx_bus_i      => rx_bus_2,
-      debug_state_o => open
+      rx_bus_i      => rx_bus_2
     );
 
   test_runner : process is

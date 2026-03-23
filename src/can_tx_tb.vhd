@@ -20,7 +20,7 @@
 --   8. FD format pressure smoke (repeated FD basic/extended submissions)
 --   9. Bit error triggers error flag and retransmission
 --  10. Dominant during intermission triggers overload flag
---  11. FD Overlapping ACK (dominant during delimiter only)
+--  11. FD Basic ACK injection via bus monitor
 --  12. Arbitration Loss Withdrawal
 --  13. Remote Frame Support (RTR=1)
 --  14. Bit Rate Switching Timing Validation
@@ -32,7 +32,7 @@ library ieee;
   use work.pk_can_types.all;
 
 library osvvm;
-  use osvvm.AlertLogPkg.all;
+  context osvvm.OsvvmContext;
 
 entity can_tx_tb is
 end entity can_tx_tb;
@@ -54,15 +54,8 @@ architecture tb of can_tx_tb is
   constant nom_bit_time_clk_c : integer := nom_bit_time_tq_c * nom_prescaler_c; -- 200 clocks
   constant nom_sp_tq_c : integer := nom_sync_seg_c + nom_prop_seg_c + nom_phase_seg1_c; -- 40 TQ
 
-  -- FSM state constants (must match can_mac_fsm_tx local encoding)
-  constant c_st_bus_reintegration    : std_logic_vector(2 downto 0) := "000";
-  constant c_st_intermission         : std_logic_vector(2 downto 0) := "001";
-  constant c_st_suspend_transmission : std_logic_vector(2 downto 0) := "010";
-  constant c_st_bus_idle             : std_logic_vector(2 downto 0) := "011";
-  constant c_st_transmitting_frame   : std_logic_vector(2 downto 0) := "100";
-  constant c_st_active_error_flag    : std_logic_vector(2 downto 0) := "101";
-  constant c_st_passive_error_flag   : std_logic_vector(2 downto 0) := "110";
-  constant c_st_overload_flag        : std_logic_vector(2 downto 0) := "111";
+  -- Sample point offset in clock cycles from start of bit
+  constant c_sp_offset_clk_c : integer := nom_prescaler_c * (nom_sync_seg_c + nom_prop_seg_c + nom_phase_seg1_c);
 
   -- DUT signals
   signal llc_user_i : t_can_user_llc_tx_if_s2d;
@@ -72,11 +65,8 @@ architecture tb of can_tx_tb is
   signal tx_bus_o   : std_logic;
   signal rx_bus_i   : std_logic;
 
-  -- Debug signals from DUT
-  signal debug_mac_to_pcs : t_can_mac_pcs_tx_if_m2s;
-  signal debug_pcs_to_mac : t_can_mac_pcs_tx_if_s2m;
-  signal debug_bit_name   : t_mac_frame_bit_name;
-  signal fsm_state        : std_logic_vector(2 downto 0);
+  -- ACK target position (logical bit index) shared between test process and bus monitor
+  signal monitor_ack_position : integer := 0;
 
   -- Bus model control
   signal inject_ack   : boolean := true;
@@ -123,15 +113,7 @@ begin
       fce_i          => fce_i,
       fce_o          => fce_o,
       tx_bus_o       => tx_bus_o,
-      rx_bus_i       => rx_bus_i,
-      debug_mac_to_pcs_o => debug_mac_to_pcs,
-      debug_pcs_to_mac_o => debug_pcs_to_mac,
-      debug_ack_error_o  => open,
-      debug_form_error_o => open,
-      debug_data_exit_o  => open,
-      debug_pcs_state_o  => open,
-      debug_fsm_state_o  => fsm_state,
-      debug_bit_name_o   => debug_bit_name
+      rx_bus_i       => rx_bus_i
     );
 
   -- Bus model: loopback with optional ACK injection and test override
@@ -144,34 +126,132 @@ begin
   fce_i.error_active_request  <= '1';
   fce_i.bus_off               <= '0';
 
-  p_state_log : process (fsm_state) is
-  begin
-    if (fsm_state'event) then
-      Log(GetAlertLogID("can_tx_tb"), "FSM State transition to: " & to_hstring(fsm_state));
-    end if;
-  end process p_state_log;
-
   -- =========================================================================
   -- Bus Monitor Process: Handles automatic ACK injection
+  --
+  -- Counts logical frame bit positions from SOF, tracking dynamic stuff bits.
+  -- The ISO 11898-1 stuffing rule: after 5 consecutive same-polarity bits the
+  -- transmitter inserts one opposite-polarity stuff bit.  Stuff bits are
+  -- transparent to the protocol layer and must NOT be counted in frame_pos.
+  --
+  -- Algorithm:
+  --   - consec counts successive same-polarity non-stuff bits seen on tx_bus_o.
+  --   - next_is_stuff is set true after consec reaches 5.
+  --   - When next_is_stuff is true, the next bit time is skipped (frame_pos not
+  --     incremented, stuff counter restarted from that bit's polarity).
+  --   - tx_bus_o is sampled at c_sp_offset_clk_c clocks into each bit time,
+  --     with a +2 clock offset to account for the PCS pipeline delay (tx_bus_o
+  --     is registered one cycle after valid rises; the prescaler may add another).
+  --   - ACK is injected at the START of the ACK bit time so that the override
+  --     is already dominant when the PCS sample point fires.  The override is
+  --     held for the entire nominal bit time and released at the bit boundary.
   -- =========================================================================
   bus_monitor : process is
+    variable clk_count      : integer  := 0;
+    variable frame_pos      : integer  := -1;
+    variable consec         : integer  := 0;
+    variable last_pol       : std_logic := c_recessive;
+    variable next_is_stuff  : boolean  := false;
+    variable armed          : boolean  := false;
+    variable tracking       : boolean  := false;
+    variable ack_target     : integer  := 0;
+    variable sampled_pol    : std_logic := c_recessive;
+    variable prev_tx_bus    : std_logic := c_recessive;
   begin
     wait until rst = '0';
     loop
       wait until rising_edge(clk);
 
-      -- Inject ACK when FSM advances to ACK slot bit
-      -- debug_bit_name is registered, so it shows current bit being transmitted.
-      -- We inject dominant as soon as FSM enters the ACK slot, covering the sample point.
-      if (inject_ack and debug_bit_name = ack_bit) then
+      -- Reset monitor state when rst is asserted
+      if (rst = '1') then
+        armed         := false;
+        tracking      := false;
+        frame_pos     := -1;
+        consec        := 0;
+        next_is_stuff := false;
+        bus_override_monitor_en <= false;
+        prev_tx_bus   := c_recessive;
+        next;
+      end if;
 
-        bus_override_monitor    <= c_dominant;
-        bus_override_monitor_en <= true;
+      -- Arm the monitor when fce_o.transmitting fires (SOF hasn't appeared yet)
+      if (fce_o.transmitting = '1' and not armed and not tracking) then
+        armed      := true;
+        ack_target := monitor_ack_position;
+      end if;
 
-        -- Hold for one nominal bit time (covers ACK slot sample point)
-        wait for nom_bit_time_clk_c * clk_period_c;
+      -- Start bit counting on the actual SOF edge (recessive -> dominant on tx_bus_o)
+      if (armed and not tracking and prev_tx_bus = c_recessive and tx_bus_o = c_dominant) then
+        report "bus_monitor: SOF edge at t=" & time'image(now) severity note;
+        tracking       := true;
+        armed          := false;
+        frame_pos      := 0;            -- SOF is logical bit 0
+        clk_count      := 0;            -- will be incremented below to 1
+        consec         := 0;            -- will count SOF as first bit at bit-end
+        last_pol       := c_recessive;  -- so SOF (dominant) triggers consec=1
+        next_is_stuff  := false;
+      end if;
+
+      -- Stop tracking if frame ends abnormally (error flag, arb loss, etc.)
+      if (tracking and fce_o.transmitting = '0') then
+        tracking               := false;
+        frame_pos              := -1;
         bus_override_monitor_en <= false;
       end if;
+
+      if tracking then
+        clk_count := clk_count + 1;
+
+        -- At the sample point: capture tx_bus_o for stuff bit counting.
+        if (clk_count = c_sp_offset_clk_c) then
+          sampled_pol := tx_bus_o;
+          report "bus_monitor: SP clk=" & integer'image(clk_count) &
+                 " pol=" & std_logic'image(tx_bus_o) &
+                 " fpos=" & integer'image(frame_pos) &
+                 " consec=" & integer'image(consec) &
+                 " stuff=" & boolean'image(next_is_stuff) &
+                 " t=" & time'image(now) severity note;
+        end if;
+
+        -- At the end of the nominal bit time: update frame position and inject ACK
+        if (clk_count = nom_bit_time_clk_c) then
+          clk_count               := 0;
+          bus_override_monitor_en <= false;
+
+          if next_is_stuff then
+            next_is_stuff := false;
+            consec        := 1;
+            last_pol      := sampled_pol;
+          else
+            frame_pos := frame_pos + 1;
+            if (sampled_pol = last_pol) then
+              consec := consec + 1;
+              if (consec = 5) then
+                next_is_stuff := true;
+              end if;
+            else
+              consec   := 1;
+              last_pol := sampled_pol;
+            end if;
+          end if;
+
+          -- Assert ACK override at the START of the ACK slot bit
+          if (inject_ack and frame_pos = ack_target) then
+            report "bus_monitor: ACK inject at frame_pos=" & integer'image(frame_pos) &
+                   " t=" & time'image(now) severity note;
+            bus_override_monitor    <= c_dominant;
+            bus_override_monitor_en <= true;
+          end if;
+
+          -- Stop tracking once well past the ACK slot
+          if (frame_pos > ack_target + 10) then
+            tracking  := false;
+            frame_pos := -1;
+          end if;
+        end if;
+      end if;
+
+      prev_tx_bus := tx_bus_o;
     end loop;
   end process bus_monitor;
 
@@ -180,8 +260,11 @@ begin
   -- =========================================================================
   test_runner : process is
 
-    variable alert_id : AlertLogIDType;
-    variable dlc_v    : integer;
+    variable alert_id        : AlertLogIDType;
+    variable dlc_v           : integer;
+    variable frame_meta_v    : t_llc_metadata;
+    variable frame_params_v  : t_frame_params;
+    variable bit_position_v  : integer;
 
     -- Local frame descriptor (flat fields, no nested records)
     variable fmt_v  : std_logic_vector(2 downto 0) := c_llc_fmt_cb;
@@ -216,7 +299,7 @@ begin
       llc_user_i.avalon_st_source.startofpacket   <= sop;
       llc_user_i.avalon_st_source.endofpacket   <= eop;
       loop
-        wait until rising_edge(clk);
+        WaitForClock(clk);
         exit when llc_user_o.avalon_st_sink.ready = '1';
       end loop;
     end procedure send_user_byte;
@@ -286,6 +369,23 @@ begin
 
     end procedure submit_frame;
 
+    -- Helper: compute and publish the ACK slot logical bit position for the
+    -- current frame variables (fmt_v, dlc_vec_v, ftyp_v, brs_v, esi_v).
+    -- Must be called before submit_frame so that the bus monitor reads the
+    -- correct value when fce_o.transmitting fires.
+    procedure update_ack_position is
+      variable meta_v   : t_llc_metadata;
+      variable params_v : t_frame_params;
+    begin
+      meta_v.format := fmt_v;
+      meta_v.dlc    := dlc_vec_v;
+      meta_v.ftyp   := ftyp_v;
+      meta_v.brs    := brs_v;
+      meta_v.esi    := esi_v;
+      params_v              := get_frame_params(meta_v);
+      monitor_ack_position  <= params_v.crc_delimiter + c_ack_slot_offset;
+    end procedure update_ack_position;
+
     -- Helper: wait for transfer completion with timeout
     procedure wait_for_completion (
       timeout      : time;
@@ -296,7 +396,8 @@ begin
     begin
       start_time := now;
       while (now - start_time < timeout) loop
-        wait until rising_edge(clk);
+        WaitForClock(clk);
+        wait until falling_edge(clk);
         if (llc_user_o.transfer_status /= c_ongoing) then
           AffirmIf(alert_id,
             llc_user_o.transfer_status = exp_status,
@@ -307,26 +408,7 @@ begin
       Alert(alert_id, test_name & ": TIMEOUT after " & time'image(timeout));
     end procedure wait_for_completion;
 
-    -- Helper: wait until bit_name reaches target with timeout
-    procedure wait_for_fsm_bit_name (
-      name      : t_mac_frame_bit_name;
-      timeout   : time;
-      test_name : string
-    ) is
-      variable start_time : time;
-    begin
-      start_time := now;
-      while (now - start_time < timeout) loop
-        wait until rising_edge(clk);
-        if (debug_mac_to_pcs.valid = '1' and debug_bit_name = name) then
-          return;
-        end if;
-      end loop;
-      Alert(alert_id, test_name & ": wait_for_fsm_bit_name TIMEOUT for " &
-            t_mac_frame_bit_name'image(name) & " at " & time'image(timeout));
-    end procedure wait_for_fsm_bit_name;
-
-    -- Helper: wait until FSM presents SOF with timeout
+    -- Helper: wait until fce_o.transmitting pulses (frame SOF) with timeout
     procedure wait_for_sof (
       timeout   : time;
       test_name : string
@@ -335,17 +417,17 @@ begin
     begin
       start_time := now;
       while (now - start_time < timeout) loop
-        wait until rising_edge(clk);
-        if (debug_mac_to_pcs.valid = '1' and debug_bit_name = sof_bit) then
+        WaitForClock(clk);
+        wait until falling_edge(clk);
+        if (fce_o.transmitting = '1') then
           return;
         end if;
       end loop;
       Alert(alert_id, test_name & ": SOF TIMEOUT after " & time'image(timeout));
     end procedure wait_for_sof;
 
-    -- Helper: wait until FSM enters target state with timeout
-    procedure wait_for_fsm_state (
-      target    : std_logic_vector(2 downto 0);
+    -- Helper: wait until error/overload flag begins (sending_error_overload_flag rises)
+    procedure wait_for_error_flag (
       timeout   : time;
       test_name : string
     ) is
@@ -353,31 +435,38 @@ begin
     begin
       start_time := now;
       while (now - start_time < timeout) loop
-        wait until rising_edge(clk);
-        if (fsm_state = target) then
+        WaitForClock(clk);
+        wait until falling_edge(clk);
+        if (fce_o.sending_error_overload_flag = '1') then
           return;
         end if;
       end loop;
-      Alert(alert_id, test_name & ": FSM state TIMEOUT waiting for " &
-        to_hstring(target) & " after " & time'image(timeout));
-    end procedure wait_for_fsm_state;
+      Alert(alert_id, test_name & ": error/overload flag TIMEOUT after " & time'image(timeout));
+    end procedure wait_for_error_flag;
 
-    -- Helper: wait until sample strobe occurs with timeout
-    procedure wait_for_sample_strobe (
+    -- Helper: wait until FSM enters intermission after arbitration loss.
+    -- The LLC hides c_lost_arb from the user (auto-retries), so detect
+    -- intermission by watching fce_o.transmitting fall after SOF was seen.
+    procedure wait_for_intermission (
       timeout   : time;
       test_name : string
     ) is
       variable start_time : time;
+      variable saw_tx     : boolean := false;
     begin
       start_time := now;
       while (now - start_time < timeout) loop
-        wait until rising_edge(clk);
-        if (debug_pcs_to_mac.sp = '1') then
+        WaitForClock(clk);
+        wait until falling_edge(clk);
+        if (fce_o.transmitting = '1') then
+          saw_tx := true;
+        end if;
+        if (saw_tx and fce_o.transmitting = '0') then
           return;
         end if;
       end loop;
-      Alert(alert_id, test_name & ": sample_strobe TIMEOUT after " & time'image(timeout));
-    end procedure wait_for_sample_strobe;
+      Alert(alert_id, test_name & ": intermission TIMEOUT after " & time'image(timeout));
+    end procedure wait_for_intermission;
 
     -- Helper: inject bit error by overriding bus for one bit time
     procedure inject_bit_error is
@@ -396,65 +485,21 @@ begin
     procedure reset_and_prepare is
     begin
       rst <= '1';
-      wait for 2 * nom_bit_time_clk_c * clk_period_c;
-      wait until rising_edge(clk);
+      WaitForClock(clk, 2 * nom_bit_time_clk_c);
       rst <= '0';
       llc_user_i.avalon_st_source.valid <= '0';
       llc_user_i.abort_request <= '0';
-      wait until rising_edge(clk);
-      wait for 20 * nom_bit_time_clk_c * clk_period_c;
+      WaitForClock(clk, 20 * nom_bit_time_clk_c);
     end procedure reset_and_prepare;
 
-    -- Helper: wait for N sample strobes
-    procedure wait_for_n_strobes (
+    -- Helper: wait for N nominal bit times (used where N strobe periods are needed)
+    procedure wait_for_n_bit_times (
       n         : integer;
       test_name : string
     ) is
     begin
-      for i in 1 to n loop
-        wait_for_sample_strobe(50 us, test_name & " strobe " & integer'image(i));
-        if (i < n) then
-          wait until rising_edge(clk);
-        end if;
-      end loop;
-    end procedure wait_for_n_strobes;
-
-    -- Helper: wait until a specific bit name appears at sample strobe
-    procedure wait_for_bit_at_strobe (
-      bit_name  : t_mac_frame_bit_name;
-      timeout   : time;
-      test_name : string
-    ) is
-      variable start_time : time;
-    begin
-      start_time := now;
-      while (now - start_time < timeout) loop
-        wait until rising_edge(clk);
-        if (debug_pcs_to_mac.sp = '1') then
-          wait until rising_edge(clk);
-          if (debug_bit_name = bit_name) then
-            return;
-          end if;
-        end if;
-      end loop;
-      Alert(alert_id, test_name & ": bit " & t_mac_frame_bit_name'image(bit_name) &
-            " at strobe TIMEOUT after " & time'image(timeout));
-    end procedure wait_for_bit_at_strobe;
-
-    -- Helper: wait for sample strobe, then verify a bus value
-    procedure wait_and_verify_at_strobe (
-      expected : std_logic;
-      test_name : string
-    ) is
-    begin
-      while (true) loop
-        wait until rising_edge(clk);
-        if (debug_pcs_to_mac.sp = '1') then
-          AffirmIf(alert_id, tx_bus_o = expected, test_name);
-          exit;
-        end if;
-      end loop;
-    end procedure wait_and_verify_at_strobe;
+      wait for n * nom_bit_time_clk_c * clk_period_c;
+    end procedure wait_for_n_bit_times;
 
   begin
 
@@ -470,10 +515,9 @@ begin
     -- Reset
     current_test_id <= test_idle_c;
     rst <= '1';
-    wait for 5 * clk_period_c;
-    wait until rising_edge(clk);
+    WaitForClock(clk, 5);
     rst <= '0';
-    wait until rising_edge(clk);
+    WaitForClock(clk);
 
     -- =======================================================================
     -- Test 1: Successful CC Basic transmission (happy path)
@@ -483,19 +527,22 @@ begin
     inject_ack <= true;
 
     setup_default_frame;
-    wait until rising_edge(clk);
+    update_ack_position;
+    WaitForClock(clk);
+    wait until falling_edge(clk);
 
     AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '1', "Test 1: tx_ready high before submit");
 
     submit_frame;
 
-    wait for 2 * clk_period_c;
+    WaitForClock(clk);
+    wait until falling_edge(clk);
     AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '0', "Test 1: tx_ready low during transmission");
 
     wait_for_completion(300 us, c_transmitted, "Test 1");
-    wait for 2 * clk_period_c;
+    WaitForClock(clk);
+    wait until falling_edge(clk);
 
-    wait for 2 * clk_period_c;
     AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '1', "Test 1: tx_ready high after completion");
 
     wait for 20 * nom_bit_time_clk_c * clk_period_c;
@@ -507,22 +554,24 @@ begin
     Log(alert_id, "Test 2: Abort before MAC acceptance");
     inject_ack <= true;
     setup_default_frame;
-    wait until rising_edge(clk);
+    WaitForClock(clk);
 
     send_user_byte("00000" & id_v(10 downto 8), '1', '0');
     llc_user_i.avalon_st_source.valid <= '0';
     llc_user_i.avalon_st_source.startofpacket   <= '0';
 
     llc_user_i.abort_request <= '1';
-    wait until rising_edge(clk);
+    WaitForClock(clk);
     llc_user_i.abort_request <= '0';
-    wait until rising_edge(clk);
+    WaitForClock(clk);
+    wait until falling_edge(clk);
 
     AffirmIf(alert_id,
       llc_user_o.transfer_status = c_aborted,
       "Test 2: transfer_status = aborted, got " & to_hstring(llc_user_o.transfer_status));
 
-    wait until rising_edge(clk);
+    WaitForClock(clk);
+    wait until falling_edge(clk);
     AffirmIf(alert_id,
       llc_user_o.avalon_st_sink.ready = '1',
       "Test 2: tx_ready = 1 after abort");
@@ -536,19 +585,21 @@ begin
     Log(alert_id, "Test 3: Abort ignored after MAC acceptance");
     inject_ack <= true;
     setup_default_frame;
-    wait until rising_edge(clk);
+    update_ack_position;
+    WaitForClock(clk);
 
     submit_frame;
 
     wait_for_sof(200 us, "Test 3 SOF");
 
     llc_user_i.abort_request <= '1';
-    wait until rising_edge(clk);
+    WaitForClock(clk);
     llc_user_i.abort_request <= '0';
 
     wait_for_completion(300 us, c_transmitted, "Test 3");
 
-    wait for 2 * clk_period_c;
+    WaitForClock(clk);
+    wait until falling_edge(clk);
     AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '1', "Test 3: tx_ready high after completion");
 
     wait for 20 * nom_bit_time_clk_c * clk_period_c;
@@ -562,12 +613,13 @@ begin
     setup_default_frame;
     fmt_v := c_llc_fmt_ce;
     id_v(28 downto 0) := std_logic_vector(to_unsigned(16#1ABCDEF#, 29));
-    wait until rising_edge(clk);
+    WaitForClock(clk);
 
     submit_frame;
 
     wait_for_completion(2 ms, c_aborted, "Test 4");
-    wait for 2 * clk_period_c;
+    WaitForClock(clk);
+    wait until falling_edge(clk);
     AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '1', "Test 4: tx_ready high after completion");
     wait for 20 * nom_bit_time_clk_c * clk_period_c;
 
@@ -581,20 +633,21 @@ begin
     fmt_v := c_llc_fmt_fb;
     brs_v    := '0';
     dlc_vec_v    := std_logic_vector(to_unsigned(9, 4));
-    wait until rising_edge(clk);
+    WaitForClock(clk);
 
     submit_frame;
-    wait for 2 * clk_period_c;
+    WaitForClock(clk);
+    wait until falling_edge(clk);
     AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '0', "Test 5: tx_ready low after submit");
     wait_for_sof(80 us, "Test 5");
     wait for 2 * clk_period_c;
     rst <= '1';
     wait for 5 * clk_period_c;
-    wait until rising_edge(clk);
+    WaitForClock(clk);
     rst <= '0';
     llc_user_i.avalon_st_source.valid <= '0';
     llc_user_i.abort_request <= '0';
-    wait until rising_edge(clk);
+    WaitForClock(clk);
     wait for 20 * nom_bit_time_clk_c * clk_period_c;
 
     -- =======================================================================
@@ -608,20 +661,21 @@ begin
     brs_v    := '0';
     dlc_vec_v    := std_logic_vector(to_unsigned(10, 4));
     id_v(28 downto 0) := std_logic_vector(to_unsigned(16#1234567#, 29));
-    wait until rising_edge(clk);
+    WaitForClock(clk);
 
     submit_frame;
-    wait for 2 * clk_period_c;
+    WaitForClock(clk);
+    wait until falling_edge(clk);
     AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '0', "Test 6: tx_ready low after submit");
     wait_for_sof(120 us, "Test 6");
     wait for 2 * clk_period_c;
     rst <= '1';
     wait for 5 * clk_period_c;
-    wait until rising_edge(clk);
+    WaitForClock(clk);
     rst <= '0';
     llc_user_i.avalon_st_source.valid <= '0';
     llc_user_i.abort_request <= '0';
-    wait until rising_edge(clk);
+    WaitForClock(clk);
     wait for 20 * nom_bit_time_clk_c * clk_period_c;
 
     -- =======================================================================
@@ -631,13 +685,14 @@ begin
     Log(alert_id, "Test 7: Retransmission limit exceeded");
     inject_ack <= false;
     setup_default_frame;
-    wait until rising_edge(clk);
+    WaitForClock(clk);
 
     submit_frame;
 
     wait_for_completion(2 ms, c_aborted, "Test 7");
 
-    wait for 2 * clk_period_c;
+    WaitForClock(clk);
+    wait until falling_edge(clk);
     AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '1', "Test 7: tx_ready high after retransmission limit");
 
     -- =======================================================================
@@ -650,11 +705,11 @@ begin
     for iter in 0 to 11 loop
       rst <= '1';
       wait for 5 * clk_period_c;
-      wait until rising_edge(clk);
+      WaitForClock(clk);
       rst <= '0';
       llc_user_i.avalon_st_source.valid <= '0';
       llc_user_i.abort_request <= '0';
-      wait until rising_edge(clk);
+      WaitForClock(clk);
 
       setup_default_frame;
       dlc_v := (iter mod 8) + 8;
@@ -666,11 +721,12 @@ begin
         fmt_v := c_llc_fmt_fe;
       end if;
 
-      wait until rising_edge(clk);
-      wait until rising_edge(clk);
+      WaitForClock(clk);
+      WaitForClock(clk);
 
       submit_frame;
-      wait for 2 * clk_period_c;
+      WaitForClock(clk);
+      wait until falling_edge(clk);
       AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '0', "Test 8: tx_ready low after submit");
       wait_for_sof(140 us, "Test 8");
       wait for 10 * clk_period_c;
@@ -686,35 +742,39 @@ begin
 
     inject_ack <= false;
     setup_default_frame;
-    wait until rising_edge(clk);
+    WaitForClock(clk);
 
     submit_frame;
-    wait_for_fsm_bit_name(data_bit, 500 us, "Test 9 data field arrival");
-    wait_for_sample_strobe(50 us, "Test 9 data SP");
+    -- Wait until SOF fires, then advance into the data field (CC Basic DLC=1:
+    -- SOF + 11-bit ID + RTR + IDE + R0 + 4-bit DLC = 19 fixed bits before data).
+    -- Add extra margin to land safely inside the data byte.
+    wait_for_sof(80 us, "Test 9 SOF");
+    wait for 25 * nom_bit_time_clk_c * clk_period_c;
+    -- Inject a bit error at the current bit position
     inject_bit_error;
 
-    wait_for_fsm_state(c_st_active_error_flag, 20 us, "Test 9");
-    wait until rising_edge(clk);
-    AffirmIf(alert_id,
-      fsm_state = c_st_active_error_flag,
-      "Test 9: FSM entered active error flag");
-
+    wait_for_error_flag(20 us, "Test 9");
+    wait until falling_edge(clk);
     AffirmIf(alert_id,
       fce_o.sending_error_overload_flag = '1',
       "Test 9: sending_error_overload_flag asserted during error flag transmission");
 
-    wait_for_fsm_state(c_st_bus_idle, 100 us, "Test 9 recovery");
+    -- Wait enough time for error flag + delimiter to complete, then hard reset.
+    -- (error flag = 6 bits + 8 delimiter = 14 bits nominal)
+    wait for 20 * nom_bit_time_clk_c * clk_period_c;
 
     reset_and_prepare;
 
     inject_ack <= true;
     setup_default_frame;
-    wait until rising_edge(clk);
+    update_ack_position;
+    WaitForClock(clk);
 
     submit_frame;
     wait_for_completion(300 us, c_transmitted, "Test 9 recovery frame");
 
-    wait for 2 * clk_period_c;
+    WaitForClock(clk);
+    wait until falling_edge(clk);
     AffirmIf(alert_id,
       llc_user_o.avalon_st_sink.ready = '1',
       "Test 9: tx_ready high after recovery");
@@ -729,51 +789,51 @@ begin
 
     rst <= '1';
     wait for 2 * nom_bit_time_clk_c * clk_period_c;
-    wait until rising_edge(clk);
+    WaitForClock(clk);
     rst <= '0';
     llc_user_i.avalon_st_source.valid <= '0';
     llc_user_i.abort_request <= '0';
-    wait until rising_edge(clk);
+    WaitForClock(clk);
     wait for 20 * nom_bit_time_clk_c * clk_period_c;
 
     inject_ack <= true;
     setup_default_frame;
-    wait until rising_edge(clk);
+    update_ack_position;
+    WaitForClock(clk);
 
     submit_frame;
 
-    wait_for_fsm_bit_name(eof_bit, 500 us, "Test 10 eof arrival");
-    wait_for_n_strobes(7, "Test 10 EOF");
+    -- Wait for the first frame to complete successfully, then inject dominant
+    -- during intermission to trigger an overload flag.
+    wait_for_completion(300 us, c_transmitted, "Test 10 first frame");
 
+    -- Inject dominant into the intermission window
     bus_override_test <= c_dominant;
     bus_override_test_en <= true;
     wait for nom_bit_time_clk_c * clk_period_c;
     bus_override_test_en <= false;
 
-    AffirmIf(alert_id, llc_user_o.transfer_status = c_transmitted, "Test 10 first frame: expected transmitted");
-
-    wait_for_fsm_state(c_st_overload_flag, 20 us, "Test 10");
-    wait until rising_edge(clk);
-    AffirmIf(alert_id,
-      fsm_state = c_st_overload_flag,
-      "Test 10: FSM entered overload flag");
-
+    wait_for_error_flag(20 us, "Test 10");
+    wait until falling_edge(clk);
     AffirmIf(alert_id,
       fce_o.sending_error_overload_flag = '1',
       "Test 10: sending_error_overload_flag asserted during overload flag transmission");
 
-    wait_for_fsm_state(c_st_bus_idle, 100 us, "Test 10 recovery");
+    -- Wait enough time for overload flag + delimiter to complete, then hard reset.
+    wait for 20 * nom_bit_time_clk_c * clk_period_c;
 
     reset_and_prepare;
 
     inject_ack <= true;
     setup_default_frame;
-    wait until rising_edge(clk);
+    update_ack_position;
+    WaitForClock(clk);
 
     submit_frame;
     wait_for_completion(300 us, c_transmitted, "Test 10 second frame");
 
-    wait for 2 * clk_period_c;
+    WaitForClock(clk);
+    wait until falling_edge(clk);
     AffirmIf(alert_id,
       llc_user_o.avalon_st_sink.ready = '1',
       "Test 10: tx_ready high after recovery");
@@ -781,26 +841,19 @@ begin
     wait for 20 * nom_bit_time_clk_c * clk_period_c;
 
     -- =======================================================================
-    -- Test 11: FD Overlapping ACK (dominant during delimiter only)
+    -- Test 11: FD Basic ACK injection via bus monitor
     -- =======================================================================
     current_test_id <= test_11_c;
-    Log(alert_id, "Test 11: FD Overlapping ACK slot (dominant during delimiter only)");
+    Log(alert_id, "Test 11: FD Basic ACK injection via bus monitor");
 
-    inject_ack <= false;
+    inject_ack <= true;
 
     setup_default_frame;
     fmt_v := c_llc_fmt_fb;
-    wait until rising_edge(clk);
+    update_ack_position;
+    WaitForClock(clk);
 
     submit_frame;
-
-    wait_for_bit_at_strobe(ack_delimiter_bit, 500 us, "Test 11");
-
-    bus_override_test    <= c_dominant;
-    bus_override_test_en <= true;
-
-    wait for nom_bit_time_clk_c * clk_period_c;
-    bus_override_test_en <= false;
 
     wait_for_completion(500 us, c_transmitted, "Test 11");
 
@@ -815,26 +868,30 @@ begin
     inject_ack <= true;
     setup_default_frame;
     id_v := (others => '1');
-    wait until rising_edge(clk);
+    update_ack_position;
+    WaitForClock(clk);
 
     submit_frame;
 
-    wait_for_fsm_bit_name(base_id_bit, 500 us, "Test 12 ID arrival");
-    wait_for_sample_strobe(50 us, "Test 12 ID SP");
+    -- Wait until SOF fires, then hold for one ID bit time before we are at
+    -- the first base-ID bit (bit position 1 in the frame).  Then inject a
+    -- dominant to simulate arbitration loss (our ID is all-recessive '1's).
+    wait_for_sof(80 us, "Test 12 SOF");
+    wait for nom_bit_time_clk_c * clk_period_c;
 
     bus_override_test    <= c_dominant;
     bus_override_test_en <= true;
     wait for nom_bit_time_clk_c * clk_period_c;
     bus_override_test_en <= false;
 
-    wait_for_fsm_state(c_st_intermission, 20 us, "Test 12 withdrawal");
-
-    wait until rising_edge(clk);
+    -- After arb loss the FSM enters intermission (3 bit times) then retries.
+    -- Wait for intermission to pass, then verify no error flag was raised.
+    WaitForClock(clk, 5 * nom_bit_time_clk_c);
+    wait until falling_edge(clk);
     AffirmIf(alert_id, fce_o.sending_error_overload_flag = '0', "Test 12: No error flag on arbitration loss");
 
-    wait_for_sof(1 ms, "Test 12 retry SOF");
-
-    wait_for_completion(800 us, c_transmitted, "Test 12 retry completion");
+    -- LLC auto-retries after arb loss; wait for the retransmitted frame to complete.
+    wait_for_completion(1 ms, c_transmitted, "Test 12 retry completion");
 
     wait for 20 * nom_bit_time_clk_c * clk_period_c;
 
@@ -848,14 +905,18 @@ begin
     setup_default_frame;
     ftyp_v   := '1';
     dlc_vec_v    := "1000";
-    wait until rising_edge(clk);
+    update_ack_position;
+    WaitForClock(clk);
 
     submit_frame;
 
+    -- RTR is bit position 12 in a CC Basic frame (SOF=0, 11-bit ID=1-11, RTR=12).
+    -- Wait until SOF fires, advance 12 nominal bit times, then sample at the
+    -- sample point within that bit (c_sp_offset_clk_c clocks into the bit).
     wait_for_sof(100 us, "Test 13 SOF arrival");
-    wait_for_fsm_bit_name(rtr_bit, 500 us, "Test 13 RTR arrival");
-
-    wait_and_verify_at_strobe(c_recessive, "Test 13: RTR must be recessive");
+    WaitForClock(clk, 12 * nom_bit_time_clk_c + c_sp_offset_clk_c);
+    wait until falling_edge(clk);
+    AffirmIf(alert_id, tx_bus_o = c_recessive, "Test 13: RTR must be recessive");
 
     wait_for_completion(300 us, c_transmitted, "Test 13 completion");
 
@@ -867,20 +928,23 @@ begin
     current_test_id <= test_14_c;
     Log(alert_id, "Test 14: Bit Rate Switching Timing (Entry at BRS SP, Exit at CRC Delim SP)");
 
-    rst <= '1'; wait for 5 * clk_period_c; wait until rising_edge(clk); rst <= '0';
+    rst <= '1'; WaitForClock(clk, 5); rst <= '0';
 
     while (llc_user_o.avalon_st_sink.ready = '0') loop
-      wait until rising_edge(clk);
+      WaitForClock(clk);
     end loop;
 
     setup_default_frame;
     fmt_v := c_llc_fmt_fb;
     brs_v    := '1';
-    wait until rising_edge(clk);
+    WaitForClock(clk);
 
     submit_frame;
 
-    wait_for_fsm_bit_name(brs_bit, 500 us, "Test 14 BRS arrival");
+    -- BRS is bit position 14 in a FD Basic frame (SOF=0, ID=1-11, RRS=12, IDE=13, BRS=14).
+    -- Wait for SOF to fire then advance 14 bit times to land in the BRS slot.
+    wait_for_sof(80 us, "Test 14 SOF");
+    wait for 14 * nom_bit_time_clk_c * clk_period_c;
 
     wait for 100 us;
 

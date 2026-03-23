@@ -53,13 +53,6 @@ architecture tb of can_mac_fsm_tx_tb is
   signal fce_i     : t_can_mac_fce_if_s2m        := c_fce_to_mac_if_reset;
   signal fce_o     : t_can_mac_fce_if_m2s;
 
-  -- Debug ports (connected but not used in verification)
-  signal debug_ack_error  : std_logic;
-  signal debug_form_error : std_logic;
-  signal debug_data_exit  : std_logic;
-  signal debug_fsm_state  : std_logic_vector(2 downto 0);
-  signal debug_bit_name   : t_mac_frame_bit_name;
-
   ---------------------------------------------------------------------------
   -- Stand-in control signals
   ---------------------------------------------------------------------------
@@ -104,12 +97,7 @@ begin
       crc_i              => crc_i,
       crc_o              => crc_o,
       fce_i              => fce_i,
-      fce_o              => fce_o,
-      debug_ack_error_o  => debug_ack_error,
-      debug_form_error_o => debug_form_error,
-      debug_data_exit_o  => debug_data_exit,
-      debug_fsm_state_o  => debug_fsm_state,
-      debug_bit_name_o   => debug_bit_name
+      fce_o              => fce_o
     );
 
   ---------------------------------------------------------------------------

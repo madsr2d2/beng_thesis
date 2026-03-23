@@ -45,17 +45,7 @@ entity can_tx is
 
     -- Physical bus interface
     tx_bus_o : out   std_logic;
-    rx_bus_i : in    std_logic;
-
-    -- Debug interface
-    debug_mac_to_pcs_o : out t_can_mac_pcs_tx_if_m2s;
-    debug_pcs_to_mac_o : out t_can_mac_pcs_tx_if_s2m;
-    debug_ack_error_o  : out std_logic;
-    debug_form_error_o : out std_logic;
-    debug_data_exit_o  : out std_logic;
-    debug_pcs_state_o  : out std_logic_vector(1 downto 0);
-    debug_fsm_state_o  : out std_logic_vector(2 downto 0);
-    debug_bit_name_o   : out t_mac_frame_bit_name
+    rx_bus_i : in    std_logic
   );
 end entity can_tx;
 
@@ -99,14 +89,7 @@ begin
       pcs_i              => pcs_to_mac,
       pcs_o              => mac_to_pcs,
       fce_i              => fce_i,
-      fce_o              => fce_o,
-      debug_mac_to_pcs_o => open,
-      debug_pcs_to_mac_o => open,
-      debug_ack_error_o  => debug_ack_error_o,
-      debug_form_error_o => debug_form_error_o,
-      debug_data_exit_o  => debug_data_exit_o,
-      debug_fsm_state_o  => debug_fsm_state_o,
-      debug_bit_name_o   => debug_bit_name_o
+      fce_o              => fce_o
     );
 
   -- =========================================================================
@@ -132,12 +115,7 @@ begin
       mac_to_pcs_i  => mac_to_pcs,
       pcs_to_mac_o  => pcs_to_mac,
       tx_bus_o      => tx_bus_o,
-      rx_bus_i      => rx_bus_i,
-      debug_state_o => debug_pcs_state_o
+      rx_bus_i      => rx_bus_i
     );
-
-  -- Wire debug ports
-  debug_mac_to_pcs_o <= mac_to_pcs;
-  debug_pcs_to_mac_o <= pcs_to_mac;
 
 end architecture rtl;
