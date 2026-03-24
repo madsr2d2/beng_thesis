@@ -45,6 +45,7 @@ architecture tb of can_mac_bs_tx_tb is
 
   signal clk_i      : std_logic;
   signal rst_i      : std_logic := '1';
+  signal frame_rst  : std_logic := '0';
   signal bs_i       : t_can_mac_fsm_bs_tx_if_m2s;
   signal bs_o       : t_can_mac_fsm_bs_tx_if_s2m;
   signal cov_input  : CoverageIdType;
@@ -59,7 +60,7 @@ begin
   u_dut : entity work.can_mac_bs_tx
     port map (
       clk_i => clk_i,
-      rst_i => rst_i,
+      rst_i => rst_i or frame_rst,
       bs_i  => bs_i,
       bs_o  => bs_o
     );
@@ -95,12 +96,12 @@ begin
     -- Random stimulus with stuff bit feedback and occasional start pulses
     for i in 0 to c_num_random loop
 
-      -- Occasional start pulse
+      -- Occasional frame reset (simulates FSM resetting bit stuffer at SOF)
       if (rnd.DistBool((false => 95, true => 5))) then
-        bs_i.start <= '1';
+        frame_rst  <= '1';
         bs_i.valid <= '0';
         WaitForClock(clk_i);
-        bs_i.start <= '0';
+        frame_rst  <= '0';
         WaitForClock(clk_i);
       end if;
 
@@ -142,14 +143,14 @@ begin
 
       WaitForClock(clk_i);
 
-      if (rst_i = '1' or bs_i.start = '1') then
+      if (rst_i = '1' or frame_rst = '1') then
         WaitForClock(clk_i);
         AffirmIf(checker_id, bs_o.valid = '0',
-                 "valid not cleared after reset/start");
+                 "valid not cleared after reset");
         AffirmIf(checker_id, bs_o.data = c_recessive,
-                 "data not recessive after reset/start");
+                 "data not recessive after reset");
         AffirmIf(checker_id, bs_o.sbc = "0000",
-                 "sbc not cleared after reset/start");
+                 "sbc not cleared after reset");
       end if;
 
     end loop;
@@ -191,7 +192,7 @@ begin
       end if;
 
       -- Track consecutive same-polarity bits
-      if (rst_i = '1' or bs_i.start = '1') then
+      if (rst_i = '1' or frame_rst = '1') then
         consecutive      := 0;
         tracked_polarity := c_recessive;
       elsif (bs_i.valid = '1') then
@@ -240,7 +241,7 @@ begin
       -- SBC must change on the rising edge of valid (stuff bit event), hold otherwise.
       -- stuff_pending may hold valid high across multiple cycles; only check on the
       -- first cycle valid goes high.
-      if (rst_i = '1' or bs_i.start = '1') then
+      if (rst_i = '1' or frame_rst = '1') then
         prev_sbc   := "0000";
         prev_valid := '0';
       elsif (bs_o.valid = '1' and prev_valid = '0') then
@@ -271,7 +272,7 @@ begin
     AddBins(cov_input, "idle",             50,  GenBin(c_bin_idle));
     AddBins(cov_input, "valid_dominant",   100, GenBin(c_bin_valid_dominant));
     AddBins(cov_input, "valid_recessive",  100, GenBin(c_bin_valid_recessive));
-    AddBins(cov_input, "start",            10,  GenBin(c_bin_start));
+    AddBins(cov_input, "frame_rst",         10,  GenBin(c_bin_start));
 
     -- Output bins
     AddBins(cov_output, "no_stuff_bit",     100, GenBin(c_bin_no_stuff));
@@ -285,7 +286,7 @@ begin
       WaitForClock(clk_i);
 
       -- Sample inputs
-      if (bs_i.start = '1') then
+      if (frame_rst = '1') then
         ICover(cov_input, c_bin_start);
       elsif (bs_i.valid = '1' and bs_i.data = c_dominant) then
         ICover(cov_input, c_bin_valid_dominant);

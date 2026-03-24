@@ -6,11 +6,19 @@
 -- Author     : Mads Richardt
 -- Standard   : VHDL-2008
 --------------------------------------------------------------------------------
--- Description: Black-box integration testbench for can_mac_tx. Instantiates the
---              full MAC wrapper (ser + fsm + bs + crc) with a simple PCS model
---              (free-running SP counter + zero-delay loopback) and drives the
---              Avalon-ST interface directly. A bus monitor tracks stuff bits to
---              maintain the logical frame position for ACK injection.
+-- Description: Black-box integration testbench for can_mac_tx.
+--              Each test scenario runs c_num_random iterations with randomized
+--              frame parameters (format, DLC, ID) drawn from the full CAN/FD
+--              frame space.
+--
+--              Architecture (5 processes + concurrent bus mux):
+--                p_pcs_model   - PCS model (SP strobe generation)
+--                p_stuff_model - Stuff-bit tracking (frame_pos, consec, next_is_stuff)
+--                p_monitor     - DUT event latching (mon_rec)
+--                p_stim        - Test sequencer with inline LLC driving
+--                p_timeout     - Watchdog
+--                bus_polarity  - Concurrent signal assignment for bus loopback
+--                                with override (ACK inject, bit error, force dominant)
 --------------------------------------------------------------------------------
 
 library ieee;
@@ -27,9 +35,14 @@ end entity can_mac_tx_tb;
 
 architecture tb of can_mac_tx_tb is
 
-  -- Constants
-  constant c_clk_period           : time    := 10 ns;
+  constant c_clk_period            : time    := 10 ns;
   constant c_pcs_model_clks_per_sp : integer := 10;
+  constant c_bus_loopback_delay    : time    := 20 ns;  -- must be < SP period (100 ns)
+  constant c_num_random            : integer := 100;
+  constant c_idle_recovery_sp      : integer := c_intermission_width
+                                              + c_bus_idle_condition_width + 5;
+  constant c_error_recovery_sp     : integer := c_error_sequence_width
+                                              + c_idle_recovery_sp;
 
   -- DUT ports
   signal clk   : std_logic;
@@ -42,20 +55,78 @@ architecture tb of can_mac_tx_tb is
   signal fce_o : t_can_mac_fce_if_m2s;
 
   -- PCS model
-  signal sp_strobe : std_logic := '0';
+  signal sp_count           : integer range 0 to c_pcs_model_clks_per_sp - 1 := 0;
 
-  -- FCE model
-  signal fce_is_error_passive : boolean := false;
-
-  -- Bus monitor (observation only)
-  signal monitor_frame_pos  : integer := -1;
-  signal monitor_stuff_stop : integer := c_max_mac_frame_length;
+  -- Stuff-bit model
+  signal stuff_stop : integer := c_max_mac_frame_length;
 
   -- Bus override
   type t_override_kind is (idle, ack_inject, bit_error, force_dominant);
-  signal override_kind   : t_override_kind := idle;
-  signal override_pos    : integer         := 0;
-  signal override_active : boolean         := false;
+  signal override_kind  : t_override_kind := idle;
+  signal override_pos   : integer         := 0;
+  signal frame_pos  : integer         := -1;
+  signal consec     : integer         := 0;
+  signal prev_pol   : std_logic       := c_recessive;
+  signal next_is_stuff  : boolean         := false;
+
+  -- Monitor edge-detection
+  signal prev_transmitting  : std_logic := '0';
+  signal prev_error_flag    : std_logic := '0';
+  signal prev_fce_error     : std_logic := '0';
+  signal prev_start_tdc     : std_logic := '0';
+  signal prev_use_data_rate : std_logic := '0';
+
+  -- Monitor transaction record
+  type t_mon_rec is record
+    frame_started       : boolean;
+    transfer_done       : boolean;
+    transfer_status     : std_logic_vector(2 downto 0);
+    error_flag          : boolean;
+    error_flag_pol      : std_logic;
+    error_flag_pos      : integer;
+    err_delim_late      : boolean;
+    err_delim_late_pol  : std_logic;
+    primary_error       : boolean;
+    primary_error_pol   : std_logic;
+    fce_error           : boolean;
+    fce_error_pol       : std_logic;
+    fce_error_pos       : integer;
+    successful_transfer : boolean;
+    start_tdc           : boolean;
+    start_tdc_pos       : integer;
+    use_data_rate       : boolean;
+    use_data_rate_pos   : integer;
+  end record t_mon_rec;
+
+  constant c_mon_rec_reset : t_mon_rec := (
+    frame_started       => false,
+    transfer_done       => false,
+    transfer_status     => c_ongoing,
+    error_flag          => false,
+    error_flag_pol      => c_recessive,
+    error_flag_pos      => 0,
+    err_delim_late      => false,
+    err_delim_late_pol  => c_recessive,
+    primary_error       => false,
+    primary_error_pol   => c_recessive,
+    fce_error           => false,
+    fce_error_pol       => c_recessive,
+    fce_error_pos       => 0,
+    successful_transfer => false,
+    start_tdc           => false,
+    start_tdc_pos       => 0,
+    use_data_rate       => false,
+    use_data_rate_pos   => 0
+  );
+
+  signal mon_rec   : t_mon_rec := c_mon_rec_reset;
+  signal mon_clear : boolean   := false;
+
+  -- Bus content verification
+  type t_data_array is array (0 to c_max_data_bytes - 1) of std_logic_vector(7 downto 0);
+  type t_bus_array  is array (0 to c_max_mac_frame_length - 1) of std_logic;
+  signal captured_bus : t_bus_array := (others => c_recessive);
+  signal capture_en     : boolean     := false;
 
 begin
 
@@ -74,171 +145,229 @@ begin
       fce_o => fce_o
     );
 
-  -- PCS model: free-running SP counter + bus loopback with priority overrides
-  p_pcs_sp_counter : process (clk) is
-
-    variable sp_count : integer range 0 to c_pcs_model_clks_per_sp - 1 := 0;
-
+  ---------------------------------------------------------------------------
+  -- PCS
+  ---------------------------------------------------------------------------
+  p_pcs_model : process (clk) is
   begin
 
     if rising_edge(clk) then
-      sp_strobe <= '0';
+      pcs_i.sp  <= '0';
+      pcs_i.ssp <= '0';
+      pcs_i.tdc_delay <= (others => '0');
+
       if (rst = '1') then
-        sp_count := 0;
+        sp_count <= 0;
       elsif (sp_count = c_pcs_model_clks_per_sp - 1) then
-        sp_strobe <= '1';
-        sp_count  := 0;
+        pcs_i.sp <= '1';
+        sp_count <= 0;
       else
-        sp_count := sp_count + 1;
+        sp_count <= sp_count + 1;
       end if;
+
     end if;
 
-  end process p_pcs_sp_counter;
+  end process p_pcs_model;
 
-  pcs_i.sp           <= sp_strobe;
-  pcs_i.ssp          <= '0';
-  pcs_i.tdc_delay    <= (others => '0');
-  pcs_i.bus_polarity <= (not pcs_o.polarity) when (override_active and override_kind = bit_error)
-                        else c_dominant when override_active
-                        else pcs_o.polarity;
-
-  fce_i.error_passive_request <= '1' when fce_is_error_passive else '0';
-  fce_i.error_active_request  <= '0' when fce_is_error_passive else '1';
-  fce_i.bus_off               <= '0';
-
-  -- Bus monitor: tracks stuff bits, publishes logical frame position
-  p_bus_monitor : process is
-
-    variable consec        : integer   := 0;
-    variable frame_pos     : integer   := -1;
-    variable prev_polarity : std_logic := c_recessive;
-
+  ---------------------------------------------------------------------------
+  -- Stuff-bit tracking model
+  ---------------------------------------------------------------------------
+  p_stuff_model : process (clk) is
   begin
 
-    loop
-
-    WaitForClock(clk);
-
-    if (fce_o.transmitting = '0') then
-      frame_pos         := -1;
-      consec            := 0;
-      monitor_frame_pos <= -1;
-    end if;
-
-    if (fce_o.transmitting = '1' and sp_strobe = '1') then
-      -- Stuff bit: skip frame_pos so logical position stays aligned
-      if (consec >= c_stuff_width and frame_pos < monitor_stuff_stop) then
-        consec := 1;
-      else
-        frame_pos := frame_pos + 1;
-        -- SOF is not fed to the stuffer; begin consec tracking from pos 1
-        if (frame_pos > 0) then
-          if (pcs_o.polarity = prev_polarity) then
-            consec := consec + 1;
+    if rising_edge(clk) then
+      if (fce_o.transmitting = '0') then
+        frame_pos     <= -1;  -- becomes 0 (SOF) on first SP
+        consec        <= 0;
+        prev_pol      <= c_recessive;
+        next_is_stuff <= false;
+      elsif (pcs_i.sp = '1') then
+        if (next_is_stuff) then
+          consec        <= 1;
+          next_is_stuff <= false;
+        else
+          frame_pos <= frame_pos + 1;
+          if (capture_en) then
+            captured_bus(frame_pos + 1) <= pcs_o.polarity;
+          end if;
+          if (pcs_o.polarity = prev_pol) then
+            consec <= consec + 1;
+            if (consec = c_stuff_width - 1 and frame_pos + 1 < stuff_stop) then
+              next_is_stuff <= true;
+            end if;
           else
-            consec := 1;
+            consec        <= 1;
+            next_is_stuff <= false;
           end if;
         end if;
+        prev_pol <= pcs_o.polarity;
       end if;
-
-      monitor_frame_pos <= frame_pos;
-      prev_polarity     := pcs_o.polarity;
     end if;
 
-    end loop;
+  end process p_stuff_model;
 
-  end process p_bus_monitor;
+  ---------------------------------------------------------------------------
+  -- Bus model (loopback with override mux)
+  ---------------------------------------------------------------------------
+  p_bus_model : process (all) is
+  begin
 
-  -- Bus override: drives override_active based on override_kind
-  p_override : process is
+    if (override_kind = force_dominant) then
+      pcs_i.bus_polarity <= c_dominant after c_bus_loopback_delay;
+    elsif (override_kind = ack_inject and
+           frame_pos = override_pos - 1 and not next_is_stuff) then
+      pcs_i.bus_polarity <= c_dominant after c_bus_loopback_delay;
+    elsif (override_kind = bit_error and
+           frame_pos = override_pos - 1 and not next_is_stuff) then
+      pcs_i.bus_polarity <= not pcs_o.polarity after c_bus_loopback_delay;
+    else
+      pcs_i.bus_polarity <= pcs_o.polarity after c_bus_loopback_delay;
+    end if;
+
+  end process p_bus_model;
+
+  ---------------------------------------------------------------------------
+  -- Unified monitor
+  ---------------------------------------------------------------------------
+  p_monitor : process is
   begin
 
     loop
 
     WaitForClock(clk);
 
-    case override_kind is
+    if (mon_clear) then
+      mon_rec <= c_mon_rec_reset;
+    end if;
 
-      when idle =>
-        override_active <= false;
+    -- Event latching
+    if (fce_o.transmitting = '1' and prev_transmitting = '0') then
+      mon_rec.frame_started <= true;
+    end if;
 
-      when ack_inject | bit_error =>
-        if (fce_o.transmitting = '0') then
-          override_active <= false;
-        elsif (monitor_frame_pos = override_pos - 1) then
-          override_active <= true;
-        elsif (monitor_frame_pos /= override_pos - 1) then
-          override_active <= false;
-        end if;
+    if (llc_o.transfer_status /= c_ongoing and not mon_rec.transfer_done) then
+      mon_rec.transfer_done   <= true;
+      mon_rec.transfer_status <= llc_o.transfer_status;
+    end if;
 
-      when force_dominant =>
-        override_active <= true;
+    if (fce_o.sending_error_overload_flag = '1' and prev_error_flag = '0') then
+      mon_rec.error_flag     <= true;
+      mon_rec.error_flag_pol <= pcs_o.polarity;
+      mon_rec.error_flag_pos <= frame_pos;
+    end if;
 
-    end case;
+    if (fce_o.error_delimiter_too_late = '1') then
+      mon_rec.err_delim_late     <= true;
+      mon_rec.err_delim_late_pol <= pcs_o.polarity;
+    end if;
+
+    if (fce_o.primary_error = '1') then
+      mon_rec.primary_error     <= true;
+      mon_rec.primary_error_pol <= pcs_o.polarity;
+    end if;
+
+    if (fce_o.error = '1' and prev_fce_error = '0') then
+      mon_rec.fce_error     <= true;
+      mon_rec.fce_error_pol <= pcs_o.polarity;
+      mon_rec.fce_error_pos <= frame_pos;
+    end if;
+
+    if (fce_o.successful_transfer = '1') then
+      mon_rec.successful_transfer <= true;
+    end if;
+
+    if (pcs_o.start_tdc = '1' and prev_start_tdc = '0') then
+      mon_rec.start_tdc     <= true;
+      mon_rec.start_tdc_pos <= frame_pos;
+    end if;
+
+    if (pcs_o.use_data_rate = '1' and prev_use_data_rate = '0') then
+      mon_rec.use_data_rate     <= true;
+      mon_rec.use_data_rate_pos <= frame_pos;
+    end if;
+
+    prev_transmitting  <= fce_o.transmitting;
+    prev_error_flag    <= fce_o.sending_error_overload_flag;
+    prev_fce_error     <= fce_o.error;
+    prev_start_tdc     <= pcs_o.start_tdc;
+    prev_use_data_rate <= pcs_o.use_data_rate;
 
     end loop;
 
-  end process p_override;
+  end process p_monitor;
 
+  ---------------------------------------------------------------------------
+  -- Watchdog
+  ---------------------------------------------------------------------------
   p_timeout : process is
   begin
 
-    wait for 50 ms;
+    wait for 500 ms;
     Alert("Testbench timeout", FAILURE);
     std.env.finish;
 
   end process p_timeout;
 
-  p_init : process is
-  begin
-
-    SetTestName("can_mac_tx_tb");
-    SetAlertStopCount(ERROR, 5);
-    wait;
-
-  end process p_init;
-
+  ---------------------------------------------------------------------------
+  -- Test sequencer
+  ---------------------------------------------------------------------------
   p_stim : process is
 
-    variable tid       : AlertLogIDType;
-    variable saw_pulse : boolean;
-    variable rnd       : RandomPType;
-    variable v_format  : std_logic_vector(2 downto 0);
-    variable v_dlc     : std_logic_vector(3 downto 0);
-    variable v_brs     : std_logic;
-    variable v_id      : std_logic_vector(28 downto 0);
-    variable v_meta    : t_llc_metadata;
-    variable v_fp      : t_frame_params;
-    variable v_pos     : integer;
+    variable tid      : AlertLogIDType;
+    variable rnd      : RandomPType;
+    variable v_format : std_logic_vector(2 downto 0);
+    variable v_dlc    : std_logic_vector(3 downto 0);
+    variable v_brs    : std_logic;
+    variable v_id     : std_logic_vector(28 downto 0);
+    variable v_meta   : t_llc_metadata;
+    variable v_fp     : t_frame_params;
+    variable v_pos      : integer;
+    variable v_data     : t_data_array := (others => (others => '0'));
+    variable v_expected : t_bus_array;
+    variable v_exp_len  : integer;
 
-    procedure send_byte (
-      data : in std_logic_vector(7 downto 0);
-      sop  : in std_logic := '0'
-    ) is
+    procedure randomize_frame is
+
+      variable v_dc : integer;
+
     begin
 
-      llc_i.avalon_st_source.data          <= data;
-      llc_i.avalon_st_source.valid         <= '1';
-      llc_i.avalon_st_source.startofpacket <= sop;
-      WaitForClock(clk);
-      while (llc_o.avalon_st_sink.ready /= '1') loop
-        WaitForClock(clk);
+      case rnd.RandInt(0, 3) is
+        when 0      => v_format := c_llc_fmt_cb;
+        when 1      => v_format := c_llc_fmt_ce;
+        when 2      => v_format := c_llc_fmt_fb;
+        when others => v_format := c_llc_fmt_fe;
+      end case;
+      v_dlc              := std_logic_vector(to_unsigned(rnd.RandInt(0, 15), 4));
+      v_brs              := v_format(1);
+      v_id(28 downto 16) := std_logic_vector(to_unsigned(rnd.RandInt(0, 8191), 13));
+      v_id(15 downto 0)  := std_logic_vector(to_unsigned(rnd.RandInt(0, 65535), 16));
+      v_meta             := (format => v_format, dlc => v_dlc, ftyp => '0', brs => v_brs, esi => '0');
+      v_fp               := get_frame_params(v_meta);
+      stuff_stop         <= v_fp.dynamic_stuff_stop;
+
+      v_dc := dlc_to_data_length(t_dlc(to_integer(unsigned(v_dlc))), v_format);
+      for j in 0 to v_dc - 1 loop
+        v_data(j) := std_logic_vector(to_unsigned(rnd.RandInt(0, 255), 8));
       end loop;
 
-    end procedure send_byte;
+    end procedure randomize_frame;
 
-    procedure submit_mac_frame (
-      id         : in std_logic_vector(28 downto 0);
-      format     : in std_logic_vector(2 downto 0);
-      dlc        : in std_logic_vector(3 downto 0);
-      ftyp       : in std_logic := '0';
-      brs        : in std_logic := '0';
-      esi        : in std_logic := '0';
-      data_value : in std_logic_vector(7 downto 0) := x"AA"
+    procedure submit_frame (
+      id     : in std_logic_vector(28 downto 0);
+      format : in std_logic_vector(2 downto 0);
+      dlc    : in std_logic_vector(3 downto 0);
+      ftyp   : in std_logic := '0';
+      brs    : in std_logic := '0';
+      esi    : in std_logic := '0'
     ) is
 
       variable id_bytes   : std_logic_vector(31 downto 0);
       variable data_count : integer;
+
+      type t_byte_array is array (natural range <>) of std_logic_vector(7 downto 0);
+      variable frame_bytes : t_byte_array(0 to 69);
+      variable byte_count  : integer := 0;
 
     begin
 
@@ -248,50 +377,77 @@ begin
         data_count := 0;
       end if;
 
-      send_byte(format & ftyp & esi & brs & "00", sop => '1');
-      send_byte(dlc & "0000");
-
-      for i in 3 downto 0 loop
-        send_byte(id_bytes((i + 1) * 8 - 1 downto i * 8));
-      end loop;
-
+      frame_bytes(0) := format & ftyp & esi & brs & "00";
+      frame_bytes(1) := dlc & "0000";
+      frame_bytes(2) := id_bytes(31 downto 24);
+      frame_bytes(3) := id_bytes(23 downto 16);
+      frame_bytes(4) := id_bytes(15 downto 8);
+      frame_bytes(5) := id_bytes(7 downto 0);
+      byte_count := 6;
       for i in 0 to data_count - 1 loop
-        send_byte(data_value);
+        frame_bytes(byte_count) := v_data(i);
+        byte_count := byte_count + 1;
       end loop;
 
-      llc_i.avalon_st_source.valid <= '0';
-      llc_i.avalon_st_source.data  <= (others => '0');
+      for i in 0 to byte_count - 1 loop
+        llc_i.avalon_st_source.data          <= frame_bytes(i);
+        llc_i.avalon_st_source.valid         <= '1';
+        llc_i.avalon_st_source.startofpacket <= '1' when i = 0 else '0';
+        loop
+          WaitForClock(clk);
+          exit when llc_o.avalon_st_sink.ready = '1';
+        end loop;
+        llc_i.avalon_st_source.valid         <= '0';
+        llc_i.avalon_st_source.startofpacket <= '0';
+        WaitForClock(clk);
+      end loop;
 
-    end procedure submit_mac_frame;
+      llc_i.avalon_st_source.data <= (others => '0');
 
-    procedure wait_n_sp (
-      n : in integer
-    ) is
+    end procedure submit_frame;
+
+    procedure wait_n_sp (n : in integer) is
     begin
 
       for i in 1 to n loop
         WaitForClock(clk);
-        while (sp_strobe /= '1') loop
+        while (pcs_i.sp /= '1') loop
           WaitForClock(clk);
         end loop;
       end loop;
 
     end procedure wait_n_sp;
 
-    procedure wait_for_frame_entry (
-      timeout_sp : in integer := 200
+    procedure clear_events is
+    begin
+
+      mon_clear <= true;
+      WaitForClock(clk);
+      mon_clear <= false;
+
+    end procedure clear_events;
+
+    procedure wait_for_mon (
+      check_error_flag : in boolean := false;
+      timeout_sp       : in integer := 500
     ) is
     begin
 
       for i in 1 to timeout_sp * c_pcs_model_clks_per_sp loop
         WaitForClock(clk);
-        if (fce_o.transmitting = '1') then
-          return;
+        if (check_error_flag) then
+          if (mon_rec.error_flag) then return; end if;
+        else
+          if (mon_rec.frame_started) then return; end if;
         end if;
       end loop;
-      Alert(tid, "wait_for_frame_entry timeout", ERROR);
+      if (check_error_flag) then
+        Alert(tid, "wait_for_mon(error_flag) timeout", ERROR);
+      else
+        Alert(tid, "wait_for_mon(frame_started) timeout", ERROR);
+      end if;
 
-    end procedure wait_for_frame_entry;
+    end procedure wait_for_mon;
 
     procedure wait_for_transfer_status (
       expected   : in std_logic_vector(2 downto 0);
@@ -302,103 +458,118 @@ begin
 
       for i in 1 to timeout_sp * c_pcs_model_clks_per_sp loop
         WaitForClock(clk);
-        if (llc_o.transfer_status = expected) then
-          return;
-        elsif (llc_o.transfer_status /= c_ongoing and llc_o.transfer_status /= expected) then
-          Alert(tid, "transfer_status unexpected: got " & to_hstring(llc_o.transfer_status) &
-                " expected " & to_hstring(expected) & " - " & msg, ERROR);
-          return;
+        if (mon_rec.transfer_done) then
+          if (mon_rec.transfer_status = expected) then
+            return;
+          else
+            Alert(tid, msg & ": got " & to_hstring(mon_rec.transfer_status) &
+                  " expected " & to_hstring(expected), ERROR);
+            return;
+          end if;
         end if;
       end loop;
-      Alert(tid, "transfer_status timeout (still ongoing): " & msg, ERROR);
+      Alert(tid, msg & ": timeout", ERROR);
 
     end procedure wait_for_transfer_status;
 
-    procedure wait_for_error_flag_entry (
-      timeout_sp : in integer := 500
-    ) is
+    procedure build_expected is
+
+      variable v_bit       : t_mac_frame_bit;
+      variable v_ser       : std_logic;
+      variable v_prev_pol  : std_logic := c_recessive;
+      variable v_crc       : t_crc_vector;
+      variable v_byte_idx  : integer;
+      variable v_bit_idx   : integer;
+      variable v_data_fld  : integer;
+
     begin
 
-      for i in 1 to timeout_sp * c_pcs_model_clks_per_sp loop
-        WaitForClock(clk);
-        if (fce_o.sending_error_overload_flag = '1') then
-          return;
+      case v_fp.crc_poly_select is
+        when "00"   => v_crc := c_crc_poly_15_vec & (c_crc_21_length - c_crc_15_length - 1 downto 0 => '0');
+        when "01"   => v_crc := c_crc_poly_17_vec &
+                                (c_crc_21_length - c_crc_17_length - 1 downto 0 => '0');
+        when "10"   => v_crc := c_crc_poly_21_vec;
+        when others => v_crc := (others => '0');
+      end case;
+
+      v_exp_len  := v_fp.crc_delimiter + c_eof_start_offset + c_eof_field_width;
+      v_data_fld := v_fp.dlc_start + c_dlc_field_width;
+
+      for pos in 0 to v_exp_len - 1 loop
+        v_ser := '0';
+
+        -- Base ID
+        if (pos >= c_cb_base_id_start and pos <= c_cb_base_id_stop) then
+          if (v_format(2) = '1') then
+            v_ser := v_id(28 - (pos - c_cb_base_id_start));
+          else
+            v_ser := v_id(10 - (pos - c_cb_base_id_start));
+          end if;
+        end if;
+
+        -- Extended ID (CE)
+        if (v_format = c_llc_fmt_ce and
+            pos >= c_ce_extended_id_start and pos <= c_ce_extended_id_stop) then
+          v_ser := v_id(17 - (pos - c_ce_extended_id_start));
+        end if;
+
+        -- Extended ID (FE)
+        if (v_format = c_llc_fmt_fe and
+            pos >= c_fe_extended_id_start and pos <= c_fe_extended_id_stop) then
+          v_ser := v_id(17 - (pos - c_fe_extended_id_start));
+        end if;
+
+        -- Data
+        if (pos >= v_data_fld and pos < v_fp.data_stop) then
+          v_byte_idx := (pos - v_data_fld) / 8;
+          v_bit_idx  := 7 - ((pos - v_data_fld) mod 8);
+          v_ser      := v_data(v_byte_idx)(v_bit_idx);
+        end if;
+
+        v_bit := get_mac_frame_bit(
+                   bit_count         => pos,
+                   ser_data          => v_ser,
+                   metadata          => v_meta,
+                   frame_params      => v_fp,
+                   previous_polarity => v_prev_pol,
+                   sbc               => (others => '0'),
+                   crc               => v_crc
+                 );
+
+        v_expected(pos) := v_bit.polarity;
+        v_prev_pol      := v_bit.polarity;
+      end loop;
+
+    end procedure build_expected;
+
+    procedure check_bus_content (
+      msg : in string
+    ) is
+
+      variable v_match : boolean := true;
+
+    begin
+
+      -- Compare captured vs expected, skip SBC + CRC (dummy engine)
+      for pos in 0 to v_exp_len - 1 loop
+        if (pos < v_fp.data_stop or pos >= v_fp.crc_delimiter) then
+          if (captured_bus(pos) /= v_expected(pos)) then
+            v_match := false;
+            Log(tid, msg & " MISMATCH pos=" & to_string(pos) &
+              " exp=" & to_string(v_expected(pos)) &
+              " got=" & to_string(captured_bus(pos)));
+          end if;
         end if;
       end loop;
-      Alert(tid, "wait_for_error_flag_entry timeout", ERROR);
 
-    end procedure wait_for_error_flag_entry;
+      AffirmIf(tid, v_match, msg & " bus content OK");
 
-    procedure wait_for_error_recovery is
-    begin
-
-      wait_n_sp(c_error_sequence_width + c_intermission_width + c_bus_idle_condition_width + 5);
-
-    end procedure wait_for_error_recovery;
-
-    procedure poll_for_pulse (
-      signal sig   : in std_logic;
-      timeout_clks : in integer
-    ) is
-    begin
-
-      saw_pulse := false;
-      for i in 1 to timeout_clks loop
-        WaitForClock(clk);
-        if (sig = '1') then
-          saw_pulse := true;
-        end if;
-      end loop;
-
-    end procedure poll_for_pulse;
-
-    procedure setup_ack_injection (
-      format : in std_logic_vector(2 downto 0);
-      dlc    : in std_logic_vector(3 downto 0);
-      ftyp   : in std_logic := '0';
-      brs    : in std_logic := '0';
-      esi    : in std_logic := '0'
-    ) is
-
-      variable meta : t_llc_metadata;
-      variable v_fp : t_frame_params;
-
-    begin
-
-      meta               := (format => format, dlc => dlc, ftyp => ftyp, brs => brs, esi => esi);
-      v_fp               := get_frame_params(meta);
-      override_kind      <= ack_inject;
-      override_pos       <= v_fp.crc_delimiter + c_ack_slot_offset;
-      monitor_stuff_stop <= v_fp.dynamic_stuff_stop;
-
-    end procedure setup_ack_injection;
-
-    procedure transmit_and_verify (
-      id     : in std_logic_vector(28 downto 0);
-      format : in std_logic_vector(2 downto 0);
-      dlc    : in std_logic_vector(3 downto 0);
-      ftyp   : in std_logic := '0';
-      brs    : in std_logic := '0';
-      esi    : in std_logic := '0';
-      msg    : in string
-    ) is
-    begin
-
-      setup_ack_injection(format => format, dlc => dlc, ftyp => ftyp, brs => brs, esi => esi);
-      submit_mac_frame(id => id, format => format, dlc => dlc, ftyp => ftyp, brs => brs, esi => esi);
-
-      wait_for_frame_entry;
-      wait_for_transfer_status(c_transmitted, 500, msg);
-      AffirmIf(tid, true, msg);
-
-      override_kind <= idle;
-      wait_n_sp(c_intermission_width + c_bus_idle_condition_width + 5);
-
-    end procedure transmit_and_verify;
+    end procedure check_bus_content;
 
   begin
 
     wait for 0 ns;
+    SetTestName("can_mac_tx_tb");
     tid := GetAlertLogID("can_mac_tx_tb");
     rnd.InitSeed(rnd'instance_name & to_string(now));
 
@@ -409,175 +580,245 @@ begin
     wait until rst = '0';
     WaitForClock(clk);
 
-    -- T1: Dominant during reintegration resets the recessive counter
+    -- Reintegration preamble (one-time)
     wait_n_sp(5);
     override_kind <= force_dominant;
     wait_n_sp(1);
     override_kind <= idle;
     wait_n_sp(c_bus_idle_condition_width);
 
-    transmit_and_verify(
-      id     => 29x"555",
-      format => c_llc_fmt_cb,
-      dlc    => x"1",
-      msg    => "T1: dominant resets reintegration counter"
-    );
+    ---------------------------------------------------------------------------
+    -- T1: Happy path (random frames, ACK injected)
+    ---------------------------------------------------------------------------
+    for i in 1 to c_num_random loop
+      randomize_frame;
+      build_expected;
+      clear_events;
+      capture_en         <= true;
+      override_kind      <= ack_inject;
+      override_pos       <= v_fp.crc_delimiter + c_ack_slot_offset;
+      submit_frame(v_id, v_format, v_dlc, brs => v_brs);
+      wait_for_mon;
+      wait_for_transfer_status(c_transmitted, 500,
+        "T1." & to_string(i) & " fmt=" & to_hstring(v_format) & " dlc=" & to_hstring(v_dlc));
+      capture_en    <= false;
+      override_kind <= idle;
+      wait_n_sp(c_idle_recovery_sp);
 
-    -- T2-T5: Happy path for all four frame formats
-    transmit_and_verify(
-      id     => 29x"555",
-      format => c_llc_fmt_cb,
-      dlc    => x"1",
-      msg    => "T2: CB happy path"
-    );
+      check_bus_content("T1." & to_string(i));
 
-    transmit_and_verify(
-      id     => 29x"1555555",
-      format => c_llc_fmt_ce,
-      dlc    => x"1",
-      msg    => "T3: CE happy path"
-    );
+      AffirmIf(tid, mon_rec.successful_transfer,
+        "T1." & to_string(i) & " successful_transfer");
+      AffirmIf(tid, not mon_rec.fce_error,
+        "T1." & to_string(i) & " no fce error");
 
-    transmit_and_verify(
-      id     => 29x"555",
-      format => c_llc_fmt_fb,
-      dlc    => x"1",
-      brs    => '1',
-      msg    => "T4: FB happy path"
-    );
+      -- TDC and BRS checks
+      if (v_format = c_llc_fmt_fb or v_format = c_llc_fmt_fe) then
+        AffirmIf(tid, mon_rec.start_tdc,
+          "T1." & to_string(i) & " start_tdc asserted for FD frame");
+        if (v_format = c_llc_fmt_fb) then
+          AffirmIf(tid, mon_rec.start_tdc_pos = c_fb_fdf - 1,
+            "T1." & to_string(i) & " start_tdc at IDE pos " &
+            to_string(c_fb_fdf - 1) & " got " & to_string(mon_rec.start_tdc_pos));
+        else
+          AffirmIf(tid, mon_rec.start_tdc_pos = c_fe_fdf - 1,
+            "T1." & to_string(i) & " start_tdc at RRS pos " &
+            to_string(c_fe_fdf - 1) & " got " & to_string(mon_rec.start_tdc_pos));
+        end if;
 
-    transmit_and_verify(
-      id     => 29x"1555555",
-      format => c_llc_fmt_fe,
-      dlc    => x"1",
-      brs    => '1',
-      msg    => "T5: FE happy path"
-    );
+        AffirmIf(tid, mon_rec.use_data_rate,
+          "T1." & to_string(i) & " use_data_rate asserted for BRS frame");
+        if (v_format = c_llc_fmt_fb) then
+          AffirmIf(tid, mon_rec.use_data_rate_pos = c_fb_esi - 1,
+            "T1." & to_string(i) & " use_data_rate at BRS pos " &
+            to_string(c_fb_esi - 1) & " got " & to_string(mon_rec.use_data_rate_pos));
+        else
+          AffirmIf(tid, mon_rec.use_data_rate_pos = c_fe_esi - 1,
+            "T1." & to_string(i) & " use_data_rate at BRS pos " &
+            to_string(c_fe_esi - 1) & " got " & to_string(mon_rec.use_data_rate_pos));
+        end if;
+      else
+        AffirmIf(tid, not mon_rec.start_tdc,
+          "T1." & to_string(i) & " no start_tdc for classic frame");
+        AffirmIf(tid, not mon_rec.use_data_rate,
+          "T1." & to_string(i) & " no use_data_rate for classic frame");
+      end if;
+    end loop;
+    AffirmIf(tid, true, "T1: happy path (" & to_string(c_num_random) & " random frames)");
 
-    -- T6: ACK error (no ACK injected)
-    submit_mac_frame(id => 29x"555", format => c_llc_fmt_cb, dlc => x"1");
-    wait_for_frame_entry;
-    wait_for_transfer_status(c_disturbed, 500, "T6: ACK error");
-    AffirmIf(tid, true, "T6: ACK error detected");
-    wait_for_error_recovery;
+    ---------------------------------------------------------------------------
+    -- T2: ACK error (no ACK injected)
+    ---------------------------------------------------------------------------
+    for i in 1 to c_num_random loop
+      randomize_frame;
+      clear_events;
+      submit_frame(v_id, v_format, v_dlc, brs => v_brs);
+      wait_for_mon;
+      wait_for_mon(check_error_flag => true);
+      AffirmIf(tid, mon_rec.error_flag,
+        "T2." & to_string(i) & " error flag after ACK error");
+      AffirmIf(tid, mon_rec.error_flag_pol = c_dominant,
+        "T2." & to_string(i) & " active EF drives dominant");
+      wait_for_transfer_status(c_disturbed, 500,
+        "T2." & to_string(i) & " fmt=" & to_hstring(v_format) & " dlc=" & to_hstring(v_dlc));
+      AffirmIf(tid, mon_rec.fce_error,
+        "T2." & to_string(i) & " fce error after ACK error");
+      wait_n_sp(c_error_recovery_sp);
+    end loop;
+    AffirmIf(tid, true, "T2: ACK error (" & to_string(c_num_random) & " random frames)");
 
-    -- T7: Bit error -> active error flag
-    submit_mac_frame(id => 29x"555", format => c_llc_fmt_cb, dlc => x"1");
-    wait_for_frame_entry;
-    override_kind <= bit_error;
-    override_pos  <= 5;
-    wait_for_error_flag_entry(50);
-    override_kind <= idle;
-    wait_for_transfer_status(c_disturbed, 50, "T7: bit error active EF");
-    AffirmIf(tid, true, "T7: bit error -> active error flag");
-    wait_for_error_recovery;
+    ---------------------------------------------------------------------------
+    -- T3: Passive error flag (recessive polarity)
+    ---------------------------------------------------------------------------
+    fce_i.error_passive_request <= '1';
+    fce_i.error_active_request  <= '0';
+    for i in 1 to c_num_random loop
+      randomize_frame;
+      clear_events;
+      override_kind <= bit_error;
+      override_pos  <= v_fp.dlc_start;
+      submit_frame(v_id, v_format, v_dlc, brs => v_brs);
+      wait_for_mon(check_error_flag => true);
+      override_kind <= idle;
+      AffirmIf(tid, mon_rec.error_flag_pol = c_recessive,
+        "T3." & to_string(i) & ": passive EF recessive polarity");
+      wait_for_transfer_status(c_disturbed, 50,
+        "T3." & to_string(i) & " fmt=" & to_hstring(v_format));
+      AffirmIf(tid, mon_rec.fce_error,
+        "T3." & to_string(i) & " fce error after passive EF");
+      AffirmIf(tid, mon_rec.error_flag_pos = v_fp.dlc_start,
+        "T3." & to_string(i) & " error_flag_pos=" & to_string(mon_rec.error_flag_pos) &
+        " expected " & to_string(v_fp.dlc_start));
+      wait_n_sp(c_error_recovery_sp + c_suspend_transmission_width);
+    end loop;
+    fce_i.error_passive_request <= '0';
+    fce_i.error_active_request  <= '1';
+    AffirmIf(tid, true, "T3: passive EF (" & to_string(c_num_random) & " random frames)");
 
-    -- T8: Bit error -> passive error flag (recessive polarity)
-    fce_is_error_passive <= true;
+    ---------------------------------------------------------------------------
+    -- T4: Arbitration loss -> recovery with follow-up happy path
+    ---------------------------------------------------------------------------
+    for i in 1 to c_num_random loop
+      randomize_frame;
+      clear_events;
+      override_kind <= force_dominant;
+      submit_frame(v_id, v_format, v_dlc, brs => v_brs);
+      override_kind <= idle;
+      wait_n_sp(c_idle_recovery_sp);
 
-    submit_mac_frame(id => 29x"555", format => c_llc_fmt_cb, dlc => x"1");
-    wait_for_frame_entry;
-    override_kind <= bit_error;
-    override_pos  <= 5;
-    wait_for_error_flag_entry(50);
-    override_kind <= idle;
-    wait until falling_edge(clk);
-    AffirmIf(tid, pcs_o.polarity = c_recessive, "T8: passive EF recessive polarity");
-    wait_for_transfer_status(c_disturbed, 50, "T8: transfer disturbed");
+      -- Verify recovery: next frame must succeed
+      randomize_frame;
+      clear_events;
+      override_kind <= ack_inject;
+      override_pos  <= v_fp.crc_delimiter + c_ack_slot_offset;
+      submit_frame(v_id, v_format, v_dlc, brs => v_brs);
+      wait_for_mon;
+      wait_for_transfer_status(c_transmitted, 500,
+        "T4." & to_string(i) & ": recovery frame");
+      override_kind <= idle;
+      wait_n_sp(c_idle_recovery_sp);
+      AffirmIf(tid, mon_rec.successful_transfer,
+        "T4." & to_string(i) & " recovery successful_transfer");
+    end loop;
+    AffirmIf(tid, true, "T4: arb loss + recovery (" & to_string(c_num_random) & " random frames)");
 
-    fce_is_error_passive <= false;
-    wait_n_sp(c_error_sequence_width + c_intermission_width +
-              c_suspend_transmission_width + c_bus_idle_condition_width + 5);
+    ---------------------------------------------------------------------------
+    -- T5: Overload flag (dominant during 1st intermission bit)
+    ---------------------------------------------------------------------------
+    for i in 1 to c_num_random loop
+      -- First transmit a successful frame
+      randomize_frame;
+      clear_events;
+      override_kind      <= ack_inject;
+      override_pos       <= v_fp.crc_delimiter + c_ack_slot_offset;
+      submit_frame(v_id, v_format, v_dlc, brs => v_brs);
+      wait_for_mon;
+      wait_for_transfer_status(c_transmitted, 500, "T5." & to_string(i) & ": setup");
+      override_kind <= idle;
 
-    -- T9: Arbitration loss -> verify recovery with follow-up frame
-    override_kind <= force_dominant;
-    submit_mac_frame(id => 29x"1FFFFFFF", format => c_llc_fmt_cb, dlc => x"1", data_value => x"FF");
-    override_kind <= idle;
-    wait_n_sp(c_intermission_width + c_bus_idle_condition_width + 5);
+      -- Inject dominant during 1st intermission bit
+      clear_events;
+      wait_n_sp(1);
+      override_kind <= force_dominant;
+      wait_n_sp(1);
+      override_kind <= idle;
+      wait_for_mon(check_error_flag => true, timeout_sp => 50);
+      AffirmIf(tid, mon_rec.error_flag,
+        "T5." & to_string(i) & ": overload flag");
+      wait_n_sp(c_error_recovery_sp);
+    end loop;
+    AffirmIf(tid, true, "T5: overload (" & to_string(c_num_random) & " random frames)");
 
-    transmit_and_verify(
-      id     => 29x"555",
-      format => c_llc_fmt_cb,
-      dlc    => x"1",
-      msg    => "T9: recovery after arb loss"
-    );
+    ---------------------------------------------------------------------------
+    -- T6: Error delimiter too late (dominant held during delimiter)
+    ---------------------------------------------------------------------------
+    for i in 1 to c_num_random loop
+      randomize_frame;
+      clear_events;
+      submit_frame(v_id, v_format, v_dlc, brs => v_brs);
+      wait_for_mon;
+      wait_for_mon(check_error_flag => true);
+      wait_n_sp(c_error_flag_width);
+      override_kind <= force_dominant;
+      wait_n_sp(c_error_delimiter_width + 1);
+      override_kind <= idle;
+      AffirmIf(tid, mon_rec.err_delim_late,
+        "T6." & to_string(i) & ": error delimiter too late");
+      AffirmIf(tid, mon_rec.err_delim_late_pol = c_recessive,
+        "T6." & to_string(i) & ": MAC sends recessive during delimiter");
+      wait_n_sp(c_error_recovery_sp);
+    end loop;
+    AffirmIf(tid, true, "T6: err delim late (" & to_string(c_num_random) & " random frames)");
 
-    -- T10: Overload flag (dominant during 1st intermission bit)
-    setup_ack_injection(format => c_llc_fmt_cb, dlc => x"1");
-    submit_mac_frame(id => 29x"555", format => c_llc_fmt_cb, dlc => x"1");
-    wait_for_frame_entry;
-    wait_for_transfer_status(c_transmitted, 500, "T10: setup frame");
-    override_kind <= idle;
+    ---------------------------------------------------------------------------
+    -- T7: Primary error during active error flag
+    ---------------------------------------------------------------------------
+    for i in 1 to c_num_random loop
+      randomize_frame;
+      clear_events;
+      override_kind <= bit_error;
+      override_pos  <= v_fp.dlc_start;
+      submit_frame(v_id, v_format, v_dlc, brs => v_brs);
+      wait_for_mon(check_error_flag => true);
+      override_kind <= idle;
+      AffirmIf(tid, mon_rec.error_flag_pos = v_fp.dlc_start,
+        "T7." & to_string(i) & " error_flag_pos=" & to_string(mon_rec.error_flag_pos) &
+        " expected " & to_string(v_fp.dlc_start));
+      wait_n_sp(c_error_flag_width + 1);
+      AffirmIf(tid, mon_rec.primary_error,
+        "T7." & to_string(i) & ": primary error during active EF");
+      AffirmIf(tid, mon_rec.primary_error_pol = c_dominant,
+        "T7." & to_string(i) & ": MAC sends dominant during active EF");
+      wait_n_sp(c_error_recovery_sp);
+    end loop;
+    AffirmIf(tid, true, "T7: primary error (" & to_string(c_num_random) & " random frames)");
 
-    wait_n_sp(1);
-    override_kind <= force_dominant;
-    wait_n_sp(1);
-    override_kind <= idle;
+    ---------------------------------------------------------------------------
+    -- T8: Random bit errors at random positions
+    ---------------------------------------------------------------------------
+    for i in 1 to c_num_random loop
+      randomize_frame;
+      v_pos := rnd.RandInt(v_fp.dlc_start, v_fp.crc_delimiter - 1);
 
-    wait_for_error_flag_entry(50);
-    AffirmIf(tid, true, "T10: overload flag triggered");
-    wait_for_error_recovery;
-
-    -- T11: Error delimiter too late (dominant held during delimiter)
-    submit_mac_frame(id => 29x"555", format => c_llc_fmt_cb, dlc => x"1");
-    wait_for_frame_entry;
-    wait_for_error_flag_entry(500);
-    wait_n_sp(c_error_flag_width);
-
-    override_kind <= force_dominant;
-    poll_for_pulse(fce_o.error_delimiter_too_late, c_error_delimiter_width * c_pcs_model_clks_per_sp + 5);
-    override_kind <= idle;
-
-    AffirmIf(tid, saw_pulse, "T11: error delimiter too late");
-    wait_for_error_recovery;
-
-    -- T12: Primary error during active error flag
-    submit_mac_frame(id => 29x"555", format => c_llc_fmt_cb, dlc => x"1");
-    wait_for_frame_entry;
-    override_kind <= bit_error;
-    override_pos  <= 5;
-    wait_for_error_flag_entry(50);
-    override_kind <= idle;
-    poll_for_pulse(fce_o.primary_error, c_error_flag_width * c_pcs_model_clks_per_sp + 5);
-
-    AffirmIf(tid, saw_pulse, "T12: primary error during active EF");
-    wait_for_error_recovery;
-
-    -- T13: Random bit errors across all formats and frame positions
-    for i in 1 to 100 loop
-
-      case rnd.RandInt(0, 3) is
-        when 0      => v_format := c_llc_fmt_cb;
-        when 1      => v_format := c_llc_fmt_ce;
-        when 2      => v_format := c_llc_fmt_fb;
-        when others => v_format := c_llc_fmt_fe;
-      end case;
-      v_dlc := std_logic_vector(to_unsigned(rnd.RandInt(0, 15), 4));
-      if (v_format(1) = '1') then v_brs := '1'; else v_brs := '0'; end if;
-
-      v_id(28 downto 16) := std_logic_vector(to_unsigned(rnd.RandInt(0, 8191), 13));
-      v_id(15 downto 0)  := std_logic_vector(to_unsigned(rnd.RandInt(0, 65535), 16));
-      v_meta             := (format => v_format, dlc => v_dlc, ftyp => '0', brs => v_brs, esi => '0');
-      v_fp               := get_frame_params(v_meta);
-      -- Start after DLC to avoid arbitration field (where inversion = arb loss, not bit error)
-      v_pos              := rnd.RandInt(v_fp.dlc_start, v_fp.crc_delimiter - 1);
-      monitor_stuff_stop <= v_fp.dynamic_stuff_stop;
-
-      submit_mac_frame(
-        id => v_id, format => v_format, dlc => v_dlc, brs => v_brs
-      );
-      wait_for_frame_entry;
+      clear_events;
       override_kind <= bit_error;
       override_pos  <= v_pos;
-      wait_for_error_flag_entry(500);
+      submit_frame(v_id, v_format, v_dlc, brs => v_brs);
+      wait_for_mon(check_error_flag => true);
       override_kind <= idle;
       wait_for_transfer_status(c_disturbed, 50,
-        "T13." & to_string(i) & ": bit error at pos " & to_string(v_pos) &
+        "T8." & to_string(i) & ": pos " & to_string(v_pos) &
         " fmt=" & to_hstring(v_format) & " dlc=" & to_hstring(v_dlc));
-      wait_for_error_recovery;
-
+      AffirmIf(tid, mon_rec.fce_error,
+        "T8." & to_string(i) & " fce error after bit error");
+      AffirmIf(tid, mon_rec.fce_error_pol = c_dominant,
+        "T8." & to_string(i) & " active EF drives dominant");
+      AffirmIf(tid, mon_rec.error_flag_pos = v_pos,
+        "T8." & to_string(i) & " error_flag_pos=" & to_string(mon_rec.error_flag_pos) &
+        " expected " & to_string(v_pos));
+      wait_n_sp(c_error_recovery_sp);
     end loop;
-    AffirmIf(tid, true, "T13: 100 random bit error frames");
+    AffirmIf(tid, true, "T8: random bit errors (" & to_string(c_num_random) & " random frames)");
 
     Log(tid, "All tests complete");
     EndOfTestReports(ReportAll => TRUE);

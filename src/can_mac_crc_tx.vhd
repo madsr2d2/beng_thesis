@@ -73,7 +73,6 @@ architecture rtl of can_mac_crc_tx is
   signal sel_crc15 : std_logic;
   signal sel_crc17 : std_logic;
   signal sel_crc21 : std_logic;
-  signal start     : std_logic;
   signal valid     : std_logic;
 
 begin
@@ -81,7 +80,6 @@ begin
   sel_crc15 <= '1' when crc_i.crc_poly_select = "00" else '0';
   sel_crc17 <= '1' when crc_i.crc_poly_select = "01" else '0';
   sel_crc21 <= '1' when crc_i.crc_poly_select = "10" else '0';
-  start     <= crc_i.start;
   valid     <= crc_i.valid;
 
   u_crc15 : entity work.gen_crc
@@ -97,7 +95,7 @@ begin
     port map (
       clk_i        => clk_i,
       reset_i      => rst_i,
-      start_crc_i  => start and sel_crc15,
+      start_crc_i  => rst_i and sel_crc15,
       data_i(0)    => crc_i.data,
       data_valid_i => valid and sel_crc15,
       crc_o        => crc15_out
@@ -116,7 +114,7 @@ begin
     port map (
       clk_i        => clk_i,
       reset_i      => rst_i,
-      start_crc_i  => start and sel_crc17,
+      start_crc_i  => rst_i and sel_crc17,
       data_i(0)    => crc_i.data,
       data_valid_i => valid and sel_crc17,
       crc_o        => crc17_out
@@ -135,7 +133,7 @@ begin
     port map (
       clk_i        => clk_i,
       reset_i      => rst_i,
-      start_crc_i  => start and sel_crc21,
+      start_crc_i  => rst_i and sel_crc21,
       data_i(0)    => crc_i.data,
       data_valid_i => valid and sel_crc21,
       crc_o        => crc21_out

@@ -47,12 +47,14 @@ architecture rtl of can_mac_tx is
   signal fsm_to_ser : t_can_mac_ser_fsm_tx_if_m2s;
 
   -- FSM <-> bit stuffer FD
-  signal fsm_to_bs_fd : t_can_mac_fsm_bs_tx_if_m2s;
-  signal bs_fd_to_fsm : t_can_mac_fsm_bs_tx_if_s2m;
+  signal fsm_to_bs_fd  : t_can_mac_fsm_bs_tx_if_m2s;
+  signal bs_fd_to_fsm  : t_can_mac_fsm_bs_tx_if_s2m;
+  signal fsm_bs_fd_rst : std_logic;
 
   -- FSM <-> CRC
-  signal fsm_to_crc : t_can_mac_fsm_crc_tx_if_m2s;
-  signal crc_to_fsm : t_can_mac_fsm_crc_tx_if_s2m;
+  signal fsm_to_crc  : t_can_mac_fsm_crc_tx_if_m2s;
+  signal crc_to_fsm  : t_can_mac_fsm_crc_tx_if_s2m;
+  signal fsm_crc_rst : std_logic;
 
 begin
 
@@ -82,8 +84,10 @@ begin
       pcs_o              => pcs_o,
       bs_fd_i            => bs_fd_to_fsm,
       bs_fd_o            => fsm_to_bs_fd,
+      bs_fd_rst          => fsm_bs_fd_rst,
       crc_i              => crc_to_fsm,
       crc_o              => fsm_to_crc,
+      crc_rst            => fsm_crc_rst,
       fce_i              => fce_i,
       fce_o              => fce_o
     );
@@ -94,7 +98,7 @@ begin
   bit_stuffer_fd_inst : entity work.can_mac_bs_tx
     port map (
       clk_i => clk,
-      rst_i => rst,
+      rst_i => rst or fsm_bs_fd_rst,
       bs_i  => fsm_to_bs_fd,
       bs_o  => bs_fd_to_fsm
     );
@@ -105,7 +109,7 @@ begin
   crc_fd_inst : entity work.can_mac_crc_tx
     port map (
       clk_i => clk,
-      rst_i => rst,
+      rst_i => rst or fsm_crc_rst,
       crc_i => fsm_to_crc,
       crc_o => crc_to_fsm
     );

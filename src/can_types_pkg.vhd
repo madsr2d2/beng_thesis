@@ -431,14 +431,12 @@ package pk_can_types is
   type t_can_mac_fsm_bs_tx_if_m2s is record
     data  : std_logic;
     valid : std_logic;
-    start : std_logic;
   end record t_can_mac_fsm_bs_tx_if_m2s;
 
   constant c_mac_fsm_to_bs_fd_if_reset : t_can_mac_fsm_bs_tx_if_m2s :=
   (
     data  => c_recessive,
-    valid => '0',
-    start => '0'
+    valid => '0'
   );
 
   -- Bit Stuffer -> FSM (ISO 6.6.13)
@@ -458,7 +456,6 @@ package pk_can_types is
   -- FSM -> CRC (ISO 6.6.4.4)
   type t_can_mac_fsm_crc_tx_if_m2s is record
     crc_poly_select : std_logic_vector(1 downto 0);
-    start           : std_logic;
     valid           : std_logic;
     data            : std_logic;
   end record t_can_mac_fsm_crc_tx_if_m2s;
@@ -466,7 +463,6 @@ package pk_can_types is
   constant c_mac_fsm_to_crc_if_reset : t_can_mac_fsm_crc_tx_if_m2s :=
   (
     crc_poly_select => (others => '0'),
-    start           => '0',
     valid           => '0',
     data            => '0'
   );
@@ -512,7 +508,7 @@ package pk_can_types is
   constant c_fce_to_mac_if_reset : t_can_mac_fce_if_s2m :=
   (
     error_passive_request => '0',
-    error_active_request  => '0',
+    error_active_request  => '1',
     bus_off               => '0'
   );
 

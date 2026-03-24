@@ -30,32 +30,43 @@ end entity can_mac_bs_tx;
 
 architecture rtl of can_mac_bs_tx is
 
-  signal count        : integer range 0 to c_stuff_width;
+  signal count         : integer range 0 to c_stuff_width;
   signal last_polarity : std_logic;
-  signal stuff_count  : t_stuff_count;
+  signal stuff_count   : t_stuff_count;
   signal stuff_pending : boolean;
 
   function f_calc_parity (
     v : std_logic_vector
   ) return std_logic is
+
     variable v_parity : std_logic := '0';
+
   begin
+
     for i in v'range loop
       v_parity := v_parity xor v(i);
     end loop;
+
     return v_parity;
+
   end function f_calc_parity;
 
   function f_to_gray (
     v : std_logic_vector
   ) return std_logic_vector is
+
     variable v_result : std_logic_vector(v'range);
+
   begin
+
     v_result(v'left) := v(v'left);
+
     for i in v'left - 1 downto v'right loop
       v_result(i) := v(i) xor v(i + 1);
     end loop;
+
     return v_result;
+
   end function f_to_gray;
 
 begin
@@ -64,29 +75,29 @@ begin
   begin
 
     if rising_edge(clk_i) then
-      if ((rst_i = '1') or (bs_i.start = '1')) then
-        count          <= 0;
-        last_polarity  <= c_recessive;
-        stuff_count    <= (others => '0');
-        stuff_pending  <= false;
-        bs_o           <= c_can_mac_fsm_bs_tx_if_s2m_reset;
+      if (rst_i = '1') then
+        count         <= 0;
+        last_polarity <= c_recessive;
+        stuff_count   <= (others => '0');
+        stuff_pending <= false;
+        bs_o          <= c_can_mac_fsm_bs_tx_if_s2m_reset;
 
       elsif (bs_i.valid = '1') then
         stuff_pending <= false;
-        bs_o.valid <= '0';
-        count      <= 1;
+        bs_o.valid    <= '0';
+        count         <= 1;
         last_polarity <= bs_i.data;
 
         if (bs_i.data = last_polarity) then
           count <= count + 1;
           if (count = c_stuff_width - 1) then
-            count       <= 0;
-            bs_o.data   <= not last_polarity;
-            bs_o.valid  <= '1';
+            count         <= 0;
+            bs_o.data     <= not last_polarity;
+            bs_o.valid    <= '1';
             stuff_pending <= true;
-            stuff_count <= stuff_count + 1;
-            bs_o.sbc    <= f_to_gray(std_logic_vector(stuff_count + 1))
-                         & f_calc_parity(f_to_gray(std_logic_vector(stuff_count + 1)));
+            stuff_count   <= stuff_count + 1;
+            bs_o.sbc      <= f_to_gray(std_logic_vector(stuff_count + 1))
+                             & f_calc_parity(f_to_gray(std_logic_vector(stuff_count + 1)));
           end if;
         end if;
 
