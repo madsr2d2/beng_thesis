@@ -7,7 +7,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a B.Eng thesis project implementing a **full CAN (Controller Area Network) node** with both TX and RX pipelines in VHDL-2008, following the **ISO 11898-1:2015 standard**. The project includes:
 
 - Core CAN/CAN-FD types and constants (`can_types_pkg.vhd` - package `pk_can_types`)
-- CAN protocol logic and frame construction (`can_protocol_pkg.vhd`)
 - Bit timing utilities (`can_timing_pkg.vhd`)
 - Complete TX pipeline: LLC -> MAC (serializer, FSM, bit stuffer, CRC) -> PCS
 - Fault Confinement Entity (`can_fce.vhd`)
@@ -44,7 +43,6 @@ This is a B.Eng thesis project implementing a **full CAN (Controller Area Networ
 ```
 src/                        # Design and testbench VHDL files
 ├── can_types_pkg.vhd       # pk_can_types: core types, interface records, constants
-├── can_protocol_pkg.vhd    # Frame construction, get_next_mac_frame_bit(), CRC polynomials
 ├── can_timing_pkg.vhd      # Bit timing utilities, TDC calculation
 ├── can_mac_ser_tx.vhd      # MAC serializer: LLC bytes -> serial bit stream
 ├── can_mac_crc_tx.vhd      # CRC engine for CAN-FD
@@ -102,7 +100,6 @@ ghdl -a --std=08 -fpsl --warn-no-vital-generic --warn-no-hide \
   -P./OsvvmLibraries/osvvm/VHDL_LIBS/GHDL-6.0.0-dev -P. \
   src/can_types_pkg.vhd \
   src/can_timing_pkg.vhd \
-  src/can_protocol_pkg.vhd \
   src/can_mac_ser_tx.vhd \
   src/can_mac_crc_tx.vhd \
   src/can_mac_bs_tx.vhd \
@@ -470,16 +467,6 @@ Central package defining all types, interface records, and constants. All interf
 - `t_mac_frame_bit_name` enum (internal use and debug ports only)
 - `t_mac_frame_bit` record (internal frame bit representation)
 - Reset constants for all interface records
-
-### can_protocol_pkg.vhd
-
-Frame construction and protocol logic.
-
-**Key functions:**
-- `get_next_mac_frame_bit()` - Return next frame bit for serialization
-- `calculate_frame_params()` - Cache frame positions once per frame
-- `dlc_to_data_length()` - Convert DLC to byte count
-- `pack_llc_id_bytes()` - Pack ID into LLC byte layout
 
 ### can_timing_pkg.vhd
 

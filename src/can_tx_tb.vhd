@@ -477,7 +477,7 @@ begin
         bus_override_test <= c_dominant;
       end if;
       bus_override_test_en <= true;
-      wait for nom_bit_time_clk_c * clk_period_c;
+      WaitForClock(clk, nom_bit_time_clk_c);
       bus_override_test_en <= false;
     end procedure inject_bit_error;
 
@@ -491,15 +491,6 @@ begin
       llc_user_i.abort_request <= '0';
       WaitForClock(clk, 20 * nom_bit_time_clk_c);
     end procedure reset_and_prepare;
-
-    -- Helper: wait for N nominal bit times (used where N strobe periods are needed)
-    procedure wait_for_n_bit_times (
-      n         : integer;
-      test_name : string
-    ) is
-    begin
-      wait for n * nom_bit_time_clk_c * clk_period_c;
-    end procedure wait_for_n_bit_times;
 
   begin
 
@@ -545,7 +536,7 @@ begin
 
     AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '1', "Test 1: tx_ready high after completion");
 
-    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+    WaitForClock(clk, 20 * nom_bit_time_clk_c);
 
     -- =======================================================================
     -- Test 2: Abort before MAC acceptance (send_config_0)
@@ -576,7 +567,7 @@ begin
       llc_user_o.avalon_st_sink.ready = '1',
       "Test 2: tx_ready = 1 after abort");
 
-    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+    WaitForClock(clk, 20 * nom_bit_time_clk_c);
 
     -- =======================================================================
     -- Test 3: Abort ignored after MAC acceptance
@@ -602,7 +593,7 @@ begin
     wait until falling_edge(clk);
     AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '1', "Test 3: tx_ready high after completion");
 
-    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+    WaitForClock(clk, 20 * nom_bit_time_clk_c);
 
     -- =======================================================================
     -- Test 4: CC Extended format smoke test (no ACK -> aborted)
@@ -621,7 +612,7 @@ begin
     WaitForClock(clk);
     wait until falling_edge(clk);
     AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '1', "Test 4: tx_ready high after completion");
-    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+    WaitForClock(clk, 20 * nom_bit_time_clk_c);
 
     -- =======================================================================
     -- Test 5: FD Basic format smoke test (no ACK -> aborted)
@@ -640,15 +631,14 @@ begin
     wait until falling_edge(clk);
     AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '0', "Test 5: tx_ready low after submit");
     wait_for_sof(80 us, "Test 5");
-    wait for 2 * clk_period_c;
+    WaitForClock(clk, 2);
     rst <= '1';
-    wait for 5 * clk_period_c;
-    WaitForClock(clk);
+    WaitForClock(clk, 5);
     rst <= '0';
     llc_user_i.avalon_st_source.valid <= '0';
     llc_user_i.abort_request <= '0';
     WaitForClock(clk);
-    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+    WaitForClock(clk, 20 * nom_bit_time_clk_c);
 
     -- =======================================================================
     -- Test 6: FD Extended format smoke test (no ACK -> aborted)
@@ -668,15 +658,14 @@ begin
     wait until falling_edge(clk);
     AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '0', "Test 6: tx_ready low after submit");
     wait_for_sof(120 us, "Test 6");
-    wait for 2 * clk_period_c;
+    WaitForClock(clk, 2);
     rst <= '1';
-    wait for 5 * clk_period_c;
-    WaitForClock(clk);
+    WaitForClock(clk, 5);
     rst <= '0';
     llc_user_i.avalon_st_source.valid <= '0';
     llc_user_i.abort_request <= '0';
     WaitForClock(clk);
-    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+    WaitForClock(clk, 20 * nom_bit_time_clk_c);
 
     -- =======================================================================
     -- Test 7: Retransmission limit exceeded
@@ -704,8 +693,7 @@ begin
 
     for iter in 0 to 11 loop
       rst <= '1';
-      wait for 5 * clk_period_c;
-      WaitForClock(clk);
+      WaitForClock(clk, 5);
       rst <= '0';
       llc_user_i.avalon_st_source.valid <= '0';
       llc_user_i.abort_request <= '0';
@@ -729,7 +717,7 @@ begin
       wait until falling_edge(clk);
       AffirmIf(alert_id, llc_user_o.avalon_st_sink.ready = '0', "Test 8: tx_ready low after submit");
       wait_for_sof(140 us, "Test 8");
-      wait for 10 * clk_period_c;
+      WaitForClock(clk, 10);
     end loop;
 
     -- =======================================================================
@@ -749,7 +737,7 @@ begin
     -- SOF + 11-bit ID + RTR + IDE + R0 + 4-bit DLC = 19 fixed bits before data).
     -- Add extra margin to land safely inside the data byte.
     wait_for_sof(80 us, "Test 9 SOF");
-    wait for 25 * nom_bit_time_clk_c * clk_period_c;
+    WaitForClock(clk, 25 * nom_bit_time_clk_c);
     -- Inject a bit error at the current bit position
     inject_bit_error;
 
@@ -761,7 +749,7 @@ begin
 
     -- Wait enough time for error flag + delimiter to complete, then hard reset.
     -- (error flag = 6 bits + 8 delimiter = 14 bits nominal)
-    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+    WaitForClock(clk, 20 * nom_bit_time_clk_c);
 
     reset_and_prepare;
 
@@ -779,7 +767,7 @@ begin
       llc_user_o.avalon_st_sink.ready = '1',
       "Test 9: tx_ready high after recovery");
 
-    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+    WaitForClock(clk, 20 * nom_bit_time_clk_c);
 
     -- =======================================================================
     -- Test 10: Dominant during intermission triggers overload flag
@@ -788,13 +776,12 @@ begin
     Log(alert_id, "Test 10: Dominant during intermission triggers overload flag");
 
     rst <= '1';
-    wait for 2 * nom_bit_time_clk_c * clk_period_c;
-    WaitForClock(clk);
+    WaitForClock(clk, 2 * nom_bit_time_clk_c);
     rst <= '0';
     llc_user_i.avalon_st_source.valid <= '0';
     llc_user_i.abort_request <= '0';
     WaitForClock(clk);
-    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+    WaitForClock(clk, 20 * nom_bit_time_clk_c);
 
     inject_ack <= true;
     setup_default_frame;
@@ -810,7 +797,7 @@ begin
     -- Inject dominant into the intermission window
     bus_override_test <= c_dominant;
     bus_override_test_en <= true;
-    wait for nom_bit_time_clk_c * clk_period_c;
+    WaitForClock(clk, nom_bit_time_clk_c);
     bus_override_test_en <= false;
 
     wait_for_error_flag(20 us, "Test 10");
@@ -820,7 +807,7 @@ begin
       "Test 10: sending_error_overload_flag asserted during overload flag transmission");
 
     -- Wait enough time for overload flag + delimiter to complete, then hard reset.
-    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+    WaitForClock(clk, 20 * nom_bit_time_clk_c);
 
     reset_and_prepare;
 
@@ -838,7 +825,7 @@ begin
       llc_user_o.avalon_st_sink.ready = '1',
       "Test 10: tx_ready high after recovery");
 
-    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+    WaitForClock(clk, 20 * nom_bit_time_clk_c);
 
     -- =======================================================================
     -- Test 11: FD Basic ACK injection via bus monitor
@@ -857,7 +844,7 @@ begin
 
     wait_for_completion(500 us, c_transmitted, "Test 11");
 
-    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+    WaitForClock(clk, 20 * nom_bit_time_clk_c);
 
     -- =======================================================================
     -- Test 12: Arbitration Loss Withdrawal
@@ -877,11 +864,11 @@ begin
     -- the first base-ID bit (bit position 1 in the frame).  Then inject a
     -- dominant to simulate arbitration loss (our ID is all-recessive '1's).
     wait_for_sof(80 us, "Test 12 SOF");
-    wait for nom_bit_time_clk_c * clk_period_c;
+    WaitForClock(clk, nom_bit_time_clk_c);
 
     bus_override_test    <= c_dominant;
     bus_override_test_en <= true;
-    wait for nom_bit_time_clk_c * clk_period_c;
+    WaitForClock(clk, nom_bit_time_clk_c);
     bus_override_test_en <= false;
 
     -- After arb loss the FSM enters intermission (3 bit times) then retries.
@@ -893,7 +880,7 @@ begin
     -- LLC auto-retries after arb loss; wait for the retransmitted frame to complete.
     wait_for_completion(1 ms, c_transmitted, "Test 12 retry completion");
 
-    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+    WaitForClock(clk, 20 * nom_bit_time_clk_c);
 
     -- =======================================================================
     -- Test 13: Remote Frame Support (RTR=1)
@@ -920,7 +907,7 @@ begin
 
     wait_for_completion(300 us, c_transmitted, "Test 13 completion");
 
-    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+    WaitForClock(clk, 20 * nom_bit_time_clk_c);
 
     -- =======================================================================
     -- Test 14: Bit Rate Switching Timing Validation
@@ -944,17 +931,17 @@ begin
     -- BRS is bit position 14 in a FD Basic frame (SOF=0, ID=1-11, RRS=12, IDE=13, BRS=14).
     -- Wait for SOF to fire then advance 14 bit times to land in the BRS slot.
     wait_for_sof(80 us, "Test 14 SOF");
-    wait for 14 * nom_bit_time_clk_c * clk_period_c;
+    WaitForClock(clk, 14 * nom_bit_time_clk_c);
 
-    wait for 100 us;
+    WaitForClock(clk, 10000);
 
-    wait for 20 * nom_bit_time_clk_c * clk_period_c;
+    WaitForClock(clk, 20 * nom_bit_time_clk_c);
 
     -- =======================================================================
     -- Done
     -- =======================================================================
     current_test_id <= test_done_c;
-    wait for 10 * clk_period_c;
+    WaitForClock(clk, 10);
     ReportAlerts;
     test_done <= true;
     wait;
