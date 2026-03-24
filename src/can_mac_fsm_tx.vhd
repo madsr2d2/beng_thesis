@@ -114,8 +114,7 @@ begin
     -- Temporary per-cycle values (read-back within same cycle)
     variable v_tx_bit : t_mac_frame_bit;
 
-    -- Next-value variables (read-back within same cycle)
-    variable v_bit_count     : t_bit_count;
+    -- Next-value variable (read-back within same cycle)
     variable v_in_data_phase : std_logic;
 
     -- Frame parameter calculation (used only during frame initialization)
@@ -145,10 +144,10 @@ begin
         -- dominant resets the run counter.
         if (pcs_i.bus_polarity = c_recessive) then
           if (bit_count < t_bit_count'high) then
-            v_bit_count := bit_count + 1;
+            bit_count <= bit_count + 1;
           end if;
         else
-          v_bit_count := 0;
+          bit_count <= 0;
         end if;
       end if;
 
@@ -185,7 +184,7 @@ begin
         pcs_o.polarity <= v_tx_bit.polarity;
       end if;
 
-      v_bit_count := prepare_position_v;
+      bit_count <= prepare_position_v;
 
       serializer_sourced_v := v_tx_bit.bit_name = base_id_bit or
                               v_tx_bit.bit_name = extended_id_bit or
@@ -253,7 +252,7 @@ begin
 
       if (pcs_i.sp = '1') then
         if (bit_count < c_error_sequence_width - 1) then
-          v_bit_count := bit_count + 1;
+          bit_count <= bit_count + 1;
         end if;
 
         -- ISO 11898-1: 8.1.3.3 Table 16 (Error_delimiter_too_late) and
@@ -285,12 +284,12 @@ begin
 
       if (overload_condition) then
         state                     <= s_overload_flag;
-        v_bit_count               := 0;
+        bit_count                 <= 0;
         dominant_seen_during_flag <= false;
         dominant_run_count        <= 0;
       elsif (bit_count = c_error_sequence_width - 1 and pcs_i.sp = '1') then
-        state       <= s_intermission;
-        v_bit_count := 0;
+        state     <= s_intermission;
+        bit_count <= 0;
       end if;
 
     end procedure process_flag_transmission;
@@ -327,7 +326,6 @@ begin
       else
         v_tx_bit := c_reset_mac_frame_bit;
 
-        v_bit_count     := bit_count;
         v_in_data_phase := '0';
 
         ---------------------------------------------------------------------
@@ -361,11 +359,11 @@ begin
             if (bit_count = c_bus_idle_condition_width - 1) then
               if (fce_i.bus_off = '0' or idle_condition_count = c_bus_off_recovery_count - 1) then
                 -- ISO 11898-1: 6.6.7.5 / 8.1.4.4 (T5)
-                state       <= s_bus_idle;
-                v_bit_count := 0;
+                state     <= s_bus_idle;
+                bit_count <= 0;
               else
                 idle_condition_count <= idle_condition_count + 1;
-                v_bit_count          := 0;
+                bit_count            <= 0;
               end if;
             end if;
 
@@ -378,7 +376,7 @@ begin
             end if;
             if (overload_condition) then
               state                     <= s_overload_flag;
-              v_bit_count               := 0;
+              bit_count                 <= 0;
               dominant_seen_during_flag <= false;
               dominant_run_count        <= 0;
             elsif (bit_count = c_intermission_width - 1 and pcs_i.sp = '1' and pcs_i.bus_polarity = c_dominant) then
@@ -386,22 +384,22 @@ begin
               -- interpreted as SOF; transmit first ID bit without SOF if eligible.
               if (mac_ser_i.valid = '1' and fce_i.bus_off = '0' and
                   (fce_i.error_passive_request = '0' or not was_previous_frame_tx)) then
-                state       <= s_frame_init;
-                v_bit_count := 0;
-                skip_sof    <= true;
+                state     <= s_frame_init;
+                bit_count <= 0;
+                skip_sof  <= true;
               else
-                state       <= s_bus_idle;
-                v_bit_count := 0;
+                state     <= s_bus_idle;
+                bit_count <= 0;
               end if;
             elsif (bit_count = c_intermission_width - 1) then
               -- ISO 11898-1: 6.6.7.4 / 6.6.7.3 - error-passive transmitters
               -- enter suspend_transmission; all others enter bus_idle.
               if (fce_i.error_passive_request = '1' and was_previous_frame_tx) then
-                state       <= s_suspend_transmission;
-                v_bit_count := 0;
+                state     <= s_suspend_transmission;
+                bit_count <= 0;
               else
-                state       <= s_bus_idle;
-                v_bit_count := 0;
+                state     <= s_bus_idle;
+                bit_count <= 0;
               end if;
             end if;
 
@@ -413,12 +411,12 @@ begin
             process_quiet_phase_common;
             if (overload_condition) then
               state                     <= s_overload_flag;
-              v_bit_count               := 0;
+              bit_count                 <= 0;
               dominant_seen_during_flag <= false;
               dominant_run_count        <= 0;
             elsif (bit_count = c_suspend_transmission_width - 1) then
-              state       <= s_bus_idle;
-              v_bit_count := 0;
+              state     <= s_bus_idle;
+              bit_count <= 0;
             end if;
 
           -----------------------------------------------------------------
@@ -428,10 +426,10 @@ begin
             process_quiet_phase_common;
             -- ISO 11898-1: 8.1.4.4 - bus_off nodes shall not initiate transmissions
             if (mac_ser_i.valid = '1' and pcs_i.sp = '1' and fce_i.bus_off = '0') then
-              state       <= s_frame_init;
-              v_bit_count := 0;
-              bs_fd_rst   <= '1';
-              crc_rst     <= '1';
+              state     <= s_frame_init;
+              bit_count <= 0;
+              bs_fd_rst <= '1';
+              crc_rst   <= '1';
             end if;
 
           -----------------------------------------------------------------
@@ -467,7 +465,7 @@ begin
 
             v_tx_bit                      := c_sof_bit;
             last_transmitted_bit_polarity <= c_dominant;
-            v_bit_count                   := 0;
+            bit_count                     <= 0;
 
             crc_o.valid <= '1';
             crc_o.data  <= c_dominant;
@@ -495,7 +493,7 @@ begin
               was_previous_frame_tx     <= true;
               fce_o.successful_transfer <= '1';
               state                     <= s_intermission;
-              v_bit_count               := 0;
+              bit_count                 <= 0;
 
             elsif (pcs_i.sp = '1' or pcs_i.ssp = '1') then
               if (fce_i.error_passive_request = '1') then
@@ -531,7 +529,7 @@ begin
                 else
                   state <= s_active_error_flag;
                 end if;
-                v_bit_count               := 0;
+                bit_count                 <= 0;
                 dominant_seen_during_flag <= false;
                 dominant_run_count        <= 0;
 
@@ -551,7 +549,7 @@ begin
                     mac_ser_o.transfer_status <= c_lost_arb;
                     monitored_bit_event       <= lost_arbitration;
                     state                     <= s_intermission;
-                    v_bit_count               := 0;
+                    bit_count                 <= 0;
 
                   when ack_detected =>
                     was_previous_frame_tx     <= true;
@@ -572,7 +570,7 @@ begin
                     else
                       state <= s_active_error_flag;
                     end if;
-                    v_bit_count               := 0;
+                    bit_count                 <= 0;
                     dominant_seen_during_flag <= false;
                     dominant_run_count        <= 0;
 
@@ -595,7 +593,7 @@ begin
                       else
                         state <= s_active_error_flag;
                       end if;
-                      v_bit_count               := 0;
+                      bit_count                 <= 0;
                       dominant_seen_during_flag <= false;
                       dominant_run_count        <= 0;
                     else
@@ -668,12 +666,11 @@ begin
             process_flag_transmission(c_overload_flag_bit, false);
 
           when others =>
-            state       <= s_bus_reintegration;
-            v_bit_count := 0;
+            state     <= s_bus_reintegration;
+            bit_count <= 0;
 
         end case;
 
-        bit_count     <= v_bit_count;
         in_data_phase <= v_in_data_phase;
       end if;
     end if;
