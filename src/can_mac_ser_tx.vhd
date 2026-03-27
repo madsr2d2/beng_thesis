@@ -130,23 +130,24 @@ begin
               end if;
 
             -----------------------------------------------------------------
-            -- Latch next byte from LLC and present MSB to MAC FSM.
+            -- Latch next byte from LLC.
             -----------------------------------------------------------------
             when s_load_llc_frame_byte =>
-              if (llc_i.avalon_st_source.valid = '1') then
-                count            <= 0;
-                llc_frame_buffer <= llc_i.avalon_st_source.data;
-                state            <= s_shift_out_bits;
+              if ((llc_i.avalon_st_source.valid = '1') and (llc_o.avalon_st_sink.ready = '1')) then
+                llc_o.avalon_st_sink.ready <= '0';
+                count                      <= 0;
+                llc_frame_buffer           <= llc_i.avalon_st_source.data;
+                tx_mac_fsm_o.data          <= llc_i.avalon_st_source.data(c_byte_width - 1);
+                state                      <= s_shift_out_bits;
               end if;
 
             -----------------------------------------------------------------
-            -- Shift out remaining bits of current byte. Skip padding bits
-            -- in the ID stream without presenting them to the MAC FSM.
+            -- Shift out bits of current byte. Skip padding bits in the ID
+            -- stream without presenting them to the MAC FSM.
             -----------------------------------------------------------------
             when s_shift_out_bits =>
-
               if ((padding_bits_remaining > 0) and (id_bits_remaining = 0)) then
-                -- Padding bit: skip silently, advance to next bit position
+                -- Padding bit: skip silently
                 padding_bits_remaining <= padding_bits_remaining - 1;
 
                 if (count = (c_byte_width - 1)) then
@@ -155,21 +156,25 @@ begin
                 else
                   count <= count + 1;
                 end if;
-
               else
-                -- Real bit (ID or data): present to MAC FSM, advance on ready
+                -- Real bit: present to MAC FSM
                 tx_mac_fsm_o.valid <= '1';
-                tx_mac_fsm_o.data  <= llc_frame_buffer(c_byte_width - 1 - count);
-
-                if (tx_mac_fsm_i.ready = '1') then
+                if ((tx_mac_fsm_o.valid = '1') and (tx_mac_fsm_i.ready = '1')) then
                   if (id_bits_remaining > 0) then
                     id_bits_remaining <= id_bits_remaining - 1;
                   end if;
-
                   if (count = (c_byte_width - 1)) then
-                    state <= s_load_llc_frame_byte;
+                    tx_mac_fsm_o.valid <= '0';
+                    state              <= s_load_llc_frame_byte;
                   else
-                    count <= count + 1;
+                    -- Shift out and present next bit
+                    llc_frame_buffer  <= llc_frame_buffer sll 1; -- shift left
+                    tx_mac_fsm_o.data <= llc_frame_buffer(c_byte_width - 2);
+                    count             <= count + 1;
+                    if ((id_bits_remaining = 1) and (padding_bits_remaining > 0)) then
+                      -- Nest bit is start of padding region
+                      tx_mac_fsm_o.valid <= '0';
+                    end if;
                   end if;
                 end if;
               end if;

@@ -49,6 +49,12 @@ architecture tb of can_mac_ser_tx_tb is
   signal test_id   : AlertLogIDType;
   signal llc_frame : t_llc_frame;
 
+  -- Debug monitoring
+  signal ser_state : string(1 to 20);
+  signal ser_count : integer;
+  signal ser_id_bits : integer;
+  signal ser_pad_bits : integer;
+
   shared variable RV : RandomPType;
 
   ----------------------------------------------------------------------------
@@ -161,6 +167,50 @@ begin
       tx_mac_fsm_o => tx_mac_fsm_o
     );
 
+  -- =========================================================================
+  -- Random ready process - drives ready signal randomly every cycle
+  -- This stresses the serializer's hold logic when FSM is not ready
+  -- =========================================================================
+  p_random_ready : process is
+  begin
+    tx_mac_fsm_i.ready <= '0';
+    wait until reset = '0';
+    loop
+      tx_mac_fsm_i.ready <= '1' when RV.DistBool((false => 60, true => 40)) else '0';
+      WaitForClock(clk);
+    end loop;
+  end process p_random_ready;
+
+  -- =========================================================================
+  -- Debug monitor - prints state when bits stall
+  -- =========================================================================
+  p_debug_monitor : process is
+    variable v_last_valid : std_logic := '0';
+    variable v_last_data : std_logic := '0';
+    variable v_stable_count : integer := 0;
+  begin
+    wait until reset = '0';
+    wait for 100 us;  -- Skip initial transient
+
+    loop
+      if (tx_mac_fsm_o.valid = '1' and tx_mac_fsm_i.ready = '0') then
+        v_stable_count := v_stable_count + 1;
+        if (v_stable_count = 10000) then
+          Print("");
+          Print("DEBUG: Serializer appears deadlocked!");
+          Print("  valid=" & to_string(tx_mac_fsm_o.valid) &
+                " ready=" & to_string(tx_mac_fsm_i.ready) &
+                " data=" & to_string(tx_mac_fsm_o.data));
+          Print("  Byte count accumulated: " & to_string(llc_frame'length) & " bytes queued");
+          v_stable_count := 0;
+        end if;
+      else
+        v_stable_count := 0;
+      end if;
+      WaitForClock(clk);
+    end loop;
+  end process p_debug_monitor;
+
   -- -------------------------------------------------------------------------
   -- Main test process
   -- -------------------------------------------------------------------------
@@ -177,6 +227,7 @@ begin
 
     Print("==========================================");
     Print("TX MAC Serializer Testbench Started");
+    Print("(with continuous random ready stimulus)");
     Print("==========================================");
 
     -- =====================================================================
@@ -200,10 +251,10 @@ begin
 
 
     -- =====================================================================
-    -- Test 2: Random frames with metadata, bit-level, and abort checks
+    -- Test 2: Random frames with metadata, bit-level, and random ready
     -- =====================================================================
     Print("-----------");
-    Print("Test 2: Random frames with metadata, bit-level, and abort checks");
+    Print("Test 2: Random frames with random ready backpressure");
     Print("-----------");
     for frame_idx in 1 to c_frames_to_send loop
 
@@ -266,26 +317,25 @@ begin
         llc_i.avalon_st_source.valid <= '0';
 
         -- Verify only the real bits (padding bits are auto-skipped by serializer)
+        -- Note: ready is now driven randomly by p_random_ready, so bits may stall
         for bit_idx in 0 to v_real_bits_this_byte - 1 loop
 
           -- Wait for serializer to present this bit
           if tx_mac_fsm_o.valid /= '1' then
             wait until tx_mac_fsm_o.valid = '1';
           end if;
-          wait until falling_edge(clk);
+
+          -- Wait until ready goes high before consuming bit
+          if tx_mac_fsm_i.ready /= '1' then
+            wait until tx_mac_fsm_i.ready = '1';
+          end if;
+          WaitForClock(clk);
+          wait for 0 ns;
 
           AlertIf(tx_mac_fsm_o.data /= llc_frame(i)(c_byte_width - 1 - bit_idx),
                   "ERROR: byte " & to_string(i) & " bit " & to_string(c_byte_width - 1 - bit_idx) &
                   " mismatch: expected " & to_string(llc_frame(i)(c_byte_width - 1 - bit_idx)) &
                   " got " & to_string(tx_mac_fsm_o.data), FAILURE);
-
-          -- Random wait before fsm_i ready (realistic: FSM takes ~200 clocks per bit)
-          WaitForClock(clk, RV.RandInt(150, 250));
-          tx_mac_fsm_i.ready <= '1';
-          WaitForClock(clk);
-          tx_mac_fsm_i.ready <= '0';
-          WaitForClock(clk);
-          wait for 0 ns;
 
         end loop;
 

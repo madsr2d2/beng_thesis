@@ -41,7 +41,8 @@ TESTBENCHPATH = $(TB_NOEXT)$(VHDLEX)
 
 # GHDL configuration
 GHDL_CMD = ghdl
-GHDL_FLAGS = --std=08 -fpsl --warn-no-vital-generic --warn-no-hide -P$(OSVVM_LIB_PATH) -P.
+GHDL_FLAGS = --std=08 -fpsl -frelaxed --warn-no-vital-generic --warn-no-hide \
+	-P$(OSVVM_LIB_PATH)/osvvm/v08 -P$(OSVVM_LIB_PATH)/osvvm_common -P$(OSVVM_LIB_PATH) -P.
 
 SIMDIR = sim
 STOP_TIME ?= 100us

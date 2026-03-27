@@ -6,6 +6,10 @@ osvvm.files = [
     "OsvvmLibraries/osvvm/*.vhd"
 ]
 
+osvvm_common.files = [
+    "OsvvmLibraries/Common/src/*.vhd"
+]
+
 project.files = [
     "src/*.vhd"
 ]
