@@ -31,16 +31,10 @@
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
         Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
         Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
@@ -68,26 +62,11 @@
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         Name: "AlertLogTop"
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
@@ -112,19 +91,10 @@
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
         Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
@@ -140,55 +110,7 @@
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
@@ -208,9 +130,6 @@
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         Name: "AlertLogTop"
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
@@ -228,9 +147,6 @@
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
         Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
@@ -267,9 +183,6 @@
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
         Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
@@ -285,9 +198,6 @@
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         Name: "AlertLogTop"
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
@@ -297,9 +207,6 @@
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
         Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
@@ -363,12 +270,6 @@
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         Name: "AlertLogTop"
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
@@ -377,40 +278,7 @@
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
@@ -422,19 +290,7 @@
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
@@ -442,16 +298,7 @@
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
@@ -467,9 +314,6 @@
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         Name: "AlertLogTop"
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
@@ -526,105 +370,15 @@
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         Name: "AlertLogTop"
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
         Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
@@ -632,24 +386,23 @@
         Status: PASSED
         Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         FunctionalCoverage:  
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
         Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
+        Status: PASSED
+        Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
+        FunctionalCoverage:  
         Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
+        Status: PASSED
+        Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
+        FunctionalCoverage:  
         Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
+        Status: PASSED
+        Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
+        FunctionalCoverage:  
         Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
+        Status: PASSED
+        Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
+        FunctionalCoverage:  
         Name: "AlertLogTop"
-        Status: FAILED
-        Results: {TotalErrors: 1, AlertCount: {Failure: 1, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
+        Status: PASSED
+        Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 0, AffirmCount: 0, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
+        FunctionalCoverage:  

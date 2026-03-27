@@ -12,7 +12,7 @@
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-03-15  TMYAES    [TRIT-4341] Initial implementation
---
+--                2026-03-15  TMYAES    [TRIT-4346] Updated JIRA ID
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
@@ -26,6 +26,8 @@ library ieee;
 
 library osvvm;
 context osvvm.OsvvmContext;
+library osvvm_common;
+context osvvm_common.OsvvmCommonContext;
 
 entity can_mac_crc_tx_tb is
   generic (
@@ -39,47 +41,96 @@ architecture tb of can_mac_crc_tx_tb is
   ----------------------------------------------------------------------------
   -- Constants
   ----------------------------------------------------------------------------
-  constant c_crc_zero : t_crc_vector := (others => '0');
+  constant c_bin_crc_15_sel : integer := 0;
+  constant c_bin_crc_17_sel : integer := 1;
+  constant c_bin_crc_21_sel : integer := 2;
+  constant c_num_frames     : integer := 1000;
+  constant c_crc_reset_value : std_logic_vector(c_crc_21_length - 1 downto 0) := (others => '0');
 
   ----------------------------------------------------------------------------
   -- Signals
   ----------------------------------------------------------------------------
+  -- DUT interface signals
   signal crc_i : t_can_mac_fsm_crc_tx_if_m2s := c_mac_fsm_to_crc_if_reset;
   signal crc_o : t_can_mac_fsm_crc_tx_if_s2m;
 
-  signal test_id  : AlertLogIDType;
-  signal reset_id : AlertLogIDType;
-
+  -- Clock and reset
   signal clk   : std_logic := '0';
   signal reset : std_logic := '1';
-
+  
+  -- osvvm signals
+  signal reset_id : AlertLogIDType;
+  signal crc_check_id : AlertLogIDType;
+  signal output_stable_id : AlertLogIDType;
+  signal tx_rec : StreamRecType(DataToModel (c_max_mac_frame_length - 1 downto 0), ParamToModel (1 downto 0), DataFromModel (0 downto 0), ParamFromModel (0 downto 0));
+  signal rx_rec : StreamRecType( DataToModel (crc_o.crc'length - 1 downto 0), ParamToModel (0 downto 0), DataFromModel (0 downto 0), ParamFromModel (0 downto 0));
+  signal cov  : CoverageIdType;
   shared variable RV : RandomPType;
 
+  ----------------------------------------------------------------------------
+  -- Functions
+  ----------------------------------------------------------------------------
+  -- Implements the algorithm from ISO 11898-1: Sec. 6.6.4.4
+function f_calc_can_crc (data  : std_logic_vector; init_vec : std_logic_vector; poly : std_logic_vector) return std_logic_vector is
+  variable crc : std_logic_vector(init_vec'length - 1 downto 0);
+  variable crc_next : std_logic;
 begin
+  crc := init_vec; -- Initialize CRC with the specified initial value
+  for i in data'range loop
+    crc_next := data(i) xor crc(crc'high);
+    crc := crc sll 1; -- Shift in '0' from the right
+    if crc_next then
+      crc := crc xor poly;
+    end if;
+  end loop;
+  return crc;
+end function f_calc_can_crc;
 
+-- Function left-justifies the CRC output.
+function f_calc_can_crc_aligned (dat : std_logic_vector; poly_select : std_logic_vector(1 downto 0)) return std_logic_vector is
+  variable v_result : std_logic_vector(c_crc_21_length - 1 downto 0) := (others => '0');
+begin
+  case poly_select is
+    when "00" =>
+      v_result := f_calc_can_crc(dat, c_crc_init_15_vec, c_crc_poly_15_vec) & ((c_crc_21_length - 1) - c_crc_15_length downto 0 => '0');
+    when "01" =>
+        v_result := f_calc_can_crc(dat, c_crc_init_17_vec, c_crc_poly_17_vec) & ((c_crc_21_length - 1) - c_crc_17_length downto 0 => '0');
+    when "10" =>
+      v_result := f_calc_can_crc(dat, c_crc_init_21_vec, c_crc_poly_21_vec);
+    when others =>
+      null;
+  end case;
+  return v_result;
+end function;
+
+  begin
+    
   ----------------------------------------------------------------------------
   -- Initialisation
   ----------------------------------------------------------------------------
-  p_init : process
-    variable v_test_id : AlertLogIDType;
-  begin
-    RV.InitSeed(random_seed);
-    SetAlertStopCount(ERROR, 10);
+p_init : process
+  variable v_cov : CoverageIdType;
+begin
+  RV.InitSeed(random_seed);
+  SetAlertStopCount(ERROR, 10);
 
-    v_test_id := NewId("can_mac_crc_tx");
-    test_id   <= v_test_id;
-    reset_id  <= NewId("Reset", v_test_id);
+  reset_id  <= NewId("Reset");
+  crc_check_id <= NewId("CRC Check");
+  output_stable_id <= NewId("Output stable check");
 
-    wait for 0 ns;
-
-    wait;
-  end process;
+  v_cov := NewID("CRC Coverage"); 
+  AddBins(v_cov, "crc_15", 100, GenBin(c_bin_crc_15_sel));
+  AddBins(v_cov, "crc_17", 100, GenBin(c_bin_crc_17_sel));
+  AddBins(v_cov, "crc_21", 100, GenBin(c_bin_crc_21_sel));
+  cov <= v_cov;
+  wait;
+end process;
 
   ----------------------------------------------------------------------------
   -- Clock / reset
   ----------------------------------------------------------------------------
   CreateClock(clk, gc_TbClkPeriod);
-  CreateReset(reset, '1', clk, gc_TbClkPeriod * 5);
+  CreateReset(reset, '1', clk, gc_TbClkPeriod * 10);
 
   ----------------------------------------------------------------------------
   -- Timeout watchdog
@@ -87,7 +138,7 @@ begin
   p_timeout : process
   begin
     WaitForClock(clk, gc_TbTimeOut);
-    WaitForClock(clk, 1 us);
+    WaitForClock(clk, 10 ms);
     report "Time Out detected";
     assert false report "ERROR TEST FAILED, due to time out" severity error;
     std.env.stop(1);
@@ -104,121 +155,109 @@ begin
       crc_o => crc_o
     );
 
-  -- -------------------------------------------------------------------------
-  -- Main test process
-  -- -------------------------------------------------------------------------
-  p_main_tester : process
-    variable v_snap : t_crc_vector;
+  ----------------------------------------------------------------------------
+  -- Test sequencer
+  ----------------------------------------------------------------------------
+  p_test_ctrl : process is
+    variable v_data : std_logic_vector(c_max_mac_frame_length - 1 downto 0);
+    variable v_poly_select : std_logic_vector(1 downto 0); 
   begin
     wait until reset = '0';
     WaitForClock(clk);
 
-    -- -----------------------------------------------------------------------
-    -- Test 1: Reset zeroes CRC output
-    -- -----------------------------------------------------------------------
-    Message("################################################################################");
-    Message("Test 1: Reset output");
-    Message("################################################################################");
-    AffirmIf(reset_id, crc_o.crc = c_crc_zero,
-             "CRC output not zero after reset");
-
-    -- -----------------------------------------------------------------------
-    -- Test 2: CRC-15 (poly_select = "00")
-    -- -----------------------------------------------------------------------
-    Message("################################################################################");
-    Message("Test 2: CRC-15");
-    Message("################################################################################");
-    crc_i.crc_poly_select <= "00";
-    crc_i.start           <= '1';
-    crc_i.valid           <= '0';
-    WaitForClock(clk);
-    crc_i.start <= '0';
-
-    for i in 0 to 31 loop
-      crc_i.data  <= '1' when RV.RandBool else '0';
-      crc_i.valid <= '1';
-      WaitForClock(clk);
+    for i in 0 to c_num_frames loop
+      -- Random frame and poly_select
+      v_data    := RV.RandSlv(c_max_mac_frame_length);
+      v_poly_select := std_logic_vector(to_unsigned(RandCovPoint(cov), 2));
+      
+      Send(tx_rec, Data => v_data , Param => v_poly_select);
+      Check(rx_rec, Data => f_calc_can_crc_aligned(v_data, v_poly_select));
+      ICover(cov, to_integer(unsigned(v_poly_select)));
+      WaitForClock(clk,RV.RandInt(2, 100)); -- Random delay between frames
+      
     end loop;
-    crc_i.valid <= '0';
-    WaitForClock(clk, 2);
 
-    AffirmIf(test_id, crc_o.crc /= c_crc_zero,
-             "CRC-15: output still zero after data");
-    v_snap := crc_o.crc;
-    WaitForClock(clk, 5);
-    AffirmIf(test_id, crc_o.crc = v_snap,
-             "CRC-15: output changed with valid=false");
+  -- Done
+  AlertIf(crc_check_id, not IsCovered(cov), "Coverage goal not met");
+  WriteBin(cov); 
+  EndOfTestReports(ReportAll => TRUE);
+  std.env.finish;
+  end process p_test_ctrl;
 
-    -- -----------------------------------------------------------------------
-    -- Test 3: CRC-17 (poly_select = "01")
-    -- -----------------------------------------------------------------------
-    Message("################################################################################");
-    Message("Test 3: CRC-17");
-    Message("################################################################################");
-    crc_i.crc_poly_select <= "01";
-    crc_i.start           <= '1';
-    crc_i.valid           <= '0';
-    WaitForClock(clk);
-    crc_i.start <= '0';
+  ----------------------------------------------------------------------------
+  -- Input VC
+  ----------------------------------------------------------------------------
+ p_input_vc : process is
+ begin
+    wait until tx_rec.Rdy /= tx_rec.Ack; 
 
-    for i in 0 to 31 loop
-      crc_i.data  <= '1' when RV.RandBool else '0';
-      crc_i.valid <= '1';
+    case tx_rec.Operation is
+      when SEND =>
+        -- Send data
+        for i in tx_rec.DataToModel'high downto 0 loop
+          crc_i.crc_poly_select <= SafeResize(tx_rec.ParamToModel, crc_i.crc_poly_select'length);
+          crc_i.data  <= tx_rec.DataToModel(i);
+          crc_i.valid <= '1';
+          crc_i.start <= '1' when i = tx_rec.DataToModel'high else '0'; -- Assert start for the first bit
+          WaitForClock(clk);
+        end loop;
+        crc_i.valid <= '0';
+        WaitForClock(clk);
+        tx_rec.Ack <= tx_rec.Ack + 1;
+      when others => null;
+    end case;
+  end process p_input_vc;
+
+  ----------------------------------------------------------------------------
+  -- Output VC
+  ----------------------------------------------------------------------------
+ p_output_vc : process is
+ begin
+    wait until rx_rec.Rdy /= rx_rec.Ack; 
+
+    case rx_rec.Operation is
+      when CHECK =>
+        AffirmIf(crc_check_id, std_logic_vector(crc_o.crc) = std_logic_vector(rx_rec.DataToModel), "Got : " & to_string(crc_o.crc) & ", expected: " & to_string(rx_rec.DataToModel));
+        rx_rec.Ack <= rx_rec.Ack + 1;
+      when others => null;
+    end case;
+  end process p_output_vc;
+
+  ---------------------------------------------------------------------------
+  -- Checker: Check reset
+  ---------------------------------------------------------------------------
+  p_reset_checker : process
+  begin
+    loop
+      wait until rising_edge(clk) and reset = '1';
       WaitForClock(clk);
+      AffirmIf(reset_id, crc_o.crc = c_crc_reset_value, "CRC output not reset to zero");
     end loop;
-    crc_i.valid <= '0';
-    WaitForClock(clk, 2);
+  end process p_reset_checker;
 
-    AffirmIf(test_id, crc_o.crc /= c_crc_zero,
-             "CRC-17: output still zero after data");
-    v_snap := crc_o.crc;
-    WaitForClock(clk, 5);
-    AffirmIf(test_id, crc_o.crc = v_snap,
-             "CRC-17: output changed with valid=false");
-
-    -- -----------------------------------------------------------------------
-    -- Test 4: CRC-21 (poly_select = "10")
-    -- -----------------------------------------------------------------------
-    Message("################################################################################");
-    Message("Test 4: CRC-21");
-    Message("################################################################################");
-    crc_i.crc_poly_select <= "10";
-    crc_i.start           <= '1';
-    crc_i.valid           <= '0';
-    WaitForClock(clk);
-    crc_i.start <= '0';
-
-    for i in 0 to 31 loop
-      crc_i.data  <= '1' when RV.RandBool else '0';
-      crc_i.valid <= '1';
-      WaitForClock(clk);
+  ---------------------------------------------------------------------------
+  -- Checker: Check that CRC output is stable when valid and start are not asserted.
+  ---------------------------------------------------------------------------
+  p_output_stabel_checker : process is
+    variable v_crc_snap : std_logic_vector(crc_o.crc'range);
+  begin
+    wait until reset = '0';
+    loop
+      wait until rising_edge(clk);
+      if crc_i.valid = '0' and crc_i.start = '0' then
+        WaitForClock(clk); 
+        loop -- loop checks output is stable when input is not changing.
+          exit when crc_i.valid = '1' or crc_i.start = '1'; -- exit when new frame starts or valid goes high
+          v_crc_snap := crc_o.crc;
+          WaitForClock(clk);
+          AffirmIf(output_stable_id, crc_o.crc = v_crc_snap, "CRC output changed without valid or start");
+        end loop;
+      end if;
     end loop;
-    crc_i.valid <= '0';
-    WaitForClock(clk, 2);
-
-    AffirmIf(test_id, crc_o.crc /= c_crc_zero,
-             "CRC-21: output still zero after data");
-    v_snap := crc_o.crc;
-    WaitForClock(clk, 5);
-    AffirmIf(test_id, crc_o.crc = v_snap,
-             "CRC-21: output changed with valid=false");
-
-    -- -----------------------------------------------------------------------
-    -- Done
-    -- -----------------------------------------------------------------------
-    WaitForClock(clk, 5);
-    ReportNonZeroAlerts;
-    Message("################################################################################");
-    if GetAlertCount = 0 then
-      Message("TEST PASSED!!");
-    else
-      Message("TEST FAILED :(");
-    end if;
-    Message("################################################################################");
-    EndOfTestReports(ReportAll => TRUE);
-    std.env.finish;
-  end process p_main_tester;
+  end process p_output_stabel_checker;
+    
 
 end architecture tb;
 
--- eof
+
+  -- eof

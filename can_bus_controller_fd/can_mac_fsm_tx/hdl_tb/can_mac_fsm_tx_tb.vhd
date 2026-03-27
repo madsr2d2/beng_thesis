@@ -1,0 +1,250 @@
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+--
+-- Requirements:
+--
+-- Description:   
+--
+-- Revision log:  Date:       Initial:  JIRA:
+--                2026-03-23  TMYAES    [TRIT-4355] Initial implementation
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+library ieee;
+  use ieee.std_logic_1164.all;
+  use ieee.numeric_std.all;
+
+  use work.pk_can_types.all;
+  use work.pk_man_global.all;
+  use work.pk_eth_st.all;
+
+  use work.common_register_interface_pkg.all;
+  use work.common_tb_pkg.all;
+
+library osvvm;
+  context osvvm.OsvvmContext;
+
+entity can_mac_fsm_tx_tb is
+  generic (
+    gc_TbTimeOut   : time := 100 ms;
+    gc_TbClkPeriod : time := 10 ns
+  );
+end entity can_mac_fsm_tx_tb;
+
+architecture tb of can_mac_fsm_tx_tb is
+
+  ----------------------------------------------------------------------------
+  -- Constants
+  ----------------------------------------------------------------------------
+  -- constant c_frames_to_send : positive := 20;
+
+  ----------------------------------------------------------------------------
+  -- Signals
+  ----------------------------------------------------------------------------
+  signal clk   : std_logic;
+  signal reset : std_logic := '1';
+
+  -- signal llc_i        : t_can_llc_mac_tx_if_s2d;
+  -- signal llc_o        : t_can_llc_mac_tx_if_d2s;
+  -- signal tx_mac_fsm_i : t_can_mac_ser_fsm_tx_if_m2s;
+  -- signal tx_mac_fsm_o : t_can_mac_ser_fsm_tx_if_s2m;
+
+  signal test_id   : AlertLogIDType;
+  -- signal llc_frame : t_llc_frame;
+
+  shared variable RV : RandomPType;
+
+  ----------------------------------------------------------------------------
+  -- Procedures
+  ----------------------------------------------------------------------------
+ 
+begin
+
+  ----------------------------------------------------------------------------
+  -- Initialisation
+  ----------------------------------------------------------------------------
+  p_init : process is
+    variable v_test_id : AlertLogIDType;
+  begin
+    SetAlertStopCount(ERROR, 10);
+    v_test_id := NewId("can_mac_ser_tx");
+    test_id   <= v_test_id;
+    wait for 0 ns;
+    wait;
+  end process p_init;
+
+  ----------------------------------------------------------------------------
+  -- Clock and timeout
+  ----------------------------------------------------------------------------
+  CreateClock(clk, gc_TbClkPeriod);
+
+  p_timeout : process is
+  begin
+    wait for gc_TbTimeOut;
+    assert false report "ERROR TEST FAILED, due to time out" severity error;
+    std.env.stop(1);
+  end process p_timeout;
+
+  ----------------------------------------------------------------------------
+  -- DUT
+  ----------------------------------------------------------------------------
+  u_dut : entity work.can_mac_fsm_tx
+    port map (
+      clk_i        => clk,
+      rst_i        => reset
+      -- llc_i        => llc_i,
+      -- llc_o        => llc_o,
+      -- tx_mac_fsm_i => tx_mac_fsm_i,
+      -- tx_mac_fsm_o => tx_mac_fsm_o
+    );
+
+  -- -------------------------------------------------------------------------
+  -- Main test process
+  -- -------------------------------------------------------------------------
+  main_tb_p : process is
+    variable v_aborted : boolean;
+  begin
+
+    reset <= '1';
+    WaitForClock(clk, 5);
+    
+    Print("==========================================");
+    Print("TX MAC Serializer Testbench Started");
+    Print("==========================================");
+    
+    -- -------------------------------------------------------------------------
+    -- Test 1: Reset values
+    -- -------------------------------------------------------------------------
+    Print("------------------------------------------");
+      Print("Test 1: Reset values");
+      
+      
+    wait until falling_edge(clk);
+    -- AlertIf(test_id, tx_mac_fsm_o.valid = '1',
+    --         "ERROR: valid should be deasserted in reset", FAILURE);
+    -- AlertIf(test_id, llc_o.avalon_st_sink.ready = '1',
+    --         "ERROR: ready should be deasserted in reset", FAILURE);
+
+    reset <= '0';
+    WaitForClock(clk);
+
+    wait until falling_edge(clk);
+    -- AlertIf(test_id, llc_o.avalon_st_sink.ready = '0',
+    --         "ERROR: ready should be asserted after reset release", FAILURE);
+
+
+    -- -------------------------------------------------------------------------
+    -- Test 2: Random frames with metadata, bit-level, and abort checks
+    -- -------------------------------------------------------------------------
+    -- Print("------------------------------------------");
+    -- Print("Test 2: Random frames with metadata, bit-level, and abort checks");
+    -- for frame_idx in 1 to c_frames_to_send loop
+
+    --   tx_mac_fsm_i.transfer_status <= c_ongoing;
+    --   WaitForClock(clk);
+    
+    --   wait until falling_edge(clk);
+    --   AlertIf(test_id, llc_o.avalon_st_sink.ready = '0',
+    --           "ERROR: ready should be asserted in idle state", FAILURE);
+
+    --   generate_random_llc_frame(llc_frame);
+
+    --   -- Send config byte 0
+    --   avalon_st_send(sink => llc_o.avalon_st_sink,
+    --                  source => llc_i.avalon_st_source,
+    --                  data => llc_frame(0), sop => '1', eop => '0');
+
+    --   -- Send config byte 1
+    --   avalon_st_send(sink => llc_o.avalon_st_sink,
+    --                  source => llc_i.avalon_st_source,
+    --                  data => llc_frame(1), sop => '0', eop => '0');
+
+    --   llc_i.avalon_st_source.valid <= '0';
+
+    --   -- Verify metadata is correct
+    --   verify_llc_metadata(tx_mac_fsm_o, llc_frame);
+
+    --   -- Data bytes with random backpressure
+    --   for i in 2 to c_internal_llc_frame_len - 1 loop
+
+    --     -- Random abort signal form FSM  
+    --     random_abort(tx_mac_fsm_i, llc_o, v_aborted);
+    --     exit when v_aborted;
+
+    --     -- Random wait before llc_i valid
+    --     WaitForClock(clk, RV.RandInt(1, 10));
+
+    --     avalon_st_send(sink => llc_o.avalon_st_sink,
+    --                    source => llc_i.avalon_st_source,
+    --                    data => llc_frame(i), sop => '0', eop => '0');
+    --     llc_i.avalon_st_source.valid <= '0';
+
+    --     for j in c_byte_width - 1 downto 0 loop
+
+    --       if tx_mac_fsm_o.valid = '1' then
+
+    --         wait until falling_edge(clk);
+    --         AlertIf(tx_mac_fsm_o.data /= llc_frame(i)(j),
+    --                 "ERROR: byte " & to_string(i) & " bit " & to_string(j) &
+    --                 " mismatch: expected " & to_string(llc_frame(i)(j)) &
+    --                 " got " & to_string(tx_mac_fsm_o.data), FAILURE);
+
+    --         -- Random wait before fsm_i ready
+    --         WaitForClock(clk, RV.RandInt(1, 10));
+    --         tx_mac_fsm_i.ready <= '1';
+    --         WaitForClock(clk);
+    --         tx_mac_fsm_i.ready <= '0';
+    --       else
+    --         WaitForClock(clk);
+    --       end if;
+    --     end loop;
+    --   end loop;
+
+    --   tx_mac_fsm_i.transfer_status <= c_transmitted;
+    --   WaitForClock(clk, 1);
+
+    -- end loop;
+
+    -- -------------------------------------------------------------------------
+    -- Test 3: Transfer status forwarding
+    -- -------------------------------------------------------------------------
+    -- Print("------------------------------------------");
+    -- Print("Test 3: Transfer status forwarding");
+    -- Print("------------------------------------------");
+    -- for status_idx in 0 to 4 loop
+
+    --   case status_idx is
+    --     when 0 => tx_mac_fsm_i.transfer_status <= c_ongoing;
+    --     when 1 => tx_mac_fsm_i.transfer_status <= c_transmitted;
+    --     when 2 => tx_mac_fsm_i.transfer_status <= c_disturbed;
+    --     when 3 => tx_mac_fsm_i.transfer_status <= c_lost_arb;
+    --     when 4 => tx_mac_fsm_i.transfer_status <= c_aborted;
+    --     when others => null;
+    --   end case;
+    --   WaitForClock(clk);
+
+    --   wait until falling_edge(clk);
+    --   AlertIf(test_id, llc_o.transfer_status /= tx_mac_fsm_i.transfer_status,
+    --           "ERROR: transfer status not forwarded for index " & to_string(status_idx), FAILURE);
+
+    -- end loop;
+
+    -- -----------------------------------------------------------------------
+    -- Done
+    -- -----------------------------------------------------------------------
+    reset <= '1';
+    WaitForClock(clk, 5);
+    ReportNonZeroAlerts;
+    Print("==========================================");
+    Print("All tests completed successfully!");
+    Print("==========================================");
+    EndOfTestReports(ReportAll => TRUE);
+    std.env.finish;
+
+    wait;
+
+  end process main_tb_p;
+
+end architecture tb;
+
+-- eof

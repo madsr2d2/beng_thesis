@@ -1,0 +1,48 @@
+Version: 1.0
+Coverage: 100.00
+Settings: 
+  WritePassFail: 0
+Models: 
+  - Name: "CRC Coverage"
+    TestCases: 
+      - "AlertLogTop"
+    Coverage: 100.00
+    Settings: 
+      CovWeight: 1
+      Goal: 100.0
+      WeightMode: "AT_LEAST"
+      Seeds: [575525332, 1104384402]
+      CountMode: "COUNT_FIRST"
+      IllegalMode: "ILLEGAL_ON"
+      Threshold: 45.0
+      ThresholdEnable: "FALSE"
+      TotalCovCount: 300
+      TotalCovGoal: 300
+    BinInfo: 
+      Dimensions: 1
+      FieldNames: 
+        - "Bin1"
+      NumBins: 3
+    Bins: 
+      - Name: "crc_15"
+        Type: "COUNT"
+        Range: 
+          - {Min: 0, Max: 0}
+        Count: 345
+        AtLeast: 100
+        PercentCov: 345.0000
+      - Name: "crc_17"
+        Type: "COUNT"
+        Range: 
+          - {Min: 1, Max: 1}
+        Count: 351
+        AtLeast: 100
+        PercentCov: 351.0000
+      - Name: "crc_21"
+        Type: "COUNT"
+        Range: 
+          - {Min: 2, Max: 2}
+        Count: 305
+        AtLeast: 100
+        PercentCov: 305.0000
+

@@ -10,6 +10,7 @@
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-03-15  TMYAES    [TRIT-4341] Initial implementation
+--                2026-03-15  TMYAES    [TRIT-4346] Updated JIRA ID
 --
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -120,12 +121,12 @@ begin
           -- CRC-15: Classic CAN. Left-align in t_crc_vector.
           ---------------------------------------------------------
           when "00" =>
-            crc_o.crc <= crc15_out & (t_crc_vector'left - c_crc_15_length downto 0 => '0');
+            crc_o.crc <= crc15_out & ((c_crc_21_length - 1) - c_crc_15_length downto 0 => '0');
           ---------------------------------------------------------
           -- CRC-17: CAN-FD frames with data <= 16 bytes.
           ---------------------------------------------------------
           when "01" =>
-            crc_o.crc <= crc17_out & (t_crc_vector'left - c_crc_17_length downto 0 => '0');
+            crc_o.crc <= crc17_out & ((c_crc_21_length - 1) - c_crc_17_length downto 0 => '0');
           ---------------------------------------------------------
           -- CRC-21: CAN-FD frames with data > 16 bytes.
           ---------------------------------------------------------
