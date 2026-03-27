@@ -53,7 +53,6 @@ architecture tb of can_mac_ser_tx_tb_with_fsm_model is
   -- Constants
   ----------------------------------------------------------------------------
   constant c_frames_to_send  : positive := 50;
-  constant c_max_real_bits   : integer  := c_max_mac_frame_length;
   constant c_config_bytes    : integer  := 2;
   constant c_first_data_byte : integer  := c_config_bytes + c_llc_id_byte_count;
 
@@ -139,15 +138,13 @@ architecture tb of can_mac_ser_tx_tb_with_fsm_model is
     return result;
   end function extract_metadata;
 
-  procedure build_expected_stream (
-    constant frame      : in    t_llc_frame;
-    constant metadata   : in    t_llc_metadata;
-    variable expected   : out   std_logic_vector;
-    variable num_bits   : out   integer
+  procedure push_expected_stream (
+    constant frame    : in t_llc_frame;
+    constant metadata : in t_llc_metadata;
+    constant fifo     : in ScoreboardIdType
   ) is
     variable v_id_remaining  : integer;
     variable v_pad_remaining : integer;
-    variable v_bit_idx       : integer := 0;
     variable v_data_length   : integer;
     variable v_last_byte     : integer;
   begin
@@ -169,17 +166,14 @@ architecture tb of can_mac_ser_tx_tb_with_fsm_model is
         if (v_pad_remaining > 0) and (v_id_remaining = 0) then
           v_pad_remaining := v_pad_remaining - 1;
         else
-          expected(v_bit_idx) := frame(i)(bit_pos);
-          v_bit_idx := v_bit_idx + 1;
+          Push(fifo, to_slv(frame(i)(bit_pos)));
           if (v_id_remaining > 0) then
             v_id_remaining := v_id_remaining - 1;
           end if;
         end if;
       end loop;
     end loop;
-
-    num_bits := v_bit_idx;
-  end procedure build_expected_stream;
+  end procedure push_expected_stream;
 
 begin
 
@@ -317,12 +311,12 @@ begin
 
         when CHECK_BURST =>
           -- Wait for all expected bits to arrive
-          while GetFifoCount(capture_sb) < rx_mac_fsm_rec.IntToModel loop
+          while GetFifoCount(capture_sb) < GetFifoCount(rx_mac_fsm_rec.BurstFifo) loop
             WaitForClock(clk);
           end loop;
 
           -- Compare captured bits against expected
-          for i in 0 to rx_mac_fsm_rec.IntToModel - 1 loop
+          for i in 0 to GetFifoCount(rx_mac_fsm_rec.BurstFifo) - 1 loop
             AffirmIfEqual(fsm_vc_id, Pop(capture_sb), Pop(rx_mac_fsm_rec.BurstFifo),
                         "Bit " & to_string(i));
           end loop;
@@ -342,11 +336,8 @@ begin
   -- Test sequencer
   -- =========================================================================
   p_test_ctrl : process is
-    variable v_frame        : t_llc_frame;
-    variable v_metadata     : t_llc_metadata;
-    variable v_total_bytes  : integer;
-    variable v_expected     : std_logic_vector(c_max_real_bits - 1 downto 0);
-    variable v_expected_len : integer;
+    variable v_frame    : t_llc_frame;
+    variable v_metadata : t_llc_metadata;
 
   begin
     wait until reset = '0';
@@ -365,26 +356,20 @@ begin
       -- Valid: CB="000", CE="100", FB="010", FE="110" - bit 5 always '0'
       v_frame(0)(5) := '0';
 
-      -- Extract metadata and compute byte count
-      v_metadata    := extract_metadata(v_frame(0), v_frame(1));
-      v_total_bytes := c_first_data_byte + dlc_to_data_length(
-                          t_dlc(to_integer(unsigned(v_metadata.dlc))),
-                          v_metadata.format);
-
-      -- Build expected serial stream
-      build_expected_stream(v_frame, v_metadata, v_expected, v_expected_len);
+      -- Extract metadata
+      v_metadata := extract_metadata(v_frame(0), v_frame(1));
 
       -- Push frame bytes into LLC BurstFifo, send as burst
-      for i in 0 to v_total_bytes - 1 loop
+      for i in 0 to c_first_data_byte + dlc_to_data_length(
+                      t_dlc(to_integer(unsigned(v_metadata.dlc))),
+                      v_metadata.format) - 1 loop
         Push(tx_llc_rec.BurstFifo, v_frame(i));
       end loop;
-      SendBurst(tx_llc_rec, v_total_bytes);
+      SendBurst(tx_llc_rec, GetFifoCount(tx_llc_rec.BurstFifo));
 
       -- Push expected bits into MAC FSM BurstFifo, check as burst
-      for i in 0 to v_expected_len - 1 loop
-        Push(rx_mac_fsm_rec.BurstFifo, to_slv(v_expected(i)));
-      end loop;
-      CheckBurst(rx_mac_fsm_rec, v_expected_len);
+      push_expected_stream(v_frame, v_metadata, rx_mac_fsm_rec.BurstFifo);
+      CheckBurst(rx_mac_fsm_rec, GetFifoCount(rx_mac_fsm_rec.BurstFifo));
 
       -- End transfer
       Send(rx_mac_fsm_rec, Data => c_transmitted);
@@ -402,9 +387,8 @@ begin
       AffirmIfEqual(test_id, tx_mac_fsm_o.llc_metadata.esi, v_metadata.esi,
                   "Frame " & to_string(frame_idx) & ": ESI");
 
-      Log(test_id, "Frame " & to_string(frame_idx) & " checked (" &
-          to_string(v_expected_len) & " bits, fmt=" &
-          to_hstring(v_metadata.format) & ")", INFO);
+      Log(test_id, "Frame " & to_string(frame_idx) &
+          " checked (fmt=" & to_hstring(v_metadata.format) & ")", INFO);
 
     end loop;
 
