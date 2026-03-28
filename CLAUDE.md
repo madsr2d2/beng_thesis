@@ -211,7 +211,7 @@ python verification_plan/verification_plan_table.py --toml verification_plan/ver
 
 ## VHDL Source File Header
 
-All VHDL source files must use this header format:
+**RTL modules** use this header format:
 
 ```vhdl
 --------------------------------------------------------------------------------
@@ -227,9 +227,28 @@ All VHDL source files must use this header format:
 --------------------------------------------------------------------------------
 ```
 
+**Testbench files** use the company header format:
+
+```vhdl
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+--
+-- Requirements:
+--
+-- Description:   Testbench for <dut_name>.
+--                  p_<name>_vc       - <Interface> <source|sink> VC (<short description>).
+--                  p_<name>_checker  - <What it monitors>.
+--                  p_test_ctrl       - Coverage-driven test sequencer.
+--
+-- Revision log:  Date:       Initial:  JIRA:
+--                YYYY-MM-DD  XXXXX     [TRIT-NNNN] Description
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+```
+
 Rules:
-- Project line is always the report title
-- Author is always `Mads Richardt`
+- RTL: Project line is always the report title, author is always `Mads Richardt`
+- Testbench: Company copyright header, description lists processes with one-line summaries
 - No ISO references in the header (those belong in PSL section comments or inline)
 - Description should mention formal assertions if present
 - Never write "PSL" after `--` in non-PSL comments (the `-fpsl` parser treats `-- psl` as a directive)
@@ -253,7 +272,7 @@ vsg -c vsg_config.yaml -f src/can_pkg.vhd
 
 ## Testbench Structure
 
-All testbenches follow a standard OSVVM-based structure. Use `can_mac_bs_tx_tb.vhd` as the reference template.
+All testbenches follow a standard OSVVM-based structure. Use `can_mac_ser_tx_tb.vhd` as the golden reference template.
 
 ### Infrastructure
 
@@ -302,13 +321,16 @@ rnd.DistBool((false => 25, true => 75))  -- 75% true
 
 ### File Layout
 
-1. Header, libraries, entity
-2. Constants (`c_clk_period`, `c_num_random`)
-3. DUT port signals
-4. `CreateClock` / `CreateReset` (concurrent)
-5. DUT instantiation
-6. Stimulus process (random driver with `std.env.finish`)
-7. Black-box PSL assertions
+1. Company header, libraries, entity (with `gc_TbTimeOut`, `gc_TbClkPeriod` generics)
+2. Constants (coverage bins, check params)
+3. DUT port signals and OSVVM signals (`test_id`, coverage IDs, `init_barrier`, `StreamRecType`)
+4. Functions and procedures (declarative region)
+5. `CreateClock` / `CreateReset`, `p_timeout`, `p_init` (with `WaitForBarrier`)
+6. DUT instantiation
+7. Verification Components (processes using `WaitForTransaction` / `StreamRecType`)
+8. Continuous monitors (transfer status, error detection)
+9. Test sequencer (`p_test_ctrl` - coverage-driven with `IsCovered` loop)
+10. Black-box PSL assertions
 
 ### LLC Legacy Frame Format for Testbenches
 

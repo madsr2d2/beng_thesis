@@ -1,17 +1,21 @@
---------------------------------------------------------------------------------
--- Title      : MAC Serializer TX Testbench
--- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
---------------------------------------------------------------------------------
--- File       : can_mac_ser_tx_tb.vhd
--- Author     : Mads Richardt
--- Standard   : VHDL-2008
---------------------------------------------------------------------------------
--- Description: Testbench for can_mac_ser_tx. Sends c_frames_to_send random LLC
---              frames through the serializer, verifying metadata extraction and
---              bit-by-bit data integrity. Random backpressure is applied on both
---              the LLC source and FSM ready interfaces. A ~2% per-byte abort
---              probability exercises the mid-frame abort path.
---------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+--
+-- Requirements:
+--
+-- Description:   Testbench for can_mac_ser_tx.
+--                  p_llc_vc           - LLC Avalon-ST source VC.
+--                  p_mac_fsm_vc       - MAC FSM sink VC (bit-level self-checking and random back pressure).
+--                  p_status_checker   - Transfer status forwarding monitor.
+--                  p_test_ctrl        - Coverage-driven test sequencer.
+--
+-- Revision log:  Date:       Initial:  JIRA:
+--                2026-03-16  TMYAES    [TRIT-4345] Initial implementation
+--                2026-03-20  TMYAES    [TRIT-4345] Added random frame test with aborts and bit-level checks
+--                2026-03-20  TMYAES    [TRIT-4345] Check values on falling clk edge
+--                2026-03-28  MRDSA     [TRIT-4345] Rewritten with OSVVM streaming VCs and coverage
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;
@@ -20,10 +24,13 @@ library ieee;
 
 library osvvm;
   context osvvm.OsvvmContext;
+  use osvvm.ScoreboardPkg_slv.all;
+library osvvm_common;
+  context osvvm_common.OsvvmCommonContext;
 
 entity can_mac_ser_tx_tb is
   generic (
-    gc_TbTimeOut   : time := 100 ms;
+    gc_TbTimeOut   : time := 500 ms;
     gc_TbClkPeriod : time := 10 ns
   );
 end entity can_mac_ser_tx_tb;
@@ -33,45 +40,59 @@ architecture tb of can_mac_ser_tx_tb is
   ----------------------------------------------------------------------------
   -- Constants
   ----------------------------------------------------------------------------
-  constant c_frames_to_send : positive := 5;
+  constant c_config_bytes    : integer  := 2;
+  constant c_first_data_byte : integer  := c_config_bytes + c_llc_id_byte_count;
+  constant c_cb_cov_bin      : integer := to_integer(unsigned(c_llc_fmt_cb));
+  constant c_ce_cov_bin      : integer := to_integer(unsigned(c_llc_fmt_ce));
+  constant c_fb_cov_bin      : integer := to_integer(unsigned(c_llc_fmt_fb));
+  constant c_bin_num         : integer := 100;
+  constant c_fe_cov_bin      : integer := to_integer(unsigned(c_llc_fmt_fe));
+  constant c_metadata_check    : std_logic_vector_max_c := "01";
+  constant c_bit_stream_check  : std_logic_vector_max_c := "10";
 
   ----------------------------------------------------------------------------
   -- Signals
   ----------------------------------------------------------------------------
   signal clk   : std_logic;
-  signal reset : std_logic := '1';
+  signal reset : std_logic;
 
+  -- DUT interface
   signal llc_i        : t_can_llc_mac_tx_if_s2d;
   signal llc_o        : t_can_llc_mac_tx_if_d2s;
   signal tx_mac_fsm_i : t_can_mac_ser_fsm_tx_if_m2s;
   signal tx_mac_fsm_o : t_can_mac_ser_fsm_tx_if_s2m;
 
-  signal test_id   : AlertLogIDType;
-  signal llc_frame : t_llc_frame;
-
-  -- Debug monitoring
-  signal ser_state : string(1 to 20);
-  signal ser_count : integer;
-  signal ser_id_bits : integer;
-  signal ser_pad_bits : integer;
-
-  shared variable RV : RandomPType;
+  -- OSVVM signals
+  shared variable RV  : RandomPType;
+  signal test_id      : AlertLogIDType;
+  signal fmt_cov      : CoverageIDType;
+  signal dlc_cov      : CoverageIDType;
+  signal init_barrier : std_logic := '0';
+  signal llc_rec : StreamRecType(
+    DataToModel    (t_byte'high downto 0),
+    ParamToModel   (1 downto 0),
+    DataFromModel  (0 downto 0),
+    ParamFromModel (0 downto 0)
+  );
+  signal mac_fsm_rec : StreamRecType(
+    DataToModel    (2 downto 0),
+    ParamToModel   (1 downto 0),
+    DataFromModel  (0 downto 0),
+    ParamFromModel (0 downto 0)
+  );
 
   ----------------------------------------------------------------------------
-  -- Procedures
+  -- Functions and procedures 
   ----------------------------------------------------------------------------
-  procedure generate_random_llc_frame (signal llc_frame : out t_llc_frame) is
+  function to_slv (b : std_logic) return std_logic_vector is
   begin
-    for i in llc_frame'range loop
-      llc_frame(i) <= RV.RandSlv(8);
-    end loop;
-    wait for 0 ns;
-  end procedure generate_random_llc_frame;
+    return (0 downto 0 => b);
+  end function to_slv;
 
   procedure avalon_st_send (
     signal   sink   : in    t_eth_st_d2s;
     signal   source : out   t_eth_st_s2d;
-    constant data   : in    t_byte;
+    constant data   : in    std_logic_vector(c_byte_width - 1 downto 0);
     constant sop    : in    std_logic;
     constant eop    : in    std_logic
   ) is
@@ -81,71 +102,36 @@ architecture tb of can_mac_ser_tx_tb is
     source.startofpacket <= sop;
     source.endofpacket   <= eop;
 
-    if sink.ready /= '1' then
-      wait until sink.ready = '1';
-    end if;
-    WaitForClock(clk);
-    wait for 0 ns;  -- Let drain side outputs settle
+    -- Wait for ready+valid handshake on clock edge
+    loop
+      WaitForClock(clk);
+      exit when sink.ready = '1';
+    end loop;
+    wait for 0 ns;
+    source.valid <= '0';
   end procedure avalon_st_send;
 
-  procedure random_abort (
-    signal   tx_mac_fsm_i : out   t_can_mac_ser_fsm_tx_if_m2s;
-    signal   llc_i        : out   t_can_llc_mac_tx_if_s2d;
-    signal   llc_o        : in    t_can_llc_mac_tx_if_d2s;
-    variable aborted      : out   boolean
-  ) is
+  function extract_metadata (
+    config_byte_0 : t_byte;
+    config_byte_1 : t_byte
+  ) return t_llc_metadata is
+    variable result : t_llc_metadata;
   begin
-    aborted := false;
-    if RV.DistBool((false => 98, true => 2)) then
-      tx_mac_fsm_i.transfer_status <= c_disturbed;
-      llc_i.avalon_st_source.valid <= '0';
-      WaitForClock(clk, 2);
-      wait for 0 ns;
-      AlertIf(test_id, llc_o.avalon_st_sink.ready = '0',
-              "ERROR: ready not asserted after abort", FAILURE);
-      AlertIf(test_id, llc_o.transfer_status /= c_disturbed,
-              "ERROR: transfer status not forwarded after abort", FAILURE);
-      aborted := true;
-    end if;
-  end procedure random_abort;
-
-  procedure verify_llc_metadata (
-    signal tx_mac_fsm_o : in t_can_mac_ser_fsm_tx_if_s2m;
-    signal llc_frame    : in t_llc_frame
-  ) is
-  begin
-    wait until falling_edge(clk);
-    AlertIf(tx_mac_fsm_o.llc_metadata.format /= llc_frame(0)(c_llc_frame_config_byte_0_format_start downto c_llc_frame_config_byte_0_format_end),
-            "ERROR: FORMAT mismatch", FAILURE);
-    AlertIf(tx_mac_fsm_o.llc_metadata.ftyp /= llc_frame(0)(c_llc_frame_config_byte_0_ftyp),
-            "ERROR: ftyp mismatch", FAILURE);
-    AlertIf(tx_mac_fsm_o.llc_metadata.esi /= llc_frame(0)(c_llc_frame_config_byte_0_esi),
-            "ERROR: ESI mismatch", FAILURE);
-    AlertIf(tx_mac_fsm_o.llc_metadata.brs /= llc_frame(0)(c_llc_frame_config_byte_0_brs),
-            "ERROR: BRS mismatch", FAILURE);
-    AlertIf(tx_mac_fsm_o.llc_metadata.dlc /= llc_frame(1)(c_llc_frame_config_byte_1_dlc_start downto c_llc_frame_config_byte_1_dlc_end),
-            "ERROR: DLC mismatch", FAILURE);
-  end procedure verify_llc_metadata;
+    result.format := config_byte_0(c_llc_frame_config_byte_0_format_start downto c_llc_frame_config_byte_0_format_end);
+    result.ftyp   := config_byte_0(c_llc_frame_config_byte_0_ftyp);
+    result.esi    := config_byte_0(c_llc_frame_config_byte_0_esi);
+    result.brs    := config_byte_0(c_llc_frame_config_byte_0_brs);
+    result.dlc    := config_byte_1(c_llc_frame_config_byte_1_dlc_start downto c_llc_frame_config_byte_1_dlc_end);
+    return result;
+  end function extract_metadata;
 
 begin
 
   ----------------------------------------------------------------------------
-  -- Initialisation
-  ----------------------------------------------------------------------------
-  p_init : process is
-    variable v_test_id : AlertLogIDType;
-  begin
-    SetAlertStopCount(ERROR, 10);
-    v_test_id := NewId("can_mac_ser_tx");
-    test_id   <= v_test_id;
-    wait until falling_edge(clk);
-    wait;
-  end process p_init;
-
-  ----------------------------------------------------------------------------
-  -- Clock and timeout
+  -- Infrastructure
   ----------------------------------------------------------------------------
   CreateClock(clk, gc_TbClkPeriod);
+  CreateReset(reset, '1', clk, gc_TbClkPeriod * 10);
 
   p_timeout : process is
   begin
@@ -153,6 +139,30 @@ begin
     assert false report "ERROR TEST FAILED, due to time out" severity error;
     std.env.stop(1);
   end process p_timeout;
+
+  p_init : process is
+    variable v_test_id : AlertLogIDType;
+    variable v_fmt_cov : CoverageIDType;
+    variable v_dlc_cov : CoverageIDType;
+  begin
+    SetAlertStopCount(ERROR, 10);
+    SetLogEnable(INFO, TRUE);
+    v_test_id := NewId("can_mac_ser_tx");
+    v_fmt_cov := NewID("Format Coverage", v_test_id);
+    v_dlc_cov := NewID("DLC Coverage", v_test_id);
+    mac_fsm_rec.BurstFifo <= NewID("MacFsmBurstFifo", v_test_id);
+
+    -- Add coverage bins
+    AddBins(v_fmt_cov, GenBin(c_bin_num, (c_cb_cov_bin, c_ce_cov_bin, c_fb_cov_bin, c_fe_cov_bin)));
+    AddBins(v_dlc_cov, GenBin(c_bin_num, 0, c_dlc_max, c_dlc_max + 1));
+
+    test_id <= v_test_id;
+    fmt_cov <= v_fmt_cov;
+    dlc_cov <= v_dlc_cov;
+
+    WaitForBarrier(init_barrier);
+    wait;
+  end process p_init;
 
   ----------------------------------------------------------------------------
   -- DUT
@@ -167,226 +177,194 @@ begin
       tx_mac_fsm_o => tx_mac_fsm_o
     );
 
-  -- =========================================================================
-  -- Random ready process - drives ready signal randomly every cycle
-  -- This stresses the serializer's hold logic when FSM is not ready
-  -- =========================================================================
-  p_random_ready : process is
+  ----------------------------------------------------------------------------
+  -- LLC Verification Component
+  ----------------------------------------------------------------------------
+  p_llc_vc : process is
   begin
-    tx_mac_fsm_i.ready <= '0';
-    wait until reset = '0';
-    loop
-      tx_mac_fsm_i.ready <= '1' when RV.DistBool((false => 60, true => 40)) else '0';
-      WaitForClock(clk);
+    -- TODO: Use the proper reset constant here
+    llc_i.avalon_st_source.valid         <= '0';
+    llc_i.avalon_st_source.startofpacket <= '0';
+    llc_i.avalon_st_source.endofpacket   <= '0';
+    llc_i.avalon_st_source.data          <= (others => '0');
+    WaitForBarrier(init_barrier);
+
+    llv_vs_loop : loop
+      WaitForTransaction(clk, llc_rec.Rdy, llc_rec.Ack);
+
+      case llc_rec.Operation is
+        when SEND =>
+          avalon_st_send(llc_o.avalon_st_sink, llc_i.avalon_st_source,
+                        std_logic_vector(llc_rec.DataToModel),
+                        llc_rec.ParamToModel(1), llc_rec.ParamToModel(0));
+
+        when others => Null;
+      end case;
     end loop;
-  end process p_random_ready;
+  end process p_llc_vc;
 
-  -- =========================================================================
-  -- Debug monitor - prints state when bits stall
-  -- =========================================================================
-  p_debug_monitor : process is
-    variable v_last_valid : std_logic := '0';
-    variable v_last_data : std_logic := '0';
-    variable v_stable_count : integer := 0;
+  ----------------------------------------------------------------------------
+  -- MAC FSM Verification Component
+  ----------------------------------------------------------------------------
+  p_mac_fsm_vc : process is
   begin
-    wait until reset = '0';
-    wait for 100 us;  -- Skip initial transient
+    tx_mac_fsm_i <= c_tx_mac_fsm_to_ser_if_reset;
+    WaitForBarrier(init_barrier);
+
+    mac_fsm_vs_loop : loop
+      WaitForTransaction(clk, mac_fsm_rec.Rdy, mac_fsm_rec.Ack);
+
+      case mac_fsm_rec.Operation is
+        when SEND =>
+          tx_mac_fsm_i.transfer_status <= std_logic_vector(mac_fsm_rec.DataToModel);
+
+        when CHECK_BURST =>
+          -- Metadata check
+          if mac_fsm_rec.ParamToModel = c_metadata_check then
+            AffirmIfEqual(test_id, tx_mac_fsm_o.llc_metadata.format, Pop(mac_fsm_rec.BurstFifo), "FORMAT");
+            AffirmIfEqual(test_id, tx_mac_fsm_o.llc_metadata.dlc, Pop(mac_fsm_rec.BurstFifo), "DLC");
+            AffirmIfEqual(test_id, to_slv(tx_mac_fsm_o.llc_metadata.ftyp), Pop(mac_fsm_rec.BurstFifo), "FTYP");
+            AffirmIfEqual(test_id, to_slv(tx_mac_fsm_o.llc_metadata.brs), Pop(mac_fsm_rec.BurstFifo), "BRS");
+            AffirmIfEqual(test_id, to_slv(tx_mac_fsm_o.llc_metadata.esi), Pop(mac_fsm_rec.BurstFifo), "ESI");
+          end if;
+
+          -- Bit stream check
+          if mac_fsm_rec.ParamToModel = c_bit_stream_check then
+            while GetFifoCount(mac_fsm_rec.BurstFifo) > 0 loop
+              -- Random back pressure
+              tx_mac_fsm_i.ready <= '1' when RV.RandBool else '0';
+              WaitForClock(clk);
+              if (tx_mac_fsm_i.ready = '1') and (tx_mac_fsm_o.valid = '1') then
+                AffirmIfEqual(test_id, to_slv(tx_mac_fsm_o.data), Pop(mac_fsm_rec.BurstFifo), "Bit check");
+              end if;
+            end loop;
+          end if;
+
+        when others => Null;
+      end case;
+    end loop;
+  end process p_mac_fsm_vc;
+
+  ----------------------------------------------------------------------------
+  -- Transfer status checker
+  ----------------------------------------------------------------------------
+  p_transfer_status_checker : process is
+    variable v_prev_input : std_logic_vector(2 downto 0) := c_ongoing;
+  begin
+    WaitForBarrier(init_barrier);
+    wait until reset = '1';
 
     loop
-      if (tx_mac_fsm_o.valid = '1' and tx_mac_fsm_i.ready = '0') then
-        v_stable_count := v_stable_count + 1;
-        if (v_stable_count = 10000) then
-          Print("");
-          Print("DEBUG: Serializer appears deadlocked!");
-          Print("  valid=" & to_string(tx_mac_fsm_o.valid) &
-                " ready=" & to_string(tx_mac_fsm_i.ready) &
-                " data=" & to_string(tx_mac_fsm_o.data));
-          Print("  Byte count accumulated: " & to_string(llc_frame'length) & " bytes queued");
-          v_stable_count := 0;
-        end if;
+      wait until rising_edge(clk);
+      if reset = '1' then
+        AffirmIfEqual(test_id, llc_o.transfer_status, c_ongoing, "Transfer status reset value");
       else
-        v_stable_count := 0;
+        AffirmIfEqual(test_id, llc_o.transfer_status, v_prev_input, "Transfer status forwarding");
+        v_prev_input := tx_mac_fsm_i.transfer_status;
       end if;
-      WaitForClock(clk);
     end loop;
-  end process p_debug_monitor;
+  end process p_transfer_status_checker;
 
-  -- -------------------------------------------------------------------------
-  -- Main test process
-  -- -------------------------------------------------------------------------
-  main_tb_p : process is
-    variable v_aborted              : boolean;
-    variable v_id_bits_remaining    : integer;
-    variable v_pad_bits_remaining   : integer;
-    variable v_real_bits_this_byte  : integer;
+  ----------------------------------------------------------------------------
+  -- Test sequencer
+  ----------------------------------------------------------------------------
+  p_test_ctrl : process is
+    variable v_frame         : t_llc_frame;
+    variable v_metadata      : t_llc_metadata;
+    variable v_last_byte     : integer;
+    variable v_id_remaining  : integer;
+    variable v_pad_remaining : integer;
+    variable v_frame_count   : integer := 0;
   begin
-
-    reset <= '1';
+    WaitForBarrier(init_barrier);
+    wait until reset = '0';
     WaitForClock(clk, 5);
-    wait until falling_edge(clk);
 
-    Print("==========================================");
-    Print("TX MAC Serializer Testbench Started");
-    Print("(with continuous random ready stimulus)");
-    Print("==========================================");
+    -- Loop until full coverage (each loop transmits a new frame)
+    frame_loop : while not (IsCovered(fmt_cov) and IsCovered(dlc_cov)) loop
+      v_frame_count := v_frame_count + 1;
 
-    -- =====================================================================
-    -- Test 1: Reset values
-    -- =====================================================================
-    Print("-----------");
-    Print("Test 1: Reset values");
-    Print("-----------");
+      -- Set transfer_status to ongoing
+      Send(mac_fsm_rec, Data => c_ongoing);
 
-    AlertIf(test_id, tx_mac_fsm_o.valid = '1',
-            "ERROR: valid should be deasserted in reset", FAILURE);
-    AlertIf(test_id, llc_o.avalon_st_sink.ready = '1',
-            "ERROR: ready should be deasserted in reset", FAILURE);
-
-    reset <= '0';
-    WaitForClock(clk);
-    wait until falling_edge(clk);
-
-    AlertIf(test_id, llc_o.avalon_st_sink.ready = '0',
-            "ERROR: ready should be asserted after reset release", FAILURE);
-
-
-    -- =====================================================================
-    -- Test 2: Random frames with metadata, bit-level, and random ready
-    -- =====================================================================
-    Print("-----------");
-    Print("Test 2: Random frames with random ready backpressure");
-    Print("-----------");
-    for frame_idx in 1 to c_frames_to_send loop
-
-      tx_mac_fsm_i.transfer_status <= c_ongoing;
-      WaitForClock(clk);
-
-      wait until falling_edge(clk);
-      AlertIf(test_id, llc_o.avalon_st_sink.ready = '0',
-              "ERROR: ready should be asserted in idle state", FAILURE);
-
-      generate_random_llc_frame(llc_frame);
-
-      -- Config bytes
-      avalon_st_send(sink => llc_o.avalon_st_sink,
-                     source => llc_i.avalon_st_source,
-                     data => llc_frame(0), sop => '1', eop => '0');
-
-      avalon_st_send(sink => llc_o.avalon_st_sink,
-                     source => llc_i.avalon_st_source,
-                     data => llc_frame(1), sop => '0', eop => '0');
-
-      llc_i.avalon_st_source.valid <= '0';
-
-      -- Verify metadata is correct
-      verify_llc_metadata(tx_mac_fsm_o, llc_frame);
-
-      -- Initialize ID/padding counters (mirror DUT logic)
-      if (llc_frame(0)(c_llc_frame_config_byte_0_extended_bit) = '1') then
-        v_id_bits_remaining  := c_base_id_width + c_extended_id_width;
-        v_pad_bits_remaining := c_llc_id_stream_width - (c_base_id_width + c_extended_id_width);
-      else
-        v_id_bits_remaining  := c_base_id_width;
-        v_pad_bits_remaining := c_llc_id_stream_width - c_base_id_width;
-      end if;
-
-      -- Data bytes with random backpressure
-      for i in 2 to c_internal_llc_frame_len - 1 loop
-
-        random_abort(tx_mac_fsm_i, llc_i, llc_o, v_aborted);
-        exit when v_aborted;
-
-        -- Calculate how many real (non-padding) bits this byte will produce
-        if (v_id_bits_remaining > 0) then
-          v_real_bits_this_byte := minimum(c_byte_width, v_id_bits_remaining);
-          v_id_bits_remaining   := v_id_bits_remaining - v_real_bits_this_byte;
-          v_pad_bits_remaining  := v_pad_bits_remaining - (c_byte_width - v_real_bits_this_byte);
-        elsif (v_pad_bits_remaining > 0) then
-          v_real_bits_this_byte := 0;
-          v_pad_bits_remaining  := v_pad_bits_remaining - minimum(c_byte_width, v_pad_bits_remaining);
-        else
-          v_real_bits_this_byte := c_byte_width;
-        end if;
-
-        -- Random wait before llc_i valid
-        WaitForClock(clk, RV.RandInt(1, 10));
-
-        avalon_st_send(sink => llc_o.avalon_st_sink,
-                       source => llc_i.avalon_st_source,
-                       data => llc_frame(i), sop => '0', eop => '0');
-        llc_i.avalon_st_source.valid <= '0';
-
-        -- Verify only the real bits (padding bits are auto-skipped by serializer)
-        -- Note: ready is now driven randomly by p_random_ready, so bits may stall
-        for bit_idx in 0 to v_real_bits_this_byte - 1 loop
-
-          -- Wait for serializer to present this bit
-          if tx_mac_fsm_o.valid /= '1' then
-            wait until tx_mac_fsm_o.valid = '1';
-          end if;
-
-          -- Wait until ready goes high before consuming bit
-          if tx_mac_fsm_i.ready /= '1' then
-            wait until tx_mac_fsm_i.ready = '1';
-          end if;
-          WaitForClock(clk);
-          wait for 0 ns;
-
-          AlertIf(tx_mac_fsm_o.data /= llc_frame(i)(c_byte_width - 1 - bit_idx),
-                  "ERROR: byte " & to_string(i) & " bit " & to_string(c_byte_width - 1 - bit_idx) &
-                  " mismatch: expected " & to_string(llc_frame(i)(c_byte_width - 1 - bit_idx)) &
-                  " got " & to_string(tx_mac_fsm_o.data), FAILURE);
-
-        end loop;
-
+      -- Generate random frame
+      for i in v_frame'range loop
+        v_frame(i) := RV.RandSlv(8);
       end loop;
 
-      tx_mac_fsm_i.transfer_status <= c_transmitted;
+      -- Coverage-driven format and DLC
+      v_frame(0)(c_llc_frame_config_byte_0_format_start downto c_llc_frame_config_byte_0_format_end) := std_logic_vector(to_unsigned(GetRandPoint(fmt_cov), 3));
+      v_frame(1)(c_llc_frame_config_byte_1_dlc_start downto c_llc_frame_config_byte_1_dlc_end) := std_logic_vector(to_unsigned(GetRandPoint(dlc_cov), 4));
+
+      -- Extract metadata and compute frame length
+      v_metadata  := extract_metadata(v_frame(0), v_frame(1));
+      v_last_byte := c_first_data_byte + dlc_to_data_length( t_dlc(to_integer(unsigned(v_metadata.dlc))), v_metadata.format) - 1;
+
+      -- Initialize ID/padding counters (like in DUT)
+      if (v_metadata.format(2) = '1') then
+        v_id_remaining  := c_base_id_width + c_extended_id_width;
+        v_pad_remaining := c_llc_id_stream_width - (c_base_id_width + c_extended_id_width);
+      else
+        v_id_remaining  := c_base_id_width;
+        v_pad_remaining := c_llc_id_stream_width - c_base_id_width;
+      end if;
+
+      -- Send config bytes (DUT does not generate bit stream for the config bytes)
+      Send(llc_rec, v_frame(0), "10");
+      Send(llc_rec, v_frame(1), "00");
+
+      -- Verify LLC metadata (Param="1" flags metadata check)
+      Push(mac_fsm_rec.BurstFifo, v_metadata.format);
+      Push(mac_fsm_rec.BurstFifo, v_metadata.dlc);
+      Push(mac_fsm_rec.BurstFifo, to_slv(v_metadata.ftyp));
+      Push(mac_fsm_rec.BurstFifo, to_slv(v_metadata.brs));
+      Push(mac_fsm_rec.BurstFifo, to_slv(v_metadata.esi));
+      CheckBurst(mac_fsm_rec, GetFifoCount(mac_fsm_rec.BurstFifo), std_logic_vector(c_metadata_check));
+
+      -- ID + data bytes: send each byte, then check its bit stream
+      for i in c_config_bytes to v_last_byte loop
+
+        -- Send byte to LLC
+        Send(llc_rec, v_frame(i), "00");
+
+        -- Push expected real bits for this byte (skip padding)
+        for bit_pos in c_byte_width - 1 downto 0 loop
+          if (v_pad_remaining > 0) and (v_id_remaining = 0) then
+            v_pad_remaining := v_pad_remaining - 1;
+          else
+            Push(mac_fsm_rec.BurstFifo, to_slv(v_frame(i)(bit_pos)));
+            if (v_id_remaining > 0) then
+              v_id_remaining := v_id_remaining - 1;
+            end if;
+          end if;
+        end loop;
+
+        -- Check bits for this byte (skip pure-padding bytes)
+        if GetFifoCount(mac_fsm_rec.BurstFifo) > 0 then
+          CheckBurst(mac_fsm_rec, GetFifoCount(mac_fsm_rec.BurstFifo), std_logic_vector(c_bit_stream_check));
+        end if;
+
+        -- Random abort after check (~2% probability, BurstFifo is empty here)
+        if RV.DistBool((false => 98, true => 2)) then
+          Send(mac_fsm_rec, Data => c_disturbed);
+          WaitForClock(clk, 3);
+          next frame_loop;
+        end if;
+      end loop;
+
+      -- End transfer and sample coverage
+      Send(mac_fsm_rec, Data => c_transmitted);
+      ICover(fmt_cov, to_integer(unsigned(v_metadata.format)));
+      ICover(dlc_cov, to_integer(unsigned(v_metadata.dlc)));
       WaitForClock(clk, 2);
+    end loop frame_loop;
 
-    end loop;
-
-    -- =====================================================================
-    -- Test 3: Transfer status forwarding
-    -- =====================================================================
-    Print("-----------");
-    Print("Test 3: Transfer status forwarding");
-    Print("-----------");
-
-    for status_idx in 0 to 4 loop
-
-      case status_idx is
-        when 0 => tx_mac_fsm_i.transfer_status <= c_ongoing;
-        when 1 => tx_mac_fsm_i.transfer_status <= c_transmitted;
-        when 2 => tx_mac_fsm_i.transfer_status <= c_disturbed;
-        when 3 => tx_mac_fsm_i.transfer_status <= c_lost_arb;
-        when 4 => tx_mac_fsm_i.transfer_status <= c_aborted;
-        when others => null;
-      end case;
-      WaitForClock(clk);
-      wait for 0 ns;
-
-      AlertIf(test_id, llc_o.transfer_status /= tx_mac_fsm_i.transfer_status,
-              "ERROR: transfer status not forwarded for index " & to_string(status_idx), FAILURE);
-
-    end loop;
-
-    -- -----------------------------------------------------------------------
-    -- Done
-    -- -----------------------------------------------------------------------
-    reset <= '1';
-    WaitForClock(clk, 5);
-    ReportNonZeroAlerts;
-    Print("");
-    Print("==========================================");
-    Print("All tests completed successfully!");
-    Print("==========================================");
-    EndOfTestReports(ReportAll => TRUE);
+    WriteBin(fmt_cov);
+    WriteBin(dlc_cov);
+    EndOfTestReports(ReportAll => true);
     std.env.finish;
-
     wait;
-
-  end process main_tb_p;
+  end process p_test_ctrl;
 
 end architecture tb;
 
