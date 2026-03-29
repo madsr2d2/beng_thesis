@@ -4,7 +4,17 @@
 #  Usage: make TB=src/my_tb
 #  Example: make TB=src/can_tx_tb
 #
-#  Note: OSVVM must be compiled first in OsvvmLibraries/osvvm
+#  OSVVM setup:
+#    OsvvmLibraries/
+#      src/osvvm/     - OSVVM core sources (github.com/OSVVM/osvvm)
+#      src/common/    - OSVVM Common sources (github.com/OSVVM/OSVVM-Common)
+#      src/scripts/   - OSVVM TCL build scripts (github.com/OSVVM/OSVVM-Scripts)
+#      lib/osvvm/     - Compiled osvvm library
+#      lib/osvvm_common/ - Compiled osvvm_common library
+#      OsvvmTemp_GHDL/  - OSVVM runtime temp directory
+#
+#  To rebuild OSVVM libraries:
+#    tclsh OsvvmLibraries/build.tcl
 
 # Project source files in strict dependency order
 # 1. Packages
@@ -30,8 +40,9 @@ LAYERS = \
 SRCFILES = $(PACKAGES) $(COMPONENTS) $(LAYERS)
 VHDLEX = .vhd
 
-# OSVVM library path (where TCL build compiled it)
-OSVVM_LIB_PATH = $(CURDIR)/OsvvmLibraries/osvvm/VHDL_LIBS/GHDL-6.0.0-dev
+# OSVVM compiled library paths
+OSVVM_DIR     = $(CURDIR)/OsvvmLibraries
+OSVVM_LIB     = $(OSVVM_DIR)/lib
 
 # Testbench configuration
 TB ?=
@@ -42,7 +53,7 @@ TESTBENCHPATH = $(TB_NOEXT)$(VHDLEX)
 # GHDL configuration
 GHDL_CMD = ghdl
 GHDL_FLAGS = --std=08 -fpsl -frelaxed --warn-no-vital-generic --warn-no-hide \
-	-P$(OSVVM_LIB_PATH)/osvvm/v08 -P$(OSVVM_LIB_PATH)/osvvm_common -P$(OSVVM_LIB_PATH) -P.
+	-P$(OSVVM_LIB)/osvvm/v08 -P$(OSVVM_LIB)/osvvm_common/v08 -P$(OSVVM_LIB) -P.
 
 SIMDIR = sim
 STOP_TIME ?= 100us
@@ -63,12 +74,12 @@ compile:
 		echo "Error: TB not set. Usage: make TB=src/my_tb"; \
 		exit 1; \
 	fi
-	@if [ ! -d "$(OSVVM_LIB_PATH)/osvvm/v08" ]; then \
-		echo "Error: OSVVM not compiled. Run: tclsh /tmp/build_osvvm3.tcl from project root"; \
+	@if [ ! -d "$(OSVVM_LIB)/osvvm/v08" ]; then \
+		echo "Error: OSVVM not compiled. Run: tclsh OsvvmLibraries/build.tcl"; \
 		exit 1; \
 	fi
 	@mkdir -p $(SIMDIR)
-	@cp -r OsvvmLibraries/OsvvmTemp_GHDL . 2>/dev/null || true
+	@mkdir -p $(OSVVM_DIR)/OsvvmTemp_GHDL
 	@echo "Compiling design..."
 	@for file in $(SRCFILES); do \
 		echo "  Analyzing $$file"; \
@@ -93,5 +104,5 @@ view:
 	fi
 
 clean:
-	@rm -rf $(SIMDIR) OsvvmTemp_GHDL
+	@rm -rf $(SIMDIR)
 	@rm -f *.o e~*.o work-obj08.cf

@@ -3,11 +3,11 @@ standard = "2008"
 
 [libraries]
 osvvm.files = [
-    "OsvvmLibraries/osvvm/*.vhd"
+    "OsvvmLibraries/src/osvvm/*.vhd"
 ]
 
 osvvm_common.files = [
-    "OsvvmLibraries/Common/src/*.vhd"
+    "OsvvmLibraries/src/common/src/*.vhd"
 ]
 
 project.files = [
