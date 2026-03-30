@@ -5,19 +5,16 @@
 -- Requirements:
 --
 -- Description:   CRC engine wrapper for CAN/CAN-FD TX path. Instantiates
---                dedicated engines for CRC-15, CRC-17, and CRC-21 and selects
---                the appropriate output based on frame configuration.
---
---                Note: Currently uses a dummy gen_crc entity that returns a
---                fixed polynomial value. Replace with the real serial-input
---                gen_crc engine once available.
+--                dedicated serial CRC engines for CRC-15, CRC-17, and CRC-21
+--                and selects the appropriate output based on frame configuration.
+--                Implements the algorithm from ISO 11898-1: Sec. 6.6.4.4.
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-03-15  TMYAES    Initial implementation
 --
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
--- Dummy gen_crc entity (matches real gen_crc interface)
+-- Serial CRC engine (ISO 11898-1: Sec. 6.6.4.4)
 
 library ieee;
   use ieee.std_logic_1164.all;
@@ -43,9 +40,50 @@ entity gen_crc is
 end entity gen_crc;
 
 architecture rtl of gen_crc is
+
+  signal crc_reg : std_logic_vector(gc_crc_width - 1 downto 0);
+
 begin
-  -- Stub: return the polynomial constant as a fixed CRC result.
-  crc_o <= gc_crc_poly(gc_crc_width - 1 downto 0);
+
+  -- State register: accumulates CRC one bit per clock
+  p_crc : process (clk_i) is
+    variable v_crc_next : std_logic;
+    variable v_shifted  : std_logic_vector(gc_crc_width - 1 downto 0);
+  begin
+    if rising_edge(clk_i) then
+      if (reset_i = '1' or start_crc_i = '1') then
+        crc_reg <= gc_crc_init(gc_crc_width - 1 downto 0);
+      elsif (data_valid_i = '1') then
+        v_crc_next := data_i(0) xor crc_reg(crc_reg'high);
+        v_shifted  := crc_reg sll 1;
+        if (v_crc_next = '1') then
+          crc_reg <= v_shifted xor gc_crc_poly(gc_crc_width - 1 downto 0);
+        else
+          crc_reg <= v_shifted;
+        end if;
+      end if;
+    end if;
+  end process p_crc;
+
+  -- Combinational output: present the updated CRC in the same cycle as
+  -- the data input, matching the zero-latency interface the wrapper expects.
+  p_crc_out : process (all) is
+    variable v_fb      : std_logic;
+    variable v_shifted : std_logic_vector(gc_crc_width - 1 downto 0);
+  begin
+    if (data_valid_i = '1') then
+      v_fb      := data_i(0) xor crc_reg(crc_reg'high);
+      v_shifted := crc_reg sll 1;
+      if (v_fb = '1') then
+        crc_o <= v_shifted xor gc_crc_poly(gc_crc_width - 1 downto 0);
+      else
+        crc_o <= v_shifted;
+      end if;
+    else
+      crc_o <= crc_reg;
+    end if;
+  end process p_crc_out;
+
 end architecture rtl;
 
 -- Main CRC engine wrapper

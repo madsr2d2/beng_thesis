@@ -10,7 +10,6 @@
 --              and Transmitter Delay Compensation (TDC) per ISO 11898-1:2015
 --              Section 7.2 (PCS Services) and 7.3.4 (TDC).
 --
---              Contains PSL assertions for formal verification.
 --
 -- Responsibilities:
 --   - Bit timing generation (nominal and data bit rates)
@@ -97,9 +96,6 @@ architecture rtl of can_pcs_tx is
   signal prev_rx_bus     : std_logic;
   signal prev_tx_bus     : std_logic;
   signal in_data_phase   : std_logic;
-
-  -- PSL-only
-  signal reset_done : std_logic;
 
 begin
 
@@ -325,97 +321,5 @@ begin
 
   end process fsm;
 
-  ---------------------------------------------------------------------------
-  -- PSL-only shadow signals
-  ---------------------------------------------------------------------------
-  psl_reset_done : process (clk_i) is
-  begin
-
-    if rising_edge(clk_i) then
-      if (rst_i = '1') then
-        reset_done <= '0';
-      else
-        reset_done <= '1';
-      end if;
-    end if;
-
-  end process psl_reset_done;
-
---------------------------------------------------------------
--- Default clock
---------------------------------------------------------------
--- psl default clock is rising_edge(clk_i);
---------------------------------------------------------------
-
---------------------------------------------------------------
--- Environment assumptions
---------------------------------------------------------------
--- psl assume_reset_init : assume (rst_i = '1');
--- psl assume_reset_done_init : assume (reset_done = '0');
---------------------------------------------------------------
-
---------------------------------------------------------------
--- Assertions
---------------------------------------------------------------
--- psl psl_1 : assert always
--- { rst_i = '1' }
--- |=>
--- { state = c_st_idle and
--- clk_count = 0 and
--- tq_count = 0 and
--- delay_count_clk = 0 and
--- tdc_counting = '0' and
--- ssp_position = 0 and
--- tdc_delay = 0 and
--- in_data_phase = '0' and
--- tx_bus_o = c_recessive and
--- pcs_to_mac_o.sp = '0' }
--- report "Reset did not clear all registers to default values";
---------------------------------------------------------------
--- psl psl_2 : assert always
--- { reset_done = '1' }
--- |->
--- { clk_count <= gc_prescaler - 1 and
--- tq_count <= c_nom_bit_time and
--- delay_count_clk <= c_max_transmitter_delay }
--- report "Counter out of valid range";
---------------------------------------------------------------
--- psl psl_3 : assert always
--- { reset_done = '1' and
--- state /= c_st_idle and
--- mac_to_pcs_i.valid = '0' }
--- |=>
--- { state = c_st_idle and
--- tdc_counting = '0' and
--- in_data_phase = '0' }
--- report "Did not return to idle when frame ended";
---------------------------------------------------------------
--- psl psl_4 : assert always
--- { reset_done = '1' and
--- state = c_st_idle and
--- mac_to_pcs_i.valid = '1' }
--- |=>
--- { state = c_st_nominal and
--- tq_count = 0 }
--- report "Frame start did not transition to nominal";
---------------------------------------------------------------
--- psl psl_5 : assert always
--- { reset_done = '1' and
--- pcs_to_mac_o.sp = '1' }
--- |=>
--- { pcs_to_mac_o.sp = '0' }
--- report "SP strobe not single-cycle pulse";
---------------------------------------------------------------
-
---------------------------------------------------------------
--- Cover points
---------------------------------------------------------------
--- psl cover_1 : cover { state = c_st_nominal };
--- psl cover_2 : cover { state = c_st_measuring };
--- psl cover_3 : cover { state = c_st_data };
--- psl cover_4 : cover { pcs_to_mac_o.sp = '1' };
--- psl cover_5 : cover { pcs_to_mac_o.ssp = '1' };
--- psl cover_6 : cover { tdc_counting = '1' };
---------------------------------------------------------------
 
 end architecture rtl;

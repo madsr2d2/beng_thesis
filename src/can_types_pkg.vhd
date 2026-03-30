@@ -849,8 +849,8 @@ package body pk_can_types is
     -- Calculate data length from DLC vector
     data_length_v := dlc_to_data_length(t_dlc(to_integer(unsigned(metadata.dlc))), metadata.format);
 
-    -- ISO 6.6.10.1: Remote frames shall not contain a Data field
-    if (metadata.ftyp = '1') then
+    -- ISO 6.6.10.1: Remote frames shall not contain a Data field (CC only)
+    if (metadata.format(1) = '0' and metadata.ftyp = '1') then
       data_length_v := 0;
     end if;
 
