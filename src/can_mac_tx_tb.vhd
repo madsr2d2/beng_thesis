@@ -160,7 +160,7 @@ architecture tb of can_mac_tx_tb is
   --   Phase 3: CRC region (CC: stuffed CRC-15; FD: FSB-interleaved)
   --   Phase 4: Recessive tail (delimiter, ACK, EOF, IFS)
   ----------------------------------------------------------------------------
-  function build_expected_bus_stream (
+  function build_bus_stream (
     frame      : t_llc_frame;
     metadata   : t_llc_metadata;
     is_passive : boolean := false
@@ -342,12 +342,12 @@ architecture tb of can_mac_tx_tb is
     end loop;
 
     return result;
-  end function build_expected_bus_stream;
+  end function build_bus_stream;
 
   ----------------------------------------------------------------------------
   -- Random frame and expected bus stream generator
   ----------------------------------------------------------------------------
-  procedure generate_frame_and_stream (
+  procedure gen_frame (
     variable frame      : out t_llc_frame;
     variable metadata   : out t_llc_metadata;
     variable last_byte  : out integer;
@@ -375,13 +375,13 @@ architecture tb of can_mac_tx_tb is
     metadata  := extract_metadata(frame(0), frame(1));
     last_byte := 6 + dlc_to_data_length(
                    t_dlc(to_integer(unsigned(metadata.dlc))), metadata.format) - 1;
-    stream    := build_expected_bus_stream(frame, metadata, is_passive);
-  end procedure generate_frame_and_stream;
+    stream    := build_bus_stream(frame, metadata, is_passive);
+  end procedure gen_frame;
 
   ----------------------------------------------------------------------------
   -- Error/overload response helpers
   ----------------------------------------------------------------------------
-  procedure stream_fill (
+  procedure fill (
     variable stream : inout t_bus_stream;
     variable idx    : inout integer;
     constant count  : in    integer;
@@ -392,31 +392,31 @@ architecture tb of can_mac_tx_tb is
       stream.bits(idx) := pol;
       idx := idx + 1;
     end loop;
-  end procedure stream_fill;
+  end procedure fill;
 
-  procedure append_flag_delim (
+  procedure add_flag_delim (
     variable stream   : inout t_bus_stream;
     variable idx      : inout integer;
     constant flag_pol : in    std_logic
   ) is
   begin
-    stream_fill(stream, idx, c_error_flag_width, flag_pol);
-    stream_fill(stream, idx, c_error_delimiter_width, c_recessive);
-  end procedure append_flag_delim;
+    fill(stream, idx, c_error_flag_width, flag_pol);
+    fill(stream, idx, c_error_delimiter_width, c_recessive);
+  end procedure add_flag_delim;
 
-  procedure append_ifs (
+  procedure add_ifs (
     variable stream     : inout t_bus_stream;
     variable idx        : inout integer;
     constant is_passive : in    boolean
   ) is
   begin
-    stream_fill(stream, idx, c_intermission_width, c_recessive);
+    fill(stream, idx, c_intermission_width, c_recessive);
     if (is_passive) then
-      stream_fill(stream, idx, c_suspend_transmission_width, c_recessive);
+      fill(stream, idx, c_suspend_transmission_width, c_recessive);
     end if;
-  end procedure append_ifs;
+  end procedure add_ifs;
 
-  procedure apply_error_response (
+  procedure truncate_error (
     variable stream     : inout t_bus_stream;
     constant inject_pos : in    integer;
     constant is_passive : in    boolean := false
@@ -425,24 +425,24 @@ architecture tb of can_mac_tx_tb is
     variable flag_pol : std_logic := c_dominant;
   begin
     if (is_passive) then flag_pol := c_recessive; end if;
-    append_flag_delim(stream, idx, flag_pol);
-    append_ifs(stream, idx, is_passive);
+    add_flag_delim(stream, idx, flag_pol);
+    add_ifs(stream, idx, is_passive);
     stream.len := idx;
-  end procedure apply_error_response;
+  end procedure truncate_error;
 
-  procedure apply_overload_response (
+  procedure truncate_overload (
     variable stream     : inout t_bus_stream;
     constant inject_pos : in    integer;
     constant is_passive : in    boolean := false
   ) is
     variable idx : integer := inject_pos + 1;
   begin
-    append_flag_delim(stream, idx, c_dominant);
-    append_ifs(stream, idx, is_passive);
+    add_flag_delim(stream, idx, c_dominant);
+    add_ifs(stream, idx, is_passive);
     stream.len := idx;
-  end procedure apply_overload_response;
+  end procedure truncate_overload;
 
-  procedure apply_reactive_overload_response (
+  procedure truncate_reactive_overload (
     variable stream     : inout t_bus_stream;
     constant inject_pos : in    integer;
     constant is_passive : in    boolean := false
@@ -451,11 +451,11 @@ architecture tb of can_mac_tx_tb is
     variable flag_pol : std_logic := c_dominant;
   begin
     if (is_passive) then flag_pol := c_recessive; end if;
-    append_flag_delim(stream, idx, flag_pol);
-    append_flag_delim(stream, idx, c_dominant);
-    append_ifs(stream, idx, is_passive);
+    add_flag_delim(stream, idx, flag_pol);
+    add_flag_delim(stream, idx, c_dominant);
+    add_ifs(stream, idx, is_passive);
     stream.len := idx;
-  end procedure apply_reactive_overload_response;
+  end procedure truncate_reactive_overload;
 
 begin
 
@@ -660,11 +660,11 @@ begin
     variable v_data_phase_start : integer := -1;
     variable v_data_phase_end   : integer := -1;
 
-    -- Subtypes that use SP-time polarity flip for bit error injection
-    function is_sp_error_subtype (st : integer) return boolean is
+    -- Subtypes that inject errors by flipping polarity at SP
+    function is_polarity_flip (st : integer) return boolean is
     begin
       return st = c_inj_error or st = c_inj_reactive_overload or st = c_inj_error_delim_too_late;
-    end function is_sp_error_subtype;
+    end function is_polarity_flip;
 
     --------------------------------------------------------------------------
     -- Inject: arm/disarm bus override at programmed position(s)
@@ -713,7 +713,7 @@ begin
       pcs_i.sp <= '0';
       if (v_sp_active) then
         if (v_sp_count = c_sp_interval - 1) then
-          if (bus_override_en and is_sp_error_subtype(v_subtype)) then
+          if (bus_override_en and is_polarity_flip(v_subtype)) then
             pcs_i.bus_polarity <= not pcs_o.polarity;
           elsif (bus_override_en) then
             pcs_i.bus_polarity <= bus_override;
@@ -889,7 +889,7 @@ begin
       v_fce_state  := GetRandPoint(fce_cov);
       v_is_passive := v_fce_state = c_fce_passive;
 
-      generate_frame_and_stream(v_frame, v_metadata, v_last_byte, v_stream, v_is_passive);
+      gen_frame(v_frame, v_metadata, v_last_byte, v_stream, v_is_passive);
 
       if (v_is_passive) then
         Send(fce_rec, x"0001");  -- error_passive=1, error_active=0, bus_off=0
@@ -926,7 +926,7 @@ begin
           end if;
           -- ACK error detected at ACK delimiter (ack_pos + 1), error flag
           -- starts at bit after that: ack_pos + 2
-          apply_error_response(v_stream, v_stream.ack_pos + 2, v_is_passive);
+          truncate_error(v_stream, v_stream.ack_pos + 2, v_is_passive);
 
         when c_inj_error =>
           -- Coverage-driven position: try uncovered bins that fit within
@@ -945,13 +945,13 @@ begin
           if (not v_is_passive) then
             v_exp_fce(c_fce_primary_error) := '1';
           end if;
-          apply_error_response(v_stream, v_inj_pos + 1, v_is_passive);
+          truncate_error(v_stream, v_inj_pos + 1, v_is_passive);
 
         when c_inj_lost_arb =>
           v_exp_status  := c_lost_arb;
           v_frame(2)(c_byte_width - 1) := c_recessive;
           v_metadata := extract_metadata(v_frame(0), v_frame(1));
-          v_stream   := build_expected_bus_stream(v_frame, v_metadata, v_is_passive);
+          v_stream   := build_bus_stream(v_frame, v_metadata, v_is_passive);
           v_inj_pos    := 1;
           v_stream.len := v_inj_pos + 1;
 
@@ -959,7 +959,7 @@ begin
           v_inj_pos     := v_stream.ack_pos;
           v_exp_status  := c_transmitted;
           v_exp_fce(c_fce_successful_transfer) := '1';
-          apply_overload_response(v_stream, v_stream.ack_pos + c_ifs_offset, v_is_passive);
+          truncate_overload(v_stream, v_stream.ack_pos + c_ifs_offset, v_is_passive);
 
         when c_inj_reactive_overload =>
           -- Bit error + dominant at last error delimiter bit -> reactive OF
@@ -969,7 +969,7 @@ begin
           if (not v_is_passive) then
             v_exp_fce(c_fce_primary_error) := '1';
           end if;
-          apply_reactive_overload_response(v_stream, v_inj_pos, v_is_passive);
+          truncate_reactive_overload(v_stream, v_inj_pos, v_is_passive);
 
         when c_inj_error_delim_too_late =>
           -- Bit error + 8 dominant during error delimiter
@@ -982,7 +982,7 @@ begin
           end if;
           -- Same TX output as reactive overload (overload triggered by
           -- dominant at last delimiter bit)
-          apply_reactive_overload_response(v_stream, v_inj_pos, v_is_passive);
+          truncate_reactive_overload(v_stream, v_inj_pos, v_is_passive);
 
         when others =>
           null;
