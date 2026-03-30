@@ -111,20 +111,6 @@ architecture tb of can_mac_ser_tx_tb is
     source.valid <= '0';
   end procedure avalon_st_send;
 
-  function extract_metadata (
-    config_byte_0 : t_byte;
-    config_byte_1 : t_byte
-  ) return t_llc_metadata is
-    variable result : t_llc_metadata;
-  begin
-    result.format := config_byte_0(c_llc_frame_config_byte_0_format_start downto c_llc_frame_config_byte_0_format_end);
-    result.ftyp   := config_byte_0(c_llc_frame_config_byte_0_ftyp);
-    result.esi    := config_byte_0(c_llc_frame_config_byte_0_esi);
-    result.brs    := config_byte_0(c_llc_frame_config_byte_0_brs);
-    result.dlc    := config_byte_1(c_llc_frame_config_byte_1_dlc_start downto c_llc_frame_config_byte_1_dlc_end);
-    return result;
-  end function extract_metadata;
-
 begin
 
   ----------------------------------------------------------------------------

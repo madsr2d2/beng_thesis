@@ -35,40 +35,6 @@ architecture rtl of can_mac_bs_tx is
   signal stuff_count   : t_stuff_count;
   signal stuff_pending : boolean;
 
-  function f_calc_parity (
-    v : std_logic_vector
-  ) return std_logic is
-
-    variable v_parity : std_logic := '0';
-
-  begin
-
-    for i in v'range loop
-      v_parity := v_parity xor v(i);
-    end loop;
-
-    return v_parity;
-
-  end function f_calc_parity;
-
-  function f_to_gray (
-    v : std_logic_vector
-  ) return std_logic_vector is
-
-    variable v_result : std_logic_vector(v'range);
-
-  begin
-
-    v_result(v'left) := v(v'left);
-
-    for i in v'left - 1 downto v'right loop
-      v_result(i) := v(i) xor v(i + 1);
-    end loop;
-
-    return v_result;
-
-  end function f_to_gray;
-
 begin
 
   p_bit_stuffing : process (clk_i) is
