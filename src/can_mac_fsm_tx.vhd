@@ -70,13 +70,6 @@ architecture rtl of can_mac_fsm_tx is
     s_overload_flag
   );
 
-  -- Threshold used for delimiter-dominant run tracking before raising
-  -- Error_delimiter_too_late (ISO 11898-1: 8.1.3.3 Table 16).
-  constant c_delimiter_dominant_run_limit : integer := 7;
-
-  -- ISO 11898-1: 8.1.4.4 (Figure 43, T5) - bus-off recovery requires 128 idle conditions.
-  constant c_bus_off_recovery_count : integer := 128;
-
   ---------------------------------------------------------------------------
   -- Registered state signals
   ---------------------------------------------------------------------------
@@ -96,9 +89,6 @@ architecture rtl of can_mac_fsm_tx is
   signal ack_error_caused_flag     : boolean;
   signal dominant_seen_during_flag : boolean;
   signal dominant_run_count        : integer range 0 to 15;
-
-  -- Bus-off recovery: counts idle conditions (11 recessive bits) during reintegration
-  signal idle_condition_count : integer range 0 to c_bus_off_recovery_count;
 
   -- ISO 11898-1: 6.6.8 - dominant at 3rd intermission bit detected as SOF;
   -- skip SOF output and start with first ID bit on next frame entry.
@@ -128,7 +118,9 @@ begin
 
     -- Handles logic common to quiet states (ISO 11898-1: 6.6.7):
     -- hold-signal management and SP-based idle-run counting.
-    procedure process_quiet_phase_common is
+    procedure process_quiet_phase_common (
+      constant quiet_bit_name_c : in t_mac_frame_bit_name
+    ) is
     begin
 
       pcs_o.valid               <= '0';
@@ -138,6 +130,9 @@ begin
       fce_o.transmitting        <= '0';
       ssp_error_pending         <= false;
       mac_ser_o.transfer_status <= c_ongoing;
+
+      last_transmitted_bit          <= (c_recessive, quiet_bit_name_c);
+      last_transmitted_bit_polarity <= c_recessive;
 
       if (pcs_i.sp = '1') then
         -- ISO 11898-1: 6.6.7.5 - count consecutive recessive bits at SP;
@@ -223,7 +218,8 @@ begin
     -- flag/delimiter serialization, delimiter-dominant run tracking, and reactive overload trigger.
     procedure process_flag_transmission (
       constant flag_bit_c                       : in t_mac_frame_bit;
-      constant track_error_delimiter_too_late_c : in boolean
+      constant track_error_delimiter_too_late_c : in boolean;
+      constant transfer_status_c                : in std_logic_vector(2 downto 0) := c_disturbed
     ) is
 
       variable in_flag_field_v       : boolean;
@@ -233,12 +229,11 @@ begin
 
       -- Hold signals: driven every cycle in flag states
       fce_o.transmitting                <= '1';
-      fce_o.error                       <= '1';
       fce_o.sending_error_overload_flag <= '1';
       pcs_o.valid                       <= '1';
       pcs_o.use_data_rate               <= '0';
       pcs_o.start_tdc                   <= '0';
-      mac_ser_o.transfer_status         <= c_disturbed;
+      mac_ser_o.transfer_status         <= transfer_status_c;
 
       in_flag_field_v := (bit_count < c_error_flag_width);
 
@@ -248,7 +243,9 @@ begin
         v_tx_bit := c_error_delimiter_bit;
       end if;
 
-      pcs_o.polarity <= v_tx_bit.polarity;
+      pcs_o.polarity                <= v_tx_bit.polarity;
+      last_transmitted_bit          <= v_tx_bit;
+      last_transmitted_bit_polarity <= v_tx_bit.polarity;
 
       if (pcs_i.sp = '1') then
         if (bit_count < c_error_sequence_width - 1) then
@@ -261,7 +258,7 @@ begin
         if (track_delimiter_run_v) then
           if (pcs_i.bus_polarity = c_recessive) then
             dominant_run_count <= 0;
-          elsif (dominant_run_count = c_delimiter_dominant_run_limit) then
+          elsif (dominant_run_count = c_error_delimiter_width - 1) then
             fce_o.error_delimiter_too_late <= '1';
             dominant_run_count             <= 0;
           else
@@ -280,6 +277,7 @@ begin
         if (track_error_delimiter_too_late_c and in_flag_field_v and pcs_i.bus_polarity = c_dominant) then
           fce_o.primary_error <= '1';
         end if;
+
       end if;
 
       if (overload_condition) then
@@ -311,7 +309,6 @@ begin
         ack_error_caused_flag         <= false;
         dominant_seen_during_flag     <= false;
         dominant_run_count            <= 0;
-        idle_condition_count          <= 0;
         skip_sof                      <= false;
         in_data_phase                 <= '0';
         frame_params                  <= c_frame_params_reset;
@@ -355,20 +352,14 @@ begin
           -- (ISO 11898-1: 6.6.7.5, 8.1.4.4 Figure 43 T5).
           -----------------------------------------------------------------
           when s_bus_reintegration =>
-            process_quiet_phase_common;
+            process_quiet_phase_common(bus_integration_bit);
             if (bit_count = c_bus_idle_condition_width - 1) then
-              if (fce_i.bus_off = '0' or idle_condition_count = c_bus_off_recovery_count - 1) then
-                -- ISO 11898-1: 6.6.7.5 / 8.1.4.4 (T5)
-                state     <= s_bus_idle;
-                bit_count <= 0;
-              else
-                idle_condition_count <= idle_condition_count + 1;
-                bit_count            <= 0;
-              end if;
+              state     <= s_bus_idle;
+              bit_count <= 0;
             end if;
 
           when s_intermission =>
-            process_quiet_phase_common;
+            process_quiet_phase_common(intermission_bit);
             -- ISO 11898-1: 6.6.21.3.2 b) - dominant detected during first
             -- two intermission bits triggers overload handling.
             if (pcs_i.sp = '1' and pcs_i.bus_polarity = c_dominant and bit_count < c_intermission_width - 1) then
@@ -382,7 +373,7 @@ begin
             elsif (bit_count = c_intermission_width - 1 and pcs_i.sp = '1' and pcs_i.bus_polarity = c_dominant) then
               -- ISO 11898-1: 6.6.7.2 / 6.6.8 - dominant at 3rd intermission bit
               -- interpreted as SOF; transmit first ID bit without SOF if eligible.
-              if (mac_ser_i.valid = '1' and fce_i.bus_off = '0' and
+              if (mac_ser_i.valid = '1' and
                   (fce_i.error_passive_request = '0' or not was_previous_frame_tx)) then
                 state     <= s_frame_init;
                 bit_count <= 0;
@@ -408,7 +399,7 @@ begin
           -- the previous frame shall suspend for 8 additional bit times.
           -----------------------------------------------------------------
           when s_suspend_transmission =>
-            process_quiet_phase_common;
+            process_quiet_phase_common(suspend_transmission_bit);
             if (overload_condition) then
               state                     <= s_overload_flag;
               bit_count                 <= 0;
@@ -423,9 +414,8 @@ begin
           -- ISO 11898-1: 6.6.7.3 - bus idle; any node may start transmission.
           -----------------------------------------------------------------
           when s_bus_idle =>
-            process_quiet_phase_common;
-            -- ISO 11898-1: 8.1.4.4 - bus_off nodes shall not initiate transmissions
-            if (mac_ser_i.valid = '1' and pcs_i.sp = '1' and fce_i.bus_off = '0') then
+            process_quiet_phase_common(idle_bit);
+            if (mac_ser_i.valid = '1' and pcs_i.sp = '1') then
               state     <= s_frame_init;
               bit_count <= 0;
               bs_fd_rst <= '1';
@@ -518,7 +508,6 @@ begin
               if (ssp_error_pending and pcs_i.sp = '1') then
                 -- ISO 11898-1: 6.6.21.3.1 - react at SP to SSP-detected error
                 was_previous_frame_tx     <= true;
-                fce_o.error               <= '1';
                 mac_ser_o.transfer_status <= c_disturbed;
                 pcs_o.valid               <= '1';
                 pcs_o.polarity            <= error_flag_bit_v.polarity;
@@ -559,8 +548,9 @@ begin
                     state                     <= s_transmit_bit;
 
                   when bit_error | ack_error =>
-                    was_previous_frame_tx     <= true;
+                    -- ISO 11898-1: 8.1.3.3 Table 16 - Error: Error detected
                     fce_o.error               <= '1';
+                    was_previous_frame_tx     <= true;
                     mac_ser_o.transfer_status <= c_disturbed;
                     pcs_o.valid               <= '1';
                     pcs_o.polarity            <= error_flag_bit_v.polarity;
@@ -581,8 +571,8 @@ begin
                     -- ACK error: no dominant seen during ACK window (CC and FD)
                     if (bit_count = frame_params.crc_delimiter + c_ack_delimiter_offset and
                         (not ack_success_seen)) then
-                      was_previous_frame_tx     <= true;
                       fce_o.error               <= '1';
+                      was_previous_frame_tx     <= true;
                       mac_ser_o.transfer_status <= c_disturbed;
                       pcs_o.valid               <= '1';
                       pcs_o.polarity            <= error_flag_bit_v.polarity;
@@ -663,7 +653,7 @@ begin
           -- (8 recessive).
           -----------------------------------------------------------------
           when s_overload_flag =>
-            process_flag_transmission(c_overload_flag_bit, false);
+            process_flag_transmission(c_overload_flag_bit, false, c_ongoing);
 
           when others =>
             state     <= s_bus_reintegration;
