@@ -1,0 +1,189 @@
+Version: 1.0
+Coverage: 100.00
+Settings: 
+  WritePassFail: 0
+Models: 
+  - Name: "Format Coverage"
+    TestCases: 
+      - "AlertLogTop"
+    Coverage: 100.00
+    Settings: 
+      CovWeight: 1
+      Goal: 100.0
+      WeightMode: "AT_LEAST"
+      Seeds: [2035475205, 2012529704]
+      CountMode: "COUNT_FIRST"
+      IllegalMode: "ILLEGAL_ON"
+      Threshold: 45.0
+      ThresholdEnable: "FALSE"
+      TotalCovCount: 400
+      TotalCovGoal: 400
+    BinInfo: 
+      Dimensions: 1
+      FieldNames: 
+        - "Bin1"
+      NumBins: 4
+    Bins: 
+      - Name: ""
+        Type: "COUNT"
+        Range: 
+          - {Min: 0, Max: 0}
+        Count: 449
+        AtLeast: 100
+        PercentCov: 449.0000
+      - Name: ""
+        Type: "COUNT"
+        Range: 
+          - {Min: 4, Max: 4}
+        Count: 416
+        AtLeast: 100
+        PercentCov: 416.0000
+      - Name: ""
+        Type: "COUNT"
+        Range: 
+          - {Min: 2, Max: 2}
+        Count: 371
+        AtLeast: 100
+        PercentCov: 371.0000
+      - Name: ""
+        Type: "COUNT"
+        Range: 
+          - {Min: 6, Max: 6}
+        Count: 364
+        AtLeast: 100
+        PercentCov: 364.0000
+
+  - Name: "DLC Coverage"
+    TestCases: 
+      - "AlertLogTop"
+    Coverage: 100.00
+    Settings: 
+      CovWeight: 1
+      Goal: 100.0
+      WeightMode: "AT_LEAST"
+      Seeds: [938015052, 1320805756]
+      CountMode: "COUNT_FIRST"
+      IllegalMode: "ILLEGAL_ON"
+      Threshold: 45.0
+      ThresholdEnable: "FALSE"
+      TotalCovCount: 1600
+      TotalCovGoal: 1600
+    BinInfo: 
+      Dimensions: 1
+      FieldNames: 
+        - "Bin1"
+      NumBins: 16
+    Bins: 
+      - Name: ""
+        Type: "COUNT"
+        Range: 
+          - {Min: 0, Max: 0}
+        Count: 100
+        AtLeast: 100
+        PercentCov: 100.0000
+      - Name: ""
+        Type: "COUNT"
+        Range: 
+          - {Min: 1, Max: 1}
+        Count: 100
+        AtLeast: 100
+        PercentCov: 100.0000
+      - Name: ""
+        Type: "COUNT"
+        Range: 
+          - {Min: 2, Max: 2}
+        Count: 100
+        AtLeast: 100
+        PercentCov: 100.0000
+      - Name: ""
+        Type: "COUNT"
+        Range: 
+          - {Min: 3, Max: 3}
+        Count: 100
+        AtLeast: 100
+        PercentCov: 100.0000
+      - Name: ""
+        Type: "COUNT"
+        Range: 
+          - {Min: 4, Max: 4}
+        Count: 100
+        AtLeast: 100
+        PercentCov: 100.0000
+      - Name: ""
+        Type: "COUNT"
+        Range: 
+          - {Min: 5, Max: 5}
+        Count: 100
+        AtLeast: 100
+        PercentCov: 100.0000
+      - Name: ""
+        Type: "COUNT"
+        Range: 
+          - {Min: 6, Max: 6}
+        Count: 100
+        AtLeast: 100
+        PercentCov: 100.0000
+      - Name: ""
+        Type: "COUNT"
+        Range: 
+          - {Min: 7, Max: 7}
+        Count: 100
+        AtLeast: 100
+        PercentCov: 100.0000
+      - Name: ""
+        Type: "COUNT"
+        Range: 
+          - {Min: 8, Max: 8}
+        Count: 100
+        AtLeast: 100
+        PercentCov: 100.0000
+      - Name: ""
+        Type: "COUNT"
+        Range: 
+          - {Min: 9, Max: 9}
+        Count: 100
+        AtLeast: 100
+        PercentCov: 100.0000
+      - Name: ""
+        Type: "COUNT"
+        Range: 
+          - {Min: 10, Max: 10}
+        Count: 100
+        AtLeast: 100
+        PercentCov: 100.0000
+      - Name: ""
+        Type: "COUNT"
+        Range: 
+          - {Min: 11, Max: 11}
+        Count: 100
+        AtLeast: 100
+        PercentCov: 100.0000
+      - Name: ""
+        Type: "COUNT"
+        Range: 
+          - {Min: 12, Max: 12}
+        Count: 100
+        AtLeast: 100
+        PercentCov: 100.0000
+      - Name: ""
+        Type: "COUNT"
+        Range: 
+          - {Min: 13, Max: 13}
+        Count: 100
+        AtLeast: 100
+        PercentCov: 100.0000
+      - Name: ""
+        Type: "COUNT"
+        Range: 
+          - {Min: 14, Max: 14}
+        Count: 100
+        AtLeast: 100
+        PercentCov: 100.0000
+      - Name: ""
+        Type: "COUNT"
+        Range: 
+          - {Min: 15, Max: 15}
+        Count: 100
+        AtLeast: 100
+        PercentCov: 100.0000
+

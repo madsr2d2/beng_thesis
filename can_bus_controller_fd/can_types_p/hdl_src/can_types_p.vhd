@@ -66,6 +66,7 @@ package pk_can_types is
   constant c_error_flag_width      : integer := 6;
   constant c_error_delimiter_width : integer := 8;
   constant c_error_sequence_width  : integer := c_error_flag_width + c_error_delimiter_width;
+  constant c_bus_off_recovery_count : integer := 128; -- ISO 8.8.4.4
 
   -- Inter-frame spacing (ISO 6.6.7)
   constant c_intermission_width         : integer := 3;  -- ISO 6.6.7.2
