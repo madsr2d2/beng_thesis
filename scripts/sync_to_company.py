@@ -10,9 +10,9 @@ can_bus_controller_fd/<module>/ with company-specific transformations:
   3. Qualifies t_eth_st_s2d/d2s with pk_eth_st package prefix
 
 Usage:
-    python scripts/sync_to_company.py           # Sync all modules
-    python scripts/sync_to_company.py --dry-run  # Show what would change
-    python scripts/sync_to_company.py --module can_mac_bs  # Sync one module
+    python scripts/sync_to_company.py                      # Sync all modules
+    python scripts/sync_to_company.py --dry-run             # Show what would change
+    python scripts/sync_to_company.py --module can_mac_bs   # Sync one src/ module
 """
 
 import argparse
@@ -23,17 +23,18 @@ ROOT = Path(__file__).resolve().parent.parent
 LOCAL_SRC = ROOT / "src"
 COMPANY_DIR = ROOT / "can_bus_controller_fd"
 
-# ── Module mapping ──────────────────────────────────────────────────────────
-# local folder name -> company folder name
-# Only modules that exist in the company folder are synced.
-MODULE_MAP = {
-    "can_types_p":    "can_types_p",
-    "can_mac_bs":     "can_mac_bs",
-    "can_mac_crc":    "can_mac_crc",
-    "can_mac_ser_tx": "can_mac_ser_tx",
-    "can_mac_fsm_tx": "can_mac_fsm_tx",
-    "can_mac_tx":     "can_mac_tx",
-}
+# ── Module discovery ────────────────────────────────────────────────────────
+# Auto-discover syncable modules: every directory in can_bus_controller_fd/
+# that has a matching directory in src/ (by name).
+# Non-module directories (e.g. doc/) are excluded automatically.
+
+def discover_modules() -> list[str]:
+    """Return sorted list of module names present in both src/ and company dir."""
+    if not COMPANY_DIR.is_dir():
+        return []
+    company_dirs = {d.name for d in COMPANY_DIR.iterdir() if d.is_dir()}
+    local_dirs = {d.name for d in LOCAL_SRC.iterdir() if d.is_dir()}
+    return sorted(company_dirs & local_dirs)
 
 # Local filename -> company filename (where they differ)
 FILE_RENAME = {
@@ -213,13 +214,15 @@ def transform(content: str, module: str, filename: str) -> str:
 
 def sync_module(module: str, dry_run: bool = False) -> int:
     """Sync one module. Returns number of files synced."""
-    company_name = MODULE_MAP.get(module)
-    if not company_name:
-        print(f"  SKIP {module}: not in company mapping")
-        return 0
-
     local_dir = LOCAL_SRC / module
-    company_dir = COMPANY_DIR / company_name
+    company_dir = COMPANY_DIR / module
+
+    if not local_dir.is_dir():
+        print(f"  SKIP {module}: not found in src/")
+        return 0
+    if not company_dir.is_dir():
+        print(f"  SKIP {module}: not found in {COMPANY_DIR.name}/")
+        return 0
     synced = 0
 
     for subdir in ("hdl_src", "hdl_tb"):
@@ -257,10 +260,10 @@ def sync_module(module: str, dry_run: bool = False) -> int:
 def main():
     parser = argparse.ArgumentParser(description="Sync local VHDL to company folder")
     parser.add_argument("--dry-run", action="store_true", help="Show what would change")
-    parser.add_argument("--module", help="Sync only this module")
+    parser.add_argument("--module", help="Sync only this src/ module (default: all matching)")
     args = parser.parse_args()
 
-    modules = [args.module] if args.module else list(MODULE_MAP.keys())
+    modules = [args.module] if args.module else discover_modules()
     total = 0
 
     for module in modules:
