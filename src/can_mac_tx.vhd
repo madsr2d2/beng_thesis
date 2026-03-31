@@ -43,8 +43,8 @@ architecture rtl of can_mac_tx is
   -- Internal signals
   ---------------------------------------------------------------------------
   -- Serializer <-> FSM
-  signal ser_to_fsm : t_can_mac_ser_fsm_tx_if_s2m;
-  signal fsm_to_ser : t_can_mac_ser_fsm_tx_if_m2s;
+  signal ser_to_fsm : t_can_mac_ser_fsm_if_s2d;
+  signal fsm_to_ser : t_can_mac_ser_fsm_if_d2s;
 
   -- FSM <-> bit stuffer FD
   signal fsm_to_bs_fd  : t_can_mac_fsm_bs_if_m2s;

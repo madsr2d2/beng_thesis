@@ -22,9 +22,9 @@ entity can_mac_deser_rx is
     clk_i : in    std_logic;
     rst_i : in    std_logic;
 
-    -- FSM interface (reuses TX-side ser/fsm record - deser is the source)
-    rx_mac_fsm_i : in    t_can_mac_ser_fsm_tx_if_m2s;
-    rx_mac_fsm_o : out   t_can_mac_ser_fsm_tx_if_s2m;
+    -- FSM interface (FSM is source, deser is destination)
+    rx_mac_fsm_i : in    t_can_mac_fsm_deser_if_s2d;
+    rx_mac_fsm_o : out   t_can_mac_fsm_deser_if_d2s;
 
     -- LLC interface (Avalon-ST source - deser pushes bytes to LLC RX)
     llc_i : in    t_can_llc_mac_tx_if_d2s;

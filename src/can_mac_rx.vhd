@@ -42,9 +42,9 @@ architecture rtl of can_mac_rx is
   ---------------------------------------------------------------------------
   -- Internal signals
   ---------------------------------------------------------------------------
-  -- Deserializer <-> FSM
-  signal deser_to_fsm : t_can_mac_ser_fsm_tx_if_s2m;
-  signal fsm_to_deser : t_can_mac_ser_fsm_tx_if_m2s;
+  -- Deserializer <-> FSM (FSM is source, deser is destination)
+  signal fsm_to_deser : t_can_mac_fsm_deser_if_s2d;
+  signal deser_to_fsm : t_can_mac_fsm_deser_if_d2s;
 
   -- FSM <-> bit stuffer (destuffing)
   signal fsm_to_bs  : t_can_mac_fsm_bs_if_m2s;

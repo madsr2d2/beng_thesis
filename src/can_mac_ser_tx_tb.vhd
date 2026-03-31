@@ -59,8 +59,8 @@ architecture tb of can_mac_ser_tx_tb is
   -- DUT interface
   signal llc_i        : t_can_llc_mac_tx_if_s2d;
   signal llc_o        : t_can_llc_mac_tx_if_d2s;
-  signal tx_mac_fsm_i : t_can_mac_ser_fsm_tx_if_m2s;
-  signal tx_mac_fsm_o : t_can_mac_ser_fsm_tx_if_s2m;
+  signal tx_mac_fsm_i : t_can_mac_ser_fsm_if_d2s;
+  signal tx_mac_fsm_o : t_can_mac_ser_fsm_if_s2d;
 
   -- OSVVM signals
   shared variable RV  : RandomPType;
@@ -194,7 +194,7 @@ begin
   ----------------------------------------------------------------------------
   p_mac_fsm_vc : process is
   begin
-    tx_mac_fsm_i <= c_tx_mac_fsm_to_ser_if_reset;
+    tx_mac_fsm_i <= c_ser_fsm_if_d2s_reset;
     WaitForBarrier(init_barrier);
 
     mac_fsm_vs_loop : loop

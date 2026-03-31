@@ -29,8 +29,8 @@ entity can_mac_fsm_tx is
     rst_i : in    std_logic;
 
     -- Serializer interface
-    mac_ser_i : in    t_can_mac_ser_fsm_tx_if_s2m;
-    mac_ser_o : out   t_can_mac_ser_fsm_tx_if_m2s;
+    mac_ser_i : in    t_can_mac_ser_fsm_if_s2d;
+    mac_ser_o : out   t_can_mac_ser_fsm_if_d2s;
 
     -- PCS interface
     pcs_i : in    t_can_mac_pcs_if_s2m;
@@ -313,7 +313,7 @@ begin
         in_data_phase                 <= '0';
         frame_params                  <= c_frame_params_reset;
 
-        mac_ser_o <= c_tx_mac_fsm_to_ser_if_reset;
+        mac_ser_o <= c_ser_fsm_if_d2s_reset;
         pcs_o     <= c_mac_to_pcs_if_reset;
         bs_fd_o   <= c_mac_fsm_to_bs_fd_if_reset;
         bs_fd_rst <= '0';
@@ -431,7 +431,7 @@ begin
           when s_frame_init =>
             fce_o     <= c_mac_to_fce_if_reset;
             pcs_o     <= c_mac_to_pcs_if_reset;
-            mac_ser_o <= c_tx_mac_fsm_to_ser_if_reset;
+            mac_ser_o <= c_ser_fsm_if_d2s_reset;
             crc_o     <= c_mac_fsm_to_crc_if_reset;
 
             v_frame_params        := get_frame_params(mac_ser_i.llc_metadata);

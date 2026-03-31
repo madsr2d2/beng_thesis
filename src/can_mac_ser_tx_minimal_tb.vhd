@@ -34,8 +34,8 @@ architecture tb of can_mac_ser_tx_minimal_tb is
 
   signal llc_i        : t_can_llc_mac_tx_if_s2d;
   signal llc_o        : t_can_llc_mac_tx_if_d2s;
-  signal tx_mac_fsm_i : t_can_mac_ser_fsm_tx_if_m2s;
-  signal tx_mac_fsm_o : t_can_mac_ser_fsm_tx_if_s2m;
+  signal tx_mac_fsm_i : t_can_mac_ser_fsm_if_d2s;
+  signal tx_mac_fsm_o : t_can_mac_ser_fsm_if_s2d;
 
   signal test_id   : AlertLogIDType;
   shared variable RV : RandomPType;

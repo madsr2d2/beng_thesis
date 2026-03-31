@@ -49,8 +49,8 @@ architecture tb of can_mac_fsm_tx_tb is
   signal reset : std_logic := '1';
 
   -- DUT interface
-  signal mac_ser_i : t_can_mac_ser_fsm_tx_if_s2m := c_tx_mac_ser_to_fsm_if_reset;
-  signal mac_ser_o : t_can_mac_ser_fsm_tx_if_m2s;
+  signal mac_ser_i : t_can_mac_ser_fsm_if_s2d := c_ser_fsm_if_s2d_reset;
+  signal mac_ser_o : t_can_mac_ser_fsm_if_d2s;
   signal pcs_i     : t_can_mac_pcs_if_s2m     := c_pcs_to_mac_if_reset;
   signal pcs_o     : t_can_mac_pcs_if_m2s;
   signal bs_fd_i   : t_can_mac_fsm_bs_if_s2m  := c_can_mac_fsm_bs_if_s2m_reset;

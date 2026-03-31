@@ -22,18 +22,18 @@ entity can_mac_fsm_rx is
     clk_i : in    std_logic;
     rst_i : in    std_logic;
 
-    -- Deserializer interface
-    mac_deser_i : in    t_can_mac_ser_fsm_tx_if_s2m;
-    mac_deser_o : out   t_can_mac_ser_fsm_tx_if_m2s;
+    -- Deserializer interface (FSM is source, deser is destination)
+    mac_deser_i : in    t_can_mac_fsm_deser_if_d2s;
+    mac_deser_o : out   t_can_mac_fsm_deser_if_s2d;
 
     -- PCS interface (bidirectional - RX receives and sends ACK/error flags)
     pcs_i : in    t_can_mac_pcs_if_s2m;
     pcs_o : out   t_can_mac_pcs_if_m2s;
 
     -- Bit stuffer interface (reused for destuffing)
-    bs_i    : in    t_can_mac_fsm_bs_if_s2m;
-    bs_o    : out   t_can_mac_fsm_bs_if_m2s;
-    bs_rst  : out   std_logic;
+    bs_i   : in    t_can_mac_fsm_bs_if_s2m;
+    bs_o   : out   t_can_mac_fsm_bs_if_m2s;
+    bs_rst : out   std_logic;
 
     -- CRC interface (reused for CRC checking)
     crc_i   : in    t_can_mac_fsm_crc_if_s2m;
@@ -50,6 +50,6 @@ architecture rtl of can_mac_fsm_rx is
 
 begin
 
-  -- TODO: implement RX FSM
+-- TODO: implement RX FSM
 
 end architecture rtl;

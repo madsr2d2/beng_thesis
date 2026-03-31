@@ -343,13 +343,13 @@ package pk_can_types is
   end record t_eth_st_d2s;
 
   -- Serializer -> FSM
-  type t_can_mac_ser_fsm_tx_if_s2m is record
+  type t_can_mac_ser_fsm_if_s2d is record
     data         : std_logic;
     valid        : std_logic;
     llc_metadata : t_llc_metadata;
-  end record t_can_mac_ser_fsm_tx_if_s2m;
+  end record t_can_mac_ser_fsm_if_s2d;
 
-  constant c_tx_mac_ser_to_fsm_if_reset : t_can_mac_ser_fsm_tx_if_s2m :=
+  constant c_ser_fsm_if_s2d_reset : t_can_mac_ser_fsm_if_s2d :=
   (
     data         => 'U',
     valid        => '0',
@@ -357,15 +357,39 @@ package pk_can_types is
   );
 
   -- FSM -> Serializer
-  type t_can_mac_ser_fsm_tx_if_m2s is record
+  type t_can_mac_ser_fsm_if_d2s is record
     transfer_status : std_logic_vector(2 downto 0);
     ready           : std_logic;
-  end record t_can_mac_ser_fsm_tx_if_m2s;
+  end record t_can_mac_ser_fsm_if_d2s;
 
-  constant c_tx_mac_fsm_to_ser_if_reset : t_can_mac_ser_fsm_tx_if_m2s :=
+  constant c_ser_fsm_if_d2s_reset : t_can_mac_ser_fsm_if_d2s :=
   (
     transfer_status => c_ongoing,
     ready           => '0'
+  );
+
+  -- RX FSM -> Deserializer (FSM is source, deser is destination)
+  type t_can_mac_fsm_deser_if_s2d is record
+    data         : std_logic;
+    valid        : std_logic;
+    llc_metadata : t_llc_metadata;
+  end record t_can_mac_fsm_deser_if_s2d;
+
+  constant c_fsm_deser_if_s2d_reset : t_can_mac_fsm_deser_if_s2d :=
+  (
+    data         => 'U',
+    valid        => '0',
+    llc_metadata => c_llc_metadata_reset
+  );
+
+  -- RX Deserializer -> FSM (backpressure)
+  type t_can_mac_fsm_deser_if_d2s is record
+    ready : std_logic;
+  end record t_can_mac_fsm_deser_if_d2s;
+
+  constant c_fsm_deser_if_d2s_reset : t_can_mac_fsm_deser_if_d2s :=
+  (
+    ready => '0'
   );
 
   -- LLC -> MAC
