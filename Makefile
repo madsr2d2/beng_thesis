@@ -65,6 +65,8 @@ GTKWFILE = ${GTKWAVE_DIR}/${TESTBENCHFILE}.gtkw
 
 WAVEFORM_VIEWER = GIO_MODULE_DIR="" gtkwave
 
+GEN_GTKW ?= 0
+
 .PHONY: all compile run view clean
 
 all: clean compile run view
@@ -94,6 +96,10 @@ run:
 	@$(SIMDIR)/$(TESTBENCHFILE) --wave=$(GHWFILE) --psl-report=$(SIMDIR)/$(TESTBENCHFILE)_psl.json $(GHDL_SIM_OPT)
 	@echo "Simulation finished. Waveform saved to $(GHWFILE)"
 	@if [ -f "$(SIMDIR)/$(TESTBENCHFILE)_psl.json" ]; then echo "PSL report saved to $(SIMDIR)/$(TESTBENCHFILE)_psl.json"; fi
+	@if [ "$(GEN_GTKW)" = "1" ]; then \
+		echo "Generating GTKWave save file..."; \
+		python3 scripts/gen_gtkw.py $(GHWFILE) $(GTKWAVE_DIR)/$(TESTBENCHFILE).gtkw; \
+	fi
 
 view:
 	@if [ -f "$(GTKWFILE)" ]; then \

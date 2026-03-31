@@ -1,0 +1,117 @@
+[*]
+[*] GTKWave save file - auto-generated from can_mac_crc_tb.ghw
+[*]
+[dumpfile] "/home/madsr2d2/beng_thesis/sim/can_mac_crc_tb.ghw"
+[savefile] "/home/madsr2d2/beng_thesis/gtk_wave/can_mac_crc_tb.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] 0 0
+*-28.000000 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.can_mac_crc_tb.
+[sst_width] 297
+[signals_width] 412
+[sst_expanded] 1
+[sst_vpaned_height] 434
+[treeopen] top.can_mac_crc_tb.u_dut.
+[treeopen] top.can_mac_crc_tb.u_dut.u_crc15.
+[treeopen] top.can_mac_crc_tb.u_dut.u_crc17.
+[treeopen] top.can_mac_crc_tb.u_dut.u_crc21.
+@c00200
+-TB Signals
+@420
+top.can_mac_crc_tb.crc_i
+@420
+top.can_mac_crc_tb.crc_o
+@28
+top.can_mac_crc_tb.clk
+@28
+top.can_mac_crc_tb.reset
+@28
+top.can_mac_crc_tb.frame_rst
+@28
+top.can_mac_crc_tb.dut_rst
+@420
+top.can_mac_crc_tb.reset_id
+@420
+top.can_mac_crc_tb.crc_check_id
+@420
+top.can_mac_crc_tb.output_stable_id
+@1401200
+-TB Signals
+@c00200
+-u_dut Internals
+@28
+top.can_mac_crc_tb.u_dut.clk_i
+@28
+top.can_mac_crc_tb.u_dut.rst_i
+@420
+top.can_mac_crc_tb.u_dut.crc_i
+@420
+top.can_mac_crc_tb.u_dut.crc_o
+@22
+top.can_mac_crc_tb.u_dut.crc15_out
+@22
+top.can_mac_crc_tb.u_dut.crc17_out
+@22
+top.can_mac_crc_tb.u_dut.crc21_out
+@28
+top.can_mac_crc_tb.u_dut.valid
+@1401200
+-u_dut Internals
+@c00200
+-u_crc15
+@28
+top.can_mac_crc_tb.u_dut.u_crc15.clk_i
+@28
+top.can_mac_crc_tb.u_dut.u_crc15.reset_i
+@28
+top.can_mac_crc_tb.u_dut.u_crc15.start_crc_i
+@22
+top.can_mac_crc_tb.u_dut.u_crc15.data_i
+@28
+top.can_mac_crc_tb.u_dut.u_crc15.data_valid_i
+@22
+top.can_mac_crc_tb.u_dut.u_crc15.crc_o
+@22
+top.can_mac_crc_tb.u_dut.u_crc15.crc_reg
+@1401200
+-u_crc15
+@c00200
+-u_crc17
+@28
+top.can_mac_crc_tb.u_dut.u_crc17.clk_i
+@28
+top.can_mac_crc_tb.u_dut.u_crc17.reset_i
+@28
+top.can_mac_crc_tb.u_dut.u_crc17.start_crc_i
+@22
+top.can_mac_crc_tb.u_dut.u_crc17.data_i
+@28
+top.can_mac_crc_tb.u_dut.u_crc17.data_valid_i
+@22
+top.can_mac_crc_tb.u_dut.u_crc17.crc_o
+@22
+top.can_mac_crc_tb.u_dut.u_crc17.crc_reg
+@1401200
+-u_crc17
+@c00200
+-u_crc21
+@28
+top.can_mac_crc_tb.u_dut.u_crc21.clk_i
+@28
+top.can_mac_crc_tb.u_dut.u_crc21.reset_i
+@28
+top.can_mac_crc_tb.u_dut.u_crc21.start_crc_i
+@22
+top.can_mac_crc_tb.u_dut.u_crc21.data_i
+@28
+top.can_mac_crc_tb.u_dut.u_crc21.data_valid_i
+@22
+top.can_mac_crc_tb.u_dut.u_crc21.crc_o
+@22
+top.can_mac_crc_tb.u_dut.u_crc21.crc_reg
+@1401200
+-u_crc21
+[pattern_trace] 1
+[pattern_trace] 0
