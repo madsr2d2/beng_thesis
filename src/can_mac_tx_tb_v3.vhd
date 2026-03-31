@@ -97,8 +97,8 @@ architecture tb of can_mac_tx_tb_v3 is
   -- DUT interface
   signal llc_i : t_can_llc_mac_tx_if_s2d;
   signal llc_o : t_can_llc_mac_tx_if_d2s;
-  signal pcs_i : t_can_mac_pcs_tx_if_s2m := c_pcs_to_mac_if_reset;
-  signal pcs_o : t_can_mac_pcs_tx_if_m2s;
+  signal pcs_i : t_can_mac_pcs_if_s2m := c_pcs_to_mac_if_reset;
+  signal pcs_o : t_can_mac_pcs_if_m2s;
   signal fce_i : t_can_mac_fce_if_s2m    := c_fce_to_mac_if_reset;
   signal fce_o : t_can_mac_fce_if_m2s;
 
@@ -170,7 +170,7 @@ architecture tb of can_mac_tx_tb_v3 is
     variable is_fd  : boolean;
 
     -- Serializer data: ID stream and data bytes
-    variable id_stream   : std_logic_vector(c_llc_id_stream_width - 1 downto 0);
+    variable id_stream   : std_logic_vector(c_llc_id_field_width - 1 downto 0);
     variable ser_data    : std_logic;
     variable fb          : t_mac_frame_bit;
     variable data_bit_no : integer;
@@ -183,7 +183,7 @@ architecture tb of can_mac_tx_tb_v3 is
     -- CRC accumulator and result
     variable crc_in     : std_logic_vector(0 to c_max_bus_bits - 1);
     variable crc_in_len : integer := 0;
-    variable crc        : t_crc_vector;
+    variable crc        : std_logic_vector(c_crc_21_length - 1 downto 0);
 
     -- FD CRC region
     variable sbc         : t_sbc;
@@ -241,10 +241,10 @@ architecture tb of can_mac_tx_tb_v3 is
     for pos in 0 to fp.data_stop - 1 loop
       -- Resolve ser_data for ID and data field positions
       if (pos >= c_cb_base_id_start and pos <= c_cb_base_id_stop) then
-        ser_data := id_stream(c_llc_id_stream_width - 1 - (pos - c_cb_base_id_start));
+        ser_data := id_stream(c_llc_id_field_width - 1 - (pos - c_cb_base_id_start));
       elsif (metadata.format(2) = '1' and
              pos >= c_ce_extended_id_start and pos <= c_ce_extended_id_stop) then
-        ser_data := id_stream(c_llc_id_stream_width - 1 - c_base_id_width
+        ser_data := id_stream(c_llc_id_field_width - 1 - c_base_id_width
                               - (pos - c_ce_extended_id_start));
       elsif (pos >= fp.dlc_start + c_dlc_field_width and pos < fp.data_stop) then
         data_bit_no := pos - (fp.dlc_start + c_dlc_field_width);

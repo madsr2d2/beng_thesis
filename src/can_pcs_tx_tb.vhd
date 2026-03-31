@@ -56,14 +56,14 @@ architecture test of can_pcs_tx_tb is
   constant loopback_delay_c     : time    := loopback_delay_clk_c * clk_period_c;
 
   -- DUT 1 signals
-  signal mac_to_pcs_1 : t_can_mac_pcs_tx_if_m2s := c_mac_to_pcs_if_reset;
-  signal pcs_to_mac_1 : t_can_mac_pcs_tx_if_s2m;
+  signal mac_to_pcs_1 : t_can_mac_pcs_if_m2s := c_mac_to_pcs_if_reset;
+  signal pcs_to_mac_1 : t_can_mac_pcs_if_s2m;
   signal tx_bus_1      : std_logic;
   signal rx_bus_1      : std_logic := c_recessive;
 
   -- DUT 2 signals
-  signal mac_to_pcs_2 : t_can_mac_pcs_tx_if_m2s := c_mac_to_pcs_if_reset;
-  signal pcs_to_mac_2 : t_can_mac_pcs_tx_if_s2m;
+  signal mac_to_pcs_2 : t_can_mac_pcs_if_m2s := c_mac_to_pcs_if_reset;
+  signal pcs_to_mac_2 : t_can_mac_pcs_if_s2m;
   signal tx_bus_2      : std_logic;
   signal rx_bus_2      : std_logic := c_recessive;
 

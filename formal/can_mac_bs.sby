@@ -1,4 +1,4 @@
-# SymbiYosys Formal Verification Job — can_mac_bs_tx
+# SymbiYosys Formal Verification Job — can_mac_bs
 #
 # Requirements verified: REQ-MAC-063 (dynamic bit stuffing), REQ-MAC-056 (SBC generation)
 #
@@ -8,9 +8,9 @@
 #   source /opt/oss-cad-suite/environment
 #
 # Usage (from project root):
-#   sby formal/can_mac_bs_tx.sby bmc       # bounded check, fast
-#   sby formal/can_mac_bs_tx.sby prove     # k-induction, exhaustive proof
-#   sby formal/can_mac_bs_tx.sby           # both tasks
+#   sby formal/can_mac_bs.sby bmc       # bounded check, fast
+#   sby formal/can_mac_bs.sby prove     # k-induction, exhaustive proof
+#   sby formal/can_mac_bs.sby           # both tasks
 
 [tasks]
 bmc
@@ -39,13 +39,13 @@ plugin -i ghdl
 ghdl -fpsl --std=08 \
   can_types_pkg.vhd \
   can_protocol_pkg.vhd \
-  can_mac_bs_tx.vhd \
-  -e can_mac_bs_tx
+  can_mac_bs.vhd \
+  -e can_mac_bs
 
 # Prepare the netlist for the solver (flatten hierarchy, remove unused logic).
-prep -top can_mac_bs_tx
+prep -top can_mac_bs
 
 [files]
 src/can_types_pkg.vhd
 src/can_protocol_pkg.vhd
-src/can_mac_bs_tx.vhd
+src/can_mac_bs.vhd

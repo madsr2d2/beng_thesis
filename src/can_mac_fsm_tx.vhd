@@ -33,17 +33,17 @@ entity can_mac_fsm_tx is
     mac_ser_o : out   t_can_mac_ser_fsm_tx_if_m2s;
 
     -- PCS interface
-    pcs_i : in    t_can_mac_pcs_tx_if_s2m;
-    pcs_o : out   t_can_mac_pcs_tx_if_m2s;
+    pcs_i : in    t_can_mac_pcs_if_s2m;
+    pcs_o : out   t_can_mac_pcs_if_m2s;
 
     -- Bit stuffer FD interface
-    bs_fd_i   : in    t_can_mac_fsm_bs_tx_if_s2m;
-    bs_fd_o   : out   t_can_mac_fsm_bs_tx_if_m2s;
+    bs_fd_i   : in    t_can_mac_fsm_bs_if_s2m;
+    bs_fd_o   : out   t_can_mac_fsm_bs_if_m2s;
     bs_fd_rst : out   std_logic;
 
     -- CRC interface
-    crc_i   : in    t_can_mac_fsm_crc_tx_if_s2m;
-    crc_o   : out   t_can_mac_fsm_crc_tx_if_m2s;
+    crc_i   : in    t_can_mac_fsm_crc_if_s2m;
+    crc_o   : out   t_can_mac_fsm_crc_if_m2s;
     crc_rst : out   std_logic;
 
     -- Fault Confinement Entity interface (ISO 11898-1 Table 16/17)

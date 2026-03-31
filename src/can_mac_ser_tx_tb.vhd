@@ -289,10 +289,10 @@ begin
       -- Initialize ID/padding counters (like in DUT)
       if (v_metadata.format(2) = '1') then
         v_id_remaining  := c_base_id_width + c_extended_id_width;
-        v_pad_remaining := c_llc_id_stream_width - (c_base_id_width + c_extended_id_width);
+        v_pad_remaining := c_llc_id_field_width - (c_base_id_width + c_extended_id_width);
       else
         v_id_remaining  := c_base_id_width;
-        v_pad_remaining := c_llc_id_stream_width - c_base_id_width;
+        v_pad_remaining := c_llc_id_field_width - c_base_id_width;
       end if;
 
       -- Send config bytes (DUT does not generate bit stream for the config bytes)

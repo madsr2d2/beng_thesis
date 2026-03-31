@@ -4,7 +4,7 @@
 --
 -- Requirements:
 --
--- Description:   Testbench for can_mac_bs_tx. Random stimulus exercises
+-- Description:   Testbench for can_mac_bs. Random stimulus exercises
 --                bit counting, stuff bit insertion, and SBC encoding.
 --                Checker processes verify reset behavior, stuff bit
 --                sufficiency, and SBC parity. Functional coverage tracks
@@ -24,10 +24,10 @@ library osvvm;
 
 use work.pk_can_types.all;
 
-entity can_mac_bs_tx_tb is
-end entity can_mac_bs_tx_tb;
+entity can_mac_bs_tb is
+end entity can_mac_bs_tb;
 
-architecture tb of can_mac_bs_tx_tb is
+architecture tb of can_mac_bs_tb is
 
   constant c_clk_period : time    := 10 ns;
   constant c_num_random : integer := 5000;
@@ -46,8 +46,8 @@ architecture tb of can_mac_bs_tx_tb is
   signal clk_i      : std_logic;
   signal rst_i      : std_logic := '1';
   signal frame_rst  : std_logic := '0';
-  signal bs_i       : t_can_mac_fsm_bs_tx_if_m2s;
-  signal bs_o       : t_can_mac_fsm_bs_tx_if_s2m;
+  signal bs_i       : t_can_mac_fsm_bs_if_m2s;
+  signal bs_o       : t_can_mac_fsm_bs_if_s2m;
   signal cov_input  : CoverageIdType;
   signal cov_output : CoverageIdType;
   signal test_done  : BarrierType;
@@ -57,7 +57,7 @@ begin
   CreateClock(clk_i, c_clk_period);
   CreateReset(rst_i, '1', clk_i, c_clk_period * 5);
 
-  u_dut : entity work.can_mac_bs_tx
+  u_dut : entity work.can_mac_bs
     port map (
       clk_i => clk_i,
       rst_i => rst_i or frame_rst,
@@ -67,7 +67,7 @@ begin
 
   p_init : process
   begin
-    SetTestName("can_mac_bs_tx_tb");
+    SetTestName("can_mac_bs_tb");
     SetAlertStopCount(ERROR, 10);
     wait;
   end process p_init;

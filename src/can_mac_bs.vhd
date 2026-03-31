@@ -19,16 +19,16 @@ library ieee;
   use ieee.numeric_std.all;
   use work.pk_can_types.all;
 
-entity can_mac_bs_tx is
+entity can_mac_bs is
   port (
     clk_i : in    std_logic;
     rst_i : in    std_logic;
-    bs_i  : in    t_can_mac_fsm_bs_tx_if_m2s;
-    bs_o  : out   t_can_mac_fsm_bs_tx_if_s2m
+    bs_i  : in    t_can_mac_fsm_bs_if_m2s;
+    bs_o  : out   t_can_mac_fsm_bs_if_s2m
   );
-end entity can_mac_bs_tx;
+end entity can_mac_bs;
 
-architecture rtl of can_mac_bs_tx is
+architecture rtl of can_mac_bs is
 
   signal count         : integer range 0 to c_stuff_width;
   signal last_polarity : std_logic;
@@ -46,7 +46,7 @@ begin
         last_polarity <= c_recessive;
         stuff_count   <= (others => '0');
         stuff_pending <= false;
-        bs_o          <= c_can_mac_fsm_bs_tx_if_s2m_reset;
+        bs_o          <= c_can_mac_fsm_bs_if_s2m_reset;
 
       elsif (bs_i.valid = '1') then
         stuff_pending <= false;

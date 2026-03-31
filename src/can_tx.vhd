@@ -59,8 +59,8 @@ architecture rtl of can_tx is
   signal mac_to_llc : t_can_llc_mac_tx_if_d2s;
 
   -- MAC <-> PCS
-  signal mac_to_pcs : t_can_mac_pcs_tx_if_m2s;
-  signal pcs_to_mac : t_can_mac_pcs_tx_if_s2m;
+  signal mac_to_pcs : t_can_mac_pcs_if_m2s;
+  signal pcs_to_mac : t_can_mac_pcs_if_s2m;
 
 begin
 

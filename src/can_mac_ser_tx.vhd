@@ -65,7 +65,7 @@ architecture rtl of can_mac_ser_tx is
   signal llc_frame_buffer       : t_byte;
   signal config_byte_0          : t_byte;
   signal id_bits_remaining      : integer range 0 to c_base_id_width + c_extended_id_width;
-  signal padding_bits_remaining : integer range 0 to c_llc_id_stream_width - c_base_id_width;
+  signal padding_bits_remaining : integer range 0 to c_llc_id_field_width - c_base_id_width;
 
 begin
 
@@ -122,10 +122,10 @@ begin
                 -- ID is right-aligned in 32-bit stream: extended uses 29 bits, basic uses 11
                 if (config_byte_0(c_llc_frame_config_byte_0_extended_bit) = '1') then
                   id_bits_remaining      <= c_base_id_width + c_extended_id_width;
-                  padding_bits_remaining <= c_llc_id_stream_width - (c_base_id_width + c_extended_id_width);
+                  padding_bits_remaining <= c_llc_id_field_width - (c_base_id_width + c_extended_id_width);
                 else
                   id_bits_remaining      <= c_base_id_width;
-                  padding_bits_remaining <= c_llc_id_stream_width - c_base_id_width;
+                  padding_bits_remaining <= c_llc_id_field_width - c_base_id_width;
                 end if;
               end if;
 

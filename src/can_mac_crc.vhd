@@ -93,16 +93,16 @@ library ieee;
   use ieee.numeric_std.all;
   use work.pk_can_types.all;
 
-entity can_mac_crc_tx is
+entity can_mac_crc is
   port (
     clk_i : in    std_logic;
     rst_i : in    std_logic;
-    crc_i : in    t_can_mac_fsm_crc_tx_if_m2s;
-    crc_o : out   t_can_mac_fsm_crc_tx_if_s2m
+    crc_i : in    t_can_mac_fsm_crc_if_m2s;
+    crc_o : out   t_can_mac_fsm_crc_if_s2m
   );
-end entity can_mac_crc_tx;
+end entity can_mac_crc;
 
-architecture rtl of can_mac_crc_tx is
+architecture rtl of can_mac_crc is
 
   signal crc15_out : std_logic_vector(c_crc_15_length - 1 downto 0);
   signal crc17_out : std_logic_vector(c_crc_17_length - 1 downto 0);
@@ -186,9 +186,9 @@ begin
       else
         case crc_i.crc_poly_select is
           when "00" =>
-            crc_o.crc <= crc15_out & (t_crc_vector'left - c_crc_15_length downto 0 => '0');
+            crc_o.crc <= crc15_out & (c_crc_21_length - 1 - c_crc_15_length downto 0 => '0');
           when "01" =>
-            crc_o.crc <= crc17_out & (t_crc_vector'left - c_crc_17_length downto 0 => '0');
+            crc_o.crc <= crc17_out & (c_crc_21_length - 1 - c_crc_17_length downto 0 => '0');
           when "10" =>
             crc_o.crc <= crc21_out;
           when others =>

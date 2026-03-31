@@ -17,6 +17,7 @@
 --                7. Interface Records    -- inter-layer records with reset constants
 --                8. LLC Frame Format     -- config bytes, legacy layout
 --                9. Protocol Functions   -- frame params, bitstream, DLC, ID packing
+--               10. TB Utility Functions -- CRC calc, metadata extraction (TB-only)
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-03-15  TMYAES:   [TRIT-4336] Initial implementation
@@ -186,7 +187,7 @@ package pk_can_types is
   subtype t_dlc is integer range 0 to c_dlc_max;
   subtype t_stuff_count is unsigned(2 downto 0);
   subtype t_sbc is std_logic_vector(c_sbc_field_width - 1 downto 0);
-  subtype t_crc_vector is std_logic_vector(c_crc_21_length - 1 downto 0);
+  -- t_crc_vector removed — use std_logic_vector(c_crc_21_length - 1 downto 0) directly
 
   ---------------------------------------------------------------------------
   -- 5. Composite Types
@@ -350,7 +351,7 @@ package pk_can_types is
 
   constant c_tx_mac_ser_to_fsm_if_reset : t_can_mac_ser_fsm_tx_if_s2m :=
   (
-    data         => c_recessive,
+    data         => 'U',
     valid        => '0',
     llc_metadata => c_llc_metadata_reset
   );
@@ -380,7 +381,7 @@ package pk_can_types is
 
   constant c_mac_to_llc_if_reset : t_can_llc_mac_tx_if_d2s :=
   (
-    avalon_st_sink  => (ready => '0'),
+    avalon_st_sink  => (ready => '1'),
     transfer_status => c_ongoing
   );
 
@@ -397,14 +398,14 @@ package pk_can_types is
   end record t_can_user_llc_tx_if_d2s;
 
   -- MAC -> PCS (ISO 7.2, PCS_Data.Request)
-  type t_can_mac_pcs_tx_if_m2s is record
+  type t_can_mac_pcs_if_m2s is record
     polarity      : std_logic;
     valid         : std_logic;
     use_data_rate : std_logic;
     start_tdc     : std_logic;
-  end record t_can_mac_pcs_tx_if_m2s;
+  end record t_can_mac_pcs_if_m2s;
 
-  constant c_mac_to_pcs_if_reset : t_can_mac_pcs_tx_if_m2s :=
+  constant c_mac_to_pcs_if_reset : t_can_mac_pcs_if_m2s :=
   (
     polarity      => c_recessive,
     valid         => '0',
@@ -413,14 +414,14 @@ package pk_can_types is
   );
 
   -- PCS -> MAC (ISO 7.2, PCS_Data.Indicate)
-  type t_can_mac_pcs_tx_if_s2m is record
+  type t_can_mac_pcs_if_s2m is record
     bus_polarity : std_logic;
     sp           : std_logic;
     ssp          : std_logic;
     tdc_delay    : t_tdc_delay_vec;
-  end record t_can_mac_pcs_tx_if_s2m;
+  end record t_can_mac_pcs_if_s2m;
 
-  constant c_pcs_to_mac_if_reset : t_can_mac_pcs_tx_if_s2m :=
+  constant c_pcs_to_mac_if_reset : t_can_mac_pcs_if_s2m :=
   (
     bus_polarity => c_recessive,
     sp           => '0',
@@ -429,25 +430,25 @@ package pk_can_types is
   );
 
   -- FSM -> Bit Stuffer (ISO 6.6.13)
-  type t_can_mac_fsm_bs_tx_if_m2s is record
+  type t_can_mac_fsm_bs_if_m2s is record
     data  : std_logic;
     valid : std_logic;
-  end record t_can_mac_fsm_bs_tx_if_m2s;
+  end record t_can_mac_fsm_bs_if_m2s;
 
-  constant c_mac_fsm_to_bs_fd_if_reset : t_can_mac_fsm_bs_tx_if_m2s :=
+  constant c_mac_fsm_to_bs_fd_if_reset : t_can_mac_fsm_bs_if_m2s :=
   (
     data  => c_recessive,
     valid => '0'
   );
 
   -- Bit Stuffer -> FSM (ISO 6.6.13)
-  type t_can_mac_fsm_bs_tx_if_s2m is record
+  type t_can_mac_fsm_bs_if_s2m is record
     data  : std_logic;
     valid : std_logic;
     sbc   : std_logic_vector(c_sbc_field_width - 1 downto 0);
-  end record t_can_mac_fsm_bs_tx_if_s2m;
+  end record t_can_mac_fsm_bs_if_s2m;
 
-  constant c_can_mac_fsm_bs_tx_if_s2m_reset : t_can_mac_fsm_bs_tx_if_s2m :=
+  constant c_can_mac_fsm_bs_if_s2m_reset : t_can_mac_fsm_bs_if_s2m :=
   (
     data  => c_recessive,
     valid => '0',
@@ -455,13 +456,13 @@ package pk_can_types is
   );
 
   -- FSM -> CRC (ISO 6.6.4.4)
-  type t_can_mac_fsm_crc_tx_if_m2s is record
+  type t_can_mac_fsm_crc_if_m2s is record
     crc_poly_select : std_logic_vector(1 downto 0);
     valid           : std_logic;
     data            : std_logic;
-  end record t_can_mac_fsm_crc_tx_if_m2s;
+  end record t_can_mac_fsm_crc_if_m2s;
 
-  constant c_mac_fsm_to_crc_if_reset : t_can_mac_fsm_crc_tx_if_m2s :=
+  constant c_mac_fsm_to_crc_if_reset : t_can_mac_fsm_crc_if_m2s :=
   (
     crc_poly_select => (others => '0'),
     valid           => '0',
@@ -469,9 +470,9 @@ package pk_can_types is
   );
 
   -- CRC -> FSM
-  type t_can_mac_fsm_crc_tx_if_s2m is record
-    crc : t_crc_vector;
-  end record t_can_mac_fsm_crc_tx_if_s2m;
+  type t_can_mac_fsm_crc_if_s2m is record
+    crc : std_logic_vector(c_crc_21_length - 1 downto 0);
+  end record t_can_mac_fsm_crc_if_s2m;
 
   -- MAC -> FCE (ISO Table 16, Table 17)
   type t_can_mac_fce_if_m2s is record
@@ -601,7 +602,7 @@ package pk_can_types is
 
   -- ID stream layout
   constant c_llc_id_byte_count   : integer := 4;
-  constant c_llc_id_stream_width : integer := c_llc_id_byte_count * c_byte_width;
+  constant c_llc_id_field_width : integer := c_llc_id_byte_count * c_byte_width;
 
   ---------------------------------------------------------------------------
   -- 9. Protocol Functions
@@ -626,7 +627,7 @@ package pk_can_types is
     frame_params      : t_frame_params;
     previous_polarity : std_logic;
     sbc               : t_sbc;
-    crc               : t_crc_vector
+    crc               : std_logic_vector(c_crc_21_length - 1 downto 0)
   ) return t_mac_frame_bit;
 
   -- Monitor transmitted bits for errors, ACK, and arbitration loss (ISO 6.6.5.1)
@@ -653,6 +654,10 @@ package pk_can_types is
   function f_calc_parity (
     v : std_logic_vector
   ) return std_logic;
+
+  ---------------------------------------------------------------------------
+  -- 10. Testbench Utility Functions
+  ---------------------------------------------------------------------------
 
   -- CRC calculation per ISO 11898-1: 6.6.4.4 (Galois LFSR)
   function f_calc_can_crc (
@@ -703,7 +708,7 @@ package body pk_can_types is
     frame_params      : t_frame_params;
     previous_polarity : std_logic;
     sbc               : t_sbc;
-    crc               : t_crc_vector
+    crc               : std_logic_vector(c_crc_21_length - 1 downto 0)
   ) return t_mac_frame_bit is
 
     variable pos_in_field : t_position;

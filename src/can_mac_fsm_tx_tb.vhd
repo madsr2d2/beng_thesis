@@ -51,13 +51,13 @@ architecture tb of can_mac_fsm_tx_tb is
   -- DUT interface
   signal mac_ser_i : t_can_mac_ser_fsm_tx_if_s2m := c_tx_mac_ser_to_fsm_if_reset;
   signal mac_ser_o : t_can_mac_ser_fsm_tx_if_m2s;
-  signal pcs_i     : t_can_mac_pcs_tx_if_s2m     := c_pcs_to_mac_if_reset;
-  signal pcs_o     : t_can_mac_pcs_tx_if_m2s;
-  signal bs_fd_i   : t_can_mac_fsm_bs_tx_if_s2m  := c_can_mac_fsm_bs_tx_if_s2m_reset;
-  signal bs_fd_o   : t_can_mac_fsm_bs_tx_if_m2s;
+  signal pcs_i     : t_can_mac_pcs_if_s2m     := c_pcs_to_mac_if_reset;
+  signal pcs_o     : t_can_mac_pcs_if_m2s;
+  signal bs_fd_i   : t_can_mac_fsm_bs_if_s2m  := c_can_mac_fsm_bs_if_s2m_reset;
+  signal bs_fd_o   : t_can_mac_fsm_bs_if_m2s;
   signal bs_fd_rst : std_logic;
-  signal crc_i     : t_can_mac_fsm_crc_tx_if_s2m;
-  signal crc_o     : t_can_mac_fsm_crc_tx_if_m2s;
+  signal crc_i     : t_can_mac_fsm_crc_if_s2m;
+  signal crc_o     : t_can_mac_fsm_crc_if_m2s;
   signal crc_rst   : std_logic;
   signal fce_i     : t_can_mac_fce_if_s2m        := c_fce_to_mac_if_reset;
   signal fce_o     : t_can_mac_fce_if_m2s;

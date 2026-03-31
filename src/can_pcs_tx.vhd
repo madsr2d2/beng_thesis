@@ -57,8 +57,8 @@ entity can_pcs_tx is
     clk_i : in    std_logic;
     rst_i : in    std_logic;
 
-    mac_to_pcs_i : in    t_can_mac_pcs_tx_if_m2s;
-    pcs_to_mac_o : out   t_can_mac_pcs_tx_if_s2m;
+    mac_to_pcs_i : in    t_can_mac_pcs_if_m2s;
+    pcs_to_mac_o : out   t_can_mac_pcs_if_s2m;
 
     tx_bus_o : out   std_logic;
     rx_bus_i : in    std_logic
@@ -105,7 +105,7 @@ begin
   fsm : process (clk_i) is
 
     variable v_state      : std_logic_vector(1 downto 0);
-    variable v_pcs_to_mac : t_can_mac_pcs_tx_if_s2m;
+    variable v_pcs_to_mac : t_can_mac_pcs_if_s2m;
 
     -- Guard variables
     variable v_frame_active : boolean;

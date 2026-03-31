@@ -184,8 +184,8 @@ architecture testbench of can_mac_fsm_tx_err_tb is
   signal passive_rx_bus       : std_logic := '1';
 
   -- Debug interface
-  signal debug_mac_to_pcs : t_can_mac_pcs_tx_if_m2s;
-  signal debug_pcs_to_mac : t_can_mac_pcs_tx_if_s2m;
+  signal debug_mac_to_pcs : t_can_mac_pcs_if_m2s;
+  signal debug_pcs_to_mac : t_can_mac_pcs_if_s2m;
   signal debug_bit_name   : t_mac_frame_bit_name;
   signal debug_ack_error  : std_logic;
   signal debug_form_error : std_logic;

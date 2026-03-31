@@ -17,6 +17,7 @@
 --                7. Interface Records    -- inter-layer records with reset constants
 --                8. LLC Frame Format     -- config bytes, legacy layout
 --                9. Protocol Functions   -- frame params, bitstream, DLC, ID packing
+--               10. TB Utility Functions -- CRC calc, metadata extraction (TB-only)
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-03-15  TMYAES:   [TRIT-4336] Initial implementation
@@ -639,6 +640,38 @@ package pk_can_types is
     metadata               : t_llc_metadata
   ) return t_bit_info;
 
+  -- Pack LLC frame ID field into canonical byte stream order ID3..ID0
+  function pack_llc_id_bytes (
+    id         : std_logic_vector(28 downto 0);
+    can_format : std_logic_vector(2 downto 0)
+  ) return std_logic_vector;
+
+  -- Binary-to-Gray conversion (ISO 6.6.11.5: Stuff Bit Count encoding)
+  function f_to_gray (
+    v : std_logic_vector
+  ) return std_logic_vector;
+
+  -- XOR parity over a vector (ISO 6.6.11.5: SBC parity bit)
+  function f_calc_parity (
+    v : std_logic_vector
+  ) return std_logic;
+
+  ---------------------------------------------------------------------------
+  -- 10. Testbench Utility Functions
+  ---------------------------------------------------------------------------
+
+  -- CRC calculation per ISO 11898-1: 6.6.4.4 (Galois LFSR)
+  function f_calc_can_crc (
+    data     : std_logic_vector;
+    init_vec : std_logic_vector;
+    poly     : std_logic_vector
+  ) return std_logic_vector;
+
+  -- Extract LLC metadata from config bytes 0 and 1
+  function extract_metadata (
+    config_byte_0 : t_byte;
+    config_byte_1 : t_byte
+  ) return t_llc_metadata;
 
 end package pk_can_types;
 
@@ -944,5 +977,104 @@ package body pk_can_types is
     return result;
 
   end function get_bit_info;
+
+  function pack_llc_id_bytes (
+    id         : std_logic_vector(28 downto 0);
+    can_format : std_logic_vector(2 downto 0)
+  ) return std_logic_vector is
+
+    variable result_v : std_logic_vector(c_llc_id_field_width - 1 downto 0) := (others => '0');
+
+  begin
+
+    if (can_format(2) = '1') then
+      -- Extended: base_id(10:0) & extended_id(17:0) = 29 bits, right-aligned in 32 bits
+      result_v(c_base_id_width + c_extended_id_width - 1 downto 0) := id;
+    else
+      -- Basic: base_id(10:0), right-aligned in 32 bits
+      result_v(c_base_id_width - 1 downto 0) := id(c_base_id_width - 1 downto 0);
+    end if;
+
+    return result_v;
+
+  end function pack_llc_id_bytes;
+
+  function f_to_gray (
+    v : std_logic_vector
+  ) return std_logic_vector is
+
+    variable v_result : std_logic_vector(v'range);
+
+  begin
+
+    v_result(v'left) := v(v'left);
+
+    for i in v'left - 1 downto v'right loop
+      v_result(i) := v(i) xor v(i + 1);
+    end loop;
+
+    return v_result;
+
+  end function f_to_gray;
+
+  function f_calc_parity (
+    v : std_logic_vector
+  ) return std_logic is
+
+    variable v_parity : std_logic := '0';
+
+  begin
+
+    for i in v'range loop
+      v_parity := v_parity xor v(i);
+    end loop;
+
+    return v_parity;
+
+  end function f_calc_parity;
+
+  function f_calc_can_crc (
+    data     : std_logic_vector;
+    init_vec : std_logic_vector;
+    poly     : std_logic_vector
+  ) return std_logic_vector is
+
+    variable v_crc      : std_logic_vector(init_vec'length - 1 downto 0);
+    variable v_crc_next : std_logic;
+
+  begin
+
+    v_crc := init_vec;
+
+    for i in data'range loop
+      v_crc_next := data(i) xor v_crc(v_crc'high);
+      v_crc      := v_crc sll 1;
+      if v_crc_next then
+        v_crc := v_crc xor poly;
+      end if;
+    end loop;
+
+    return v_crc;
+
+  end function f_calc_can_crc;
+
+  function extract_metadata (
+    config_byte_0 : t_byte;
+    config_byte_1 : t_byte
+  ) return t_llc_metadata is
+
+    variable v_result : t_llc_metadata;
+
+  begin
+
+    v_result.format := config_byte_0(c_llc_frame_config_byte_0_format_start downto c_llc_frame_config_byte_0_format_end);
+    v_result.ftyp   := config_byte_0(c_llc_frame_config_byte_0_ftyp);
+    v_result.esi    := config_byte_0(c_llc_frame_config_byte_0_esi);
+    v_result.brs    := config_byte_0(c_llc_frame_config_byte_0_brs);
+    v_result.dlc    := config_byte_1(c_llc_frame_config_byte_1_dlc_start downto c_llc_frame_config_byte_1_dlc_end);
+
+    return v_result;
+
+  end function extract_metadata;
 
 end package body pk_can_types;

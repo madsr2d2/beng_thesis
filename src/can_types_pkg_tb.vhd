@@ -73,7 +73,7 @@ begin
     variable fp         : t_frame_params;
     variable ser_data_v : std_logic              := c_recessive;
     variable fb         : t_mac_frame_bit;
-    variable crc_vec    : t_crc_vector           := (others => '0');
+    variable crc_vec    : std_logic_vector(c_crc_21_length - 1 downto 0)           := (others => '0');
     variable sbc_vec    : t_sbc                  := (others => '0');
     variable prev_pol   : std_logic              := c_recessive;
     variable tid        : alertlogidtype;
