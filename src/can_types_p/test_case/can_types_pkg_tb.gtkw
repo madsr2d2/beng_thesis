@@ -1,0 +1,17 @@
+[*]
+[*] GTKWave save file - auto-generated from can_types_pkg_tb.ghw
+[*]
+[dumpfile] "/home/madsr2d2/beng_thesis/sim/can_types_pkg_tb.ghw"
+[savefile] "/home/madsr2d2/beng_thesis/src/can_types_p/test_case/can_types_pkg_tb.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] 0 0
+*-28.000000 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.can_types_pkg_tb.
+[sst_width] 297
+[signals_width] 412
+[sst_expanded] 1
+[sst_vpaned_height] 434
+[pattern_trace] 1
+[pattern_trace] 0

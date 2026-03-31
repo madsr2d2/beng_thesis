@@ -1,0 +1,66 @@
+[*]
+[*] GTKWave save file - auto-generated from can_mac_ser_tx_tb.ghw
+[*]
+[dumpfile] "/home/madsr2d2/beng_thesis/sim/can_mac_ser_tx_tb.ghw"
+[savefile] "/home/madsr2d2/beng_thesis/src/can_mac_ser_tx/test_case/can_mac_ser_tx_tb.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] 0 0
+*-28.000000 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.can_mac_ser_tx_tb.
+[sst_width] 297
+[signals_width] 412
+[sst_expanded] 1
+[sst_vpaned_height] 434
+[treeopen] top.can_mac_ser_tx_tb.u_dut.
+@c00200
+-TB Signals
+@28
+top.can_mac_ser_tx_tb.clk
+@28
+top.can_mac_ser_tx_tb.reset
+@420
+top.can_mac_ser_tx_tb.llc_i
+@420
+top.can_mac_ser_tx_tb.llc_o
+@420
+top.can_mac_ser_tx_tb.tx_mac_fsm_i
+@420
+top.can_mac_ser_tx_tb.tx_mac_fsm_o
+@420
+top.can_mac_ser_tx_tb.test_id
+@28
+top.can_mac_ser_tx_tb.init_barrier
+@1401200
+-TB Signals
+@c00200
+-u_dut Internals
+@28
+top.can_mac_ser_tx_tb.u_dut.clk_i
+@28
+top.can_mac_ser_tx_tb.u_dut.rst_i
+@420
+top.can_mac_ser_tx_tb.u_dut.llc_i
+@420
+top.can_mac_ser_tx_tb.u_dut.llc_o
+@420
+top.can_mac_ser_tx_tb.u_dut.tx_mac_fsm_i
+@420
+top.can_mac_ser_tx_tb.u_dut.tx_mac_fsm_o
+@420
+top.can_mac_ser_tx_tb.u_dut.state
+@420
+top.can_mac_ser_tx_tb.u_dut.count
+@22
+top.can_mac_ser_tx_tb.u_dut.llc_frame_buffer
+@22
+top.can_mac_ser_tx_tb.u_dut.config_byte_0
+@420
+top.can_mac_ser_tx_tb.u_dut.id_bits_remaining
+@420
+top.can_mac_ser_tx_tb.u_dut.padding_bits_remaining
+@1401200
+-u_dut Internals
+[pattern_trace] 1
+[pattern_trace] 0

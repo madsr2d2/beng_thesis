@@ -4,7 +4,7 @@
 --
 -- Requirements:
 --
--- Description:   Testbench for can_mac_tx (ser + fsm + bs + crc).
+-- Description:   Testbench for can_mac_tx (ser + fsm + bs + crc) - Version 3: FCE integration.
 --                  p_llc_vc           - LLC Avalon-ST source VC (byte driver).
 --                  p_pcs_vc           - PCS sink VC (bit-level self-checking, ACK injection).
 --                  p_test_ctrl        - Coverage-driven test sequencer with reference model.
@@ -29,14 +29,14 @@ library osvvm;
 library osvvm_common;
   context osvvm_common.OsvvmCommonContext;
 
-entity can_mac_tx_tb is
+entity can_mac_tx_tb_v3 is
   generic (
     gc_TbTimeOut   : time := 500 ms;
     gc_TbClkPeriod : time := 10 ns
   );
-end entity can_mac_tx_tb;
+end entity can_mac_tx_tb_v3;
 
-architecture tb of can_mac_tx_tb is
+architecture tb of can_mac_tx_tb_v3 is
 
   ----------------------------------------------------------------------------
   -- Constants
@@ -547,7 +547,9 @@ begin
     );
 
   ----------------------------------------------------------------------------
-  -- FCE Verification Component --   SEND:  set fce_i level signals.  CHECK: compare fce_latch after frame. ----------------------------------------------------------------------------
+  -- FCE Verification Component
+  --   SEND:  set fce_i level signals.  CHECK: compare fce_latch after frame.
+  ----------------------------------------------------------------------------
   p_fce_vc : process is
   begin
     fce_i.error_passive_request <= '0';

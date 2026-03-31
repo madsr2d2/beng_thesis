@@ -2,7 +2,7 @@
 [*] GTKWave save file - auto-generated from can_mac_crc_tb.ghw
 [*]
 [dumpfile] "/home/madsr2d2/beng_thesis/sim/can_mac_crc_tb.ghw"
-[savefile] "/home/madsr2d2/beng_thesis/gtk_wave/can_mac_crc_tb.gtkw"
+[savefile] "/home/madsr2d2/beng_thesis/src/can_mac_crc/test_case/can_mac_crc_tb.gtkw"
 [timestart] 0
 [size] 1920 1080
 [pos] 0 0

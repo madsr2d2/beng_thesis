@@ -1,0 +1,236 @@
+[*]
+[*] GTKWave save file - auto-generated from can_mac_tx_tb.ghw
+[*]
+[dumpfile] "/home/madsr2d2/beng_thesis/sim/can_mac_tx_tb.ghw"
+[savefile] "/home/madsr2d2/beng_thesis/src/can_mac_tx/test_case/can_mac_tx_tb.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] 0 0
+*-28.000000 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.can_mac_tx_tb.
+[sst_width] 297
+[signals_width] 412
+[sst_expanded] 1
+[sst_vpaned_height] 434
+[treeopen] top.can_mac_tx_tb.u_dut.
+[treeopen] top.can_mac_tx_tb.u_dut.tx_mac_ser_inst.
+[treeopen] top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.
+[treeopen] top.can_mac_tx_tb.u_dut.bit_stuffer_fd_inst.
+[treeopen] top.can_mac_tx_tb.u_dut.crc_fd_inst.
+@c00200
+-TB Signals
+@28
+top.can_mac_tx_tb.clk
+@28
+top.can_mac_tx_tb.reset
+@420
+top.can_mac_tx_tb.llc_i
+@420
+top.can_mac_tx_tb.llc_o
+@420
+top.can_mac_tx_tb.pcs_i
+@420
+top.can_mac_tx_tb.pcs_o
+@420
+top.can_mac_tx_tb.fce_i
+@420
+top.can_mac_tx_tb.fce_o
+@28
+top.can_mac_tx_tb.bus_override
+@28
+top.can_mac_tx_tb.bus_override_en
+@22
+top.can_mac_tx_tb.status_latch
+@22
+top.can_mac_tx_tb.fce_latch
+@420
+top.can_mac_tx_tb.pcs_fdf_pos
+@420
+top.can_mac_tx_tb.pcs_data_phase_start
+@420
+top.can_mac_tx_tb.pcs_data_phase_end
+@420
+top.can_mac_tx_tb.test_id
+@420
+top.can_mac_tx_tb.reset_check_id
+@420
+top.can_mac_tx_tb.status_check_id
+@420
+top.can_mac_tx_tb.stream_check_id
+@420
+top.can_mac_tx_tb.fce_check_id
+@28
+top.can_mac_tx_tb.init_barrier
+@1401200
+-TB Signals
+@c00200
+-u_dut Internals
+@28
+top.can_mac_tx_tb.u_dut.clk
+@28
+top.can_mac_tx_tb.u_dut.rst
+@420
+top.can_mac_tx_tb.u_dut.llc_i
+@420
+top.can_mac_tx_tb.u_dut.llc_o
+@420
+top.can_mac_tx_tb.u_dut.pcs_i
+@420
+top.can_mac_tx_tb.u_dut.pcs_o
+@420
+top.can_mac_tx_tb.u_dut.fce_i
+@420
+top.can_mac_tx_tb.u_dut.fce_o
+@420
+top.can_mac_tx_tb.u_dut.ser_to_fsm
+@420
+top.can_mac_tx_tb.u_dut.fsm_to_ser
+@420
+top.can_mac_tx_tb.u_dut.fsm_to_bs_fd
+@420
+top.can_mac_tx_tb.u_dut.bs_fd_to_fsm
+@28
+top.can_mac_tx_tb.u_dut.fsm_bs_fd_rst
+@420
+top.can_mac_tx_tb.u_dut.fsm_to_crc
+@420
+top.can_mac_tx_tb.u_dut.crc_to_fsm
+@28
+top.can_mac_tx_tb.u_dut.fsm_crc_rst
+@1401200
+-u_dut Internals
+@c00200
+-tx_mac_ser_inst
+@28
+top.can_mac_tx_tb.u_dut.tx_mac_ser_inst.clk_i
+@28
+top.can_mac_tx_tb.u_dut.tx_mac_ser_inst.rst_i
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_ser_inst.llc_i
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_ser_inst.llc_o
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_ser_inst.tx_mac_fsm_i
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_ser_inst.tx_mac_fsm_o
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_ser_inst.state
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_ser_inst.count
+@22
+top.can_mac_tx_tb.u_dut.tx_mac_ser_inst.llc_frame_buffer
+@22
+top.can_mac_tx_tb.u_dut.tx_mac_ser_inst.config_byte_0
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_ser_inst.id_bits_remaining
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_ser_inst.padding_bits_remaining
+@1401200
+-tx_mac_ser_inst
+@c00200
+-tx_mac_fsm_inst
+@28
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.clk_i
+@28
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.rst_i
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.mac_ser_i
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.mac_ser_o
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.pcs_i
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.pcs_o
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.bs_fd_i
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.bs_fd_o
+@28
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.bs_fd_rst
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.crc_i
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.crc_o
+@28
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.crc_rst
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.fce_i
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.fce_o
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.state
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.bit_count
+@22
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.polarity_history
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.last_transmitted_bit
+@28
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.last_transmitted_bit_polarity
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.monitored_bit_event
+@28
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.was_previous_frame_tx
+@28
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.ack_success_seen
+@28
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.overload_condition
+@28
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.ssp_error_pending
+@28
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.in_data_phase
+@28
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.ack_error_caused_flag
+@28
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.dominant_seen_during_flag
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.dominant_run_count
+@28
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.skip_sof
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.frame_params
+@1401200
+-tx_mac_fsm_inst
+@c00200
+-bit_stuffer_fd_inst
+@28
+top.can_mac_tx_tb.u_dut.bit_stuffer_fd_inst.clk_i
+@28
+top.can_mac_tx_tb.u_dut.bit_stuffer_fd_inst.rst_i
+@420
+top.can_mac_tx_tb.u_dut.bit_stuffer_fd_inst.bs_i
+@420
+top.can_mac_tx_tb.u_dut.bit_stuffer_fd_inst.bs_o
+@420
+top.can_mac_tx_tb.u_dut.bit_stuffer_fd_inst.count
+@28
+top.can_mac_tx_tb.u_dut.bit_stuffer_fd_inst.last_polarity
+@420
+top.can_mac_tx_tb.u_dut.bit_stuffer_fd_inst.stuff_count
+@28
+top.can_mac_tx_tb.u_dut.bit_stuffer_fd_inst.stuff_pending
+@1401200
+-bit_stuffer_fd_inst
+@c00200
+-crc_fd_inst
+@28
+top.can_mac_tx_tb.u_dut.crc_fd_inst.clk_i
+@28
+top.can_mac_tx_tb.u_dut.crc_fd_inst.rst_i
+@420
+top.can_mac_tx_tb.u_dut.crc_fd_inst.crc_i
+@420
+top.can_mac_tx_tb.u_dut.crc_fd_inst.crc_o
+@22
+top.can_mac_tx_tb.u_dut.crc_fd_inst.crc15_out
+@22
+top.can_mac_tx_tb.u_dut.crc_fd_inst.crc17_out
+@22
+top.can_mac_tx_tb.u_dut.crc_fd_inst.crc21_out
+@28
+top.can_mac_tx_tb.u_dut.crc_fd_inst.valid
+@1401200
+-crc_fd_inst
+[pattern_trace] 1
+[pattern_trace] 0

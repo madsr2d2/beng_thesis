@@ -1,0 +1,138 @@
+[*]
+[*] GTKWave save file - auto-generated from can_mac_fsm_tx_tb.ghw
+[*]
+[dumpfile] "/home/madsr2d2/beng_thesis/sim/can_mac_fsm_tx_tb.ghw"
+[savefile] "/home/madsr2d2/beng_thesis/src/can_mac_fsm_tx/test_case/can_mac_fsm_tx_tb.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] 0 0
+*-28.000000 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.can_mac_fsm_tx_tb.
+[sst_width] 297
+[signals_width] 412
+[sst_expanded] 1
+[sst_vpaned_height] 434
+[treeopen] top.can_mac_fsm_tx_tb.u_dut.
+@c00200
+-TB Signals
+@28
+top.can_mac_fsm_tx_tb.clk
+@28
+top.can_mac_fsm_tx_tb.reset
+@420
+top.can_mac_fsm_tx_tb.mac_ser_i
+@420
+top.can_mac_fsm_tx_tb.mac_ser_o
+@420
+top.can_mac_fsm_tx_tb.pcs_i
+@420
+top.can_mac_fsm_tx_tb.pcs_o
+@420
+top.can_mac_fsm_tx_tb.bs_fd_i
+@420
+top.can_mac_fsm_tx_tb.bs_fd_o
+@28
+top.can_mac_fsm_tx_tb.bs_fd_rst
+@420
+top.can_mac_fsm_tx_tb.crc_i
+@420
+top.can_mac_fsm_tx_tb.crc_o
+@28
+top.can_mac_fsm_tx_tb.crc_rst
+@420
+top.can_mac_fsm_tx_tb.fce_i
+@420
+top.can_mac_fsm_tx_tb.fce_o
+@28
+top.can_mac_fsm_tx_tb.pcs_sp_enable
+@28
+top.can_mac_fsm_tx_tb.pcs_bus_override
+@28
+top.can_mac_fsm_tx_tb.pcs_bus_override_en
+@28
+top.can_mac_fsm_tx_tb.sp_strobe
+@28
+top.can_mac_fsm_tx_tb.ser_frame_valid
+@420
+top.can_mac_fsm_tx_tb.ser_metadata
+@28
+top.can_mac_fsm_tx_tb.ser_data_pattern
+@28
+top.can_mac_fsm_tx_tb.fce_error_passive
+@28
+top.can_mac_fsm_tx_tb.fce_error_active
+@28
+top.can_mac_fsm_tx_tb.fce_bus_off
+@420
+top.can_mac_fsm_tx_tb.test_id
+@28
+top.can_mac_fsm_tx_tb.init_barrier
+@1401200
+-TB Signals
+@c00200
+-u_dut Internals
+@28
+top.can_mac_fsm_tx_tb.u_dut.clk_i
+@28
+top.can_mac_fsm_tx_tb.u_dut.rst_i
+@420
+top.can_mac_fsm_tx_tb.u_dut.mac_ser_i
+@420
+top.can_mac_fsm_tx_tb.u_dut.mac_ser_o
+@420
+top.can_mac_fsm_tx_tb.u_dut.pcs_i
+@420
+top.can_mac_fsm_tx_tb.u_dut.pcs_o
+@420
+top.can_mac_fsm_tx_tb.u_dut.bs_fd_i
+@420
+top.can_mac_fsm_tx_tb.u_dut.bs_fd_o
+@28
+top.can_mac_fsm_tx_tb.u_dut.bs_fd_rst
+@420
+top.can_mac_fsm_tx_tb.u_dut.crc_i
+@420
+top.can_mac_fsm_tx_tb.u_dut.crc_o
+@28
+top.can_mac_fsm_tx_tb.u_dut.crc_rst
+@420
+top.can_mac_fsm_tx_tb.u_dut.fce_i
+@420
+top.can_mac_fsm_tx_tb.u_dut.fce_o
+@420
+top.can_mac_fsm_tx_tb.u_dut.state
+@420
+top.can_mac_fsm_tx_tb.u_dut.bit_count
+@22
+top.can_mac_fsm_tx_tb.u_dut.polarity_history
+@420
+top.can_mac_fsm_tx_tb.u_dut.last_transmitted_bit
+@28
+top.can_mac_fsm_tx_tb.u_dut.last_transmitted_bit_polarity
+@420
+top.can_mac_fsm_tx_tb.u_dut.monitored_bit_event
+@28
+top.can_mac_fsm_tx_tb.u_dut.was_previous_frame_tx
+@28
+top.can_mac_fsm_tx_tb.u_dut.ack_success_seen
+@28
+top.can_mac_fsm_tx_tb.u_dut.overload_condition
+@28
+top.can_mac_fsm_tx_tb.u_dut.ssp_error_pending
+@28
+top.can_mac_fsm_tx_tb.u_dut.in_data_phase
+@28
+top.can_mac_fsm_tx_tb.u_dut.ack_error_caused_flag
+@28
+top.can_mac_fsm_tx_tb.u_dut.dominant_seen_during_flag
+@420
+top.can_mac_fsm_tx_tb.u_dut.dominant_run_count
+@28
+top.can_mac_fsm_tx_tb.u_dut.skip_sof
+@420
+top.can_mac_fsm_tx_tb.u_dut.frame_params
+@1401200
+-u_dut Internals
+[pattern_trace] 1
+[pattern_trace] 0

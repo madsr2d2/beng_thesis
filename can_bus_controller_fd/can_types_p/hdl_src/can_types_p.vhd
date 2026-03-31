@@ -21,7 +21,6 @@
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-03-15  TMYAES:   [TRIT-4336] Initial implementation
---                2026-03-20  TMYAES:   [TRIT-4336] Removed redundant config byte records
 --                2026-03-21  TMYAES:   [TRIT-4336] Refactored type system and constants.
 --                                      Added get_frame_params, get_mac_frame_bit.
 --                2026-03-22  TMYAES:   [TRIT-4336] Added get_bit_info. Cleaned up
@@ -32,10 +31,9 @@
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
-  use ieee.math_real.all;
 
   use work.pk_man_global.all;
-  use work.pk_eth_st;
+  use ieee.math_real.all;
 
 package pk_can_types is
 
@@ -67,12 +65,12 @@ package pk_can_types is
   constant c_error_flag_width      : integer := 6;
   constant c_error_delimiter_width : integer := 8;
   constant c_error_sequence_width  : integer := c_error_flag_width + c_error_delimiter_width;
-  constant c_bus_off_recovery_count : integer := 128; -- ISO 8.8.4.4
 
   -- Inter-frame spacing (ISO 6.6.7)
-  constant c_intermission_width         : integer := 3;  -- ISO 6.6.7.2
-  constant c_suspend_transmission_width : integer := 8;  -- ISO 6.6.7.4
-  constant c_bus_idle_condition_width   : integer := 11; -- ISO 6.6.7.5
+  constant c_intermission_width         : integer := 3;   -- ISO 6.6.7.2
+  constant c_suspend_transmission_width : integer := 8;   -- ISO 6.6.7.4
+  constant c_bus_idle_condition_width   : integer := 11;  -- ISO 6.6.7.5
+  constant c_bus_off_recovery_count     : integer := 128; -- ISO 8.1.4.4
 
   -- Frame limits
   constant c_sof                  : integer := 0;
@@ -103,11 +101,6 @@ package pk_can_types is
   constant c_llc_fmt_ce : std_logic_vector(2 downto 0) := "100"; -- Classic Extended
   constant c_llc_fmt_fb : std_logic_vector(2 downto 0) := "010"; -- FD Basic
   constant c_llc_fmt_fe : std_logic_vector(2 downto 0) := "110"; -- FD Extended
-
-  -- CRC poly select encodings
-  constant c_crc_poly_15_sel : std_logic_vector(1 downto 0) := "00";
-  constant c_crc_poly_17_sel : std_logic_vector(1 downto 0) := "01";
-  constant c_crc_poly_21_sel : std_logic_vector(1 downto 0) := "10";
 
   -- TDC polarity history depth (ISO 7.3.4)
   constant c_tdc_polarity_depth : integer := 32;
@@ -196,7 +189,7 @@ package pk_can_types is
   subtype t_dlc is integer range 0 to c_dlc_max;
   subtype t_stuff_count is unsigned(2 downto 0);
   subtype t_sbc is std_logic_vector(c_sbc_field_width - 1 downto 0);
-  -- subtype t_crc_vector is std_logic_vector(c_crc_21_length - 1 downto 0);
+  -- t_crc_vector removed — use std_logic_vector(c_crc_21_length - 1 downto 0) directly
 
   ---------------------------------------------------------------------------
   -- 5. Composite Types
@@ -260,7 +253,7 @@ package pk_can_types is
     dynamic_stuff_stop => 0,
     crc_start          => 0,
     crc_delimiter      => 0,
-    crc_poly_select    => c_crc_poly_15_sel
+    crc_poly_select    => "00"
   );
 
   ---------------------------------------------------------------------------
@@ -338,6 +331,10 @@ package pk_can_types is
   -- 7. Interface Records
   -- Each record is followed by its reset constant.
   ---------------------------------------------------------------------------
+
+  -- Avalon-ST streaming interface (matches company pk_eth_st)
+
+
   -- Serializer -> FSM
   type t_can_mac_ser_fsm_if_s2d is record
     data         : std_logic;
@@ -449,19 +446,16 @@ package pk_can_types is
     tdc_delay    => (others => '0')
   );
 
-
   -- FSM -> Bit Stuffer (ISO 6.6.13)
   type t_can_mac_fsm_bs_if_m2s is record
     data  : std_logic;
     valid : std_logic;
-    start : std_logic;
   end record t_can_mac_fsm_bs_if_m2s;
 
   constant c_mac_fsm_to_bs_fd_if_reset : t_can_mac_fsm_bs_if_m2s :=
   (
     data  => c_recessive,
-    valid => '0',
-    start => '0'
+    valid => '0'
   );
 
   -- Bit Stuffer -> FSM (ISO 6.6.13)
@@ -533,7 +527,7 @@ package pk_can_types is
   constant c_fce_to_mac_if_reset : t_can_mac_fce_if_s2m :=
   (
     error_passive_request => '0',
-    error_active_request  => '0',
+    error_active_request  => '1',
     bus_off               => '0'
   );
 
@@ -617,7 +611,7 @@ package pk_can_types is
   constant c_llc_frame_config_byte_0_ftyp         : integer := c_llc_frame_config_byte_0_format_end - 1;   -- bit 4
   constant c_llc_frame_config_byte_0_esi          : integer := c_llc_frame_config_byte_0_ftyp - 1;         -- bit 3
   constant c_llc_frame_config_byte_0_brs          : integer := c_llc_frame_config_byte_0_esi - 1;          -- bit 2
-  constant c_llc_frame_config_byte_0_ide          : integer := c_llc_frame_config_byte_0_format_start;     -- bit 7
+  constant c_llc_frame_config_byte_0_extended_bit : integer := c_llc_frame_config_byte_0_format_start;     -- bit 7
 
   -- Config byte 1 bit positions: [7:4]=DLC
   constant c_llc_frame_config_byte_1_dlc_start : integer := c_byte_width - 1;                        -- bit 7
@@ -901,8 +895,8 @@ package body pk_can_types is
     -- Calculate data length from DLC vector
     data_length_v := dlc_to_data_length(t_dlc(to_integer(unsigned(metadata.dlc))), metadata.format);
 
-    -- ISO 6.6.10.1: Remote frames shall not contain a Data field
-    if (metadata.ftyp = '1') then
+    -- ISO 6.6.10.1: Remote frames shall not contain a Data field (CC only)
+    if (metadata.format(1) = '0' and metadata.ftyp = '1') then
       data_length_v := 0;
     end if;
 
@@ -921,13 +915,13 @@ package body pk_can_types is
     -- CRC length: CRC-15 for classic, CRC-17 for FD <= 16 bytes, CRC-21 otherwise
     if (metadata.format(1) = '0') then
       crc_length_v           := c_crc_15_length;
-      result.crc_poly_select := c_crc_poly_15_sel;
+      result.crc_poly_select := "00";
     elsif (data_length_v < c_crc_17_length) then
       crc_length_v           := c_crc_17_length;
-      result.crc_poly_select := c_crc_poly_17_sel;
+      result.crc_poly_select := "01";
     else
       crc_length_v           := c_crc_21_length;
-      result.crc_poly_select := c_crc_poly_21_sel;
+      result.crc_poly_select := "10";
     end if;
 
     -- CAN FD has SBC field after data, CAN Classic goes directly to CRC
@@ -1005,16 +999,15 @@ package body pk_can_types is
     can_format : std_logic_vector(2 downto 0)
   ) return std_logic_vector is
 
-    variable result_v : std_logic_vector(c_llc_id_field_width - 1 downto 0) := (others => '0');
+    variable result_v : std_logic_vector(31 downto 0);
 
   begin
 
+    result_v := (others => '0');
     if (can_format(2) = '1') then
-      -- Extended: base_id(10:0) & extended_id(17:0) = 29 bits, right-aligned in 32 bits
-      result_v(c_base_id_width + c_extended_id_width - 1 downto 0) := id;
+      result_v(31 downto 3) := id(28 downto 0);
     else
-      -- Basic: base_id(10:0), right-aligned in 32 bits
-      result_v(c_base_id_width - 1 downto 0) := id(c_base_id_width - 1 downto 0);
+      result_v(31 downto 21) := id(10 downto 0);
     end if;
 
     return result_v;

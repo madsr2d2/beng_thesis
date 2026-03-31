@@ -60,7 +60,9 @@ STOP_TIME ?= 100us
 GHDL_SIM_OPT = --stop-time=$(STOP_TIME)
 GHWFILE = ${SIMDIR}/${TESTBENCHFILE}.ghw
 
-GTKWAVE_DIR = gtk_wave
+# Derive test_case dir from TB path: src/<module>/hdl_tb/<tb> -> src/<module>/test_case/
+TB_MODULE_DIR = $(dir $(patsubst %/,%,$(dir $(TB_NOEXT))))
+GTKWAVE_DIR = $(TB_MODULE_DIR)test_case
 GTKWFILE = ${GTKWAVE_DIR}/${TESTBENCHFILE}.gtkw
 
 WAVEFORM_VIEWER = GIO_MODULE_DIR="" gtkwave

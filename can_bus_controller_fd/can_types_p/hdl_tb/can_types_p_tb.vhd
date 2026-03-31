@@ -17,24 +17,21 @@ library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
 
-  use work.pk_can_types.all;
   use work.pk_man_global.all;
-  use work.pk_eth_st.all;
-
-  use work.common_register_interface_pkg.all;
-  use work.common_tb_pkg.all;
 
 library osvvm;
   context osvvm.osvvmcontext;
+  use work.common_register_interface_pkg.all;
+  use work.common_tb_pkg.all;
   use work.pk_can_types.all;
 
-entity can_types_p_tb is
+entity can_types_pkg_tb is
   generic (
     gc_tbtimeout : time := 2 ms
   );
-end entity can_types_p_tb;
+end entity can_types_pkg_tb;
 
-architecture tb of can_types_p_tb is
+architecture tb of can_types_pkg_tb is
 
   function make_metadata (
     config_byte_0 : t_byte;
@@ -58,6 +55,7 @@ begin
 
   p_init : process is
   begin
+    RV.InitSeed(random_seed);
 
     SetTestName("can_types_pkg_tb");
     SetAlertStopCount(ERROR, 10);
@@ -80,7 +78,7 @@ begin
     variable fp         : t_frame_params;
     variable ser_data_v : std_logic              := c_recessive;
     variable fb         : t_mac_frame_bit;
-    variable crc_vec    : t_crc_vector           := (others => '0');
+    variable crc_vec    : std_logic_vector(c_crc_21_length - 1 downto 0)           := (others => '0');
     variable sbc_vec    : t_sbc                  := (others => '0');
     variable prev_pol   : std_logic              := c_recessive;
     variable tid        : alertlogidtype;

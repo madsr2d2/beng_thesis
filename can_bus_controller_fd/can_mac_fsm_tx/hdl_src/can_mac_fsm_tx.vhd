@@ -4,17 +4,23 @@
 --
 -- Requirements:
 --
--- Description:   
---                
+-- Description:   Media Access Control (MAC) FSM for CAN/CAN-FD transmission.
+--                Coordinates serialization, bit stuffing, CRC generation, and
+--                physical signaling (PCS) timing.
+--                Frame transmission is split into three pipelined states:
+--                s_frame_init  - compute frame_params, drive SOF
+--                s_monitor_bit - wait for SP/SSP, evaluate get_bit_info
+--                s_transmit_bit - drive next bit via get_mac_frame_bit
+--                Protocol references: ISO 11898-1:2015
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-23  TMYAES    [TRIT-4355] Initial implementation
---
+--                2026-03-31  MRDSA     Converted to company header format
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
+
   use work.pk_man_global.all;
   use work.pk_can_types.all;
 
@@ -84,9 +90,6 @@ architecture rtl of can_mac_fsm_tx is
   signal ack_error_caused_flag     : boolean;
   signal dominant_seen_during_flag : boolean;
   signal dominant_run_count        : integer range 0 to 15;
-
-  -- Bus-off recovery: counts idle conditions (11 recessive bits) during reintegration
-  signal idle_condition_count : integer range 0 to c_bus_off_recovery_count;
 
   -- ISO 11898-1: 6.6.8 - dominant at 3rd intermission bit detected as SOF;
   -- skip SOF output and start with first ID bit on next frame entry.
@@ -172,20 +175,23 @@ begin
       last_transmitted_bit          <= v_tx_bit;
       last_transmitted_bit_polarity <= v_tx_bit.polarity;
 
-      if (v_prepare_position < (frame_params.crc_delimiter + c_eof_start_offset + c_eof_field_width)) then
+      if (v_prepare_position < frame_params.crc_delimiter + c_eof_start_offset + c_eof_field_width) then
         pcs_o.valid    <= '1';
         pcs_o.polarity <= v_tx_bit.polarity;
       end if;
 
       bit_count <= v_prepare_position;
 
-      v_serializer_sourced := (v_tx_bit.bit_name = base_id_bit) or (v_tx_bit.bit_name = extended_id_bit) or (v_tx_bit.bit_name = data_bit);
+      v_serializer_sourced := v_tx_bit.bit_name = base_id_bit or
+                              v_tx_bit.bit_name = extended_id_bit or
+                              v_tx_bit.bit_name = data_bit;
       if (v_serializer_sourced) then
         mac_ser_o.ready <= '1';
       end if;
 
       -- ISO 11898-1: 6.6.4.4 - Logical bits fed to CRC
-      v_crc_cc_eligible := (v_prepare_position < frame_params.crc_start) and (v_tx_bit.bit_name /= fixed_stuff_bit);
+      v_crc_cc_eligible := v_prepare_position < frame_params.crc_start and
+                           v_tx_bit.bit_name /= fixed_stuff_bit;
       if (v_crc_cc_eligible) then
         crc_o.valid <= '1';
         crc_o.data  <= v_tx_bit.polarity;
@@ -198,7 +204,7 @@ begin
 
       -- ISO 11898-1: 7.3.2 - data phase starts at SP of BRS (recessive);
       -- preparing ESI here means use_data_rate is registered for the ESI bit boundary.
-      if (mac_ser_i.llc_metadata.brs = '1') and (v_tx_bit.bit_name = esi_bit) then
+      if (mac_ser_i.llc_metadata.brs = '1' and v_tx_bit.bit_name = esi_bit) then
         v_in_data_phase := '1';
       elsif (v_tx_bit.bit_name = crc_delimiter_bit) then
         v_in_data_phase := '0';
@@ -243,7 +249,7 @@ begin
       last_transmitted_bit_polarity <= v_tx_bit.polarity;
 
       if (pcs_i.sp = '1') then
-        if bit_count < (c_error_sequence_width - 1) then
+        if (bit_count < c_error_sequence_width - 1) then
           bit_count <= bit_count + 1;
         end if;
 
@@ -253,7 +259,7 @@ begin
         if (v_track_delimiter_run) then
           if (pcs_i.bus_polarity = c_recessive) then
             dominant_run_count <= 0;
-          elsif dominant_run_count = (c_error_delimiter_width - 1) then
+          elsif (dominant_run_count = c_error_delimiter_width - 1) then
             fce_o.error_delimiter_too_late <= '1';
             dominant_run_count             <= 0;
           else
@@ -263,15 +269,16 @@ begin
 
         -- ISO 11898-1: 6.6.21.3.2 b) reactive OF:
         -- dominant at last bit of error/overload delimiter triggers OF.
-        if (bit_count >= (c_error_sequence_width - 1)) and (pcs_i.bus_polarity = c_dominant) then
+        if (bit_count >= c_error_sequence_width - 1 and pcs_i.bus_polarity = c_dominant) then
           overload_condition <= true;
         end if;
 
         -- ISO 11898-1: 8.1.3.3 Table 16 - Primary_error:
         -- dominant detected while sending an error flag (not overload).
-        if track_error_delimiter_too_late_c and v_in_flag_field and (pcs_i.bus_polarity = c_dominant) then
+        if (track_error_delimiter_too_late_c and v_in_flag_field and pcs_i.bus_polarity = c_dominant) then
           fce_o.primary_error <= '1';
         end if;
+
       end if;
 
       if (overload_condition) then
@@ -279,7 +286,7 @@ begin
         bit_count                 <= 0;
         dominant_seen_during_flag <= false;
         dominant_run_count        <= 0;
-      elsif (bit_count = (c_error_sequence_width - 1)) and (pcs_i.sp = '1') then
+      elsif (bit_count = c_error_sequence_width - 1 and pcs_i.sp = '1') then
         state     <= s_intermission;
         bit_count <= 0;
       end if;
@@ -303,7 +310,6 @@ begin
         ack_error_caused_flag         <= false;
         dominant_seen_during_flag     <= false;
         dominant_run_count            <= 0;
-        idle_condition_count          <= 0;
         skip_sof                      <= false;
         in_data_phase                 <= '0';
         frame_params                  <= c_frame_params_reset;
@@ -348,22 +354,16 @@ begin
           -----------------------------------------------------------------
           when s_bus_reintegration =>
             process_quiet_phase_common(bus_integration_bit);
-            if bit_count = (c_bus_idle_condition_width - 1) then
-              if (fce_i.bus_off = '0') or (idle_condition_count = (c_bus_off_recovery_count - 1)) then
-                -- ISO 11898-1: 6.6.7.5 / 8.1.4.4 (T5)
-                state     <= s_bus_idle;
-                bit_count <= 0;
-              else
-                idle_condition_count <= idle_condition_count + 1;
-                bit_count            <= 0;
-              end if;
+            if (bit_count = c_bus_idle_condition_width - 1) then
+              state     <= s_bus_idle;
+              bit_count <= 0;
             end if;
 
           when s_intermission =>
             process_quiet_phase_common(intermission_bit);
             -- ISO 11898-1: 6.6.21.3.2 b) - dominant detected during first
             -- two intermission bits triggers overload handling.
-            if (pcs_i.sp = '1') and (pcs_i.bus_polarity = c_dominant) and (bit_count < (c_intermission_width - 1)) then
+            if (pcs_i.sp = '1' and pcs_i.bus_polarity = c_dominant and bit_count < c_intermission_width - 1) then
               overload_condition <= true;
             end if;
             if (overload_condition) then
@@ -371,10 +371,11 @@ begin
               bit_count                 <= 0;
               dominant_seen_during_flag <= false;
               dominant_run_count        <= 0;
-            elsif (bit_count = (c_intermission_width - 1)) and (pcs_i.sp = '1') and (pcs_i.bus_polarity = c_dominant) then
+            elsif (bit_count = c_intermission_width - 1 and pcs_i.sp = '1' and pcs_i.bus_polarity = c_dominant) then
               -- ISO 11898-1: 6.6.7.2 / 6.6.8 - dominant at 3rd intermission bit
               -- interpreted as SOF; transmit first ID bit without SOF if eligible.
-              if ((mac_ser_i.valid = '1') and (fce_i.bus_off = '0') and (fce_i.error_passive_request = '0')) or not was_previous_frame_tx then
+              if (mac_ser_i.valid = '1' and
+                  (fce_i.error_passive_request = '0' or not was_previous_frame_tx)) then
                 state     <= s_frame_init;
                 bit_count <= 0;
                 skip_sof  <= true;
@@ -382,10 +383,10 @@ begin
                 state     <= s_bus_idle;
                 bit_count <= 0;
               end if;
-            elsif bit_count = (c_intermission_width - 1) then
+            elsif (bit_count = c_intermission_width - 1) then
               -- ISO 11898-1: 6.6.7.4 / 6.6.7.3 - error-passive transmitters
               -- enter suspend_transmission; all others enter bus_idle.
-              if (fce_i.error_passive_request = '1') and was_previous_frame_tx then
+              if (fce_i.error_passive_request = '1' and was_previous_frame_tx) then
                 state     <= s_suspend_transmission;
                 bit_count <= 0;
               else
@@ -405,7 +406,7 @@ begin
               bit_count                 <= 0;
               dominant_seen_during_flag <= false;
               dominant_run_count        <= 0;
-            elsif bit_count = (c_suspend_transmission_width - 1) then
+            elsif (bit_count = c_suspend_transmission_width - 1) then
               state     <= s_bus_idle;
               bit_count <= 0;
             end if;
@@ -415,8 +416,7 @@ begin
           -----------------------------------------------------------------
           when s_bus_idle =>
             process_quiet_phase_common(idle_bit);
-            -- ISO 11898-1: 8.1.4.4 - bus_off nodes shall not initiate transmissions
-            if (mac_ser_i.valid = '1') and (pcs_i.sp = '1') and (fce_i.bus_off = '0') then
+            if (mac_ser_i.valid = '1' and pcs_i.sp = '1') then
               state     <= s_frame_init;
               bit_count <= 0;
               bs_fd_rst <= '1';
@@ -478,7 +478,7 @@ begin
             v_in_data_phase := in_data_phase;
 
             -- EOF completion: bit_count was set by s_transmit_bit
-            if bit_count = (frame_params.crc_delimiter + c_eof_start_offset + c_eof_field_width) then
+            if (bit_count = frame_params.crc_delimiter + c_eof_start_offset + c_eof_field_width) then
               -- ISO 11898-1: 8.1.4.2 rule g) - successful transmission.
               mac_ser_o.transfer_status <= c_transmitted;
               was_previous_frame_tx     <= true;
@@ -486,7 +486,7 @@ begin
               state                     <= s_intermission;
               bit_count                 <= 0;
 
-            elsif (pcs_i.sp = '1') or (pcs_i.ssp = '1') then
+            elsif (pcs_i.sp = '1' or pcs_i.ssp = '1') then
               if (fce_i.error_passive_request = '1') then
                 v_error_flag_bit := c_passive_error_flag_bit;
               else
@@ -506,10 +506,9 @@ begin
               end if;
 
               -- Deferred SSP error fires at SP
-              if ssp_error_pending and (pcs_i.sp = '1') then
+              if (ssp_error_pending and pcs_i.sp = '1') then
                 -- ISO 11898-1: 6.6.21.3.1 - react at SP to SSP-detected error
                 was_previous_frame_tx     <= true;
-                fce_o.error               <= '1';
                 mac_ser_o.transfer_status <= c_disturbed;
                 pcs_o.valid               <= '1';
                 pcs_o.polarity            <= v_error_flag_bit.polarity;
@@ -550,8 +549,9 @@ begin
                     state                     <= s_transmit_bit;
 
                   when bit_error | ack_error =>
-                    was_previous_frame_tx     <= true;
+                    -- ISO 11898-1: 8.1.3.3 Table 16 - Error: Error detected
                     fce_o.error               <= '1';
+                    was_previous_frame_tx     <= true;
                     mac_ser_o.transfer_status <= c_disturbed;
                     pcs_o.valid               <= '1';
                     pcs_o.polarity            <= v_error_flag_bit.polarity;
@@ -570,9 +570,10 @@ begin
                     monitored_bit_event       <= none;
 
                     -- ACK error: no dominant seen during ACK window (CC and FD)
-                    if (bit_count = (frame_params.crc_delimiter + c_ack_delimiter_offset)) and (not ack_success_seen) then
-                      was_previous_frame_tx     <= true;
+                    if (bit_count = frame_params.crc_delimiter + c_ack_delimiter_offset and
+                        (not ack_success_seen)) then
                       fce_o.error               <= '1';
+                      was_previous_frame_tx     <= true;
                       mac_ser_o.transfer_status <= c_disturbed;
                       pcs_o.valid               <= '1';
                       pcs_o.polarity            <= v_error_flag_bit.polarity;
@@ -602,7 +603,7 @@ begin
             v_in_data_phase := in_data_phase;
 
             -- Stuff bit insertion takes priority
-            if (bs_fd_i.valid = '1') and (bit_count < frame_params.dynamic_stuff_stop) then
+            if (bs_fd_i.valid = '1' and bit_count < frame_params.dynamic_stuff_stop) then
               v_tx_bit                      := (polarity => bs_fd_i.data, bit_name => stuff_bit);
               polarity_history              <= polarity_history(polarity_history'high - 1 downto 0) & bs_fd_i.data;
               last_transmitted_bit          <= v_tx_bit;
@@ -614,7 +615,7 @@ begin
                 bs_fd_o.data  <= bs_fd_i.data;
               end if;
               -- ISO 11898-1: 6.6.4.4 - Stuff bits in FD frames are included in CRC
-              if (mac_ser_i.llc_metadata.format(1) = '1') and (bit_count < frame_params.crc_start) then
+              if (mac_ser_i.llc_metadata.format(1) = '1' and bit_count < frame_params.crc_start) then
                 crc_o.valid <= '1';
                 crc_o.data  <= bs_fd_i.data;
               end if;
@@ -639,11 +640,11 @@ begin
             process_flag_transmission(c_passive_error_flag_bit, true);
             -- ISO 11898-1: 8.1.4.2 rule c), Exception 1:
             -- passive transmitter ACK error without dominant seen in passive EF.
-            if (pcs_i.sp = '1') and (ack_error_caused_flag) then
-              if (bit_count < c_error_flag_width) and (pcs_i.bus_polarity = c_dominant) then
+            if (pcs_i.sp = '1' and ack_error_caused_flag) then
+              if (bit_count < c_error_flag_width and pcs_i.bus_polarity = c_dominant) then
                 dominant_seen_during_flag <= true;
               end if;
-              if (bit_count >= (c_error_sequence_width - 1)) and not dominant_seen_during_flag then
+              if (bit_count >= c_error_sequence_width - 1 and not dominant_seen_during_flag) then
                 fce_o.counters_unchanged <= '1';
               end if;
             end if;

@@ -4,32 +4,30 @@
 --
 -- Requirements:
 --
--- Description:   MAC serializer for CAN/CAN-FD TX path. Serializes LLC frame bytes into a bit stream for the MAC FSM.
---                
---                **Internal** LLC frame format: (variable length, streamed by can_llc_tx to can_mac_ser_tx):
---                  Byte 0:       [7:5]=FORMAT, [4]=FTYP(RTR), [3]=ESI, [2]=BRS, [1:0]=00
---                  Byte 1:       [7:4]=DLC, [3:0]=0000
---                  Bytes 2-5:    ID (32-bit, MSB first, left-aligned; CB/FB uses [31:21], CE/FE uses [31:3])
---                  Bytes 6+:     Data (DLC count, no padding)
---                  Note: The **internal** LLC frame format is different from the LLC frame format (used for the LLC-User interface).  
---                        The **Internal** LLC frame format has config bytes first, allowing the MAC FSM to start streaming out ID/DATA bits as soon as possible. 
--- 
+-- Description:   MAC serializer for CAN/CAN-FD TX path. Serializes LLC frame
+--                bytes into a bit stream for the MAC FSM.
+--                Internal LLC frame format (variable length, streamed by
+--                can_llc_tx to can_mac_ser_tx):
+--                Byte 0:    [7:5]=FORMAT, [4]=FTYP(RTR), [3]=ESI, [2]=BRS
+--                Byte 1:    [7:4]=DLC, [3:0]=0000
+--                Bytes 2-5: ID (32-bit, MSB first, left-aligned)
+--                Bytes 6+:  Data (DLC count, no padding)
 --                Responsibilities:
---                  1) Extract LLC metadata (format, DLC, flags) from config bytes and register at the MAC FSM interface.
---                  2) Serialize LLC frame ID and data bytes and present as individual bits to the MAC FSM.
---                  3) Skip padding bits in the 32-bit ID stream (unused MSBs above the actual ID width).
---                  4) Forward transfer status from MAC FSM back to LLC.
+--                1) Extract LLC metadata from config bytes and register at
+--                the MAC FSM interface.
+--                2) Serialize LLC frame ID and data bytes and present as
+--                individual bits to the MAC FSM.
+--                3) Skip padding bits in the 32-bit ID stream.
+--                4) Forward transfer status from MAC FSM back to LLC.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-16  TMYAES    [TRIT-4340] Initial implementation
---                2026-03-20  TMYAES    [TRIT-4345] Update: Removed procedures, changed to new JIRA ID, formatting and naming adjustments.
---                2026-03-20  TMYAES    [TRIT-4345] Update: **Internal** LLC frame format description added to header.
---
+--                2026-03-31  MRDSA     Converted to company header format
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
+
   use work.pk_man_global.all;
   use work.pk_can_types.all;
 
@@ -66,6 +64,7 @@ architecture rtl of can_mac_ser_tx is
   signal state                  : t_state;
   signal count                  : integer range 0 to t_byte'left + 1;
   signal llc_frame_buffer       : t_byte;
+  signal config_byte_0          : t_byte;
   signal id_bits_remaining      : integer range 0 to c_base_id_width + c_extended_id_width;
   signal padding_bits_remaining : integer range 0 to c_llc_id_field_width - c_base_id_width;
 
@@ -79,6 +78,7 @@ begin
         state                  <= s_load_config_byte_0;
         count                  <= 0;
         llc_frame_buffer       <= (others => '0');
+        config_byte_0          <= (others => '0');
         id_bits_remaining      <= 0;
         padding_bits_remaining <= 0;
 
@@ -91,7 +91,6 @@ begin
         llc_o.transfer_status      <= tx_mac_fsm_i.transfer_status;
         llc_o.avalon_st_sink.ready <= '0' when (state = s_shift_out_bits) else '1';
 
-
         if (tx_mac_fsm_i.transfer_status /= c_ongoing) then
           -- Transfer ended (completed, error, or abort): return to idle
           count <= 0;
@@ -102,21 +101,8 @@ begin
             -- Capture first config byte from LLC on SOP.
             -----------------------------------------------------------------
             when s_load_config_byte_0 =>
-              llc_o.avalon_st_sink.ready <= '1';
-              if (llc_i.avalon_st_source.valid and llc_i.avalon_st_source.startofpacket and llc_o.avalon_st_sink.ready ) then
-                tx_mac_fsm_o.llc_metadata.format <= llc_i.avalon_st_source.data(c_llc_frame_config_byte_0_format_start downto c_llc_frame_config_byte_0_format_end);
-                tx_mac_fsm_o.llc_metadata.ftyp <= llc_i.avalon_st_source.data(c_llc_frame_config_byte_0_ftyp);
-                tx_mac_fsm_o.llc_metadata.brs <= llc_i.avalon_st_source.data(c_llc_frame_config_byte_0_brs);
-                tx_mac_fsm_o.llc_metadata.esi <= llc_i.avalon_st_source.data(c_llc_frame_config_byte_0_esi);
-
-                -- ID is right-aligned in 32-bit llc id field: extended uses 29 bits, basic uses 11
-                if (llc_i.avalon_st_source.data(c_llc_frame_config_byte_0_ide) = '1') then
-                  id_bits_remaining      <= c_base_id_width + c_extended_id_width;
-                  padding_bits_remaining <= c_llc_id_field_width - (c_base_id_width + c_extended_id_width);
-                else
-                  id_bits_remaining      <= c_base_id_width;
-                  padding_bits_remaining <= c_llc_id_field_width - c_base_id_width;
-                end if;
+              if ((llc_i.avalon_st_source.valid = '1') and (llc_i.avalon_st_source.startofpacket = '1')) then
+                config_byte_0 <= llc_i.avalon_st_source.data;
                 state         <= s_load_config_byte_1;
               end if;
 
@@ -125,17 +111,30 @@ begin
             -- initialize ID/padding counters.
             -----------------------------------------------------------------
             when s_load_config_byte_1 =>
-              llc_o.avalon_st_sink.ready <= '1';
-              if (llc_i.avalon_st_source.valid and llc_o.avalon_st_sink.ready) then
+              if (llc_i.avalon_st_source.valid = '1') then
+                -- Extract LLC metadata from config byte pair
+                tx_mac_fsm_o.llc_metadata.format <= config_byte_0(c_llc_frame_config_byte_0_format_start downto c_llc_frame_config_byte_0_format_end);
                 tx_mac_fsm_o.llc_metadata.dlc    <= llc_i.avalon_st_source.data(c_llc_frame_config_byte_1_dlc_start downto c_llc_frame_config_byte_1_dlc_end);
+                tx_mac_fsm_o.llc_metadata.ftyp   <= config_byte_0(c_llc_frame_config_byte_0_ftyp);
+                tx_mac_fsm_o.llc_metadata.brs    <= config_byte_0(c_llc_frame_config_byte_0_brs);
+                tx_mac_fsm_o.llc_metadata.esi    <= config_byte_0(c_llc_frame_config_byte_0_esi);
                 state                            <= s_load_llc_frame_byte;
+
+                -- ID is right-aligned in 32-bit stream: extended uses 29 bits, basic uses 11
+                if (config_byte_0(c_llc_frame_config_byte_0_extended_bit) = '1') then
+                  id_bits_remaining      <= c_base_id_width + c_extended_id_width;
+                  padding_bits_remaining <= c_llc_id_field_width - (c_base_id_width + c_extended_id_width);
+                else
+                  id_bits_remaining      <= c_base_id_width;
+                  padding_bits_remaining <= c_llc_id_field_width - c_base_id_width;
+                end if;
               end if;
 
-           -----------------------------------------------------------------
+            -----------------------------------------------------------------
             -- Latch next byte from LLC.
             -----------------------------------------------------------------
             when s_load_llc_frame_byte =>
-              if (llc_i.avalon_st_source.valid and llc_o.avalon_st_sink.ready) then
+              if ((llc_i.avalon_st_source.valid = '1') and (llc_o.avalon_st_sink.ready = '1')) then
                 llc_o.avalon_st_sink.ready <= '0';
                 count                      <= 0;
                 llc_frame_buffer           <= llc_i.avalon_st_source.data;
@@ -161,7 +160,7 @@ begin
               else
                 -- Real bit: present to MAC FSM
                 tx_mac_fsm_o.valid <= '1';
-                if (tx_mac_fsm_o.valid and tx_mac_fsm_i.ready) then
+                if ((tx_mac_fsm_o.valid = '1') and (tx_mac_fsm_i.ready = '1')) then
                   if (id_bits_remaining > 0) then
                     id_bits_remaining <= id_bits_remaining - 1;
                   end if;
@@ -191,7 +190,5 @@ begin
   end process p_fsm;
 
 end architecture rtl;
-
--- eof
 
 -- eof

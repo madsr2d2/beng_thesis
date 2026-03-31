@@ -23,7 +23,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 LOCAL_SRC = ROOT / "src"
 COMPANY_DIR = ROOT / "can_bus_controller_fd"
-GTK_WAVE_DIR = ROOT / "gtk_wave"
+# GTKWave files are stored per-module in src/<module>/test_case/
 
 # ── Module discovery ────────────────────────────────────────────────────────
 # Auto-discover syncable modules: every directory in can_bus_controller_fd/
@@ -295,7 +295,7 @@ def transform(content: str, module: str, filename: str) -> str:
     lines = content.splitlines(keepends=True)
 
     # Types package gets special treatment
-    if module == "can_types_p" and "can_types_pkg" in filename:
+    if module == "can_types_p" and "can_types_pkg" in filename and "_tb" not in filename:
         lines = strip_eth_st_types(lines)
         lines = qualify_eth_st(lines)
         lines = add_pk_man_global(lines)
@@ -358,12 +358,10 @@ def sync_module(module: str, dry_run: bool = False) -> int:
             synced += 1
 
     # Generate TCL waveform files from local GTKWave .gtkw files
-    for gtkw_file in sorted(GTK_WAVE_DIR.glob("*.gtkw")):
-        # Match gtkw files belonging to this module's TBs
-        tb_name = gtkw_file.stem  # e.g. "can_mac_tx_tb"
-        tb_vhd = local_dir / "hdl_tb" / f"{tb_name}.vhd"
-        if not tb_vhd.exists():
-            continue
+    local_test_case = local_dir / "test_case"
+    if not local_test_case.exists():
+        return synced
+    for gtkw_file in sorted(local_test_case.glob("*.gtkw")):
 
         tcl_name = f"sim_wave_{module}.tcl"
         tcl_path = company_dir / "test_case" / tcl_name

@@ -49,7 +49,8 @@ src/                                  # Per-module folders (mirrors company layo
 │   └── hdl_src/can_timing_pkg.vhd    # Bit timing utilities, TDC calculation
 ├── can_mac_ser_tx/
 │   ├── hdl_src/can_mac_ser_tx.vhd    # MAC serializer: LLC bytes -> serial bit stream
-│   └── hdl_tb/can_mac_ser_tx_tb.vhd  # Serializer testbench
+│   ├── hdl_tb/can_mac_ser_tx_tb.vhd  # Serializer testbench
+│   └── test_case/                    # GTKWave .gtkw save files (per-module)
 ├── can_mac_crc/
 │   └── hdl_src/can_mac_crc.vhd       # CRC engine for CAN-FD (shared TX/RX, includes gen_crc)
 ├── can_mac_bs/
@@ -92,7 +93,6 @@ scripts/                # Build and sync scripts
 └── md_to_pdf.sh        # Report generation
 
 mcp_tools/              # Model Context Protocol servers (extensible)
-gtk_wave/               # GTKWave configuration files
 docs/                   # Documentation and standards reference
 formal/                 # Formal verification .sby files and results
 OsvvmLibraries/         # OSVVM simulation framework (external)
@@ -157,7 +157,7 @@ make clean                                                    # Remove artifacts
 ### Waveform Viewing
 
 ```bash
-gtkwave sim/can_tx_tb.ghw gtk_wave/can_tx_tb.gtkw
+gtkwave sim/can_tx_tb.ghw src/can_tx/test_case/can_tx_tb.gtkw
 ```
 
 GHW format preserves record types and enum names for symbolic display.

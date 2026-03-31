@@ -1,0 +1,98 @@
+[*]
+[*] GTKWave save file - auto-generated from can_fce_tb.ghw
+[*]
+[dumpfile] "/home/madsr2d2/beng_thesis/sim/can_fce_tb.ghw"
+[savefile] "/home/madsr2d2/beng_thesis/src/can_fce/test_case/can_fce_tb.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] 0 0
+*-28.000000 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.can_fce_tb.
+[sst_width] 297
+[signals_width] 412
+[sst_expanded] 1
+[sst_vpaned_height] 434
+[treeopen] top.can_fce_tb.dut.
+@c00200
+-TB Signals
+@28
+top.can_fce_tb.clk
+@28
+top.can_fce_tb.rst
+@420
+top.can_fce_tb.llc_i
+@420
+top.can_fce_tb.llc_o
+@420
+top.can_fce_tb.tx_mac_i
+@420
+top.can_fce_tb.tx_mac_o
+@420
+top.can_fce_tb.rx_mac_i
+@420
+top.can_fce_tb.rx_mac_o
+@420
+top.can_fce_tb.pcs_i
+@420
+top.can_fce_tb.pcs_o
+@28
+top.can_fce_tb.rx_bus
+@420
+top.can_fce_tb.debug_tec
+@420
+top.can_fce_tb.debug_rec
+@22
+top.can_fce_tb.debug_state
+@420
+top.can_fce_tb.alert_id
+@1401200
+-TB Signals
+@c00200
+-dut Internals
+@28
+top.can_fce_tb.dut.clk_i
+@28
+top.can_fce_tb.dut.rst_i
+@420
+top.can_fce_tb.dut.llc_i
+@420
+top.can_fce_tb.dut.llc_o
+@420
+top.can_fce_tb.dut.tx_mac_i
+@420
+top.can_fce_tb.dut.tx_mac_o
+@420
+top.can_fce_tb.dut.rx_mac_i
+@420
+top.can_fce_tb.dut.rx_mac_o
+@420
+top.can_fce_tb.dut.pcs_i
+@420
+top.can_fce_tb.dut.pcs_o
+@28
+top.can_fce_tb.dut.rx_bus_i
+@420
+top.can_fce_tb.dut.debug_tec_o
+@420
+top.can_fce_tb.dut.debug_rec_o
+@22
+top.can_fce_tb.dut.debug_state_o
+@420
+top.can_fce_tb.dut.tec
+@420
+top.can_fce_tb.dut.rec
+@22
+top.can_fce_tb.dut.fce_state
+@22
+top.can_fce_tb.dut.idle_shift_reg
+@420
+top.can_fce_tb.dut.idle_count
+@420
+top.can_fce_tb.dut.prescaler_count
+@28
+top.can_fce_tb.dut.bus_off_active
+@1401200
+-dut Internals
+[pattern_trace] 1
+[pattern_trace] 0

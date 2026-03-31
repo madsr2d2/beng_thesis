@@ -1,0 +1,125 @@
+[*]
+[*] GTKWave save file - auto-generated from can_pcs_tx_tb.ghw
+[*]
+[dumpfile] "/home/madsr2d2/beng_thesis/sim/can_pcs_tx_tb.ghw"
+[savefile] "/home/madsr2d2/beng_thesis/src/can_pcs_tx/test_case/can_pcs_tx_tb.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] 0 0
+*-28.000000 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.can_pcs_tx_tb.
+[sst_width] 297
+[signals_width] 412
+[sst_expanded] 1
+[sst_vpaned_height] 434
+[treeopen] top.can_pcs_tx_tb.dut_no_tdc.
+[treeopen] top.can_pcs_tx_tb.dut_tdc.
+@c00200
+-TB Signals
+@28
+top.can_pcs_tx_tb.clk
+@28
+top.can_pcs_tx_tb.rst
+@28
+top.can_pcs_tx_tb.test_done
+@420
+top.can_pcs_tx_tb.current_test_id
+@420
+top.can_pcs_tx_tb.mac_to_pcs_1
+@420
+top.can_pcs_tx_tb.pcs_to_mac_1
+@28
+top.can_pcs_tx_tb.tx_bus_1
+@28
+top.can_pcs_tx_tb.rx_bus_1
+@420
+top.can_pcs_tx_tb.mac_to_pcs_2
+@420
+top.can_pcs_tx_tb.pcs_to_mac_2
+@28
+top.can_pcs_tx_tb.tx_bus_2
+@28
+top.can_pcs_tx_tb.rx_bus_2
+@28
+top.can_pcs_tx_tb.loopback_enable_2
+@28
+top.can_pcs_tx_tb.rx_bus_2_manual
+@28
+top.can_pcs_tx_tb.rx_bus_2_loopback
+@1401200
+-TB Signals
+@c00200
+-dut_no_tdc Internals
+@28
+top.can_pcs_tx_tb.dut_no_tdc.clk_i
+@28
+top.can_pcs_tx_tb.dut_no_tdc.rst_i
+@420
+top.can_pcs_tx_tb.dut_no_tdc.mac_to_pcs_i
+@420
+top.can_pcs_tx_tb.dut_no_tdc.pcs_to_mac_o
+@28
+top.can_pcs_tx_tb.dut_no_tdc.tx_bus_o
+@28
+top.can_pcs_tx_tb.dut_no_tdc.rx_bus_i
+@22
+top.can_pcs_tx_tb.dut_no_tdc.state
+@420
+top.can_pcs_tx_tb.dut_no_tdc.clk_count
+@420
+top.can_pcs_tx_tb.dut_no_tdc.tq_count
+@420
+top.can_pcs_tx_tb.dut_no_tdc.delay_count_clk
+@28
+top.can_pcs_tx_tb.dut_no_tdc.tdc_counting
+@420
+top.can_pcs_tx_tb.dut_no_tdc.ssp_position
+@420
+top.can_pcs_tx_tb.dut_no_tdc.tdc_delay
+@28
+top.can_pcs_tx_tb.dut_no_tdc.prev_rx_bus
+@28
+top.can_pcs_tx_tb.dut_no_tdc.prev_tx_bus
+@28
+top.can_pcs_tx_tb.dut_no_tdc.in_data_phase
+@1401200
+-dut_no_tdc Internals
+@c00200
+-dut_tdc Internals
+@28
+top.can_pcs_tx_tb.dut_tdc.clk_i
+@28
+top.can_pcs_tx_tb.dut_tdc.rst_i
+@420
+top.can_pcs_tx_tb.dut_tdc.mac_to_pcs_i
+@420
+top.can_pcs_tx_tb.dut_tdc.pcs_to_mac_o
+@28
+top.can_pcs_tx_tb.dut_tdc.tx_bus_o
+@28
+top.can_pcs_tx_tb.dut_tdc.rx_bus_i
+@22
+top.can_pcs_tx_tb.dut_tdc.state
+@420
+top.can_pcs_tx_tb.dut_tdc.clk_count
+@420
+top.can_pcs_tx_tb.dut_tdc.tq_count
+@420
+top.can_pcs_tx_tb.dut_tdc.delay_count_clk
+@28
+top.can_pcs_tx_tb.dut_tdc.tdc_counting
+@420
+top.can_pcs_tx_tb.dut_tdc.ssp_position
+@420
+top.can_pcs_tx_tb.dut_tdc.tdc_delay
+@28
+top.can_pcs_tx_tb.dut_tdc.prev_rx_bus
+@28
+top.can_pcs_tx_tb.dut_tdc.prev_tx_bus
+@28
+top.can_pcs_tx_tb.dut_tdc.in_data_phase
+@1401200
+-dut_tdc Internals
+[pattern_trace] 1
+[pattern_trace] 0

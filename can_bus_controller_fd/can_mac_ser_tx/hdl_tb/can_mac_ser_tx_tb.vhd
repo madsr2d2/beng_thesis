@@ -14,14 +14,17 @@
 --                2026-03-16  TMYAES    [TRIT-4345] Initial implementation
 --                2026-03-20  TMYAES    [TRIT-4345] Added random frame test with aborts and bit-level checks
 --                2026-03-20  TMYAES    [TRIT-4345] Check values on falling clk edge
---                2026-03-28  TMYAES    [TRIT-4345] Rewritten with OSVVM streaming VCs and coverage
+--                2026-03-28  MRDSA     [TRIT-4345] Rewritten with OSVVM streaming VCs and coverage
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
+
+  use work.pk_man_global.all;
+  use work.common_register_interface_pkg.all;
+  use work.common_tb_pkg.all;
   use work.pk_can_types.all;
-  use work.pk_eth_st;
 
 library osvvm;
   context osvvm.OsvvmContext;
@@ -60,8 +63,8 @@ architecture tb of can_mac_ser_tx_tb is
   -- DUT interface
   signal llc_i        : t_can_llc_mac_tx_if_s2d;
   signal llc_o        : t_can_llc_mac_tx_if_d2s;
-  signal tx_mac_fsm_i : t_can_mac_ser_fsm_tx_if_m2s;
-  signal tx_mac_fsm_o : t_can_mac_ser_fsm_tx_if_s2m;
+  signal tx_mac_fsm_i : t_can_mac_ser_fsm_if_d2s;
+  signal tx_mac_fsm_o : t_can_mac_ser_fsm_if_s2d;
 
   -- OSVVM signals
   shared variable RV  : RandomPType;
@@ -91,8 +94,8 @@ architecture tb of can_mac_ser_tx_tb is
   end function to_slv;
 
   procedure avalon_st_send (
-    signal   sink   : in    pk_eth_st.t_eth_st_d2s;
-    signal   source : out   pk_eth_st.t_eth_st_s2d;
+    signal   sink   : in    t_eth_st_d2s;
+    signal   source : out   t_eth_st_s2d;
     constant data   : in    std_logic_vector(c_byte_width - 1 downto 0);
     constant sop    : in    std_logic;
     constant eop    : in    std_logic
@@ -111,20 +114,6 @@ architecture tb of can_mac_ser_tx_tb is
     wait for 0 ns;
     source.valid <= '0';
   end procedure avalon_st_send;
-
-  function extract_metadata (
-    config_byte_0 : t_byte;
-    config_byte_1 : t_byte
-  ) return t_llc_metadata is
-    variable result : t_llc_metadata;
-  begin
-    result.format := config_byte_0(c_llc_frame_config_byte_0_format_start downto c_llc_frame_config_byte_0_format_end);
-    result.ftyp   := config_byte_0(c_llc_frame_config_byte_0_ftyp);
-    result.esi    := config_byte_0(c_llc_frame_config_byte_0_esi);
-    result.brs    := config_byte_0(c_llc_frame_config_byte_0_brs);
-    result.dlc    := config_byte_1(c_llc_frame_config_byte_1_dlc_start downto c_llc_frame_config_byte_1_dlc_end);
-    return result;
-  end function extract_metadata;
 
 begin
 
@@ -146,6 +135,7 @@ begin
     variable v_fmt_cov : CoverageIDType;
     variable v_dlc_cov : CoverageIDType;
   begin
+    RV.InitSeed(random_seed);
     SetAlertStopCount(ERROR, 10);
     SetLogEnable(INFO, TRUE);
     v_test_id := NewId("can_mac_ser_tx");
@@ -209,7 +199,7 @@ begin
   ----------------------------------------------------------------------------
   p_mac_fsm_vc : process is
   begin
-    tx_mac_fsm_i <= c_tx_mac_fsm_to_ser_if_reset;
+    tx_mac_fsm_i <= c_ser_fsm_if_d2s_reset;
     WaitForBarrier(init_barrier);
 
     mac_fsm_vs_loop : loop
@@ -328,7 +318,7 @@ begin
         -- Send byte to LLC
         Send(llc_rec, v_frame(i), "00");
 
-        -- Push expected bits for this byte to fsm butstfifo (skip padding)
+        -- Push expected real bits for this byte (skip padding)
         for bit_pos in c_byte_width - 1 downto 0 loop
           if (v_pad_remaining > 0) and (v_id_remaining = 0) then
             v_pad_remaining := v_pad_remaining - 1;
@@ -340,11 +330,13 @@ begin
           end if;
         end loop;
 
-        -- Check bits for this byte
-        CheckBurst(mac_fsm_rec, GetFifoCount(mac_fsm_rec.BurstFifo), std_logic_vector(c_bit_stream_check));
+        -- Check bits for this byte (skip pure-padding bytes)
+        if GetFifoCount(mac_fsm_rec.BurstFifo) > 0 then
+          CheckBurst(mac_fsm_rec, GetFifoCount(mac_fsm_rec.BurstFifo), std_logic_vector(c_bit_stream_check));
+        end if;
 
-        -- Random abort after check (Burst fifo is empty now)
-        if RV.DistBool((false => 90, true => 10)) then
+        -- Random abort after check (~2% probability, BurstFifo is empty here)
+        if RV.DistBool((false => 98, true => 2)) then
           Send(mac_fsm_rec, Data => c_disturbed);
           WaitForClock(clk, 3);
           next frame_loop;

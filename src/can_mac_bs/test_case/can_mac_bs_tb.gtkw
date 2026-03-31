@@ -1,0 +1,54 @@
+[*]
+[*] GTKWave save file - auto-generated from can_mac_bs_tb.ghw
+[*]
+[dumpfile] "/home/madsr2d2/beng_thesis/sim/can_mac_bs_tb.ghw"
+[savefile] "/home/madsr2d2/beng_thesis/src/can_mac_bs/test_case/can_mac_bs_tb.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] 0 0
+*-28.000000 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.can_mac_bs_tb.
+[sst_width] 297
+[signals_width] 412
+[sst_expanded] 1
+[sst_vpaned_height] 434
+[treeopen] top.can_mac_bs_tb.u_dut.
+@c00200
+-TB Signals
+@28
+top.can_mac_bs_tb.clk_i
+@28
+top.can_mac_bs_tb.rst_i
+@28
+top.can_mac_bs_tb.frame_rst
+@420
+top.can_mac_bs_tb.bs_i
+@420
+top.can_mac_bs_tb.bs_o
+@22
+top.can_mac_bs_tb.test_done
+@1401200
+-TB Signals
+@c00200
+-u_dut Internals
+@28
+top.can_mac_bs_tb.u_dut.clk_i
+@28
+top.can_mac_bs_tb.u_dut.rst_i
+@420
+top.can_mac_bs_tb.u_dut.bs_i
+@420
+top.can_mac_bs_tb.u_dut.bs_o
+@420
+top.can_mac_bs_tb.u_dut.count
+@28
+top.can_mac_bs_tb.u_dut.last_polarity
+@420
+top.can_mac_bs_tb.u_dut.stuff_count
+@28
+top.can_mac_bs_tb.u_dut.stuff_pending
+@1401200
+-u_dut Internals
+[pattern_trace] 1
+[pattern_trace] 0

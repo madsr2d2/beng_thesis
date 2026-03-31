@@ -4,14 +4,14 @@
 --
 -- Requirements:
 --
--- Description:   Testbench for can_mac_tx (ser + fsm + bs + crc).
+-- Description:   Testbench for can_mac_tx (ser + fsm + bs + crc) - Version 2: Error injection.
 --                  p_llc_vc           - LLC Avalon-ST source VC (byte driver).
---                  p_pcs_vc           - PCS sink VC (bit-level self-checking, ACK injection).
+--                  p_pcs_vc           - PCS sink VC (bit-level self-checking, error injection).
 --                  p_test_ctrl        - Coverage-driven test sequencer with reference model.
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-03-28  MRDSA     [TRIT-4355] Initial implementation
---                2026-03-28  MRDSA     [TRIT-4355] Refactored: full bus stream reference model
+--                2026-03-28  MRDSA     [TRIT-4355] Added error injection coverage
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
@@ -29,14 +29,14 @@ library osvvm;
 library osvvm_common;
   context osvvm_common.OsvvmCommonContext;
 
-entity can_mac_tx_tb is
+entity can_mac_tx_tb_v2 is
   generic (
     gc_TbTimeOut   : time := 500 ms;
     gc_TbClkPeriod : time := 10 ns
   );
-end entity can_mac_tx_tb;
+end entity can_mac_tx_tb_v2;
 
-architecture tb of can_mac_tx_tb is
+architecture tb of can_mac_tx_tb_v2 is
 
   ----------------------------------------------------------------------------
   -- Constants
@@ -46,15 +46,12 @@ architecture tb of can_mac_tx_tb is
   constant c_max_bus_bits    : integer := 1024;
   constant c_rec_width       : integer := 16;
 
-  -- Error injection position coverage range.
-  -- Min: smallest reachable position (CB arb_end with no stuff bits) = 13.
-  -- Max: safe ack_pos - 2 for FE DLC=15 with any data pattern ~ 580.
+  -- Error injection position coverage range
   constant c_min_err_pos  : integer := 13;
   constant c_max_err_pos  : integer := 580;
   constant c_pos_bin_num  : integer := 50;
 
-  -- PCS VC subtypes / injection coverage bins (unified integer encoding).
-  -- 0 = activate SP strobe (not an injection type).
+  -- PCS VC subtypes / injection coverage bins (unified integer encoding)
   constant c_pcs_active              : integer := 0;
   constant c_inj_ack                 : integer := 1;
   constant c_inj_ack_error           : integer := 2;
@@ -64,20 +61,8 @@ architecture tb of can_mac_tx_tb is
   constant c_inj_reactive_overload   : integer := 6;
   constant c_inj_error_delim_too_late : integer := 7;
 
-  -- Offset from ack_pos to first intermission bit in the bus stream.
+  -- Offset from ack_pos to first intermission bit in the bus stream
   constant c_ifs_offset : integer := c_eof_start_offset + c_eof_field_width - c_ack_slot_offset;
-
-  -- FCE state coverage bins (integer encoding)
-  constant c_fce_active  : integer := 0;
-  constant c_fce_passive : integer := 1;
-
-  -- FCE latch bit positions (pulse events from fce_o)
-  constant c_fce_successful_transfer   : integer := 0;
-  constant c_fce_error                 : integer := 1;
-  constant c_fce_primary_error         : integer := 2;
-  constant c_fce_counters_unchanged    : integer := 3;
-  constant c_fce_error_delim_too_late  : integer := 4;
-  constant c_fce_latch_width           : integer := 5;
 
   ----------------------------------------------------------------------------
   -- Types
@@ -109,7 +94,6 @@ architecture tb of can_mac_tx_tb is
   signal bus_override    : std_logic := c_recessive;
   signal bus_override_en : boolean   := false;
   signal status_latch    : std_logic_vector(2 downto 0) := c_ongoing;
-  signal fce_latch       : std_logic_vector(c_fce_latch_width - 1 downto 0) := (others => '0');
 
   -- Data-phase info for PCS VC (set by test sequencer before each frame)
   signal pcs_fdf_pos          : integer := -1;
@@ -122,12 +106,10 @@ architecture tb of can_mac_tx_tb is
   signal reset_check_id  : AlertLogIDType;
   signal status_check_id : AlertLogIDType;
   signal stream_check_id : AlertLogIDType;
-  signal fce_check_id    : AlertLogIDType;
   signal fmt_cov      : CoverageIDType;
   signal dlc_cov      : CoverageIDType;
   signal inj_cov      : CoverageIDType;
   signal pos_cov      : CoverageIDType;
-  signal fce_cov      : CoverageIDType;
   signal init_barrier : std_logic := '0';
 
   signal llc_rec : StreamRecType(
@@ -137,12 +119,6 @@ architecture tb of can_mac_tx_tb is
     ParamFromModel (c_rec_width - 1 downto 0)
   );
   signal pcs_rec : StreamRecType(
-    DataToModel    (c_rec_width - 1 downto 0),
-    ParamToModel   (c_rec_width - 1 downto 0),
-    DataFromModel  (c_rec_width - 1 downto 0),
-    ParamFromModel (c_rec_width - 1 downto 0)
-  );
-  signal fce_rec : StreamRecType(
     DataToModel    (c_rec_width - 1 downto 0),
     ParamToModel   (c_rec_width - 1 downto 0),
     DataFromModel  (c_rec_width - 1 downto 0),
@@ -165,9 +141,8 @@ architecture tb of can_mac_tx_tb is
   --   Phase 4: Recessive tail (delimiter, ACK, EOF, IFS)
   ----------------------------------------------------------------------------
   function build_bus_stream (
-    frame      : t_llc_frame;
-    metadata   : t_llc_metadata;
-    is_passive : boolean := false
+    frame    : t_llc_frame;
+    metadata : t_llc_metadata
   ) return t_bus_stream is
     variable result : t_bus_stream;
     variable fp     : t_frame_params;
@@ -190,12 +165,12 @@ architecture tb of can_mac_tx_tb is
     variable crc        : std_logic_vector(c_crc_21_length - 1 downto 0);
 
     -- FD CRC region
-    variable sbc         : t_sbc;
-    variable gray        : std_logic_vector(2 downto 0);
+    variable sbc  : t_sbc;
+    variable gray : std_logic_vector(2 downto 0);
 
     -- Arbitration tracking (set once on first non-arb bit)
-    variable arb_done  : boolean := false;
-    variable tail_len  : integer;
+    variable arb_done : boolean := false;
+    variable tail_len : integer;
 
     -- Feed one bit through the dynamic stuffer.
     -- FD: stuff bits feed CRC input. CC: they do not.
@@ -337,9 +312,6 @@ architecture tb of can_mac_tx_tb is
     --------------------------------------------------------------------------
     result.ack_pos := result.len + c_ack_slot_offset;
     tail_len := c_eof_start_offset + c_eof_field_width + c_intermission_width;
-    if (is_passive) then
-      tail_len := tail_len + c_suspend_transmission_width;
-    end if;
     for i in 0 to tail_len - 1 loop
       result.bits(result.len) := c_recessive;
       result.len              := result.len + 1;
@@ -352,11 +324,10 @@ architecture tb of can_mac_tx_tb is
   -- Random frame and expected bus stream generator
   ----------------------------------------------------------------------------
   procedure gen_frame (
-    variable frame      : out t_llc_frame;
-    variable metadata   : out t_llc_metadata;
-    variable last_byte  : out integer;
-    variable stream     : out t_bus_stream;
-    constant is_passive : in  boolean := false
+    variable frame     : out t_llc_frame;
+    variable metadata  : out t_llc_metadata;
+    variable last_byte : out integer;
+    variable stream    : out t_bus_stream
   ) is
   begin
     for i in frame'range loop
@@ -379,7 +350,7 @@ architecture tb of can_mac_tx_tb is
     metadata  := extract_metadata(frame(0), frame(1));
     last_byte := 6 + dlc_to_data_length(
                    t_dlc(to_integer(unsigned(metadata.dlc))), metadata.format) - 1;
-    stream    := build_bus_stream(frame, metadata, is_passive);
+    stream    := build_bus_stream(frame, metadata);
   end procedure gen_frame;
 
   ----------------------------------------------------------------------------
@@ -409,55 +380,44 @@ architecture tb of can_mac_tx_tb is
   end procedure add_flag_delim;
 
   procedure add_ifs (
-    variable stream     : inout t_bus_stream;
-    variable idx        : inout integer;
-    constant is_passive : in    boolean
+    variable stream : inout t_bus_stream;
+    variable idx    : inout integer
   ) is
   begin
     fill(stream, idx, c_intermission_width, c_recessive);
-    if (is_passive) then
-      fill(stream, idx, c_suspend_transmission_width, c_recessive);
-    end if;
   end procedure add_ifs;
 
   procedure truncate_error (
     variable stream     : inout t_bus_stream;
-    constant inject_pos : in    integer;
-    constant is_passive : in    boolean := false
+    constant inject_pos : in    integer
   ) is
-    variable idx      : integer   := inject_pos;
-    variable flag_pol : std_logic := c_dominant;
+    variable idx : integer := inject_pos;
   begin
-    if (is_passive) then flag_pol := c_recessive; end if;
-    add_flag_delim(stream, idx, flag_pol);
-    add_ifs(stream, idx, is_passive);
+    add_flag_delim(stream, idx, c_dominant);
+    add_ifs(stream, idx);
     stream.len := idx;
   end procedure truncate_error;
 
   procedure truncate_overload (
-    variable stream     : inout t_bus_stream;
-    constant inject_pos : in    integer;
-    constant is_passive : in    boolean := false
+    variable stream     : inOut t_bus_stream;
+    constant inject_pos : in    integer
   ) is
     variable idx : integer := inject_pos + 1;
   begin
     add_flag_delim(stream, idx, c_dominant);
-    add_ifs(stream, idx, is_passive);
+    add_ifs(stream, idx);
     stream.len := idx;
   end procedure truncate_overload;
 
   procedure truncate_reactive_overload (
-    variable stream     : inout t_bus_stream;
-    constant inject_pos : in    integer;
-    constant is_passive : in    boolean := false
+    variable stream     : inOut t_bus_stream;
+    constant inject_pos : in    integer
   ) is
-    variable idx      : integer   := inject_pos + 1;
-    variable flag_pol : std_logic := c_dominant;
+    variable idx : integer := inject_pos + 1;
   begin
-    if (is_passive) then flag_pol := c_recessive; end if;
-    add_flag_delim(stream, idx, flag_pol);
     add_flag_delim(stream, idx, c_dominant);
-    add_ifs(stream, idx, is_passive);
+    add_flag_delim(stream, idx, c_dominant);
+    add_ifs(stream, idx);
     stream.len := idx;
   end procedure truncate_reactive_overload;
 
@@ -477,32 +437,28 @@ begin
   end process p_timeout;
 
   p_init : process is
-    variable v_test_id     : AlertLogIDType;
-    variable v_reset_id    : AlertLogIDType;
-    variable v_status_id   : AlertLogIDType;
-    variable v_stream_id   : AlertLogIDType;
-    variable v_fce_chk_id  : AlertLogIDType;
+    variable v_test_id   : AlertLogIDType;
+    variable v_reset_id  : AlertLogIDType;
+    variable v_status_id : AlertLogIDType;
+    variable v_stream_id : AlertLogIDType;
     variable v_fmt_cov : CoverageIDType;
     variable v_dlc_cov : CoverageIDType;
     variable v_inj_cov : CoverageIDType;
     variable v_pos_cov : CoverageIDType;
-    variable v_fce_cov : CoverageIDType;
   begin
     RV.InitSeed(random_seed);
     SetAlertStopCount(ERROR, 10);
     SetLogEnable(INFO, false);
     SetLogEnable(DEBUG, false);
-    v_test_id := NewID("can_mac_tx");
-    v_reset_id   := NewID("Reset check", v_test_id);
-    v_status_id  := NewID("Transfer Status check", v_test_id);
-    v_stream_id  := NewID("Bus stream check", v_test_id);
-    v_fce_chk_id := NewID("FCE event check", v_test_id);
+    v_test_id   := NewID("can_mac_tx");
+    v_reset_id  := NewID("Reset check", v_test_id);
+    v_status_id := NewID("Transfer Status check", v_test_id);
+    v_stream_id := NewID("Bus stream check", v_test_id);
 
     v_fmt_cov := NewID("Format Coverage", v_test_id);
     v_dlc_cov := NewID("DLC Coverage", v_test_id);
     v_inj_cov := NewID("Error Injection Coverage", v_test_id);
     v_pos_cov := NewID("Error Injection Position Coverage", v_test_id);
-    v_fce_cov := NewID("FCE State Coverage", v_test_id);
     pcs_rec.BurstFifo <= NewID("PCS VC Burst fifo");
 
     AddBins(v_fmt_cov, GenBin(c_bin_num, (to_integer(unsigned(c_llc_fmt_cb)),
@@ -514,18 +470,15 @@ begin
                                          c_inj_overload, c_inj_reactive_overload,
                                          c_inj_error_delim_too_late)));
     AddBins(v_pos_cov, GenBin(1, c_min_err_pos, c_max_err_pos, c_pos_bin_num));
-    AddBins(v_fce_cov, GenBin(c_bin_num, (c_fce_active, c_fce_passive)));
 
     test_id         <= v_test_id;
     reset_check_id  <= v_reset_id;
     status_check_id <= v_status_id;
     stream_check_id <= v_stream_id;
-    fce_check_id    <= v_fce_chk_id;
     fmt_cov <= v_fmt_cov;
     dlc_cov <= v_dlc_cov;
     inj_cov <= v_inj_cov;
     pos_cov <= v_pos_cov;
-    fce_cov <= v_fce_cov;
 
     WaitForBarrier(init_barrier);
     wait;
@@ -547,30 +500,6 @@ begin
     );
 
   ----------------------------------------------------------------------------
-  -- FCE Verification Component --   SEND:  set fce_i level signals.  CHECK: compare fce_latch after frame. ----------------------------------------------------------------------------
-  p_fce_vc : process is
-  begin
-    fce_i.error_passive_request <= '0';
-    fce_i.error_active_request  <= '1';
-    fce_i.bus_off               <= '0';
-    WaitForBarrier(init_barrier);
-
-    fce_vc_loop : loop
-      WaitForTransaction(fce_rec.Rdy, fce_rec.Ack);
-      case fce_rec.Operation is
-        when SEND =>
-          fce_i.error_passive_request <= fce_rec.DataToModel(0);
-          fce_i.error_active_request  <= fce_rec.DataToModel(1);
-          fce_i.bus_off               <= fce_rec.DataToModel(2);
-        when CHECK =>
-          wait until rising_edge(clk) and status_latch /= c_ongoing;
-          AffirmIfEqual(fce_check_id, fce_latch, std_logic_vector(fce_rec.DataToModel(c_fce_latch_width - 1 downto 0)), "FCE events");
-        when others => null;
-      end case;
-    end loop;
-  end process p_fce_vc;
-
-  ----------------------------------------------------------------------------
   -- Transfer status latch (clears on SOP handshake)
   ----------------------------------------------------------------------------
   p_status_latch : process (clk) is
@@ -587,36 +516,6 @@ begin
   end process p_status_latch;
 
   ----------------------------------------------------------------------------
-  -- FCE event latch (sticky-OR of pulses, clears on SOP handshake)
-  ----------------------------------------------------------------------------
-  p_fce_latch : process (clk) is
-  begin
-    if rising_edge(clk) then
-      if (reset = '1') then
-        fce_latch <= (others => '0');
-      elsif (llc_i.avalon_st_source.startofpacket = '1' and llc_o.avalon_st_sink.ready = '1') then
-        fce_latch <= (others => '0');
-      else
-        if (fce_o.successful_transfer = '1') then
-          fce_latch(c_fce_successful_transfer) <= '1';
-        end if;
-        if (fce_o.error = '1') then
-          fce_latch(c_fce_error) <= '1';
-        end if;
-        if (fce_o.primary_error = '1') then
-          fce_latch(c_fce_primary_error) <= '1';
-        end if;
-        if (fce_o.counters_unchanged = '1') then
-          fce_latch(c_fce_counters_unchanged) <= '1';
-        end if;
-        if (fce_o.error_delimiter_too_late = '1') then
-          fce_latch(c_fce_error_delim_too_late) <= '1';
-        end if;
-      end if;
-    end if;
-  end process p_fce_latch;
-
-  ----------------------------------------------------------------------------
   -- LLC Verification Component
   ----------------------------------------------------------------------------
   p_llc_vc : process is
@@ -627,7 +526,6 @@ begin
       WaitForTransaction(llc_rec.Rdy, llc_rec.Ack);
       case llc_rec.Operation is
         when SEND =>
-          -- Avalon-ST send
           llc_i.avalon_st_source.valid         <= '1';
           llc_i.avalon_st_source.data          <= std_logic_vector(llc_rec.DataToModel(t_byte'range));
           llc_i.avalon_st_source.startofpacket <= llc_rec.ParamToModel(1);
@@ -840,9 +738,6 @@ begin
     variable v_inj_pos     : integer;
     variable v_candidate   : integer;
     variable v_exp_status  : std_logic_vector(2 downto 0);
-    variable v_exp_fce     : std_logic_vector(c_fce_latch_width - 1 downto 0);
-    variable v_fce_state   : integer;
-    variable v_is_passive  : boolean;
   begin
     WaitForBarrier(init_barrier);
     wait until reset = '0';
@@ -857,48 +752,28 @@ begin
     AffirmIfEqual(reset_check_id, pcs_o.valid, '0', "PCS valid");
     AffirmIfEqual(reset_check_id, pcs_o.use_data_rate, '0', "PCS use_data_rate");
     AffirmIfEqual(reset_check_id, pcs_o.start_tdc, '0', "PCS start_tdc");
-    AffirmIfEqual(reset_check_id, fce_o.transmitting, '0', "FCE transmitting");
-    AffirmIfEqual(reset_check_id, fce_o.error, '0', "FCE error");
-    AffirmIfEqual(reset_check_id, fce_o.primary_error, '0', "FCE primary_error");
-    AffirmIfEqual(reset_check_id, fce_o.sending_error_overload_flag, '0', "FCE sending_error_overload_flag");
-    AffirmIfEqual(reset_check_id, fce_o.counters_unchanged, '0', "FCE counters_unchanged");
-    AffirmIfEqual(reset_check_id, fce_o.error_delimiter_too_late, '0', "FCE error_delimiter_too_late");
-    AffirmIfEqual(reset_check_id, fce_o.successful_transfer, '0', "FCE successful_transfer");
 
     Print("--------------------------------------------------------------------------");
     Print("Test 2: Bus reintegration");
     Print("--------------------------------------------------------------------------");
-    -- Activate SP strobes; FSM should remain in s_bus_reintegration for 11 SPs
     SendAsync(pcs_rec, std_logic_vector(to_unsigned(c_pcs_active, c_rec_width)));
     for sp_idx in 0 to c_bus_idle_condition_width - 2 loop
       wait until rising_edge(clk) and pcs_i.sp = '1';
       AffirmIfEqual(reset_check_id, pcs_o.valid, '0',
                     "Reintegration: valid=0 at SP " & to_string(sp_idx));
     end loop;
-    -- After the 11th SP the FSM transitions to s_bus_idle (still valid='0')
     wait until rising_edge(clk) and pcs_i.sp = '1';
     AffirmIfEqual(reset_check_id, pcs_o.valid, '0',
                   "Bus idle: valid=0 (no pending frame)");
 
     Print("--------------------------------------------------------------------------");
-    Print("Test 3: Coverage-driven random frames");
+    Print("Test 3: Coverage-driven random frames with error injection");
     Print("--------------------------------------------------------------------------");
     frame_loop : while not (IsCovered(fmt_cov) and IsCovered(dlc_cov) and
-                            IsCovered(inj_cov) and IsCovered(pos_cov) and
-                            IsCovered(fce_cov)) loop
+                            IsCovered(inj_cov) and IsCovered(pos_cov)) loop
       v_frame_count := v_frame_count + 1;
 
-      -- Coverage-driven FCE state (must precede stream generation for suspend bits)
-      v_fce_state  := GetRandPoint(fce_cov);
-      v_is_passive := v_fce_state = c_fce_passive;
-
-      gen_frame(v_frame, v_metadata, v_last_byte, v_stream, v_is_passive);
-
-      if (v_is_passive) then
-        Send(fce_rec, x"0001");  -- error_passive=1, error_active=0, bus_off=0
-      else
-        Send(fce_rec, x"0002");  -- error_passive=0, error_active=1, bus_off=0
-      end if;
+      gen_frame(v_frame, v_metadata, v_last_byte, v_stream);
 
       -- Once inj_cov met, focus on position coverage
       if (IsCovered(inj_cov) and not IsCovered(pos_cov)) then
@@ -907,34 +782,17 @@ begin
         v_inj_type := GetRandPoint(inj_cov);
       end if;
 
-      v_exp_fce := (others => '0');
-
       case v_inj_type is
         when c_inj_ack =>
-          v_inj_pos     := v_stream.ack_pos;
-          v_exp_status  := c_transmitted;
-          v_exp_fce(c_fce_successful_transfer) := '1';
+          v_inj_pos    := v_stream.ack_pos;
+          v_exp_status := c_transmitted;
 
         when c_inj_ack_error =>
-          v_inj_pos     := v_stream.ack_pos;
-          v_exp_status  := c_disturbed;
-          v_exp_fce(c_fce_error) := '1';
-          if (v_is_passive) then
-            -- ISO 8.1.4.2 rule c) Exception 1: passive TX ACK error,
-            -- no dominant seen during passive EF -> counters_unchanged
-            v_exp_fce(c_fce_counters_unchanged) := '1';
-          else
-            -- Active error flag transmits dominant -> primary_error fires
-            v_exp_fce(c_fce_primary_error) := '1';
-          end if;
-          -- ACK error detected at ACK delimiter (ack_pos + 1), error flag
-          -- starts at bit after that: ack_pos + 2
-          truncate_error(v_stream, v_stream.ack_pos + 2, v_is_passive);
+          v_inj_pos    := v_stream.ack_pos;
+          v_exp_status := c_disturbed;
+          truncate_error(v_stream, v_stream.ack_pos + 2);
 
         when c_inj_error =>
-          -- Coverage-driven position: try uncovered bins that fit within
-          -- this frame's valid range [arb_end, ack_pos-2].
-          -- Arb field excluded (ISO 6.6.21.2.a Exception 1).
           v_inj_pos := RV.RandInt(v_stream.arb_end, v_stream.ack_pos - 2);
           for attempt in 0 to 9 loop
             v_candidate := GetRandPoint(pos_cov);
@@ -943,49 +801,31 @@ begin
               exit;
             end if;
           end loop;
-          v_exp_status  := c_disturbed;
-          v_exp_fce(c_fce_error) := '1';
-          if (not v_is_passive) then
-            v_exp_fce(c_fce_primary_error) := '1';
-          end if;
-          truncate_error(v_stream, v_inj_pos + 1, v_is_passive);
+          v_exp_status := c_disturbed;
+          truncate_error(v_stream, v_inj_pos + 1);
 
         when c_inj_lost_arb =>
-          v_exp_status  := c_lost_arb;
+          v_exp_status := c_lost_arb;
           v_frame(2)(c_byte_width - 1) := c_recessive;
           v_metadata := extract_metadata(v_frame(0), v_frame(1));
-          v_stream   := build_bus_stream(v_frame, v_metadata, v_is_passive);
+          v_stream   := build_bus_stream(v_frame, v_metadata);
           v_inj_pos    := 1;
           v_stream.len := v_inj_pos + 1;
 
         when c_inj_overload =>
-          v_inj_pos     := v_stream.ack_pos;
-          v_exp_status  := c_transmitted;
-          v_exp_fce(c_fce_successful_transfer) := '1';
-          truncate_overload(v_stream, v_stream.ack_pos + c_ifs_offset, v_is_passive);
+          v_inj_pos    := v_stream.ack_pos;
+          v_exp_status := c_transmitted;
+          truncate_overload(v_stream, v_stream.ack_pos + c_ifs_offset);
 
         when c_inj_reactive_overload =>
-          -- Bit error + dominant at last error delimiter bit -> reactive OF
-          v_inj_pos     := RV.RandInt(v_stream.arb_end, v_stream.ack_pos - 2);
-          v_exp_status  := c_disturbed;
-          v_exp_fce(c_fce_error) := '1';
-          if (not v_is_passive) then
-            v_exp_fce(c_fce_primary_error) := '1';
-          end if;
-          truncate_reactive_overload(v_stream, v_inj_pos, v_is_passive);
+          v_inj_pos    := RV.RandInt(v_stream.arb_end, v_stream.ack_pos - 2);
+          v_exp_status := c_disturbed;
+          truncate_reactive_overload(v_stream, v_inj_pos);
 
         when c_inj_error_delim_too_late =>
-          -- Bit error + 8 dominant during error delimiter
-          v_inj_pos     := RV.RandInt(v_stream.arb_end, v_stream.ack_pos - 2);
-          v_exp_status  := c_disturbed;
-          v_exp_fce(c_fce_error) := '1';
-          v_exp_fce(c_fce_error_delim_too_late) := '1';
-          if (not v_is_passive) then
-            v_exp_fce(c_fce_primary_error) := '1';
-          end if;
-          -- Same TX output as reactive overload (overload triggered by
-          -- dominant at last delimiter bit)
-          truncate_reactive_overload(v_stream, v_inj_pos, v_is_passive);
+          v_inj_pos    := RV.RandInt(v_stream.arb_end, v_stream.ack_pos - 2);
+          v_exp_status := c_disturbed;
+          truncate_reactive_overload(v_stream, v_inj_pos);
 
         when others =>
           null;
@@ -996,11 +836,7 @@ begin
           " dlc=" & to_hstring(v_metadata.dlc) &
           " inj=" & to_string(v_inj_type) &
           " pos=" & to_string(v_inj_pos) &
-          " fce=" & to_string(v_fce_state) &
           " len=" & to_string(v_stream.len) &
-          " fdf=" & to_string(v_stream.fdf_pos) &
-          " dp_start=" & to_string(v_stream.data_phase_start) &
-          " dp_end=" & to_string(v_stream.data_phase_end) &
           " ack=" & to_string(v_stream.ack_pos) &
           " arb_end=" & to_string(v_stream.arb_end), DEBUG);
 
@@ -1024,7 +860,6 @@ begin
             pcs_data_phase_end <= v_inj_pos;
           end if;
         when c_inj_ack_error =>
-          -- Error after ACK delimiter; full data phase already complete
           null;
         when others =>
           null;
@@ -1051,24 +886,18 @@ begin
       -- Check received bit stream
       CheckBurst(pcs_rec, GetFifoCount(pcs_rec.BurstFifo));
 
-      -- Check transfer status via latch (handles transient statuses)
+      -- Check transfer status
       Check(llc_rec, v_exp_status);
 
-      -- Check FCE events via latch (waits for status_latch to settle)
-      Check(fce_rec, std_logic_vector(resize(unsigned(v_exp_fce), c_rec_width)));
-
-      -- Only sample coverage on successful transmission
+      -- Only sample format/DLC coverage on successful transmission
       if (v_inj_type = c_inj_ack or v_inj_type = c_inj_overload) then
         ICover(fmt_cov, to_integer(unsigned(v_metadata.format)));
         ICover(dlc_cov, to_integer(unsigned(v_metadata.dlc)));
       end if;
       ICover(inj_cov, v_inj_type);
-      ICover(fce_cov, v_fce_state);
       if (v_inj_type = c_inj_error) then
         ICover(pos_cov, v_inj_pos);
       end if;
-
-      -- CheckBurst blocks until PCS VC verifies all bits including IFS
 
     end loop frame_loop;
 
@@ -1076,7 +905,6 @@ begin
     AffirmIf(GetAlertLogID(dlc_cov), IsCovered(dlc_cov), "DLC coverage met");
     AffirmIf(GetAlertLogID(inj_cov), IsCovered(inj_cov), "Injection coverage met");
     AffirmIf(GetAlertLogID(pos_cov), IsCovered(pos_cov), "Position coverage met");
-    AffirmIf(GetAlertLogID(fce_cov), IsCovered(fce_cov), "FCE State coverage met");
 
     Print("----------------------------------------------------------------------------");
     Print("Test done!");
@@ -1085,7 +913,6 @@ begin
     WriteBin(dlc_cov);
     WriteBin(inj_cov);
     WriteBin(pos_cov);
-    WriteBin(fce_cov);
     EndOfTestReports(ReportAll => true);
     std.env.finish;
     wait;
