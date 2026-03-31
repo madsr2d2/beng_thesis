@@ -71,6 +71,7 @@ begin
 
   p_init : process
   begin
+    RV.InitSeed(random_seed);
     SetTestName("can_mac_bs_tb");
     SetAlertStopCount(ERROR, 10);
     wait;
@@ -91,8 +92,6 @@ begin
     variable rnd : RandomPType;
 
   begin
-
-    rnd.InitSeed(random_seed);
 
     wait until rst_i = '0';
     WaitForClock(clk_i);

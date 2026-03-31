@@ -88,8 +88,6 @@ begin
 
   begin
 
-    rnd.InitSeed(rnd'instance_name & to_string(now));
-
     wait until rst_i = '0';
     WaitForClock(clk_i);
 

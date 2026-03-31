@@ -110,7 +110,6 @@ begin
   p_init : process
     variable v_cov : CoverageIdType;
   begin
-    rv.InitSeed(rv'instance_name);
     SetAlertStopCount(ERROR, 10);
 
     reset_id         <= NewId("Reset");

@@ -114,7 +114,7 @@ begin
   p_init : process
     variable v_cov : CoverageIdType;
   begin
-    rv.InitSeed(random_seed);
+    RV.InitSeed(random_seed);
     SetAlertStopCount(ERROR, 10);
 
     reset_id         <= NewId("Reset");

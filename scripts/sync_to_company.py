@@ -117,18 +117,21 @@ def add_company_tb_imports(lines: list[str]) -> list[str]:
     return out
 
 
-def replace_initseed_with_random_seed(lines: list[str]) -> list[str]:
-    """Replace local OSVVM seed calls with company random_seed constant."""
+def insert_random_seed_init(lines: list[str]) -> list[str]:
+    """Insert 'RV.InitSeed(random_seed);' after the first 'begin' in p_init."""
     out = []
+    in_init = False
+    inserted = False
     for line in lines:
-        # Match patterns like: rv.InitSeed(rv'instance_name); or
-        # rnd.InitSeed(rnd'instance_name & to_string(now));
-        new_line = re.sub(
-            r"(\w+)\.InitSeed\((?:[^()]*\([^()]*\))*[^()]*\)",
-            r"\1.InitSeed(random_seed)",
-            line,
-        )
-        out.append(new_line)
+        out.append(line)
+        if not inserted:
+            if re.match(r"\s*p_init\s*:", line):
+                in_init = True
+            elif in_init and re.match(r"\s*begin\s*$", line):
+                indent = re.match(r"(\s*)", line).group(1)
+                out.append(f"{indent}  RV.InitSeed(random_seed);\n")
+                inserted = True
+                in_init = False
     return out
 
 
@@ -202,7 +205,7 @@ def transform(content: str, module: str, filename: str) -> str:
     # TB files: add company imports and replace seed initialisation
     if "_tb" in filename:
         lines = add_company_tb_imports(lines)
-        lines = replace_initseed_with_random_seed(lines)
+        lines = insert_random_seed_init(lines)
 
     lines = add_pk_man_global(lines)
     return "".join(lines)
