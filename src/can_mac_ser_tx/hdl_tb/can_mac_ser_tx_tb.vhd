@@ -40,13 +40,9 @@ architecture tb of can_mac_ser_tx_tb is
   ----------------------------------------------------------------------------
   -- Constants
   ----------------------------------------------------------------------------
-  constant c_config_bytes    : integer  := 2;
-  constant c_first_data_byte : integer  := c_config_bytes + c_llc_id_byte_count;
-  constant c_cb_cov_bin      : integer := to_integer(unsigned(c_llc_fmt_cb));
-  constant c_ce_cov_bin      : integer := to_integer(unsigned(c_llc_fmt_ce));
-  constant c_fb_cov_bin      : integer := to_integer(unsigned(c_llc_fmt_fb));
-  constant c_bin_num         : integer := 100;
-  constant c_fe_cov_bin      : integer := to_integer(unsigned(c_llc_fmt_fe));
+  constant c_config_bytes      : integer  := 2;
+  constant c_first_data_byte   : integer  := c_config_bytes + c_llc_id_byte_count;
+  constant c_bin_num           : integer := 100;
   constant c_metadata_check    : std_logic_vector_max_c := "01";
   constant c_bit_stream_check  : std_logic_vector_max_c := "10";
 
@@ -65,7 +61,8 @@ architecture tb of can_mac_ser_tx_tb is
   -- OSVVM signals
   shared variable RV  : RandomPType;
   signal test_id      : AlertLogIDType;
-  signal fmt_cov      : CoverageIDType;
+  signal ide_cov      : CoverageIDType;
+  signal fdf_cov      : CoverageIDType;
   signal dlc_cov      : CoverageIDType;
   signal init_barrier : std_logic := '0';
   signal llc_rec : StreamRecType(
@@ -128,22 +125,26 @@ begin
 
   p_init : process is
     variable v_test_id : AlertLogIDType;
-    variable v_fmt_cov : CoverageIDType;
+    variable v_ide_cov : CoverageIDType;
+    variable v_fdf_cov : CoverageIDType;
     variable v_dlc_cov : CoverageIDType;
   begin
     SetAlertStopCount(ERROR, 10);
     SetLogEnable(INFO, TRUE);
     v_test_id := NewId("can_mac_ser_tx");
-    v_fmt_cov := NewID("Format Coverage", v_test_id);
+    v_ide_cov := NewID("IDE Coverage", v_test_id);
+    v_fdf_cov := NewID("FDF Coverage", v_test_id);
     v_dlc_cov := NewID("DLC Coverage", v_test_id);
     mac_fsm_rec.BurstFifo <= NewID("MacFsmBurstFifo", v_test_id);
 
     -- Add coverage bins
-    AddBins(v_fmt_cov, GenBin(c_bin_num, (c_cb_cov_bin, c_ce_cov_bin, c_fb_cov_bin, c_fe_cov_bin)));
+    AddBins(v_ide_cov, GenBin(c_bin_num, (0, 1)));
+    AddBins(v_fdf_cov, GenBin(c_bin_num, (0, 1)));
     AddBins(v_dlc_cov, GenBin(c_bin_num, 0, c_dlc_max, c_dlc_max + 1));
 
     test_id <= v_test_id;
-    fmt_cov <= v_fmt_cov;
+    ide_cov <= v_ide_cov;
+    fdf_cov <= v_fdf_cov;
     dlc_cov <= v_dlc_cov;
 
     WaitForBarrier(init_barrier);
@@ -207,7 +208,8 @@ begin
         when CHECK_BURST =>
           -- Metadata check
           if mac_fsm_rec.ParamToModel = c_metadata_check then
-            AffirmIfEqual(test_id, tx_mac_fsm_o.llc_metadata.format, Pop(mac_fsm_rec.BurstFifo), "FORMAT");
+            AffirmIfEqual(test_id, to_slv(tx_mac_fsm_o.llc_metadata.ide), Pop(mac_fsm_rec.BurstFifo), "IDE");
+            AffirmIfEqual(test_id, to_slv(tx_mac_fsm_o.llc_metadata.fdf), Pop(mac_fsm_rec.BurstFifo), "FDF");
             AffirmIfEqual(test_id, tx_mac_fsm_o.llc_metadata.dlc, Pop(mac_fsm_rec.BurstFifo), "DLC");
             AffirmIfEqual(test_id, to_slv(tx_mac_fsm_o.llc_metadata.ftyp), Pop(mac_fsm_rec.BurstFifo), "FTYP");
             AffirmIfEqual(test_id, to_slv(tx_mac_fsm_o.llc_metadata.brs), Pop(mac_fsm_rec.BurstFifo), "BRS");
@@ -267,7 +269,7 @@ begin
     WaitForClock(clk, 5);
 
     -- Loop until full coverage (each loop transmits a new frame)
-    frame_loop : while not (IsCovered(fmt_cov) and IsCovered(dlc_cov)) loop
+    frame_loop : while not (IsCovered(ide_cov) and IsCovered(fdf_cov) and IsCovered(dlc_cov)) loop
       v_frame_count := v_frame_count + 1;
 
       -- Set transfer_status to ongoing
@@ -278,16 +280,18 @@ begin
         v_frame(i) := RV.RandSlv(8);
       end loop;
 
-      -- Coverage-driven format and DLC
-      v_frame(0)(c_llc_frame_config_byte_0_format_start downto c_llc_frame_config_byte_0_format_end) := std_logic_vector(to_unsigned(GetRandPoint(fmt_cov), 3));
-      v_frame(1)(c_llc_frame_config_byte_1_dlc_start downto c_llc_frame_config_byte_1_dlc_end) := std_logic_vector(to_unsigned(GetRandPoint(dlc_cov), 4));
+      -- Coverage-driven IDE, FDF, and DLC
+      v_frame(0)(c_llc_frame_ide) := std_logic(to_unsigned(GetRandPoint(ide_cov), 1)(0));
+      v_frame(0)(c_llc_frame_fdf) := std_logic(to_unsigned(GetRandPoint(fdf_cov), 1)(0));
+      v_frame(0)(5)               := '0'; -- reserved
+      v_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) := std_logic_vector(to_unsigned(GetRandPoint(dlc_cov), 4));
 
       -- Extract metadata and compute frame length
       v_metadata  := extract_metadata(v_frame(0), v_frame(1));
-      v_last_byte := c_first_data_byte + dlc_to_data_length( t_dlc(to_integer(unsigned(v_metadata.dlc))), v_metadata.format) - 1;
+      v_last_byte := c_first_data_byte + dlc_to_data_length(t_dlc(to_integer(unsigned(v_metadata.dlc))), v_metadata.fdf) - 1;
 
       -- Initialize ID/padding counters (like in DUT)
-      if (v_metadata.format(2) = '1') then
+      if (v_metadata.ide = '1') then
         v_id_remaining  := c_base_id_width + c_extended_id_width;
         v_pad_remaining := c_llc_id_field_width - (c_base_id_width + c_extended_id_width);
       else
@@ -300,7 +304,8 @@ begin
       Send(llc_rec, v_frame(1), "00");
 
       -- Verify LLC metadata (Param="1" flags metadata check)
-      Push(mac_fsm_rec.BurstFifo, v_metadata.format);
+      Push(mac_fsm_rec.BurstFifo, to_slv(v_metadata.ide));
+      Push(mac_fsm_rec.BurstFifo, to_slv(v_metadata.fdf));
       Push(mac_fsm_rec.BurstFifo, v_metadata.dlc);
       Push(mac_fsm_rec.BurstFifo, to_slv(v_metadata.ftyp));
       Push(mac_fsm_rec.BurstFifo, to_slv(v_metadata.brs));
@@ -340,12 +345,14 @@ begin
 
       -- End transfer and sample coverage
       Send(mac_fsm_rec, Data => c_transmitted);
-      ICover(fmt_cov, to_integer(unsigned(v_metadata.format)));
+      ICover(ide_cov, to_integer(unsigned'(0 => v_metadata.ide)));
+      ICover(fdf_cov, to_integer(unsigned'(0 => v_metadata.fdf)));
       ICover(dlc_cov, to_integer(unsigned(v_metadata.dlc)));
       WaitForClock(clk, 2);
     end loop frame_loop;
 
-    WriteBin(fmt_cov);
+    WriteBin(ide_cov);
+    WriteBin(fdf_cov);
     WriteBin(dlc_cov);
     EndOfTestReports(ReportAll => true);
     std.env.finish;

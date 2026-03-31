@@ -106,8 +106,7 @@ add wave -vgroup crc_fd_inst \
 	( -decimal /can_mac_tx_tb/u_dut/crc_fd_inst/crc_o ) \
 	( -literal /can_mac_tx_tb/u_dut/crc_fd_inst/crc15_out ) \
 	( -literal /can_mac_tx_tb/u_dut/crc_fd_inst/crc17_out ) \
-	( -literal /can_mac_tx_tb/u_dut/crc_fd_inst/crc21_out ) \
-	( -logic /can_mac_tx_tb/u_dut/crc_fd_inst/valid )
+	( -literal /can_mac_tx_tb/u_dut/crc_fd_inst/crc21_out )
 
 wv.cursors.add -time 0ns -name {Default cursor}
 wv.cursors.setactive -name {Default cursor}

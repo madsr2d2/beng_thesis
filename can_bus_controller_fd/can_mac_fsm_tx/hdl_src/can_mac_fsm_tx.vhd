@@ -615,7 +615,7 @@ begin
                 bs_fd_o.data  <= bs_fd_i.data;
               end if;
               -- ISO 11898-1: 6.6.4.4 - Stuff bits in FD frames are included in CRC
-              if (mac_ser_i.llc_metadata.format(1) = '1' and bit_count < frame_params.crc_start) then
+              if (mac_ser_i.llc_metadata.fdf = '1' and bit_count < frame_params.crc_start) then
                 crc_o.valid <= '1';
                 crc_o.data  <= bs_fd_i.data;
               end if;

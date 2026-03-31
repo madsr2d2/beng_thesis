@@ -51,7 +51,7 @@ architecture tb of can_mac_bs_tb is
   signal cov_input  : CoverageIdType;
   signal cov_output : CoverageIdType;
   signal test_done  : resolved_barrier integer := 1;
-  signal RV : RandomPType;
+  shared variable RV : RandomPType;
 
 begin
 

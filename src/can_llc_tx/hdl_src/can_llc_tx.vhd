@@ -73,17 +73,10 @@ begin
 
     variable accepted_idx_v : integer;
     variable expected_len_v : integer;
-    variable format_v       : std_logic_vector(2 downto 0);
+    variable ide_v          : std_logic;
+    variable fdf_v          : std_logic;
     variable dlc_v          : t_dlc;
     variable data_len_v     : integer;
-    variable cfg_valid_v    : boolean;
-
-    -- Helper: check if format is valid
-    function is_valid_format (fmt : std_logic_vector(2 downto 0)) return boolean is
-    begin
-      return fmt = c_llc_fmt_cb or fmt = c_llc_fmt_ce or
-             fmt = c_llc_fmt_fb or fmt = c_llc_fmt_fe;
-    end function is_valid_format;
 
   begin
 
@@ -101,16 +94,16 @@ begin
         llc_user_o.avalon_st_sink.ready <= '1';
         llc_user_o.transfer_status      <= c_ongoing;
 
-        mac_o.avalon_st_source.data  <= (others => '0');
-        mac_o.avalon_st_source.valid <= '0';
-        mac_o.avalon_st_source.startofpacket   <= '0';
+        mac_o.avalon_st_source.data          <= (others => '0');
+        mac_o.avalon_st_source.valid         <= '0';
+        mac_o.avalon_st_source.startofpacket <= '0';
         mac_o.avalon_st_source.endofpacket   <= '0';
       else
         -- Defaults.
-        llc_user_o.avalon_st_sink.ready <= '0';
-        mac_o.avalon_st_source.valid    <= '0';
-        mac_o.avalon_st_source.startofpacket      <= '0';
-        mac_o.avalon_st_source.endofpacket      <= '0';
+        llc_user_o.avalon_st_sink.ready      <= '0';
+        mac_o.avalon_st_source.valid         <= '0';
+        mac_o.avalon_st_source.startofpacket <= '0';
+        mac_o.avalon_st_source.endofpacket   <= '0';
 
         case state is
 
@@ -151,36 +144,28 @@ begin
               state                      <= c_st_idle;
             elsif (llc_user_i.avalon_st_source.valid = '1') then
               expected_len_v := expected_len_bytes;
-              cfg_valid_v    := true;
               if (capture_index < c_max_llc_frame_bytes) then
                 frame_buf(capture_index) <= llc_user_i.avalon_st_source.data;
                 accepted_idx_v           := capture_index;
 
                 if (capture_index = 1) then
-                  format_v := frame_buf(0)(c_llc_frame_config_byte_0_format_start downto c_llc_frame_config_byte_0_format_end);
-                  if (not is_valid_format(format_v)) then
-                    cfg_valid_v                := false;
-                    llc_user_o.transfer_status <= c_aborted;
-                    state                      <= c_st_idle;
-                  else
-                    dlc_v              := t_dlc(
-                                                to_integer(
-                                                            unsigned(
-                                                                      llc_user_i.avalon_st_source.data(
-                                                                                                        c_llc_frame_config_byte_1_dlc_start downto c_llc_frame_config_byte_1_dlc_end
-                                                                                                      )
-                                                                    )
-                                                          )
-                                              );
-                    data_len_v         := dlc_to_data_length(dlc_v, format_v);
-                    expected_len_v     := c_llc_header_bytes + data_len_v;
-                    expected_len_bytes <= expected_len_v;
-                  end if;
+                  ide_v := frame_buf(0)(c_llc_frame_ide);
+                  fdf_v := frame_buf(0)(c_llc_frame_fdf);
+                  dlc_v := t_dlc(
+                                  to_integer(
+                                              unsigned(
+                                                        llc_user_i.avalon_st_source.data(
+                                                                                          c_llc_frame_dlc_start downto c_llc_frame_dlc_end
+                                                                                        )
+                                                      )
+                                            )
+                                );
+                  data_len_v         := dlc_to_data_length(dlc_v, fdf_v);
+                  expected_len_v     := c_llc_header_bytes + data_len_v;
+                  expected_len_bytes <= expected_len_v;
                 end if;
 
-                if (not cfg_valid_v) then
-                  null;
-                elsif (llc_user_i.avalon_st_source.endofpacket = '1' and accepted_idx_v + 1 < c_llc_header_bytes) then
+                if (llc_user_i.avalon_st_source.endofpacket = '1' and accepted_idx_v + 1 < c_llc_header_bytes) then
                   llc_user_o.transfer_status <= c_aborted;
                   state                      <= c_st_idle;
                 elsif (llc_user_i.avalon_st_source.endofpacket = '1') then
@@ -353,7 +338,8 @@ begin
 
   p_llc_fsm : process (clk) is
 
-    variable format_v   : std_logic_vector(2 downto 0);
+    variable ide_v      : std_logic;
+    variable fdf_v      : std_logic;
     variable dlc_v      : t_dlc;
     variable data_len_v : integer;
     variable is_ext_v   : boolean;
@@ -365,13 +351,6 @@ begin
     variable id1_v  : t_byte;
     variable id2_v  : t_byte;
     variable id3_v  : t_byte;
-
-    -- Helper: check if format is valid
-    function is_valid_format (fmt : std_logic_vector(2 downto 0)) return boolean is
-    begin
-      return fmt = c_llc_fmt_cb or fmt = c_llc_fmt_ce or
-             fmt = c_llc_fmt_fb or fmt = c_llc_fmt_fe;
-    end function is_valid_format;
 
     ---------------------------------------------------------------------------
     -- Build config_byte_1 from legacy byte 4
@@ -437,16 +416,16 @@ begin
         llc_user_o.avalon_st_sink.ready <= '1';
         llc_user_o.transfer_status      <= c_ongoing;
 
-        mac_o.avalon_st_source.data  <= (others => '0');
-        mac_o.avalon_st_source.valid <= '0';
-        mac_o.avalon_st_source.startofpacket   <= '0';
+        mac_o.avalon_st_source.data          <= (others => '0');
+        mac_o.avalon_st_source.valid         <= '0';
+        mac_o.avalon_st_source.startofpacket <= '0';
         mac_o.avalon_st_source.endofpacket   <= '0';
       else
         -- Defaults.
-        llc_user_o.avalon_st_sink.ready <= '0';
-        mac_o.avalon_st_source.valid    <= '0';
-        mac_o.avalon_st_source.startofpacket      <= '0';
-        mac_o.avalon_st_source.endofpacket      <= '0';
+        llc_user_o.avalon_st_sink.ready      <= '0';
+        mac_o.avalon_st_source.valid         <= '0';
+        mac_o.avalon_st_source.startofpacket <= '0';
+        mac_o.avalon_st_source.endofpacket   <= '0';
 
         case state is
 
@@ -492,58 +471,54 @@ begin
                   if (capture_index = c_legacy_frame_len - 1) then
                     -- Full 71-byte legacy frame received. Perform in-place conversion.
 
-                    -- Decode format from byte 4 (already in frame_buf from a prior cycle)
-                    format_v := frame_buf(c_legacy_fmt_dlc_byte)(6 downto 4);
+                    -- Decode IDE and FDF from byte 4 (already in frame_buf from a prior cycle)
+                    -- Legacy byte 4: [6]=IDE, [5]=FDF, [4]=unused
+                    ide_v    := frame_buf(c_legacy_fmt_dlc_byte)(6);
+                    fdf_v    := frame_buf(c_legacy_fmt_dlc_byte)(5);
+                    is_ext_v := ide_v = '1';
 
-                    if (not is_valid_format(format_v)) then
-                      llc_user_o.transfer_status <= c_aborted;
-                      state                      <= c_st_idle;
-                    else
-                      is_ext_v := frame_buf(c_legacy_fmt_dlc_byte)(6) = '1';
+                    -- Build config_byte_0: needs bytes 4 and 70.
+                    -- Byte 70 is the current input (not yet in frame_buf signal).
+                    cfg0_v(c_llc_frame_ide)  := ide_v;
+                    cfg0_v(c_llc_frame_fdf)  := fdf_v;
+                    cfg0_v(5)                := '0';                                                            -- reserved
+                    cfg0_v(c_llc_frame_ftyp) := llc_user_i.avalon_st_source.data(0);                            -- RTR
+                    cfg0_v(c_llc_frame_esi)  := llc_user_i.avalon_st_source.data(1);                            -- ESI
+                    cfg0_v(c_llc_frame_brs)  := llc_user_i.avalon_st_source.data(2);                            -- BRS
+                    cfg0_v(1 downto 0)       := "00";
 
-                      -- Build config_byte_0: needs bytes 4 and 70.
-                      -- Byte 70 is the current input (not yet in frame_buf signal).
-                      cfg0_v(7)          := frame_buf(c_legacy_fmt_dlc_byte)(6);
-                      cfg0_v(6)          := frame_buf(c_legacy_fmt_dlc_byte)(5);
-                      cfg0_v(5)          := frame_buf(c_legacy_fmt_dlc_byte)(4);
-                      cfg0_v(4)          := llc_user_i.avalon_st_source.data(0); -- RTR
-                      cfg0_v(3)          := llc_user_i.avalon_st_source.data(1); -- ESI
-                      cfg0_v(2)          := llc_user_i.avalon_st_source.data(2); -- BRS
-                      cfg0_v(1 downto 0) := "00";
+                    -- Build config_byte_1 from byte 4 (already buffered)
+                    build_config_byte_1(frame_buf, cfg1_v);
 
-                      -- Build config_byte_1 from byte 4 (already buffered)
-                      build_config_byte_1(frame_buf, cfg1_v);
+                    -- Repack ID from bytes 0-3 (already buffered)
+                    repack_id(frame_buf, is_ext_v, id0_v, id1_v, id2_v, id3_v);
 
-                      -- Repack ID from bytes 0-3 (already buffered)
-                      repack_id(frame_buf, is_ext_v, id0_v, id1_v, id2_v, id3_v);
+                    -- Compute data length
+                    dlc_v      := t_dlc(
+                                        to_integer(
+                                                    unsigned(
+                                                              frame_buf(c_legacy_fmt_dlc_byte)(3 downto 0)
+                                                            )
+                                                  )
+                                      );
+                    data_len_v := dlc_to_data_length(dlc_v, fdf_v);
 
-                      -- Compute data length
-                      dlc_v := t_dlc(
-                                      to_integer(
-                                                  unsigned(
-                                                            frame_buf(c_legacy_fmt_dlc_byte)(3 downto 0)
-                                                          )
-                                                )
-                                    );
-                      data_len_v := dlc_to_data_length(dlc_v, format_v);
+                    -- Shift data bytes up by one slot (index 5+i -> 6+i).
+                    for i in data_len_v - 1 downto 0 loop
+                      frame_buf(c_llc_header_bytes + i) <= frame_buf(c_legacy_data_offset + i);
+                    end loop;
 
-                      -- Shift data bytes up by one slot (index 5+i -> 6+i).
-                      for i in data_len_v - 1 downto 0 loop
-                        frame_buf(c_llc_header_bytes + i) <= frame_buf(c_legacy_data_offset + i);
-                      end loop;
+                    -- Write converted header into frame_buf
+                    frame_buf(0) <= cfg0_v;
+                    frame_buf(1) <= cfg1_v;
+                    frame_buf(2) <= id0_v;
+                    frame_buf(3) <= id1_v;
+                    frame_buf(4) <= id2_v;
+                    frame_buf(5) <= id3_v;
 
-                      -- Write converted header into frame_buf
-                      frame_buf(0) <= cfg0_v;
-                      frame_buf(1) <= cfg1_v;
-                      frame_buf(2) <= id0_v;
-                      frame_buf(3) <= id1_v;
-                      frame_buf(4) <= id2_v;
-                      frame_buf(5) <= id3_v;
-
-                      frame_len_bytes <= c_llc_header_bytes + data_len_v;
-                      tx_index        <= 0;
-                      state           <= c_st_send_frame;
-                    end if;
+                    frame_len_bytes <= c_llc_header_bytes + data_len_v;
+                    tx_index        <= 0;
+                    state           <= c_st_send_frame;
                   else
                     -- EOP arrived before byte 70 - incomplete legacy frame.
                     llc_user_o.transfer_status <= c_aborted;

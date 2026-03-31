@@ -228,8 +228,6 @@ top.can_mac_tx_tb.u_dut.crc_fd_inst.crc15_out
 top.can_mac_tx_tb.u_dut.crc_fd_inst.crc17_out
 @22
 top.can_mac_tx_tb.u_dut.crc_fd_inst.crc21_out
-@28
-top.can_mac_tx_tb.u_dut.crc_fd_inst.valid
 @1401200
 -crc_fd_inst
 [pattern_trace] 1

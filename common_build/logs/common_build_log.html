@@ -1,0 +1,88 @@
+<html>
+<style>
+details > summary {
+  position: sticky; 
+  top: 0; 
+}
+details[open] > summary {
+  color: white; 
+  background: black; 
+}
+.SummaryEnd {
+  color: white; 
+  background: gray; 
+}
+</style>
+<body>
+<pre>
+<details><summary>build OsvvmLibraries/src/common/build.pro</summary>
+Starting Build at time 23:14:44
+set CurrentWorkingDirectory OsvvmLibraries/src/common
+source OsvvmLibraries/src/common/build.pro
+library osvvm_common /home/madsr2d2/beng_thesis/VHDL_LIBS/GHDL-6.0.0-dev
+creating directory VHDL_LIBS/GHDL-6.0.0-dev/osvvm_common/v08
+</details><details><summary>include src </summary>
+set CurrentWorkingDirectory OsvvmLibraries/src/common/src
+source OsvvmLibraries/src/common/src/build.pro
+library osvvm_common /home/madsr2d2/beng_thesis/VHDL_LIBS/GHDL-6.0.0-dev
+</details><details><summary>analyze ModelParametersPtPkg.vhd</summary>
+ghdl -a --std=08 -Wno-library -Wno-hide --work=osvvm_common --workdir=VHDL_LIBS/GHDL-6.0.0-dev/osvvm_common/v08 -P/home/madsr2d2/beng_thesis/VHDL_LIBS/GHDL-6.0.0-dev OsvvmLibraries/src/common/src/ModelParametersPtPkg.vhd
+
+</details><details><summary>analyze ModelParametersSingletonPkg.vhd</summary>
+ghdl -a --std=08 -Wno-library -Wno-hide --work=osvvm_common --workdir=VHDL_LIBS/GHDL-6.0.0-dev/osvvm_common/v08 -P/home/madsr2d2/beng_thesis/VHDL_LIBS/GHDL-6.0.0-dev OsvvmLibraries/src/common/src/ModelParametersSingletonPkg.vhd
+
+</details><details><summary>analyze FifoFillPkg_slv.vhd</summary>
+ghdl -a --std=08 -Wno-library -Wno-hide --work=osvvm_common --workdir=VHDL_LIBS/GHDL-6.0.0-dev/osvvm_common/v08 -P/home/madsr2d2/beng_thesis/VHDL_LIBS/GHDL-6.0.0-dev OsvvmLibraries/src/common/src/FifoFillPkg_slv.vhd
+
+</details><details><summary>analyze deprecated/StreamTransactionPkg.vhd</summary>
+ghdl -a --std=08 -Wno-library -Wno-hide --work=osvvm_common --workdir=VHDL_LIBS/GHDL-6.0.0-dev/osvvm_common/v08 -P/home/madsr2d2/beng_thesis/VHDL_LIBS/GHDL-6.0.0-dev OsvvmLibraries/src/common/src/deprecated/StreamTransactionPkg.vhd
+
+</details><details><summary>analyze deprecated/StreamTransactionArrayPkg.vhd</summary>
+ghdl -a --std=08 -Wno-library -Wno-hide --work=osvvm_common --workdir=VHDL_LIBS/GHDL-6.0.0-dev/osvvm_common/v08 -P/home/madsr2d2/beng_thesis/VHDL_LIBS/GHDL-6.0.0-dev OsvvmLibraries/src/common/src/deprecated/StreamTransactionArrayPkg.vhd
+
+</details><details><summary>analyze deprecated/AddressBusTransactionPkg.vhd</summary>
+ghdl -a --std=08 -Wno-library -Wno-hide --work=osvvm_common --workdir=VHDL_LIBS/GHDL-6.0.0-dev/osvvm_common/v08 -P/home/madsr2d2/beng_thesis/VHDL_LIBS/GHDL-6.0.0-dev OsvvmLibraries/src/common/src/deprecated/AddressBusTransactionPkg.vhd
+
+</details><details><summary>analyze deprecated/AddressBusTransactionArrayPkg.vhd</summary>
+ghdl -a --std=08 -Wno-library -Wno-hide --work=osvvm_common --workdir=VHDL_LIBS/GHDL-6.0.0-dev/osvvm_common/v08 -P/home/madsr2d2/beng_thesis/VHDL_LIBS/GHDL-6.0.0-dev OsvvmLibraries/src/common/src/deprecated/AddressBusTransactionArrayPkg.vhd
+
+</details><details><summary>analyze deprecated/AddressBusResponderTransactionPkg.vhd</summary>
+ghdl -a --std=08 -Wno-library -Wno-hide --work=osvvm_common --workdir=VHDL_LIBS/GHDL-6.0.0-dev/osvvm_common/v08 -P/home/madsr2d2/beng_thesis/VHDL_LIBS/GHDL-6.0.0-dev OsvvmLibraries/src/common/src/deprecated/AddressBusResponderTransactionPkg.vhd
+
+</details><details><summary>analyze deprecated/AddressBusResponderTransactionArrayPkg.vhd</summary>
+ghdl -a --std=08 -Wno-library -Wno-hide --work=osvvm_common --workdir=VHDL_LIBS/GHDL-6.0.0-dev/osvvm_common/v08 -P/home/madsr2d2/beng_thesis/VHDL_LIBS/GHDL-6.0.0-dev OsvvmLibraries/src/common/src/deprecated/AddressBusResponderTransactionArrayPkg.vhd
+
+</details><details><summary>analyze AddressBusVersionCompatibilityPkg.vhd</summary>
+ghdl -a --std=08 -Wno-library -Wno-hide --work=osvvm_common --workdir=VHDL_LIBS/GHDL-6.0.0-dev/osvvm_common/v08 -P/home/madsr2d2/beng_thesis/VHDL_LIBS/GHDL-6.0.0-dev OsvvmLibraries/src/common/src/AddressBusVersionCompatibilityPkg.vhd
+
+</details><details><summary>analyze InterruptGlobalSignalPkg.vhd</summary>
+ghdl -a --std=08 -Wno-library -Wno-hide --work=osvvm_common --workdir=VHDL_LIBS/GHDL-6.0.0-dev/osvvm_common/v08 -P/home/madsr2d2/beng_thesis/VHDL_LIBS/GHDL-6.0.0-dev OsvvmLibraries/src/common/src/InterruptGlobalSignalPkg.vhd
+
+</details><details><summary>analyze InterruptHandler.vhd</summary>
+ghdl -a --std=08 -Wno-library -Wno-hide --work=osvvm_common --workdir=VHDL_LIBS/GHDL-6.0.0-dev/osvvm_common/v08 -P/home/madsr2d2/beng_thesis/VHDL_LIBS/GHDL-6.0.0-dev OsvvmLibraries/src/common/src/InterruptHandler.vhd
+
+</details><details><summary>analyze InterruptHandlerComponentPkg.vhd</summary>
+ghdl -a --std=08 -Wno-library -Wno-hide --work=osvvm_common --workdir=VHDL_LIBS/GHDL-6.0.0-dev/osvvm_common/v08 -P/home/madsr2d2/beng_thesis/VHDL_LIBS/GHDL-6.0.0-dev OsvvmLibraries/src/common/src/InterruptHandlerComponentPkg.vhd
+
+</details><details><summary>analyze InterruptGeneratorBit.vhd</summary>
+ghdl -a --std=08 -Wno-library -Wno-hide --work=osvvm_common --workdir=VHDL_LIBS/GHDL-6.0.0-dev/osvvm_common/v08 -P/home/madsr2d2/beng_thesis/VHDL_LIBS/GHDL-6.0.0-dev OsvvmLibraries/src/common/src/InterruptGeneratorBit.vhd
+
+</details><details><summary>analyze InterruptGeneratorBitVti.vhd</summary>
+ghdl -a --std=08 -Wno-library -Wno-hide --work=osvvm_common --workdir=VHDL_LIBS/GHDL-6.0.0-dev/osvvm_common/v08 -P/home/madsr2d2/beng_thesis/VHDL_LIBS/GHDL-6.0.0-dev OsvvmLibraries/src/common/src/InterruptGeneratorBitVti.vhd
+
+</details><details><summary>analyze InterruptGeneratorComponentPkg.vhd</summary>
+ghdl -a --std=08 -Wno-library -Wno-hide --work=osvvm_common --workdir=VHDL_LIBS/GHDL-6.0.0-dev/osvvm_common/v08 -P/home/madsr2d2/beng_thesis/VHDL_LIBS/GHDL-6.0.0-dev OsvvmLibraries/src/common/src/InterruptGeneratorComponentPkg.vhd
+
+</details><details><summary>analyze OsvvmCommonContext.vhd</summary>
+ghdl -a --std=08 -Wno-library -Wno-hide --work=osvvm_common --workdir=VHDL_LIBS/GHDL-6.0.0-dev/osvvm_common/v08 -P/home/madsr2d2/beng_thesis/VHDL_LIBS/GHDL-6.0.0-dev OsvvmLibraries/src/common/src/OsvvmCommonContext.vhd
+
+creating directory /home/madsr2d2/beng_thesis/common_build
+creating directory /home/madsr2d2/beng_thesis/common_build/reports
+creating directory /home/madsr2d2/beng_thesis/common_build/reports/common_build
+creating directory /home/madsr2d2/beng_thesis/common_build/results
+</details>Build Start time  23:14:44 CEST Tue Mar 31 2026 
+Build Finish time 23:14:48, Elapsed time: 0:00:04 
+<span style=color:#00C000>Build: common_build PASSED,  Passed: 0,  Failed: 0,  Skipped: 0,  Analyze Errors: 0,  Simulate Errors: 0</span>
+creating directory /home/madsr2d2/beng_thesis/common_build/logs
+
+</body>

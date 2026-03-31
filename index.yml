@@ -64,3 +64,35 @@ Builds:
     ToolName:            "GHDL"
     ToolVersion:          "6.0.0-dev"
     OsvvmVersion:         "2026.01"
+  - Name:     "osvvm"
+    Directory:           "osvvm"
+    Status:              "PASSED"
+    Passed:              0
+    Failed:              0
+    Skipped:             0
+    Tests:               0
+    AnalyzeErrorCount:   0
+    SimulateErrorCount:  0
+    BuildErrorCode:      0
+    StartTime:           "2026-03-31T23:14:33+02:00"
+    FinishTime:          "2026-03-31T23:14:43+02:00"
+    ElapsedTime:             9.378
+    ToolName:            "GHDL"
+    ToolVersion:          "6.0.0-dev"
+    OsvvmVersion:         "2026.01"
+  - Name:     "common_build"
+    Directory:           "common_build"
+    Status:              "PASSED"
+    Passed:              0
+    Failed:              0
+    Skipped:             0
+    Tests:               0
+    AnalyzeErrorCount:   0
+    SimulateErrorCount:  0
+    BuildErrorCode:      0
+    StartTime:           "2026-03-31T23:14:44+02:00"
+    FinishTime:          "2026-03-31T23:14:48+02:00"
+    ElapsedTime:             4.435
+    ToolName:            "GHDL"
+    ToolVersion:          "6.0.0-dev"
+    OsvvmVersion:         "2026.01"

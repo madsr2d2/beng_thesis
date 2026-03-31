@@ -54,8 +54,6 @@ top.can_mac_ser_tx_tb.u_dut.state
 top.can_mac_ser_tx_tb.u_dut.count
 @22
 top.can_mac_ser_tx_tb.u_dut.llc_frame_buffer
-@22
-top.can_mac_ser_tx_tb.u_dut.config_byte_0
 @420
 top.can_mac_ser_tx_tb.u_dut.id_bits_remaining
 @420

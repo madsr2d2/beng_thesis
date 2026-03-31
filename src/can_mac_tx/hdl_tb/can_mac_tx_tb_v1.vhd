@@ -86,7 +86,8 @@ architecture tb of can_mac_tx_tb_v1 is
   signal reset_check_id  : AlertLogIDType;
   signal status_check_id : AlertLogIDType;
   signal stream_check_id : AlertLogIDType;
-  signal fmt_cov      : CoverageIDType;
+  signal ide_cov      : CoverageIDType;
+  signal fdf_cov      : CoverageIDType;
   signal dlc_cov      : CoverageIDType;
   signal init_barrier : std_logic := '0';
 
@@ -184,7 +185,7 @@ architecture tb of can_mac_tx_tb_v1 is
     result.data_phase_start := -1;
     result.data_phase_end   := -1;
     fp                      := get_frame_params(metadata);
-    is_fd                   := metadata.format(1) = '1';
+    is_fd                   := metadata.fdf = '1';
 
     -- Flatten ID bytes (2..5) into a 32-bit vector, MSB first
     id_stream := frame(2) & frame(3) & frame(4) & frame(5);
@@ -196,7 +197,7 @@ architecture tb of can_mac_tx_tb_v1 is
       -- Resolve ser_data for ID and data field positions
       if (pos >= c_cb_base_id_start and pos <= c_cb_base_id_stop) then
         ser_data := id_stream(c_llc_id_field_width - 1 - (pos - c_cb_base_id_start));
-      elsif (metadata.format(2) = '1' and
+      elsif (metadata.ide = '1' and
              pos >= c_ce_extended_id_start and pos <= c_ce_extended_id_stop) then
         ser_data := id_stream(c_llc_id_field_width - 1 - c_base_id_width
                               - (pos - c_ce_extended_id_start));
@@ -302,22 +303,23 @@ architecture tb of can_mac_tx_tb_v1 is
       frame(i) := RV.RandSlv(8);
     end loop;
 
-    -- Coverage-driven format and DLC
-    frame(0)(c_llc_frame_config_byte_0_format_start downto c_llc_frame_config_byte_0_format_end) :=
-      std_logic_vector(to_unsigned(GetRandPoint(fmt_cov), 3));
-    frame(1)(c_llc_frame_config_byte_1_dlc_start downto c_llc_frame_config_byte_1_dlc_end) :=
+    -- Coverage-driven IDE, FDF, and DLC
+    frame(0)(c_llc_frame_ide) := std_logic(to_unsigned(GetRandPoint(ide_cov), 1)(0));
+    frame(0)(c_llc_frame_fdf) := std_logic(to_unsigned(GetRandPoint(fdf_cov), 1)(0));
+    frame(0)(5)               := '0'; -- reserved
+    frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) :=
       std_logic_vector(to_unsigned(GetRandPoint(dlc_cov), 4));
 
     -- Keep ftyp consistent with DLC (FD ignores ftyp)
-    if (frame(1)(c_llc_frame_config_byte_1_dlc_start downto c_llc_frame_config_byte_1_dlc_end) = "0000") then
-      frame(0)(c_llc_frame_config_byte_0_ftyp) := '1';
+    if (frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) = "0000") then
+      frame(0)(c_llc_frame_ftyp) := '1';
     else
-      frame(0)(c_llc_frame_config_byte_0_ftyp) := '0';
+      frame(0)(c_llc_frame_ftyp) := '0';
     end if;
 
     metadata  := extract_metadata(frame(0), frame(1));
     last_byte := 6 + dlc_to_data_length(
-                   t_dlc(to_integer(unsigned(metadata.dlc))), metadata.format) - 1;
+                   t_dlc(to_integer(unsigned(metadata.dlc))), metadata.fdf) - 1;
     stream    := build_bus_stream(frame, metadata);
   end procedure gen_frame;
 
@@ -341,7 +343,8 @@ begin
     variable v_reset_id  : AlertLogIDType;
     variable v_status_id : AlertLogIDType;
     variable v_stream_id : AlertLogIDType;
-    variable v_fmt_cov   : CoverageIDType;
+    variable v_ide_cov   : CoverageIDType;
+    variable v_fdf_cov   : CoverageIDType;
     variable v_dlc_cov   : CoverageIDType;
   begin
     SetAlertStopCount(ERROR, 10);
@@ -352,21 +355,21 @@ begin
     v_status_id := NewID("Transfer Status check", v_test_id);
     v_stream_id := NewID("Bus stream check", v_test_id);
 
-    v_fmt_cov := NewID("Format Coverage", v_test_id);
+    v_ide_cov := NewID("IDE Coverage", v_test_id);
+    v_fdf_cov := NewID("FDF Coverage", v_test_id);
     v_dlc_cov := NewID("DLC Coverage", v_test_id);
     pcs_rec.BurstFifo <= NewID("PCS VC Burst fifo");
 
-    AddBins(v_fmt_cov, GenBin(c_bin_num, (to_integer(unsigned(c_llc_fmt_cb)),
-                                         to_integer(unsigned(c_llc_fmt_ce)),
-                                         to_integer(unsigned(c_llc_fmt_fb)),
-                                         to_integer(unsigned(c_llc_fmt_fe)))));
+    AddBins(v_ide_cov, GenBin(c_bin_num, (0, 1)));
+    AddBins(v_fdf_cov, GenBin(c_bin_num, (0, 1)));
     AddBins(v_dlc_cov, GenBin(c_bin_num, 0, c_dlc_max, c_dlc_max + 1));
 
     test_id         <= v_test_id;
     reset_check_id  <= v_reset_id;
     status_check_id <= v_status_id;
     stream_check_id <= v_stream_id;
-    fmt_cov <= v_fmt_cov;
+    ide_cov <= v_ide_cov;
+    fdf_cov <= v_fdf_cov;
     dlc_cov <= v_dlc_cov;
 
     WaitForBarrier(init_barrier);
@@ -614,13 +617,13 @@ begin
     Print("--------------------------------------------------------------------------");
     Print("Test 3: Coverage-driven random frames (happy path)");
     Print("--------------------------------------------------------------------------");
-    frame_loop : while not (IsCovered(fmt_cov) and IsCovered(dlc_cov)) loop
+    frame_loop : while not (IsCovered(ide_cov) and IsCovered(fdf_cov) and IsCovered(dlc_cov)) loop
       v_frame_count := v_frame_count + 1;
 
       gen_frame(v_frame, v_metadata, v_last_byte, v_stream);
 
       Log(test_id, "Frame " & to_string(v_frame_count) &
-          " fmt=" & to_hstring(v_metadata.format) &
+          " ide=" & std_logic'image(v_metadata.ide) & " fdf=" & std_logic'image(v_metadata.fdf) &
           " dlc=" & to_hstring(v_metadata.dlc) &
           " len=" & to_string(v_stream.len) &
           " ack=" & to_string(v_stream.ack_pos), DEBUG);
@@ -654,18 +657,21 @@ begin
       -- Check transfer status
       Check(llc_rec, c_transmitted);
 
-      ICover(fmt_cov, to_integer(unsigned(v_metadata.format)));
+      ICover(ide_cov, to_integer(unsigned'(0 => v_metadata.ide)));
+      ICover(fdf_cov, to_integer(unsigned'(0 => v_metadata.fdf)));
       ICover(dlc_cov, to_integer(unsigned(v_metadata.dlc)));
 
     end loop frame_loop;
 
-    AffirmIf(GetAlertLogID(fmt_cov), IsCovered(fmt_cov), "Format coverage met");
+    AffirmIf(GetAlertLogID(ide_cov), IsCovered(ide_cov), "IDE coverage met");
+    AffirmIf(GetAlertLogID(fdf_cov), IsCovered(fdf_cov), "FDF coverage met");
     AffirmIf(GetAlertLogID(dlc_cov), IsCovered(dlc_cov), "DLC coverage met");
 
     Print("----------------------------------------------------------------------------");
     Print("Test done!");
     Print("----------------------------------------------------------------------------");
-    WriteBin(fmt_cov);
+    WriteBin(ide_cov);
+    WriteBin(fdf_cov);
     WriteBin(dlc_cov);
     EndOfTestReports(ReportAll => true);
     std.env.finish;

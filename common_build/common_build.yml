@@ -1,0 +1,22 @@
+Version: "0.1"
+Date: 2026-03-31T23:14:44+02:00
+Name:     "common_build"
+BuildInfo:
+  StartTime:            2026-03-31T23:14:44+02:00
+  FinishTime:           2026-03-31T23:14:48+02:00
+  ElapsedTime:              4.435
+  Simulator:            "GHDL"
+  SimulatorVersion:     "6.0.0-dev"
+  OsvvmVersion:         "2026.01"
+  BuildErrorCode:       0
+  AnalyzeErrorCount:    0
+  SimulateErrorCount:   0
+OsvvmSettingsInfo:
+  ReportsSubdirectory:  "reports"
+  SimulationLogFile: "logs/common_build.log"
+  SimulationHtmlLogFile: "logs/common_build_log.html"
+  RequirementsSubdirectory: ""
+  CoverageSubdirectory: ""
+  Report2CssFiles:
+    - "reports/CssOsvvmStyle.css"
+  Report2PngFile:  "reports/OsvvmLogo.png"

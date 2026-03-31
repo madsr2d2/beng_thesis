@@ -1,0 +1,22 @@
+Version: "0.1"
+Date: 2026-03-31T23:14:33+02:00
+Name:     "osvvm"
+BuildInfo:
+  StartTime:            2026-03-31T23:14:33+02:00
+  FinishTime:           2026-03-31T23:14:43+02:00
+  ElapsedTime:              9.378
+  Simulator:            "GHDL"
+  SimulatorVersion:     "6.0.0-dev"
+  OsvvmVersion:         "2026.01"
+  BuildErrorCode:       0
+  AnalyzeErrorCount:    0
+  SimulateErrorCount:   0
+OsvvmSettingsInfo:
+  ReportsSubdirectory:  "reports"
+  SimulationLogFile: "logs/osvvm.log"
+  SimulationHtmlLogFile: "logs/osvvm_log.html"
+  RequirementsSubdirectory: ""
+  CoverageSubdirectory: ""
+  Report2CssFiles:
+    - "reports/CssOsvvmStyle.css"
+  Report2PngFile:  "reports/OsvvmLogo.png"

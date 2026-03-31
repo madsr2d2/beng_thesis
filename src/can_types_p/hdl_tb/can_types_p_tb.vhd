@@ -38,11 +38,12 @@ architecture tb of can_types_p_tb is
 
   begin
 
-    m.format := config_byte_0(c_llc_frame_config_byte_0_format_start downto c_llc_frame_config_byte_0_format_end);
-    m.dlc    := config_byte_1(c_llc_frame_config_byte_1_dlc_start downto c_llc_frame_config_byte_1_dlc_end);
-    m.ftyp   := config_byte_0(c_llc_frame_config_byte_0_ftyp);
-    m.brs    := config_byte_0(c_llc_frame_config_byte_0_brs);
-    m.esi    := config_byte_0(c_llc_frame_config_byte_0_esi);
+    m.ide  := config_byte_0(c_llc_frame_ide);
+    m.fdf  := config_byte_0(c_llc_frame_fdf);
+    m.dlc  := config_byte_1(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
+    m.ftyp := config_byte_0(c_llc_frame_ftyp);
+    m.brs  := config_byte_0(c_llc_frame_brs);
+    m.esi  := config_byte_0(c_llc_frame_esi);
     return m;
 
   end function make_metadata;
@@ -71,14 +72,14 @@ begin
 
     variable md         : t_llc_metadata;
     variable fp         : t_frame_params;
-    variable ser_data_v : std_logic              := c_recessive;
+    variable ser_data_v : std_logic                                      := c_recessive;
     variable fb         : t_mac_frame_bit;
-    variable crc_vec    : std_logic_vector(c_crc_21_length - 1 downto 0)           := (others => '0');
-    variable sbc_vec    : t_sbc                  := (others => '0');
-    variable prev_pol   : std_logic              := c_recessive;
+    variable crc_vec    : std_logic_vector(c_crc_21_length - 1 downto 0) := (others => '0');
+    variable sbc_vec    : t_sbc                                          := (others => '0');
+    variable prev_pol   : std_logic                                      := c_recessive;
     variable tid        : alertlogidtype;
     variable bi         : t_bit_info;
-    variable pol_hist   : t_tdc_polarity_history := (others => c_recessive);
+    variable pol_hist   : t_tdc_polarity_history                         := (others => c_recessive);
     variable tid_bi     : alertlogidtype;
 
   begin

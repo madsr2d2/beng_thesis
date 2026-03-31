@@ -43,10 +43,6 @@ architecture tb of can_mac_fsm_tx_tb is
   -- Constants
   ----------------------------------------------------------------------------
   constant c_sp_interval   : integer := 10;
-  constant c_cb_cov_bin    : integer := to_integer(unsigned(c_llc_fmt_cb));
-  constant c_ce_cov_bin    : integer := to_integer(unsigned(c_llc_fmt_ce));
-  constant c_fb_cov_bin    : integer := to_integer(unsigned(c_llc_fmt_fb));
-  constant c_fe_cov_bin    : integer := to_integer(unsigned(c_llc_fmt_fe));
   constant c_bin_num       : integer := 1;
 
   ----------------------------------------------------------------------------
@@ -84,7 +80,8 @@ architecture tb of can_mac_fsm_tx_tb is
   -- OSVVM signals
   shared variable RV  : RandomPType;
   signal test_id      : AlertLogIDType;
-  signal fmt_cov      : CoverageIDType;
+  signal ide_cov      : CoverageIDType;
+  signal fdf_cov      : CoverageIDType;
   signal init_barrier : integer_barrier := 1;
 
 begin
@@ -104,18 +101,22 @@ begin
 
   p_init : process is
     variable v_test_id : AlertLogIDType;
-    variable v_fmt_cov : CoverageIDType;
+    variable v_ide_cov : CoverageIDType;
+    variable v_fdf_cov : CoverageIDType;
   begin
     RV.InitSeed(random_seed);
     SetAlertStopCount(ERROR, 5);
     SetLogEnable(INFO, TRUE);
     v_test_id := NewID("can_mac_fsm_tx");
-    v_fmt_cov := NewID("Format Coverage", v_test_id);
+    v_ide_cov := NewID("IDE Coverage", v_test_id);
+    v_fdf_cov := NewID("FDF Coverage", v_test_id);
 
-    AddBins(v_fmt_cov, GenBin(c_bin_num, (c_cb_cov_bin, c_ce_cov_bin, c_fb_cov_bin, c_fe_cov_bin)));
+    AddBins(v_ide_cov, GenBin(c_bin_num, (0, 1)));
+    AddBins(v_fdf_cov, GenBin(c_bin_num, (0, 1)));
 
     test_id <= v_test_id;
-    fmt_cov <= v_fmt_cov;
+    ide_cov <= v_ide_cov;
+    fdf_cov <= v_fdf_cov;
 
     WaitForBarrier(init_barrier);
     wait;
@@ -336,7 +337,7 @@ begin
     pcs_bus_override_en <= false;
     wait_n_sp(c_bus_idle_condition_width);
 
-    ser_metadata    <= (format => c_llc_fmt_cb, dlc => x"1", ftyp => '0', brs => '0', esi => '0');
+    ser_metadata    <= (ide => '0', fdf => '0', dlc => x"1", ftyp => '0', brs => '0', esi => '0');
     ser_frame_valid <= true;
     wait_for_frame_entry(50);
     AffirmIf(test_id, fce_o.transmitting = '1', "T1: dominant resets reintegration counter");
@@ -345,7 +346,7 @@ begin
 
     -- Test 2: Reintegration to idle
     Log(test_id, "T2: Reintegration to idle", INFO);
-    ser_metadata    <= (format => c_llc_fmt_cb, dlc => x"1", ftyp => '0', brs => '0', esi => '0');
+    ser_metadata    <= (ide => '0', fdf => '0', dlc => x"1", ftyp => '0', brs => '0', esi => '0');
     ser_frame_valid <= true;
     wait_for_frame_entry(50);
     AffirmIf(test_id, fce_o.transmitting = '1', "T2: reintegration to idle");
@@ -357,31 +358,33 @@ begin
     ---------------------------------------------------------------------------
     Log(test_id, "Group 2: Happy path (all formats)", INFO);
 
-    happy_path_loop : while not IsCovered(fmt_cov) loop
+    happy_path_loop : while not (IsCovered(ide_cov) and IsCovered(fdf_cov)) loop
       v_meta.dlc  := x"1";
       v_meta.ftyp := '0';
       v_meta.esi  := '0';
 
-      -- Coverage-driven format
-      v_meta.format := std_logic_vector(to_unsigned(GetRandPoint(fmt_cov), 3));
+      -- Coverage-driven IDE and FDF
+      v_meta.ide := std_logic(to_unsigned(GetRandPoint(ide_cov), 1)(0));
+      v_meta.fdf := std_logic(to_unsigned(GetRandPoint(fdf_cov), 1)(0));
 
       -- FD formats require BRS
-      if (v_meta.format(1) = '1') then
+      if (v_meta.fdf = '1') then
         v_meta.brs := '1';
       else
         v_meta.brs := '0';
       end if;
 
-      transmit_and_verify(v_meta, "Happy path fmt=" & to_string(v_meta.format));
-      ICover(fmt_cov, to_integer(unsigned(v_meta.format)));
+      transmit_and_verify(v_meta, "Happy path ide=" & std_logic'image(v_meta.ide) & " fdf=" & std_logic'image(v_meta.fdf));
+      ICover(ide_cov, to_integer(unsigned'(0 => v_meta.ide)));
+      ICover(fdf_cov, to_integer(unsigned'(0 => v_meta.fdf)));
     end loop happy_path_loop;
 
     ---------------------------------------------------------------------------
     -- Group 3: ACK Error
     ---------------------------------------------------------------------------
     Log(test_id, "T7: ACK error (no dominant during ACK)", INFO);
-    v_fp := get_frame_params((format => c_llc_fmt_cb, dlc => x"1", ftyp => '0', brs => '0', esi => '0'));
-    ser_metadata    <= (format => c_llc_fmt_cb, dlc => x"1", ftyp => '0', brs => '0', esi => '0');
+    v_fp := get_frame_params((ide => '0', fdf => '0', dlc => x"1", ftyp => '0', brs => '0', esi => '0'));
+    ser_metadata    <= (ide => '0', fdf => '0', dlc => x"1", ftyp => '0', brs => '0', esi => '0');
     ser_frame_valid <= true;
 
     wait_for_frame_entry;
@@ -397,7 +400,7 @@ begin
 
     -- Test 8: Bit error -> active error flag
     Log(test_id, "T8: Bit error -> active error flag", INFO);
-    ser_metadata    <= (format => c_llc_fmt_cb, dlc => x"1", ftyp => '0', brs => '0', esi => '0');
+    ser_metadata    <= (ide => '0', fdf => '0', dlc => x"1", ftyp => '0', brs => '0', esi => '0');
     ser_frame_valid <= true;
 
     wait_for_frame_entry;
@@ -419,7 +422,7 @@ begin
     fce_error_passive <= '1';
     fce_error_active  <= '0';
 
-    ser_metadata    <= (format => c_llc_fmt_cb, dlc => x"1", ftyp => '0', brs => '0', esi => '0');
+    ser_metadata    <= (ide => '0', fdf => '0', dlc => x"1", ftyp => '0', brs => '0', esi => '0');
     ser_frame_valid <= true;
 
     wait_for_frame_entry;
@@ -443,7 +446,7 @@ begin
     ---------------------------------------------------------------------------
     Log(test_id, "T10: Lost arbitration", INFO);
     ser_data_pattern <= c_recessive;
-    ser_metadata     <= (format => c_llc_fmt_cb, dlc => x"1", ftyp => '0', brs => '0', esi => '0');
+    ser_metadata     <= (ide => '0', fdf => '0', dlc => x"1", ftyp => '0', brs => '0', esi => '0');
     ser_frame_valid  <= true;
 
     wait_for_frame_entry;
@@ -466,13 +469,13 @@ begin
 
     -- Setup: transmit a frame to get into intermission
     transmit_and_verify(
-      (format => c_llc_fmt_cb, dlc => x"1", ftyp => '0', brs => '0', esi => '0'),
+      (ide => '0', fdf => '0', dlc => x"1", ftyp => '0', brs => '0', esi => '0'),
       "T11 setup"
     );
 
     -- Transmit another frame, then inject dominant in intermission
-    v_fp := get_frame_params((format => c_llc_fmt_cb, dlc => x"1", ftyp => '0', brs => '0', esi => '0'));
-    ser_metadata    <= (format => c_llc_fmt_cb, dlc => x"1", ftyp => '0', brs => '0', esi => '0');
+    v_fp := get_frame_params((ide => '0', fdf => '0', dlc => x"1", ftyp => '0', brs => '0', esi => '0'));
+    ser_metadata    <= (ide => '0', fdf => '0', dlc => x"1", ftyp => '0', brs => '0', esi => '0');
     ser_frame_valid <= true;
 
     wait_for_frame_entry;
@@ -504,7 +507,7 @@ begin
     -- Group 7: Error Delimiter Too Late
     ---------------------------------------------------------------------------
     Log(test_id, "T12: Error delimiter too late", INFO);
-    ser_metadata    <= (format => c_llc_fmt_cb, dlc => x"1", ftyp => '0', brs => '0', esi => '0');
+    ser_metadata    <= (ide => '0', fdf => '0', dlc => x"1", ftyp => '0', brs => '0', esi => '0');
     ser_frame_valid <= true;
 
     wait_for_frame_entry;
@@ -535,7 +538,7 @@ begin
     -- Group 8: Primary Error
     ---------------------------------------------------------------------------
     Log(test_id, "T13: Primary error during active EF", INFO);
-    ser_metadata    <= (format => c_llc_fmt_cb, dlc => x"1", ftyp => '0', brs => '0', esi => '0');
+    ser_metadata    <= (ide => '0', fdf => '0', dlc => x"1", ftyp => '0', brs => '0', esi => '0');
     ser_frame_valid <= true;
 
     wait_for_frame_entry;
@@ -560,7 +563,7 @@ begin
     fce_error_passive <= '1';
     fce_error_active  <= '0';
 
-    ser_metadata    <= (format => c_llc_fmt_cb, dlc => x"1", ftyp => '0', brs => '0', esi => '0');
+    ser_metadata    <= (ide => '0', fdf => '0', dlc => x"1", ftyp => '0', brs => '0', esi => '0');
     ser_frame_valid <= true;
 
     wait_for_frame_entry;
@@ -578,7 +581,8 @@ begin
     ---------------------------------------------------------------------------
     -- Done
     ---------------------------------------------------------------------------
-    WriteBin(fmt_cov);
+    WriteBin(ide_cov);
+    WriteBin(fdf_cov);
     EndOfTestReports(ReportAll => TRUE);
     std.env.finish;
     wait;

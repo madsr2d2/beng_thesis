@@ -69,7 +69,8 @@ architecture testbench of can_mac_fsm_tx_err_tb is
 
   -- Frame configuration (parametrizable for all CAN formats)
   type frame_config_t is record
-    format       : std_logic_vector(2 downto 0);
+    ide          : std_logic;
+    fdf          : std_logic;
     dlc          : std_logic_vector(3 downto 0);
     id_11bit     : std_logic_vector(10 downto 0);
     id_29bit     : std_logic_vector(28 downto 0);
@@ -109,7 +110,8 @@ architecture testbench of can_mac_fsm_tx_err_tb is
 
   -- Local frame record for test procedures (flat fields, no nested sub-records)
   type t_tb_frame is record
-    format  : std_logic_vector(2 downto 0);
+    ide     : std_logic;
+    fdf     : std_logic;
     ftyp    : std_logic;
     esi     : std_logic;
     brs     : std_logic;
@@ -119,7 +121,8 @@ architecture testbench of can_mac_fsm_tx_err_tb is
   end record t_tb_frame;
 
   constant frame_cc_basic_default_c : frame_config_t := (
-    format     => c_llc_fmt_cb,
+    ide        => '0',
+    fdf        => '0',
     dlc        => x"1",
     id_11bit   => "10101010101",
     id_29bit   => (others => '0'),
@@ -130,7 +133,8 @@ architecture testbench of can_mac_fsm_tx_err_tb is
   );
 
   constant frame_cc_extended_default_c : frame_config_t := (
-    format     => c_llc_fmt_ce,
+    ide        => '1',
+    fdf        => '0',
     dlc        => x"4",
     id_11bit   => (others => '0'),
     id_29bit   => std_logic_vector(to_unsigned(16#0555_AAAA#, 29)),
@@ -141,7 +145,8 @@ architecture testbench of can_mac_fsm_tx_err_tb is
   );
 
   constant frame_fd_basic_default_c : frame_config_t := (
-    format     => c_llc_fmt_fb,
+    ide        => '0',
+    fdf        => '1',
     dlc        => x"F",
     id_11bit   => "10101010101",
     id_29bit   => (others => '0'),
@@ -254,7 +259,8 @@ architecture testbench of can_mac_fsm_tx_err_tb is
   -- ============================================================================
 
   impure function generate_llc_frame (
-    format : in std_logic_vector(2 downto 0) := c_llc_fmt_cb;
+    ide : in std_logic := '0';
+    fdf : in std_logic := '0';
     brs_default : in boolean := false;
     esi_default : in boolean := false;
     rtr_default : in boolean := false;
@@ -276,7 +282,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     frame.data := (others => '0');
 
     if (random_frame) then
-      if (format = c_llc_fmt_cb or format = c_llc_fmt_ce) then
+      if (fdf = '0') then
         dlc_val := rv.RandInt(0, 8);
       else
         dlc_val := rv.RandInt(0, 15);
@@ -285,7 +291,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
       brs_flag := rv.RandInt(0, 1) = 1;
       esi_flag := rv.RandInt(0, 1) = 1;
       unified_id := std_logic_vector(to_unsigned(rv.RandInt(0, 536870911), 29));
-      data_len := dlc_to_data_length(t_dlc(dlc_val), format);
+      data_len := dlc_to_data_length(t_dlc(dlc_val), fdf);
       if (not rtr_flag) then
         for i in 0 to data_len - 1 loop
           byte_high := 8 * (i + 1) - 1;
@@ -293,7 +299,8 @@ architecture testbench of can_mac_fsm_tx_err_tb is
           frame.data(byte_high downto byte_low) := std_logic_vector(to_unsigned(rv.RandInt(0, 255), 8));
         end loop;
       end if;
-      log("[RANDOM] Generated random frame: Format=" & to_hstring(format) &
+      log("[RANDOM] Generated random frame: IDE=" & std_logic'image(ide) &
+          " FDF=" & std_logic'image(fdf) &
           " DLC=" & integer'image(dlc_val) & " DataLen=" & integer'image(data_len), ALWAYS);
     else
       dlc_val := 1;
@@ -301,21 +308,23 @@ architecture testbench of can_mac_fsm_tx_err_tb is
       brs_flag := brs_default;
       esi_flag := esi_default;
       unified_id := std_logic_vector(to_unsigned(16#555#, 29));
-      data_len := dlc_to_data_length(t_dlc(dlc_val), format);
+      data_len := dlc_to_data_length(t_dlc(dlc_val), fdf);
     end if;
 
     if (rtr_flag) then
       data_len := 0;
     end if;
 
-    frame.format := format;
-    frame.ftyp   := '1' when rtr_flag else '0';
-    frame.esi    := '1' when esi_flag else '0';
-    frame.brs    := '1' when brs_flag else '0';
-    frame.dlc    := std_logic_vector(to_unsigned(dlc_val, 4));
-    frame.id     := pack_llc_id_bytes(unified_id, format);
+    frame.ide  := ide;
+    frame.fdf  := fdf;
+    frame.ftyp := '1' when rtr_flag else '0';
+    frame.esi  := '1' when esi_flag else '0';
+    frame.brs  := '1' when brs_flag else '0';
+    frame.dlc  := std_logic_vector(to_unsigned(dlc_val, 4));
+    frame.id   := pack_llc_id_bytes(unified_id, ide);
 
-    log("[CFG] Generated LLC frame: Format=" & to_hstring(format) &
+    log("[CFG] Generated LLC frame: IDE=" & std_logic'image(ide) &
+        " FDF=" & std_logic'image(fdf) &
         " DLC=" & integer'image(dlc_val) & " DataLen=" & integer'image(data_len), ALWAYS);
 
     return frame;
@@ -361,7 +370,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     variable data_bit_start_v  : integer;
   begin
     id_29_v       := frame.id(28 downto 0);
-    is_extended_v := frame.format(2) = '1';
+    is_extended_v := frame.ide = '1';
 
     if is_extended_v then
       byte0_v := "000" & id_29_v(28 downto 24);
@@ -375,13 +384,13 @@ architecture testbench of can_mac_fsm_tx_err_tb is
       byte3_v := id_29_v(7 downto 0);
     end if;
 
-    byte4_v  := "0" & frame.format & frame.dlc;
-    byte69_v := "0000000" & frame.format(2);
+    byte4_v  := "0" & frame.ide & frame.fdf & "0" & frame.dlc;
+    byte69_v := "0000000" & frame.ide;
     byte70_v := "00000" & frame.brs & frame.esi & frame.ftyp;
 
     data_byte_count_v := dlc_to_data_length(
                             t_dlc(to_integer(unsigned(frame.dlc))),
-                            frame.format
+                            frame.fdf
                           );
 
     -- Send 71-byte legacy frame
@@ -426,7 +435,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     log("Test 1: ACK Error Detection Framework (REQ-TX-ERR006)", ALWAYS);
     test_start_time := now;
 
-    frame := generate_llc_frame(c_llc_fmt_cb, false, false, false);
+    frame := generate_llc_frame('0', '0', false, false, false);
     send_frame(llc_i, clk, frame);
     log("  [FRAME] Frame submission complete, waiting for transmission...", ALWAYS);
     log("  [STATUS] LLC transfer_status = " & to_hstring(llc_user_o.transfer_status), ALWAYS);
@@ -460,7 +469,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     test_start_time := now;
     error_injection_o <= '0';
 
-    frame := generate_llc_frame(c_llc_fmt_cb, false, false, false);
+    frame := generate_llc_frame('0', '0', false, false, false);
     send_frame(llc_i, clk, frame);
     log("  [STATUS] LLC transfer_status = " & to_hstring(llc_user_o.transfer_status), ALWAYS);
 
@@ -513,7 +522,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     test_start_time := now;
     error_injection_o <= '0';
 
-    frame := generate_llc_frame(c_llc_fmt_fb, true, false, false);
+    frame := generate_llc_frame('0', '1', true, false, false);
     send_frame(llc_i, clk, frame);
     log("  [STATUS] LLC transfer_status = " & to_hstring(llc_user_o.transfer_status), ALWAYS);
 
@@ -564,7 +573,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     test_start_time := now;
     error_injection_o <= '0';
 
-    frame := generate_llc_frame(c_llc_fmt_fe, true, false, false);
+    frame := generate_llc_frame('1', '1', true, false, false);
     send_frame(llc_i, clk, frame);
     log("  [STATUS] LLC transfer_status = " & to_hstring(llc_user_o.transfer_status), ALWAYS);
 
@@ -616,7 +625,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     test_start_time := now;
     error_injection_o <= '0';
 
-    frame := generate_llc_frame(c_llc_fmt_fe, true, false, false);
+    frame := generate_llc_frame('1', '1', true, false, false);
     send_frame(llc_i, clk, frame);
     log("  [STATUS] LLC transfer_status = " & to_hstring(llc_user_o.transfer_status), ALWAYS);
 
@@ -663,15 +672,15 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     log("Test 8: Constraint Random Verification (Coverage-Driven)", ALWAYS);
     test_start_time := now;
 
-    frame := generate_llc_frame(c_llc_fmt_cb, false, false, false, true, seed);
+    frame := generate_llc_frame('0', '0', false, false, false, true, seed);
     send_frame(llc_i, clk, frame);
     wait for 100 us;
 
-    frame := generate_llc_frame(c_llc_fmt_fb, false, false, false, true, seed);
+    frame := generate_llc_frame('0', '1', false, false, false, true, seed);
     send_frame(llc_i, clk, frame);
     wait for 100 us;
 
-    frame := generate_llc_frame(c_llc_fmt_ce, false, false, false, true, seed);
+    frame := generate_llc_frame('1', '0', false, false, false, true, seed);
     send_frame(llc_i, clk, frame);
     wait for 100 us;
 
@@ -695,7 +704,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     log("Test 6: TDC Error Timing Sequence (REQ-TX-TDC004)", ALWAYS);
     test_start_time := now;
 
-    frame := generate_llc_frame(c_llc_fmt_fe, true, false, false);
+    frame := generate_llc_frame('1', '1', true, false, false);
     send_frame(llc_i, clk, frame);
     log("  [STATUS] LLC transfer_status = " & to_hstring(llc_user_o.transfer_status), ALWAYS);
 
@@ -761,7 +770,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     error_injection_o <= '0';
     bus_override <= c_recessive;
 
-    frame := generate_llc_frame(c_llc_fmt_fb, true, false, false);
+    frame := generate_llc_frame('0', '1', true, false, false);
     send_frame(llc_i, clk, frame);
 
     for i in 1 to 120000 loop

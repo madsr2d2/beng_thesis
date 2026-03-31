@@ -266,7 +266,8 @@ begin
     variable bit_position_v  : integer;
 
     -- Local frame descriptor (flat fields, no nested records)
-    variable fmt_v  : std_logic_vector(2 downto 0) := c_llc_fmt_cb;
+    variable ide_v  : std_logic := '0';
+    variable fdf_v  : std_logic := '0';
     variable ftyp_v : std_logic := '0';
     variable esi_v  : std_logic := '0';
     variable brs_v  : std_logic := '0';
@@ -278,7 +279,8 @@ begin
     procedure setup_default_frame is
     begin
       id_v      := std_logic_vector(to_unsigned(16#555#, 32));
-      fmt_v     := c_llc_fmt_cb;
+      ide_v     := '0';
+      fdf_v     := '0';
       ftyp_v    := '0';
       esi_v     := '0';
       brs_v     := '0';
@@ -321,7 +323,7 @@ begin
     begin
 
       id_29_v       := id_v(28 downto 0);
-      is_extended_v := fmt_v(2) = '1';
+      is_extended_v := ide_v = '1';
 
       if is_extended_v then
         byte0_v := "000" & id_29_v(28 downto 24);
@@ -335,13 +337,13 @@ begin
         byte3_v := id_29_v(7 downto 0);
       end if;
 
-      byte4_v  := "0" & fmt_v & dlc_vec_v;
-      byte69_v := "0000000" & fmt_v(2);
+      byte4_v  := "0" & ide_v & fdf_v & "0" & dlc_vec_v;
+      byte69_v := "0000000" & ide_v;
       byte70_v := "00000" & brs_v & esi_v & ftyp_v;
 
       data_byte_count_v := dlc_to_data_length(
                               t_dlc(to_integer(unsigned(dlc_vec_v))),
-                              fmt_v
+                              fdf_v
                             );
 
       send_user_byte(byte0_v, '1', '0');
@@ -369,18 +371,19 @@ begin
     end procedure submit_frame;
 
     -- Helper: compute and publish the ACK slot logical bit position for the
-    -- current frame variables (fmt_v, dlc_vec_v, ftyp_v, brs_v, esi_v).
+    -- current frame variables (ide_v, fdf_v, dlc_vec_v, ftyp_v, brs_v, esi_v).
     -- Must be called before submit_frame so that the bus monitor reads the
     -- correct value when fce_o.transmitting fires.
     procedure update_ack_position is
       variable meta_v   : t_llc_metadata;
       variable params_v : t_frame_params;
     begin
-      meta_v.format := fmt_v;
-      meta_v.dlc    := dlc_vec_v;
-      meta_v.ftyp   := ftyp_v;
-      meta_v.brs    := brs_v;
-      meta_v.esi    := esi_v;
+      meta_v.ide  := ide_v;
+      meta_v.fdf  := fdf_v;
+      meta_v.dlc  := dlc_vec_v;
+      meta_v.ftyp := ftyp_v;
+      meta_v.brs  := brs_v;
+      meta_v.esi  := esi_v;
       params_v              := get_frame_params(meta_v);
       monitor_ack_position  <= params_v.crc_delimiter + c_ack_slot_offset;
     end procedure update_ack_position;
@@ -601,7 +604,8 @@ begin
     Log(alert_id, "Test 4: CC Extended format smoke test (no ACK)");
     inject_ack <= false;
     setup_default_frame;
-    fmt_v := c_llc_fmt_ce;
+    ide_v := '1';
+    fdf_v := '0';
     id_v(28 downto 0) := std_logic_vector(to_unsigned(16#1ABCDEF#, 29));
     WaitForClock(clk);
 
@@ -620,7 +624,8 @@ begin
     Log(alert_id, "Test 5: FD Basic format smoke test (no ACK)");
     inject_ack <= false;
     setup_default_frame;
-    fmt_v := c_llc_fmt_fb;
+    ide_v := '0';
+    fdf_v := '1';
     brs_v    := '0';
     dlc_vec_v    := std_logic_vector(to_unsigned(9, 4));
     WaitForClock(clk);
@@ -646,7 +651,8 @@ begin
     Log(alert_id, "Test 6: FD Extended format smoke test (no ACK)");
     inject_ack <= false;
     setup_default_frame;
-    fmt_v := c_llc_fmt_fe;
+    ide_v := '1';
+    fdf_v := '1';
     brs_v    := '0';
     dlc_vec_v    := std_logic_vector(to_unsigned(10, 4));
     id_v(28 downto 0) := std_logic_vector(to_unsigned(16#1234567#, 29));
@@ -703,9 +709,11 @@ begin
       dlc_vec_v := std_logic_vector(to_unsigned(dlc_v, 4));
       id_v  := std_logic_vector(to_unsigned(16#100# + iter, 32));
       if ((iter mod 2) = 0) then
-        fmt_v := c_llc_fmt_fb;
+        ide_v := '0';
+        fdf_v := '1';
       else
-        fmt_v := c_llc_fmt_fe;
+        ide_v := '1';
+        fdf_v := '1';
       end if;
 
       WaitForClock(clk);
@@ -786,7 +794,8 @@ begin
     inject_ack <= true;
 
     setup_default_frame;
-    fmt_v := c_llc_fmt_fb;
+    ide_v := '0';
+    fdf_v := '1';
     update_ack_position;
     WaitForClock(clk);
 
@@ -872,7 +881,8 @@ begin
     end loop;
 
     setup_default_frame;
-    fmt_v := c_llc_fmt_fb;
+    ide_v := '0';
+    fdf_v := '1';
     brs_v    := '1';
     WaitForClock(clk);
 
