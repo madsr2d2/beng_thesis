@@ -1,16 +1,17 @@
---------------------------------------------------------------------------------
--- Title      : CAN MAC Receiver Frame FSM
--- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
---------------------------------------------------------------------------------
--- File       : can_mac_fsm_rx.vhd
--- Author     : Mads Richardt
--- Standard   : VHDL-2008
---------------------------------------------------------------------------------
--- Description: Frame reception FSM. Tracks incoming frame state, drives ACK
---              and error/overload flags onto the bus via PCS, coordinates
---              bit destuffing (via shared can_mac_bs) and CRC checking
---              (via shared can_mac_crc), and signals the deserializer.
---------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+--
+-- Requirements:
+--
+-- Description:   Frame reception FSM. Tracks incoming frame state, drives ACK
+--                and error/overload flags onto the bus via PCS, coordinates
+--                bit destuffing (via shared can_mac_bs) and CRC checking
+--                (via shared can_mac_crc), and signals the deserializer.
+--
+-- Revision log:  Date:       Initial:  JIRA:
+--                2026-03-31  MRDSA     Converted to company header format
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;

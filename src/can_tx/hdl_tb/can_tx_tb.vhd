@@ -1,30 +1,30 @@
---------------------------------------------------------------------------------
--- Title      : CAN Transmitter Integration Testbench
--- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
---------------------------------------------------------------------------------
--- File       : can_tx_tb.vhd
--- Author     : Mads Richardt
--- Standard   : VHDL-2008
---------------------------------------------------------------------------------
--- Description: Integration testbench for can_tx top-level entity.
---              Tests full transmit path: LLC user request -> bus output.
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
--- Test scenarios:
---   1. Successful CC Basic transmission (happy path)
---   2. Abort before MAC acceptance (send_config_0 state)
---   3. Abort ignored after MAC acceptance
---   4. CC Extended format smoke test (no ACK)
---   5. FD Basic format smoke test (no ACK)
---   6. FD Extended format smoke test (no ACK)
---   7. Retransmission limit exceeded (7 attempts, no ACK)
---   8. FD format pressure smoke (repeated FD basic/extended submissions)
---   9. (removed - broken bit error test)
---  10. Dominant during intermission triggers overload flag
---  11. FD Basic ACK injection via bus monitor
---  12. Arbitration Loss Withdrawal
---  13. Remote Frame Support (RTR=1)
---  14. Bit Rate Switching Timing Validation
---------------------------------------------------------------------------------
+-- Requirements:
+--
+-- Description:   Integration testbench for can_tx top-level entity.
+--                Tests full transmit path: LLC user request -> bus output.
+--                Test scenarios:
+--                1. Successful CC Basic transmission (happy path)
+--                2. Abort before MAC acceptance (send_config_0 state)
+--                3. Abort ignored after MAC acceptance
+--                4. CC Extended format smoke test (no ACK)
+--                5. FD Basic format smoke test (no ACK)
+--                6. FD Extended format smoke test (no ACK)
+--                7. Retransmission limit exceeded (7 attempts, no ACK)
+--                8. FD format pressure smoke (repeated FD basic/extended submissions)
+--                9. (removed - broken bit error test)
+--                10. Dominant during intermission triggers overload flag
+--                11. FD Basic ACK injection via bus monitor
+--                12. Arbitration Loss Withdrawal
+--                13. Remote Frame Support (RTR=1)
+--                14. Bit Rate Switching Timing Validation
+--
+-- Revision log:  Date:       Initial:  JIRA:
+--                2026-03-31  MRDSA     Converted to company header format
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;

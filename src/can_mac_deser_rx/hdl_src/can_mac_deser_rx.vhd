@@ -1,16 +1,17 @@
---------------------------------------------------------------------------------
--- Title      : CAN MAC Receiver Deserializer
--- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
---------------------------------------------------------------------------------
--- File       : can_mac_deser_rx.vhd
--- Author     : Mads Richardt
--- Standard   : VHDL-2008
---------------------------------------------------------------------------------
--- Description: Serial-to-byte deserializer for the RX MAC path. Receives
---              destuffed bits from the FSM, assembles them into bytes, and
---              presents the reconstructed frame to the LLC layer via
---              Avalon-ST source interface.
---------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+--
+-- Requirements:
+--
+-- Description:   Serial-to-byte deserializer for the RX MAC path. Receives
+--                destuffed bits from the FSM, assembles them into bytes, and
+--                presents the reconstructed frame to the LLC layer via
+--                Avalon-ST source interface.
+--
+-- Revision log:  Date:       Initial:  JIRA:
+--                2026-03-31  MRDSA     Converted to company header format
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;

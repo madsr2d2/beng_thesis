@@ -1,16 +1,17 @@
---------------------------------------------------------------------------------
--- Title      : CAN Bus Transmitter Top-Level
--- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
---------------------------------------------------------------------------------
--- File       : can_tx.vhd
--- Author     : Mads Richardt
--- Standard   : VHDL-2008
---------------------------------------------------------------------------------
--- Description: Top-level CAN transmitter integrating all three layers:
---   - can_llc_tx:  LLC sub-layer (frame buffering, retransmission, Avalon-ST)
---   - can_mac_tx:  MAC sub-layer (serializer, FSM, bit stuffing, CRC)
---   - can_pcs_tx:  PCS sub-layer (bit timing, TDC, bus interface)
---------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+--
+-- Requirements:
+--
+-- Description:   Top-level CAN transmitter integrating all three layers:
+--                - can_llc_tx:  LLC sub-layer (frame buffering, retransmission, Avalon-ST)
+--                - can_mac_tx:  MAC sub-layer (serializer, FSM, bit stuffing, CRC)
+--                - can_pcs_tx:  PCS sub-layer (bit timing, TDC, bus interface)
+--
+-- Revision log:  Date:       Initial:  JIRA:
+--                2026-03-31  MRDSA     Converted to company header format
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;

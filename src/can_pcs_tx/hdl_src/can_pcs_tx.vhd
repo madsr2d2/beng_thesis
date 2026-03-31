@@ -1,37 +1,34 @@
---------------------------------------------------------------------------------
--- Title      : CAN Physical Signaling Layer (PCS) with TDC
--- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
---------------------------------------------------------------------------------
--- File       : can_pcs_tx.vhd
--- Author     : Mads Richardt
--- Standard   : VHDL-2008
---------------------------------------------------------------------------------
--- Description: Physical Signaling layer implementing bit timing, transmission,
---              and Transmitter Delay Compensation (TDC) per ISO 11898-1:2015
---              Section 7.2 (PCS Services) and 7.3.4 (TDC).
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
+-- Requirements:
 --
--- Responsibilities:
---   - Bit timing generation (nominal and data bit rates)
---   - Serial bit transmission to bus
---   - TDC delay measurement (triggered by MAC via start_tdc pulse)
---   - Sample Point (SP) and Secondary Sample Point (SSP) generation
---   - Bus monitoring (RX input for loopback and delay measurement)
+-- Description:   Physical Signaling layer implementing bit timing, transmission,
+--                and Transmitter Delay Compensation (TDC) per ISO 11898-1:2015
+--                Section 7.2 (PCS Services) and 7.3.4 (TDC).
+--                Responsibilities:
+--                - Bit timing generation (nominal and data bit rates)
+--                - Serial bit transmission to bus
+--                - TDC delay measurement (triggered by MAC via start_tdc pulse)
+--                - Sample Point (SP) and Secondary Sample Point (SSP) generation
+--                - Bus monitoring (RX input for loopback and delay measurement)
+--                Interface:
+--                MAC tells PCS what to do via level signals, stable before each
+--                bit boundary and sampled by PCS at the start of each bit time:
+--                polarity      - bit value to transmit
+--                valid         - frame active (high during entire frame)
+--                use_data_rate - high during data bit rate phase
+--                start_tdc     - high during FDF bit (triggers TDC measurement)
+--                FSM State Transitions:
+--                idle -> transmitting                     (valid = '1')
+--                transmitting: nominal or data rate       (use_data_rate selects)
+--                transmitting -> measuring_delay          (start_tdc = '1')
+--                any non-idle -> idle                     (valid = '0')
 --
--- Interface:
---   MAC tells PCS what to do via level signals, stable before each
---   bit boundary and sampled by PCS at the start of each bit time:
---     polarity      - bit value to transmit
---     valid         - frame active (high during entire frame)
---     use_data_rate - high during data bit rate phase
---     start_tdc     - high during FDF bit (triggers TDC measurement)
---
--- FSM State Transitions:
---   idle -> transmitting                     (valid = '1')
---   transmitting: nominal or data rate       (use_data_rate selects)
---   transmitting -> measuring_delay          (start_tdc = '1')
---   any non-idle -> idle                     (valid = '0')
---------------------------------------------------------------------------------
+-- Revision log:  Date:       Initial:  JIRA:
+--                2026-03-31  MRDSA     Converted to company header format
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;

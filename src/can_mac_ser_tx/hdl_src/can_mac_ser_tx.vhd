@@ -1,29 +1,28 @@
---------------------------------------------------------------------------------
--- Title      : MAC Serializer TX
--- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
---------------------------------------------------------------------------------
--- File       : can_mac_ser_tx.vhd
--- Author     : Mads Richardt
--- Standard   : VHDL-2008
---------------------------------------------------------------------------------
--- Description: MAC serializer for CAN/CAN-FD TX path. Serializes LLC frame
---              bytes into a bit stream for the MAC FSM.
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
---              Internal LLC frame format (variable length, streamed by
---              can_llc_tx to can_mac_ser_tx):
+-- Requirements:
+--
+-- Description:   MAC serializer for CAN/CAN-FD TX path. Serializes LLC frame
+--                bytes into a bit stream for the MAC FSM.
+--                Internal LLC frame format (variable length, streamed by
+--                can_llc_tx to can_mac_ser_tx):
 --                Byte 0:    [7:5]=FORMAT, [4]=FTYP(RTR), [3]=ESI, [2]=BRS
 --                Byte 1:    [7:4]=DLC, [3:0]=0000
 --                Bytes 2-5: ID (32-bit, MSB first, left-aligned)
 --                Bytes 6+:  Data (DLC count, no padding)
---
---              Responsibilities:
+--                Responsibilities:
 --                1) Extract LLC metadata from config bytes and register at
---                   the MAC FSM interface.
+--                the MAC FSM interface.
 --                2) Serialize LLC frame ID and data bytes and present as
---                   individual bits to the MAC FSM.
+--                individual bits to the MAC FSM.
 --                3) Skip padding bits in the 32-bit ID stream.
 --                4) Forward transfer status from MAC FSM back to LLC.
---------------------------------------------------------------------------------
+--
+-- Revision log:  Date:       Initial:  JIRA:
+--                2026-03-31  MRDSA     Converted to company header format
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;

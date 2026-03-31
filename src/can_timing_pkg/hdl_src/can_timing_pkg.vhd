@@ -1,13 +1,15 @@
---------------------------------------------------------------------------------
--- Title      : CAN Bus Timing Calculations
--- Project    : CAN Bus Transmitter
---------------------------------------------------------------------------------
--- File       : can_timing_pkg.vhd
--- Standard   : VHDL-2008
---------------------------------------------------------------------------------
--- Description: Timing logic and policy functions for the CAN/CAN-FD PCS layer.
---              Implements TDC activation policy per ISO 11898-1:2015.
---------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+--
+-- Requirements:
+--
+-- Description:   Timing logic and policy functions for the CAN/CAN-FD PCS layer.
+--                Implements TDC activation policy per ISO 11898-1:2015.
+--
+-- Revision log:  Date:       Initial:  JIRA:
+--                2026-03-31  MRDSA     Converted to company header format
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;

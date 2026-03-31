@@ -1,17 +1,17 @@
---------------------------------------------------------------------------------
--- Title      : CAN Bus LLC Transmit Controller
--- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
---------------------------------------------------------------------------------
--- File       : can_llc_tx.vhd
--- Author     : Mads Richardt
--- Standard   : VHDL-2008
---------------------------------------------------------------------------------
--- Description: Logical Link Control (LLC) sub-layer for CAN transmission.
---              Accepts full frame bytes on Avalon-ST from LLC user, buffers the
---              frame, and handles replay for retransmissions.
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
--- Protocol references: ISO 11898-1:2015 Section 6.4
---------------------------------------------------------------------------------
+-- Requirements:
+--
+-- Description:   Logical Link Control (LLC) sub-layer for CAN transmission.
+--                Accepts full frame bytes on Avalon-ST from LLC user, buffers the
+--                frame, and handles replay for retransmissions.
+--                Protocol references: ISO 11898-1:2015 Section 6.4
+--
+-- Revision log:  Date:       Initial:  JIRA:
+--                2026-03-31  MRDSA     Converted to company header format
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;

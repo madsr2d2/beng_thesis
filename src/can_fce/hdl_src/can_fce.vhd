@@ -1,24 +1,23 @@
---------------------------------------------------------------------------------
--- Title      : CAN Fault Confinement Entity
--- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
---------------------------------------------------------------------------------
--- File       : can_fce.vhd
--- Author     : Mads Richardt
--- Standard   : VHDL-2008
---------------------------------------------------------------------------------
--- Description: Fault Confinement Entity per ISO 11898-1:2015 Section 8.1.4.
---              Manages TEC/REC counters and error state for both TX and RX
---              MAC paths. Shared supervisor - one instance per CAN node.
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
---              Interfaces (per ISO 11898-1 Tables 14-19):
+-- Requirements:
+--
+-- Description:   Fault Confinement Entity per ISO 11898-1:2015 Section 8.1.4.
+--                Manages TEC/REC counters and error state for both TX and RX
+--                MAC paths. Shared supervisor - one instance per CAN node.
+--                Interfaces (per ISO 11898-1 Tables 14-19):
 --                LLC: Normal_mode_request/response, Bus_off indication
 --                MAC: Error counting signals, Error_passive/active requests
 --                PCS: Bus_off_request/release for physical disconnection
+--                Counter update rules follow ISO 8.1.4.2 Table 16/17.
+--                State transitions follow ISO 8.1.4.1 (T2-T5).
+--                Bus-off recovery uses internal 11-bit idle detection.
 --
---              Counter update rules follow ISO 8.1.4.2 Table 16/17.
---              State transitions follow ISO 8.1.4.1 (T2-T5).
---              Bus-off recovery uses internal 11-bit idle detection.
---------------------------------------------------------------------------------
+-- Revision log:  Date:       Initial:  JIRA:
+--                2026-03-31  MRDSA     Converted to company header format
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;

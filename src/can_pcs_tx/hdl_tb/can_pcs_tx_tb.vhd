@@ -1,21 +1,20 @@
---------------------------------------------------------------------------------
--- Title      : Testbench for CAN Physical Signaling Layer (PCS)
--- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
---------------------------------------------------------------------------------
--- File       : can_pcs_tx_tb.vhd
--- Author     : Mads Richardt
--- Standard   : VHDL-2008
---------------------------------------------------------------------------------
--- Description: PCS-focused verification with two DUT configurations:
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
---              DUT 1 (dut_no_tdc): All default generics (prescaler = 16).
---              TDC disabled. Tests: reset/idle, nominal cadence, TX mapping,
---              bus polarity, data-phase SP-only monitoring.
+-- Requirements:
 --
---              DUT 2 (dut_tdc): Prescaler = 2. TDC enabled.
---              Tests: TDC measurement, SSP cadence in data phase,
---              CRC delimiter exit, TDC timeout fallback.
---------------------------------------------------------------------------------
+-- Description:   PCS-focused verification with two DUT configurations:
+--                DUT 1 (dut_no_tdc): All default generics (prescaler = 16).
+--                TDC disabled. Tests: reset/idle, nominal cadence, TX mapping,
+--                bus polarity, data-phase SP-only monitoring.
+--                DUT 2 (dut_tdc): Prescaler = 2. TDC enabled.
+--                Tests: TDC measurement, SSP cadence in data phase,
+--                CRC delimiter exit, TDC timeout fallback.
+--
+-- Revision log:  Date:       Initial:  JIRA:
+--                2026-03-31  MRDSA     Converted to company header format
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;

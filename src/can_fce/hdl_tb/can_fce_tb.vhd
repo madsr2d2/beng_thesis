@@ -1,15 +1,16 @@
---------------------------------------------------------------------------------
--- Title      : CAN Fault Confinement Entity Testbench
--- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
---------------------------------------------------------------------------------
--- File       : can_fce_tb.vhd
--- Author     : Mads Richardt
--- Standard   : VHDL-2008
---------------------------------------------------------------------------------
--- Description: Unit tests for can_fce.vhd, verifying TEC/REC counter rules
---              and state transitions per ISO 11898-1:2015 Section 8.1.4.
---              Tests all three FCE interfaces: LLC, MAC, and PCS.
---------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+--
+-- Requirements:
+--
+-- Description:   Unit tests for can_fce.vhd, verifying TEC/REC counter rules
+--                and state transitions per ISO 11898-1:2015 Section 8.1.4.
+--                Tests all three FCE interfaces: LLC, MAC, and PCS.
+--
+-- Revision log:  Date:       Initial:  JIRA:
+--                2026-03-31  MRDSA     Converted to company header format
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;

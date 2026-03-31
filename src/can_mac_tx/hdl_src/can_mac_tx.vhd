@@ -1,17 +1,18 @@
---------------------------------------------------------------------------------
--- Title      : CAN MAC Transmitter Top-Level
--- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
---------------------------------------------------------------------------------
--- File       : can_mac_tx.vhd
--- Author     : Mads Richardt
--- Standard   : VHDL-2008
---------------------------------------------------------------------------------
--- Description: Top-level MAC transmitter wrapper. Instantiates and wires:
---   - can_mac_ser_tx:  LLC byte serializer (LLC -> serial bit stream)
---   - can_mac_fsm_tx:  Frame transmission FSM (coordinator)
---   - can_mac_bs:   CAN FD bit stuffing with SBC generation
---   - can_mac_crc:  CRC engine interface
---------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+--
+-- Requirements:
+--
+-- Description:   Top-level MAC transmitter wrapper. Instantiates and wires:
+--                - can_mac_ser_tx:  LLC byte serializer (LLC -> serial bit stream)
+--                - can_mac_fsm_tx:  Frame transmission FSM (coordinator)
+--                - can_mac_bs:   CAN FD bit stuffing with SBC generation
+--                - can_mac_crc:  CRC engine interface
+--
+-- Revision log:  Date:       Initial:  JIRA:
+--                2026-03-31  MRDSA     Converted to company header format
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;

@@ -1,22 +1,21 @@
---------------------------------------------------------------------------------
--- Title      : CAN MAC Transmitter FSM
--- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
---------------------------------------------------------------------------------
--- File       : can_mac_fsm_tx.vhd
--- Author     : Mads Richardt
--- Standard   : VHDL-2008
---------------------------------------------------------------------------------
--- Description: Media Access Control (MAC) FSM for CAN/CAN-FD transmission.
---              Coordinates serialization, bit stuffing, CRC generation, and
---              physical signaling (PCS) timing.
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
---              Frame transmission is split into three pipelined states:
+-- Requirements:
+--
+-- Description:   Media Access Control (MAC) FSM for CAN/CAN-FD transmission.
+--                Coordinates serialization, bit stuffing, CRC generation, and
+--                physical signaling (PCS) timing.
+--                Frame transmission is split into three pipelined states:
 --                s_frame_init  - compute frame_params, drive SOF
 --                s_monitor_bit - wait for SP/SSP, evaluate get_bit_info
 --                s_transmit_bit - drive next bit via get_mac_frame_bit
+--                Protocol references: ISO 11898-1:2015
 --
--- Protocol references: ISO 11898-1:2015
---------------------------------------------------------------------------------
+-- Revision log:  Date:       Initial:  JIRA:
+--                2026-03-31  MRDSA     Converted to company header format
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;

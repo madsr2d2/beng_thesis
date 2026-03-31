@@ -1,24 +1,24 @@
---------------------------------------------------------------------------------
--- Title      : TX Error Detection Testbench
--- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
---------------------------------------------------------------------------------
--- File       : can_mac_fsm_tx_err_tb.vhd
--- Author     : Mads Richardt
--- Standard   : VHDL-2008
---------------------------------------------------------------------------------
--- Description: Comprehensive testbench for error detection requirements.
---   Refactored with clean, reusable infrastructure for multiple error tests.
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
--- Tests:
---   1. ACK Error Detection (REQ-TX-ERR006)
---   2. Bit Error Detection (REQ-TX-ERR001)
---   3. Data Phase Bit Rate Switching (REQ-TX-EH004)
---   4. FD Data Phase Completion (REQ-TX-EH005)
---   5. TDC Error @ SSP Detection (REQ-TX-TDC003)
---   6. TDC Error Timing Sequence (REQ-TX-TDC004)
---   7. FD EF First Bit Deferred (REQ-TX-EH008)
---   8. Constraint Random Verification (CRV)
---------------------------------------------------------------------------------
+-- Requirements:
+--
+-- Description:   Comprehensive testbench for error detection requirements.
+--                Refactored with clean, reusable infrastructure for multiple error tests.
+--                Tests:
+--                1. ACK Error Detection (REQ-TX-ERR006)
+--                2. Bit Error Detection (REQ-TX-ERR001)
+--                3. Data Phase Bit Rate Switching (REQ-TX-EH004)
+--                4. FD Data Phase Completion (REQ-TX-EH005)
+--                5. TDC Error @ SSP Detection (REQ-TX-TDC003)
+--                6. TDC Error Timing Sequence (REQ-TX-TDC004)
+--                7. FD EF First Bit Deferred (REQ-TX-EH008)
+--                8. Constraint Random Verification (CRV)
+--
+-- Revision log:  Date:       Initial:  JIRA:
+--                2026-03-31  MRDSA     Converted to company header format
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;

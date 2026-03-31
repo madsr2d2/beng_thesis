@@ -1,17 +1,18 @@
---------------------------------------------------------------------------------
--- Title      : CAN MAC Receiver Top-Level
--- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
---------------------------------------------------------------------------------
--- File       : can_mac_rx.vhd
--- Author     : Mads Richardt
--- Standard   : VHDL-2008
---------------------------------------------------------------------------------
--- Description: Top-level MAC receiver wrapper. Instantiates and wires:
---   - can_mac_deser_rx: Serial-to-byte deserializer (serial -> LLC bytes)
---   - can_mac_fsm_rx:   Frame reception FSM (coordinator)
---   - can_mac_bs:        CAN FD bit stuffer (reused for destuffing)
---   - can_mac_crc:       CRC engine (reused for CRC checking)
---------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+--
+-- Requirements:
+--
+-- Description:   Top-level MAC receiver wrapper. Instantiates and wires:
+--                - can_mac_deser_rx: Serial-to-byte deserializer (serial -> LLC bytes)
+--                - can_mac_fsm_rx:   Frame reception FSM (coordinator)
+--                - can_mac_bs:        CAN FD bit stuffer (reused for destuffing)
+--                - can_mac_crc:       CRC engine (reused for CRC checking)
+--
+-- Revision log:  Date:       Initial:  JIRA:
+--                2026-03-31  MRDSA     Converted to company header format
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;
