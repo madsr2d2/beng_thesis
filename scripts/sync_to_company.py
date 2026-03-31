@@ -8,6 +8,7 @@ can_bus_controller_fd/<module>/ with company-specific transformations:
   1. Adds 'use work.pk_man_global.all;' import
   2. Strips inline gen_crc entity from can_mac_crc (company has it separate)
   3. Qualifies t_eth_st_s2d/d2s with pk_eth_st package prefix
+  4. Generates Riviera-PRO TCL waveform files from local GTKWave .gtkw files
 
 Usage:
     python scripts/sync_to_company.py                      # Sync all modules
@@ -22,6 +23,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 LOCAL_SRC = ROOT / "src"
 COMPANY_DIR = ROOT / "can_bus_controller_fd"
+GTK_WAVE_DIR = ROOT / "gtk_wave"
 
 # ── Module discovery ────────────────────────────────────────────────────────
 # Auto-discover syncable modules: every directory in can_bus_controller_fd/
@@ -185,6 +187,107 @@ def strip_gen_crc_entity(lines: list[str]) -> list[str]:
     return out
 
 
+# ── GTKWave to Riviera-PRO TCL conversion ──────────────────────────────────
+
+# GTKWave display flags -> Riviera-PRO wave type
+# @28/@29 = single-bit logic, @22 = hex/literal (vectors), @420/@421 = decimal/enum
+GTKW_TYPE_MAP = {
+    0x28: "-logic",
+    0x29: "-logic",
+    0x22: "-literal",
+    0x420: "-decimal",
+    0x421: "-decimal",
+}
+
+# Group open/close markers
+GTKW_GROUP_OPEN = {0xC00200, 0x800200, 0x800201}
+GTKW_GROUP_CLOSE = {0x1401200, 0x1000200, 0x1000201}
+
+
+def gtkw_to_tcl(gtkw_path: Path) -> str:
+    """Convert a GTKWave .gtkw save file to a Riviera-PRO TCL waveform script."""
+    lines = gtkw_path.read_text().splitlines()
+
+    groups: list[tuple[str, list[tuple[str, str]]]] = []
+    current_type = "-logic"
+    current_group_name: str | None = None
+    current_signals: list[tuple[str, str]] = []
+
+    for line in lines:
+        line = line.strip()
+
+        # Display type flag
+        if line.startswith("@"):
+            try:
+                flag = int(line[1:], 16)
+            except ValueError:
+                continue
+            if flag in GTKW_TYPE_MAP:
+                current_type = GTKW_TYPE_MAP[flag]
+            elif flag in GTKW_GROUP_OPEN:
+                pass  # group name comes on the next signal-like line
+            elif flag in GTKW_GROUP_CLOSE:
+                if current_group_name is not None:
+                    groups.append((current_group_name, current_signals))
+                    current_group_name = None
+                    current_signals = []
+            continue
+
+        # Group name line (prefixed with - in gtkw)
+        if line.startswith("-"):
+            name = line[1:].strip()
+            if current_group_name is not None and current_signals:
+                groups.append((current_group_name, current_signals))
+            current_group_name = name
+            current_signals = []
+            continue
+
+        # Skip gtkw metadata, color, composite signals (#{ ... })
+        if (line.startswith("[") or line.startswith("*") or line.startswith("#")
+                or line.startswith("(") or not line):
+            continue
+
+        # Signal path: top.entity.signal -> /entity/signal
+        if line.startswith("top."):
+            sig_path = "/" + line[4:].replace(".", "/")
+            # Expand bit-slice notation: signal[0] is fine as-is
+            current_signals.append((current_type, sig_path))
+
+    # Flush last group
+    if current_group_name is not None and current_signals:
+        groups.append((current_group_name, current_signals))
+
+    # Build TCL output
+    tcl_lines = [
+        "onerror { resume }",
+        "set curr_transcript [transcript]",
+        "transcript off",
+        "",
+    ]
+
+    for group_name, signals in groups:
+        if not signals:
+            continue
+        # Quote group name if it contains spaces
+        gname = f'"{group_name}"' if " " in group_name else group_name
+        tcl_lines.append(f"add wave -vgroup {gname} \\")
+        for i, (wtype, spath) in enumerate(signals):
+            cont = " \\" if i < len(signals) - 1 else ""
+            tcl_lines.append(f"\t( {wtype} {spath} ){cont}")
+        tcl_lines.append("")
+
+    tcl_lines.extend([
+        "wv.cursors.add -time 0ns -name {Default cursor}",
+        "wv.cursors.setactive -name {Default cursor}",
+        "wv.zoom.range -from 0ns -to 100000ns",
+        "wv.time.unit.auto.set",
+        "transcript $curr_transcript",
+        "",
+    ])
+
+    return "\n".join(tcl_lines)
+
+
 # ── Core sync logic ─────────────────────────────────────────────────────────
 
 def transform(content: str, module: str, filename: str) -> str:
@@ -253,6 +356,32 @@ def sync_module(module: str, dry_run: bool = False) -> int:
                 company_path.write_text(transformed)
                 print(f"  SYNCED {company_path.relative_to(ROOT)}")
             synced += 1
+
+    # Generate TCL waveform files from local GTKWave .gtkw files
+    for gtkw_file in sorted(GTK_WAVE_DIR.glob("*.gtkw")):
+        # Match gtkw files belonging to this module's TBs
+        tb_name = gtkw_file.stem  # e.g. "can_mac_tx_tb"
+        tb_vhd = local_dir / "hdl_tb" / f"{tb_name}.vhd"
+        if not tb_vhd.exists():
+            continue
+
+        tcl_name = f"sim_wave_{module}.tcl"
+        tcl_path = company_dir / "test_case" / tcl_name
+        tcl_content = gtkw_to_tcl(gtkw_file)
+
+        if dry_run:
+            if tcl_path.exists():
+                if tcl_path.read_text() == tcl_content:
+                    print(f"  UNCHANGED {tcl_path.relative_to(ROOT)}")
+                else:
+                    print(f"  WOULD UPDATE {tcl_path.relative_to(ROOT)}")
+            else:
+                print(f"  WOULD CREATE {tcl_path.relative_to(ROOT)}")
+        else:
+            tcl_path.parent.mkdir(parents=True, exist_ok=True)
+            tcl_path.write_text(tcl_content)
+            print(f"  SYNCED {tcl_path.relative_to(ROOT)}")
+        synced += 1
 
     return synced
 
