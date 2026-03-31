@@ -32,7 +32,7 @@ This is a B.Eng thesis project implementing a **full CAN (Controller Area Networ
 - Enums like `t_mac_frame_bit_name` are used only internally and on debug ports (simulation-only)
 
 **Naming conventions:**
-- Types: `t_` prefix (e.g., `t_can_mac_pcs_tx_if_m2s`)
+- Types: `t_` prefix (e.g., `t_can_mac_pcs_if_m2s`)
 - Constants: `c_` prefix (e.g., `c_dominant`, `c_st_bus_idle`)
 - Package: `pk_can_types` (not `can_types_pkg` - the package name differs from the filename)
 
@@ -41,41 +41,63 @@ This is a B.Eng thesis project implementing a **full CAN (Controller Area Networ
 ## Directory Structure
 
 ```
-src/                        # Design and testbench VHDL files
-├── can_types_pkg.vhd       # pk_can_types: core types, interface records, constants
-├── can_timing_pkg.vhd      # Bit timing utilities, TDC calculation
-├── can_mac_ser_tx.vhd      # MAC serializer: LLC bytes -> serial bit stream
-├── can_mac_crc_tx.vhd      # CRC engine for CAN-FD
-├── can_mac_bs_tx.vhd       # Bit stuffer with SBC generation
-├── can_mac_fsm_tx.vhd      # Frame transmission FSM (coordinator)
-├── can_mac_tx.vhd          # MAC sub-layer wrapper (ser + FSM + BS + CRC)
-├── can_pcs_tx.vhd          # PCS sub-layer (bit timing, TDC, bus interface)
-├── can_llc_tx.vhd          # LLC sub-layer (frame buffering, retransmission)
-├── can_tx.vhd              # Top-level TX (LLC + MAC + PCS)
-├── can_fce.vhd             # Fault Confinement Entity
-├── can_pkg_tb.vhd          # Package unit tests (127 tests)
-├── can_mac_bs_tx_tb.vhd    # Bit stuffer testbench
-├── can_mac_ser_tx_tb.vhd   # Serializer testbench (5 tests)
-├── can_pcs_tx_tb.vhd       # PCS testbench
-├── can_fce_tb.vhd          # FCE testbench
-├── can_tx_tb.vhd           # Top-level TX testbench (40 tests)
-├── can_tx_protocol_tb.vhd  # Protocol conformance checker (27 tests)
-└── can_mac_fsm_tx_err_tb.vhd  # Error detection testbench (8 tests)
+src/                                  # Per-module folders (mirrors company layout)
+├── can_types_p/
+│   ├── hdl_src/can_types_pkg.vhd     # pk_can_types: core types, interface records, constants
+│   └── hdl_tb/can_types_pkg_tb.vhd   # Package unit tests
+├── can_timing_pkg/
+│   └── hdl_src/can_timing_pkg.vhd    # Bit timing utilities, TDC calculation
+├── can_mac_ser_tx/
+│   ├── hdl_src/can_mac_ser_tx.vhd    # MAC serializer: LLC bytes -> serial bit stream
+│   └── hdl_tb/can_mac_ser_tx_tb.vhd  # Serializer testbench
+├── can_mac_crc/
+│   └── hdl_src/can_mac_crc.vhd       # CRC engine for CAN-FD (shared TX/RX, includes gen_crc)
+├── can_mac_bs/
+│   ├── hdl_src/can_mac_bs.vhd        # Bit stuffer with SBC generation (shared TX/RX)
+│   └── hdl_tb/can_mac_bs_tb.vhd      # Bit stuffer testbench
+├── can_mac_fsm_tx/
+│   ├── hdl_src/can_mac_fsm_tx.vhd    # Frame transmission FSM (coordinator)
+│   └── hdl_tb/can_mac_fsm_tx_tb.vhd, can_mac_fsm_tx_err_tb.vhd
+├── can_mac_tx/
+│   ├── hdl_src/can_mac_tx.vhd        # MAC TX sub-layer wrapper
+│   └── hdl_tb/can_mac_tx_tb.vhd      # MAC TX testbench (~209k affirmations)
+├── can_pcs_tx/
+│   ├── hdl_src/can_pcs_tx.vhd        # PCS sub-layer (bit timing, TDC, bus interface)
+│   └── hdl_tb/can_pcs_tx_tb.vhd
+├── can_llc_tx/
+│   └── hdl_src/can_llc_tx.vhd        # LLC sub-layer (frame buffering, retransmission)
+├── can_tx/
+│   ├── hdl_src/can_tx.vhd            # Top-level TX (LLC + MAC + PCS)
+│   └── hdl_tb/can_tx_tb.vhd          # Top-level TX testbench
+├── can_fce/
+│   ├── hdl_src/can_fce.vhd           # Fault Confinement Entity
+│   └── hdl_tb/can_fce_tb.vhd
+├── can_mac_fsm_rx/
+│   └── hdl_src/can_mac_fsm_rx.vhd    # Frame reception FSM (stub)
+├── can_mac_deser_rx/
+│   └── hdl_src/can_mac_deser_rx.vhd  # Serial-to-byte deserializer (stub)
+└── can_mac_rx/
+    └── hdl_src/can_mac_rx.vhd        # MAC RX sub-layer wrapper (stub)
+
+can_bus_controller_fd/                # Company-format mirror (synced via scripts/sync_to_company.py)
+├── can_types_p/                      # Same per-module layout with hdl_src/, hdl_tb/, test_case/
+├── can_mac_bs/                       # Shared modules (no _tx suffix)
+├── can_mac_crc/                      # gen_crc stripped (company has it at ip_lib/gen_crc/)
+├── can_mac_ser_tx/
+├── can_mac_fsm_tx/
+└── can_mac_tx/
+
+scripts/                # Build and sync scripts
+├── sync_to_company.py  # Local -> company format conversion
+└── md_to_pdf.sh        # Report generation
 
 mcp_tools/              # Model Context Protocol servers (extensible)
-├── __init__.py
-├── requirements.txt
-└── verification_plan_manager.py
-
 gtk_wave/               # GTKWave configuration files
 docs/                   # Documentation and standards reference
-├── md_out/             # Searchable markdown versions of standards
 formal/                 # Formal verification .sby files and results
 OsvvmLibraries/         # OSVVM simulation framework (external)
-sim/                    # Generated simulation artifacts
+sim/                    # Generated simulation artifacts (gitignored)
 verification_plan/      # Verification plan specification and tooling
-├── verification_plan.toml
-└── verification_plan_table.py
 ```
 
 ---
@@ -98,18 +120,18 @@ The full RTL chain must be compiled in dependency order. Packages first, then le
 ```bash
 ghdl -a --std=08 -fpsl --warn-no-vital-generic --warn-no-hide \
   -P./OsvvmLibraries/osvvm/VHDL_LIBS/GHDL-6.0.0-dev -P. \
-  src/can_types_pkg.vhd \
-  src/can_timing_pkg.vhd \
-  src/can_mac_ser_tx.vhd \
-  src/can_mac_crc_tx.vhd \
-  src/can_mac_bs_tx.vhd \
-  src/can_mac_fsm_tx.vhd \
-  src/can_mac_tx.vhd \
-  src/can_pcs_tx.vhd \
-  src/can_llc_tx.vhd \
-  src/can_tx.vhd \
-  src/can_fce.vhd \
-  src/<testbench>.vhd
+  src/can_types_p/hdl_src/can_types_pkg.vhd \
+  src/can_timing_pkg/hdl_src/can_timing_pkg.vhd \
+  src/can_mac_ser_tx/hdl_src/can_mac_ser_tx.vhd \
+  src/can_mac_crc/hdl_src/can_mac_crc.vhd \
+  src/can_mac_bs/hdl_src/can_mac_bs.vhd \
+  src/can_mac_fsm_tx/hdl_src/can_mac_fsm_tx.vhd \
+  src/can_mac_tx/hdl_src/can_mac_tx.vhd \
+  src/can_pcs_tx/hdl_src/can_pcs_tx.vhd \
+  src/can_llc_tx/hdl_src/can_llc_tx.vhd \
+  src/can_tx/hdl_src/can_tx.vhd \
+  src/can_fce/hdl_src/can_fce.vhd \
+  src/<module>/hdl_tb/<testbench>.vhd
 ```
 
 After analysis, elaborate and run:
@@ -127,9 +149,9 @@ ghdl -r --std=08 -fpsl --warn-no-vital-generic --warn-no-hide \
 ### Makefile (alternative)
 
 ```bash
-make TB=src/can_pkg_tb all          # Compile, run, open waveform
-make TB=src/can_pkg_tb compile run  # Compile and run (no waveform)
-make clean                          # Remove artifacts
+make TB=src/can_types_p/hdl_tb/can_types_pkg_tb all          # Compile, run, open waveform
+make TB=src/can_types_p/hdl_tb/can_types_pkg_tb compile run  # Compile and run (no waveform)
+make clean                                                    # Remove artifacts
 ```
 
 ### Waveform Viewing
@@ -262,7 +284,7 @@ Rules:
 
 **Run linting:**
 ```bash
-vsg -c vsg_config.yaml -f src/can_pkg.vhd
+vsg -c vsg_config.yaml -f src/can_types_p/hdl_src/can_types_pkg.vhd
 ```
 
 **VSG Configuration** (`vsg_config.yaml`):
@@ -394,8 +416,19 @@ User -> can_llc_tx(legacy_rtl) -> can_mac_tx -> can_pcs_tx -> tx_bus_o
                                       |
                                can_mac_ser_tx
                                can_mac_fsm_tx
-                               can_mac_bs_tx
-                               can_mac_crc_tx
+                               can_mac_bs
+                               can_mac_crc
+```
+
+### RX Pipeline Architecture
+
+```
+rx_bus_i -> can_pcs_rx -> can_mac_rx -> can_llc_rx -> User
+                               |
+                         can_mac_deser_rx  (stub)
+                         can_mac_fsm_rx    (stub)
+                         can_mac_bs
+                         can_mac_crc
 ```
 
 All inter-module interfaces use `std_logic`/`std_logic_vector` record types defined in `pk_can_types`.
@@ -404,30 +437,43 @@ All inter-module interfaces use `std_logic`/`std_logic_vector` record types defi
 
 The LLC user interface accepts the 71-byte legacy format described in the Testbench Structure section above. The `legacy_rtl` architecture of `can_llc_tx` converts this to the internal config_byte_0/config_byte_1/ID format consumed by the MAC serializer.
 
+### Interface Direction Convention
+
+Control/status interfaces (e.g., FCE) use **m2s/s2m** (master/slave) naming. Data-transfer interfaces that follow Avalon-ST source/sink semantics use **s2d/d2s** (source/destination) naming, where the source produces data and the destination consumes it.
+
 ### Key Interface Records
 
-All defined in `pk_can_types` (`src/can_types_pkg.vhd`):
+All defined in `pk_can_types` (`src/can_types_p/hdl_src/can_types_pkg.vhd`):
 
-**MAC to PCS (`t_can_mac_pcs_tx_if_m2s`):**
+**MAC to PCS (`t_can_mac_pcs_if_m2s`):**
 - `polarity: std_logic` - Bit polarity (c_dominant/c_recessive)
 - `valid: std_logic` - Data valid
 - `use_data_rate: std_logic` - Switch to data-phase bit rate
 - `start_tdc: std_logic` - Begin TDC measurement
 
-**PCS to MAC (`t_can_mac_pcs_tx_if_s2m`):**
+**PCS to MAC (`t_can_mac_pcs_if_s2m`):**
 - `bus_polarity: std_logic` - Sampled bus polarity
 - `sp: std_logic` - Sample Point strobe
 - `ssp: std_logic` - Secondary Sample Point strobe
 - `fifo_index: t_fifo_index_vec` - TDC FIFO read index
 
-**MAC Serializer to FSM (`t_can_mac_ser_fsm_tx_if_s2m`):**
+**MAC Serializer to FSM (`t_can_mac_ser_fsm_if_s2d`):**
 - `data: std_logic` - Output polarity
 - `valid: std_logic` - Data valid
-- `frame_params: t_frame_params` - Cached frame parameters
+- `llc_metadata: t_llc_metadata` - Cached frame metadata from LLC
 
-**FSM to Serializer (`t_can_mac_ser_fsm_tx_if_m2s`):**
+**FSM to Serializer (`t_can_mac_ser_fsm_if_d2s`):**
 - `transfer_status: std_logic_vector(2 downto 0)` - Frame status
 - `ready: std_logic` - FSM ready for next bit
+
+**FSM to/from Bit Stuffer (`t_can_mac_fsm_bs_if_m2s`, `t_can_mac_fsm_bs_if_s2m`):**
+- Control and status signals between the TX FSM and the bit stuffer.
+
+**FSM to/from CRC Engine (`t_can_mac_fsm_crc_if_m2s`, `t_can_mac_fsm_crc_if_s2m`):**
+- Control and status signals between the TX FSM and the CRC engine.
+
+**FSM to/from Deserializer (`t_can_mac_fsm_deser_if_s2d`, `t_can_mac_fsm_deser_if_d2s`):**
+- Data-transfer interface between the RX FSM and the deserializer (s2d/d2s convention).
 
 **FCE interface (`t_can_mac_fce_if_s2m`):**
 - `error_passive_request: std_logic`
@@ -460,8 +506,8 @@ constant c_llc_fmt_fe : std_logic_vector(2 downto 0) := "110"; -- FD Extended
 The top-level `can_tx` entity exposes debug ports for testbench observability:
 
 ```vhdl
-debug_mac_to_pcs_o : out t_can_mac_pcs_tx_if_m2s;
-debug_pcs_to_mac_o : out t_can_mac_pcs_tx_if_s2m;
+debug_mac_to_pcs_o : out t_can_mac_pcs_if_m2s;
+debug_pcs_to_mac_o : out t_can_mac_pcs_if_s2m;
 debug_ack_error_o  : out std_logic;
 debug_form_error_o : out std_logic;
 debug_data_exit_o  : out std_logic;
@@ -489,6 +535,9 @@ Central package defining all types, interface records, and constants. All interf
 - `t_mac_frame_bit_name` enum (internal use and debug ports only)
 - `t_mac_frame_bit` record (internal frame bit representation)
 - Reset constants for all interface records
+- `c_llc_id_field_width` constant (ID field width)
+- CRC vector represented as `std_logic_vector(c_crc_21_length - 1 downto 0)` (no `t_crc_vector` subtype)
+- Section 10: TB Utility Functions - `f_calc_can_crc` and `extract_metadata` (testbench use only)
 
 ### can_timing_pkg.vhd
 
@@ -527,12 +576,15 @@ The `can_tx` top-level uses `legacy_rtl`. All testbenches driving `can_tx` must 
 
 | Testbench | Tests | Description |
 |-----------|-------|-------------|
-| `can_pkg_tb` | 127 | Package utilities, frame structures, all 4 formats |
+| `can_types_pkg_tb` | 127 | Package utilities, frame structures, all 4 formats |
 | `can_mac_ser_tx_tb` | 5 | Serializer with ready/valid handshaking |
-| `can_mac_bs_tx_tb` | - | Bit stuffer with PSL assertions |
+| `can_mac_bs_tb` | - | Bit stuffer with PSL assertions |
 | `can_pcs_tx_tb` | - | PCS bit timing and TDC |
 | `can_fce_tb` | - | Fault confinement entity |
-| `can_tx_tb` | 40 | Top-level TX: happy path, abort, error recovery, all formats |
+| `can_mac_tx_tb` (v1) | - | MAC TX wrapper: ~40k affirmations |
+| `can_mac_tx_tb` (v2) | - | MAC TX wrapper extended: ~203k affirmations |
+| `can_mac_tx_tb` (v3) | - | MAC TX wrapper full: ~209k affirmations |
+| `can_tx_tb` | 35 | Top-level TX: happy path, abort, error recovery, all formats |
 | `can_tx_protocol_tb` | 27 | Protocol conformance: frame structure, EOF, ACK |
 | `can_mac_fsm_tx_err_tb` | 8 | Error detection: ACK, bit error, BRS, TDC, random |
 
@@ -678,10 +730,10 @@ Rules:
 ### Running Formal Verification
 
 ```bash
-sby formal/can_mac_bs_tx.sby bmc      # Bounded model check (fast falsification)
-sby formal/can_mac_bs_tx.sby prove    # K-induction (exhaustive proof)
-sby formal/can_mac_bs_tx.sby          # Both tasks
-sby -f formal/can_mac_bs_tx.sby prove # Force re-run (overwrite previous results)
+sby formal/can_mac_bs.sby bmc      # Bounded model check (fast falsification)
+sby formal/can_mac_bs.sby prove    # K-induction (exhaustive proof)
+sby formal/can_mac_bs.sby          # Both tasks
+sby -f formal/can_mac_bs.sby prove # Force re-run (overwrite previous results)
 ```
 
 ---

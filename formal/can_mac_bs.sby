@@ -46,6 +46,5 @@ ghdl -fpsl --std=08 \
 prep -top can_mac_bs
 
 [files]
-src/can_types_pkg.vhd
-src/can_protocol_pkg.vhd
-src/can_mac_bs.vhd
+src/can_types_p/hdl_src/can_types_pkg.vhd
+src/can_mac_bs/hdl_src/can_mac_bs.vhd

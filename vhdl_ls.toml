@@ -11,5 +11,6 @@ osvvm_common.files = [
 ]
 
 project.files = [
-    "src/*.vhd"
+    "src/*/hdl_src/*.vhd",
+    "src/*/hdl_tb/*.vhd"
 ]

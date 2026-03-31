@@ -24,21 +24,21 @@ entity can_mac_fsm_tx is
     rst_i : in    std_logic;
 
     -- Serializer interface
-    mac_ser_i : in    t_can_mac_ser_fsm_tx_if_s2m;
-    mac_ser_o : out   t_can_mac_ser_fsm_tx_if_m2s;
+    mac_ser_i : in    t_can_mac_ser_fsm_if_s2d;
+    mac_ser_o : out   t_can_mac_ser_fsm_if_d2s;
 
     -- PCS interface
-    pcs_i : in    t_can_mac_pcs_tx_if_s2m;
-    pcs_o : out   t_can_mac_pcs_tx_if_m2s;
+    pcs_i : in    t_can_mac_pcs_if_s2m;
+    pcs_o : out   t_can_mac_pcs_if_m2s;
 
     -- Bit stuffer FD interface
-    bs_fd_i   : in    t_can_mac_fsm_bs_tx_if_s2m;
-    bs_fd_o   : out   t_can_mac_fsm_bs_tx_if_m2s;
+    bs_fd_i   : in    t_can_mac_fsm_bs_if_s2m;
+    bs_fd_o   : out   t_can_mac_fsm_bs_if_m2s;
     bs_fd_rst : out   std_logic;
 
     -- CRC interface
-    crc_i   : in    t_can_mac_fsm_crc_tx_if_s2m;
-    crc_o   : out   t_can_mac_fsm_crc_tx_if_m2s;
+    crc_i   : in    t_can_mac_fsm_crc_if_s2m;
+    crc_o   : out   t_can_mac_fsm_crc_if_m2s;
     crc_rst : out   std_logic;
 
     -- Fault Confinement Entity interface (ISO 11898-1 Table 16/17)
@@ -116,7 +116,9 @@ begin
 
     -- Handles logic common to quiet states (ISO 11898-1: 6.6.7):
     -- hold-signal management and SP-based idle-run counting.
-    procedure process_quiet_phase_common is
+    procedure process_quiet_phase_common (
+      constant quiet_bit_name_c : in t_mac_frame_bit_name
+    ) is
     begin
 
       pcs_o.valid               <= '0';
@@ -126,6 +128,9 @@ begin
       fce_o.transmitting        <= '0';
       ssp_error_pending         <= false;
       mac_ser_o.transfer_status <= c_ongoing;
+
+      last_transmitted_bit          <= (c_recessive, quiet_bit_name_c);
+      last_transmitted_bit_polarity <= c_recessive;
 
       if (pcs_i.sp = '1') then
         -- ISO 11898-1: 6.6.7.5 - count consecutive recessive bits at SP;
@@ -208,7 +213,8 @@ begin
     -- flag/delimiter serialization, delimiter-dominant run tracking, and reactive overload trigger.
     procedure process_flag_transmission (
       constant flag_bit_c                       : in t_mac_frame_bit;
-      constant track_error_delimiter_too_late_c : in boolean
+      constant track_error_delimiter_too_late_c : in boolean;
+      constant transfer_status_c                : in std_logic_vector(2 downto 0) := c_disturbed
     ) is
 
       variable v_in_flag_field       : boolean;
@@ -218,12 +224,11 @@ begin
 
       -- Hold signals: driven every cycle in flag states
       fce_o.transmitting                <= '1';
-      fce_o.error                       <= '1';
       fce_o.sending_error_overload_flag <= '1';
       pcs_o.valid                       <= '1';
       pcs_o.use_data_rate               <= '0';
       pcs_o.start_tdc                   <= '0';
-      mac_ser_o.transfer_status         <= c_disturbed;
+      mac_ser_o.transfer_status         <= transfer_status_c;
 
       v_in_flag_field := (bit_count < c_error_flag_width);
 
@@ -233,7 +238,9 @@ begin
         v_tx_bit := c_error_delimiter_bit;
       end if;
 
-      pcs_o.polarity <= v_tx_bit.polarity;
+      pcs_o.polarity                <= v_tx_bit.polarity;
+      last_transmitted_bit          <= v_tx_bit;
+      last_transmitted_bit_polarity <= v_tx_bit.polarity;
 
       if (pcs_i.sp = '1') then
         if bit_count < (c_error_sequence_width - 1) then
@@ -301,7 +308,7 @@ begin
         in_data_phase                 <= '0';
         frame_params                  <= c_frame_params_reset;
 
-        mac_ser_o <= c_tx_mac_fsm_to_ser_if_reset;
+        mac_ser_o <= c_ser_fsm_if_d2s_reset;
         pcs_o     <= c_mac_to_pcs_if_reset;
         bs_fd_o   <= c_mac_fsm_to_bs_fd_if_reset;
         bs_fd_rst <= '0';
@@ -340,7 +347,7 @@ begin
           -- (ISO 11898-1: 6.6.7.5, 8.1.4.4 Figure 43 T5).
           -----------------------------------------------------------------
           when s_bus_reintegration =>
-            process_quiet_phase_common;
+            process_quiet_phase_common(bus_integration_bit);
             if bit_count = (c_bus_idle_condition_width - 1) then
               if (fce_i.bus_off = '0') or (idle_condition_count = (c_bus_off_recovery_count - 1)) then
                 -- ISO 11898-1: 6.6.7.5 / 8.1.4.4 (T5)
@@ -353,7 +360,7 @@ begin
             end if;
 
           when s_intermission =>
-            process_quiet_phase_common;
+            process_quiet_phase_common(intermission_bit);
             -- ISO 11898-1: 6.6.21.3.2 b) - dominant detected during first
             -- two intermission bits triggers overload handling.
             if (pcs_i.sp = '1') and (pcs_i.bus_polarity = c_dominant) and (bit_count < (c_intermission_width - 1)) then
@@ -392,7 +399,7 @@ begin
           -- the previous frame shall suspend for 8 additional bit times.
           -----------------------------------------------------------------
           when s_suspend_transmission =>
-            process_quiet_phase_common;
+            process_quiet_phase_common(suspend_transmission_bit);
             if (overload_condition) then
               state                     <= s_overload_flag;
               bit_count                 <= 0;
@@ -407,7 +414,7 @@ begin
           -- ISO 11898-1: 6.6.7.3 - bus idle; any node may start transmission.
           -----------------------------------------------------------------
           when s_bus_idle =>
-            process_quiet_phase_common;
+            process_quiet_phase_common(idle_bit);
             -- ISO 11898-1: 8.1.4.4 - bus_off nodes shall not initiate transmissions
             if (mac_ser_i.valid = '1') and (pcs_i.sp = '1') and (fce_i.bus_off = '0') then
               state     <= s_frame_init;
@@ -425,7 +432,7 @@ begin
           when s_frame_init =>
             fce_o     <= c_mac_to_fce_if_reset;
             pcs_o     <= c_mac_to_pcs_if_reset;
-            mac_ser_o <= c_tx_mac_fsm_to_ser_if_reset;
+            mac_ser_o <= c_ser_fsm_if_d2s_reset;
             crc_o     <= c_mac_fsm_to_crc_if_reset;
 
             v_frame_params        := get_frame_params(mac_ser_i.llc_metadata);
@@ -646,7 +653,7 @@ begin
           -- (8 recessive).
           -----------------------------------------------------------------
           when s_overload_flag =>
-            process_flag_transmission(c_overload_flag_bit, false);
+            process_flag_transmission(c_overload_flag_bit, false, c_ongoing);
 
           when others =>
             state     <= s_bus_reintegration;

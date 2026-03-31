@@ -43,8 +43,8 @@ entity can_mac_ser_tx is
     llc_o : out   t_can_llc_mac_tx_if_d2s;
 
     -- MAC FSM interface
-    tx_mac_fsm_i : in    t_can_mac_ser_fsm_tx_if_m2s;
-    tx_mac_fsm_o : out   t_can_mac_ser_fsm_tx_if_s2m
+    tx_mac_fsm_i : in    t_can_mac_ser_fsm_if_d2s;
+    tx_mac_fsm_o : out   t_can_mac_ser_fsm_if_s2d
   );
 end entity can_mac_ser_tx;
 
@@ -84,7 +84,7 @@ begin
 
         -- Reset outputs
         llc_o        <= c_mac_to_llc_if_reset;
-        tx_mac_fsm_o <= c_tx_mac_ser_to_fsm_if_reset;
+        tx_mac_fsm_o <= c_ser_fsm_if_s2d_reset;
       else
         -- Default outputs: clear valid, forward status, don't accept LLC data during shift
         tx_mac_fsm_o.valid         <= '0';

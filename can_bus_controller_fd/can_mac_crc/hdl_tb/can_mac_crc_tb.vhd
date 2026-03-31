@@ -1,0 +1,247 @@
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+--
+-- Requirements:
+--
+-- Description:   Testbench for can_mac_crc.
+--                  1. Reset zeroes the CRC output.
+--                  2. CRC-15 (Classic CAN): feed bits, verify output.
+--                  3. CRC-17 (FD): feed bits, verify output.
+--                  4. CRC-21 (FD): feed bits, verify output.
+--
+-- Revision log:  Date:       Initial:  JIRA:
+--                2026-03-15  TMYAES    [TRIT-4341] Initial implementation
+--                2026-03-15  TMYAES    [TRIT-4346] Updated JIRA ID
+--                2026-03-31  MRDSA     [TRIT-4346] Removed start usage, updated interface
+--                                                   type names, use pkg f_calc_can_crc
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+library ieee;
+  use ieee.std_logic_1164.all;
+  use ieee.numeric_std.all;
+
+  use work.pk_man_global.all;
+  use work.common_register_interface_pkg.all;
+  use work.common_tb_pkg.all;
+  use work.pk_can_types.all;
+
+library osvvm;
+context osvvm.OsvvmContext;
+library osvvm_common;
+context osvvm_common.OsvvmCommonContext;
+
+entity can_mac_crc_tb is
+  generic (
+    gc_TbTimeOut   : time := 2 ms;
+    gc_TbClkPeriod : time := 10 ns
+  );
+end entity;
+
+architecture tb of can_mac_crc_tb is
+
+  ----------------------------------------------------------------------------
+  -- Constants
+  ----------------------------------------------------------------------------
+  constant c_bin_crc_15_sel : integer := 0;
+  constant c_bin_crc_17_sel : integer := 1;
+  constant c_bin_crc_21_sel : integer := 2;
+  constant c_num_frames     : integer := 1000;
+  constant c_crc_reset_value : std_logic_vector(c_crc_21_length - 1 downto 0) := (others => '0');
+
+  ----------------------------------------------------------------------------
+  -- Signals
+  ----------------------------------------------------------------------------
+  -- DUT interface signals
+  signal crc_i : t_can_mac_fsm_crc_if_m2s := c_mac_fsm_to_crc_if_reset;
+  signal crc_o : t_can_mac_fsm_crc_if_s2m;
+
+  -- Clock and reset
+  signal clk   : std_logic := '0';
+  signal reset : std_logic := '1';
+
+  -- osvvm signals
+  signal reset_id : AlertLogIDType;
+  signal crc_check_id : AlertLogIDType;
+  signal output_stable_id : AlertLogIDType;
+  signal tx_rec : StreamRecType(DataToModel (c_max_mac_frame_length - 1 downto 0), ParamToModel (1 downto 0), DataFromModel (0 downto 0), ParamFromModel (0 downto 0));
+  signal rx_rec : StreamRecType( DataToModel (crc_o.crc'length - 1 downto 0), ParamToModel (0 downto 0), DataFromModel (0 downto 0), ParamFromModel (0 downto 0));
+  signal cov  : CoverageIdType;
+  shared variable RV : RandomPType;
+
+  ----------------------------------------------------------------------------
+  -- Functions
+  ----------------------------------------------------------------------------
+  -- Left-justifies the CRC output for comparison with DUT.
+  function f_calc_can_crc_aligned (dat : std_logic_vector; poly_select : std_logic_vector(1 downto 0)) return std_logic_vector is
+    variable v_result : std_logic_vector(c_crc_21_length - 1 downto 0) := (others => '0');
+  begin
+    case poly_select is
+      when "00" =>
+        v_result := f_calc_can_crc(dat, c_crc_init_15_vec, c_crc_poly_15_vec) & ((c_crc_21_length - 1) - c_crc_15_length downto 0 => '0');
+      when "01" =>
+        v_result := f_calc_can_crc(dat, c_crc_init_17_vec, c_crc_poly_17_vec) & ((c_crc_21_length - 1) - c_crc_17_length downto 0 => '0');
+      when "10" =>
+        v_result := f_calc_can_crc(dat, c_crc_init_21_vec, c_crc_poly_21_vec);
+      when others =>
+        null;
+    end case;
+    return v_result;
+  end function;
+
+  begin
+
+  ----------------------------------------------------------------------------
+  -- Initialisation
+  ----------------------------------------------------------------------------
+p_init : process
+  variable v_cov : CoverageIdType;
+begin
+  RV.InitSeed(random_seed);
+  SetAlertStopCount(ERROR, 10);
+
+  reset_id  <= NewId("Reset");
+  crc_check_id <= NewId("CRC Check");
+  output_stable_id <= NewId("Output stable check");
+
+  v_cov := NewID("CRC Coverage");
+  AddBins(v_cov, "crc_15", 100, GenBin(c_bin_crc_15_sel));
+  AddBins(v_cov, "crc_17", 100, GenBin(c_bin_crc_17_sel));
+  AddBins(v_cov, "crc_21", 100, GenBin(c_bin_crc_21_sel));
+  cov <= v_cov;
+  wait;
+end process;
+
+  ----------------------------------------------------------------------------
+  -- Clock / reset
+  ----------------------------------------------------------------------------
+  CreateClock(clk, gc_TbClkPeriod);
+  CreateReset(reset, '1', clk, gc_TbClkPeriod * 10);
+
+  ----------------------------------------------------------------------------
+  -- Timeout watchdog
+  ----------------------------------------------------------------------------
+  p_timeout : process
+  begin
+    WaitForClock(clk, gc_TbTimeOut);
+    WaitForClock(clk, 10 ms);
+    report "Time Out detected";
+    assert false report "ERROR TEST FAILED, due to time out" severity error;
+    std.env.stop(1);
+  end process p_timeout;
+
+  ----------------------------------------------------------------------------
+  -- DUT
+  ----------------------------------------------------------------------------
+  u_dut : entity work.can_mac_crc
+    port map (
+      clk_i => clk,
+      rst_i => reset,
+      crc_i => crc_i,
+      crc_o => crc_o
+    );
+
+  ----------------------------------------------------------------------------
+  -- Test sequencer
+  ----------------------------------------------------------------------------
+  p_test_ctrl : process is
+    variable v_data : std_logic_vector(c_max_mac_frame_length - 1 downto 0);
+    variable v_poly_select : std_logic_vector(1 downto 0);
+  begin
+    wait until reset = '0';
+    WaitForClock(clk);
+
+    for i in 0 to c_num_frames loop
+      -- Random frame and poly_select
+      v_data    := RV.RandSlv(c_max_mac_frame_length);
+      v_poly_select := std_logic_vector(to_unsigned(RandCovPoint(cov), 2));
+
+      Send(tx_rec, Data => v_data , Param => v_poly_select);
+      Check(rx_rec, Data => f_calc_can_crc_aligned(v_data, v_poly_select));
+      ICover(cov, to_integer(unsigned(v_poly_select)));
+      WaitForClock(clk,RV.RandInt(2, 100)); -- Random delay between frames
+
+    end loop;
+
+  -- Done
+  AlertIf(crc_check_id, not IsCovered(cov), "Coverage goal not met");
+  WriteBin(cov);
+  EndOfTestReports(ReportAll => TRUE);
+  std.env.finish;
+  end process p_test_ctrl;
+
+  ----------------------------------------------------------------------------
+  -- Input VC: feeds bits serially to DUT (no start signal, reset via rst_i)
+  ----------------------------------------------------------------------------
+ p_input_vc : process is
+ begin
+    wait until tx_rec.Rdy /= tx_rec.Ack;
+
+    case tx_rec.Operation is
+      when SEND =>
+        -- Send data
+        for i in tx_rec.DataToModel'high downto 0 loop
+          crc_i.crc_poly_select <= SafeResize(tx_rec.ParamToModel, crc_i.crc_poly_select'length);
+          crc_i.data  <= tx_rec.DataToModel(i);
+          crc_i.valid <= '1';
+          WaitForClock(clk);
+        end loop;
+        crc_i.valid <= '0';
+        WaitForClock(clk);
+        tx_rec.Ack <= tx_rec.Ack + 1;
+      when others => null;
+    end case;
+  end process p_input_vc;
+
+  ----------------------------------------------------------------------------
+  -- Output VC
+  ----------------------------------------------------------------------------
+ p_output_vc : process is
+ begin
+    wait until rx_rec.Rdy /= rx_rec.Ack;
+
+    case rx_rec.Operation is
+      when CHECK =>
+        AffirmIf(crc_check_id, std_logic_vector(crc_o.crc) = std_logic_vector(rx_rec.DataToModel), "Got : " & to_string(crc_o.crc) & ", expected: " & to_string(rx_rec.DataToModel));
+        rx_rec.Ack <= rx_rec.Ack + 1;
+      when others => null;
+    end case;
+  end process p_output_vc;
+
+  ---------------------------------------------------------------------------
+  -- Checker: Check reset
+  ---------------------------------------------------------------------------
+  p_reset_checker : process
+  begin
+    loop
+      wait until rising_edge(clk) and reset = '1';
+      WaitForClock(clk);
+      AffirmIf(reset_id, crc_o.crc = c_crc_reset_value, "CRC output not reset to zero");
+    end loop;
+  end process p_reset_checker;
+
+  ---------------------------------------------------------------------------
+  -- Checker: Check that CRC output is stable when valid is not asserted.
+  ---------------------------------------------------------------------------
+  p_output_stable_checker : process is
+    variable v_crc_snap : std_logic_vector(crc_o.crc'range);
+  begin
+    wait until reset = '0';
+    loop
+      wait until rising_edge(clk);
+      if crc_i.valid = '0' then
+        WaitForClock(clk);
+        loop -- loop checks output is stable when input is not changing.
+          exit when crc_i.valid = '1';
+          v_crc_snap := crc_o.crc;
+          WaitForClock(clk);
+          AffirmIf(output_stable_id, crc_o.crc = v_crc_snap, "CRC output changed without valid");
+        end loop;
+      end if;
+    end loop;
+  end process p_output_stable_checker;
+
+
+end architecture tb;
+
+-- eof

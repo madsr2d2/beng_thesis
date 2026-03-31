@@ -3,6 +3,7 @@ CLAUDE.md
 
 # Simulation and build artifacts
 sim/
+can_bus_controller_fd/*/tmp/
 work-obj*.cf
 *.o
 *.cf

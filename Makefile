@@ -1,8 +1,8 @@
 #  @file  Makefile
 #  @brief GHDL/OSVVM makefile for testbench simulation
 #
-#  Usage: make TB=src/my_tb
-#  Example: make TB=src/can_tx_tb
+#  Usage: make TB=src/<module>/hdl_tb/<tb_name>
+#  Example: make TB=src/can_tx/hdl_tb/can_tx_tb
 #
 #  OSVVM setup:
 #    OsvvmLibraries/
@@ -19,23 +19,23 @@
 # Project source files in strict dependency order
 # 1. Packages
 PACKAGES = \
-	src/can_types_pkg.vhd \
-	src/can_timing_pkg.vhd
+	src/can_types_p/hdl_src/can_types_pkg.vhd \
+	src/can_timing_pkg/hdl_src/can_timing_pkg.vhd
 
 # 2. Components and Sub-modules
 COMPONENTS = \
-	src/can_mac_bs.vhd \
-	src/can_mac_crc.vhd \
-	src/can_mac_ser_tx.vhd \
-	src/can_mac_fsm_tx.vhd \
-	src/can_fce.vhd
+	src/can_mac_bs/hdl_src/can_mac_bs.vhd \
+	src/can_mac_crc/hdl_src/can_mac_crc.vhd \
+	src/can_mac_ser_tx/hdl_src/can_mac_ser_tx.vhd \
+	src/can_mac_fsm_tx/hdl_src/can_mac_fsm_tx.vhd \
+	src/can_fce/hdl_src/can_fce.vhd
 
 # 3. Layer wrappers and Top-level
 LAYERS = \
-	src/can_mac_tx.vhd \
-	src/can_pcs_tx.vhd \
-	src/can_llc_tx.vhd \
-	src/can_tx.vhd
+	src/can_mac_tx/hdl_src/can_mac_tx.vhd \
+	src/can_pcs_tx/hdl_src/can_pcs_tx.vhd \
+	src/can_llc_tx/hdl_src/can_llc_tx.vhd \
+	src/can_tx/hdl_src/can_tx.vhd
 
 SRCFILES = $(PACKAGES) $(COMPONENTS) $(LAYERS)
 VHDLEX = .vhd

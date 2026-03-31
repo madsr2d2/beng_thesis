@@ -339,13 +339,13 @@ package pk_can_types is
   -- Each record is followed by its reset constant.
   ---------------------------------------------------------------------------
   -- Serializer -> FSM
-  type t_can_mac_ser_fsm_tx_if_s2m is record
+  type t_can_mac_ser_fsm_if_s2d is record
     data         : std_logic;
     valid        : std_logic;
     llc_metadata : t_llc_metadata;
-  end record t_can_mac_ser_fsm_tx_if_s2m;
+  end record t_can_mac_ser_fsm_if_s2d;
 
-  constant c_tx_mac_ser_to_fsm_if_reset : t_can_mac_ser_fsm_tx_if_s2m :=
+  constant c_ser_fsm_if_s2d_reset : t_can_mac_ser_fsm_if_s2d :=
   (
     data         => 'U',
     valid        => '0',
@@ -353,15 +353,39 @@ package pk_can_types is
   );
 
   -- FSM -> Serializer
-  type t_can_mac_ser_fsm_tx_if_m2s is record
+  type t_can_mac_ser_fsm_if_d2s is record
     transfer_status : std_logic_vector(2 downto 0);
     ready           : std_logic;
-  end record t_can_mac_ser_fsm_tx_if_m2s;
+  end record t_can_mac_ser_fsm_if_d2s;
 
-  constant c_tx_mac_fsm_to_ser_if_reset : t_can_mac_ser_fsm_tx_if_m2s :=
+  constant c_ser_fsm_if_d2s_reset : t_can_mac_ser_fsm_if_d2s :=
   (
     transfer_status => c_ongoing,
     ready           => '0'
+  );
+
+  -- RX FSM -> Deserializer (FSM is source, deser is destination)
+  type t_can_mac_fsm_deser_if_s2d is record
+    data         : std_logic;
+    valid        : std_logic;
+    llc_metadata : t_llc_metadata;
+  end record t_can_mac_fsm_deser_if_s2d;
+
+  constant c_fsm_deser_if_s2d_reset : t_can_mac_fsm_deser_if_s2d :=
+  (
+    data         => 'U',
+    valid        => '0',
+    llc_metadata => c_llc_metadata_reset
+  );
+
+  -- RX Deserializer -> FSM (backpressure)
+  type t_can_mac_fsm_deser_if_d2s is record
+    ready : std_logic;
+  end record t_can_mac_fsm_deser_if_d2s;
+
+  constant c_fsm_deser_if_d2s_reset : t_can_mac_fsm_deser_if_d2s :=
+  (
+    ready => '0'
   );
 
   -- LLC -> MAC
@@ -394,14 +418,14 @@ package pk_can_types is
   end record t_can_user_llc_tx_if_d2s;
 
   -- MAC -> PCS (ISO 7.2, PCS_Data.Request)
-  type t_can_mac_pcs_tx_if_m2s is record
+  type t_can_mac_pcs_if_m2s is record
     polarity      : std_logic;
     valid         : std_logic;
     use_data_rate : std_logic;
     start_tdc     : std_logic;
-  end record t_can_mac_pcs_tx_if_m2s;
+  end record t_can_mac_pcs_if_m2s;
 
-  constant c_mac_to_pcs_if_reset : t_can_mac_pcs_tx_if_m2s :=
+  constant c_mac_to_pcs_if_reset : t_can_mac_pcs_if_m2s :=
   (
     polarity      => c_recessive,
     valid         => '0',
@@ -410,14 +434,14 @@ package pk_can_types is
   );
 
   -- PCS -> MAC (ISO 7.2, PCS_Data.Indicate)
-  type t_can_mac_pcs_tx_if_s2m is record
+  type t_can_mac_pcs_if_s2m is record
     bus_polarity : std_logic;
     sp           : std_logic;
     ssp          : std_logic;
     tdc_delay    : t_tdc_delay_vec;
-  end record t_can_mac_pcs_tx_if_s2m;
+  end record t_can_mac_pcs_if_s2m;
 
-  constant c_pcs_to_mac_if_reset : t_can_mac_pcs_tx_if_s2m :=
+  constant c_pcs_to_mac_if_reset : t_can_mac_pcs_if_s2m :=
   (
     bus_polarity => c_recessive,
     sp           => '0',
@@ -427,13 +451,13 @@ package pk_can_types is
 
 
   -- FSM -> Bit Stuffer (ISO 6.6.13)
-  type t_can_mac_fsm_bs_tx_if_m2s is record
+  type t_can_mac_fsm_bs_if_m2s is record
     data  : std_logic;
     valid : std_logic;
     start : std_logic;
-  end record t_can_mac_fsm_bs_tx_if_m2s;
+  end record t_can_mac_fsm_bs_if_m2s;
 
-  constant c_mac_fsm_to_bs_fd_if_reset : t_can_mac_fsm_bs_tx_if_m2s :=
+  constant c_mac_fsm_to_bs_fd_if_reset : t_can_mac_fsm_bs_if_m2s :=
   (
     data  => c_recessive,
     valid => '0',
@@ -441,13 +465,13 @@ package pk_can_types is
   );
 
   -- Bit Stuffer -> FSM (ISO 6.6.13)
-  type t_can_mac_fsm_bs_tx_if_s2m is record
+  type t_can_mac_fsm_bs_if_s2m is record
     data  : std_logic;
     valid : std_logic;
     sbc   : std_logic_vector(c_sbc_field_width - 1 downto 0);
-  end record t_can_mac_fsm_bs_tx_if_s2m;
+  end record t_can_mac_fsm_bs_if_s2m;
 
-  constant c_can_mac_fsm_bs_tx_if_s2m_reset : t_can_mac_fsm_bs_tx_if_s2m :=
+  constant c_can_mac_fsm_bs_if_s2m_reset : t_can_mac_fsm_bs_if_s2m :=
   (
     data  => c_recessive,
     valid => '0',
@@ -455,25 +479,23 @@ package pk_can_types is
   );
 
   -- FSM -> CRC (ISO 6.6.4.4)
-  type t_can_mac_fsm_crc_tx_if_m2s is record
+  type t_can_mac_fsm_crc_if_m2s is record
     crc_poly_select : std_logic_vector(1 downto 0);
-    start           : std_logic;
     valid           : std_logic;
     data            : std_logic;
-  end record t_can_mac_fsm_crc_tx_if_m2s;
+  end record t_can_mac_fsm_crc_if_m2s;
 
-  constant c_mac_fsm_to_crc_if_reset : t_can_mac_fsm_crc_tx_if_m2s :=
+  constant c_mac_fsm_to_crc_if_reset : t_can_mac_fsm_crc_if_m2s :=
   (
     crc_poly_select => (others => '0'),
-    start           => '0',
     valid           => '0',
     data            => '0'
   );
 
   -- CRC -> FSM
-  type t_can_mac_fsm_crc_tx_if_s2m is record
+  type t_can_mac_fsm_crc_if_s2m is record
     crc : std_logic_vector(c_crc_21_length - 1 downto 0);
-  end record t_can_mac_fsm_crc_tx_if_s2m;
+  end record t_can_mac_fsm_crc_if_s2m;
 
   -- MAC -> FCE (ISO Table 16, Table 17)
   type t_can_mac_fce_if_m2s is record
