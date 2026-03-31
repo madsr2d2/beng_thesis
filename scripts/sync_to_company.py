@@ -104,6 +104,34 @@ def add_eth_st_import(lines: list[str]) -> list[str]:
     return out
 
 
+def add_company_tb_imports(lines: list[str]) -> list[str]:
+    """Add company TB package imports after pk_can_types for testbench files."""
+    out = []
+    for line in lines:
+        out.append(line)
+        if re.match(r"\s*use\s+work\.pk_can_types\.all\s*;", line):
+            if not any("common_register_interface_pkg" in l for l in lines):
+                indent = re.match(r"(\s*)", line).group(1)
+                out.insert(-1, f"{indent}use work.common_register_interface_pkg.all;\n")
+                out.insert(-1, f"{indent}use work.common_tb_pkg.all;\n")
+    return out
+
+
+def replace_initseed_with_random_seed(lines: list[str]) -> list[str]:
+    """Replace local OSVVM seed calls with company random_seed constant."""
+    out = []
+    for line in lines:
+        # Match patterns like: rv.InitSeed(rv'instance_name); or
+        # rnd.InitSeed(rnd'instance_name & to_string(now));
+        new_line = re.sub(
+            r"(\w+)\.InitSeed\((?:[^()]*\([^()]*\))*[^()]*\)",
+            r"\1.InitSeed(random_seed)",
+            line,
+        )
+        out.append(new_line)
+    return out
+
+
 def strip_gen_crc_entity(lines: list[str]) -> list[str]:
     """Remove the gen_crc entity and architecture from can_mac_crc.vhd.
 
@@ -170,6 +198,11 @@ def transform(content: str, module: str, filename: str) -> str:
     # CRC module: strip gen_crc entity
     if module == "can_mac_crc" and "_tb" not in filename:
         lines = strip_gen_crc_entity(lines)
+
+    # TB files: add company imports and replace seed initialisation
+    if "_tb" in filename:
+        lines = add_company_tb_imports(lines)
+        lines = replace_initseed_with_random_seed(lines)
 
     lines = add_pk_man_global(lines)
     return "".join(lines)
