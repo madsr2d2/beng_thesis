@@ -37,7 +37,7 @@ smtbmc z3
 # PSL assertions embedded via '-- psl' comments are picked up automatically.
 plugin -i ghdl
 ghdl -fpsl --std=08 \
-  can_types_pkg.vhd \
+  can_types_p.vhd \
   can_protocol_pkg.vhd \
   can_mac_bs.vhd \
   -e can_mac_bs
@@ -46,5 +46,5 @@ ghdl -fpsl --std=08 \
 prep -top can_mac_bs
 
 [files]
-src/can_types_p/hdl_src/can_types_pkg.vhd
+src/can_types_p/hdl_src/can_types_p.vhd
 src/can_mac_bs/hdl_src/can_mac_bs.vhd

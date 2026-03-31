@@ -86,6 +86,9 @@ package pk_can_types is
   constant c_crc_init_15_vec : std_logic_vector(c_crc_15_length - 1 downto 0) := (others => '0');
   constant c_crc_init_17_vec : std_logic_vector(c_crc_17_length - 1 downto 0) := '1' & (c_crc_17_length - 2 downto 0 => '0');
   constant c_crc_init_21_vec : std_logic_vector(c_crc_21_length - 1 downto 0) := '1' & (c_crc_21_length - 2 downto 0 => '0');
+  constant c_crc_poly_15_sel : std_logic_vector(1 downto 0) := "00";
+  constant c_crc_poly_17_sel : std_logic_vector(1 downto 0) := "01";
+  constant c_crc_poly_21_sel : std_logic_vector(1 downto 0) := "10";
 
   -- Transfer status encoding (ISO 6.5.3, Table 7)
   constant c_ongoing     : std_logic_vector(2 downto 0) := "000";
@@ -251,7 +254,7 @@ package pk_can_types is
     dynamic_stuff_stop => 0,
     crc_start          => 0,
     crc_delimiter      => 0,
-    crc_poly_select    => "00"
+    crc_poly_select    => c_crc_poly_15_sel
   );
 
   ---------------------------------------------------------------------------
@@ -922,13 +925,13 @@ package body pk_can_types is
     -- CRC length: CRC-15 for classic, CRC-17 for FD <= 16 bytes, CRC-21 otherwise
     if (metadata.format(1) = '0') then
       crc_length_v           := c_crc_15_length;
-      result.crc_poly_select := "00";
+      result.crc_poly_select := c_crc_poly_15_sel;
     elsif (data_length_v < c_crc_17_length) then
       crc_length_v           := c_crc_17_length;
-      result.crc_poly_select := "01";
+      result.crc_poly_select := c_crc_poly_17_sel;
     else
       crc_length_v           := c_crc_21_length;
-      result.crc_poly_select := "10";
+      result.crc_poly_select := c_crc_poly_21_sel;
     end if;
 
     -- CAN FD has SBC field after data, CAN Classic goes directly to CRC

@@ -108,16 +108,8 @@ architecture rtl of can_mac_crc is
   signal crc17_out : std_logic_vector(c_crc_17_length - 1 downto 0);
   signal crc21_out : std_logic_vector(c_crc_21_length - 1 downto 0);
 
-  signal valid : std_logic;
-
 begin
 
-  valid <= crc_i.valid;
-
-  -- All three CRC engines run in parallel on every valid bit.
-  -- The poly_select guard is only on the output mux, not on valid.
-  -- This allows the RX path to compute all CRCs simultaneously and
-  -- select the correct one after the DLC field is known.
 
   u_crc15 : entity work.gen_crc
     generic map (
@@ -134,7 +126,7 @@ begin
       reset_i      => rst_i,
       start_crc_i  => '0',
       data_i(0)    => crc_i.data,
-      data_valid_i => valid,
+      data_valid_i => crc_i.valid,
       crc_o        => crc15_out
     );
 
@@ -153,7 +145,7 @@ begin
       reset_i      => rst_i,
       start_crc_i  => '0',
       data_i(0)    => crc_i.data,
-      data_valid_i => valid,
+      data_valid_i => crc_i.valid,
       crc_o        => crc17_out
     );
 
@@ -172,7 +164,7 @@ begin
       reset_i      => rst_i,
       start_crc_i  => '0',
       data_i(0)    => crc_i.data,
-      data_valid_i => valid,
+      data_valid_i => crc_i.valid,
       crc_o        => crc21_out
     );
 
@@ -184,11 +176,11 @@ begin
         crc_o.crc <= (others => '0');
       else
         case crc_i.crc_poly_select is
-          when "00" =>
+          when c_crc_poly_15_sel =>
             crc_o.crc <= crc15_out & (c_crc_21_length - 1 - c_crc_15_length downto 0 => '0');
-          when "01" =>
+          when c_crc_poly_17_sel =>
             crc_o.crc <= crc17_out & (c_crc_21_length - 1 - c_crc_17_length downto 0 => '0');
-          when "10" =>
+          when c_crc_poly_21_sel =>
             crc_o.crc <= crc21_out;
           when others =>
             crc_o.crc <= (others => '0');

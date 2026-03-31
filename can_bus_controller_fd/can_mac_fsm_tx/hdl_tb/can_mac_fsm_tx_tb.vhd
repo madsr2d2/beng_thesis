@@ -82,7 +82,7 @@ architecture tb of can_mac_fsm_tx_tb is
   shared variable RV  : RandomPType;
   signal test_id      : AlertLogIDType;
   signal fmt_cov      : CoverageIDType;
-  signal init_barrier : std_logic := '0';
+  signal init_barrier : integer_barrier := 1;
 
 begin
 

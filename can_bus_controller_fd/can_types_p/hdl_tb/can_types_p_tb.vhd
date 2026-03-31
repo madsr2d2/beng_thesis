@@ -25,13 +25,13 @@ library osvvm;
   use work.common_tb_pkg.all;
   use work.pk_can_types.all;
 
-entity can_types_pkg_tb is
+entity can_types_p_tb is
   generic (
     gc_tbtimeout : time := 2 ms
   );
-end entity can_types_pkg_tb;
+end entity can_types_p_tb;
 
-architecture tb of can_types_pkg_tb is
+architecture tb of can_types_p_tb is
 
   function make_metadata (
     config_byte_0 : t_byte;
@@ -57,7 +57,7 @@ begin
   begin
     RV.InitSeed(random_seed);
 
-    SetTestName("can_types_pkg_tb");
+    SetTestName("can_types_p_tb");
     SetAlertStopCount(ERROR, 10);
     wait;
 

@@ -39,10 +39,7 @@ def discover_modules() -> list[str]:
     return sorted(company_dirs & local_dirs)
 
 # Local filename -> company filename (where they differ)
-FILE_RENAME = {
-    "can_types_pkg.vhd":    "can_types_p.vhd",
-    "can_types_pkg_tb.vhd": "can_types_p_tb.vhd",
-}
+FILE_RENAME = {}
 
 
 # ── Transformations ─────────────────────────────────────────────────────────
@@ -135,6 +132,19 @@ def insert_random_seed_init(lines: list[str]) -> list[str]:
                 out.append(f"{indent}  RV.InitSeed(random_seed);\n")
                 inserted = True
                 in_init = False
+    return out
+
+
+def replace_barrier_type(lines: list[str]) -> list[str]:
+    """Replace std_logic barriers with integer_barrier for company OSVVM."""
+    out = []
+    for line in lines:
+        line = re.sub(
+            r"(\bsignal\s+\w*barrier\w*\s*:\s*)std_logic(\s*:=\s*)'0'",
+            r"\1integer_barrier\g<2>1",
+            line,
+        )
+        out.append(line)
     return out
 
 
@@ -295,7 +305,7 @@ def transform(content: str, module: str, filename: str) -> str:
     lines = content.splitlines(keepends=True)
 
     # Types package gets special treatment
-    if module == "can_types_p" and "can_types_pkg" in filename and "_tb" not in filename:
+    if module == "can_types_p" and "can_types_p" in filename and "_tb" not in filename:
         lines = strip_eth_st_types(lines)
         lines = qualify_eth_st(lines)
         lines = add_pk_man_global(lines)
@@ -310,6 +320,7 @@ def transform(content: str, module: str, filename: str) -> str:
     if "_tb" in filename:
         lines = add_company_tb_imports(lines)
         lines = insert_random_seed_init(lines)
+        lines = replace_barrier_type(lines)
 
     lines = add_pk_man_global(lines)
     return "".join(lines)

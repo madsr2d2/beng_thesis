@@ -19,7 +19,7 @@
 # Project source files in strict dependency order
 # 1. Packages
 PACKAGES = \
-	src/can_types_p/hdl_src/can_types_pkg.vhd \
+	src/can_types_p/hdl_src/can_types_p.vhd \
 	src/can_timing_pkg/hdl_src/can_timing_pkg.vhd
 
 # 2. Components and Sub-modules

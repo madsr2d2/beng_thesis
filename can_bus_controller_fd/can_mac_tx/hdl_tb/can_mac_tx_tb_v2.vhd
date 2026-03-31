@@ -110,7 +110,7 @@ architecture tb of can_mac_tx_tb_v2 is
   signal dlc_cov      : CoverageIDType;
   signal inj_cov      : CoverageIDType;
   signal pos_cov      : CoverageIDType;
-  signal init_barrier : std_logic := '0';
+  signal init_barrier : integer_barrier := 1;
 
   signal llc_rec : StreamRecType(
     DataToModel    (c_rec_width - 1 downto 0),

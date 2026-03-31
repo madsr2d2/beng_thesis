@@ -54,7 +54,8 @@ architecture tb of can_mac_bs_tb is
   signal bs_o       : t_can_mac_fsm_bs_if_s2m;
   signal cov_input  : CoverageIdType;
   signal cov_output : CoverageIdType;
-  signal test_done  : BarrierType;
+  signal test_done  : resolved_barrier integer := 1;
+  signal RV : RandomPType;
 
 begin
 
@@ -89,8 +90,6 @@ begin
   -- -------------------------------------------------------------------------
   p_stim : process
 
-    variable rnd : RandomPType;
-
   begin
 
     wait until rst_i = '0';
@@ -100,7 +99,7 @@ begin
     for i in 0 to c_num_random loop
 
       -- Occasional frame reset (simulates FSM resetting bit stuffer at SOF)
-      if (rnd.DistBool((false => 95, true => 5))) then
+      if (RV.DistBool((false => 95, true => 5))) then
         frame_rst  <= '1';
         bs_i.valid <= '0';
         WaitForClock(clk_i);
@@ -109,8 +108,8 @@ begin
       end if;
 
       -- Random valid/data
-      bs_i.data  <= c_dominant when rnd.DistBool((false => 50, true => 50)) else c_recessive;
-      bs_i.valid <= '1' when rnd.DistBool((false => 25, true => 75)) else '0';
+      bs_i.data  <= c_dominant when RV.DistBool((false => 50, true => 50)) else c_recessive;
+      bs_i.valid <= '1' when RV.DistBool((false => 25, true => 75)) else '0';
       WaitForClock(clk_i);
 
       -- Feed stuff bit back when asserted

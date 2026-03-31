@@ -71,7 +71,7 @@ architecture tb of can_mac_ser_tx_tb is
   signal test_id      : AlertLogIDType;
   signal fmt_cov      : CoverageIDType;
   signal dlc_cov      : CoverageIDType;
-  signal init_barrier : std_logic := '0';
+  signal init_barrier : integer_barrier := 1;
   signal llc_rec : StreamRecType(
     DataToModel    (t_byte'high downto 0),
     ParamToModel   (1 downto 0),
