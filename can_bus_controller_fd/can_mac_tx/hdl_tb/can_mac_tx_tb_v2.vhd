@@ -18,16 +18,16 @@ library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
 
-  use work.pk_man_global.all;
-  use work.common_register_interface_pkg.all;
-  use work.common_tb_pkg.all;
-  use work.pk_can_types.all;
-
 library osvvm;
   context osvvm.OsvvmContext;
   use osvvm.ScoreboardPkg_slv.all;
 library osvvm_common;
   context osvvm_common.OsvvmCommonContext;
+
+use work.pk_man_global.all;
+use work.common_register_interface_pkg.all;
+use work.common_tb_pkg.all;
+use work.pk_can_types.all;
 
 entity can_mac_tx_tb_v2 is
   generic (

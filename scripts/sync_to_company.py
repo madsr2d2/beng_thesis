@@ -104,19 +104,6 @@ def add_eth_st_import(lines: list[str]) -> list[str]:
     return out
 
 
-def add_company_tb_imports(lines: list[str]) -> list[str]:
-    """Add company TB package imports after pk_can_types for testbench files."""
-    out = []
-    for line in lines:
-        out.append(line)
-        if re.match(r"\s*use\s+work\.pk_can_types\.all\s*;", line):
-            if not any("common_register_interface_pkg" in l for l in lines):
-                indent = re.match(r"(\s*)", line).group(1)
-                out.insert(-1, f"{indent}use work.common_register_interface_pkg.all;\n")
-                out.insert(-1, f"{indent}use work.common_tb_pkg.all;\n")
-    return out
-
-
 def insert_random_seed_init(lines: list[str]) -> list[str]:
     """Insert 'RV.InitSeed(random_seed);' after the first 'begin' in p_init."""
     out = []
@@ -132,6 +119,52 @@ def insert_random_seed_init(lines: list[str]) -> list[str]:
                 out.append(f"{indent}  RV.InitSeed(random_seed);\n")
                 inserted = True
                 in_init = False
+    return out
+
+
+# Canonical TB import block inserted before pk_can_types:
+#   library osvvm; context; scoreboard; library osvvm_common; context;
+#   use work.pk_man_global.all;
+#   use work.common_register_interface_pkg.all;
+#   use work.common_tb_pkg.all;
+COMPANY_TB_IMPORTS = """\
+library ieee;
+  use ieee.std_logic_1164.all;
+  use ieee.numeric_std.all;
+
+library osvvm;
+  context osvvm.OsvvmContext;
+  use osvvm.ScoreboardPkg_slv.all;
+library osvvm_common;
+  context osvvm_common.OsvvmCommonContext;
+
+use work.pk_man_global.all;
+use work.common_register_interface_pkg.all;
+use work.common_tb_pkg.all;
+use work.pk_can_types.all;
+"""
+
+
+def normalize_tb_imports(lines: list[str]) -> list[str]:
+    """Replace everything from 'library ieee' to 'entity' with canonical imports."""
+    out = []
+    skipping = False
+    inserted = False
+    for line in lines:
+        low = line.strip().lower()
+        if not skipping and low.startswith("library ieee"):
+            skipping = True
+            continue
+        if skipping:
+            if low.startswith("entity "):
+                # Insert canonical imports + blank line before entity
+                out.extend(l + "\n" for l in COMPANY_TB_IMPORTS.splitlines())
+                out.append("\n")
+                inserted = True
+                skipping = False
+                out.append(line)
+            continue
+        out.append(line)
     return out
 
 
@@ -316,11 +349,12 @@ def transform(content: str, module: str, filename: str) -> str:
     if module == "can_mac_crc" and "_tb" not in filename:
         lines = strip_gen_crc_entity(lines)
 
-    # TB files: add company imports and replace seed initialisation
+    # TB files: normalize imports and replace seed initialisation
     if "_tb" in filename:
-        lines = add_company_tb_imports(lines)
+        lines = normalize_tb_imports(lines)
         lines = insert_random_seed_init(lines)
         lines = replace_barrier_type(lines)
+        return "".join(lines)
 
     lines = add_pk_man_global(lines)
     return "".join(lines)
