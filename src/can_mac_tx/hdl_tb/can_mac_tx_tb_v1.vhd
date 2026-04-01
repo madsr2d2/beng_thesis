@@ -319,7 +319,7 @@ architecture tb of can_mac_tx_tb_v1 is
 
     metadata  := extract_metadata(frame(0), frame(1));
     last_byte := 6 + dlc_to_data_length(
-                   natural range 0 to c_dlc_max(to_integer(unsigned(metadata.dlc))), metadata.fdf) - 1;
+                   to_integer(unsigned(metadata.dlc)), metadata.fdf) - 1;
     stream    := build_bus_stream(frame, metadata);
   end procedure gen_frame;
 

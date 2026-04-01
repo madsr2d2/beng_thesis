@@ -123,7 +123,6 @@ begin
   -- FCE: error-active node
   fce_i.error_passive_request <= '0';
   fce_i.error_active_request  <= '1';
-  fce_i.bus_off               <= '0';
 
   -- =========================================================================
   -- Bus Monitor Process: Handles automatic ACK injection
@@ -342,7 +341,7 @@ begin
       byte70_v := "00000" & brs_v & esi_v & ftyp_v;
 
       data_byte_count_v := dlc_to_data_length(
-                              natural range 0 to c_dlc_max(to_integer(unsigned(dlc_vec_v))),
+                              to_integer(unsigned(dlc_vec_v)),
                               fdf_v
                             );
 

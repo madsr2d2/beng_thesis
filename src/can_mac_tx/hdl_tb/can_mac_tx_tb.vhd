@@ -548,7 +548,6 @@ begin
   begin
     fce_i.error_passive_request <= '0';
     fce_i.error_active_request  <= '1';
-    fce_i.bus_off               <= '0';
     WaitForBarrier(init_barrier);
 
     fce_vc_loop : loop
@@ -557,7 +556,6 @@ begin
         when SEND =>
           fce_i.error_passive_request <= fce_rec.DataToModel(0);
           fce_i.error_active_request  <= fce_rec.DataToModel(1);
-          fce_i.bus_off               <= fce_rec.DataToModel(2);
         when CHECK =>
           wait until rising_edge(clk) and status_latch /= c_ongoing;
           AffirmIfEqual(fce_check_id, fce_latch, std_logic_vector(fce_rec.DataToModel(c_fce_latch_width - 1 downto 0)), "FCE events");

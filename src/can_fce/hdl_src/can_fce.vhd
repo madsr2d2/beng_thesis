@@ -294,15 +294,11 @@ begin
           rx_mac_o.error_active_request  <= '1';
         end if;
 
-        -- Bus-off indication (registered, to LLC and MAC)
+        -- Bus-off indication (registered, to LLC)
         if (v_fce_state = c_bus_off) then
-          llc_o.bus_off    <= '1';
-          tx_mac_o.bus_off <= '1';
-          rx_mac_o.bus_off <= '1';
+          llc_o.bus_off <= '1';
         else
-          llc_o.bus_off    <= '0';
-          tx_mac_o.bus_off <= '0';
-          rx_mac_o.bus_off <= '0';
+          llc_o.bus_off <= '0';
         end if;
 
       end if; -- rst

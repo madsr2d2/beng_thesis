@@ -192,9 +192,6 @@ package pk_can_types is
     transfer_status => c_ongoing
   );
 
-  -- TDC polarity history: shift register for SSP delay lookup (ISO 7.3.4)
-  subtype t_tdc_polarity_history is std_logic_vector(c_tdc_polarity_depth - 1 downto 0);
-
   -- LLC frame metadata (ISO 6.4.3 Table 4):
   type t_llc_metadata is record
     ide  : std_logic;
@@ -508,14 +505,12 @@ package pk_can_types is
   type t_can_mac_fce_if_s2m is record
     error_passive_request : std_logic;
     error_active_request  : std_logic;
-    bus_off               : std_logic;
   end record t_can_mac_fce_if_s2m;
 
   constant c_fce_to_mac_if_reset : t_can_mac_fce_if_s2m :=
   (
     error_passive_request => '0',
-    error_active_request  => '1',
-    bus_off               => '0'
+    error_active_request  => '1'
   );
 
   -- LLC -> FCE (ISO Table 14)
@@ -630,7 +625,7 @@ package pk_can_types is
   -- Monitor transmitted bits for errors, ACK, and arbitration loss (ISO 6.6.5.1)
   function get_bit_info (
     bit_name               : t_mac_frame_bit_name;
-    polarity_history       : t_tdc_polarity_history;
+    polarity_history       : std_logic_vector;
     tdc_delay              : natural;
     monitored_bit_polarity : std_logic;
     metadata               : t_llc_metadata
@@ -873,7 +868,7 @@ package body pk_can_types is
 
   function get_bit_info (
     bit_name               : t_mac_frame_bit_name;
-    polarity_history       : t_tdc_polarity_history;
+    polarity_history       : std_logic_vector;
     tdc_delay              : natural;
     monitored_bit_polarity : std_logic;
     metadata               : t_llc_metadata

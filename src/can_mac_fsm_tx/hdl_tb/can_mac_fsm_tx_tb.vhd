@@ -68,7 +68,6 @@ architecture tb of can_mac_fsm_tx_tb is
   signal ser_data_pattern    : std_logic      := c_recessive;
   signal fce_error_passive   : std_logic := '0';
   signal fce_error_active    : std_logic := '1';
-  signal fce_bus_off         : std_logic := '0';
 
   -- OSVVM signals
   shared variable RV  : RandomPType;
@@ -176,7 +175,6 @@ begin
 
   fce_i.error_passive_request <= fce_error_passive;
   fce_i.error_active_request  <= fce_error_active;
-  fce_i.bus_off               <= fce_bus_off;
 
   ----------------------------------------------------------------------------
   -- FCE output monitor

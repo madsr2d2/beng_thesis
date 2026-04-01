@@ -285,7 +285,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
       brs_flag := rv.RandInt(0, 1) = 1;
       esi_flag := rv.RandInt(0, 1) = 1;
       unified_id := std_logic_vector(to_unsigned(rv.RandInt(0, 536870911), 29));
-      data_len := dlc_to_data_length(integer range 0 to c_dlc_max(dlc_val), fdf);
+      data_len := dlc_to_data_length(dlc_val, fdf);
       if (not rtr_flag) then
         for i in 0 to data_len - 1 loop
           byte_high := 8 * (i + 1) - 1;
@@ -302,7 +302,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
       brs_flag := brs_default;
       esi_flag := esi_default;
       unified_id := std_logic_vector(to_unsigned(16#555#, 29));
-      data_len := dlc_to_data_length(integer range 0 to c_dlc_max(dlc_val), fdf);
+      data_len := dlc_to_data_length(dlc_val, fdf);
     end if;
 
     if (rtr_flag) then
@@ -383,7 +383,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     byte70_v := "00000" & frame.brs & frame.esi & frame.ftyp;
 
     data_byte_count_v := dlc_to_data_length(
-                            natural range 0 to c_dlc_max(to_integer(unsigned(frame.dlc))),
+                            to_integer(unsigned(frame.dlc)),
                             frame.fdf
                           );
 
@@ -932,7 +932,6 @@ begin
 
     fce_i.error_passive_request <= '0';
     fce_i.error_active_request  <= '1';
-    fce_i.bus_off               <= '0';
     llc_user_i.avalon_st_source.valid <= '0';
     error_injection_flag <= '0';
 
