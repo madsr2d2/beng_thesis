@@ -40,9 +40,9 @@ architecture tb of can_mac_ser_tx_tb is
   ----------------------------------------------------------------------------
   -- Constants
   ----------------------------------------------------------------------------
-  constant c_config_bytes      : integer  := 2;
-  constant c_first_data_byte   : integer  := c_config_bytes + c_llc_id_byte_count;
-  constant c_bin_num           : integer := 100;
+  constant c_config_bytes      : natural  := 2;
+  constant c_first_data_byte   : natural  := c_config_bytes + c_llc_id_byte_count;
+  constant c_bin_num           : natural := 100;
   constant c_metadata_check    : std_logic_vector_max_c := "01";
   constant c_bit_stream_check  : std_logic_vector_max_c := "10";
 
@@ -66,7 +66,7 @@ architecture tb of can_mac_ser_tx_tb is
   signal dlc_cov      : CoverageIDType;
   signal init_barrier : std_logic := '0';
   signal llc_rec : StreamRecType(
-    DataToModel    (t_byte'high downto 0),
+    DataToModel    (c_byte_width - 1 downto 0),
     ParamToModel   (1 downto 0),
     DataFromModel  (0 downto 0),
     ParamFromModel (0 downto 0)
@@ -259,10 +259,10 @@ begin
   p_test_ctrl : process is
     variable v_frame         : t_llc_frame;
     variable v_metadata      : t_llc_metadata;
-    variable v_last_byte     : integer;
-    variable v_id_remaining  : integer;
-    variable v_pad_remaining : integer;
-    variable v_frame_count   : integer := 0;
+    variable v_last_byte     : natural;
+    variable v_id_remaining  : natural;
+    variable v_pad_remaining : natural;
+    variable v_frame_count   : natural := 0;
   begin
     WaitForBarrier(init_barrier);
     wait until reset = '0';
@@ -288,7 +288,7 @@ begin
 
       -- Extract metadata and compute frame length
       v_metadata  := extract_metadata(v_frame(0), v_frame(1));
-      v_last_byte := c_first_data_byte + dlc_to_data_length(t_dlc(to_integer(unsigned(v_metadata.dlc))), v_metadata.fdf) - 1;
+      v_last_byte := c_first_data_byte + dlc_to_data_length(to_integer(unsigned(v_metadata.dlc)), v_metadata.fdf) - 1;
 
       -- Initialize ID/padding counters (like in DUT)
       if (v_metadata.ide = '1') then

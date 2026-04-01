@@ -21,12 +21,12 @@ library ieee;
 
 entity gen_crc is
   generic (
-    gc_data_width : integer          := 1;
-    gc_crc_width  : integer          := 15;
+    gc_data_width : natural          := 1;
+    gc_crc_width  : natural          := 15;
     gc_crc_poly   : std_logic_vector := b"100_0101_1001_1001";
     gc_xor_value  : std_logic_vector := (14 downto 0 => '0');
     gc_crc_init   : std_logic_vector := (14 downto 0 => '0');
-    gc_ref_input  : integer          := 0;
+    gc_ref_input  : natural          := 0;
     gc_ref_output : boolean          := false
   );
   port (

@@ -21,38 +21,38 @@ package can_timing_pkg is
   -- Determines if Transmitter Delay Compensation (TDC) should be active
   -- based on the current bit rate and hardware propagation delays.
   function should_use_tdc (
-    system_clock_freq               : integer;
-    prescaler_cfg                   : integer;
-    sync_seg_cfg                    : integer;
-    prop_seg_fd                     : integer;
-    phase_seg1_fd                   : integer;
-    phase_seg2_fd                   : integer;
-    pcs_to_pma_propagation_delay_ns : integer
+    system_clock_freq               : natural;
+    prescaler_cfg                   : natural;
+    sync_seg_cfg                    : natural;
+    prop_seg_fd                     : natural;
+    phase_seg1_fd                   : natural;
+    phase_seg2_fd                   : natural;
+    pcs_to_pma_propagation_delay_ns : natural
   ) return boolean;
 
   -- Calculates TDC delay in bit times for SSP-aligned monitoring (ISO 7.3.4).
   function calculate_tdc_delay (
-    delay_with_offset : integer;
-    data_bit_time     : integer
-  ) return integer;
+    delay_with_offset : natural;
+    data_bit_time     : natural
+  ) return natural;
 
 end package can_timing_pkg;
 
 package body can_timing_pkg is
 
   function should_use_tdc (
-    system_clock_freq               : integer;
-    prescaler_cfg                   : integer;
-    sync_seg_cfg                    : integer;
-    prop_seg_fd                     : integer;
-    phase_seg1_fd                   : integer;
-    phase_seg2_fd                   : integer;
-    pcs_to_pma_propagation_delay_ns : integer
+    system_clock_freq               : natural;
+    prescaler_cfg                   : natural;
+    sync_seg_cfg                    : natural;
+    prop_seg_fd                     : natural;
+    phase_seg1_fd                   : natural;
+    phase_seg2_fd                   : natural;
+    pcs_to_pma_propagation_delay_ns : natural
   ) return boolean is
 
-    variable bit_time_tq   : integer;
-    variable early_bits_tq : integer;
-    variable tq_period_ns  : integer;
+    variable bit_time_tq   : natural;
+    variable early_bits_tq : natural;
+    variable tq_period_ns  : natural;
 
   begin
 
@@ -78,11 +78,11 @@ package body can_timing_pkg is
   end function should_use_tdc;
 
   function calculate_tdc_delay (
-    delay_with_offset : integer;
-    data_bit_time     : integer
-  ) return integer is
+    delay_with_offset : natural;
+    data_bit_time     : natural
+  ) return natural is
 
-    variable index : integer;
+    variable index : natural;
 
   begin
 

@@ -39,11 +39,11 @@ library ieee;
 entity can_pcs_tx is
   generic (
     gc_prescaler       : t_prescaler          := t_prescaler'high / 2;
-    gc_nom_sync_seg    : integer              := c_sync_seg;
+    gc_nom_sync_seg    : natural              := c_sync_seg;
     gc_nom_prop_seg    : t_nominal_prop_seg   := t_nominal_prop_seg'high / 2;
     gc_nom_phase_seg1  : t_nominal_phase_seg1 := t_nominal_phase_seg1'high / 2;
     gc_nom_phase_seg2  : t_nominal_phase_seg2 := t_nominal_phase_seg2'high / 2;
-    gc_data_sync_seg   : integer              := c_sync_seg;
+    gc_data_sync_seg   : natural              := c_sync_seg;
     gc_data_prop_seg   : t_data_prop_seg      := t_data_prop_seg'high / 2;
     gc_data_phase_seg1 : t_data_phase_seg1    := t_data_phase_seg1'high / 2;
     gc_data_phase_seg2 : t_data_phase_seg2    := t_data_phase_seg2'high / 2;
@@ -71,10 +71,10 @@ architecture rtl of can_pcs_tx is
   constant c_st_data       : std_logic_vector(1 downto 0) := "11";
 
   -- Bit timing constants
-  constant c_nom_bit_time     : integer := gc_nom_sync_seg + gc_nom_prop_seg + gc_nom_phase_seg1 + gc_nom_phase_seg2;
-  constant c_data_bit_time    : integer := gc_data_sync_seg + gc_data_prop_seg + gc_data_phase_seg1 + gc_data_phase_seg2;
-  constant c_sp_position      : integer := gc_nom_sync_seg + gc_nom_prop_seg + gc_nom_phase_seg1;
-  constant c_data_sp_position : integer := gc_data_sync_seg + gc_data_prop_seg + gc_data_phase_seg1;
+  constant c_nom_bit_time     : natural := gc_nom_sync_seg + gc_nom_prop_seg + gc_nom_phase_seg1 + gc_nom_phase_seg2;
+  constant c_data_bit_time    : natural := gc_data_sync_seg + gc_data_prop_seg + gc_data_phase_seg1 + gc_data_phase_seg2;
+  constant c_sp_position      : natural := gc_nom_sync_seg + gc_nom_prop_seg + gc_nom_phase_seg1;
+  constant c_data_sp_position : natural := gc_data_sync_seg + gc_data_prop_seg + gc_data_phase_seg1;
 
   -- TDC requires prescaler = 1 or 2 (ISO 7.3.4)
   constant c_tdc_prescaler_valid : boolean := (gc_prescaler = 1 or gc_prescaler = 2);
@@ -84,12 +84,12 @@ architecture rtl of can_pcs_tx is
   -- Registered signals
   ---------------------------------------------------------------------------
   signal state           : std_logic_vector(1 downto 0);
-  signal clk_count       : integer range 0 to gc_prescaler - 1;
-  signal tq_count        : integer range 0 to c_nom_bit_time;
-  signal delay_count_clk : integer range 0 to c_max_transmitter_delay;
+  signal clk_count       : natural range 0 to gc_prescaler - 1;
+  signal tq_count        : natural range 0 to c_nom_bit_time;
+  signal delay_count_clk : natural range 0 to c_max_transmitter_delay;
   signal tdc_counting    : std_logic;
-  signal ssp_position    : integer range 0 to c_data_bit_time - 1;
-  signal tdc_delay       : integer range 0 to c_tdc_polarity_depth - 1;
+  signal ssp_position    : natural range 0 to c_data_bit_time - 1;
+  signal tdc_delay       : natural range 0 to c_tdc_polarity_depth - 1;
   signal prev_rx_bus     : std_logic;
   signal prev_tx_bus     : std_logic;
   signal in_data_phase   : std_logic;
@@ -108,8 +108,8 @@ begin
     variable v_frame_active : boolean;
     variable v_tq_tick      : boolean;
     variable v_bit_boundary : boolean;
-    variable v_active_bt    : integer;
-    variable v_active_sp    : integer;
+    variable v_active_bt    : natural;
+    variable v_active_sp    : natural;
 
     ---------------------------------------------------------------------------
     procedure tick_prescaler is
@@ -127,7 +127,7 @@ begin
 
     ---------------------------------------------------------------------------
     procedure latch_next_bit (
-      bit_time : in integer
+      bit_time : in natural
     ) is
     begin
 
@@ -144,7 +144,7 @@ begin
 
     ---------------------------------------------------------------------------
     procedure emit_sp (
-      sp_pos : in integer
+      sp_pos : in natural
     ) is
     begin
 
@@ -171,7 +171,7 @@ begin
 
       variable v_tx_rising_edge : boolean;
       variable v_rx_rising_edge : boolean;
-      variable v_delay_tq       : integer;
+      variable v_delay_tq       : natural;
 
     begin
 

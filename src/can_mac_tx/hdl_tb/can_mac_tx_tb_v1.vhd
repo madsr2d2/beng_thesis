@@ -36,25 +36,25 @@ architecture tb of can_mac_tx_tb_v1 is
   ----------------------------------------------------------------------------
   -- Constants
   ----------------------------------------------------------------------------
-  constant c_sp_interval   : integer := 10;
-  constant c_bin_num       : integer := 5;
-  constant c_max_bus_bits  : integer := 1024;
-  constant c_rec_width     : integer := 16;
+  constant c_sp_interval   : natural := 10;
+  constant c_bin_num       : natural := 5;
+  constant c_max_bus_bits  : natural := 1024;
+  constant c_rec_width     : natural := 16;
 
-  -- PCS VC subtypes (unified integer encoding)
-  constant c_pcs_active : integer := 0;
-  constant c_inj_ack    : integer := 1;
+  -- PCS VC subtypes (unified natural encoding)
+  constant c_pcs_active : natural := 0;
+  constant c_inj_ack    : natural := 1;
 
   ----------------------------------------------------------------------------
   -- Types
   ----------------------------------------------------------------------------
   type t_bus_stream is record
     bits             : std_logic_vector(0 to c_max_bus_bits - 1);
-    len              : integer;
-    ack_pos          : integer;
-    fdf_pos          : integer;  -- stuffed index of FDF bit (-1 for CC)
-    data_phase_start : integer;  -- stuffed index of ESI bit (-1 if no data phase)
-    data_phase_end   : integer;  -- last stuffed index in data phase (-1 if no data phase)
+    len              : natural;
+    ack_pos          : natural;
+    fdf_pos          : natural;  -- stuffed index of FDF bit (-1 for CC)
+    data_phase_start : natural;  -- stuffed index of ESI bit (-1 if no data phase)
+    data_phase_end   : natural;  -- last stuffed index in data phase (-1 if no data phase)
   end record t_bus_stream;
 
   ----------------------------------------------------------------------------
@@ -76,9 +76,9 @@ architecture tb of can_mac_tx_tb_v1 is
   signal status_latch    : std_logic_vector(2 downto 0) := c_ongoing;
 
   -- Data-phase info for PCS VC (set by test sequencer before each frame)
-  signal pcs_fdf_pos          : integer := -1;
-  signal pcs_data_phase_start : integer := -1;
-  signal pcs_data_phase_end   : integer := -1;
+  signal pcs_fdf_pos          : natural := -1;
+  signal pcs_data_phase_start : natural := -1;
+  signal pcs_data_phase_end   : natural := -1;
 
   -- OSVVM signals
   shared variable RV  : RandomPType;
@@ -131,23 +131,23 @@ architecture tb of can_mac_tx_tb_v1 is
     variable id_stream   : std_logic_vector(c_llc_id_field_width - 1 downto 0);
     variable ser_data    : std_logic;
     variable fb          : t_mac_frame_bit;
-    variable data_bit_no : integer;
+    variable data_bit_no : natural;
 
     -- Dynamic stuffer state
-    variable consec   : integer range 0 to c_stuff_width := 0;
+    variable consec   : natural range 0 to c_stuff_width := 0;
     variable last_pol : std_logic := c_recessive;
-    variable ds_count : t_stuff_count := (others => '0');
+    variable ds_count : std_logic_vector(2 downto 0) := (others => '0');
 
     -- CRC accumulator and result
     variable crc_in     : std_logic_vector(0 to c_max_bus_bits - 1);
-    variable crc_in_len : integer := 0;
+    variable crc_in_len : natural := 0;
     variable crc        : std_logic_vector(c_crc_21_length - 1 downto 0);
 
     -- FD CRC region
-    variable sbc  : t_sbc;
+    variable sbc  : std_logic_vector(c_sbc_field_width - 1 downto 0);
     variable gray : std_logic_vector(2 downto 0);
 
-    variable tail_len : integer;
+    variable tail_len : natural;
 
     -- Feed one bit through the dynamic stuffer.
     -- FD: stuff bits feed CRC input. CC: they do not.
@@ -295,7 +295,7 @@ architecture tb of can_mac_tx_tb_v1 is
   procedure gen_frame (
     variable frame     : out t_llc_frame;
     variable metadata  : out t_llc_metadata;
-    variable last_byte : out integer;
+    variable last_byte : out natural;
     variable stream    : out t_bus_stream
   ) is
   begin
@@ -319,7 +319,7 @@ architecture tb of can_mac_tx_tb_v1 is
 
     metadata  := extract_metadata(frame(0), frame(1));
     last_byte := 6 + dlc_to_data_length(
-                   t_dlc(to_integer(unsigned(metadata.dlc))), metadata.fdf) - 1;
+                   natural range 0 to c_dlc_max(to_integer(unsigned(metadata.dlc))), metadata.fdf) - 1;
     stream    := build_bus_stream(frame, metadata);
   end procedure gen_frame;
 
@@ -438,18 +438,18 @@ begin
   -- PCS Verification Component
   ----------------------------------------------------------------------------
   p_pcs_vc : process is
-    variable v_bus_idx      : integer;
-    variable v_inject_pos   : integer;
-    variable v_subtype      : integer;
+    variable v_bus_idx      : natural;
+    variable v_inject_pos   : natural;
+    variable v_subtype      : natural;
     variable v_sp_active           : boolean := false;
     variable v_checking            : boolean := false;
     variable v_burst_check_pending : boolean := false;
-    variable v_sp_count            : integer range 0 to c_sp_interval - 1 := 0;
+    variable v_sp_count            : natural range 0 to c_sp_interval - 1 := 0;
 
     -- Data-phase info (latched from signals at SEND_ASYNC)
-    variable v_fdf_pos          : integer := -1;
-    variable v_data_phase_start : integer := -1;
-    variable v_data_phase_end   : integer := -1;
+    variable v_fdf_pos          : natural := -1;
+    variable v_data_phase_start : natural := -1;
+    variable v_data_phase_end   : natural := -1;
 
     --------------------------------------------------------------------------
     -- Inject: arm/disarm bus override at programmed position
@@ -583,8 +583,8 @@ begin
   p_test_ctrl : process is
     variable v_frame       : t_llc_frame;
     variable v_metadata    : t_llc_metadata;
-    variable v_last_byte   : integer;
-    variable v_frame_count : integer := 0;
+    variable v_last_byte   : natural;
+    variable v_frame_count : natural := 0;
     variable v_stream      : t_bus_stream;
   begin
     WaitForBarrier(init_barrier);

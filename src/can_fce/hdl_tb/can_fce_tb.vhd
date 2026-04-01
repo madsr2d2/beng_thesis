@@ -26,7 +26,7 @@ end entity can_fce_tb;
 architecture tb of can_fce_tb is
 
   constant clk_period   : time    := 10 ns;
-  constant nom_bit_time : integer := 20;
+  constant nom_bit_time : natural := 20;
 
   -- FCE state encoding (matches DUT constants)
   constant c_error_active  : std_logic_vector(1 downto 0) := "00";
@@ -49,8 +49,8 @@ architecture tb of can_fce_tb is
 
   signal rx_bus   : std_logic := '1';
 
-  signal debug_tec   : integer range 0 to 511;
-  signal debug_rec   : integer range 0 to 255;
+  signal debug_tec   : natural range 0 to 511;
+  signal debug_rec   : natural range 0 to 255;
   signal debug_state : std_logic_vector(1 downto 0);
 
   signal alert_id : AlertLogIDType;
@@ -150,20 +150,20 @@ begin
 
   main_proc : process is
 
-    variable test_count : integer := 0;
-    variable pass_count : integer := 0;
+    variable test_count : natural := 0;
+    variable pass_count : natural := 0;
 
     procedure check (
       constant name     : in string;
-      constant got      : in integer;
-      constant expected : in integer
+      constant got      : in natural;
+      constant expected : in natural
     ) is
     begin
       if (got = expected) then
         pass_count := pass_count + 1;
       else
-        Alert(alert_id, name & ": got " & integer'image(got) &
-              ", expected " & integer'image(expected), ERROR);
+        Alert(alert_id, name & ": got " & natural'image(got) &
+              ", expected " & natural'image(expected), ERROR);
       end if;
       test_count := test_count + 1;
     end procedure check;
@@ -339,8 +339,8 @@ begin
     -- Summary
     ---------------------------------------------------------------------------
     report "========================================";
-    report "FCE Tests: " & integer'image(pass_count) & " / " &
-           integer'image(test_count) & " passed";
+    report "FCE Tests: " & natural'image(pass_count) & " / " &
+           natural'image(test_count) & " passed";
     report "========================================";
 
     ReportAlerts;

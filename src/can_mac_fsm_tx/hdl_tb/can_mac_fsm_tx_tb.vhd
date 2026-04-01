@@ -35,8 +35,8 @@ architecture tb of can_mac_fsm_tx_tb is
   ----------------------------------------------------------------------------
   -- Constants
   ----------------------------------------------------------------------------
-  constant c_sp_interval   : integer := 10;
-  constant c_bin_num       : integer := 1;
+  constant c_sp_interval   : natural := 10;
+  constant c_bin_num       : natural := 1;
 
   ----------------------------------------------------------------------------
   -- Signals
@@ -139,7 +139,7 @@ begin
   -- PCS stand-in (SP strobe + bus loopback with override)
   ----------------------------------------------------------------------------
   p_pcs_standin : process (clk) is
-    variable sp_count : integer range 0 to c_sp_interval - 1 := 0;
+    variable sp_count : natural range 0 to c_sp_interval - 1 := 0;
   begin
     if rising_edge(clk) then
       sp_strobe <= '0';
@@ -224,7 +224,7 @@ begin
     variable v_meta : t_llc_metadata;
 
     procedure wait_n_sp (
-      n : in integer
+      n : in natural
     ) is
     begin
       for i in 1 to n loop
@@ -234,7 +234,7 @@ begin
     end procedure wait_n_sp;
 
     procedure wait_for_frame_entry (
-      timeout_sp : in integer := 200
+      timeout_sp : in natural := 200
     ) is
     begin
       for i in 1 to timeout_sp * c_sp_interval loop
@@ -248,7 +248,7 @@ begin
 
     procedure wait_for_transfer_status (
       expected   : in std_logic_vector(2 downto 0);
-      timeout_sp : in integer := 500;
+      timeout_sp : in natural := 500;
       msg        : in string
     ) is
     begin
@@ -262,7 +262,7 @@ begin
     end procedure wait_for_transfer_status;
 
     procedure wait_for_error_flag_entry (
-      timeout_sp : in integer := 500
+      timeout_sp : in natural := 500
     ) is
     begin
       for i in 1 to timeout_sp * c_sp_interval loop
@@ -279,7 +279,7 @@ begin
       msg  : in string
     ) is
       variable v_fp     : t_frame_params;
-      variable v_ack_sp : integer;
+      variable v_ack_sp : natural;
     begin
       v_fp     := get_frame_params(meta);
       v_ack_sp := v_fp.crc_delimiter + c_ack_slot_offset;

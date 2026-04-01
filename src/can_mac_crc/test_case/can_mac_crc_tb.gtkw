@@ -55,8 +55,6 @@ top.can_mac_crc_tb.u_dut.crc15_out
 top.can_mac_crc_tb.u_dut.crc17_out
 @22
 top.can_mac_crc_tb.u_dut.crc21_out
-@28
-top.can_mac_crc_tb.u_dut.valid
 @1401200
 -u_dut Internals
 @c00200

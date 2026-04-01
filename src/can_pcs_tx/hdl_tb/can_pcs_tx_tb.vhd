@@ -38,20 +38,20 @@ architecture test of can_pcs_tx_tb is
   signal current_test_id : natural := 0;
 
   -- Timing constants (mid-range ISO Table 12 defaults)
-  constant nom_bit_time_tq_c  : integer := 1 + 48 + 16 + 16;  -- 81
-  constant data_bit_time_tq_c : integer := 1 + 4 + 4 + 4;     -- 13
+  constant nom_bit_time_tq_c  : natural := 1 + 48 + 16 + 16;  -- 81
+  constant data_bit_time_tq_c : natural := 1 + 4 + 4 + 4;     -- 13
 
   -- DUT 1: prescaler = 16, TDC disabled
-  constant no_tdc_prescaler_c    : integer := t_prescaler'high / 2;
-  constant no_tdc_nom_bit_clk_c  : integer := nom_bit_time_tq_c * no_tdc_prescaler_c;
-  constant no_tdc_data_bit_clk_c : integer := data_bit_time_tq_c * no_tdc_prescaler_c;
+  constant no_tdc_prescaler_c    : natural := t_prescaler'high / 2;
+  constant no_tdc_nom_bit_clk_c  : natural := nom_bit_time_tq_c * no_tdc_prescaler_c;
+  constant no_tdc_data_bit_clk_c : natural := data_bit_time_tq_c * no_tdc_prescaler_c;
 
   -- DUT 2: prescaler = 2, TDC enabled
-  constant tdc_prescaler_c    : integer := 2;
-  constant tdc_nom_bit_clk_c  : integer := nom_bit_time_tq_c * tdc_prescaler_c;
-  constant tdc_data_bit_clk_c : integer := data_bit_time_tq_c * tdc_prescaler_c;
+  constant tdc_prescaler_c    : natural := 2;
+  constant tdc_nom_bit_clk_c  : natural := nom_bit_time_tq_c * tdc_prescaler_c;
+  constant tdc_data_bit_clk_c : natural := data_bit_time_tq_c * tdc_prescaler_c;
 
-  constant loopback_delay_clk_c : integer := 50;
+  constant loopback_delay_clk_c : natural := 50;
   constant loopback_delay_c     : time    := loopback_delay_clk_c * clk_period_c;
 
   -- DUT 1 signals
@@ -179,7 +179,7 @@ begin
     ) is
       variable first_seen  : boolean;
       variable second_seen : boolean;
-      variable period      : integer := 0;
+      variable period      : natural := 0;
     begin
       wait_for_sp_1(search_window, first_seen, msg & " (first pulse missing)");
       second_seen := false;
@@ -194,8 +194,8 @@ begin
       end loop;
       AlertIf(not second_seen, msg & " (second pulse missing)", ERROR);
       AlertIf(period /= expected_cycles,
-              msg & " expected " & integer'image(expected_cycles) &
-              " cycles, got " & integer'image(period), ERROR);
+              msg & " expected " & natural'image(expected_cycles) &
+              " cycles, got " & natural'image(period), ERROR);
     end procedure assert_sp_period_1;
 
     procedure assert_sp_period_1_n (
@@ -206,7 +206,7 @@ begin
     ) is
     begin
       for k in 1 to num_periods loop
-        assert_sp_period_1(expected_cycles, search_window, msg & " #" & integer'image(k));
+        assert_sp_period_1(expected_cycles, search_window, msg & " #" & natural'image(k));
       end loop;
     end procedure assert_sp_period_1_n;
 
@@ -269,7 +269,7 @@ begin
     ) is
       variable first_seen  : boolean;
       variable second_seen : boolean;
-      variable period      : integer := 0;
+      variable period      : natural := 0;
     begin
       wait_for_sp_2(search_window, first_seen, msg & " (first pulse missing)");
       second_seen := false;
@@ -284,8 +284,8 @@ begin
       end loop;
       AlertIf(not second_seen, msg & " (second pulse missing)", ERROR);
       AlertIf(period /= expected_cycles,
-              msg & " expected " & integer'image(expected_cycles) &
-              " cycles, got " & integer'image(period), ERROR);
+              msg & " expected " & natural'image(expected_cycles) &
+              " cycles, got " & natural'image(period), ERROR);
     end procedure assert_sp_period_2;
 
     procedure assert_ssp_period_2 (
@@ -295,7 +295,7 @@ begin
     ) is
       variable first_seen  : boolean;
       variable second_seen : boolean;
-      variable period      : integer := 0;
+      variable period      : natural := 0;
     begin
       wait_for_ssp_2(search_window, first_seen, msg & " (first SSP pulse missing)");
       second_seen := false;
@@ -310,8 +310,8 @@ begin
       end loop;
       AlertIf(not second_seen, msg & " (second SSP pulse missing)", ERROR);
       AlertIf(period /= expected_cycles,
-              msg & " expected " & integer'image(expected_cycles) &
-              " cycles, got " & integer'image(period), ERROR);
+              msg & " expected " & natural'image(expected_cycles) &
+              " cycles, got " & natural'image(period), ERROR);
     end procedure assert_ssp_period_2;
 
     procedure assert_ssp_period_2_n (
@@ -322,7 +322,7 @@ begin
     ) is
     begin
       for k in 1 to num_periods loop
-        assert_ssp_period_2(expected_cycles, search_window, msg & " #" & integer'image(k));
+        assert_ssp_period_2(expected_cycles, search_window, msg & " #" & natural'image(k));
       end loop;
     end procedure assert_ssp_period_2_n;
 
@@ -334,7 +334,7 @@ begin
     ) is
     begin
       for k in 1 to num_periods loop
-        assert_sp_period_2(expected_cycles, search_window, msg & " #" & integer'image(k));
+        assert_sp_period_2(expected_cycles, search_window, msg & " #" & natural'image(k));
       end loop;
     end procedure assert_sp_period_2_n;
 

@@ -26,7 +26,7 @@ library ieee;
 
 entity can_fce is
   generic (
-    gc_nom_bit_time : integer := 200
+    gc_nom_bit_time : natural := 200
   );
   port (
     clk_i : in    std_logic;
@@ -52,8 +52,8 @@ entity can_fce is
     rx_bus_i : in    std_logic;
 
     -- Debug output
-    debug_tec_o   : out   integer range 0 to 511;
-    debug_rec_o   : out   integer range 0 to 255;
+    debug_tec_o   : out   natural range 0 to 511;
+    debug_rec_o   : out   natural range 0 to 255;
     debug_state_o : out   std_logic_vector(1 downto 0)
   );
 end entity can_fce;
@@ -65,14 +65,14 @@ architecture rtl of can_fce is
   constant c_error_passive : std_logic_vector(1 downto 0) := "01";
   constant c_bus_off       : std_logic_vector(1 downto 0) := "10";
 
-  signal tec       : integer range 0 to 511;
-  signal rec       : integer range 0 to 255;
+  signal tec       : natural range 0 to 511;
+  signal rec       : natural range 0 to 255;
   signal fce_state : std_logic_vector(1 downto 0);
 
   -- Bus-off recovery: idle detection
   signal idle_shift_reg  : std_logic_vector(10 downto 0);
-  signal idle_count      : integer range 0 to 127;
-  signal prescaler_count : integer range 0 to gc_nom_bit_time - 1;
+  signal idle_count      : natural range 0 to 127;
+  signal prescaler_count : natural range 0 to gc_nom_bit_time - 1;
 
   -- Guard: bus-off recovery active
   signal bus_off_active : std_logic;
@@ -83,8 +83,8 @@ begin
 
   fce_proc : process (clk_i) is
 
-    variable v_tec       : integer range 0 to 511;
-    variable v_rec       : integer range 0 to 255;
+    variable v_tec       : natural range 0 to 511;
+    variable v_rec       : natural range 0 to 255;
     variable v_fce_state : std_logic_vector(1 downto 0);
 
     -- Named guard predicates for counter rules

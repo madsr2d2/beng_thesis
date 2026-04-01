@@ -39,10 +39,10 @@ architecture tb of can_mac_crc_tb is
   ----------------------------------------------------------------------------
   -- Constants
   ----------------------------------------------------------------------------
-  constant c_bin_crc_15_sel : integer := 0;
-  constant c_bin_crc_17_sel : integer := 1;
-  constant c_bin_crc_21_sel : integer := 2;
-  constant c_num_frames     : integer := 1000;
+  constant c_bin_crc_15_sel : natural := 0;
+  constant c_bin_crc_17_sel : natural := 1;
+  constant c_bin_crc_21_sel : natural := 2;
+  constant c_num_frames     : natural := 1000;
   constant c_crc_reset_value : std_logic_vector(c_crc_21_length - 1 downto 0) := (others => '0');
 
   ----------------------------------------------------------------------------

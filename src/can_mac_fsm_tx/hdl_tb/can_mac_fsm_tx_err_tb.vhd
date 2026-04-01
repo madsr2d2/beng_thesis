@@ -31,18 +31,18 @@ library osvvm;
 
 entity can_mac_fsm_tx_err_tb is
   generic (
-    nom_prescaler                   : integer := 2;
-    nom_sync_seg                    : integer := 1;
-    nom_prop_seg                    : integer := 8;
-    nom_phase_seg1                  : integer := 8;
-    nom_phase_seg2                  : integer := 8;
-    data_prescaler                  : integer := 1;
-    data_sync_seg                   : integer := 1;
-    data_prop_seg                   : integer := 4;
-    data_phase_seg1                 : integer := 8;
-    data_phase_seg2                 : integer := 6;
+    nom_prescaler                   : natural := 2;
+    nom_sync_seg                    : natural := 1;
+    nom_prop_seg                    : natural := 8;
+    nom_phase_seg1                  : natural := 8;
+    nom_phase_seg2                  : natural := 8;
+    data_prescaler                  : natural := 1;
+    data_sync_seg                   : natural := 1;
+    data_prop_seg                   : natural := 4;
+    data_phase_seg1                 : natural := 8;
+    data_phase_seg2                 : natural := 6;
     ssp_offset_cfg                  : t_ssp_offset := 1;
-    system_clock_freq_hz            : integer := 100_000_000
+    system_clock_freq_hz            : natural := 100_000_000
   );
 end entity can_mac_fsm_tx_err_tb;
 
@@ -54,11 +54,11 @@ architecture testbench of can_mac_fsm_tx_err_tb is
 
   type test_status_t is (idle, setup, running, verifying, passed, failed);
   type test_result_t is record
-    test_id    : integer;
+    test_id    : natural;
     test_name  : string(1 to 80);
     status     : test_status_t;
     duration   : time;
-    errors     : integer;
+    errors     : natural;
   end record test_result_t;
 
   -- Frame configuration (parametrizable for all CAN formats)
@@ -68,7 +68,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     dlc          : std_logic_vector(3 downto 0);
     id_11bit     : std_logic_vector(10 downto 0);
     id_29bit     : std_logic_vector(28 downto 0);
-    data_bytes   : integer range 0 to 64;
+    data_bytes   : natural range 0 to 64;
     ftyp         : std_logic;
     brs          : std_logic;
     esi          : std_logic;
@@ -78,7 +78,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     inject_ack   : boolean;
     inject_form  : boolean;
     inject_bit   : boolean;
-    inject_pos   : integer;
+    inject_pos   : natural;
   end record error_injection_t;
 
   type current_test_t is (
@@ -201,11 +201,11 @@ architecture testbench of can_mac_fsm_tx_err_tb is
   signal ack_error_pulse_detected : boolean := false;
   signal form_error_pulse_detected : boolean := false;
   signal bit_error_pulse_detected : boolean := false;
-  signal test_cycle_counter : integer := 0;
-  signal sample_point_counter : integer := 0;
+  signal test_cycle_counter : natural := 0;
+  signal sample_point_counter : natural := 0;
   signal test_complete : boolean := false;
-  signal frame_ack_slot_start : integer := 0;
-  signal frame_ack_slot_end : integer := 0;
+  signal frame_ack_slot_start : natural := 0;
+  signal frame_ack_slot_end : natural := 0;
   signal in_ack_slot : boolean := false;
 
   -- ============================================================================
@@ -214,7 +214,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
 
   procedure init_test_result (
     variable result : out test_result_t;
-    test_id : in integer;
+    test_id : in natural;
     test_name : in string
   ) is
   begin
@@ -226,12 +226,12 @@ architecture testbench of can_mac_fsm_tx_err_tb is
   end procedure init_test_result;
 
   procedure log_test_start (
-    test_id : in integer;
+    test_id : in natural;
     test_name : in string
   ) is
   begin
     log("", ALWAYS);
-    log("Test " & integer'image(test_id) & ": " & test_name, ALWAYS);
+    log("Test " & natural'image(test_id) & ": " & test_name, ALWAYS);
   end procedure log_test_start;
 
   procedure log_test_result (
@@ -244,7 +244,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
       log("  Result: [PASS] " & status_str & " (" & time'image(result.duration) & ")", ALWAYS);
     else
       log("  Result: [FAIL] (" & time'image(result.duration) & ")", ALWAYS);
-      log("  Errors: " & integer'image(result.errors), ALWAYS);
+      log("  Errors: " & natural'image(result.errors), ALWAYS);
     end if;
   end procedure log_test_result;
 
@@ -259,18 +259,18 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     esi_default : in boolean := false;
     rtr_default : in boolean := false;
     random_frame : in boolean := false;
-    seed_in : in integer := 42
+    seed_in : in natural := 42
   ) return t_tb_frame is
     variable frame : t_tb_frame;
     variable unified_id : std_logic_vector(28 downto 0);
-    variable dlc_val : integer;
-    variable data_len : integer;
+    variable dlc_val : natural;
+    variable data_len : natural;
     variable rtr_flag : boolean;
     variable brs_flag : boolean;
     variable esi_flag : boolean;
     variable rv : RandomPType;
-    variable byte_high : integer;
-    variable byte_low : integer;
+    variable byte_high : natural;
+    variable byte_low : natural;
   begin
     rv.InitSeed(seed_in);
     frame.data := (others => '0');
@@ -285,7 +285,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
       brs_flag := rv.RandInt(0, 1) = 1;
       esi_flag := rv.RandInt(0, 1) = 1;
       unified_id := std_logic_vector(to_unsigned(rv.RandInt(0, 536870911), 29));
-      data_len := dlc_to_data_length(t_dlc(dlc_val), fdf);
+      data_len := dlc_to_data_length(integer range 0 to c_dlc_max(dlc_val), fdf);
       if (not rtr_flag) then
         for i in 0 to data_len - 1 loop
           byte_high := 8 * (i + 1) - 1;
@@ -295,14 +295,14 @@ architecture testbench of can_mac_fsm_tx_err_tb is
       end if;
       log("[RANDOM] Generated random frame: IDE=" & std_logic'image(ide) &
           " FDF=" & std_logic'image(fdf) &
-          " DLC=" & integer'image(dlc_val) & " DataLen=" & integer'image(data_len), ALWAYS);
+          " DLC=" & natural'image(dlc_val) & " DataLen=" & natural'image(data_len), ALWAYS);
     else
       dlc_val := 1;
       rtr_flag := rtr_default;
       brs_flag := brs_default;
       esi_flag := esi_default;
       unified_id := std_logic_vector(to_unsigned(16#555#, 29));
-      data_len := dlc_to_data_length(t_dlc(dlc_val), fdf);
+      data_len := dlc_to_data_length(integer range 0 to c_dlc_max(dlc_val), fdf);
     end if;
 
     if (rtr_flag) then
@@ -319,7 +319,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
 
     log("[CFG] Generated LLC frame: IDE=" & std_logic'image(ide) &
         " FDF=" & std_logic'image(fdf) &
-        " DLC=" & integer'image(dlc_val) & " DataLen=" & integer'image(data_len), ALWAYS);
+        " DLC=" & natural'image(dlc_val) & " DataLen=" & natural'image(data_len), ALWAYS);
 
     return frame;
   end function generate_llc_frame;
@@ -328,7 +328,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
   procedure send_user_byte (
     signal llc_i : out t_can_user_llc_tx_if_s2d;
     signal clk   : in  std_logic;
-    value : t_byte;
+    value :std_logic_vector(c_byte_width - 1 downto 0);
     sop   : std_logic;
     eop   : std_logic
   ) is
@@ -353,15 +353,15 @@ architecture testbench of can_mac_fsm_tx_err_tb is
   ) is
     variable id_29_v           : std_logic_vector(28 downto 0);
     variable is_extended_v     : boolean;
-    variable byte0_v           : t_byte;
-    variable byte1_v           : t_byte;
-    variable byte2_v           : t_byte;
-    variable byte3_v           : t_byte;
-    variable byte4_v           : t_byte;
-    variable byte69_v          : t_byte;
-    variable byte70_v          : t_byte;
-    variable data_byte_count_v : integer;
-    variable data_bit_start_v  : integer;
+    variable byte0_v           :std_logic_vector(c_byte_width - 1 downto 0);
+    variable byte1_v           :std_logic_vector(c_byte_width - 1 downto 0);
+    variable byte2_v           :std_logic_vector(c_byte_width - 1 downto 0);
+    variable byte3_v           :std_logic_vector(c_byte_width - 1 downto 0);
+    variable byte4_v           :std_logic_vector(c_byte_width - 1 downto 0);
+    variable byte69_v          :std_logic_vector(c_byte_width - 1 downto 0);
+    variable byte70_v          :std_logic_vector(c_byte_width - 1 downto 0);
+    variable data_byte_count_v : natural;
+    variable data_bit_start_v  : natural;
   begin
     id_29_v       := frame.id(28 downto 0);
     is_extended_v := frame.ide = '1';
@@ -383,7 +383,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     byte70_v := "00000" & frame.brs & frame.esi & frame.ftyp;
 
     data_byte_count_v := dlc_to_data_length(
-                            t_dlc(to_integer(unsigned(frame.dlc))),
+                            natural range 0 to c_dlc_max(to_integer(unsigned(frame.dlc))),
                             frame.fdf
                           );
 
@@ -560,7 +560,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     variable test_duration : time;
     variable frame : t_tb_frame;
     variable injected_v : boolean := false;
-    variable data_bit_count_v : integer := 0;
+    variable data_bit_count_v : natural := 0;
   begin
     log("", ALWAYS);
     log("Test 4: FD Data Phase Completion (REQ-TX-EH005)", ALWAYS);
@@ -659,7 +659,7 @@ architecture testbench of can_mac_fsm_tx_err_tb is
   ) is
     variable test_start_time : time;
     variable test_duration : time;
-    variable seed : integer := 12345;
+    variable seed : natural := 12345;
     variable frame : t_tb_frame;
   begin
     log("", ALWAYS);
@@ -747,12 +747,12 @@ architecture testbench of can_mac_fsm_tx_err_tb is
     variable pcs_ef_seen_v : boolean := false;
     variable injected_v : boolean := false;
     variable inject_armed_v : boolean := false;
-    variable inject_hold_cycles_v : integer := 0;
+    variable inject_hold_cycles_v : natural := 0;
     variable saw_crc_delim_before_ef_req_v : boolean := false;
     variable saw_ack_before_ef_req_v       : boolean := false;
-    variable ef_req_cycle_v : integer := 0;
-    variable pcs_ef_cycle_v : integer := 0;
-    variable ef_dom_count_v : integer := 0;
+    variable ef_req_cycle_v : natural := 0;
+    variable pcs_ef_cycle_v : natural := 0;
+    variable ef_dom_count_v : natural := 0;
     variable ef_delim_seen_v : boolean := false;
     variable bit_rate_at_pcs_ef_v : std_logic := '1';
   begin
@@ -857,8 +857,8 @@ architecture testbench of can_mac_fsm_tx_err_tb is
               ERROR);
       AlertIf(ef_dom_count_v /= c_error_flag_width,
               "Dominant error-flag width mismatch. Expected " &
-              integer'image(c_error_flag_width) & ", got " &
-              integer'image(ef_dom_count_v),
+              natural'image(c_error_flag_width) & ", got " &
+              natural'image(ef_dom_count_v),
               ERROR);
     end if;
 
@@ -981,19 +981,19 @@ begin
   -- Monitor for error pulses
   error_monitor : process (clk) is
     variable last_bit_name : t_mac_frame_bit_name := idle_bit;
-    variable debug_sample_count : integer := 0;
+    variable debug_sample_count : natural := 0;
   begin
     if rising_edge(clk) then
       if debug_ack_error = '1' then
         ack_error_pulse_detected <= true;
         log("[PULSE] ACK ERROR DETECTED at sample " &
-            integer'image(sample_point_counter), ALWAYS);
+            natural'image(sample_point_counter), ALWAYS);
       end if;
 
       if debug_form_error = '1' then
         form_error_pulse_detected <= true;
         log("[PULSE] FORM ERROR DETECTED at sample " &
-            integer'image(sample_point_counter), ALWAYS);
+            natural'image(sample_point_counter), ALWAYS);
       end if;
 
       if (fsm_state = c_st_active_error_flag or
@@ -1004,7 +1004,7 @@ begin
       if debug_pcs_to_mac.sp = '1' then
         debug_sample_count := debug_sample_count + 1;
         if (debug_bit_name /= last_bit_name) or (debug_sample_count < 20) then
-          log("[BIT] Sample " & integer'image(debug_sample_count) & ": " &
+          log("[BIT] Sample " & natural'image(debug_sample_count) & ": " &
               t_mac_frame_bit_name'image(debug_bit_name) &
               " (polarity: " & std_logic'image(debug_mac_to_pcs.polarity) & ")", ALWAYS);
           last_bit_name := debug_bit_name;

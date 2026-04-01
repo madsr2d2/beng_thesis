@@ -47,36 +47,36 @@ architecture rtl of can_llc_tx is
   ---------------------------------------------------------------------------
   -- Constants
   ---------------------------------------------------------------------------
-  constant c_llc_header_bytes    : integer := 6; -- cfg0+cfg1+id3..id0
-  constant c_max_llc_frame_bytes : integer := c_llc_header_bytes + c_max_data_bytes;
+  constant c_llc_header_bytes    : natural := 6; -- cfg0+cfg1+id3..id0
+  constant c_max_llc_frame_bytes : natural := c_llc_header_bytes + c_max_data_bytes;
 
   ---------------------------------------------------------------------------
   -- Types
   ---------------------------------------------------------------------------
-  type t_llc_frame_buffer is array (0 to c_max_llc_frame_bytes - 1) of t_byte;
+  type t_llc_frame_buffer is array (0 to c_max_llc_frame_bytes - 1) of std_logic_vector(c_byte_width - 1 downto 0);
 
   ---------------------------------------------------------------------------
   -- Registered state signals
   ---------------------------------------------------------------------------
   signal state              : std_logic_vector(2 downto 0);
   signal frame_buf          : t_llc_frame_buffer;
-  signal frame_len_bytes    : integer range 0 to c_max_llc_frame_bytes;
-  signal capture_index      : integer range 0 to c_max_llc_frame_bytes - 1;
-  signal tx_index           : integer range 0 to c_max_llc_frame_bytes - 1;
-  signal expected_len_bytes : integer range 0 to c_max_llc_frame_bytes;
-  signal retx_count         : integer range 0 to c_retransmission_limit;
+  signal frame_len_bytes    : natural range 0 to c_max_llc_frame_bytes;
+  signal capture_index      : natural range 0 to c_max_llc_frame_bytes - 1;
+  signal tx_index           : natural range 0 to c_max_llc_frame_bytes - 1;
+  signal expected_len_bytes : natural range 0 to c_max_llc_frame_bytes;
+  signal retx_count         : natural range 0 to c_retransmission_limit;
   signal mac_status_armed   : boolean;
 
 begin
 
   p_llc_fsm : process (clk) is
 
-    variable accepted_idx_v : integer;
-    variable expected_len_v : integer;
+    variable accepted_idx_v : natural;
+    variable expected_len_v : natural;
     variable ide_v          : std_logic;
     variable fdf_v          : std_logic;
-    variable dlc_v          : t_dlc;
-    variable data_len_v     : integer;
+    variable dlc_v          : natural range 0 to c_dlc_max;
+    variable data_len_v     : natural;
 
   begin
 
@@ -149,17 +149,9 @@ begin
                 accepted_idx_v           := capture_index;
 
                 if (capture_index = 1) then
-                  ide_v := frame_buf(0)(c_llc_frame_ide);
-                  fdf_v := frame_buf(0)(c_llc_frame_fdf);
-                  dlc_v := t_dlc(
-                                  to_integer(
-                                              unsigned(
-                                                        llc_user_i.avalon_st_source.data(
-                                                                                          c_llc_frame_dlc_start downto c_llc_frame_dlc_end
-                                                                                        )
-                                                      )
-                                            )
-                                );
+                  ide_v              := frame_buf(0)(c_llc_frame_ide);
+                  fdf_v              := frame_buf(0)(c_llc_frame_fdf);
+                  dlc_v              := to_integer(unsigned(llc_user_i.avalon_st_source.data(c_llc_frame_dlc_start downto c_llc_frame_dlc_end)));
                   data_len_v         := dlc_to_data_length(dlc_v, fdf_v);
                   expected_len_v     := c_llc_header_bytes + data_len_v;
                   expected_len_bytes <= expected_len_v;
@@ -320,18 +312,18 @@ architecture legacy_rtl of can_llc_tx is
   ---------------------------------------------------------------------------
   -- Constants
   ---------------------------------------------------------------------------
-  constant c_llc_header_bytes    : integer := 6; -- cfg0+cfg1+id3..id0
-  constant c_max_llc_frame_bytes : integer := c_llc_header_bytes + c_max_data_bytes;
+  constant c_llc_header_bytes    : natural := 6; -- cfg0+cfg1+id3..id0
+  constant c_max_llc_frame_bytes : natural := c_llc_header_bytes + c_max_data_bytes;
 
   ---------------------------------------------------------------------------
   -- Registered state signals
   ---------------------------------------------------------------------------
   signal state            : std_logic_vector(2 downto 0);
   signal frame_buf        : t_legacy_frame;
-  signal frame_len_bytes  : integer range 0 to c_max_llc_frame_bytes;
-  signal capture_index    : integer range 0 to c_legacy_frame_len - 1;
-  signal tx_index         : integer range 0 to c_max_llc_frame_bytes - 1;
-  signal retx_count       : integer range 0 to c_retransmission_limit;
+  signal frame_len_bytes  : natural range 0 to c_max_llc_frame_bytes;
+  signal capture_index    : natural range 0 to c_legacy_frame_len - 1;
+  signal tx_index         : natural range 0 to c_max_llc_frame_bytes - 1;
+  signal retx_count       : natural range 0 to c_retransmission_limit;
   signal mac_status_armed : boolean;
 
 begin
@@ -340,24 +332,24 @@ begin
 
     variable ide_v      : std_logic;
     variable fdf_v      : std_logic;
-    variable dlc_v      : t_dlc;
-    variable data_len_v : integer;
+    variable dlc_v      : natural range 0 to c_dlc_max;
+    variable data_len_v : natural;
     variable is_ext_v   : boolean;
 
     -- Conversion results (computed on EOP, written into frame_buf)
-    variable cfg0_v : t_byte;
-    variable cfg1_v : t_byte;
-    variable id0_v  : t_byte;
-    variable id1_v  : t_byte;
-    variable id2_v  : t_byte;
-    variable id3_v  : t_byte;
+    variable cfg0_v : std_logic_vector(c_byte_width - 1 downto 0);
+    variable cfg1_v : std_logic_vector(c_byte_width - 1 downto 0);
+    variable id0_v  : std_logic_vector(c_byte_width - 1 downto 0);
+    variable id1_v  : std_logic_vector(c_byte_width - 1 downto 0);
+    variable id2_v  : std_logic_vector(c_byte_width - 1 downto 0);
+    variable id3_v  : std_logic_vector(c_byte_width - 1 downto 0);
 
     ---------------------------------------------------------------------------
     -- Build config_byte_1 from legacy byte 4
     ---------------------------------------------------------------------------
     procedure build_config_byte_1 (
       buf    : in    t_legacy_frame;
-      result : out   t_byte
+      result : out  std_logic_vector(c_byte_width - 1 downto 0)
     ) is
     begin
 
@@ -374,10 +366,10 @@ begin
     procedure repack_id (
       buf    : in    t_legacy_frame;
       is_ext : in    boolean;
-      id0    : out   t_byte;
-      id1    : out   t_byte;
-      id2    : out   t_byte;
-      id3    : out   t_byte
+      id0    : out  std_logic_vector(c_byte_width - 1 downto 0);
+      id1    : out  std_logic_vector(c_byte_width - 1 downto 0);
+      id2    : out  std_logic_vector(c_byte_width - 1 downto 0);
+      id3    : out  std_logic_vector(c_byte_width - 1 downto 0)
     ) is
 
       variable raw_id_v : std_logic_vector(31 downto 0);
@@ -481,10 +473,10 @@ begin
                     -- Byte 70 is the current input (not yet in frame_buf signal).
                     cfg0_v(c_llc_frame_ide)  := ide_v;
                     cfg0_v(c_llc_frame_fdf)  := fdf_v;
-                    cfg0_v(5)                := '0';                                                            -- reserved
-                    cfg0_v(c_llc_frame_ftyp) := llc_user_i.avalon_st_source.data(0);                            -- RTR
-                    cfg0_v(c_llc_frame_esi)  := llc_user_i.avalon_st_source.data(1);                            -- ESI
-                    cfg0_v(c_llc_frame_brs)  := llc_user_i.avalon_st_source.data(2);                            -- BRS
+                    cfg0_v(5)                := '0';                                                                                                     -- reserved
+                    cfg0_v(c_llc_frame_ftyp) := llc_user_i.avalon_st_source.data(0);                                                                     -- RTR
+                    cfg0_v(c_llc_frame_esi)  := llc_user_i.avalon_st_source.data(1);                                                                     -- ESI
+                    cfg0_v(c_llc_frame_brs)  := llc_user_i.avalon_st_source.data(2);                                                                     -- BRS
                     cfg0_v(1 downto 0)       := "00";
 
                     -- Build config_byte_1 from byte 4 (already buffered)
@@ -494,13 +486,7 @@ begin
                     repack_id(frame_buf, is_ext_v, id0_v, id1_v, id2_v, id3_v);
 
                     -- Compute data length
-                    dlc_v      := t_dlc(
-                                        to_integer(
-                                                    unsigned(
-                                                              frame_buf(c_legacy_fmt_dlc_byte)(3 downto 0)
-                                                            )
-                                                  )
-                                      );
+                    dlc_v      := to_integer(unsigned(frame_buf(c_legacy_fmt_dlc_byte)(3 downto 0)));
                     data_len_v := dlc_to_data_length(dlc_v, fdf_v);
 
                     -- Shift data bytes up by one slot (index 5+i -> 6+i).

@@ -26,7 +26,7 @@ top.can_mac_bs_tb.frame_rst
 top.can_mac_bs_tb.bs_i
 @420
 top.can_mac_bs_tb.bs_o
-@22
+@420
 top.can_mac_bs_tb.test_done
 @1401200
 -TB Signals
@@ -44,7 +44,7 @@ top.can_mac_bs_tb.u_dut.bs_o
 top.can_mac_bs_tb.u_dut.count
 @28
 top.can_mac_bs_tb.u_dut.last_polarity
-@420
+@22
 top.can_mac_bs_tb.u_dut.stuff_count
 @28
 top.can_mac_bs_tb.u_dut.stuff_pending

@@ -43,13 +43,13 @@ architecture tb of can_mac_ser_tx_minimal_tb is
 
   -- Frame: Basic CAN (11-bit ID)
   -- Byte 0 (config): FORMAT=CB(000), FTYP=0, ESI=0, BRS=0
-  signal config_byte_0 : t_byte := x"00";  -- [7:5]=000(CB), [4]=0(data frame), rest=0
-  signal config_byte_1 : t_byte := x"10";  -- [7:4]=0001(DLC=1 byte), rest=0
+  signal config_byte_0 :std_logic_vector(c_byte_width - 1 downto 0) := x"00";  -- [7:5]=000(CB), [4]=0(data frame), rest=0
+  signal config_byte_1 :std_logic_vector(c_byte_width - 1 downto 0) := x"10";  -- [7:4]=0001(DLC=1 byte), rest=0
   signal id_bytes      : t_llc_frame := (x"55", x"55", x"00", x"00", others => x"00");  -- ID = 0x555 (11-bit)
-  signal data_byte     : t_byte := x"AA";  -- 1 data byte = 0xAA
+  signal data_byte     :std_logic_vector(c_byte_width - 1 downto 0) := x"AA";  -- 1 data byte = 0xAA
 
-  signal bit_count : integer := 0;
-  signal byte_count : integer := 0;
+  signal bit_count : natural := 0;
+  signal byte_count : natural := 0;
 
 begin
 
@@ -161,7 +161,7 @@ begin
   -- Monitor: count bits and detect stalls
   p_monitor : process is
     variable v_last_bit : std_logic := '0';
-    variable v_stall_count : integer := 0;
+    variable v_stall_count : natural := 0;
   begin
     wait until reset = '0';
     loop

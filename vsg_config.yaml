@@ -57,6 +57,8 @@ rule:
   case_007:
     disable: true
 
+  case_008:
+    disable: true
   # case_009: Insert blank line above end case
   case_009:
     disable: true

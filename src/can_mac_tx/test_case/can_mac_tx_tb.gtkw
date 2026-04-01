@@ -120,8 +120,6 @@ top.can_mac_tx_tb.u_dut.tx_mac_ser_inst.state
 top.can_mac_tx_tb.u_dut.tx_mac_ser_inst.count
 @22
 top.can_mac_tx_tb.u_dut.tx_mac_ser_inst.llc_frame_buffer
-@22
-top.can_mac_tx_tb.u_dut.tx_mac_ser_inst.config_byte_0
 @420
 top.can_mac_tx_tb.u_dut.tx_mac_ser_inst.id_bits_remaining
 @420
@@ -206,7 +204,7 @@ top.can_mac_tx_tb.u_dut.bit_stuffer_fd_inst.bs_o
 top.can_mac_tx_tb.u_dut.bit_stuffer_fd_inst.count
 @28
 top.can_mac_tx_tb.u_dut.bit_stuffer_fd_inst.last_polarity
-@420
+@22
 top.can_mac_tx_tb.u_dut.bit_stuffer_fd_inst.stuff_count
 @28
 top.can_mac_tx_tb.u_dut.bit_stuffer_fd_inst.stuff_pending

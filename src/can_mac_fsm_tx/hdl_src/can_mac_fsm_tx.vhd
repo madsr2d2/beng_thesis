@@ -26,25 +26,20 @@ entity can_mac_fsm_tx is
   port (
     clk_i : in    std_logic;
     rst_i : in    std_logic;
-
     -- Serializer interface
     mac_ser_i : in    t_can_mac_ser_fsm_if_s2d;
     mac_ser_o : out   t_can_mac_ser_fsm_if_d2s;
-
     -- PCS interface
     pcs_i : in    t_can_mac_pcs_if_s2m;
     pcs_o : out   t_can_mac_pcs_if_m2s;
-
     -- Bit stuffer FD interface
     bs_fd_i   : in    t_can_mac_fsm_bs_if_s2m;
     bs_fd_o   : out   t_can_mac_fsm_bs_if_m2s;
     bs_fd_rst : out   std_logic;
-
     -- CRC interface
     crc_i   : in    t_can_mac_fsm_crc_if_s2m;
     crc_o   : out   t_can_mac_fsm_crc_if_m2s;
     crc_rst : out   std_logic;
-
     -- Fault Confinement Entity interface (ISO 11898-1 Table 16/17)
     fce_i : in    t_can_mac_fce_if_s2m;
     fce_o : out   t_can_mac_fce_if_m2s
@@ -73,7 +68,7 @@ architecture rtl of can_mac_fsm_tx is
   -- Registered state signals
   ---------------------------------------------------------------------------
   signal state                         : t_fsm_state;
-  signal bit_count                     : t_bit_count;
+  signal bit_count                     : natural range 0 to c_max_mac_frame_length;
   signal polarity_history              : t_tdc_polarity_history;
   signal last_transmitted_bit          : t_mac_frame_bit;
   signal last_transmitted_bit_polarity : std_logic;
@@ -87,13 +82,13 @@ architecture rtl of can_mac_fsm_tx is
   -- Fault confinement tracking
   signal ack_error_caused_flag     : boolean;
   signal dominant_seen_during_flag : boolean;
-  signal dominant_run_count        : integer range 0 to 15;
+  signal dominant_run_count        : natural range 0 to 15;
 
   -- ISO 11898-1: 6.6.8 - dominant at 3rd intermission bit detected as SOF;
   -- skip SOF output and start with first ID bit on next frame entry.
   signal skip_sof : boolean;
 
-  -- Cached frame parameters (calculated once per frame from LLC metadata)
+  -- Frame parameters (calculated once per frame from LLC metadata)
   signal frame_params : t_frame_params;
 
 begin
@@ -137,7 +132,7 @@ begin
         -- ISO 11898-1: 6.6.7.5 - count consecutive recessive bits at SP;
         -- dominant resets the run counter.
         if (pcs_i.bus_polarity = c_recessive) then
-          if (bit_count < t_bit_count'high) then
+          if (bit_count < c_max_mac_frame_length) then
             bit_count <= bit_count + 1;
           end if;
         else
@@ -151,7 +146,7 @@ begin
     -- computes bit(bit_count+1), updates FIFO/bit_count, and drives serializer/CRC/stuffer handshakes.
     procedure transmit_normal_bit is
 
-      variable v_prepare_position   : t_bit_count;
+      variable v_prepare_position   : natural range 0 to c_max_mac_frame_length;
       variable v_serializer_sourced : boolean;
       variable v_crc_cc_eligible    : boolean;
 

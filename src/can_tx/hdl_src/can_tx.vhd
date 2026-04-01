@@ -21,11 +21,11 @@ library ieee;
 entity can_tx is
   generic (
     gc_prescaler       : t_prescaler          := 4;
-    gc_nom_sync_seg    : integer              := c_sync_seg;
+    gc_nom_sync_seg    : natural              := c_sync_seg;
     gc_nom_prop_seg    : t_nominal_prop_seg   := 24;
     gc_nom_phase_seg1  : t_nominal_phase_seg1 := 15;
     gc_nom_phase_seg2  : t_nominal_phase_seg2 := 10;
-    gc_data_sync_seg   : integer              := c_sync_seg;
+    gc_data_sync_seg   : natural              := c_sync_seg;
     gc_data_prop_seg   : t_data_prop_seg      := 8;
     gc_data_phase_seg1 : t_data_phase_seg1    := 4;
     gc_data_phase_seg2 : t_data_phase_seg2    := 4;

@@ -45,17 +45,17 @@ architecture tb of can_tx_tb is
   signal rst : std_logic := '1';
 
   -- Bit timing constants (matching can_tx defaults)
-  constant nom_prescaler_c  : integer := 4;
-  constant nom_sync_seg_c   : integer := 1;
-  constant nom_prop_seg_c   : integer := 24;
-  constant nom_phase_seg1_c : integer := 15;
-  constant nom_phase_seg2_c : integer := 10;
-  constant nom_bit_time_tq_c : integer := nom_sync_seg_c + nom_prop_seg_c + nom_phase_seg1_c + nom_phase_seg2_c;
-  constant nom_bit_time_clk_c : integer := nom_bit_time_tq_c * nom_prescaler_c; -- 200 clocks
-  constant nom_sp_tq_c : integer := nom_sync_seg_c + nom_prop_seg_c + nom_phase_seg1_c; -- 40 TQ
+  constant nom_prescaler_c  : natural := 4;
+  constant nom_sync_seg_c   : natural := 1;
+  constant nom_prop_seg_c   : natural := 24;
+  constant nom_phase_seg1_c : natural := 15;
+  constant nom_phase_seg2_c : natural := 10;
+  constant nom_bit_time_tq_c : natural := nom_sync_seg_c + nom_prop_seg_c + nom_phase_seg1_c + nom_phase_seg2_c;
+  constant nom_bit_time_clk_c : natural := nom_bit_time_tq_c * nom_prescaler_c; -- 200 clocks
+  constant nom_sp_tq_c : natural := nom_sync_seg_c + nom_prop_seg_c + nom_phase_seg1_c; -- 40 TQ
 
   -- Sample point offset in clock cycles from start of bit
-  constant c_sp_offset_clk_c : integer := nom_prescaler_c * (nom_sync_seg_c + nom_prop_seg_c + nom_phase_seg1_c);
+  constant c_sp_offset_clk_c : natural := nom_prescaler_c * (nom_sync_seg_c + nom_prop_seg_c + nom_phase_seg1_c);
 
   -- DUT signals
   signal llc_user_i : t_can_user_llc_tx_if_s2d;
@@ -66,7 +66,7 @@ architecture tb of can_tx_tb is
   signal rx_bus_i   : std_logic;
 
   -- ACK target position (logical bit index) shared between test process and bus monitor
-  signal monitor_ack_position : integer := 0;
+  signal monitor_ack_position : natural := 0;
 
   -- Bus model control
   signal inject_ack   : boolean := true;
@@ -77,25 +77,25 @@ architecture tb of can_tx_tb is
 
   -- Test tracking
   signal test_done : boolean := false;
-  signal current_test_id : integer range 0 to 15 := 0;
-  constant test_idle_c : integer := 0;
-  constant test_1_c    : integer := 1;
-  constant test_2_c    : integer := 2;
-  constant test_3_c    : integer := 3;
-  constant test_4_c    : integer := 4;
-  constant test_5_c    : integer := 5;
-  constant test_6_c    : integer := 6;
-  constant test_7_c    : integer := 7;
-  constant test_8_c    : integer := 8;
-  constant test_10_c   : integer := 10;
-  constant test_11_c   : integer := 11;
-  constant test_12_c   : integer := 12;
-  constant test_13_c   : integer := 13;
-  constant test_14_c   : integer := 14;
-  constant test_done_c : integer := 15;
+  signal current_test_id : natural range 0 to 15 := 0;
+  constant test_idle_c : natural := 0;
+  constant test_1_c    : natural := 1;
+  constant test_2_c    : natural := 2;
+  constant test_3_c    : natural := 3;
+  constant test_4_c    : natural := 4;
+  constant test_5_c    : natural := 5;
+  constant test_6_c    : natural := 6;
+  constant test_7_c    : natural := 7;
+  constant test_8_c    : natural := 8;
+  constant test_10_c   : natural := 10;
+  constant test_11_c   : natural := 11;
+  constant test_12_c   : natural := 12;
+  constant test_13_c   : natural := 13;
+  constant test_14_c   : natural := 14;
+  constant test_done_c : natural := 15;
 
   -- Bitstream capture buffers
-  constant max_raw_bits_c : integer := c_max_mac_frame_length * 2;
+  constant max_raw_bits_c : natural := c_max_mac_frame_length * 2;
 
 begin
 
@@ -146,14 +146,14 @@ begin
   --     held for the entire nominal bit time and released at the bit boundary.
   -- =========================================================================
   bus_monitor : process is
-    variable clk_count      : integer  := 0;
-    variable frame_pos      : integer  := -1;
-    variable consec         : integer  := 0;
+    variable clk_count      : natural  := 0;
+    variable frame_pos      : natural  := -1;
+    variable consec         : natural  := 0;
     variable last_pol       : std_logic := c_recessive;
     variable next_is_stuff  : boolean  := false;
     variable armed          : boolean  := false;
     variable tracking       : boolean  := false;
-    variable ack_target     : integer  := 0;
+    variable ack_target     : natural  := 0;
     variable sampled_pol    : std_logic := c_recessive;
     variable prev_tx_bus    : std_logic := c_recessive;
   begin
@@ -204,10 +204,10 @@ begin
         -- At the sample point: capture tx_bus_o for stuff bit counting.
         if (clk_count = c_sp_offset_clk_c) then
           sampled_pol := tx_bus_o;
-          report "bus_monitor: SP clk=" & integer'image(clk_count) &
+          report "bus_monitor: SP clk=" & natural'image(clk_count) &
                  " pol=" & std_logic'image(tx_bus_o) &
-                 " fpos=" & integer'image(frame_pos) &
-                 " consec=" & integer'image(consec) &
+                 " fpos=" & natural'image(frame_pos) &
+                 " consec=" & natural'image(consec) &
                  " stuff=" & boolean'image(next_is_stuff) &
                  " t=" & time'image(now) severity note;
         end if;
@@ -236,7 +236,7 @@ begin
 
           -- Assert ACK override at the START of the ACK slot bit
           if (inject_ack and frame_pos = ack_target) then
-            report "bus_monitor: ACK inject at frame_pos=" & integer'image(frame_pos) &
+            report "bus_monitor: ACK inject at frame_pos=" & natural'image(frame_pos) &
                    " t=" & time'image(now) severity note;
             bus_override_monitor    <= c_dominant;
             bus_override_monitor_en <= true;
@@ -260,10 +260,10 @@ begin
   test_runner : process is
 
     variable alert_id        : AlertLogIDType;
-    variable dlc_v           : integer;
+    variable dlc_v           : natural;
     variable frame_meta_v    : t_llc_metadata;
     variable frame_params_v  : t_frame_params;
-    variable bit_position_v  : integer;
+    variable bit_position_v  : natural;
 
     -- Local frame descriptor (flat fields, no nested records)
     variable ide_v  : std_logic := '0';
@@ -290,7 +290,7 @@ begin
     end procedure setup_default_frame;
 
     procedure send_user_byte (
-      value : t_byte;
+      value :std_logic_vector(c_byte_width - 1 downto 0);
       sop   : std_logic;
       eop   : std_logic
     ) is
@@ -310,15 +310,15 @@ begin
 
       variable id_29_v           : std_logic_vector(28 downto 0);
       variable is_extended_v     : boolean;
-      variable byte0_v           : t_byte;
-      variable byte1_v           : t_byte;
-      variable byte2_v           : t_byte;
-      variable byte3_v           : t_byte;
-      variable byte4_v           : t_byte;
-      variable byte69_v          : t_byte;
-      variable byte70_v          : t_byte;
-      variable data_byte_count_v : integer;
-      variable data_bit_start_v  : integer;
+      variable byte0_v           :std_logic_vector(c_byte_width - 1 downto 0);
+      variable byte1_v           :std_logic_vector(c_byte_width - 1 downto 0);
+      variable byte2_v           :std_logic_vector(c_byte_width - 1 downto 0);
+      variable byte3_v           :std_logic_vector(c_byte_width - 1 downto 0);
+      variable byte4_v           :std_logic_vector(c_byte_width - 1 downto 0);
+      variable byte69_v          :std_logic_vector(c_byte_width - 1 downto 0);
+      variable byte70_v          :std_logic_vector(c_byte_width - 1 downto 0);
+      variable data_byte_count_v : natural;
+      variable data_bit_start_v  : natural;
 
     begin
 
@@ -342,7 +342,7 @@ begin
       byte70_v := "00000" & brs_v & esi_v & ftyp_v;
 
       data_byte_count_v := dlc_to_data_length(
-                              t_dlc(to_integer(unsigned(dlc_vec_v))),
+                              natural range 0 to c_dlc_max(to_integer(unsigned(dlc_vec_v))),
                               fdf_v
                             );
 

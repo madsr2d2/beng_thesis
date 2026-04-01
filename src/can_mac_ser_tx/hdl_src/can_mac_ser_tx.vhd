@@ -60,10 +60,10 @@ architecture rtl of can_mac_ser_tx is
   -- Signals
   ------------------------------------------------------------------------
   signal state                  : t_state;
-  signal count                  : integer range 0 to t_byte'left + 1;
-  signal llc_frame_buffer       : t_byte;
-  signal id_bits_remaining      : integer range 0 to c_base_id_width + c_extended_id_width;
-  signal padding_bits_remaining : integer range 0 to c_llc_id_field_width - c_base_id_width;
+  signal count                  : natural range 0 to c_byte_width;
+  signal llc_frame_buffer       :std_logic_vector(c_byte_width - 1 downto 0);
+  signal id_bits_remaining      : natural range 0 to c_base_id_width + c_extended_id_width;
+  signal padding_bits_remaining : natural range 0 to c_llc_id_field_width - c_base_id_width;
 
 begin
 
