@@ -80,6 +80,7 @@ architecture rtl of can_mac_fsm_tx is
   signal ack_error_caused_flag     : boolean;
   signal dominant_seen_during_flag : boolean;
   signal dominant_run_count        : natural range 0 to 15;
+  signal primary_error_sent        : boolean;
 
   -- ISO 11898-1: 6.6.8 - dominant at 3rd intermission bit detected as SOF;
   -- skip SOF output and start with first ID bit on next frame entry.
@@ -118,6 +119,7 @@ begin
         ack_error_caused_flag         <= false;
         dominant_seen_during_flag     <= false;
         dominant_run_count            <= 0;
+        primary_error_sent            <= false;
         skip_sof                      <= false;
         frame_params                  <= c_frame_params_reset;
 
@@ -168,66 +170,64 @@ begin
           -- Wait for idle condition(s): ISO 11898-1: 6.6.7.5
           -----------------------------------------------------------------
           when s_bus_reintegration =>
+            -- Set bus_integration_bit
             last_transmitted_bit <= (c_recessive, bus_integration_bit);
-            -- Idle counter
+            -- Idle count
             if (pcs_i.sp = '1') then
               if (pcs_i.bus_polarity = c_recessive) then
                 if (bit_count < c_bus_idle_condition_width - 1) then
                   bit_count <= bit_count + 1;
+                else
+                  state     <= s_bus_idle;
+                  bit_count <= 0;
                 end if;
               else
                 bit_count <= 0;
               end if;
-            end if;
-            -- Transition to idle
-            if (bit_count = c_bus_idle_condition_width - 1) then
-              state     <= s_bus_idle;
-              bit_count <= 0;
             end if;
 
           -----------------------------------------------------------------
           -- Intermission state: ISO 11898-1: 6.6.7.2
           -----------------------------------------------------------------
           when s_intermission =>
-            last_transmitted_bit          <= (c_recessive, intermission_bit);
-                if (pcs_i.sp = '1') then
-              if (pcs_i.bus_polarity = c_recessive) then
+            -- Set intermission_bit
+            last_transmitted_bit <= (c_recessive, intermission_bit);
+            -- Intermission logic
+            if (pcs_i.sp = '1') then
+              if (pcs_i.bus_polarity = c_dominant) then
+                if (bit_count < c_intermission_width - 1) then
+                  -- ISO 11898-1: 6.6.21.3.2 b) - dominant during first two bits
+                  state                     <= s_flag;
+                  flag_type                 <= overload;
+                  bit_count                 <= 0;
+                  dominant_seen_during_flag <= false;
+                  dominant_run_count        <= 0;
+                  primary_error_sent        <= false;
+                else
+                  -- ISO 11898-1: 6.6.7.2 / 6.6.8 - SOF at 3rd bit
+                  if (mac_ser_i.valid = '1' and (fce_i.error_passive_request = '0' or not was_previous_frame_tx)) then
+                    state     <= s_frame_init;
+                    bit_count <= 0;
+                    skip_sof  <= true;
+                    bs_fd_rst <= '1';
+                    crc_rst   <= '1';
+                  else
+                    state     <= s_bus_idle;
+                    bit_count <= 0;
+                  end if;
+                end if;
+              else -- Recessive
                 if (bit_count < c_intermission_width - 1) then
                   bit_count <= bit_count + 1;
+                else
+                  -- ISO 11898-1: 6.6.7.4 / 6.6.7.3 - Full intermission completed
+                  if (fce_i.error_passive_request = '1' and was_previous_frame_tx) then
+                    state <= s_suspend_transmission;
+                  else
+                    state <= s_bus_idle;
+                  end if;
+                  bit_count <= 0;
                 end if;
-              else
-                bit_count <= 0;
-              end if;
-            end if;
-            -- ISO 11898-1: 6.6.21.3.2 b) - dominant detected during first
-            -- two intermission bits triggers overload handling.
-            if (pcs_i.sp = '1' and pcs_i.bus_polarity = c_dominant and bit_count < c_intermission_width - 1) then
-              state                     <= s_flag;
-              flag_type                 <= overload;
-              bit_count                 <= 0;
-              dominant_seen_during_flag <= false;
-              dominant_run_count        <= 0;
-            elsif (bit_count = c_intermission_width - 1 and pcs_i.sp = '1' and pcs_i.bus_polarity = c_dominant) then
-              -- ISO 11898-1: 6.6.7.2 / 6.6.8 - dominant at 3rd intermission bit
-              -- interpreted as SOF; transmit first ID bit without SOF if eligible.
-              if (mac_ser_i.valid = '1' and
-                  (fce_i.error_passive_request = '0' or not was_previous_frame_tx)) then
-                state     <= s_frame_init;
-                bit_count <= 0;
-                skip_sof  <= true;
-              else
-                state     <= s_bus_idle;
-                bit_count <= 0;
-              end if;
-            elsif (bit_count = c_intermission_width - 1) then
-              -- ISO 11898-1: 6.6.7.4 / 6.6.7.3 - error-passive transmitters
-              -- enter suspend_transmission; all others enter bus_idle.
-              if (fce_i.error_passive_request = '1' and was_previous_frame_tx) then
-                state     <= s_suspend_transmission;
-                bit_count <= 0;
-              else
-                state     <= s_bus_idle;
-                bit_count <= 0;
               end if;
             end if;
 
@@ -236,32 +236,32 @@ begin
           -- the previous frame shall suspend for 8 additional bit times.
           -----------------------------------------------------------------
           when s_suspend_transmission =>
-            last_transmitted_bit          <= (c_recessive, suspend_transmission_bit);
-                if (pcs_i.sp = '1') then
+            -- Set suspend_transmission_bit
+            last_transmitted_bit <= (c_recessive, suspend_transmission_bit);
+            if (pcs_i.sp = '1') then
               if (pcs_i.bus_polarity = c_recessive) then
                 if (bit_count < c_suspend_transmission_width - 1) then
                   bit_count <= bit_count + 1;
+                else
+                  state     <= s_bus_idle;
+                  bit_count <= 0;
                 end if;
               else
                 bit_count <= 0;
               end if;
             end if;
-            if (bit_count = c_suspend_transmission_width - 1) then
-              state     <= s_bus_idle;
-              bit_count <= 0;
-            end if;
 
           -----------------------------------------------------------------
-          -- ISO 11898-1: 6.6.7.3 - bus idle; any node may start transmission.
+          -- ISO 11898-1: 6.6.7.3 - bus idle, node may start transmission.
           -----------------------------------------------------------------
           when s_bus_idle =>
-            last_transmitted_bit          <= (c_recessive, idle_bit);
-                if (mac_ser_i.valid = '1' and pcs_i.sp = '1') then
-              state     <= s_frame_init;
-              bit_count <= 0;
-              bs_fd_rst <= '1';
-              crc_rst   <= '1';
-            end if;
+            last_transmitted_bit <= (c_recessive, idle_bit);
+              if (mac_ser_i.valid = '1' and pcs_i.sp = '1') then
+                state     <= s_frame_init;
+                bit_count <= 0;
+                bs_fd_rst <= '1';
+                crc_rst   <= '1';
+              end if;
 
           -----------------------------------------------------------------
           -- Compute frame parameters, initialize counters, drive SOF.
@@ -270,44 +270,46 @@ begin
           -- (ser_data) is driven onto PCS instead.
           -----------------------------------------------------------------
           when s_frame_init =>
-            fce_o              <= c_mac_to_fce_if_reset;
-            pcs_o.valid        <= '0';
+            mac_ser_o           <= c_ser_fsm_if_d2s_reset;
+            crc_o               <= c_mac_fsm_to_crc_if_reset;
+            fce_o               <= c_mac_to_fce_if_reset;
+            fce_o.transmitting  <= '1';
+            pcs_o.valid         <= '1';
             pcs_o.use_data_rate <= '0';
-            pcs_o.start_tdc    <= '0';
-            mac_ser_o          <= c_ser_fsm_if_d2s_reset;
-            crc_o     <= c_mac_fsm_to_crc_if_reset;
+            pcs_o.start_tdc     <= '0';
 
+            -- Calculate frame_params
             v_frame_params        := get_frame_params(mac_ser_i.llc_metadata);
             frame_params          <= v_frame_params;
             crc_o.crc_poly_select <= v_frame_params.crc_poly_select;
 
-            fce_o.transmitting <= '1';
-            pcs_o.valid        <= '1';
-
             polarity_history          <= (0 => c_dominant, others => c_recessive);
-            last_transmitted_bit      <= c_sof_bit;
             ack_success_seen          <= false;
             ssp_error_pending         <= false;
             ack_error_caused_flag     <= false;
             dominant_seen_during_flag <= false;
             dominant_run_count        <= 0;
 
-            bs_fd_o.valid <= '1';
-            bs_fd_o.data  <= c_dominant;
-
-            v_next_bit                      := c_sof_bit;
-            bit_count                     <= 0;
-
-            crc_o.valid <= '1';
-            crc_o.data  <= c_dominant;
-
             if (skip_sof) then
-              pcs_o.polarity <= mac_ser_i.data;
+              -- ISO 11898-1: 6.6.8 - SOF was the 3rd intermission dominant;
+              -- drive first ID bit on PCS, but still seed BS/CRC with SOF.
+              pcs_o.polarity    <= mac_ser_i.data;
+              bs_fd_o.valid     <= '1';
+              bs_fd_o.data      <= c_dominant;
+              crc_o.valid       <= '1';
+              crc_o.data        <= c_dominant;
+              bit_count         <= 1;
+              mac_ser_o.ready   <= '1';
+              last_transmitted_bit <= (mac_ser_i.data, base_id_bit);
             else
-              pcs_o.polarity <= c_dominant;
+              pcs_o.polarity    <= c_dominant;
+              bs_fd_o.valid     <= '1';
+              bs_fd_o.data      <= c_dominant;
+              crc_o.valid       <= '1';
+              crc_o.data        <= c_dominant;
+              bit_count         <= 0;
+              last_transmitted_bit <= c_sof_bit;
             end if;
-            skip_sof <= false;
-
             state <= s_monitor_bit;
 
           -----------------------------------------------------------------
@@ -317,6 +319,17 @@ begin
           when s_monitor_bit =>
             fce_o.transmitting <= '1';
             v_enter_error_flag := false;
+
+            -- ISO 11898-1: 6.6.8 - deferred first-ID feed to BS/CRC after
+            -- skip_sof. SOF was fed in s_frame_init; the first ID bit was
+            -- driven on PCS but still needs to reach BS/CRC.
+            if (skip_sof) then
+              bs_fd_o.valid <= '1';
+              bs_fd_o.data  <= last_transmitted_bit.polarity;
+              crc_o.valid   <= '1';
+              crc_o.data    <= last_transmitted_bit.polarity;
+              skip_sof      <= false;
+            end if;
 
             -- EOF completion: bit_count was set by s_transmit_bit
             if (bit_count = frame_params.crc_delimiter + c_eof_start_offset + c_eof_field_width) then
@@ -402,6 +415,7 @@ begin
                 bit_count                 <= 0;
                 dominant_seen_during_flag <= false;
                 dominant_run_count        <= 0;
+                primary_error_sent        <= false;
               end if;
             end if;
 
@@ -519,8 +533,9 @@ begin
               end if;
 
               -- Primary error (error flags only, not overload)
-              if (flag_type /= overload and bit_count < c_error_flag_width and pcs_i.bus_polarity = c_dominant) then
+              if (flag_type /= overload and not primary_error_sent and bit_count < c_error_flag_width and pcs_i.bus_polarity = c_dominant) then
                 fce_o.primary_error <= '1';
+                primary_error_sent  <= true;
               end if;
 
               -- ISO 11898-1: 8.1.4.2 rule c), Exception 1:
@@ -544,6 +559,7 @@ begin
                 bit_count                 <= 0;
                 dominant_seen_during_flag <= false;
                 dominant_run_count        <= 0;
+                primary_error_sent        <= false;
               elsif (bit_count = c_error_sequence_width - 1) then
                 state     <= s_intermission;
                 bit_count <= 0;
