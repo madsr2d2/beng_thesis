@@ -20,8 +20,7 @@ add wave -vgroup "u_dut Internals" \
 	( -decimal /can_mac_crc_tb/u_dut/crc_o ) \
 	( -literal /can_mac_crc_tb/u_dut/crc15_out ) \
 	( -literal /can_mac_crc_tb/u_dut/crc17_out ) \
-	( -literal /can_mac_crc_tb/u_dut/crc21_out ) \
-	( -logic /can_mac_crc_tb/u_dut/valid )
+	( -literal /can_mac_crc_tb/u_dut/crc21_out )
 
 add wave -vgroup u_crc15 \
 	( -logic /can_mac_crc_tb/u_dut/u_crc15/clk_i ) \

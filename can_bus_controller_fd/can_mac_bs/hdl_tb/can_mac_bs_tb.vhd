@@ -36,18 +36,18 @@ end entity can_mac_bs_tb;
 architecture tb of can_mac_bs_tb is
 
   constant c_clk_period : time    := 10 ns;
-  constant c_num_random : integer := 5000;
+  constant c_num_random : natural := 5000;
 
   -- Input coverage bin IDs
-  constant c_bin_idle            : integer := 0;
-  constant c_bin_valid_dominant  : integer := 1;
-  constant c_bin_valid_recessive : integer := 2;
-  constant c_bin_start           : integer := 3;
+  constant c_bin_idle            : natural := 0;
+  constant c_bin_valid_dominant  : natural := 1;
+  constant c_bin_valid_recessive : natural := 2;
+  constant c_bin_start           : natural := 3;
 
   -- Output coverage bin IDs
-  constant c_bin_no_stuff        : integer := 0;
-  constant c_bin_stuff_dominant  : integer := 1;
-  constant c_bin_stuff_recessive : integer := 2;
+  constant c_bin_no_stuff        : natural := 0;
+  constant c_bin_stuff_dominant  : natural := 1;
+  constant c_bin_stuff_recessive : natural := 2;
 
   signal clk_i      : std_logic;
   signal rst_i      : std_logic := '1';
@@ -56,7 +56,7 @@ architecture tb of can_mac_bs_tb is
   signal bs_o       : t_can_mac_fsm_bs_if_s2m;
   signal cov_input  : CoverageIdType;
   signal cov_output : CoverageIdType;
-  signal test_done  : resolved_barrier integer := 1;
+  signal test_done  : resolved_barrier natural := 1;
   shared variable RV : RandomPType;
 
 begin
@@ -167,7 +167,7 @@ begin
   p_stuff_bit_checker : process
 
     variable checker_id       : AlertLogIDType;
-    variable consecutive      : integer range 0 to c_stuff_width := 0;
+    variable consecutive      : natural range 0 to c_stuff_width := 0;
     variable tracked_polarity : std_logic                        := c_recessive;
     variable expect_stuff     : boolean                          := false;
 
@@ -185,7 +185,7 @@ begin
       -- Verify pending stuff bit expectation from previous cycle
       if (expect_stuff) then
         AffirmIf(checker_id, bs_o.valid = '1',
-                 "No stuff bit after " & integer'image(c_stuff_width) &
+                 "No stuff bit after " & natural'image(c_stuff_width) &
                  " consecutive " & std_logic'image(tracked_polarity) & " bits");
         if (bs_o.valid = '1') then
           AffirmIf(checker_id, bs_o.data /= tracked_polarity,

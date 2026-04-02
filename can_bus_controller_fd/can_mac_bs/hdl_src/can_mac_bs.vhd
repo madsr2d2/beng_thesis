@@ -32,9 +32,9 @@ end entity can_mac_bs;
 
 architecture rtl of can_mac_bs is
 
-  signal count         : integer range 0 to c_stuff_width;
+  signal count         : natural range 0 to c_stuff_width;
   signal last_polarity : std_logic;
-  signal stuff_count   : t_stuff_count;
+  signal stuff_count   : unsigned(2 downto 0);
   signal stuff_pending : boolean;
 
 begin

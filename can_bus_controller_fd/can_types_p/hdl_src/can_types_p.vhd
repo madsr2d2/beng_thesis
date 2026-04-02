@@ -11,13 +11,12 @@
 --                1. Protocol Constants   -- polarity, field widths, CRC, status
 --                2. Bit Timing           -- ISO Table 12 subtypes and limits
 --                3. Enumerations         -- bit names, monitor events
---                4. Scalar Subtypes      -- byte, DLC, position, CRC vectors
---                5. Composite Types      -- mac_frame_bit, frame_params, metadata
---                6. Frame Bit Positions  -- CB/CE/FB/FE on-wire field chains
---                7. Interface Records    -- inter-layer records with reset constants
---                8. LLC Frame Format     -- config bytes, legacy layout
---                9. Protocol Functions   -- frame params, bitstream, DLC, ID packing
---               10. TB Utility Functions -- CRC calc, metadata extraction (TB-only)
+--                4. Composite Types      -- mac_frame_bit, frame_params, metadata
+--                5. Frame Bit Positions  -- CB/CE/FB/FE on-wire field chains
+--                6. Interface Records    -- inter-layer records with reset constants
+--                7. LLC Frame Format     -- config bytes, legacy layout
+--                8. Protocol Functions   -- frame params, bitstream, DLC, ID packing
+--                9. TB Utility Functions -- CRC calc, metadata extraction (TB-only)
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-03-15  TMYAES:   [TRIT-4336] Initial implementation
@@ -31,6 +30,7 @@
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
+
   use work.pk_man_global.all;
   use ieee.math_real.all;
 
@@ -45,42 +45,42 @@ package pk_can_types is
   constant c_recessive : std_logic := '1';
 
   -- Frame field widths (ISO 6.6.10, 6.6.11)
-  constant c_byte_width        : integer := 8;
-  constant c_base_id_width     : integer := 11; -- ISO 6.6.10.2
-  constant c_extended_id_width : integer := 18; -- ISO 6.6.10.2
-  constant c_dlc_field_width   : integer := 4;  -- ISO 6.6.10.3, Table 5
-  constant c_eof_field_width   : integer := 7;  -- ISO 6.6.10.7, 6.6.11.7
+  constant c_byte_width        : natural := 8;
+  constant c_base_id_width     : natural := 11; -- ISO 6.6.10.2
+  constant c_extended_id_width : natural := 18; -- ISO 6.6.10.2
+  constant c_dlc_field_width   : natural := 4;  -- ISO 6.6.10.3, Table 5
+  constant c_eof_field_width   : natural := 7;  -- ISO 6.6.10.7, 6.6.11.7
 
   -- Bit stuffing (ISO 6.6.13.2, Table 10)
-  constant c_stuff_width     : integer := 5;
-  constant c_sbc_field_width : integer := 4; -- ISO 6.6.11.5, Table 8
+  constant c_stuff_width     : natural := 5;
+  constant c_sbc_field_width : natural := 4; -- ISO 6.6.11.5, Table 8
 
   -- Post-CRC field offsets (relative to crc_delimiter position)
-  constant c_ack_slot_offset      : integer := 1; -- ISO 6.6.10.6, 6.6.11.6
-  constant c_ack_delimiter_offset : integer := 2;
-  constant c_eof_start_offset     : integer := 3;
+  constant c_ack_slot_offset      : natural := 1; -- ISO 6.6.10.6, 6.6.11.6
+  constant c_ack_delimiter_offset : natural := 2;
+  constant c_eof_start_offset     : natural := 3;
 
   -- Error signalling (ISO 6.6.5.2, 6.6.5.3)
-  constant c_error_flag_width      : integer := 6;
-  constant c_error_delimiter_width : integer := 8;
-  constant c_error_sequence_width  : integer := c_error_flag_width + c_error_delimiter_width;
+  constant c_error_flag_width      : natural := 6;
+  constant c_error_delimiter_width : natural := 8;
+  constant c_error_sequence_width  : natural := c_error_flag_width + c_error_delimiter_width;
 
   -- Inter-frame spacing (ISO 6.6.7)
-  constant c_intermission_width         : integer := 3;   -- ISO 6.6.7.2
-  constant c_suspend_transmission_width : integer := 8;   -- ISO 6.6.7.4
-  constant c_bus_idle_condition_width   : integer := 11;  -- ISO 6.6.7.5
-  constant c_bus_off_recovery_count     : integer := 128; -- ISO 8.1.4.4
+  constant c_intermission_width         : natural := 3;   -- ISO 6.6.7.2
+  constant c_suspend_transmission_width : natural := 8;   -- ISO 6.6.7.4
+  constant c_bus_idle_condition_width   : natural := 11;  -- ISO 6.6.7.5
+  constant c_bus_off_recovery_count     : natural := 128; -- ISO 8.1.4.4
 
   -- Frame limits
-  constant c_sof                  : integer := 0;
-  constant c_dlc_max              : integer := 15; -- ISO Table 5
-  constant c_max_data_bytes       : integer := 64; -- ISO 6.6.11.4
-  constant c_max_mac_frame_length : integer := 640;
+  constant c_sof                  : natural := 0;
+  constant c_dlc_max              : natural := 15; -- ISO Table 5
+  constant c_max_data_bytes       : natural := 64; -- ISO 6.6.11.4
+  constant c_max_mac_frame_length : natural := 640;
 
   -- CRC polynomials and initial values (ISO 6.6.4.4)
-  constant c_crc_15_length   : integer                                        := 15;
-  constant c_crc_17_length   : integer                                        := 17;
-  constant c_crc_21_length   : integer                                        := 21;
+  constant c_crc_15_length   : natural                                        := 15;
+  constant c_crc_17_length   : natural                                        := 17;
+  constant c_crc_21_length   : natural                                        := 21;
   constant c_crc_poly_15_vec : std_logic_vector(c_crc_15_length - 1 downto 0) := 15x"4599";
   constant c_crc_poly_17_vec : std_logic_vector(c_crc_17_length - 1 downto 0) := 17x"1685B";
   constant c_crc_poly_21_vec : std_logic_vector(c_crc_21_length - 1 downto 0) := 21x"102899";
@@ -99,30 +99,27 @@ package pk_can_types is
   constant c_disturbed   : std_logic_vector(2 downto 0) := "110";
 
   -- TDC polarity history depth (ISO 7.3.4)
-  constant c_tdc_polarity_depth : integer := 32;
+  constant c_tdc_polarity_depth : natural := 32;
 
   -- Retransmission (ISO 6.5.3)
-  constant c_retransmission_limit : integer := 6;
-
-  -- Derived vector subtypes
-  subtype t_tdc_delay_vec is std_logic_vector(integer(ceil(log2(real(c_tdc_polarity_depth)))) - 1 downto 0);
+  constant c_retransmission_limit : natural := 6;
 
   ---------------------------------------------------------------------------
   -- 2. Bit Timing (ISO 7.3.2, Table 12)
   ---------------------------------------------------------------------------
 
-  constant c_sync_seg              : integer := 1;    -- ISO 7.3.2
-  constant c_max_transmitter_delay : integer := 255;  -- ISO 7.3.4
-  constant c_tdc_bit_time_max      : integer := 1000; -- ISO 7.3.4
+  constant c_sync_seg              : natural := 1;    -- ISO 7.3.2
+  constant c_max_transmitter_delay : natural := 255;  -- ISO 7.3.4
+  constant c_tdc_bit_time_max      : natural := 1000; -- ISO 7.3.4
 
-  subtype t_prescaler is integer range 1 to 32;
-  subtype t_nominal_prop_seg is integer range 0 to 96;
-  subtype t_data_prop_seg is integer range 0 to 8;
-  subtype t_nominal_phase_seg1 is integer range 1 to 32;
-  subtype t_data_phase_seg1 is integer range 1 to 8;
-  subtype t_nominal_phase_seg2 is integer range 2 to 32;
-  subtype t_data_phase_seg2 is integer range 2 to 8;
-  subtype t_ssp_offset is integer range 1 to 63;
+  subtype t_prescaler is natural range 1 to 32;
+  subtype t_nominal_prop_seg is natural range 0 to 96;
+  subtype t_data_prop_seg is natural range 0 to 8;
+  subtype t_nominal_phase_seg1 is natural range 1 to 32;
+  subtype t_data_phase_seg1 is natural range 1 to 8;
+  subtype t_nominal_phase_seg2 is natural range 2 to 32;
+  subtype t_data_phase_seg2 is natural range 2 to 8;
+  subtype t_ssp_offset is natural range 1 to 63;
 
   ---------------------------------------------------------------------------
   -- 3. Enumerations (simulation/debug only, not on synthesized ports)
@@ -176,19 +173,7 @@ package pk_can_types is
   );
 
   ---------------------------------------------------------------------------
-  -- 4. Scalar Subtypes
-  ---------------------------------------------------------------------------
-
-  subtype t_bit_count is integer range 0 to c_max_mac_frame_length;
-  subtype t_position is integer range 0 to c_max_mac_frame_length;
-  subtype t_byte is std_logic_vector(c_byte_width - 1 downto 0);
-  subtype t_dlc is integer range 0 to c_dlc_max;
-  subtype t_stuff_count is unsigned(2 downto 0);
-  subtype t_sbc is std_logic_vector(c_sbc_field_width - 1 downto 0);
-  -- t_crc_vector removed — use std_logic_vector(c_crc_21_length - 1 downto 0) directly
-
-  ---------------------------------------------------------------------------
-  -- 5. Composite Types
+  -- 4. Composite Types
   ---------------------------------------------------------------------------
 
   type t_mac_frame_bit is record
@@ -208,9 +193,6 @@ package pk_can_types is
     event_type      => none,
     transfer_status => c_ongoing
   );
-
-  -- TDC polarity history: shift register for SSP delay lookup (ISO 7.3.4)
-  subtype t_tdc_polarity_history is std_logic_vector(c_tdc_polarity_depth - 1 downto 0);
 
   -- LLC frame metadata (ISO 6.4.3 Table 4):
   type t_llc_metadata is record
@@ -233,14 +215,12 @@ package pk_can_types is
   );
 
   -- Frame positions: derived bit-count thresholds, calculated once per frame.
-  -- LLC metadata fields (format, dlc, brs, esi, rtr) are read directly
-  -- from the serializer interface where needed.
   type t_frame_params is record
-    dlc_start          : t_position;
-    data_stop          : t_position;
-    dynamic_stuff_stop : t_position;
-    crc_start          : t_position;
-    crc_delimiter      : t_position;
+    dlc_start          : natural range 0 to c_max_mac_frame_length;
+    data_stop          : natural range 0 to c_max_mac_frame_length;
+    dynamic_stuff_stop : natural range 0 to c_max_mac_frame_length;
+    crc_start          : natural range 0 to c_max_mac_frame_length;
+    crc_delimiter      : natural range 0 to c_max_mac_frame_length;
     crc_poly_select    : std_logic_vector(1 downto 0);
   end record t_frame_params;
 
@@ -255,10 +235,9 @@ package pk_can_types is
   );
 
   ---------------------------------------------------------------------------
-  -- 6. Frame Bit Positions
-  --
-  -- Fixed-polarity bit constants and per-format field position chains.
-  -- Position chains follow ISO Figure 2 field ordering.
+  -- 5. Frame Bit Positions
+  -- Fixed-polarity bits constants and per-format field positions.
+  -- ISO Figure 2 field ordering.
   ---------------------------------------------------------------------------
 
   -- Common fixed-polarity bits (ISO 6.6.8, 6.6.10.5-7, 6.6.5)
@@ -273,64 +252,65 @@ package pk_can_types is
   constant c_overload_flag_bit      : t_mac_frame_bit := (c_dominant,  overload_flag_bit);
 
   -- CAN Classic Basic (CBFF) positions (ISO 6.6.10)
-  constant c_cb_base_id_start : integer := c_sof + 1;
-  constant c_cb_base_id_stop  : integer := c_cb_base_id_start + c_base_id_width - 1;
-  constant c_cb_rtr           : integer := c_cb_base_id_stop + 1;
-  constant c_cb_ide           : integer := c_cb_rtr + 1;
-  constant c_cb_r0            : integer := c_cb_ide + 1;
-  constant c_cb_dlc_start     : integer := c_cb_r0 + 1;
-  constant c_cb_dlc_stop      : integer := c_cb_dlc_start + c_dlc_field_width - 1;
-  constant c_cb_data_start    : integer := c_cb_dlc_stop + 1;
+  constant c_cb_base_id_start : natural := c_sof + 1;
+  constant c_cb_base_id_stop  : natural := c_cb_base_id_start + c_base_id_width - 1;
+  constant c_cb_rtr           : natural := c_cb_base_id_stop + 1;
+  constant c_cb_ide           : natural := c_cb_rtr + 1;
+  constant c_cb_r0            : natural := c_cb_ide + 1;
+  constant c_cb_dlc_start     : natural := c_cb_r0 + 1;
+  constant c_cb_dlc_stop      : natural := c_cb_dlc_start + c_dlc_field_width - 1;
+  constant c_cb_data_start    : natural := c_cb_dlc_stop + 1;
 
   -- CAN Classic Extended (CEFF) positions (ISO 6.6.10)
-  constant c_ce_base_id_start     : integer := c_sof + 1;
-  constant c_ce_base_id_stop      : integer := c_ce_base_id_start + c_base_id_width - 1;
-  constant c_ce_srr               : integer := c_ce_base_id_stop + 1;
-  constant c_ce_ide               : integer := c_ce_srr + 1;
-  constant c_ce_extended_id_start : integer := c_ce_ide + 1;
-  constant c_ce_extended_id_stop  : integer := c_ce_extended_id_start + c_extended_id_width - 1;
-  constant c_ce_rtr               : integer := c_ce_extended_id_stop + 1;
-  constant c_ce_r1                : integer := c_ce_rtr + 1;
-  constant c_ce_r0                : integer := c_ce_r1 + 1;
-  constant c_ce_dlc_start         : integer := c_ce_r0 + 1;
-  constant c_ce_dlc_stop          : integer := c_ce_dlc_start + c_dlc_field_width - 1;
-  constant c_ce_data_start        : integer := c_ce_dlc_stop + 1;
+  constant c_ce_base_id_start     : natural := c_sof + 1;
+  constant c_ce_base_id_stop      : natural := c_ce_base_id_start + c_base_id_width - 1;
+  constant c_ce_srr               : natural := c_ce_base_id_stop + 1;
+  constant c_ce_ide               : natural := c_ce_srr + 1;
+  constant c_ce_extended_id_start : natural := c_ce_ide + 1;
+  constant c_ce_extended_id_stop  : natural := c_ce_extended_id_start + c_extended_id_width - 1;
+  constant c_ce_rtr               : natural := c_ce_extended_id_stop + 1;
+  constant c_ce_r1                : natural := c_ce_rtr + 1;
+  constant c_ce_r0                : natural := c_ce_r1 + 1;
+  constant c_ce_dlc_start         : natural := c_ce_r0 + 1;
+  constant c_ce_dlc_stop          : natural := c_ce_dlc_start + c_dlc_field_width - 1;
+  constant c_ce_data_start        : natural := c_ce_dlc_stop + 1;
 
   -- CAN FD Basic (FBFF) positions (ISO 6.6.11)
-  constant c_fd_base_id_start : integer := c_sof + 1;
-  constant c_fd_base_id_stop  : integer := c_fd_base_id_start + c_base_id_width - 1;
-  constant c_fb_rrs           : integer := c_fd_base_id_stop + 1;
-  constant c_fb_ide           : integer := c_fb_rrs + 1;
-  constant c_fb_fdf           : integer := c_fb_ide + 1;
-  constant c_fb_res           : integer := c_fb_fdf + 1;
-  constant c_fb_brs           : integer := c_fb_res + 1;
-  constant c_fb_esi           : integer := c_fb_brs + 1;
-  constant c_fb_dlc_start     : integer := c_fb_esi + 1;
-  constant c_fb_dlc_stop      : integer := c_fb_dlc_start + c_dlc_field_width - 1;
-  constant c_fb_data_start    : integer := c_fb_dlc_stop + 1;
+  constant c_fd_base_id_start : natural := c_sof + 1;
+  constant c_fd_base_id_stop  : natural := c_fd_base_id_start + c_base_id_width - 1;
+  constant c_fb_rrs           : natural := c_fd_base_id_stop + 1;
+  constant c_fb_ide           : natural := c_fb_rrs + 1;
+  constant c_fb_fdf           : natural := c_fb_ide + 1;
+  constant c_fb_res           : natural := c_fb_fdf + 1;
+  constant c_fb_brs           : natural := c_fb_res + 1;
+  constant c_fb_esi           : natural := c_fb_brs + 1;
+  constant c_fb_dlc_start     : natural := c_fb_esi + 1;
+  constant c_fb_dlc_stop      : natural := c_fb_dlc_start + c_dlc_field_width - 1;
+  constant c_fb_data_start    : natural := c_fb_dlc_stop + 1;
 
   -- CAN FD Extended (FEFF) positions (ISO 6.6.11)
-  constant c_fe_base_id_start     : integer := c_sof + 1;
-  constant c_fe_base_id_stop      : integer := c_fe_base_id_start + c_base_id_width - 1;
-  constant c_fe_srr               : integer := c_fe_base_id_stop + 1;
-  constant c_fe_ide               : integer := c_fe_srr + 1;
-  constant c_fe_extended_id_start : integer := c_fe_ide + 1;
-  constant c_fe_extended_id_stop  : integer := c_fe_extended_id_start + c_extended_id_width - 1;
-  constant c_fe_rrs               : integer := c_fe_extended_id_stop + 1;
-  constant c_fe_fdf               : integer := c_fe_rrs + 1;
-  constant c_fe_res               : integer := c_fe_fdf + 1;
-  constant c_fe_brs               : integer := c_fe_res + 1;
-  constant c_fe_esi               : integer := c_fe_brs + 1;
-  constant c_fe_dlc_start         : integer := c_fe_esi + 1;
-  constant c_fe_dlc_stop          : integer := c_fe_dlc_start + c_dlc_field_width - 1;
-  constant c_fe_data_start        : integer := c_fe_dlc_stop + 1;
+  constant c_fe_base_id_start     : natural := c_sof + 1;
+  constant c_fe_base_id_stop      : natural := c_fe_base_id_start + c_base_id_width - 1;
+  constant c_fe_srr               : natural := c_fe_base_id_stop + 1;
+  constant c_fe_ide               : natural := c_fe_srr + 1;
+  constant c_fe_extended_id_start : natural := c_fe_ide + 1;
+  constant c_fe_extended_id_stop  : natural := c_fe_extended_id_start + c_extended_id_width - 1;
+  constant c_fe_rrs               : natural := c_fe_extended_id_stop + 1;
+  constant c_fe_fdf               : natural := c_fe_rrs + 1;
+  constant c_fe_res               : natural := c_fe_fdf + 1;
+  constant c_fe_brs               : natural := c_fe_res + 1;
+  constant c_fe_esi               : natural := c_fe_brs + 1;
+  constant c_fe_dlc_start         : natural := c_fe_esi + 1;
+  constant c_fe_dlc_stop          : natural := c_fe_dlc_start + c_dlc_field_width - 1;
+  constant c_fe_data_start        : natural := c_fe_dlc_stop + 1;
 
   ---------------------------------------------------------------------------
-  -- 7. Interface Records
+  -- 6. Interface Records
   -- Each record is followed by its reset constant.
   ---------------------------------------------------------------------------
 
   -- Avalon-ST streaming interface (matches company pk_eth_st)
+
 
   -- Serializer -> FSM
   type t_can_mac_ser_fsm_if_s2d is record
@@ -432,7 +412,7 @@ package pk_can_types is
     bus_polarity : std_logic;
     sp           : std_logic;
     ssp          : std_logic;
-    tdc_delay    : t_tdc_delay_vec;
+    tdc_delay    : std_logic_vector(integer(ceil(log2(real(c_tdc_polarity_depth)))) - 1 downto 0);
   end record t_can_mac_pcs_if_s2m;
 
   constant c_pcs_to_mac_if_reset : t_can_mac_pcs_if_s2m :=
@@ -518,14 +498,12 @@ package pk_can_types is
   type t_can_mac_fce_if_s2m is record
     error_passive_request : std_logic;
     error_active_request  : std_logic;
-    bus_off               : std_logic;
   end record t_can_mac_fce_if_s2m;
 
   constant c_fce_to_mac_if_reset : t_can_mac_fce_if_s2m :=
   (
     error_passive_request => '0',
-    error_active_request  => '1',
-    bus_off               => '0'
+    error_active_request  => '1'
   );
 
   -- LLC -> FCE (ISO Table 14)
@@ -575,7 +553,7 @@ package pk_can_types is
   );
 
   ---------------------------------------------------------------------------
-  -- 8. LLC Frame Format
+  -- 7. LLC Frame Format
   --
   -- Internal format (variable length, streamed by can_llc_tx to can_mac_ser_tx):
   --   Byte 0 (SOP): [7:5]=FMT, [4]=FTYP(RTR), [3]=ESI, [2]=BRS, [1:0]=00
@@ -592,115 +570,94 @@ package pk_can_types is
   ---------------------------------------------------------------------------
 
   -- Internal LLC frame
-  constant c_internal_llc_frame_len : integer := 70;
-  type     t_llc_frame is array (0 to c_internal_llc_frame_len - 1) of t_byte;
+  constant c_internal_llc_frame_len : natural := 70;
+  type     t_llc_frame is array (0 to c_internal_llc_frame_len - 1) of std_logic_vector(c_byte_width - 1 downto 0);
 
   -- Legacy frame
-  constant c_legacy_frame_len    : integer := 71;
-  constant c_legacy_fmt_dlc_byte : integer := 4;
-  constant c_legacy_data_offset  : integer := 5;
+  constant c_legacy_frame_len    : natural := 71;
+  constant c_legacy_fmt_dlc_byte : natural := 4;
+  constant c_legacy_data_offset  : natural := 5;
 
-  type t_legacy_frame is array (0 to c_legacy_frame_len - 1) of t_byte;
+  type t_legacy_frame is array (0 to c_legacy_frame_len - 1) of std_logic_vector(c_byte_width - 1 downto 0);
 
   -- Config byte 0 bit positions: [7]=IDE, [6]=FDF, [5]=reserved, [4]=FTYP, [3]=ESI, [2]=BRS
-  constant c_llc_frame_ide  : integer := 7;
-  constant c_llc_frame_fdf  : integer := 6;
-  constant c_llc_frame_ftyp : integer := 4;
-  constant c_llc_frame_esi  : integer := 3;
-  constant c_llc_frame_brs  : integer := 2;
+  constant c_llc_frame_ide  : natural := 7;
+  constant c_llc_frame_fdf  : natural := 6;
+  constant c_llc_frame_ftyp : natural := 4;
+  constant c_llc_frame_esi  : natural := 3;
+  constant c_llc_frame_brs  : natural := 2;
 
   -- Config byte 1 bit positions: [7:4]=DLC
-  constant c_llc_frame_dlc_start : integer := 7;
-  constant c_llc_frame_dlc_end   : integer := 4;
+  constant c_llc_frame_dlc_start : natural := 7;
+  constant c_llc_frame_dlc_end   : natural := 4;
+  -- First data byte in the internal LLC frame (2 config bytes + 4 ID bytes)
+  constant c_llc_frame_data_byte : natural := 6;
   -- ID stream layout
-  constant c_llc_id_byte_count  : integer := 4;
-  constant c_llc_id_field_width : integer := c_llc_id_byte_count * c_byte_width;
+  constant c_llc_id_byte_count  : natural := 4;
+  constant c_llc_id_field_width : natural := c_llc_id_byte_count * c_byte_width;
 
   ---------------------------------------------------------------------------
-  -- 9. Protocol Functions
+  -- 8. Protocol Functions
   ---------------------------------------------------------------------------
 
   -- Calculate all frame-specific parameters once per frame (ISO 6.6.10, 6.6.11)
-  function get_frame_params (
-    metadata : t_llc_metadata
-  ) return t_frame_params;
+  function get_frame_params (metadata : t_llc_metadata) return t_frame_params;
 
   -- Convert DLC to actual data length in bytes (ISO Table 5)
-  function dlc_to_data_length (
-    dlc : t_dlc;
-    fdf : std_logic
-  ) return integer;
+  function dlc_to_data_length (dlc : natural; fdf : std_logic) return natural;
 
   -- Return the next logical frame bit per protocol state (ISO 6.6.10, 6.6.11)
   function get_mac_frame_bit (
-    bit_count         : t_position;
+    bit_count         : natural;
     ser_data          : std_logic;
     metadata          : t_llc_metadata;
     frame_params      : t_frame_params;
     previous_polarity : std_logic;
-    sbc               : t_sbc;
-    crc               : std_logic_vector(c_crc_21_length - 1 downto 0)
+    sbc               : std_logic_vector;
+    crc               : std_logic_vector
   ) return t_mac_frame_bit;
 
   -- Monitor transmitted bits for errors, ACK, and arbitration loss (ISO 6.6.5.1)
   function get_bit_info (
     bit_name               : t_mac_frame_bit_name;
-    polarity_history       : t_tdc_polarity_history;
-    tdc_delay              : integer range 0 to c_tdc_polarity_depth - 1;
+    polarity_history       : std_logic_vector;
+    tdc_delay              : natural;
     monitored_bit_polarity : std_logic;
     metadata               : t_llc_metadata
   ) return t_bit_info;
 
   -- Pack LLC frame ID field into canonical byte stream order ID3..ID0
-  function pack_llc_id_bytes (
-    id  : std_logic_vector(28 downto 0);
-    ide : std_logic
-  ) return std_logic_vector;
+  function pack_llc_id_bytes (id : std_logic_vector; ide : std_logic) return std_logic_vector;
 
   -- Binary-to-Gray conversion (ISO 6.6.11.5: Stuff Bit Count encoding)
-  function f_to_gray (
-    v : std_logic_vector
-  ) return std_logic_vector;
+  function f_to_gray (v : std_logic_vector) return std_logic_vector;
 
   -- XOR parity over a vector (ISO 6.6.11.5: SBC parity bit)
-  function f_calc_parity (
-    v : std_logic_vector
-  ) return std_logic;
+  function f_calc_parity ( v : std_logic_vector) return std_logic;
 
   ---------------------------------------------------------------------------
   -- 10. Testbench Utility Functions
   ---------------------------------------------------------------------------
 
   -- CRC calculation per ISO 11898-1: 6.6.4.4 (Galois LFSR)
-  function f_calc_can_crc (
-    data     : std_logic_vector;
-    init_vec : std_logic_vector;
-    poly     : std_logic_vector
-  ) return std_logic_vector;
+  function f_calc_can_crc (data : std_logic_vector; init_vec : std_logic_vector; poly : std_logic_vector) return std_logic_vector;
 
   -- Extract LLC metadata from config bytes 0 and 1
-  function extract_metadata (
-    config_byte_0 : t_byte;
-    config_byte_1 : t_byte
-  ) return t_llc_metadata;
+  function extract_metadata (config_byte_0 :std_logic_vector; config_byte_1 :std_logic_vector) return t_llc_metadata;
 
 end package pk_can_types;
 
 package body pk_can_types is
 
-  function dlc_to_data_length (
-    dlc : t_dlc;
-    fdf : std_logic
-  ) return integer is
+  function dlc_to_data_length (dlc : natural; fdf : std_logic) return natural is
   begin
-
     -- ISO 6.4.3: Table 5
     if (fdf = '0') then
-      return minimum(integer(dlc), 8);
+      return dlc;
     end if;
 
     case dlc is
-      when 0 to 8 => return integer(dlc);
+      when 0 to 8 => return natural(dlc);
       when 9 => return 12;
       when 10 => return 16;
       when 11 => return 20;
@@ -710,25 +667,20 @@ package body pk_can_types is
       when 15 => return c_max_data_bytes;
       when others => return 0;
     end case;
-
   end function dlc_to_data_length;
 
   function get_mac_frame_bit (
-    bit_count         : t_position;
+    bit_count         : natural;
     ser_data          : std_logic;
     metadata          : t_llc_metadata;
     frame_params      : t_frame_params;
     previous_polarity : std_logic;
-    sbc               : t_sbc;
-    crc               : std_logic_vector(c_crc_21_length - 1 downto 0)
+    sbc               : std_logic_vector;
+    crc               : std_logic_vector
   ) return t_mac_frame_bit is
-
-    variable pos_in_field : t_position;
-    variable crc_offset_v : t_position;
-    variable fsb_count_v  : t_position;
-
+    variable v_pos_in_field : natural range 0 to c_max_mac_frame_length;
+    variable v_fsb_count  : natural range 0 to c_max_mac_frame_length;
   begin
-
     -- Arbitration and control bits per format (ISO 11898-1, Figure 2)
     if (metadata.ide = '0' and metadata.fdf = '0') then
       -- Classic Basic (CB)
@@ -743,7 +695,6 @@ package body pk_can_types is
       elsif (bit_count = c_cb_r0) then
         return (bit_name => r0_bit, polarity => c_dominant);
       end if;
-
     elsif (metadata.ide = '1' and metadata.fdf = '0') then
       -- Classic Extended (CE)
       if (bit_count = c_sof) then
@@ -764,7 +715,6 @@ package body pk_can_types is
       elsif (bit_count = c_ce_r0) then
         return (bit_name => r0_bit, polarity => c_dominant);
       end if;
-
     elsif (metadata.ide = '0' and metadata.fdf = '1') then
       -- FD Basic (FB)
       if (bit_count = c_sof) then
@@ -784,7 +734,6 @@ package body pk_can_types is
       elsif (bit_count = c_fb_esi) then
         return (bit_name => esi_bit, polarity => metadata.esi);
       end if;
-
     elsif (metadata.ide = '1' and metadata.fdf = '1') then
       -- FD Extended (FE)
       if (bit_count = c_sof) then
@@ -795,8 +744,7 @@ package body pk_can_types is
         return (bit_name => srr_bit, polarity => c_recessive);
       elsif (bit_count = c_cb_ide) then
         return (bit_name => ide_bit, polarity => c_recessive);
-      elsif (bit_count >= c_ce_extended_id_start and
-             bit_count <= c_ce_extended_id_stop) then
+      elsif (bit_count >= c_ce_extended_id_start and bit_count <= c_ce_extended_id_stop) then
         return (bit_name => extended_id_bit, polarity => ser_data);
       elsif (bit_count = c_fe_rrs) then
         return (bit_name => rrs_bit, polarity => c_dominant);
@@ -809,57 +757,43 @@ package body pk_can_types is
       elsif (bit_count = c_fe_esi) then
         return (bit_name => esi_bit, polarity => metadata.esi);
       end if;
-
     else
       return c_reset_mac_frame_bit;
     end if;
 
     -- DLC field
-    if (bit_count >= frame_params.dlc_start and
-        bit_count < frame_params.dlc_start + c_dlc_field_width) then
-      return (bit_name => dlc_bit,
-              polarity => metadata.dlc(c_dlc_field_width - 1 -
-                          (bit_count - frame_params.dlc_start)));
+    if (bit_count >= frame_params.dlc_start and bit_count < frame_params.dlc_start + c_dlc_field_width) then
+      return (bit_name => dlc_bit, polarity => metadata.dlc(c_dlc_field_width - 1 - (bit_count - frame_params.dlc_start)));
     end if;
 
     -- Data field
-    if (bit_count >= frame_params.dlc_start + c_dlc_field_width and
-        bit_count < frame_params.data_stop) then
+    if (bit_count >= frame_params.dlc_start + c_dlc_field_width and bit_count < frame_params.data_stop) then
       return (bit_name => data_bit, polarity => ser_data);
     end if;
 
     -- CRC region (ISO 6.6.13.3.1)
     -- CC: plain CRC-15, no stuff bits.
-    -- FD: FSB + SBC(3..0) + [FSB + 4 CRC bits]... with a fixed stuff bit at
-    -- every 5th position (pos_in_field mod 5 = 0).
-    -- SBC bits occupy positions 1-4, CRC data follows from crc_start.
+    -- FD: FSB + SBC(3..0) + [FSB + 4 CRC bits + FSB + 4 CRC bits ...]
     if (bit_count >= frame_params.data_stop and bit_count < frame_params.crc_delimiter) then
       if (metadata.fdf = '1') then -- FD format
-        pos_in_field := bit_count - frame_params.data_stop;
-
+        v_pos_in_field := bit_count - frame_params.data_stop;
         -- Fixed stuff bit at every 5th position (including the initial one)
-        if ((pos_in_field mod c_stuff_width) = 0) then
+        if ((v_pos_in_field mod c_stuff_width) = 0) then
           return (bit_name => fixed_stuff_bit, polarity => not previous_polarity);
-
         -- SBC region: positions 1-4 (between initial FSB and crc_start).
         -- pos_in_field - 1 compensates for the initial FSB at position 0.
         elsif (bit_count < frame_params.crc_start) then
-          return (bit_name => sbs_bit,
-                  polarity => sbc(c_sbc_field_width - 1 - (pos_in_field - 1)));
-
-        -- CRC data: subtract interleaved FSBs to get the CRC vector index.
+          return (bit_name => sbs_bit, polarity => sbc((c_sbc_field_width - 1) - (v_pos_in_field - 1)));
+        -- CRC data: subtract FSBs to get the CRC vector index.
         else
-          crc_offset_v := bit_count - frame_params.crc_start;
-          fsb_count_v  := (c_sbc_field_width + crc_offset_v) / c_stuff_width;
-          return (bit_name => crc_bit,
-                  polarity => crc((c_crc_21_length - 1) +
-                              fsb_count_v - crc_offset_v));
+          v_pos_in_field := bit_count - frame_params.crc_start;
+          -- Calculate the number of fixed stuff bits up to this position in the CRC filed
+          v_fsb_count  := (c_sbc_field_width + v_pos_in_field) / c_stuff_width;
+          return (bit_name => crc_bit, polarity => crc((c_crc_21_length - 1) + (v_fsb_count - v_pos_in_field)));
         end if;
       else
         -- CC: direct CRC-15 indexing, no stuff bits
-        return (bit_name => crc_bit,
-                polarity => crc(c_crc_21_length - 1 -
-                            (bit_count - frame_params.crc_start)));
+        return (bit_name => crc_bit, polarity => crc((c_crc_21_length - 1) - (bit_count - frame_params.crc_start)));
       end if;
     end if;
 
@@ -870,230 +804,162 @@ package body pk_can_types is
       return c_tx_ack_bit;
     elsif (bit_count = frame_params.crc_delimiter + c_ack_delimiter_offset) then
       return c_ack_delimiter_bit;
-    elsif (bit_count >= frame_params.crc_delimiter + c_eof_start_offset and
-           bit_count < frame_params.crc_delimiter + c_eof_start_offset +
-           c_eof_field_width) then
+    elsif (bit_count >= (frame_params.crc_delimiter + c_eof_start_offset) and bit_count < (frame_params.crc_delimiter + c_eof_start_offset + c_eof_field_width)) then
       return c_eof_bit;
     end if;
 
     return c_reset_mac_frame_bit;
-
   end function get_mac_frame_bit;
 
-  function get_frame_params (
-    metadata : t_llc_metadata
-  ) return t_frame_params is
-
-    variable result        : t_frame_params;
-    variable data_length_v : integer;
-    variable crc_length_v  : integer;
-
+  function get_frame_params ( metadata : t_llc_metadata) return t_frame_params is
+    variable v_result        : t_frame_params;
+    variable v_data_length : natural;
+    variable v_crc_length  : natural;
   begin
-
     -- Calculate data length from DLC vector
-    data_length_v := dlc_to_data_length(t_dlc(to_integer(unsigned(metadata.dlc))), metadata.fdf);
-
-    -- ISO 6.6.10.1: Remote frames shall not contain a Data field (CC only)
-    if (metadata.fdf = '0' and metadata.ftyp = '1') then
-      data_length_v := 0;
-    end if;
-
+    v_data_length := dlc_to_data_length(to_integer(unsigned(metadata.dlc)), metadata.fdf);
     -- Look up DLC start from format constants
     if (metadata.ide = '0' and metadata.fdf = '0') then
-      result.dlc_start := c_cb_dlc_start;
+      v_result.dlc_start := c_cb_dlc_start;
     elsif (metadata.ide = '1' and metadata.fdf = '0') then
-      result.dlc_start := c_ce_dlc_start;
+      v_result.dlc_start := c_ce_dlc_start;
     elsif (metadata.ide = '0' and metadata.fdf = '1') then
-      result.dlc_start := c_fb_dlc_start;
+      v_result.dlc_start := c_fb_dlc_start;
     elsif (metadata.ide = '1' and metadata.fdf = '1') then
-      result.dlc_start := c_fe_dlc_start;
+      v_result.dlc_start := c_fe_dlc_start;
     else
-      result.dlc_start := 0;
+      v_result.dlc_start := 0;
     end if;
 
-    result.data_stop := result.dlc_start + c_dlc_field_width +
-                        data_length_v * c_byte_width;
+    v_result.data_stop := v_result.dlc_start + c_dlc_field_width + v_data_length * c_byte_width;
 
     -- CRC length: CRC-15 for classic, CRC-17 for FD <= 16 bytes, CRC-21 otherwise
     if (metadata.fdf = '0') then
-      crc_length_v           := c_crc_15_length;
-      result.crc_poly_select := c_crc_poly_15_sel;
-    elsif (data_length_v < c_crc_17_length) then
-      crc_length_v           := c_crc_17_length;
-      result.crc_poly_select := c_crc_poly_17_sel;
+      v_crc_length           := c_crc_15_length;
+      v_result.crc_poly_select := c_crc_poly_15_sel;
+    elsif (v_data_length < c_crc_17_length) then
+      v_crc_length           := c_crc_17_length;
+      v_result.crc_poly_select := c_crc_poly_17_sel;
     else
-      crc_length_v           := c_crc_21_length;
-      result.crc_poly_select := c_crc_poly_21_sel;
+      v_crc_length           := c_crc_21_length;
+      v_result.crc_poly_select := c_crc_poly_21_sel;
     end if;
 
     -- CAN FD has SBC field after data, CAN Classic goes directly to CRC
     -- ISO 6.6.13.3.1: FSB before SBC, then 4 SBC bits, then CRC with FSBs
     if (metadata.fdf = '1') then
-      result.dynamic_stuff_stop := result.data_stop;
-      -- crc_start: skip initial FSB (+1) and 4 SBC data bits
-      result.crc_start := result.data_stop + 1 + c_sbc_field_width;
-      -- crc_delimiter = CRC delimiter position. From crc_start: crc_length data bits,
-      -- 1 FSB at crc_start, plus floor((sbc_width + crc_length) / stuff_width)
-      -- additional FSBs from the continuing every-5th-position pattern.
-      result.crc_delimiter := result.crc_start + crc_length_v +
-                              1 + ((c_sbc_field_width + crc_length_v) / c_stuff_width);
+      v_result.dynamic_stuff_stop := v_result.data_stop;
+      -- crc_start: skip initial FSB in SBC field and 4 SBC data bits
+      v_result.crc_start := v_result.data_stop + (1 + c_sbc_field_width);
+      -- crc_delimiter = Initial FSB + crc_start + crc_length + floor((sbc_width + crc_length) / stuff_width)
+      v_result.crc_delimiter := 1 + v_result.crc_start + v_crc_length + ((c_sbc_field_width + v_crc_length) / c_stuff_width);
     else
-      result.crc_start          := result.data_stop;
-      result.crc_delimiter      := result.crc_start + crc_length_v;
-      result.dynamic_stuff_stop := result.crc_delimiter;
+      v_result.crc_start          := v_result.data_stop;
+      v_result.crc_delimiter      := v_result.crc_start + v_crc_length;
+      v_result.dynamic_stuff_stop := v_result.crc_delimiter;
     end if;
-
-    return result;
-
+    return v_result;
   end function get_frame_params;
 
   function get_bit_info (
     bit_name               : t_mac_frame_bit_name;
-    polarity_history       : t_tdc_polarity_history;
-    tdc_delay              : integer range 0 to c_tdc_polarity_depth - 1;
+    polarity_history       : std_logic_vector;
+    tdc_delay              : natural;
     monitored_bit_polarity : std_logic;
     metadata               : t_llc_metadata
   ) return t_bit_info is
-
     -- Default assignment
-    variable result : t_bit_info := c_reset_bit_info;
-
+    variable v_result : t_bit_info := c_reset_bit_info;
   begin
-
     -- ACK handling (ISO 6.6.10.6, 6.6.11.6)
     -- Returns ack_detected on dominant, none otherwise.
-    if (bit_name = ack_bit or
-        (metadata.fdf = '1' and bit_name = ack_delimiter_bit)) then
+    if (bit_name = ack_bit or (metadata.fdf = '1' and bit_name = ack_delimiter_bit)) then
       if (monitored_bit_polarity = c_dominant) then
-        result.event_type := ack_detected;
+        v_result.event_type := ack_detected;
       end if;
-      return result;
+      return v_result;
     end if;
 
     -- Polarity match: no error (TDC delay handled via history index)
     if (polarity_history(tdc_delay) = monitored_bit_polarity) then
-      return result;
+      return v_result;
     end if;
 
-    -- Polarity mismatch: bit error or lost arbitration (ISO 6.6.21.2.a)
-    result.event_type      := bit_error;
-    result.transfer_status := c_disturbed;
+    -- If get to here we have polarity mismatch:
+    -- bit error or lost arbitration (ISO 6.6.21.2.a)
+    v_result.event_type      := bit_error;
+    v_result.transfer_status := c_disturbed;
 
     -- Override to lost arbitration when a recessive arbitration bit
     -- is observed as dominant (ISO 6.6.21.2.a, Exception 1).
-    if (monitored_bit_polarity = c_dominant and
-        ((bit_name = base_id_bit) or
-          (bit_name = rtr_bit) or
-          (metadata.ide = '1' and -- Extended format
-            (bit_name = srr_bit or
-              bit_name = ide_bit or
-              bit_name = extended_id_bit)))) then
-      result.event_type      := lost_arbitration;
-      result.transfer_status := c_lost_arb;
+    if monitored_bit_polarity = c_dominant and
+        (((bit_name = base_id_bit) or (bit_name = rtr_bit)) or
+          (metadata.ide = '1' and (bit_name = srr_bit or bit_name = ide_bit or bit_name = extended_id_bit))) then
+      v_result.event_type      := lost_arbitration;
+      v_result.transfer_status := c_lost_arb;
     end if;
-
-    return result;
-
+    return v_result;
   end function get_bit_info;
 
-  function pack_llc_id_bytes (
-    id  : std_logic_vector(28 downto 0);
-    ide : std_logic
-  ) return std_logic_vector is
-
-    variable result_v : std_logic_vector(31 downto 0);
-
+  function pack_llc_id_bytes (id : std_logic_vector; ide : std_logic) return std_logic_vector is
+    variable v_result : std_logic_vector(31 downto 0);
   begin
-
-    result_v := (others => '0');
+    v_result := (others => '0');
     if (ide = '1') then
-      result_v(31 downto 3) := id(28 downto 0);
+      v_result(31 downto 3) := id(28 downto 0);
     else
-      result_v(31 downto 21) := id(10 downto 0);
+      v_result(31 downto 21) := id(10 downto 0);
     end if;
-
-    return result_v;
-
+    return v_result;
   end function pack_llc_id_bytes;
 
-  function f_to_gray (
-    v : std_logic_vector
-  ) return std_logic_vector is
-
+  function f_to_gray (v : std_logic_vector) return std_logic_vector is
     variable v_result : std_logic_vector(v'range);
-
   begin
-
     v_result(v'left) := v(v'left);
-
     for i in v'left - 1 downto v'right loop
       v_result(i) := v(i) xor v(i + 1);
     end loop;
-
     return v_result;
-
   end function f_to_gray;
 
-  function f_calc_parity (
-    v : std_logic_vector
-  ) return std_logic is
-
+  function f_calc_parity (v : std_logic_vector) return std_logic is
     variable v_parity : std_logic := '0';
-
   begin
-
     for i in v'range loop
       v_parity := v_parity xor v(i);
     end loop;
-
     return v_parity;
-
   end function f_calc_parity;
 
-  function f_calc_can_crc (
-    data     : std_logic_vector;
-    init_vec : std_logic_vector;
-    poly     : std_logic_vector
-  ) return std_logic_vector is
-
+  -- Algorithm from ISO 6.6.4.4 
+  function f_calc_can_crc (data : std_logic_vector; init_vec : std_logic_vector; poly : std_logic_vector) return std_logic_vector is
     variable v_crc      : std_logic_vector(init_vec'length - 1 downto 0);
     variable v_crc_next : std_logic;
-
   begin
-
     v_crc := init_vec;
-
     for i in data'range loop
       v_crc_next := data(i) xor v_crc(v_crc'high);
       v_crc      := v_crc sll 1;
       if (v_crc_next) then
         v_crc := v_crc xor poly;
       end if;
-
     end loop;
-
     return v_crc;
-
   end function f_calc_can_crc;
 
-  function extract_metadata (
-    config_byte_0 : t_byte;
-    config_byte_1 : t_byte
-  ) return t_llc_metadata is
-
+  function extract_metadata (config_byte_0 :std_logic_vector; config_byte_1 :std_logic_vector) return t_llc_metadata is
     variable v_result : t_llc_metadata;
-
   begin
-
     v_result.ide  := config_byte_0(c_llc_frame_ide);
     v_result.fdf  := config_byte_0(c_llc_frame_fdf);
     v_result.ftyp := config_byte_0(c_llc_frame_ftyp);
     v_result.esi  := config_byte_0(c_llc_frame_esi);
     v_result.brs  := config_byte_0(c_llc_frame_brs);
     v_result.dlc  := config_byte_1(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
-
     return v_result;
-
   end function extract_metadata;
 
 end package body pk_can_types;
+
+-- eof
