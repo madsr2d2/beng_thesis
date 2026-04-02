@@ -20,6 +20,8 @@
 [treeopen] top.can_mac_tx_tb.u_dut.crc_fd_inst.
 @c00200
 -TB Signals
+@22
+top.can_mac_tx_tb.inj_type
 @28
 top.can_mac_tx_tb.clk
 @28
@@ -179,9 +181,13 @@ top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.dominant_seen_during_flag
 @420
 top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.dominant_run_count
 @28
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.primary_error_sent
+@28
 top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.skip_sof
 @420
 top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.frame_params
+@420
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.bit_info
 @1401200
 -tx_mac_fsm_inst
 @c00200

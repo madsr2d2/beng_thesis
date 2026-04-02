@@ -81,31 +81,16 @@ architecture rtl of can_mac_fsm_tx is
   signal dominant_seen_during_flag : boolean;
   signal dominant_run_count        : natural range 0 to 15;
   signal primary_error_sent        : boolean;
-
-  -- ISO 11898-1: 6.6.8 - dominant at 3rd intermission bit detected as SOF;
-  -- skip SOF output and start with first ID bit on next frame entry.
   signal skip_sof : boolean;
-
-  -- Frame parameters (calculated once per frame from LLC metadata)
   signal frame_params : t_frame_params;
-
+  signal bit_info : t_bit_info; -- Debug signal (Unused in the rtl)
 begin
-
   p_fsm : process (clk_i) is
-
-    variable v_next_bit : t_mac_frame_bit;
-    -- Frame parameter calculation (used only during frame initialization)
-    variable v_frame_params : t_frame_params;
-    -- Guard: set true in any error path; common error-flag entry runs once at end
-    variable v_enter_error_flag : boolean;
-    -- Bus monitor result (used inline in s_monitor_bit)
-    variable v_bit_info : t_bit_info;
-    -- Named guard predicate for pre-case quiet-state defaults
-    variable v_quiet_state : boolean;
-    variable v_flag_bit    : t_mac_frame_bit;
-
+    variable v_next_bit : t_mac_frame_bit;    -- Holds next calculated bit
+    variable v_frame_params : t_frame_params; -- Holds frame parameters for current frame
+    variable v_enter_error_flag : boolean;    -- Common error-flag entry guard
+    variable v_bit_info : t_bit_info;         -- Bus monitor result
   begin
-
     if rising_edge(clk_i) then
       if (rst_i = '1') then
         state                         <= s_bus_reintegration;
@@ -149,10 +134,7 @@ begin
         ---------------------------------------------------------------------
         -- Quiet-state defaults (bus_reintegration, intermission, suspend, idle)
         ---------------------------------------------------------------------
-        v_quiet_state := (state = s_bus_reintegration or state = s_intermission or
-                          state = s_suspend_transmission or state = s_bus_idle);
-
-        if v_quiet_state then
+        if (state = s_bus_reintegration or state = s_intermission or state = s_suspend_transmission or state = s_bus_idle) then
           pcs_o.valid               <= '0';
           pcs_o.polarity            <= c_recessive;
           pcs_o.use_data_rate       <= '0';
@@ -290,24 +272,23 @@ begin
             dominant_seen_during_flag <= false;
             dominant_run_count        <= 0;
 
+
+            -- Feed SOF to BS/CRC (both paths need it)
+            bs_fd_o.valid <= '1';
+            bs_fd_o.data  <= c_dominant;
+            crc_o.valid   <= '1';
+            crc_o.data    <= c_dominant;
+
             if (skip_sof) then
-              -- ISO 11898-1: 6.6.8 - SOF was the 3rd intermission dominant;
-              -- drive first ID bit on PCS, but still seed BS/CRC with SOF.
-              pcs_o.polarity    <= mac_ser_i.data;
-              bs_fd_o.valid     <= '1';
-              bs_fd_o.data      <= c_dominant;
-              crc_o.valid       <= '1';
-              crc_o.data        <= c_dominant;
-              bit_count         <= 1;
-              mac_ser_o.ready   <= '1';
+              -- ISO 11898-1: 6.6.8 - SOF was the 3rd intermission dominant.
+              -- Drive first ID bit on PCS; SOF already on the bus.
+              pcs_o.polarity       <= mac_ser_i.data;
+              bit_count            <= 1;
+              mac_ser_o.ready      <= '1';
               last_transmitted_bit <= (mac_ser_i.data, base_id_bit);
             else
-              pcs_o.polarity    <= c_dominant;
-              bs_fd_o.valid     <= '1';
-              bs_fd_o.data      <= c_dominant;
-              crc_o.valid       <= '1';
-              crc_o.data        <= c_dominant;
-              bit_count         <= 0;
+              pcs_o.polarity       <= c_dominant;
+              bit_count            <= 0;
               last_transmitted_bit <= c_sof_bit;
             end if;
             state <= s_monitor_bit;
@@ -320,9 +301,7 @@ begin
             fce_o.transmitting <= '1';
             v_enter_error_flag := false;
 
-            -- ISO 11898-1: 6.6.8 - deferred first-ID feed to BS/CRC after
-            -- skip_sof. SOF was fed in s_frame_init; the first ID bit was
-            -- driven on PCS but still needs to reach BS/CRC.
+            -- Feed first ID bit to BS/CRC after skip_sof (ISO 6.6.8).
             if (skip_sof) then
               bs_fd_o.valid <= '1';
               bs_fd_o.data  <= last_transmitted_bit.polarity;
@@ -342,80 +321,67 @@ begin
 
             elsif (pcs_i.sp = '1' or pcs_i.ssp = '1') then
 
-              -- SSP: latch pending error (ISO 11898-1: 7.3.4)
-              if (pcs_i.ssp = '1') then
-                v_bit_info := get_bit_info(
-                  last_transmitted_bit.bit_name, 
-                  polarity_history, 
-                  to_integer(unsigned(pcs_i.tdc_delay)), 
-                  pcs_i.bus_polarity, 
-                  mac_ser_i.llc_metadata);
+              -- Evaluate bus monitor (SP or SSP)
+              v_bit_info := get_bit_info(
+                last_transmitted_bit.bit_name, 
+                polarity_history, 
+                to_integer(unsigned(pcs_i.tdc_delay)), 
+                pcs_i.bus_polarity, 
+                mac_ser_i.llc_metadata);
 
+              bit_info <= v_bit_info; -- Debug signal 
+
+              -- SSP: latch pending error (ISO 7.3.4)
+              if (pcs_i.ssp = '1') then
                 ssp_error_pending <= ssp_error_pending or (v_bit_info.event_type = bit_error);
               end if;
 
-              -- Deferred SSP error fires at SP
-              if (ssp_error_pending and pcs_i.sp = '1') then
-                -- ISO 11898-1: 6.6.21.3.1 - react at SP to SSP-detected error
-                ssp_error_pending  <= false;
-                v_enter_error_flag := true;
+              -- Sample Point processing (ISO 6.6.21.3)
+              if (pcs_i.sp = '1') then
+                mac_ser_o.transfer_status <= v_bit_info.transfer_status;
 
-              elsif (pcs_i.sp = '1') then
-                -- SP: evaluate bus monitor inline
-                v_bit_info := get_bit_info(
-                  last_transmitted_bit.bit_name,
-                  polarity_history,
-                  to_integer(unsigned(pcs_i.tdc_delay)),
-                  pcs_i.bus_polarity,
-                  mac_ser_i.llc_metadata);
+                -- Check for bit error (including deferred SSP)
+                if (ssp_error_pending or v_bit_info.event_type = bit_error or v_bit_info.event_type = ack_error) then
+                  v_enter_error_flag := true;
+                else
+                  case v_bit_info.event_type is
+                    when lost_arbitration =>
+                      was_previous_frame_tx <= false;
+                      bit_count             <= 0;
+                      state                 <= s_intermission;
 
-                case v_bit_info.event_type is
-                  when lost_arbitration =>
-                    was_previous_frame_tx     <= false;
-                    mac_ser_o.transfer_status <= c_lost_arb;
-                    state                     <= s_intermission;
-                    bit_count                 <= 0;
+                    when ack_detected =>
+                      was_previous_frame_tx <= true;
+                      ack_success_seen      <= true;
+                      state                 <= s_transmit_bit;
 
-                  when ack_detected =>
-                    was_previous_frame_tx     <= true;
-                    ack_success_seen          <= true;
-                    mac_ser_o.transfer_status <= v_bit_info.transfer_status;
-                    state                     <= s_transmit_bit;
-
-                  when bit_error | ack_error =>
-                    v_enter_error_flag := true;
-
-                  when none =>
-                    mac_ser_o.transfer_status <= v_bit_info.transfer_status;
-
-                    -- ACK error: no dominant seen during ACK window (CC and FD)
-                    if (bit_count = frame_params.crc_delimiter + c_ack_delimiter_offset and (not ack_success_seen)) then
-                      v_enter_error_flag := true;
-                      ack_error_caused_flag <= true;
-                    else
-                      state <= s_transmit_bit;
-                    end if;
-                end case;
+                    when none =>
+                      -- ACK error detection: no dominant seen during entire ACK slot
+                      if (bit_count = frame_params.crc_delimiter + c_ack_delimiter_offset and not ack_success_seen) then
+                        v_enter_error_flag    := true;
+                        ack_error_caused_flag <= true;
+                      else
+                        state <= s_transmit_bit;
+                      end if;
+                    when others =>
+                  end case;
+                end if;
+                ssp_error_pending <= false;
               end if;
 
-              -- Common error-flag entry (last-assignment-wins overrides above)
+              -- Global error-flag entry
               if (v_enter_error_flag) then
                 fce_o.error               <= '1';
-                was_previous_frame_tx     <= true;
-                mac_ser_o.transfer_status <= c_disturbed;
+                pcs_o.polarity            <= c_passive_error_flag_bit.polarity when fce_i.error_passive_request = '1' else c_active_error_flag_bit.polarity;
                 pcs_o.valid               <= '1';
-                state                     <= s_flag;
-                if (fce_i.error_passive_request = '1') then
-                  flag_type      <= passive_error;
-                  pcs_o.polarity <= c_passive_error_flag_bit.polarity;
-                else
-                  flag_type      <= active_error;
-                  pcs_o.polarity <= c_active_error_flag_bit.polarity;
-                end if;
-                bit_count                 <= 0;
+                mac_ser_o.transfer_status <= c_disturbed;
+                was_previous_frame_tx     <= true;
                 dominant_seen_during_flag <= false;
-                dominant_run_count        <= 0;
                 primary_error_sent        <= false;
+                bit_count                 <= 0;
+                dominant_run_count        <= 0;
+                state                     <= s_flag;
+                flag_type                 <= passive_error when fce_i.error_passive_request = '1' else active_error;
               end if;
             end if;
 
@@ -497,15 +463,14 @@ begin
             end if;
 
             -- Select the flag bit type
-            case flag_type is
-              when active_error  => v_flag_bit := c_active_error_flag_bit;
-              when passive_error => v_flag_bit := c_passive_error_flag_bit;
-              when overload      => v_flag_bit := c_overload_flag_bit;
-            end case;
 
             -- Set flag delimiter type when flag has been sent
             if (bit_count < c_error_flag_width) then
-              v_next_bit := v_flag_bit;
+              case flag_type is
+                when active_error  => v_next_bit := c_active_error_flag_bit;
+                when passive_error => v_next_bit := c_passive_error_flag_bit;
+                when overload      => v_next_bit := c_overload_flag_bit;
+              end case;
             else
               v_next_bit := c_error_delimiter_bit;
             end if;

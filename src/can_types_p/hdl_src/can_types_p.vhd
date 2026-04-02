@@ -597,6 +597,8 @@ package pk_can_types is
   -- Config byte 1 bit positions: [7:4]=DLC
   constant c_llc_frame_dlc_start : natural := 7;
   constant c_llc_frame_dlc_end   : natural := 4;
+  -- First data byte in the internal LLC frame (2 config bytes + 4 ID bytes)
+  constant c_llc_frame_data_byte : natural := 6;
   -- ID stream layout
   constant c_llc_id_byte_count  : natural := 4;
   constant c_llc_id_field_width : natural := c_llc_id_byte_count * c_byte_width;
