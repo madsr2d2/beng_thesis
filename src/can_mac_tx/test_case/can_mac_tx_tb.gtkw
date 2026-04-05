@@ -184,6 +184,8 @@ top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.dominant_run_count
 top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.primary_error_sent
 @28
 top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.skip_sof
+@28
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.fsb_active
 @420
 top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.frame_params
 @420

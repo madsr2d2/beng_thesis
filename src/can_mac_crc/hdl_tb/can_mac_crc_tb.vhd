@@ -213,10 +213,10 @@ begin
           crc_i.crc_poly_select <= SafeResize(tx_rec.ParamToModel, crc_i.crc_poly_select'length);
           crc_i.data_cc <= tx_rec.DataToModel(i + c_max_mac_frame_length);
           crc_i.data_fd <= tx_rec.DataToModel(i);
-          crc_i.valid   <= '1';
+          crc_i.valid_cc   <= '1';
           WaitForClock(clk);
         end loop;
-        crc_i.valid <= '0';
+        crc_i.valid_cc <= '0';
         WaitForClock(clk);
         tx_rec.Ack <= tx_rec.Ack + 1;
       when others => null;
@@ -261,10 +261,10 @@ begin
     wait until reset = '0';
     loop
       wait until rising_edge(clk);
-      if crc_i.valid = '0' and dut_rst = '0' then
+      if crc_i.valid_cc = '0' and dut_rst = '0' then
         WaitForClock(clk);
         loop
-          exit when crc_i.valid = '1' or dut_rst = '1';
+          exit when crc_i.valid_cc = '1' or dut_rst = '1';
           v_crc_snap := crc_o.crc;
           WaitForClock(clk);
           AffirmIf(output_stable_id, crc_o.crc = v_crc_snap, "CRC output changed without valid");

@@ -116,7 +116,7 @@ begin
         -- Defaults cleared each cycle; case branches override as needed
         bs_o.valid          <= '0';
         bs_o.fsb_en         <= '0';
-        crc_o.valid         <= '0';
+        crc_o.valid_cc         <= '0';
         crc_o.valid_fd      <= '0';
         bs_rst              <= '0';
         crc_rst             <= '0';
@@ -175,7 +175,7 @@ begin
             crc_mismatch        <= '0';
             if (pcs_i.sp = '1' and pcs_i.bus_polarity = c_dominant) then
               -- SOF detected: feed BS and CRC with SOF bit
-              crc_o.valid    <= '1';
+              crc_o.valid_cc    <= '1';
               crc_o.valid_fd <= '1';
               crc_o.data_cc  <= c_dominant;
               crc_o.data_fd  <= c_dominant;
@@ -202,7 +202,7 @@ begin
                 -- Fill ID field in LLC frame
                 llc_frame(c_id_offset + byte_index)((c_byte_width - 1) - bit_index) <= pcs_i.bus_polarity;
 
-                crc_o.valid    <= '1';
+                crc_o.valid_cc    <= '1';
                 crc_o.valid_fd <= '1';
                 crc_o.data_cc  <= pcs_i.bus_polarity;
                 crc_o.data_fd  <= pcs_i.bus_polarity;
@@ -240,7 +240,7 @@ begin
                 -- Set the FTYP bit in LLC frame configuration byte 0
                 llc_frame(c_conf_0_offset)(c_llc_frame_ftyp) <= pcs_i.bus_polarity;
 
-                crc_o.valid    <= '1';
+                crc_o.valid_cc    <= '1';
                 crc_o.valid_fd <= '1';
                 crc_o.data_cc  <= pcs_i.bus_polarity;
                 crc_o.data_fd  <= pcs_i.bus_polarity;
@@ -272,7 +272,7 @@ begin
               else
                 -- Set the IDE bit in LLC frame configuration byte 0
                 llc_frame(c_conf_0_offset)(c_llc_frame_ide) <= pcs_i.bus_polarity;
-                crc_o.valid                                 <= '1';
+                crc_o.valid_cc                                 <= '1';
                 crc_o.valid_fd                              <= '1';
                 crc_o.data_cc                               <= pcs_i.bus_polarity;
                 crc_o.data_fd                               <= pcs_i.bus_polarity;
@@ -305,7 +305,7 @@ begin
               else
                 -- Set the FDF bit in LLC frame configuration byte 0
                 llc_frame(c_conf_0_offset)(c_llc_frame_fdf) <= pcs_i.bus_polarity;
-                crc_o.valid                                 <= '1';
+                crc_o.valid_cc                                 <= '1';
                 crc_o.valid_fd                              <= '1';
                 crc_o.data_cc                               <= pcs_i.bus_polarity;
                 crc_o.data_fd                               <= pcs_i.bus_polarity;
@@ -344,7 +344,7 @@ begin
                   bit_count           <= 0;
                 end if;
               else
-                crc_o.valid    <= '1';
+                crc_o.valid_cc    <= '1';
                 crc_o.valid_fd <= '1';
                 crc_o.data_cc  <= pcs_i.bus_polarity;
                 crc_o.data_fd  <= pcs_i.bus_polarity;
@@ -381,7 +381,7 @@ begin
               else
                 pcs_o.use_data_rate                         <= pcs_i.bus_polarity;
                 llc_frame(c_conf_0_offset)(c_llc_frame_brs) <= pcs_i.bus_polarity;
-                crc_o.valid                                 <= '1';
+                crc_o.valid_cc                                 <= '1';
                 crc_o.valid_fd                              <= '1';
                 crc_o.data_cc                               <= pcs_i.bus_polarity;
                 crc_o.data_fd                               <= pcs_i.bus_polarity;
@@ -406,7 +406,7 @@ begin
                 end if;
               else
                 llc_frame(c_conf_0_offset)(c_llc_frame_esi) <= pcs_i.bus_polarity;
-                crc_o.valid                                 <= '1';
+                crc_o.valid_cc                                 <= '1';
                 crc_o.valid_fd                              <= '1';
                 crc_o.data_cc                               <= pcs_i.bus_polarity;
                 crc_o.data_fd                               <= pcs_i.bus_polarity;
@@ -433,7 +433,7 @@ begin
               else
                 -- Set DLC bits in LLC frame config byte 1
                 llc_frame(c_conf_1_offset)(c_llc_frame_dlc_start - bit_count) <= pcs_i.bus_polarity;
-                crc_o.valid                                                   <= '1';
+                crc_o.valid_cc                                                   <= '1';
                 crc_o.valid_fd                                                <= '1';
                 crc_o.data_cc                                                 <= pcs_i.bus_polarity;
                 crc_o.data_fd                                                 <= pcs_i.bus_polarity;
@@ -499,7 +499,7 @@ begin
                 -- Fill data field in LLC frame
                 llc_frame(c_data_offset + byte_index)((c_byte_width - 1) - bit_index) <= pcs_i.bus_polarity;
 
-                crc_o.valid    <= '1';
+                crc_o.valid_cc    <= '1';
                 crc_o.valid_fd <= '1';
                 crc_o.data_cc  <= pcs_i.bus_polarity;
                 crc_o.data_fd  <= pcs_i.bus_polarity;

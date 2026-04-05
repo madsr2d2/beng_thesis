@@ -126,7 +126,7 @@ begin
       reset_i      => rst_i,
       start_crc_i  => '0',
       data_i(0)    => crc_i.data_cc,
-      data_valid_i => crc_i.valid,
+      data_valid_i => crc_i.valid_cc,
       crc_o        => crc15_out
     );
 

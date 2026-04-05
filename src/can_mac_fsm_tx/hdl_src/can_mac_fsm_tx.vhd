@@ -82,6 +82,7 @@ architecture rtl of can_mac_fsm_tx is
   signal dominant_run_count        : natural range 0 to 15;
   signal primary_error_sent        : boolean;
   signal skip_sof : boolean;
+  signal fsb_active : std_logic;
   signal frame_params : t_frame_params;
   signal bit_info : t_bit_info; -- Debug signal (Unused in the rtl)
 begin
@@ -106,6 +107,7 @@ begin
         dominant_run_count            <= 0;
         primary_error_sent            <= false;
         skip_sof                      <= false;
+        fsb_active                    <= '0';
         frame_params                  <= c_frame_params_reset;
 
         mac_ser_o <= c_ser_fsm_if_d2s_reset;
@@ -121,16 +123,12 @@ begin
         ---------------------------------------------------------------------
         bs_o            <= c_mac_fsm_to_bs_fd_if_reset;
         mac_ser_o.ready <= '0';
-        crc_o.valid     <= '0';
+        crc_o.valid_cc     <= '0';
         crc_o.valid_fd  <= '0';
         bs_rst          <= '0';
         crc_rst         <= '0';
 
-        -- FSB mode: activate one position early so BS has the initial
-        -- FSB ready by the next s_transmit_bit after the last data bit SP.
-        if (mac_ser_i.llc_metadata.fdf = '1' and bit_count >= frame_params.data_stop - 1 and bit_count < frame_params.crc_delimiter) then
-          bs_o.fsb_en <= '1';
-        end if;
+        bs_o.fsb_en <= fsb_active;
         fce_o.error                       <= '0';
         fce_o.primary_error               <= '0';
         fce_o.counters_unchanged          <= '0';
@@ -283,7 +281,7 @@ begin
             -- Feed SOF to BS/CRC (both paths need it)
             bs_o.valid <= '1';
             bs_o.data  <= c_dominant;
-            crc_o.valid    <= '1';
+            crc_o.valid_cc    <= '1';
             crc_o.valid_fd <= '1';
             crc_o.data_cc  <= c_dominant;
             crc_o.data_fd  <= c_dominant;
@@ -314,7 +312,7 @@ begin
             if (skip_sof) then
               bs_o.valid <= '1';
               bs_o.data  <= last_transmitted_bit.polarity;
-              crc_o.valid    <= '1';
+              crc_o.valid_cc    <= '1';
               crc_o.valid_fd <= '1';
               crc_o.data_cc  <= last_transmitted_bit.polarity;
               crc_o.data_fd  <= last_transmitted_bit.polarity;
@@ -389,6 +387,7 @@ begin
                 was_previous_frame_tx     <= true;
                 dominant_seen_during_flag <= false;
                 primary_error_sent        <= false;
+                fsb_active                <= '0';
                 bit_count                 <= 0;
                 dominant_run_count        <= 0;
                 state                     <= s_flag;
@@ -408,9 +407,7 @@ begin
               bs_o.valid <= '1';
               bs_o.data  <= bs_i.data;
               -- ISO 6.6.4.4: FD dynamic stuff bits included in CRC; FSBs are not.
-              -- At bit_count = data_stop - 1 the stuff bit is the initial FSB
-              -- (ISO 6.6.13.3.1: FSB replaces any pending dynamic SB).
-              if (mac_ser_i.llc_metadata.fdf = '1' and bit_count < frame_params.data_stop - 1) then
+              if (mac_ser_i.llc_metadata.fdf = '1' and fsb_active = '0') then
                 crc_o.valid_fd <= '1';
                 crc_o.data_fd  <= bs_i.data;
               end if;
@@ -428,7 +425,7 @@ begin
 
               -- CRC feeding: all logical bits before crc_start
               if (bit_count + 1 < frame_params.crc_start) then
-                crc_o.valid    <= '1';
+                crc_o.valid_cc    <= '1';
                 crc_o.valid_fd <= '1';
                 crc_o.data_cc  <= v_next_bit.polarity;
                 crc_o.data_fd  <= v_next_bit.polarity;
@@ -438,6 +435,15 @@ begin
               if (bit_count + 1 < frame_params.crc_delimiter) then
                 bs_o.valid <= '1';
                 bs_o.data  <= v_next_bit.polarity;
+              end if;
+
+              -- FSB activation: set one position before data_stop so BS sees
+              -- fsb_en rising edge at the correct cycle.
+              if (mac_ser_i.llc_metadata.fdf = '1' and bit_count + 1 = frame_params.data_stop - 1) then
+                fsb_active <= '1';
+              end if;
+              if (bit_count + 1 = frame_params.crc_delimiter) then
+                fsb_active <= '0';
               end if;
 
               -- ISO 11898-1: 7.3.2 - data phase boundary

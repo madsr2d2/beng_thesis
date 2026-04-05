@@ -229,9 +229,9 @@ begin
     end loop;
   end process p_reset_checker;
 
-  -- -------------------------------------------------------------------------
+  ---------------------------------------------------------------------------
   -- Checker: dynamic stuff bit after 5 consecutive same-polarity bits
-  -- -------------------------------------------------------------------------
+  ---------------------------------------------------------------------------
   p_stuff_bit_checker : process
     variable consecutive  : natural range 0 to c_stuff_width := 0;
     variable polarity     : std_logic := c_recessive;
@@ -284,9 +284,9 @@ begin
     end loop;
   end process p_stuff_bit_checker;
 
-  -- -------------------------------------------------------------------------
+  ---------------------------------------------------------------------------
   -- Checker: SBC parity, increments on dynamic stuff, holds on FSB
-  -- -------------------------------------------------------------------------
+  ---------------------------------------------------------------------------
   p_sbc_checker : process
     variable id         : AlertLogIDType;
     variable prev_sbc   : std_logic_vector(c_sbc_field_width - 1 downto 0) := "0000";
@@ -321,9 +321,9 @@ begin
     end loop;
   end process p_sbc_checker;
 
-  -- -------------------------------------------------------------------------
+  ---------------------------------------------------------------------------
   -- Checker: FSB timing and polarity
-  -- -------------------------------------------------------------------------
+  ---------------------------------------------------------------------------
   p_fsb_checker : process
     variable id             : AlertLogIDType;
     variable fsb_en_prev    : std_logic := '0';
@@ -341,8 +341,7 @@ begin
 
       -- Check pending FSB expectation from previous cycle
       if (expect_fsb) then
-        AffirmIf(id, bs_o.valid = '1',
-                 "Expected FSB not asserted");
+        AffirmIf(id, bs_o.valid = '1', "Expected FSB not asserted");
         if (bs_o.valid = '1') then
           AffirmIf(id, bs_o.data = expected_data, "FSB polarity wrong: expected " & std_logic'image(expected_data));
         end if;
@@ -389,9 +388,9 @@ begin
     end loop;
   end process p_fsb_checker;
 
-  -- -------------------------------------------------------------------------
+  ---------------------------------------------------------------------------
   -- Functional coverage
-  -- -------------------------------------------------------------------------
+  ---------------------------------------------------------------------------
   p_coverage : process
     variable v_in  : natural;
     variable v_out : natural;

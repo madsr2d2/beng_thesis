@@ -457,7 +457,7 @@ package pk_can_types is
   -- FSM -> CRC (ISO 6.6.4.4)
   type t_can_mac_fsm_crc_if_m2s is record
     crc_poly_select : std_logic_vector(1 downto 0);
-    valid           : std_logic;
+    valid_cc           : std_logic;
     valid_fd        : std_logic;
     data_cc         : std_logic;
     data_fd         : std_logic;
@@ -466,7 +466,7 @@ package pk_can_types is
   constant c_mac_fsm_to_crc_if_reset : t_can_mac_fsm_crc_if_m2s :=
   (
     crc_poly_select => (others => '0'),
-    valid           => '0',
+    valid_cc           => '0',
     valid_fd        => '0',
     data_cc         => '0',
     data_fd         => '0'
