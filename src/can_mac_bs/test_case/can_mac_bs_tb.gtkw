@@ -28,6 +28,12 @@ top.can_mac_bs_tb.bs_i
 top.can_mac_bs_tb.bs_o
 @420
 top.can_mac_bs_tb.test_done
+@420
+top.can_mac_bs_tb.test_id
+@420
+top.can_mac_bs_tb.reset_id
+@420
+top.can_mac_bs_tb.dsb_id
 @1401200
 -TB Signals
 @c00200
@@ -47,7 +53,7 @@ top.can_mac_bs_tb.u_dut.last_polarity
 @22
 top.can_mac_bs_tb.u_dut.stuff_count
 @28
-top.can_mac_bs_tb.u_dut.stuff_pending
+top.can_mac_bs_tb.u_dut.fsb_en_latch
 @1401200
 -u_dut Internals
 [pattern_trace] 1

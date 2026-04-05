@@ -33,9 +33,9 @@ entity can_mac_fsm_tx is
     pcs_i : in    t_can_mac_pcs_if_s2m;
     pcs_o : out   t_can_mac_pcs_if_m2s;
     -- Bit stuffer FD interface
-    bs_fd_i   : in    t_can_mac_fsm_bs_if_s2m;
-    bs_fd_o   : out   t_can_mac_fsm_bs_if_m2s;
-    bs_fd_rst : out   std_logic;
+    bs_i   : in    t_can_mac_fsm_bs_if_s2m;
+    bs_o   : out   t_can_mac_fsm_bs_if_m2s;
+    bs_rst : out   std_logic;
     -- CRC interface
     crc_i   : in    t_can_mac_fsm_crc_if_s2m;
     crc_o   : out   t_can_mac_fsm_crc_if_m2s;
@@ -110,8 +110,8 @@ begin
 
         mac_ser_o <= c_ser_fsm_if_d2s_reset;
         pcs_o     <= c_mac_to_pcs_if_reset;
-        bs_fd_o   <= c_mac_fsm_to_bs_fd_if_reset;
-        bs_fd_rst <= '0';
+        bs_o   <= c_mac_fsm_to_bs_fd_if_reset;
+        bs_rst <= '0';
         crc_o     <= c_mac_fsm_to_crc_if_reset;
         crc_rst   <= '0';
         fce_o     <= c_mac_to_fce_if_reset;
@@ -119,11 +119,18 @@ begin
         ---------------------------------------------------------------------
         -- Pulse defaults (cleared every cycle, set only when active)
         ---------------------------------------------------------------------
-        bs_fd_o         <= c_mac_fsm_to_bs_fd_if_reset;
+        bs_o            <= c_mac_fsm_to_bs_fd_if_reset;
         mac_ser_o.ready <= '0';
         crc_o.valid     <= '0';
-        bs_fd_rst       <= '0';
+        crc_o.valid_fd  <= '0';
+        bs_rst          <= '0';
         crc_rst         <= '0';
+
+        -- FSB mode: activate one position early so BS has the initial
+        -- FSB ready by the next s_transmit_bit after the last data bit SP.
+        if (mac_ser_i.llc_metadata.fdf = '1' and bit_count >= frame_params.data_stop - 1 and bit_count < frame_params.crc_delimiter) then
+          bs_o.fsb_en <= '1';
+        end if;
         fce_o.error                       <= '0';
         fce_o.primary_error               <= '0';
         fce_o.counters_unchanged          <= '0';
@@ -169,7 +176,7 @@ begin
             end if;
 
           -----------------------------------------------------------------
-          -- Intermission state: ISO 11898-1: 6.6.7.2
+         -- Intermission state: ISO 11898-1: 6.6.7.2
           -----------------------------------------------------------------
           when s_intermission =>
             -- Set intermission_bit
@@ -191,7 +198,7 @@ begin
                     state     <= s_frame_init;
                     bit_count <= 0;
                     skip_sof  <= true;
-                    bs_fd_rst <= '1';
+                    bs_rst <= '1';
                     crc_rst   <= '1';
                   else
                     state     <= s_bus_idle;
@@ -241,7 +248,7 @@ begin
               if (mac_ser_i.valid = '1' and pcs_i.sp = '1') then
                 state     <= s_frame_init;
                 bit_count <= 0;
-                bs_fd_rst <= '1';
+                bs_rst <= '1';
                 crc_rst   <= '1';
               end if;
 
@@ -274,10 +281,12 @@ begin
 
 
             -- Feed SOF to BS/CRC (both paths need it)
-            bs_fd_o.valid <= '1';
-            bs_fd_o.data  <= c_dominant;
-            crc_o.valid   <= '1';
-            crc_o.data    <= c_dominant;
+            bs_o.valid <= '1';
+            bs_o.data  <= c_dominant;
+            crc_o.valid    <= '1';
+            crc_o.valid_fd <= '1';
+            crc_o.data_cc  <= c_dominant;
+            crc_o.data_fd  <= c_dominant;
 
             if (skip_sof) then
               -- ISO 11898-1: 6.6.8 - SOF was the 3rd intermission dominant.
@@ -303,10 +312,12 @@ begin
 
             -- Feed first ID bit to BS/CRC after skip_sof (ISO 6.6.8).
             if (skip_sof) then
-              bs_fd_o.valid <= '1';
-              bs_fd_o.data  <= last_transmitted_bit.polarity;
-              crc_o.valid   <= '1';
-              crc_o.data    <= last_transmitted_bit.polarity;
+              bs_o.valid <= '1';
+              bs_o.data  <= last_transmitted_bit.polarity;
+              crc_o.valid    <= '1';
+              crc_o.valid_fd <= '1';
+              crc_o.data_cc  <= last_transmitted_bit.polarity;
+              crc_o.data_fd  <= last_transmitted_bit.polarity;
               skip_sof      <= false;
             end if;
 
@@ -391,37 +402,42 @@ begin
           -----------------------------------------------------------------
           when s_transmit_bit =>
             fce_o.transmitting <= '1';
-            -- Stuff bit insertion takes priority over normal bit
-            if (bs_fd_i.valid = '1' and bit_count < frame_params.dynamic_stuff_stop) then
-              v_next_bit := (polarity => bs_fd_i.data, bit_name => stuff_bit);
-              bs_fd_o.valid <= '1';
-              bs_fd_o.data  <= bs_fd_i.data;
-              -- ISO 11898-1: 6.6.4.4 - FD stuff bits are included in CRC
-              if (mac_ser_i.llc_metadata.fdf = '1' and bit_count < frame_params.crc_start) then
-                crc_o.valid <= '1';
-                crc_o.data  <= bs_fd_i.data;
+            -- Stuff bit (dynamic or FSB) takes priority over normal bit
+            if (bs_i.valid = '1') then
+              v_next_bit := (polarity => bs_i.data, bit_name => stuff_bit);
+              bs_o.valid <= '1';
+              bs_o.data  <= bs_i.data;
+              -- ISO 6.6.4.4: FD dynamic stuff bits included in CRC; FSBs are not.
+              -- At bit_count = data_stop - 1 the stuff bit is the initial FSB
+              -- (ISO 6.6.13.3.1: FSB replaces any pending dynamic SB).
+              if (mac_ser_i.llc_metadata.fdf = '1' and bit_count < frame_params.data_stop - 1) then
+                crc_o.valid_fd <= '1';
+                crc_o.data_fd  <= bs_i.data;
               end if;
+
             else
 
-              -- Normal bit so increment bit_count
+              -- Normal bit: increment position counter
               bit_count <= bit_count + 1;
-              v_next_bit := get_mac_frame_bit(bit_count + 1, mac_ser_i.data, mac_ser_i.llc_metadata, frame_params, last_transmitted_bit.polarity, bs_fd_i.sbc, crc_i.crc);
+              v_next_bit := get_mac_frame_bit(bit_count + 1, mac_ser_i.data, mac_ser_i.llc_metadata, frame_params, last_transmitted_bit.polarity, bs_i.sbc, crc_i.crc);
 
               -- Signal ready if the bit is sourced from mac_ser_tx
               if (v_next_bit.bit_name = base_id_bit or v_next_bit.bit_name = extended_id_bit or v_next_bit.bit_name = data_bit) then
                 mac_ser_o.ready <= '1';
               end if;
 
-              -- ISO 11898-1: 6.6.4.4 - CC includes all logical bits; FD excludes fixed stuff bits
-              if (bit_count + 1 < frame_params.crc_start and v_next_bit.bit_name /= fixed_stuff_bit) then
-                crc_o.valid <= '1';
-                crc_o.data  <= v_next_bit.polarity;
+              -- CRC feeding: all logical bits before crc_start
+              if (bit_count + 1 < frame_params.crc_start) then
+                crc_o.valid    <= '1';
+                crc_o.valid_fd <= '1';
+                crc_o.data_cc  <= v_next_bit.polarity;
+                crc_o.data_fd  <= v_next_bit.polarity;
               end if;
 
-              -- Feed bit stuffer
-              if (bit_count + 1 < frame_params.dynamic_stuff_stop) then
-                bs_fd_o.valid <= '1';
-                bs_fd_o.data  <= v_next_bit.polarity;
+              -- Feed bit stuffer (dynamic and FSB regions, up to crc_delimiter)
+              if (bit_count + 1 < frame_params.crc_delimiter) then
+                bs_o.valid <= '1';
+                bs_o.data  <= v_next_bit.polarity;
               end if;
 
               -- ISO 11898-1: 7.3.2 - data phase boundary

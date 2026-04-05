@@ -63,7 +63,7 @@ architecture tb of can_mac_crc_tb is
   signal crc_check_id    : AlertLogIDType;
   signal output_stable_id : AlertLogIDType;
   signal tx_rec : StreamRecType(
-    DataToModel(c_max_mac_frame_length - 1 downto 0),
+    DataToModel(2 * c_max_mac_frame_length - 1 downto 0),
     ParamToModel(1 downto 0),
     DataFromModel(0 downto 0),
     ParamFromModel(0 downto 0)
@@ -160,19 +160,29 @@ begin
   -- Test sequencer
   ----------------------------------------------------------------------------
   p_test_ctrl : process is
-    variable v_data        : std_logic_vector(c_max_mac_frame_length - 1 downto 0);
+    variable v_data_cc     : std_logic_vector(c_max_mac_frame_length - 1 downto 0);
+    variable v_data_fd     : std_logic_vector(c_max_mac_frame_length - 1 downto 0);
+    variable v_expected    : std_logic_vector(c_max_mac_frame_length - 1 downto 0);
     variable v_poly_select : std_logic_vector(1 downto 0);
   begin
     wait until reset = '0';
     WaitForClock(clk);
 
     for i in 0 to c_num_frames loop
-      -- Random frame and poly_select
-      v_data        := rv.RandSlv(c_max_mac_frame_length);
+      -- Random data for both streams
+      v_data_cc     := rv.RandSlv(c_max_mac_frame_length);
+      v_data_fd     := rv.RandSlv(c_max_mac_frame_length);
       v_poly_select := std_logic_vector(to_unsigned(RandCovPoint(cov), 2));
 
-      Send(tx_rec, Data => v_data, Param => v_poly_select);
-      Check(rx_rec, Data => f_calc_can_crc_aligned(v_data, v_poly_select));
+      -- Determine which data stream the DUT should be calculating CRC from
+      if v_poly_select = c_crc_poly_15_sel then
+        v_expected := v_data_cc;
+      else
+        v_expected := v_data_fd;
+      end if;
+
+      Send(tx_rec, Data => v_data_cc & v_data_fd, Param => v_poly_select);
+      Check(rx_rec, Data => f_calc_can_crc_aligned(v_expected, v_poly_select));
       ICover(cov, to_integer(unsigned(v_poly_select)));
       WaitForClock(clk, rv.RandInt(2, 100));
     end loop;
@@ -198,11 +208,12 @@ begin
         WaitForClock(clk);
         frame_rst <= '0';
         WaitForClock(clk);
-        -- Feed bits serially
-        for i in tx_rec.DataToModel'high downto 0 loop
+        -- Feed both streams in parallel, one bit per clock
+        for i in c_max_mac_frame_length - 1 downto 0 loop
           crc_i.crc_poly_select <= SafeResize(tx_rec.ParamToModel, crc_i.crc_poly_select'length);
-          crc_i.data  <= tx_rec.DataToModel(i);
-          crc_i.valid <= '1';
+          crc_i.data_cc <= tx_rec.DataToModel(i + c_max_mac_frame_length);
+          crc_i.data_fd <= tx_rec.DataToModel(i);
+          crc_i.valid   <= '1';
           WaitForClock(clk);
         end loop;
         crc_i.valid <= '0';

@@ -28,11 +28,13 @@ COMPONENTS = \
 	src/can_mac_crc/hdl_src/can_mac_crc.vhd \
 	src/can_mac_ser_tx/hdl_src/can_mac_ser_tx.vhd \
 	src/can_mac_fsm_tx/hdl_src/can_mac_fsm_tx.vhd \
+	src/can_mac_fsm_rx/hdl_src/can_mac_fsm_rx.vhd \
 	src/can_fce/hdl_src/can_fce.vhd
 
 # 3. Layer wrappers and Top-level
 LAYERS = \
 	src/can_mac_tx/hdl_src/can_mac_tx.vhd \
+	src/can_mac_rx/hdl_src/can_mac_rx.vhd \
 	src/can_pcs_tx/hdl_src/can_pcs_tx.vhd \
 	src/can_llc_tx/hdl_src/can_llc_tx.vhd \
 	src/can_tx/hdl_src/can_tx.vhd

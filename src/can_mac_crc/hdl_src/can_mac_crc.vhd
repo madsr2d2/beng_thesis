@@ -125,7 +125,7 @@ begin
       clk_i        => clk_i,
       reset_i      => rst_i,
       start_crc_i  => '0',
-      data_i(0)    => crc_i.data,
+      data_i(0)    => crc_i.data_cc,
       data_valid_i => crc_i.valid,
       crc_o        => crc15_out
     );
@@ -144,8 +144,8 @@ begin
       clk_i        => clk_i,
       reset_i      => rst_i,
       start_crc_i  => '0',
-      data_i(0)    => crc_i.data,
-      data_valid_i => crc_i.valid,
+      data_i(0)    => crc_i.data_fd,
+      data_valid_i => crc_i.valid_fd,
       crc_o        => crc17_out
     );
 
@@ -163,8 +163,8 @@ begin
       clk_i        => clk_i,
       reset_i      => rst_i,
       start_crc_i  => '0',
-      data_i(0)    => crc_i.data,
-      data_valid_i => crc_i.valid,
+      data_i(0)    => crc_i.data_fd,
+      data_valid_i => crc_i.valid_fd,
       crc_o        => crc21_out
     );
 

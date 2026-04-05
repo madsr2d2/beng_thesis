@@ -143,11 +143,11 @@ top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.pcs_i
 @420
 top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.pcs_o
 @420
-top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.bs_fd_i
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.bs_i
 @420
-top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.bs_fd_o
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.bs_o
 @28
-top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.bs_fd_rst
+top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.bs_rst
 @420
 top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.crc_i
 @420
@@ -207,7 +207,7 @@ top.can_mac_tx_tb.u_dut.bit_stuffer_fd_inst.last_polarity
 @22
 top.can_mac_tx_tb.u_dut.bit_stuffer_fd_inst.stuff_count
 @28
-top.can_mac_tx_tb.u_dut.bit_stuffer_fd_inst.stuff_pending
+top.can_mac_tx_tb.u_dut.bit_stuffer_fd_inst.fsb_en_latch
 @1401200
 -bit_stuffer_fd_inst
 @c00200
