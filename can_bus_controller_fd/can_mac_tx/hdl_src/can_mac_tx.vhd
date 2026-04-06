@@ -77,7 +77,7 @@ begin
   -- =========================================================================
   -- can_mac_fsm_tx: Frame transmission FSM
   -- =========================================================================
-  tx_mac_fsm_inst : entity work.can_mac_fsm_tx
+  tx_mac_fsm_inst : entity work.can_mac_fsm_tx(rtl)
     port map (
       clk_i              => clk,
       rst_i              => rst,
@@ -85,9 +85,9 @@ begin
       mac_ser_o          => fsm_to_ser,
       pcs_i              => pcs_i,
       pcs_o              => pcs_o,
-      bs_fd_i            => bs_fd_to_fsm,
-      bs_fd_o            => fsm_to_bs_fd,
-      bs_fd_rst          => fsm_bs_fd_rst,
+      bs_i            => bs_fd_to_fsm,
+      bs_o            => fsm_to_bs_fd,
+      bs_rst          => fsm_bs_fd_rst,
       crc_i              => crc_to_fsm,
       crc_o              => fsm_to_crc,
       crc_rst            => fsm_crc_rst,

@@ -41,9 +41,17 @@ architecture tb of can_mac_tx_tb is
   ----------------------------------------------------------------------------
   -- Constants
   ----------------------------------------------------------------------------
-  constant c_sp_interval  : natural := 10;
+  -- Bit timing model (ISO 7.3.2, values from subtype ranges in pk_can_types)
+  constant c_prescaler  : natural := 1;
+  constant c_prop_seg   : natural := 3;
+  constant c_phase_seg1 : natural := 3;
+  constant c_phase_seg2 : natural := 3;
+  -- Derived: SP is at sync_seg + prop_seg + phase_seg1, bit time is full sum
+  constant c_sp_tq      : natural := c_sync_seg + c_prop_seg + c_phase_seg1;
+  constant c_bit_time   : natural := c_sp_tq + c_phase_seg2;
+  -- Legacy alias used throughout TB
+  constant c_sp_interval  : natural := c_bit_time;
   constant c_bin_at_least : natural := 5;
-  constant c_max_bus_bits : natural := 1024;
   constant c_rec_width    : natural := 16;
 
   -- Error injection position coverage range.
@@ -77,19 +85,6 @@ architecture tb of can_mac_tx_tb is
   constant c_fce_counters_unchanged    : natural := 3;
   constant c_fce_error_delim_too_late  : natural := 4;
   constant c_fce_latch_width           : natural := 5;
-
-  ----------------------------------------------------------------------------
-  -- Types
-  ----------------------------------------------------------------------------
-  type t_bus_stream is record
-    bits             : std_logic_vector(0 to c_max_bus_bits - 1);
-    len              : integer;
-    ack_pos          : integer;
-    arb_end          : integer;  -- first bus-stream index past the arbitration field
-    fdf_pos          : integer;  -- stuffed index of FDF bit (-1 for CC)
-    data_phase_start : integer;  -- stuffed index of ESI bit (-1 if no data phase)k
-    data_phase_end   : integer;  -- last stuffed index in data phase (-1 if no data phase)
-  end record t_bus_stream;
 
   ----------------------------------------------------------------------------
   -- Signals
@@ -153,326 +148,8 @@ architecture tb of can_mac_tx_tb is
   );
 
   -- =========================================================================
-  -- Reference model: build expected bus stream.
+  -- Reference model (build_bus_stream) now in pk_can_types.
   -- =========================================================================
-
-  ----------------------------------------------------------------------------
-  -- Shared helpers
-  ----------------------------------------------------------------------------
-  procedure append (v : std_logic_vector; raw : inout std_logic_vector; raw_len : inout natural) is
-    variable va : std_logic_vector(v'length - 1 downto 0) := v;
-  begin
-    for i in va'length - 1 downto 0 loop
-      raw(raw_len) := va(i);
-      raw_len      := raw_len + 1;
-    end loop;
-  end procedure append;
-
-  procedure append_bit (b : std_logic; raw : inout std_logic_vector; raw_len : inout natural) is
-  begin
-    raw(raw_len) := b;
-    raw_len      := raw_len + 1;
-  end procedure append_bit;
-
-  procedure emit (pol : std_logic; stream  : inout t_bus_stream) is
-  begin
-    stream.bits(stream.len) := pol;
-    stream.len              := stream.len + 1;
-  end procedure emit;
-
-  procedure dynamic_bit_stuffer_feed (pol : std_logic; consec : inout natural; last_pol : inout std_logic; ds_count : inout unsigned(2 downto 0); stream : inout t_bus_stream) is
-  begin
-    emit(pol, stream);
-    if pol = last_pol then
-      consec := consec + 1;
-      if consec = c_stuff_width then
-        emit(not pol, stream);
-        consec    := 1;
-        last_pol  := not pol;
-        ds_count  := ds_count + 1;
-      end if;
-    else
-      consec   := 1;
-      last_pol := pol;
-    end if;
-  end procedure dynamic_bit_stuffer_feed;
-  ----------------------------------------------------------------------------
-
-  ----------------------------------------------------------------------------
-  -- build_cc_stream: build raw fields -> CRC-15 -> stuff -> tail
-  ----------------------------------------------------------------------------
-  function build_cc_stream (frame : t_llc_frame; metadata : t_llc_metadata; is_passive : boolean := false) return t_bus_stream is
-    -- Raw bit array before stuffing (SOF + fields + CRC-15)
-    variable raw         : std_logic_vector(0 to c_max_bus_bits - 1);
-    variable raw_len     : natural := 0;
-    variable arb_end_raw : natural;
-    variable id_full     : std_logic_vector(c_llc_id_field_width - 1 downto 0);
-    variable crc         : std_logic_vector(c_crc_15_length - 1 downto 0);
-    -- Output stream and stuffer state
-    variable result      : t_bus_stream;
-    variable consec      : natural range 0 to c_stuff_width := 0;
-    variable last_pol    : std_logic := c_recessive;
-    variable ds_count    : unsigned(2 downto 0) := (others => '0');  -- unused; required by ds_feed
-    variable arb_done    : boolean := false;
-    variable tail_len    : natural;
-
-  begin
-    result.len              := 0;
-    result.ack_pos          := 0;
-    result.arb_end          := 0;
-    result.fdf_pos          := -1;
-    result.data_phase_start := -1;
-    result.data_phase_end   := -1;
-
-    --------------------------------------------------------------------------
-    -- Step 1: Build raw frame fields (SOF, ID, control, data)
-    --------------------------------------------------------------------------
-    id_full := frame(2) & frame(3) & frame(4) & frame(5);
-
-    append_bit(c_dominant, raw, raw_len);
-    append(id_full(c_llc_id_field_width - 1 downto c_llc_id_field_width - c_base_id_width), raw, raw_len);
-
-    if metadata.ide = '0' then
-      -- CC basic: RTR | IDE=dom | R0=dom
-      append_bit(metadata.ftyp, raw, raw_len);
-      append_bit(c_dominant, raw, raw_len);
-      append_bit(c_dominant, raw, raw_len);
-      arb_end_raw := raw_len - 1;  -- R0 is first control-field bit
-    else
-      -- CC extended: SRR=rec | IDE=rec | ext_id(18) | RTR | R1=dom | R0=dom
-      append_bit(c_recessive, raw, raw_len);
-      append_bit(c_recessive, raw, raw_len);
-      append(id_full(c_llc_id_field_width - 1 - c_base_id_width downto
-                     c_llc_id_field_width - c_base_id_width - c_extended_id_width), raw, raw_len);
-      append_bit(metadata.ftyp, raw, raw_len);
-      append_bit(c_dominant, raw, raw_len);
-      arb_end_raw := raw_len - 1;  -- R1 is first control-field bit
-      append_bit(c_dominant, raw, raw_len);  -- R0 appended after capturing arb_end_raw
-    end if;
-
-    append(frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end), raw, raw_len);
-    for i in 0 to dlc_to_data_length(to_integer(unsigned(metadata.dlc)), '0') - 1 loop
-      append(frame(c_llc_frame_data_byte + i), raw, raw_len);
-    end loop;
-
-    --------------------------------------------------------------------------
-    -- Step 2: Compute CRC-15 from raw bits (pre-stuff), append to raw
-    --------------------------------------------------------------------------
-    crc := f_calc_can_crc(raw(0 to raw_len - 1), c_crc_init_15_vec, c_crc_poly_15_vec);
-    append(crc, raw, raw_len);
-
-    --------------------------------------------------------------------------
-    -- Step 3: Emit raw stream with dynamic stuffing, track arb_end
-    --------------------------------------------------------------------------
-    for i in 0 to raw_len - 1 loop
-      dynamic_bit_stuffer_feed(raw(i), consec, last_pol, ds_count, result);
-      if not arb_done and i = arb_end_raw then
-        result.arb_end := result.len - 1;
-        arb_done       := true;
-      end if;
-    end loop;
-
-    --------------------------------------------------------------------------
-    -- Step 4: Recessive tail (CRC delim, ACK slot, ACK delim, EOF, IFS)
-    --------------------------------------------------------------------------
-    result.ack_pos := result.len + c_ack_slot_offset;
-    tail_len := c_eof_start_offset + c_eof_field_width + c_intermission_width;
-    if is_passive then
-      tail_len := tail_len + c_suspend_transmission_width;
-    end if;
-    for i in 0 to tail_len - 1 loop
-      emit(c_recessive, result);
-    end loop;
-
-    return result;
-  end function build_cc_stream;
-  ----------------------------------------------------------------------------
-
-  ----------------------------------------------------------------------------
-  -- build_fd_stream: build raw fields -> stuff -> SBC -> CRC -> FSB-insert -> tail
-  ----------------------------------------------------------------------------
-  function build_fd_stream (frame : t_llc_frame; metadata : t_llc_metadata; is_passive : boolean := false) return t_bus_stream is
-    -- Raw bit array before stuffing (SOF + fields, no CRC)
-    variable raw         : std_logic_vector(0 to c_max_bus_bits - 1);
-    variable raw_len     : natural := 0;
-    variable arb_end_raw : natural;
-    variable fdf_raw     : natural;
-    variable esi_raw     : natural;
-    variable id_full     : std_logic_vector(c_llc_id_field_width - 1 downto 0);
-    -- CRC and SBC
-    variable frame_params : t_frame_params;
-    variable crc          : std_logic_vector(c_crc_21_length - 1 downto 0) := (others => '0');
-    variable crc_len_nat  : natural;
-    variable sbc          : std_logic_vector(c_sbc_field_width - 1 downto 0);
-    variable gray         : std_logic_vector(2 downto 0);
-    variable crc_input    : std_logic_vector(0 to c_max_bus_bits - 1);
-    variable crc_in_len   : natural;
-    variable stuffed_len  : natural;
-    -- FSB-interleaved CRC region payload (SBC & CRC, no FSBs)
-    variable payload      : std_logic_vector(0 to c_sbc_field_width + c_crc_21_length - 1);
-    variable pi           : natural;
-    -- Output stream and stuffer state
-    variable result       : t_bus_stream;
-    variable consec       : natural range 0 to c_stuff_width := 0;
-    variable last_pol     : std_logic := c_recessive;
-    variable ds_count     : unsigned(2 downto 0) := (others => '0');
-    variable arb_done     : boolean := false;
-    variable tail_len     : natural;
-
-  begin
-    result.len              := 0;
-    result.ack_pos          := 0;
-    result.arb_end          := 0;
-    result.fdf_pos          := -1;
-    result.data_phase_start := -1;
-    result.data_phase_end   := -1;
-
-    --------------------------------------------------------------------------
-    -- Step 1: Build raw frame fields (SOF, ID, control, data)
-    --------------------------------------------------------------------------
-    id_full := frame(2) & frame(3) & frame(4) & frame(5);
-
-    append_bit(c_dominant, raw, raw_len);
-    append(id_full(c_llc_id_field_width - 1 downto c_llc_id_field_width - c_base_id_width), raw, raw_len);
-
-    if metadata.ide = '0' then
-      -- FD basic: RRS=dom | IDE=dom | FDF=rec | RES=dom | BRS | ESI
-      arb_end_raw := c_fb_rrs;
-      fdf_raw     := c_fb_fdf;
-      esi_raw     := c_fb_esi;
-      append_bit(c_dominant, raw, raw_len);    -- RRS
-      append_bit(c_dominant, raw, raw_len);    -- IDE = dominant (basic)
-      append_bit(c_recessive, raw, raw_len);   -- FDF = recessive (marks FD frame)
-      append_bit(c_dominant, raw, raw_len);    -- RES
-      append_bit(metadata.brs, raw, raw_len);  -- BRS
-      append_bit(metadata.esi, raw, raw_len);  -- ESI
-    else
-      -- FD extended: SRR=rec | IDE=rec | ext_id(18) | RRS=dom | FDF=rec | RES=dom | BRS | ESI
-      arb_end_raw := c_fe_rrs;
-      fdf_raw     := c_fe_fdf;
-      esi_raw     := c_fe_esi;
-      append_bit(c_recessive, raw, raw_len);   -- SRR
-      append_bit(c_recessive, raw, raw_len);   -- IDE = recessive (extended)
-      append(id_full(c_llc_id_field_width - 1 - c_base_id_width downto
-                     c_llc_id_field_width - c_base_id_width - c_extended_id_width), raw, raw_len);
-      append_bit(c_dominant, raw, raw_len);    -- RRS
-      append_bit(c_recessive, raw, raw_len);   -- FDF
-      append_bit(c_dominant, raw, raw_len);    -- RES
-      append_bit(metadata.brs, raw, raw_len);  -- BRS
-      append_bit(metadata.esi, raw, raw_len);  -- ESI
-    end if;
-
-    append(frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end), raw, raw_len);
-    for i in 0 to dlc_to_data_length(to_integer(unsigned(metadata.dlc)), '1') - 1 loop
-      append(frame(c_llc_frame_data_byte + i), raw, raw_len);
-    end loop;
-
-    --------------------------------------------------------------------------
-    -- Step 2: Stuff raw fields, track ds_count and position markers
-    --------------------------------------------------------------------------
-    for i in 0 to raw_len - 1 loop
-      dynamic_bit_stuffer_feed(raw(i), consec, last_pol, ds_count, result);
-      if not arb_done and i = arb_end_raw then
-        result.arb_end := result.len - 1;
-        arb_done       := true;
-      end if;
-      if i = fdf_raw then
-        result.fdf_pos := result.len - 1;
-      end if;
-      if i = esi_raw and metadata.brs = '1' then
-        result.data_phase_start := result.len - 1;
-      end if;
-    end loop;
-    stuffed_len := result.len;  -- stuffed data phase ends here
-
-    --------------------------------------------------------------------------
-    -- Step 3: Compute SBC from ds_count
-    --------------------------------------------------------------------------
-    gray := f_to_gray(std_logic_vector(ds_count));
-    sbc  := gray & f_calc_parity(gray);
-
-    --------------------------------------------------------------------------
-    -- Step 4: Build CRC input (stuffed bits + SBC), compute CRC-17 or CRC-21
-    --------------------------------------------------------------------------
-    frame_params := get_frame_params(metadata);
-
-    crc_input(0 to stuffed_len - 1) := result.bits(0 to stuffed_len - 1);
-    crc_in_len := stuffed_len;
-    for i in c_sbc_field_width - 1 downto 0 loop
-      crc_input(crc_in_len) := sbc(i);
-      crc_in_len            := crc_in_len + 1;
-    end loop;
-
-    case frame_params.crc_poly_select is
-      when "01" =>
-        crc_len_nat := c_crc_17_length;
-        crc(c_crc_21_length - 1 downto c_crc_21_length - c_crc_17_length) :=
-          f_calc_can_crc(crc_input(0 to crc_in_len - 1), c_crc_init_17_vec, c_crc_poly_17_vec);
-      when others =>
-        crc_len_nat := c_crc_21_length;
-        crc         :=
-          f_calc_can_crc(crc_input(0 to crc_in_len - 1), c_crc_init_21_vec, c_crc_poly_21_vec);
-    end case;
-
-    --------------------------------------------------------------------------
-    -- Step 5: Build payload = SBC & CRC (MSB first, no FSBs)
-    --------------------------------------------------------------------------
-    for i in 0 to c_sbc_field_width - 1 loop
-      payload(i) := sbc(c_sbc_field_width - 1 - i);
-    end loop;
-    for i in 0 to crc_len_nat - 1 loop
-      payload(c_sbc_field_width + i) := crc(c_crc_21_length - 1 - i);
-    end loop;
-
-    --------------------------------------------------------------------------
-    -- Step 6: Emit FSB-interleaved CRC region
-    --   Every 5th position (mod c_stuff_width = 0) is a fixed stuff bit.
-    --   All other positions emit the next payload bit.
-    --------------------------------------------------------------------------
-    pi := 0;
-    for pos in frame_params.data_stop to frame_params.crc_delimiter - 1 loop
-      if (pos - frame_params.data_stop) mod c_stuff_width = 0 then
-        emit(not last_pol, result);
-        last_pol := not last_pol;
-      else
-        emit(payload(pi), result);
-        last_pol := payload(pi);
-        pi       := pi + 1;
-      end if;
-    end loop;
-
-    if result.data_phase_start >= 0 then
-      result.data_phase_end := result.len - 1;
-    end if;
-
-    --------------------------------------------------------------------------
-    -- Step 7: Recessive tail (CRC delim, ACK slot, ACK delim, EOF, IFS)
-    --------------------------------------------------------------------------
-    result.ack_pos := result.len + c_ack_slot_offset;
-    tail_len := c_eof_start_offset + c_eof_field_width + c_intermission_width;
-    if is_passive then
-      tail_len := tail_len + c_suspend_transmission_width;
-    end if;
-    for i in 0 to tail_len - 1 loop
-      emit(c_recessive, result);
-    end loop;
-
-    return result;
-  end function build_fd_stream;
-  ----------------------------------------------------------------------------
-
-  ----------------------------------------------------------------------------
-  -- build_bus_stream: stream dispatcher
-  ----------------------------------------------------------------------------
-  function build_bus_stream (frame : t_llc_frame; metadata : t_llc_metadata; is_passive : boolean := false) return t_bus_stream is
-  begin
-    if metadata.fdf = '1' then
-      return build_fd_stream(frame, metadata, is_passive);
-    else
-      return build_cc_stream(frame, metadata, is_passive);
-    end if;
-  end function build_bus_stream;
-  ----------------------------------------------------------------------------
 
   ----------------------------------------------------------------------------
   -- Random frame and expected bus stream generator
@@ -764,7 +441,7 @@ begin
     variable v_sp_active           : boolean := false;
     variable v_checking            : boolean := false;
     variable v_burst_check_pending : boolean := false;
-    variable v_sp_count            : natural range 0 to c_sp_interval - 1 := 0;
+    variable v_tq_count            : natural range 0 to c_bit_time - 1 := 0;
 
     -- Data-phase info (latched from signals at SEND_ASYNC)
     variable v_fdf_pos          : integer := -1;
@@ -811,46 +488,55 @@ begin
       wait until rising_edge(clk);
 
       --------------------------------------------------------------------------
-      -- Continuous: SP strobe generation with bus loopback/override
+      -- Bit time model (ISO 7.3.2):
+      --   TQ 0                          : sync_seg  (bit boundary)
+      --   TQ 1 .. c_prop_seg            : prop_seg
+      --   TQ c_prop_seg+1 .. c_sp_tq-1  : phase_seg1
+      --   TQ c_sp_tq                     : SP (sample point)
+      --   TQ c_sp_tq+1 .. c_bit_time-1   : phase_seg2
       --------------------------------------------------------------------------
-      pcs_i.sp <= '0';
+      pcs_i.sp  <= '0';
+      pcs_i.ssp <= '0';
+
       if (v_sp_active) then
-        if (v_sp_count = c_sp_interval - 1) then
-          -- Inject types that inject errors by flipping polarity at SP
-          if (bus_override_en and (v_subtype  = c_inj_error or v_subtype = c_inj_reactive_overload or v_subtype = c_inj_error_delim_too_late)) then
-            pcs_i.bus_polarity <= not pcs_o.polarity;
-          elsif (bus_override_en) then
-            -- Else pass the override polarity
+        -- Bit boundary (sync_seg): latch pcs_o.polarity for loopback
+        if (v_tq_count = 0) then
+          if (bus_override_en and not (v_subtype = c_inj_error or v_subtype = c_inj_reactive_overload or v_subtype = c_inj_error_delim_too_late)) then
             pcs_i.bus_polarity <= bus_override;
           else
-            -- Else loop back the bit polarity from the MAC fsm
             pcs_i.bus_polarity <= pcs_o.polarity;
           end if;
+        end if;
+
+        -- Sample point
+        if (v_tq_count = c_sp_tq) then
+          -- Error injection types that flip polarity at SP
+          if (bus_override_en and (v_subtype = c_inj_error or v_subtype = c_inj_reactive_overload or v_subtype = c_inj_error_delim_too_late)) then
+            pcs_i.bus_polarity <= not pcs_o.polarity;
+          end if;
           pcs_i.sp <= '1';
-          v_sp_count := 0;
+        end if;
+
+        -- Advance TQ counter
+        if (v_tq_count = c_bit_time - 1) then
+          v_tq_count := 0;
         else
-          v_sp_count := v_sp_count + 1;
+          v_tq_count := v_tq_count + 1;
         end if;
       end if;
 
-      --NOTE: SSP is not modelled, just held low...
-      pcs_i.ssp <= '0';
-
       --------------------------------------------------------------------------
-      -- Bit checking: pop-and-compare on each SP (incl. IFS)
+      -- Bit checking: pop-and-compare at SP.
       --------------------------------------------------------------------------
       if (v_checking) then
-        if (pcs_i.sp = '1' and (pcs_o.valid = '1' or v_bus_idx > 0)) then
-          v_expected_bit := Pop(pcs_rec.BurstFifo)(0); -- Pop expected bit from fifo
-          -- Check bit polarity from MAC fsm
-          AffirmIfEqual(stream_check_id, pcs_o.polarity, v_expected_bit, "Bit: Got/Expected = " & to_string(pcs_o.polarity) & "/" & to_string(v_expected_bit));
-          -- Check use_data_rate
+        if (v_tq_count = c_sp_tq + 1 and (pcs_o.valid = '1' or v_bus_idx > 0)) then
+          v_expected_bit := Pop(pcs_rec.BurstFifo)(0);
+          AffirmIfEqual(stream_check_id, pcs_o.polarity, v_expected_bit, "idx=" & to_string(v_bus_idx) & " Bit: Got/Expected = " & to_string(pcs_o.polarity) & "/" & to_string(v_expected_bit));
           if (v_data_phase_start >= 0 and v_bus_idx >= v_data_phase_start and v_bus_idx <= v_data_phase_end) then
-            AffirmIfEqual(stream_check_id, pcs_o.use_data_rate, '1', "pcs_o.use_data_rate: Got/Expected = " & to_string(pcs_o.use_data_rate) & "/" & '1');
+            AffirmIfEqual(stream_check_id, pcs_o.use_data_rate, '1', "idx=" & to_string(v_bus_idx) & " pcs_o.use_data_rate: Got/Expected = " & to_string(pcs_o.use_data_rate) & "/1 dps=" & to_string(v_data_phase_start) & " dpe=" & to_string(v_data_phase_end));
           else
-            AffirmIfEqual(stream_check_id, pcs_o.use_data_rate, '0', "pcs_o.use_data_rate: Got/Expected = " & to_string(pcs_o.use_data_rate) & "/" & '0');
+            AffirmIfEqual(stream_check_id, pcs_o.use_data_rate, '0', "idx=" & to_string(v_bus_idx) & " pcs_o.use_data_rate: Got/Expected = " & to_string(pcs_o.use_data_rate) & "/0 dps=" & to_string(v_data_phase_start) & " dpe=" & to_string(v_data_phase_end));
           end if;
-          -- Check start_tdc (single pulse at FDF bit)
           if (v_fdf_pos >= 0 and v_bus_idx = v_fdf_pos) then
             AffirmIfEqual(stream_check_id, pcs_o.start_tdc, '1', "pcs_o.start_tdc: Got/Expected = " & to_string(pcs_o.start_tdc) & "/" & '1');
           else
@@ -859,7 +545,6 @@ begin
           v_bus_idx := v_bus_idx + 1;
           arm_bus_injection;
         end if;
-        -- Finish transaction when scoreboard is empty
         if (v_bus_idx > 0 and Empty(pcs_rec.BurstFifo)) then
           bus_override_en <= false;
           v_checking      := false;
@@ -879,7 +564,7 @@ begin
             v_subtype := to_integer(unsigned(pcs_rec.DataToModel));
             if (v_subtype = c_pcs_active) then
               v_sp_active := true;
-              v_sp_count  := 0;
+              v_tq_count  := 0;
               v_bus_idx   := 0;
             else
               v_inject_pos   := to_integer(unsigned(pcs_rec.ParamToModel));

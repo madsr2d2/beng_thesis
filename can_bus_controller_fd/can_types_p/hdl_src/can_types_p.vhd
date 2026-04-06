@@ -338,28 +338,24 @@ package pk_can_types is
     ready           => '0'
   );
 
-  -- RX FSM -> Deserializer (FSM is source, deser is destination)
-  type t_can_mac_fsm_deser_if_s2d is record
-    data         : std_logic;
-    valid        : std_logic;
-    llc_metadata : t_llc_metadata;
-  end record t_can_mac_fsm_deser_if_s2d;
+  -- MAC RX -> LLC RX (source to destination, Avalon-ST byte stream)
+  type t_can_llc_mac_rx_if_s2d is record
+    avalon_st_source : pk_eth_st.t_eth_st_s2d;
+  end record t_can_llc_mac_rx_if_s2d;
 
-  constant c_fsm_deser_if_s2d_reset : t_can_mac_fsm_deser_if_s2d :=
+  constant c_mac_rx_to_llc_if_reset : t_can_llc_mac_rx_if_s2d :=
   (
-    data         => 'U',
-    valid        => '0',
-    llc_metadata => c_llc_metadata_reset
+    avalon_st_source => (data => (others => '0'), valid => '0', startofpacket => '0', endofpacket => '0')
   );
 
-  -- RX Deserializer -> FSM (backpressure)
-  type t_can_mac_fsm_deser_if_d2s is record
-    ready : std_logic;
-  end record t_can_mac_fsm_deser_if_d2s;
+  -- LLC RX -> MAC RX (destination to source, backpressure)
+  type t_can_llc_mac_rx_if_d2s is record
+    avalon_st_sink : pk_eth_st.t_eth_st_d2s;
+  end record t_can_llc_mac_rx_if_d2s;
 
-  constant c_fsm_deser_if_d2s_reset : t_can_mac_fsm_deser_if_d2s :=
+  constant c_llc_to_mac_rx_if_reset : t_can_llc_mac_rx_if_d2s :=
   (
-    ready => '0'
+    avalon_st_sink => (ready => '0')
   );
 
   -- LLC -> MAC
@@ -427,12 +423,14 @@ package pk_can_types is
   type t_can_mac_fsm_bs_if_m2s is record
     data  : std_logic;
     valid : std_logic;
+    fsb_en: std_logic;
   end record t_can_mac_fsm_bs_if_m2s;
 
   constant c_mac_fsm_to_bs_fd_if_reset : t_can_mac_fsm_bs_if_m2s :=
   (
     data  => c_recessive,
-    valid => '0'
+    valid => '0',
+    fsb_en => '0'
   );
 
   -- Bit Stuffer -> FSM (ISO 6.6.13)
@@ -452,15 +450,19 @@ package pk_can_types is
   -- FSM -> CRC (ISO 6.6.4.4)
   type t_can_mac_fsm_crc_if_m2s is record
     crc_poly_select : std_logic_vector(1 downto 0);
-    valid           : std_logic;
-    data            : std_logic;
+    valid_cc           : std_logic;
+    valid_fd        : std_logic;
+    data_cc         : std_logic;
+    data_fd         : std_logic;
   end record t_can_mac_fsm_crc_if_m2s;
 
   constant c_mac_fsm_to_crc_if_reset : t_can_mac_fsm_crc_if_m2s :=
   (
     crc_poly_select => (others => '0'),
-    valid           => '0',
-    data            => '0'
+    valid_cc           => '0',
+    valid_fd        => '0',
+    data_cc         => '0',
+    data_fd         => '0'
   );
 
   -- CRC -> FSM
@@ -571,6 +573,11 @@ package pk_can_types is
 
   -- Internal LLC frame
   constant c_internal_llc_frame_len : natural := 70;
+  constant c_conf_0_offset : natural := 0;
+  constant c_conf_1_offset : natural := 1;
+  constant c_id_offset : natural := 2;
+  constant c_data_offset : natural := 6;
+
   type     t_llc_frame is array (0 to c_internal_llc_frame_len - 1) of std_logic_vector(c_byte_width - 1 downto 0);
 
   -- Legacy frame
@@ -645,6 +652,28 @@ package pk_can_types is
   -- Extract LLC metadata from config bytes 0 and 1
   function extract_metadata (config_byte_0 :std_logic_vector; config_byte_1 :std_logic_vector) return t_llc_metadata;
 
+  -- Bus stream reference model: generates expected CAN bus bitstream from LLC frame
+  constant c_max_bus_bits : natural := 1024;
+
+  type t_bus_stream is record
+    bits             : std_logic_vector(0 to c_max_bus_bits - 1);
+    len              : integer;
+    ack_pos          : integer;
+    arb_end          : integer;
+    fdf_pos          : integer;
+    data_phase_start : integer;
+    data_phase_end   : integer;
+  end record t_bus_stream;
+
+  procedure append (v : std_logic_vector; raw : inout std_logic_vector; raw_len : inout natural);
+  procedure append_bit (b : std_logic; raw : inOut std_logic_vector; raw_len : inOut natural);
+  procedure emit (pol : std_logic; stream : inOut t_bus_stream);
+  procedure dynamic_bit_stuffer_feed (pol : std_logic; consec : inOut natural; last_pol : inOut std_logic; ds_count : inOut unsigned(2 downto 0); stream : inOut t_bus_stream);
+
+  function build_cc_stream (frame : t_llc_frame; metadata : t_llc_metadata; is_passive : boolean := false) return t_bus_stream;
+  function build_fd_stream (frame : t_llc_frame; metadata : t_llc_metadata; is_passive : boolean := false) return t_bus_stream;
+  function build_bus_stream (frame : t_llc_frame; metadata : t_llc_metadata; is_passive : boolean := false) return t_bus_stream;
+
 end package pk_can_types;
 
 package body pk_can_types is
@@ -679,7 +708,6 @@ package body pk_can_types is
     crc               : std_logic_vector
   ) return t_mac_frame_bit is
     variable v_pos_in_field : natural range 0 to c_max_mac_frame_length;
-    variable v_fsb_count  : natural range 0 to c_max_mac_frame_length;
   begin
     -- Arbitration and control bits per format (ISO 11898-1, Figure 2)
     if (metadata.ide = '0' and metadata.fdf = '0') then
@@ -771,30 +799,15 @@ package body pk_can_types is
       return (bit_name => data_bit, polarity => ser_data);
     end if;
 
-    -- CRC region (ISO 6.6.13.3.1)
-    -- CC: plain CRC-15, no stuff bits.
-    -- FD: FSB + SBC(3..0) + [FSB + 4 CRC bits + FSB + 4 CRC bits ...]
-    if (bit_count >= frame_params.data_stop and bit_count < frame_params.crc_delimiter) then
-      if (metadata.fdf = '1') then -- FD format
-        v_pos_in_field := bit_count - frame_params.data_stop;
-        -- Fixed stuff bit at every 5th position (including the initial one)
-        if ((v_pos_in_field mod c_stuff_width) = 0) then
-          return (bit_name => fixed_stuff_bit, polarity => not previous_polarity);
-        -- SBC region: positions 1-4 (between initial FSB and crc_start).
-        -- pos_in_field - 1 compensates for the initial FSB at position 0.
-        elsif (bit_count < frame_params.crc_start) then
-          return (bit_name => sbs_bit, polarity => sbc((c_sbc_field_width - 1) - (v_pos_in_field - 1)));
-        -- CRC data: subtract FSBs to get the CRC vector index.
-        else
-          v_pos_in_field := bit_count - frame_params.crc_start;
-          -- Calculate the number of fixed stuff bits up to this position in the CRC filed
-          v_fsb_count  := (c_sbc_field_width + v_pos_in_field) / c_stuff_width;
-          return (bit_name => crc_bit, polarity => crc((c_crc_21_length - 1) + (v_fsb_count - v_pos_in_field)));
-        end if;
-      else
-        -- CC: direct CRC-15 indexing, no stuff bits
-        return (bit_name => crc_bit, polarity => crc((c_crc_21_length - 1) - (bit_count - frame_params.crc_start)));
-      end if;
+    -- SBC field (FD only, ISO 6.6.11.5): between data_stop and crc_start.
+    -- FSB interleaving is handled by can_mac_bs (fsb_en mode), not here.
+    if (metadata.fdf = '1' and bit_count >= frame_params.data_stop and bit_count < frame_params.crc_start) then
+      return (bit_name => sbs_bit, polarity => sbc((c_sbc_field_width - 1) - (bit_count - frame_params.data_stop)));
+    end if;
+
+    -- CRC field (CC and FD): direct indexing, no FSB offsets
+    if (bit_count >= frame_params.crc_start and bit_count < frame_params.crc_delimiter) then
+      return (bit_name => crc_bit, polarity => crc((c_crc_21_length - 1) - (bit_count - frame_params.crc_start)));
     end if;
 
     -- CRC delimiter, ACK, EOF
@@ -849,10 +862,9 @@ package body pk_can_types is
     -- ISO 6.6.13.3.1: FSB before SBC, then 4 SBC bits, then CRC with FSBs
     if (metadata.fdf = '1') then
       v_result.dynamic_stuff_stop := v_result.data_stop;
-      -- crc_start: skip initial FSB in SBC field and 4 SBC data bits
-      v_result.crc_start := v_result.data_stop + (1 + c_sbc_field_width);
-      -- crc_delimiter = Initial FSB + crc_start + crc_length + floor((sbc_width + crc_length) / stuff_width)
-      v_result.crc_delimiter := 1 + v_result.crc_start + v_crc_length + ((c_sbc_field_width + v_crc_length) / c_stuff_width);
+      -- SBC field immediately follows data (FSBs handled by can_mac_bs)
+      v_result.crc_start := v_result.data_stop + c_sbc_field_width;
+      v_result.crc_delimiter := v_result.crc_start + v_crc_length;
     else
       v_result.crc_start          := v_result.data_stop;
       v_result.crc_delimiter      := v_result.crc_start + v_crc_length;
@@ -959,6 +971,286 @@ package body pk_can_types is
     v_result.dlc  := config_byte_1(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
     return v_result;
   end function extract_metadata;
+
+  ---------------------------------------------------------------------------
+  -- Bus stream reference model helpers
+  ---------------------------------------------------------------------------
+  procedure append (v : std_logic_vector; raw : inout std_logic_vector; raw_len : inOut natural) is
+    variable va : std_logic_vector(v'length - 1 downto 0) := v;
+  begin
+    for i in va'length - 1 downto 0 loop
+      raw(raw_len) := va(i);
+      raw_len      := raw_len + 1;
+    end loop;
+  end procedure append;
+
+  procedure append_bit (b : std_logic; raw : inOut std_logic_vector; raw_len : inOut natural) is
+  begin
+    raw(raw_len) := b;
+    raw_len      := raw_len + 1;
+  end procedure append_bit;
+
+  procedure emit (pol : std_logic; stream : inOut t_bus_stream) is
+  begin
+    stream.bits(stream.len) := pol;
+    stream.len              := stream.len + 1;
+  end procedure emit;
+
+  procedure dynamic_bit_stuffer_feed (pol : std_logic; consec : inOut natural; last_pol : inOut std_logic; ds_count : inOut unsigned(2 downto 0); stream : inOut t_bus_stream) is
+  begin
+    emit(pol, stream);
+    if pol = last_pol then
+      consec := consec + 1;
+      if consec = c_stuff_width then
+        emit(not pol, stream);
+        consec    := 1;
+        last_pol  := not pol;
+        ds_count  := ds_count + 1;
+      end if;
+    else
+      consec   := 1;
+      last_pol := pol;
+    end if;
+  end procedure dynamic_bit_stuffer_feed;
+
+  ---------------------------------------------------------------------------
+  -- build_cc_stream: build raw fields -> CRC-15 -> stuff -> tail
+  ---------------------------------------------------------------------------
+  function build_cc_stream (frame : t_llc_frame; metadata : t_llc_metadata; is_passive : boolean := false) return t_bus_stream is
+    variable raw         : std_logic_vector(0 to c_max_bus_bits - 1);
+    variable raw_len     : natural := 0;
+    variable arb_end_raw : natural;
+    variable id_full     : std_logic_vector(c_llc_id_field_width - 1 downto 0);
+    variable crc         : std_logic_vector(c_crc_15_length - 1 downto 0);
+    variable result      : t_bus_stream;
+    variable consec      : natural range 0 to c_stuff_width := 0;
+    variable last_pol    : std_logic := c_recessive;
+    variable ds_count    : unsigned(2 downto 0) := (others => '0');
+    variable arb_done    : boolean := false;
+    variable tail_len    : natural;
+  begin
+    result.len              := 0;
+    result.ack_pos          := 0;
+    result.arb_end          := 0;
+    result.fdf_pos          := -1;
+    result.data_phase_start := -1;
+    result.data_phase_end   := -1;
+
+    id_full := frame(2) & frame(3) & frame(4) & frame(5);
+    append_bit(c_dominant, raw, raw_len);
+    append(id_full(c_llc_id_field_width - 1 downto (c_llc_id_field_width - c_base_id_width)), raw, raw_len);
+
+    if metadata.ide = '0' then
+      append_bit(metadata.ftyp, raw, raw_len);
+      append_bit(c_dominant, raw, raw_len);
+      append_bit(c_dominant, raw, raw_len);
+      arb_end_raw := raw_len - 1;
+    else
+      append_bit(c_recessive, raw, raw_len);
+      append_bit(c_recessive, raw, raw_len);
+      append(id_full(c_llc_id_field_width - 1 - c_base_id_width downto
+                     c_llc_id_field_width - c_base_id_width - c_extended_id_width), raw, raw_len);
+      append_bit(metadata.ftyp, raw, raw_len);
+      append_bit(c_dominant, raw, raw_len);
+      arb_end_raw := raw_len - 1;
+      append_bit(c_dominant, raw, raw_len);
+    end if;
+
+    append(frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end), raw, raw_len);
+    for i in 0 to dlc_to_data_length(to_integer(unsigned(metadata.dlc)), '0') - 1 loop
+      append(frame(c_llc_frame_data_byte + i), raw, raw_len);
+    end loop;
+
+    crc := f_calc_can_crc(raw(0 to raw_len - 1), c_crc_init_15_vec, c_crc_poly_15_vec);
+    append(crc, raw, raw_len);
+
+    for i in 0 to raw_len - 1 loop
+      dynamic_bit_stuffer_feed(raw(i), consec, last_pol, ds_count, result);
+      if not arb_done and i = arb_end_raw then
+        result.arb_end := result.len - 1;
+        arb_done       := true;
+      end if;
+    end loop;
+
+    result.ack_pos := result.len + c_ack_slot_offset;
+    tail_len := c_eof_start_offset + c_eof_field_width + c_intermission_width;
+    if is_passive then
+      tail_len := tail_len + c_suspend_transmission_width;
+    end if;
+    for i in 0 to tail_len - 1 loop
+      emit(c_recessive, result);
+    end loop;
+
+    return result;
+  end function build_cc_stream;
+
+  ---------------------------------------------------------------------------
+  -- build_fd_stream: build raw fields -> stuff -> SBC -> CRC -> FSB -> tail
+  ---------------------------------------------------------------------------
+  function build_fd_stream (frame : t_llc_frame; metadata : t_llc_metadata; is_passive : boolean := false) return t_bus_stream is
+    variable raw          : std_logic_vector(0 to c_max_bus_bits - 1);
+    variable raw_len      : natural := 0;
+    variable arb_end_raw  : natural;
+    variable fdf_raw      : natural;
+    variable esi_raw      : natural;
+    variable id_full      : std_logic_vector(c_llc_id_field_width - 1 downto 0);
+    variable frame_params : t_frame_params;
+    variable crc          : std_logic_vector(c_crc_21_length - 1 downto 0) := (others => '0');
+    variable crc_len_nat  : natural;
+    variable sbc          : std_logic_vector(c_sbc_field_width - 1 downto 0);
+    variable gray         : std_logic_vector(2 downto 0);
+    variable crc_input    : std_logic_vector(0 to c_max_bus_bits - 1);
+    variable crc_in_len   : natural;
+    variable stuffed_len  : natural;
+    variable payload      : std_logic_vector(0 to c_sbc_field_width + c_crc_21_length - 1);
+    variable pi           : natural;
+    variable result       : t_bus_stream;
+    variable consec       : natural range 0 to c_stuff_width := 0;
+    variable last_pol     : std_logic := c_recessive;
+    variable ds_count     : unsigned(2 downto 0) := (others => '0');
+    variable arb_done     : boolean := false;
+    variable tail_len     : natural;
+    variable fsb_pos      : natural;
+    variable pre_last_len : natural;
+  begin
+    result.len              := 0;
+    result.ack_pos          := 0;
+    result.arb_end          := 0;
+    result.fdf_pos          := -1;
+    result.data_phase_start := -1;
+    result.data_phase_end   := -1;
+
+    id_full := frame(2) & frame(3) & frame(4) & frame(5);
+    append_bit(c_dominant, raw, raw_len);
+    append(id_full(c_llc_id_field_width - 1 downto c_llc_id_field_width - c_base_id_width), raw, raw_len);
+
+    if metadata.ide = '0' then
+      arb_end_raw := c_fb_rrs;
+      fdf_raw     := c_fb_fdf;
+      esi_raw     := c_fb_esi;
+      append_bit(c_dominant, raw, raw_len);
+      append_bit(c_dominant, raw, raw_len);
+      append_bit(c_recessive, raw, raw_len);
+      append_bit(c_dominant, raw, raw_len);
+      append_bit(metadata.brs, raw, raw_len);
+      append_bit(metadata.esi, raw, raw_len);
+    else
+      arb_end_raw := c_fe_rrs;
+      fdf_raw     := c_fe_fdf;
+      esi_raw     := c_fe_esi;
+      append_bit(c_recessive, raw, raw_len);
+      append_bit(c_recessive, raw, raw_len);
+      append(id_full(c_llc_id_field_width - 1 - c_base_id_width downto
+                     c_llc_id_field_width - c_base_id_width - c_extended_id_width), raw, raw_len);
+      append_bit(c_dominant, raw, raw_len);
+      append_bit(c_recessive, raw, raw_len);
+      append_bit(c_dominant, raw, raw_len);
+      append_bit(metadata.brs, raw, raw_len);
+      append_bit(metadata.esi, raw, raw_len);
+    end if;
+
+    append(frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end), raw, raw_len);
+    for i in 0 to dlc_to_data_length(to_integer(unsigned(metadata.dlc)), '1') - 1 loop
+      append(frame(c_llc_frame_data_byte + i), raw, raw_len);
+    end loop;
+
+    for i in 0 to raw_len - 1 loop
+      pre_last_len := result.len;
+      dynamic_bit_stuffer_feed(raw(i), consec, last_pol, ds_count, result);
+      if not arb_done and i = arb_end_raw then
+        result.arb_end := result.len - 1;
+        arb_done       := true;
+      end if;
+      if i = fdf_raw then
+        result.fdf_pos := result.len - 1;
+      end if;
+      if i = esi_raw and metadata.brs = '1' then
+        result.data_phase_start := result.len - 1;
+      end if;
+    end loop;
+
+    -- ISO 6.6.13.3.1: if the last data bit triggered a dynamic stuff bit,
+    -- suppress it - "there shall be only the fixed stuff bit, there shall
+    -- not be two consecutive stuff bits."
+    if result.len - pre_last_len = 2 then
+      result.len := result.len - 1;
+      ds_count   := ds_count - 1;
+      last_pol   := result.bits(result.len - 1);
+    end if;
+
+    stuffed_len := result.len;
+
+    gray := f_to_gray(std_logic_vector(ds_count));
+    sbc  := gray & f_calc_parity(gray);
+
+    frame_params := get_frame_params(metadata);
+    crc_input(0 to stuffed_len - 1) := result.bits(0 to stuffed_len - 1);
+    crc_in_len := stuffed_len;
+    for i in c_sbc_field_width - 1 downto 0 loop
+      crc_input(crc_in_len) := sbc(i);
+      crc_in_len            := crc_in_len + 1;
+    end loop;
+
+    case frame_params.crc_poly_select is
+      when "01" =>
+        crc_len_nat := c_crc_17_length;
+        crc(c_crc_21_length - 1 downto c_crc_21_length - c_crc_17_length) :=
+          f_calc_can_crc(crc_input(0 to crc_in_len - 1), c_crc_init_17_vec, c_crc_poly_17_vec);
+      when others =>
+        crc_len_nat := c_crc_21_length;
+        crc         :=
+          f_calc_can_crc(crc_input(0 to crc_in_len - 1), c_crc_init_21_vec, c_crc_poly_21_vec);
+    end case;
+    -- Debug: REF FD CRC trace (disabled for speed)
+
+    for i in 0 to c_sbc_field_width - 1 loop
+      payload(i) := sbc(c_sbc_field_width - 1 - i);
+    end loop;
+    for i in 0 to crc_len_nat - 1 loop
+      payload(c_sbc_field_width + i) := crc(c_crc_21_length - 1 - i);
+    end loop;
+
+    pi      := 0;
+    fsb_pos := 0;
+    while pi < c_sbc_field_width + crc_len_nat loop
+      if fsb_pos mod c_stuff_width = 0 then
+        emit(not last_pol, result);
+        last_pol := not last_pol;
+      else
+        emit(payload(pi), result);
+        last_pol := payload(pi);
+        pi       := pi + 1;
+      end if;
+      fsb_pos := fsb_pos + 1;
+    end loop;
+
+    if result.data_phase_start >= 0 then
+      result.data_phase_end := result.len - 1;
+    end if;
+
+    result.ack_pos := result.len + c_ack_slot_offset;
+    tail_len := c_eof_start_offset + c_eof_field_width + c_intermission_width;
+    if is_passive then
+      tail_len := tail_len + c_suspend_transmission_width;
+    end if;
+    for i in 0 to tail_len - 1 loop
+      emit(c_recessive, result);
+    end loop;
+
+    return result;
+  end function build_fd_stream;
+
+  ---------------------------------------------------------------------------
+  -- build_bus_stream: stream dispatcher
+  ---------------------------------------------------------------------------
+  function build_bus_stream (frame : t_llc_frame; metadata : t_llc_metadata; is_passive : boolean := false) return t_bus_stream is
+  begin
+    if metadata.fdf = '1' then
+      return build_fd_stream(frame, metadata, is_passive);
+    else
+      return build_cc_stream(frame, metadata, is_passive);
+    end if;
+  end function build_bus_stream;
 
 end package body pk_can_types;
 

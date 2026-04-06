@@ -64,9 +64,9 @@ add wave -vgroup tx_mac_fsm_inst \
 	( -decimal /can_mac_tx_tb/u_dut/tx_mac_fsm_inst/mac_ser_o ) \
 	( -decimal /can_mac_tx_tb/u_dut/tx_mac_fsm_inst/pcs_i ) \
 	( -decimal /can_mac_tx_tb/u_dut/tx_mac_fsm_inst/pcs_o ) \
-	( -decimal /can_mac_tx_tb/u_dut/tx_mac_fsm_inst/bs_fd_i ) \
-	( -decimal /can_mac_tx_tb/u_dut/tx_mac_fsm_inst/bs_fd_o ) \
-	( -logic /can_mac_tx_tb/u_dut/tx_mac_fsm_inst/bs_fd_rst ) \
+	( -decimal /can_mac_tx_tb/u_dut/tx_mac_fsm_inst/bs_i ) \
+	( -decimal /can_mac_tx_tb/u_dut/tx_mac_fsm_inst/bs_o ) \
+	( -logic /can_mac_tx_tb/u_dut/tx_mac_fsm_inst/bs_rst ) \
 	( -decimal /can_mac_tx_tb/u_dut/tx_mac_fsm_inst/crc_i ) \
 	( -decimal /can_mac_tx_tb/u_dut/tx_mac_fsm_inst/crc_o ) \
 	( -logic /can_mac_tx_tb/u_dut/tx_mac_fsm_inst/crc_rst ) \
@@ -85,6 +85,7 @@ add wave -vgroup tx_mac_fsm_inst \
 	( -decimal /can_mac_tx_tb/u_dut/tx_mac_fsm_inst/dominant_run_count ) \
 	( -logic /can_mac_tx_tb/u_dut/tx_mac_fsm_inst/primary_error_sent ) \
 	( -logic /can_mac_tx_tb/u_dut/tx_mac_fsm_inst/skip_sof ) \
+	( -logic /can_mac_tx_tb/u_dut/tx_mac_fsm_inst/fsb_active ) \
 	( -decimal /can_mac_tx_tb/u_dut/tx_mac_fsm_inst/frame_params ) \
 	( -decimal /can_mac_tx_tb/u_dut/tx_mac_fsm_inst/bit_info )
 
@@ -96,7 +97,7 @@ add wave -vgroup bit_stuffer_fd_inst \
 	( -decimal /can_mac_tx_tb/u_dut/bit_stuffer_fd_inst/count ) \
 	( -logic /can_mac_tx_tb/u_dut/bit_stuffer_fd_inst/last_polarity ) \
 	( -literal /can_mac_tx_tb/u_dut/bit_stuffer_fd_inst/stuff_count ) \
-	( -logic /can_mac_tx_tb/u_dut/bit_stuffer_fd_inst/stuff_pending )
+	( -logic /can_mac_tx_tb/u_dut/bit_stuffer_fd_inst/fsb_en_latch )
 
 add wave -vgroup crc_fd_inst \
 	( -logic /can_mac_tx_tb/u_dut/crc_fd_inst/clk_i ) \
