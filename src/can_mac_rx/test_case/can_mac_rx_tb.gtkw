@@ -1,0 +1,183 @@
+[*]
+[*] GTKWave save file - auto-generated from can_mac_rx_tb.ghw
+[*]
+[dumpfile] "/home/madsr2d2/beng_thesis/sim/can_mac_rx_tb.ghw"
+[savefile] "/home/madsr2d2/beng_thesis/src/can_mac_rx/test_case/can_mac_rx_tb.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] 0 0
+*-28.000000 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.can_mac_rx_tb.
+[sst_width] 297
+[signals_width] 412
+[sst_expanded] 1
+[sst_vpaned_height] 434
+[treeopen] top.can_mac_rx_tb.u_dut.
+[treeopen] top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.
+[treeopen] top.can_mac_rx_tb.u_dut.bit_stuffer_inst.
+[treeopen] top.can_mac_rx_tb.u_dut.crc_inst.
+@c00200
+-TB Signals
+@28
+top.can_mac_rx_tb.clk
+@28
+top.can_mac_rx_tb.reset
+@420
+top.can_mac_rx_tb.llc_i
+@420
+top.can_mac_rx_tb.llc_o
+@420
+top.can_mac_rx_tb.pcs_i
+@420
+top.can_mac_rx_tb.pcs_o
+@420
+top.can_mac_rx_tb.fce_i
+@420
+top.can_mac_rx_tb.fce_o
+@420
+top.can_mac_rx_tb.test_id
+@420
+top.can_mac_rx_tb.check_id
+@28
+top.can_mac_rx_tb.init_barrier
+@420
+top.can_mac_rx_tb.pcs_stream
+@28
+top.can_mac_rx_tb.pcs_start
+@28
+top.can_mac_rx_tb.pcs_done
+@420
+top.can_mac_rx_tb.llc_frame_rx
+@420
+top.can_mac_rx_tb.llc_frame_len
+@28
+top.can_mac_rx_tb.llc_rx_done
+@1401200
+-TB Signals
+@c00200
+-u_dut Internals
+@28
+top.can_mac_rx_tb.u_dut.clk
+@28
+top.can_mac_rx_tb.u_dut.rst
+@420
+top.can_mac_rx_tb.u_dut.llc_i
+@420
+top.can_mac_rx_tb.u_dut.llc_o
+@420
+top.can_mac_rx_tb.u_dut.pcs_i
+@420
+top.can_mac_rx_tb.u_dut.pcs_o
+@420
+top.can_mac_rx_tb.u_dut.fce_i
+@420
+top.can_mac_rx_tb.u_dut.fce_o
+@420
+top.can_mac_rx_tb.u_dut.fsm_to_bs
+@420
+top.can_mac_rx_tb.u_dut.bs_to_fsm
+@28
+top.can_mac_rx_tb.u_dut.fsm_bs_rst
+@420
+top.can_mac_rx_tb.u_dut.fsm_to_crc
+@420
+top.can_mac_rx_tb.u_dut.crc_to_fsm
+@28
+top.can_mac_rx_tb.u_dut.fsm_crc_rst
+@1401200
+-u_dut Internals
+@c00200
+-rx_mac_fsm_inst
+@28
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.clk_i
+@28
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.rst_i
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.llc_i
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.llc_o
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.pcs_i
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.pcs_o
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.bs_i
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.bs_o
+@28
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.bs_rst
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.crc_i
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.crc_o
+@28
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.crc_rst
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.fce_i
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.fce_o
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.fsm_state
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.bit_count
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.byte_index
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.bit_index
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.data_len
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.crc_length
+@28
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.crc_mismatch
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.llc_frame
+@28
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.llc_streaming
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.llc_byte_index
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.llc_frame_len
+@1401200
+-rx_mac_fsm_inst
+@c00200
+-bit_stuffer_inst
+@28
+top.can_mac_rx_tb.u_dut.bit_stuffer_inst.clk_i
+@28
+top.can_mac_rx_tb.u_dut.bit_stuffer_inst.rst_i
+@420
+top.can_mac_rx_tb.u_dut.bit_stuffer_inst.bs_i
+@420
+top.can_mac_rx_tb.u_dut.bit_stuffer_inst.bs_o
+@420
+top.can_mac_rx_tb.u_dut.bit_stuffer_inst.count
+@28
+top.can_mac_rx_tb.u_dut.bit_stuffer_inst.last_polarity
+@22
+top.can_mac_rx_tb.u_dut.bit_stuffer_inst.stuff_count
+@28
+top.can_mac_rx_tb.u_dut.bit_stuffer_inst.fsb_en_latch
+@1401200
+-bit_stuffer_inst
+@c00200
+-crc_inst
+@28
+top.can_mac_rx_tb.u_dut.crc_inst.clk_i
+@28
+top.can_mac_rx_tb.u_dut.crc_inst.rst_i
+@420
+top.can_mac_rx_tb.u_dut.crc_inst.crc_i
+@420
+top.can_mac_rx_tb.u_dut.crc_inst.crc_o
+@22
+top.can_mac_rx_tb.u_dut.crc_inst.crc15_out
+@22
+top.can_mac_rx_tb.u_dut.crc_inst.crc17_out
+@22
+top.can_mac_rx_tb.u_dut.crc_inst.crc21_out
+@1401200
+-crc_inst
+[pattern_trace] 1
+[pattern_trace] 0
