@@ -37,7 +37,16 @@ architecture tb of can_mac_tx_tb is
   ----------------------------------------------------------------------------
   -- Constants
   ----------------------------------------------------------------------------
-  constant c_sp_interval  : natural := 10;
+  -- Bit timing model (ISO 7.3.2, values from subtype ranges in pk_can_types)
+  constant c_prescaler  : natural := 1;
+  constant c_prop_seg   : natural := 3;
+  constant c_phase_seg1 : natural := 3;
+  constant c_phase_seg2 : natural := 3;
+  -- Derived: SP is at sync_seg + prop_seg + phase_seg1, bit time is full sum
+  constant c_sp_tq      : natural := c_sync_seg + c_prop_seg + c_phase_seg1;
+  constant c_bit_time   : natural := c_sp_tq + c_phase_seg2;
+  -- Legacy alias used throughout TB
+  constant c_sp_interval  : natural := c_bit_time;
   constant c_bin_at_least : natural := 5;
   constant c_rec_width    : natural := 16;
 
@@ -427,7 +436,7 @@ begin
     variable v_sp_active           : boolean := false;
     variable v_checking            : boolean := false;
     variable v_burst_check_pending : boolean := false;
-    variable v_sp_count            : natural range 0 to c_sp_interval - 1 := 0;
+    variable v_tq_count            : natural range 0 to c_bit_time - 1 := 0;
 
     -- Data-phase info (latched from signals at SEND_ASYNC)
     variable v_fdf_pos          : integer := -1;
@@ -474,46 +483,55 @@ begin
       wait until rising_edge(clk);
 
       --------------------------------------------------------------------------
-      -- Continuous: SP strobe generation with bus loopback/override
+      -- Bit time model (ISO 7.3.2):
+      --   TQ 0                          : sync_seg  (bit boundary)
+      --   TQ 1 .. c_prop_seg            : prop_seg
+      --   TQ c_prop_seg+1 .. c_sp_tq-1  : phase_seg1
+      --   TQ c_sp_tq                     : SP (sample point)
+      --   TQ c_sp_tq+1 .. c_bit_time-1   : phase_seg2
       --------------------------------------------------------------------------
-      pcs_i.sp <= '0';
+      pcs_i.sp  <= '0';
+      pcs_i.ssp <= '0';
+
       if (v_sp_active) then
-        if (v_sp_count = c_sp_interval - 1) then
-          -- Inject types that inject errors by flipping polarity at SP
-          if (bus_override_en and (v_subtype  = c_inj_error or v_subtype = c_inj_reactive_overload or v_subtype = c_inj_error_delim_too_late)) then
-            pcs_i.bus_polarity <= not pcs_o.polarity;
-          elsif (bus_override_en) then
-            -- Else pass the override polarity
+        -- Bit boundary (sync_seg): latch pcs_o.polarity for loopback
+        if (v_tq_count = 0) then
+          if (bus_override_en and not (v_subtype = c_inj_error or v_subtype = c_inj_reactive_overload or v_subtype = c_inj_error_delim_too_late)) then
             pcs_i.bus_polarity <= bus_override;
           else
-            -- Else loop back the bit polarity from the MAC fsm
             pcs_i.bus_polarity <= pcs_o.polarity;
           end if;
+        end if;
+
+        -- Sample point
+        if (v_tq_count = c_sp_tq) then
+          -- Error injection types that flip polarity at SP
+          if (bus_override_en and (v_subtype = c_inj_error or v_subtype = c_inj_reactive_overload or v_subtype = c_inj_error_delim_too_late)) then
+            pcs_i.bus_polarity <= not pcs_o.polarity;
+          end if;
           pcs_i.sp <= '1';
-          v_sp_count := 0;
+        end if;
+
+        -- Advance TQ counter
+        if (v_tq_count = c_bit_time - 1) then
+          v_tq_count := 0;
         else
-          v_sp_count := v_sp_count + 1;
+          v_tq_count := v_tq_count + 1;
         end if;
       end if;
 
-      --NOTE: SSP is not modelled, just held low...
-      pcs_i.ssp <= '0';
-
       --------------------------------------------------------------------------
-      -- Bit checking: pop-and-compare on each SP (incl. IFS)
+      -- Bit checking: pop-and-compare at SP.
       --------------------------------------------------------------------------
       if (v_checking) then
-        if (pcs_i.sp = '1' and (pcs_o.valid = '1' or v_bus_idx > 0)) then
-          v_expected_bit := Pop(pcs_rec.BurstFifo)(0); -- Pop expected bit from fifo
-          -- Check bit polarity from MAC fsm
-          AffirmIfEqual(stream_check_id, pcs_o.polarity, v_expected_bit, "Bit: Got/Expected = " & to_string(pcs_o.polarity) & "/" & to_string(v_expected_bit));
-          -- Check use_data_rate
+        if (v_tq_count = c_sp_tq + 1 and (pcs_o.valid = '1' or v_bus_idx > 0)) then
+          v_expected_bit := Pop(pcs_rec.BurstFifo)(0);
+          AffirmIfEqual(stream_check_id, pcs_o.polarity, v_expected_bit, "idx=" & to_string(v_bus_idx) & " Bit: Got/Expected = " & to_string(pcs_o.polarity) & "/" & to_string(v_expected_bit));
           if (v_data_phase_start >= 0 and v_bus_idx >= v_data_phase_start and v_bus_idx <= v_data_phase_end) then
-            AffirmIfEqual(stream_check_id, pcs_o.use_data_rate, '1', "pcs_o.use_data_rate: Got/Expected = " & to_string(pcs_o.use_data_rate) & "/" & '1');
+            AffirmIfEqual(stream_check_id, pcs_o.use_data_rate, '1', "idx=" & to_string(v_bus_idx) & " pcs_o.use_data_rate: Got/Expected = " & to_string(pcs_o.use_data_rate) & "/1 dps=" & to_string(v_data_phase_start) & " dpe=" & to_string(v_data_phase_end));
           else
-            AffirmIfEqual(stream_check_id, pcs_o.use_data_rate, '0', "pcs_o.use_data_rate: Got/Expected = " & to_string(pcs_o.use_data_rate) & "/" & '0');
+            AffirmIfEqual(stream_check_id, pcs_o.use_data_rate, '0', "idx=" & to_string(v_bus_idx) & " pcs_o.use_data_rate: Got/Expected = " & to_string(pcs_o.use_data_rate) & "/0 dps=" & to_string(v_data_phase_start) & " dpe=" & to_string(v_data_phase_end));
           end if;
-          -- Check start_tdc (single pulse at FDF bit)
           if (v_fdf_pos >= 0 and v_bus_idx = v_fdf_pos) then
             AffirmIfEqual(stream_check_id, pcs_o.start_tdc, '1', "pcs_o.start_tdc: Got/Expected = " & to_string(pcs_o.start_tdc) & "/" & '1');
           else
@@ -522,7 +540,6 @@ begin
           v_bus_idx := v_bus_idx + 1;
           arm_bus_injection;
         end if;
-        -- Finish transaction when scoreboard is empty
         if (v_bus_idx > 0 and Empty(pcs_rec.BurstFifo)) then
           bus_override_en <= false;
           v_checking      := false;
@@ -542,7 +559,7 @@ begin
             v_subtype := to_integer(unsigned(pcs_rec.DataToModel));
             if (v_subtype = c_pcs_active) then
               v_sp_active := true;
-              v_sp_count  := 0;
+              v_tq_count  := 0;
               v_bus_idx   := 0;
             else
               v_inject_pos   := to_integer(unsigned(pcs_rec.ParamToModel));

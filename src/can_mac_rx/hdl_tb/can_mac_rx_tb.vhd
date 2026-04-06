@@ -326,7 +326,9 @@ begin
           " fdf=" & to_string(v_metadata.fdf) &
           " dlc=" & to_hstring(v_metadata.dlc) &
           " len=" & to_string(v_stream.len) & ")", ERROR);
-        wait until pcs_done;
+        if (not pcs_done) then
+          wait until pcs_done;
+        end if;
         WaitForClock(clk, 20);
         next frame_loop;
       end if;
@@ -345,7 +347,9 @@ begin
       ICover(fdf_cov, to_integer(unsigned'("" & v_metadata.fdf)));
       ICover(dlc_cov, to_integer(unsigned(v_metadata.dlc)));
 
-      wait until pcs_done;
+      if (not pcs_done) then
+        wait until pcs_done;
+      end if;
       WaitForClock(clk, 5);
 
       Log(test_id,

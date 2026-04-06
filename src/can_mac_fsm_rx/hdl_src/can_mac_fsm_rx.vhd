@@ -12,8 +12,8 @@
 --                (EOF + interframe space) using Avalon-ST handshake.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-31  MRDSA     Converted to company header format
---                2026-04-05  MRDSA     Remove deser, add LLC byte streaming
+--                2026-03-31  TMYAES    Converted to company header format
+--                2026-04-05  TMYAES    Remove deser, add LLC byte streaming
 --
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -55,7 +55,7 @@ architecture rtl of can_mac_fsm_rx is
   -----------------------------------------------------------------
   -- Types
   -----------------------------------------------------------------
-  type t_fsm_state is ( s_bus_reintegration, s_idle, s_id, s_rtr_srr_rrs, s_ide, s_fdf_r1_r0, s_res_r0, s_brs, s_esi, s_dlc, s_data, s_sbc, s_crc, s_crc_delim, s_ack, s_ack_delim,  s_eof, s_interframe, s_error_overload);
+  type t_fsm_state is ( s_bus_reintegration, s_idle, s_id, s_rtr_srr_rrs, s_ide, s_fdf_r1_r0, s_res_r0, s_brs, s_esi, s_dlc, s_data, s_sbc, s_crc, s_ack, s_eof, s_interframe, s_error_overload);
 
   -----------------------------------------------------------------
   -- Signals
@@ -78,8 +78,6 @@ begin
     variable v_in_dsb_field   : boolean; -- In dynamic stuff bit guard
     variable v_in_fsb_field   : boolean; -- In fixed stuff bit guard
     variable v_real_bit       : boolean; -- Real bit received flag (not stuff bit)
-    variable v_stuff_error    : boolean; -- Stuff error detected flag
-    variable v_protocol_error : boolean; -- Protocol error detected flag
   begin
     if rising_edge(clk_i) then
       if (rst_i = '1') then
@@ -103,7 +101,7 @@ begin
       else
 
         -----------------------------------------------------------------
-        -- Pulse defaults (cleared every cycle, set only when active)
+        -- Defaults
         -----------------------------------------------------------------
         bs_o.valid          <= '0';
         bs_o.fsb_en         <= '0';
@@ -116,13 +114,12 @@ begin
         pcs_o.polarity      <= c_recessive;
         pcs_o.start_tdc     <= '0';
         pcs_o.use_data_rate <= llc_frame(c_conf_0_offset)(c_llc_frame_brs);
-
         llc_o.avalon_st_source.valid         <= '0';
         llc_o.avalon_st_source.startofpacket <= '0';
         llc_o.avalon_st_source.endofpacket   <= '0';
 
         -----------------------------------------------------------------
-        -- Evaluate guard
+        -- Evaluate guards
         -----------------------------------------------------------------
         v_in_dsb_field := fsm_state = s_id or fsm_state = s_rtr_srr_rrs or
                               fsm_state = s_ide or fsm_state = s_fdf_r1_r0 or
@@ -130,10 +127,7 @@ begin
                               fsm_state = s_esi or fsm_state = s_dlc or
                               fsm_state = s_data;
         v_in_fsb_field := fsm_state = s_sbc or fsm_state = s_crc;
-
-        v_real_bit       := false;
-        v_stuff_error    := false;
-        v_protocol_error := false;
+        v_real_bit := false;
 
         -----------------------------------------------------------------
         -- Enable fixed stuff bit (FSB) mode for SBC and CRC fields in
@@ -161,7 +155,15 @@ begin
               crc_o.data_fd  <= pcs_i.bus_polarity;
             end if;
             if (bs_i.data /= pcs_i.bus_polarity) then
-              v_stuff_error := true;
+              -- Stuff error (ISO 11898-1: 6.6.5.1)
+              -------------------------------------------------------------
+              fce_o.error         <= '1';
+              fce_o.primary_error <= '1';
+              pcs_o.valid         <= '1';
+              pcs_o.polarity      <= c_recessive when fce_i.error_passive_request = '1' else c_dominant;
+              fsm_state           <= s_error_overload;
+              bit_count           <= 0;
+              -------------------------------------------------------------
             end if;
           else
             v_real_bit := true;
@@ -179,7 +181,7 @@ begin
         end if;
 
         -----------------------------------------------------------------
-        -- Stream frame to LLC: runs during EOF and interframe space.
+        -- Stream frame to LLC
         -----------------------------------------------------------------
         if (llc_streaming = '1') then
           llc_o.avalon_st_source.data  <= llc_frame(byte_index);
@@ -213,8 +215,7 @@ begin
           -----------------------------------------------------------------
           when s_bus_reintegration =>
             if (pcs_i.sp = '1') then
-              if (pcs_i.bus_polarity = c_recessive) then
-                if (bit_count = c_bus_idle_condition_width - 1) then
+              if (pcs_i.bus_polarity = c_recessive) then if (bit_count = c_bus_idle_condition_width - 1) then
                   fsm_state <= s_idle;
                   bit_count <= 0;
                 else
@@ -313,9 +314,12 @@ begin
               if (llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1') then
                 if (pcs_i.bus_polarity = c_dominant) then
                   fsm_state <= s_brs;
-                else 
-                  -- recessive res bit if FD frame: Form error (ISO 11898-1: 6.6.11.3)
-                  fsm_state <= s_error_overload;
+                else
+                  -- Form error: res bit must be dominant in FD (ISO 11898-1: 6.6.11.3)
+                  fce_o.error         <= '1';
+                  fce_o.primary_error <= '1';
+                  fsm_state           <= s_error_overload;
+                  bit_count           <= 0;
                 end if;
               else
                 -- CC extended frame: Just here to consume the r0 bit
@@ -408,11 +412,21 @@ begin
             end if;
 
           -----------------------------------------------------------------
-            -- SBC field (ISO 11898-1: 6.6.11.5, FD only).
+          -- s_sbc : Receive and verify SBC field (ISO 11898-1: 6.6.11.5).
           -----------------------------------------------------------------
           when s_sbc =>
             if (v_real_bit) then
-              if (bit_count = c_sbc_field_width - 1) then
+              if (pcs_i.bus_polarity /= bs_i.sbc((c_sbc_field_width - 1) - bit_count)) then
+                -- Form error : SBC mismatch (ISO 11898-1: 6.6.12.3)
+                -------------------------------------------------------------
+                fce_o.error         <= '1';
+                fce_o.primary_error <= '1';
+                pcs_o.valid         <= '1';
+                pcs_o.polarity      <= c_recessive when fce_i.error_passive_request = '1' else c_dominant;
+                fsm_state           <= s_error_overload;
+                bit_count           <= 0;
+                -------------------------------------------------------------
+              elsif (bit_count = c_sbc_field_width - 1) then
                 fsm_state <= s_crc;
                 bit_count <= 0;
               else
@@ -421,15 +435,14 @@ begin
             end if;
 
           -----------------------------------------------------------------
-          -- CRC field. FSB mode for FD handled above.
+          -- s_crc : Receive and verify CRC field.
+          -- ISO 11898-1: 6.6.10.5, 6.6.11.5
           -----------------------------------------------------------------
           when s_crc =>
-
             if (v_real_bit) then
               if (pcs_i.bus_polarity /= crc_i.crc((c_crc_21_length - 1) - bit_count)) then
                 crc_mismatch <= '1';
               end if;
-
               if (bit_count + 1 = crc_length) then
                 fsm_state <= s_ack;
                 bit_count <= 0;
@@ -439,59 +452,88 @@ begin
             end if;
 
           -- -----------------------------------------------------------
-          -- ACK field (ISO 11898-1: 6.6.10.6, 6.6.11.6).
+          -- s_ack : Handle CRC delimiter, ACK slot and ACK delimiter
+          -- ISO 11898-1: 6.6.10.6, 6.6.11.6.
           -- bit_count 0: CRC delimiter, 1: ACK slot, 2: ACK delimiter.
           -- -----------------------------------------------------------
           when s_ack =>
-
-
             if (pcs_i.sp = '1') then
-            -- Send ACK bit
-              if (bit_count = 1) then
-                pcs_o.valid    <= '1';
-                pcs_o.polarity <= c_dominant;
-              end if;
-
-
-              if (bit_count = 0) then
-                pcs_o.use_data_rate <= '0';
+              if (bit_count = 0) then -- CRC delimiter
+                pcs_o.use_data_rate <= '0'; -- exit data rate (ISO 11898-1: 6.6.11.5). 
 
                 if (pcs_i.bus_polarity = c_dominant or crc_mismatch = '1') then
-                  v_protocol_error := true;
+                  -- Form error: CRC delimiter must be recessive, or CRC mismatch (ISO 11898-1: 6.6.5.1)
+                  -------------------------------------------------------------
+                  fce_o.error         <= '1';
+                  fce_o.primary_error <= '1';
+                  pcs_o.valid         <= '1';
+                  pcs_o.polarity      <= c_recessive when fce_i.error_passive_request = '1' else c_dominant;
+                  fsm_state           <= s_error_overload;
+                  bit_count           <= 0;
+                  -------------------------------------------------------------
                 else
+                  -- Send ACK bit
                   pcs_o.valid    <= '1';
                   pcs_o.polarity <= c_dominant;
                   bit_count      <= 1;
                 end if;
-              elsif (bit_count = 1) then
+              elsif (bit_count = 1) then -- ACK slot
                 bit_count <= 2;
-              elsif (bit_count = 2) then
+              elsif (bit_count = 2) then -- ACK delimiter
                 if (pcs_i.bus_polarity = c_dominant) then
-                  v_protocol_error := true;
+                  -- Form error: ACK delimiter must be recessive (ISO 11898-1: 6.6.5.1)
+                  -------------------------------------------------------------
+                  fce_o.error         <= '1';
+                  fce_o.primary_error <= '1';
+                  pcs_o.valid         <= '1';
+                  pcs_o.polarity      <= c_recessive when fce_i.error_passive_request = '1' else c_dominant;
+                  fsm_state           <= s_error_overload;
+                  bit_count           <= 0;
+                  -------------------------------------------------------------
                 else
-                  fce_o.successful_transfer <= '1';
-                  llc_streaming             <= '1';
-                  byte_index                <= 0;
-                  llc_frame_len             <= c_data_offset + data_len;
-                  fsm_state                 <= s_eof;
-                  bit_count                 <= 0;
+                  fsm_state <= s_eof;
+                  bit_count <= 0;
                 end if;
               end if;
             end if;
 
-          -- -----------------------------------------------------------
+          -------------------------------------------------------------
           -- EOF: 7 recessive bits (ISO 11898-1: 6.6.10.7, 6.6.11.7).
-          -- -----------------------------------------------------------
+          -------------------------------------------------------------
+          -- TODO: you are here checking the error logic in this state
           when s_eof =>
-
             if (pcs_i.sp = '1') then
               if (pcs_i.bus_polarity = c_dominant) then
-                v_protocol_error := true;
-              elsif (bit_count = c_eof_field_width - 1) then
-                fsm_state <= s_interframe;
-                bit_count <= 0;
+                -- ISO 6.6.15.2: last EOF bit dominant is overload, not form error
+                if (bit_count = c_eof_field_width - 1) then
+                  fce_o.sending_error_overload_flag <= '1';
+                  fsm_state  <= s_error_overload;
+                  bit_count  <= 0;
+                else
+                  -- Form error: EOF bits must be recessive (ISO 11898-1: 6.6.5.1)
+                  -------------------------------------------------------------
+                  fce_o.error         <= '1';
+                  fce_o.primary_error <= '1';
+                  pcs_o.valid         <= '1';
+                  pcs_o.polarity      <= c_recessive when fce_i.error_passive_request = '1' else c_dominant;
+                  fsm_state           <= s_error_overload;
+                  bit_count           <= 0;
+                  -------------------------------------------------------------
+                end if;
               else
-                bit_count <= bit_count + 1;
+                -- ISO 6.6.15.2: frame valid at last but one bit of EOF
+                if (bit_count = c_eof_field_width - 2) then
+                  fce_o.successful_transfer <= '1';
+                  llc_streaming             <= '1'; -- Start streaming frame to LLC
+                  byte_index                <= 0;
+                  llc_frame_len             <= c_data_offset + data_len;
+                end if;
+                if (bit_count = c_eof_field_width - 1) then
+                  fsm_state <= s_interframe;
+                  bit_count <= 0;
+                else
+                  bit_count <= bit_count + 1;
+                end if;
               end if;
             end if;
 
@@ -506,7 +548,7 @@ begin
                 crc_rst   <= '1';
                 fsm_state <= s_idle;
                 bit_count <= 0;
-              elsif (pcs_i.bus_polarity = c_dominant and llc_streaming = '1') then
+              elsif (pcs_i.bus_polarity = c_dominant and llc_streaming = '1') then 
                 fce_o.sending_error_overload_flag <= '1';
                 llc_streaming                     <= '0';
                 pcs_o.valid                       <= '1';
@@ -544,34 +586,8 @@ begin
             end if;
 
           when others =>
-
-            null;
-
+            fsm_state <= s_bus_reintegration;
         end case;
-
-        -----------------------------------------------------------------
-        -- Stuff error entry (bit reception states)
-        -----------------------------------------------------------------
-        if (v_stuff_error) then
-          fce_o.error         <= '1';
-          fce_o.primary_error <= '1';
-          fsm_state           <= s_error_overload;
-          bit_count           <= 0;
-        end if;
-
-        -----------------------------------------------------------------
-        -- Protocol error entry (s_ack, s_eof: form error or CRC mismatch)
-        -----------------------------------------------------------------
-        if (v_protocol_error) then
-          fce_o.error         <= '1';
-          fce_o.primary_error <= '1';
-          pcs_o.valid         <= '1';
-          pcs_o.polarity      <= c_recessive when fce_i.error_passive_request = '1' else c_dominant;
-          llc_streaming       <= '0';
-          fsm_state           <= s_error_overload;
-          bit_count           <= 0;
-        end if;
-
       end if;
     end if;
 
