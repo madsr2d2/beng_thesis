@@ -63,6 +63,7 @@ architecture tb of can_mac_rx_tb is
   signal pcs_stream    : t_bus_stream;
   signal pcs_start     : boolean := false;
   signal pcs_done      : boolean := false;
+  signal pcs_ready     : boolean := false;
   signal llc_frame_rx  : t_llc_frame;
   signal llc_frame_len : natural := 0;
   signal llc_rx_done   : boolean := false;
@@ -187,6 +188,18 @@ begin
     wait until reset = '0';
     WaitForClock(clk, 5);
 
+    -- Bus reintegration: feed 11 recessive bits so DUT reaches s_idle
+    for i in 0 to c_bus_idle_condition_width - 1 loop
+      pcs_i.bus_polarity <= c_recessive;
+      pcs_i.sp           <= '0';
+      WaitForClock(clk, c_sp_interval - 1);
+      pcs_i.sp <= '1';
+      WaitForClock(clk);
+    end loop;
+    pcs_i.sp  <= '0';
+    pcs_ready <= true;
+    WaitForClock(clk, 5);
+
     pcs_vc_loop : loop
       wait until pcs_start;
       pcs_done   <= false;
@@ -284,6 +297,10 @@ begin
     AffirmIf(check_id, pcs_o = c_mac_to_pcs_if_reset, "pcs_o reset");
     AffirmIf(check_id, fce_o = c_mac_to_fce_if_reset, "fce_o reset");
     AffirmIf(check_id, llc_o = c_mac_rx_to_llc_if_reset, "llc_o reset");
+
+    -- Wait for PCS VC to complete bus reintegration
+    wait until pcs_ready;
+    WaitForClock(clk, 5);
 
     -- Test 2: Coverage-driven happy path
     frame_loop : while not (IsCovered(ide_cov) and IsCovered(fdf_cov) and IsCovered(dlc_cov)) loop

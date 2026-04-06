@@ -52,47 +52,35 @@ entity can_mac_fsm_rx is
 end entity can_mac_fsm_rx;
 
 architecture rtl of can_mac_fsm_rx is
+  -----------------------------------------------------------------
+  -- Types
+  -----------------------------------------------------------------
+  type t_fsm_state is ( s_bus_reintegration, s_idle, s_id, s_rtr_srr_rrs, s_ide, s_fdf_r1_r0, s_res_r0, s_brs, s_esi, s_dlc, s_data, s_sbc, s_crc, s_crc_delim, s_ack, s_ack_delim,  s_eof, s_interframe, s_error_overload);
 
-  type t_fsm_state is (
-    s_idle, s_id, s_ftyp, s_ide, s_fdf, s_res, s_brs, s_esi,
-    s_dlc, s_data, s_sbc, s_crc, s_ack, s_eof, s_interframe, s_error_overload
-  );
-
+  -----------------------------------------------------------------
+  -- Signals
+  -----------------------------------------------------------------
   signal fsm_state : t_fsm_state;
-
-  signal bit_count  : natural range 0 to c_max_mac_frame_length;
-  signal byte_index : natural range 0 to c_internal_llc_frame_len - 1;
-  signal bit_index  : natural range 0 to c_byte_width - 1;
-  signal data_len   : natural range 0 to c_max_data_bytes;
-
-  signal crc_length   : natural range 0 to c_crc_21_length;
-  signal crc_mismatch : std_logic;
-
-  signal llc_frame : t_llc_frame;
-
-  -- LLC byte streaming during quiet phase
-  signal llc_streaming  : std_logic;
-  signal llc_byte_index : natural range 0 to c_internal_llc_frame_len - 1;
-  signal llc_frame_len  : natural range 0 to c_internal_llc_frame_len;
-
+  signal bit_count     : natural range 0 to c_max_mac_frame_length;
+  signal byte_index    : natural range 0 to c_internal_llc_frame_len - 1;
+  signal bit_index     : natural range 0 to c_byte_width - 1;
+  signal data_len      : natural range 0 to c_max_data_bytes;
+  signal crc_length    : natural range 0 to c_crc_21_length;
+  signal crc_mismatch  : std_logic;
+  signal llc_frame     : t_llc_frame; -- Stores received frame
+  signal llc_frame_len : natural range 0 to c_internal_llc_frame_len;
+  signal llc_streaming : std_logic; -- When set, the received frame is streamed to the LLC
 begin
 
   p_fsm : process (clk_i) is
-
-    variable v_data_len : natural;
-    variable v_dlc_vec  : std_logic_vector(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
-
-    -- Guard predicates
-    variable v_in_dynamic_stuff        : boolean;
-    variable v_in_fixed_stuff        : boolean;
-    -- Bit reception results
-    variable v_real_bit      : boolean;
-    variable v_stuff_error   : boolean;
-    -- Error flag entry
-    variable v_protocol_error : boolean;
-
+    variable v_data_len       : natural;
+    variable v_dlc_vec        : std_logic_vector(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
+    variable v_in_dsb_field   : boolean; -- In dynamic stuff bit guard
+    variable v_in_fsb_field   : boolean; -- In fixed stuff bit guard
+    variable v_real_bit       : boolean; -- Real bit received flag (not stuff bit)
+    variable v_stuff_error    : boolean; -- Stuff error detected flag
+    variable v_protocol_error : boolean; -- Protocol error detected flag
   begin
-
     if rising_edge(clk_i) then
       if (rst_i = '1') then
         bs_rst         <= '1';
@@ -101,11 +89,10 @@ begin
         byte_index     <= 0;
         bit_index      <= 0;
         data_len       <= 0;
-        fsm_state      <= s_idle;
+        fsm_state      <= s_bus_reintegration;
         crc_length     <= c_crc_15_length;
         crc_mismatch   <= '0';
         llc_streaming  <= '0';
-        llc_byte_index <= 0;
         llc_frame_len  <= 0;
         llc_frame      <= (others => (others => '0'));
         pcs_o          <= c_mac_to_pcs_if_reset;
@@ -114,6 +101,7 @@ begin
         fce_o          <= c_mac_to_fce_if_reset;
         llc_o          <= c_mac_rx_to_llc_if_reset;
       else
+
         -----------------------------------------------------------------
         -- Pulse defaults (cleared every cycle, set only when active)
         -----------------------------------------------------------------
@@ -134,39 +122,41 @@ begin
         llc_o.avalon_st_source.endofpacket   <= '0';
 
         -----------------------------------------------------------------
-        -- Guard predicates
+        -- Evaluate guard
         -----------------------------------------------------------------
-        v_in_dynamic_stuff := fsm_state = s_id or fsm_state = s_ftyp or
-                              fsm_state = s_ide or fsm_state = s_fdf or
-                              fsm_state = s_res or fsm_state = s_brs or
+        v_in_dsb_field := fsm_state = s_id or fsm_state = s_rtr_srr_rrs or
+                              fsm_state = s_ide or fsm_state = s_fdf_r1_r0 or
+                              fsm_state = s_res_r0 or fsm_state = s_brs or
                               fsm_state = s_esi or fsm_state = s_dlc or
                               fsm_state = s_data;
-        v_in_fixed_stuff := fsm_state = s_sbc or fsm_state = s_crc;
+        v_in_fsb_field := fsm_state = s_sbc or fsm_state = s_crc;
 
         v_real_bit       := false;
         v_stuff_error    := false;
         v_protocol_error := false;
 
         -----------------------------------------------------------------
-        -- FSB mode for SBC and FD CRC fields
+        -- Enable fixed stuff bit (FSB) mode for SBC and CRC fields in
+        -- FD frames (ISO 11898-1: 6.6.13.3)
         -----------------------------------------------------------------
         if (fsm_state = s_sbc) then
           bs_o.fsb_en <= '1';
+        -- Only CC frames use c_crc_15_length
         elsif (fsm_state = s_crc and crc_length /= c_crc_15_length) then
           bs_o.fsb_en <= '1';
         end if;
 
         -----------------------------------------------------------------
-        -- Common bit reception: BS feed, stuff check, CRC feed.
+        -- Bit reception: BS/CRC feed, stuff error check.
         -- Applies to all states between SOF and CRC delimiter.
         -----------------------------------------------------------------
-        if (pcs_i.sp = '1' and (v_in_dynamic_stuff or v_in_fixed_stuff)) then
+        if (pcs_i.sp = '1' and (v_in_dsb_field or v_in_fsb_field)) then
+          -- Feed BS
           bs_o.valid <= '1';
           bs_o.data  <= pcs_i.bus_polarity;
-
           if (bs_i.valid = '1') then
-            -- Stuff bit: feed FD CRC in arb region (ISO 6.6.4.4), check polarity
-            if (v_in_dynamic_stuff) then
+            -- Stuff bit: feed FD CRC in arb region (ISO 11898-1: 6.6.4.4), check polarity
+            if (v_in_dsb_field) then
               crc_o.valid_fd <= '1';
               crc_o.data_fd  <= pcs_i.bus_polarity;
             end if;
@@ -176,7 +166,7 @@ begin
           else
             v_real_bit := true;
             -- Real bit CRC feed depends on region
-            if (v_in_dynamic_stuff) then
+            if (v_in_dsb_field) then
               crc_o.valid_cc <= '1';
               crc_o.valid_fd <= '1';
               crc_o.data_cc  <= pcs_i.bus_polarity;
@@ -189,25 +179,25 @@ begin
         end if;
 
         -----------------------------------------------------------------
-        -- LLC byte streaming: runs during EOF and interframe space.
+        -- Stream frame to LLC: runs during EOF and interframe space.
         -----------------------------------------------------------------
         if (llc_streaming = '1') then
-          llc_o.avalon_st_source.data  <= llc_frame(llc_byte_index);
+          llc_o.avalon_st_source.data  <= llc_frame(byte_index);
           llc_o.avalon_st_source.valid <= '1';
 
-          if (llc_byte_index = 0) then
+          if (byte_index = 0) then
             llc_o.avalon_st_source.startofpacket <= '1';
           end if;
 
-          if (llc_byte_index = llc_frame_len - 1) then
+          if (byte_index = llc_frame_len - 1) then
             llc_o.avalon_st_source.endofpacket <= '1';
           end if;
 
           if (llc_i.avalon_st_sink.ready = '1') then
-            if (llc_byte_index = llc_frame_len - 1) then
+            if (byte_index = llc_frame_len - 1) then
               llc_streaming <= '0';
             else
-              llc_byte_index <= llc_byte_index + 1;
+              byte_index <= byte_index + 1;
             end if;
           end if;
         end if;
@@ -217,11 +207,28 @@ begin
         -----------------------------------------------------------------
         case fsm_state is
 
-        -----------------------------------------------------------------
-        -- s_idle : Waits for SOF and resets state variables
-        -----------------------------------------------------------------
-          when s_idle =>
+          -----------------------------------------------------------------
+          -- s_bus_reintegration : Wait for 11 consecutive recessive bits
+          -- before participating on the bus (ISO 11898-1: 6.6.7.5)
+          -----------------------------------------------------------------
+          when s_bus_reintegration =>
+            if (pcs_i.sp = '1') then
+              if (pcs_i.bus_polarity = c_recessive) then
+                if (bit_count = c_bus_idle_condition_width - 1) then
+                  fsm_state <= s_idle;
+                  bit_count <= 0;
+                else
+                  bit_count <= bit_count + 1;
+                end if;
+              else
+                bit_count <= 0;
+              end if;
+            end if;
 
+          -----------------------------------------------------------------
+          -- s_idle : Waits for SOF and resets state variables
+          -----------------------------------------------------------------
+          when s_idle =>
             pcs_o.use_data_rate <= '0';
             crc_mismatch        <= '0';
             if (pcs_i.sp = '1' and pcs_i.bus_polarity = c_dominant) then
@@ -238,9 +245,9 @@ begin
               fsm_state      <= s_id;
             end if;
 
-        -----------------------------------------------------------------
-        -- s_id : Stores received ID bits in the LLC frame
-        -----------------------------------------------------------------
+          -----------------------------------------------------------------
+          -- s_id : Stores received ID bits in the LLC frame
+          -----------------------------------------------------------------
           when s_id =>
             if (v_real_bit) then
               -- Store ID bit
@@ -251,109 +258,112 @@ begin
               bit_count  <= (bit_count + 1);
               -- Go to s_ftyp when last base or extended ID bit has been received
               if (bit_count = (c_base_id_width - 1) or bit_count = (c_base_id_width + c_extended_id_width - 1)) then
-                fsm_state <= s_ftyp;
+                fsm_state <= s_rtr_srr_rrs;
               end if;
             end if;
 
-        -----------------------------------------------------------------
-        -- s_ftyp : Sets the frame type bit (Remote or DATA) in the LLC
-        -- frame configuration byte 0
-        -----------------------------------------------------------------
-          when s_ftyp =>
+          -----------------------------------------------------------------
+          -- s_rtr_srr_rrs : Sets the frame type bit (Remote or DATA) in 
+          -- the LLC frame configuration byte 0
+          -----------------------------------------------------------------
+          when s_rtr_srr_rrs =>
             if (v_real_bit) then
               llc_frame(c_conf_0_offset)(c_llc_frame_ftyp) <= pcs_i.bus_polarity;
               if (llc_frame(c_conf_0_offset)(c_llc_frame_ide) = '1') then
-                fsm_state <= s_fdf;
+                fsm_state <= s_fdf_r1_r0;
               else
                 fsm_state <= s_ide;
               end if;
             end if;
 
-        -----------------------------------------------------------------
-        -- s_ide : Sets the IDE bit ('0' = base ID, '1' = extended ID) 
-        -- in the LLC frame configuration byte 0
-        -----------------------------------------------------------------
+          -----------------------------------------------------------------
+          -- s_ide : Sets the IDE bit ('0' = base ID, '1' = extended ID)
+          -----------------------------------------------------------------
           when s_ide =>
             if (v_real_bit) then
               llc_frame(c_conf_0_offset)(c_llc_frame_ide) <= pcs_i.bus_polarity; -- Set IDE bit
               if (pcs_i.bus_polarity = c_recessive) then 
                 fsm_state <= s_id; -- Extended ID frame format: Go back to s_id to grab the extended ID bits
               else
-                fsm_state <= s_fdf;
+                fsm_state <= s_fdf_r1_r0;
               end if;
             end if;
 
-        -----------------------------------------------------------------
-        -- s_fdf : Sets the FDF bit ('0' = CC format, '1' = FD format) in
-        -- the LLC frame configuration byte 0
-        -----------------------------------------------------------------
-          when s_fdf =>
+          -----------------------------------------------------------------
+          -- s_fdf_r1_r0 : Sets the FDF bit ('0' = CC format, '1' = FD format)
+          -----------------------------------------------------------------
+          when s_fdf_r1_r0 =>
             if (v_real_bit) then
               llc_frame(c_conf_0_offset)(c_llc_frame_fdf) <= pcs_i.bus_polarity; -- Set FDF bit
-              if (pcs_i.bus_polarity = c_recessive) then
-                fsm_state <= s_res; -- Format is FD: Go to s_res
-              elsif (llc_frame(c_conf_0_offset)(c_llc_frame_ide) = '1' and bit_count < c_base_id_width + c_extended_id_width) then
-                fsm_state <= s_id;
-              elsif (llc_frame(c_conf_0_offset)(c_llc_frame_ide) = '1') then
-                fsm_state <= s_res;
+              if (pcs_i.bus_polarity = c_recessive or llc_frame(c_conf_0_offset)(c_llc_frame_ide) = '1') then
+                -- FDF=1 (FD frame) or CC extended: consume r1 bit
+                fsm_state <= s_res_r0;
               else
+                -- CC base: consume r0 and go to DLC
                 fsm_state <= s_dlc;
                 bit_count <= 0;
               end if;
             end if;
 
-          -- -----------------------------------------------------------
-          when s_res =>
-
+          -----------------------------------------------------------------
+          -- s_res : Consumes reserved bit(s) in FD or CC extended frames
+          -----------------------------------------------------------------
+          when s_res_r0 =>
             if (v_real_bit) then
               if (llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1') then
                 if (pcs_i.bus_polarity = c_dominant) then
                   fsm_state <= s_brs;
-                else
-                  fsm_state <= s_error_overload; -- This is a form error
+                else 
+                  -- recessive res bit if FD frame: Form error (ISO 11898-1: 6.6.11.3)
+                  fsm_state <= s_error_overload;
                 end if;
               else
+                -- CC extended frame: Just here to consume the r0 bit
                 fsm_state <= s_dlc;
                 bit_count <= 0;
               end if;
             end if;
 
-          -- -----------------------------------------------------------
+          -----------------------------------------------------------------
+          -- s_brs : Sets the BRS bit in the LLC frame and pass the bit to
+          -- the PCS.
+          -----------------------------------------------------------------
           when s_brs =>
-
             if (v_real_bit) then
               pcs_o.use_data_rate                         <= pcs_i.bus_polarity;
               llc_frame(c_conf_0_offset)(c_llc_frame_brs) <= pcs_i.bus_polarity;
               fsm_state                                   <= s_esi;
             end if;
 
-          -- -----------------------------------------------------------
+          -----------------------------------------------------------------
+          -- s_esi : Sets the ESI bit in the LLC frame
+          -----------------------------------------------------------------
           when s_esi =>
-
             if (v_real_bit) then
               llc_frame(c_conf_0_offset)(c_llc_frame_esi) <= pcs_i.bus_polarity;
               fsm_state                                   <= s_dlc;
               bit_count                                   <= 0;
             end if;
 
-          -- -----------------------------------------------------------
+          -----------------------------------------------------------------
+          -- s_dlc : Sets the DLC field in the LLC frame. When all bits are
+          -- received, the data length is calculated and the corresponding CRC 
+          -- polynomial is selected.
+          -----------------------------------------------------------------
           when s_dlc =>
-
             if (v_real_bit) then
+              -- Store DLC bit and increment bit count
               llc_frame(c_conf_1_offset)(c_llc_frame_dlc_start - bit_count) <= pcs_i.bus_polarity;
-
+              bit_count <= bit_count + 1;
               if (bit_count = c_dlc_field_width - 1) then
+                -- Calculate and set data length
                 v_dlc_vec := llc_frame(c_conf_1_offset)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
                 v_dlc_vec(c_llc_frame_dlc_start - bit_count) := pcs_i.bus_polarity;
-                v_data_len := dlc_to_data_length(
-                  to_integer(unsigned(v_dlc_vec)),
-                  llc_frame(c_conf_0_offset)(c_llc_frame_fdf)
-                );
+                v_data_len := dlc_to_data_length(to_integer(unsigned(v_dlc_vec)), llc_frame(c_conf_0_offset)(c_llc_frame_fdf));
                 bit_count  <= 0;
                 bit_index  <= 0;
                 byte_index <= 0;
                 data_len   <= v_data_len;
-
                 if (llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '0') then
                   crc_length            <= c_crc_15_length;
                   crc_o.crc_poly_select <= c_crc_poly_15_sel;
@@ -364,43 +374,43 @@ begin
                   crc_length            <= c_crc_21_length;
                   crc_o.crc_poly_select <= c_crc_poly_21_sel;
                 end if;
-
                 if (v_data_len > 0) then
                   fsm_state <= s_data;
                 elsif (llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1') then
-                  fsm_state <= s_sbc;
+                  fsm_state <= s_sbc; -- FD format: Go to s_sbc
                 else
-                  fsm_state <= s_crc;
+                  fsm_state <= s_crc; -- CC format: Go to s_crc
                 end if;
               else
-                bit_count <= bit_count + 1;
               end if;
             end if;
 
-          -- -----------------------------------------------------------
+          -----------------------------------------------------------------
+          -- s_data : Stores received data bits in the LLC frame.
+          -----------------------------------------------------------------
           when s_data =>
-
             if (v_real_bit) then
+              -- Store data bit
               llc_frame(c_data_offset + byte_index)((c_byte_width - 1) - bit_index) <= pcs_i.bus_polarity;
-
               if (byte_index = data_len - 1 and bit_index = c_byte_width - 1) then
+              -- Last bit received
                 if (llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1') then
-                  fsm_state <= s_sbc;
+                  fsm_state <= s_sbc; -- FD format: Go to s_sbc
                 else
-                  fsm_state <= s_crc;
+                  fsm_state <= s_crc; -- CC format: Go to s_crc
                 end if;
                 bit_count <= 0;
               else
+                -- Increment bit/byte index counters
                 bit_index  <= 0 when bit_index = (c_byte_width - 1) else (bit_index + 1);
                 byte_index <= (byte_index + 1) when bit_index = (c_byte_width - 1);
               end if;
             end if;
 
-          -- -----------------------------------------------------------
-          -- SBC field (ISO 8.5, FD only). FSB mode handled above.
-          -- -----------------------------------------------------------
+          -----------------------------------------------------------------
+            -- SBC field (ISO 11898-1: 6.6.11.5, FD only).
+          -----------------------------------------------------------------
           when s_sbc =>
-
             if (v_real_bit) then
               if (bit_count = c_sbc_field_width - 1) then
                 fsm_state <= s_crc;
@@ -410,9 +420,9 @@ begin
               end if;
             end if;
 
-          -- -----------------------------------------------------------
+          -----------------------------------------------------------------
           -- CRC field. FSB mode for FD handled above.
-          -- -----------------------------------------------------------
+          -----------------------------------------------------------------
           when s_crc =>
 
             if (v_real_bit) then
@@ -429,20 +439,23 @@ begin
             end if;
 
           -- -----------------------------------------------------------
-          -- ACK field (ISO 6.6.10.6, 6.6.11.6).
+          -- ACK field (ISO 11898-1: 6.6.10.6, 6.6.11.6).
           -- bit_count 0: CRC delimiter, 1: ACK slot, 2: ACK delimiter.
           -- -----------------------------------------------------------
           when s_ack =>
 
-            pcs_o.use_data_rate <= '0';
-
-            if (bit_count = 1) then
-              pcs_o.valid    <= '1';
-              pcs_o.polarity <= c_dominant;
-            end if;
 
             if (pcs_i.sp = '1') then
+            -- Send ACK bit
+              if (bit_count = 1) then
+                pcs_o.valid    <= '1';
+                pcs_o.polarity <= c_dominant;
+              end if;
+
+
               if (bit_count = 0) then
+                pcs_o.use_data_rate <= '0';
+
                 if (pcs_i.bus_polarity = c_dominant or crc_mismatch = '1') then
                   v_protocol_error := true;
                 else
@@ -458,7 +471,7 @@ begin
                 else
                   fce_o.successful_transfer <= '1';
                   llc_streaming             <= '1';
-                  llc_byte_index            <= 0;
+                  byte_index                <= 0;
                   llc_frame_len             <= c_data_offset + data_len;
                   fsm_state                 <= s_eof;
                   bit_count                 <= 0;
@@ -467,7 +480,7 @@ begin
             end if;
 
           -- -----------------------------------------------------------
-          -- EOF: 7 recessive bits (ISO 6.6.10.7, 6.6.11.7).
+          -- EOF: 7 recessive bits (ISO 11898-1: 6.6.10.7, 6.6.11.7).
           -- -----------------------------------------------------------
           when s_eof =>
 
@@ -483,7 +496,7 @@ begin
             end if;
 
           -- -----------------------------------------------------------
-          -- Interframe space: 3 recessive bits (ISO 6.6.7.2).
+          -- Interframe space: 3 recessive bits (ISO 11898-1: 6.6.7.2).
           -- -----------------------------------------------------------
           when s_interframe =>
 
@@ -506,7 +519,7 @@ begin
             end if;
 
           -- -----------------------------------------------------------
-          -- Error / overload flag (ISO 6.6.5.2, 6.6.5.3).
+          -- Error / overload flag (ISO 11898-1: 6.6.5.2, 6.6.5.3).
           -- -----------------------------------------------------------
           when s_error_overload =>
 

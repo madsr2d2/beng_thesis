@@ -47,6 +47,8 @@ top.can_mac_rx_tb.pcs_stream
 top.can_mac_rx_tb.pcs_start
 @28
 top.can_mac_rx_tb.pcs_done
+@28
+top.can_mac_rx_tb.pcs_ready
 @420
 top.can_mac_rx_tb.llc_frame_rx
 @420
@@ -133,12 +135,10 @@ top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.crc_length
 top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.crc_mismatch
 @420
 top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.llc_frame
-@28
-top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.llc_streaming
-@420
-top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.llc_byte_index
 @420
 top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.llc_frame_len
+@28
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.llc_streaming
 @1401200
 -rx_mac_fsm_inst
 @c00200
