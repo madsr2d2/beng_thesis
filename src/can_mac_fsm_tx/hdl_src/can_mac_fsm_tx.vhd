@@ -59,7 +59,7 @@ architecture rtl of can_mac_fsm_tx is
     s_frame_init,
     s_monitor_bit,
     s_transmit_bit,
-    s_flag
+    s_error_overload
   );
 
   type t_flag_type is (active_error, passive_error, overload);
@@ -184,7 +184,7 @@ begin
               if (pcs_i.bus_polarity = c_dominant) then
                 if (bit_count < c_intermission_width - 1) then
                   -- ISO 11898-1: 6.6.21.3.2 b) - dominant during first two bits
-                  state                     <= s_flag;
+                  state                     <= s_error_overload;
                   flag_type                 <= overload;
                   bit_count                 <= 0;
                   dominant_seen_during_flag <= false;
@@ -390,7 +390,7 @@ begin
                 fsb_active                <= '0';
                 bit_count                 <= 0;
                 dominant_run_count        <= 0;
-                state                     <= s_flag;
+                state                     <= s_error_overload;
                 flag_type                 <= passive_error when fce_i.error_passive_request = '1' else active_error;
               end if;
             end if;
@@ -471,7 +471,7 @@ begin
           -- ISO 11898-1: 6.6.5 - error flags (active/passive)
           -- ISO 11898-1: 6.6.6 - overload flag
           -----------------------------------------------------------------
-          when s_flag =>
+          when s_error_overload =>
             fce_o.transmitting                <= '1';
             fce_o.sending_error_overload_flag <= '1';
             pcs_o.valid                       <= '1';
@@ -563,18 +563,35 @@ begin
 end architecture rtl;
 
 -- ===========================================================================
--- rtl_v2: Per-field state machine with explicit pre-case bit handling.
--- Mirrors the RX FSM style: guard predicates, common BS/CRC/error blocks
--- before the case statement, post-case error-flag entry.
+-- rtl_v2: Per-field state machine, mirrors the RX FSM style.
+--
+-- Pre-case:
+--   * Pulse defaults, guard predicates, FSB enable.
+--   * Bit error / arbitration loss / SSP monitoring (SP-gated).
+--   * Stuff-bit feed (drives v_bit_driven + v_is_stuff_bit).
+--   * fce_o.transmitting hoisted via v_in_frame predicate.
+--
+-- Case statement:
+--   * Quiet states (bus_reintegration, intermission, suspend, idle) handle
+--     their own PCS drive and counter bookkeeping.
+--   * s_sof handles its own PCS/BS/CRC/history setup (special skip_sof
+--     handling, runs once on entry, not SP-gated).
+--   * Frame-body states (s_id..s_eof) just select v_tx_polarity, set
+--     v_bit_driven, advance counter, transition. Centralized post-case
+--     drive block does PCS drive, BS feed, CRC feed, polarity history.
+--
+-- Post-case:
+--   * Centralized bit drive (v_bit_driven path).
+--   * Merged error / ACK-error entry.
+--   * Arbitration loss entry.
 -- ===========================================================================
 architecture rtl_v2 of can_mac_fsm_tx is
 
   type t_fsm_state is (
     s_bus_reintegration, s_intermission, s_suspend_transmission, s_bus_idle,
-    s_sof, s_id, s_rtr_srr_rrs, s_ide, s_fdf, s_res, s_brs, s_esi,
-    s_dlc, s_data, s_sbc, s_crc,
-    s_crc_delimiter, s_ack, s_ack_delimiter, s_eof,
-    s_flag
+    s_sof, s_id, s_rtr_srr_rrs, s_ide, s_fdf_r1_r0, s_res_r0, s_brs, s_esi,
+    s_dlc, s_data, s_sbc, s_crc, s_ack, s_eof,
+    s_error_overload
   );
 
   type t_flag_type is (active_error, passive_error, overload);
@@ -615,15 +632,16 @@ begin
     variable v_in_arb_field : boolean;  -- Arbitration field (arb loss possible)
     variable v_in_dsb_field : boolean;  -- Dynamic stuff bit region
     variable v_in_fsb_field : boolean;  -- Fixed stuff bit region
-    variable v_in_frame     : boolean;  -- In active frame transmission
+    variable v_in_frame     : boolean;  -- In active frame transmission (drives fce_o.transmitting)
 
     -- Bit transmission and monitoring results
-    variable v_tx_polarity    : std_logic;         -- Polarity to drive onto bus
-    variable v_bit_driven     : boolean;           -- A bit was driven this SP
-    variable v_bit_error      : boolean;           -- Bit error detected
-    variable v_lost_arb       : boolean;           -- Arbitration lost
-    variable v_enter_error    : boolean;           -- Enter error flag state
-    variable v_data_len       : natural;
+    variable v_tx_polarity : std_logic; -- Polarity to drive onto bus
+    variable v_bit_driven  : boolean;   -- A bit was driven this SP
+    variable v_is_stuff_bit : boolean;  -- The driven bit was a stuff bit (BS-sourced)
+    variable v_bit_error   : boolean;   -- Bit error detected
+    variable v_lost_arb    : boolean;   -- Arbitration lost
+    variable v_enter_error : boolean;   -- Enter error flag state (ACK error etc.)
+    variable v_data_len    : natural;
 
   begin
 
@@ -668,6 +686,25 @@ begin
         fce_o           <= c_mac_to_fce_if_reset;
 
         -----------------------------------------------------------------
+        -- Guard predicates
+        -----------------------------------------------------------------
+        v_in_arb_field := state = s_id or state = s_rtr_srr_rrs or
+                          state = s_ide;
+        v_in_dsb_field := v_in_arb_field or state = s_fdf_r1_r0 or
+                          state = s_res_r0 or state = s_brs or
+                          state = s_esi or state = s_dlc or
+                          state = s_data;
+        v_in_fsb_field := state = s_sbc or state = s_crc;
+        v_in_frame     := v_in_dsb_field or v_in_fsb_field or
+                          state = s_sof or state = s_ack or state = s_eof;
+
+        v_bit_driven   := false;
+        v_is_stuff_bit := false;
+        v_bit_error    := false;
+        v_lost_arb     := false;
+        v_enter_error  := false;
+
+        -----------------------------------------------------------------
         -- Quiet-state defaults (not transmitting a frame)
         -----------------------------------------------------------------
         if (state = s_bus_reintegration or state = s_intermission or
@@ -681,22 +718,10 @@ begin
           mac_ser_o.transfer_status <= c_ongoing;
         end if;
 
-        -----------------------------------------------------------------
-        -- Guard predicates
-        -----------------------------------------------------------------
-        v_in_arb_field := state = s_id or state = s_rtr_srr_rrs or
-                          state = s_ide;
-        v_in_dsb_field := v_in_arb_field or state = s_fdf or
-                          state = s_res or state = s_brs or
-                          state = s_esi or state = s_dlc or
-                          state = s_data;
-        v_in_fsb_field := state = s_sbc or state = s_crc;
-
-        v_bit_driven  := false;
-        v_bit_error   := false;
-        v_lost_arb    := false;
-        v_enter_error := false;
-
+        -- Active-frame default (hoisted from each frame state)
+        if (v_in_frame) then
+          fce_o.transmitting <= '1';
+        end if;
 
         -----------------------------------------------------------------
         -- Enable fixed stuff bit (FSB) mode for SBC and FD CRC fields
@@ -709,22 +734,18 @@ begin
         end if;
 
         -----------------------------------------------------------------
-        -- Common bit monitoring at SP: bit error and arbitration loss.
-        -- polarity_history holds the PREVIOUS bit (from last clock's
-        -- signal assignment). bus_polarity also reflects the previous
-        -- bit (TB loopback captured at TQ 0). So comparing them is
-        -- correct: we verify the bit we drove last SP appeared on the
-        -- bus as expected.
+        -- Bit error / arbitration loss monitor (SP-gated). polarity_history
+        -- holds the bit we drove last SP; bus_polarity also reflects that
+        -- bit (1-bit-late TB loopback at TQ 0). Mismatch = bit error,
+        -- unless we are in arbitration (lost arb) or the ACK slot (ACK).
         -----------------------------------------------------------------
         if (pcs_i.sp = '1' and (v_in_dsb_field or v_in_fsb_field or
-            state = s_crc_delimiter or state = s_ack or
-            state = s_ack_delimiter or state = s_eof)) then
+            state = s_ack or state = s_eof)) then
           if (polarity_history(to_integer(unsigned(pcs_i.tdc_delay))) /= pcs_i.bus_polarity) then
             if (v_in_arb_field and pcs_i.bus_polarity = c_dominant) then
               v_lost_arb := true;
-            elsif (state = s_ack_delimiter) then
-              -- bus_polarity here reflects the ACK slot (previous bit).
-              -- Mismatch means another node drove dominant = ACK received.
+            elsif (state = s_ack and bit_count = 1) then
+              -- ACK detection: another node drove dominant on the slot.
               null;
             else
               v_bit_error := true;
@@ -732,46 +753,34 @@ begin
           end if;
         end if;
 
-        -- SSP: latch pending error (ISO 7.3.4)
+        -- SSP: latch deferred bit error (ISO 7.3.4)
         if (pcs_i.ssp = '1' and (v_in_dsb_field or v_in_fsb_field)) then
           if (polarity_history(to_integer(unsigned(pcs_i.tdc_delay))) /= pcs_i.bus_polarity) then
             ssp_error_pending <= true;
           end if;
         end if;
 
-        -- Deferred SSP error surfaces at next SP
         if (pcs_i.sp = '1' and ssp_error_pending) then
           v_bit_error       := true;
           ssp_error_pending <= false;
         end if;
 
-        -----------------------------------------------------------------
-        -- SP-gated defaults: clear single-bit pulses at every SP so
-        -- state logic only needs to set them, not clear them.
-        -----------------------------------------------------------------
+        -- SP-gated single-bit pulses cleared each SP
         if (pcs_i.sp = '1') then
           pcs_o.start_tdc <= '0';
         end if;
 
         -----------------------------------------------------------------
-        -- Common BS feeding at SP (dsb and fsb regions)
-        -- Stuff bits are consumed here; real bits handled in state logic.
+        -- Stuff bit feed: BS has a pending stuff bit, drive it on PCS
+        -- and feed back. The post-case bit drive block does PCS/history
+        -- and BS/CRC feeding for both real and stuff bits; this block
+        -- only sets v_tx_polarity, v_bit_driven and v_is_stuff_bit.
         -----------------------------------------------------------------
         if (pcs_i.sp = '1' and (v_in_dsb_field or v_in_fsb_field)) then
           if (bs_i.valid = '1') then
-            -- Stuff bit pending: drive it onto PCS, feed back to BS
             v_tx_polarity  := bs_i.data;
             v_bit_driven   := true;
-            pcs_o.valid    <= '1';
-            pcs_o.polarity <= bs_i.data;
-            bs_o.valid     <= '1';
-            bs_o.data      <= bs_i.data;
-            polarity_history <= polarity_history(c_tdc_polarity_depth - 2 downto 0) & bs_i.data;
-            -- ISO 6.6.4.4: FD dynamic stuff bits included in CRC
-            if (metadata.fdf = '1' and fsb_active = '0') then
-              crc_o.valid_fd <= '1';
-              crc_o.data_fd  <= bs_i.data;
-            end if;
+            v_is_stuff_bit := true;
           end if;
         end if;
 
@@ -806,7 +815,7 @@ begin
               if (pcs_i.bus_polarity = c_dominant) then
                 if (bit_count < c_intermission_width - 1) then
                   -- ISO 6.6.21.3.2 b): dominant during first two bits
-                  state                     <= s_flag;
+                  state                     <= s_error_overload;
                   flag_type                 <= overload;
                   bit_count                 <= 0;
                   dominant_seen_during_flag <= false;
@@ -872,11 +881,12 @@ begin
 
           -----------------------------------------------------------------
           -- s_sof: Drive SOF (dominant), latch metadata, feed BS/CRC.
-          -- When skip_sof is true (ISO 6.6.8), SOF was already on the bus
-          -- from the 3rd intermission bit - drive first ID bit instead.
+          -- skip_sof (ISO 6.6.8): SOF already on the bus from the 3rd
+          -- intermission dominant; drive first ID bit instead. This state
+          -- runs once on entry (not SP-gated) and handles its own PCS,
+          -- BS/CRC and polarity_history setup.
           -----------------------------------------------------------------
           when s_sof =>
-            fce_o.transmitting  <= '1';
             pcs_o.valid         <= '1';
             pcs_o.use_data_rate <= '0';
             pcs_o.start_tdc     <= '0';
@@ -932,15 +942,14 @@ begin
             bit_count <= 0;
 
           -----------------------------------------------------------------
-          -- s_id: Transmit base ID (11 bits) or extended ID (18 bits).
-          -- Data sourced from serializer.
+          -- s_id: Base ID (11 bits) or extended ID (18 bits) from serializer.
+          -- skip_sof feed-only branch (one cycle after s_sof) is handled
+          -- explicitly; normal bits go through the centralized drive block.
           -----------------------------------------------------------------
           when s_id =>
-            fce_o.transmitting <= '1';
-
-            -- skip_sof: first ID bit was driven on PCS in s_sof but
-            -- not fed to BS/CRC. Feed it now (one clock after SOF feed).
             if (skip_sof) then
+              -- First ID bit was driven on PCS in s_sof but not yet fed
+              -- to BS/CRC. Feed it now and advance bit_count.
               bs_o.valid     <= '1';
               bs_o.data      <= polarity_history(0);
               crc_o.valid_cc <= '1';
@@ -951,25 +960,10 @@ begin
               skip_sof       <= false;
 
             elsif (pcs_i.sp = '1' and bs_i.valid = '0') then
-              -- Drive next ID bit from serializer
-              v_tx_polarity := mac_ser_i.data;
-              v_bit_driven  := true;
-              pcs_o.valid    <= '1';
-              pcs_o.polarity <= v_tx_polarity;
+              v_tx_polarity   := mac_ser_i.data;
+              v_bit_driven    := true;
               mac_ser_o.ready <= '1';
-
-              -- Feed BS and CRC
-              bs_o.valid     <= '1';
-              bs_o.data      <= v_tx_polarity;
-              crc_o.valid_cc <= '1';
-              crc_o.valid_fd <= '1';
-              crc_o.data_cc  <= v_tx_polarity;
-              crc_o.data_fd  <= v_tx_polarity;
-
-              polarity_history <= polarity_history(c_tdc_polarity_depth - 2 downto 0) & v_tx_polarity;
-              bit_count <= bit_count + 1;
-
-              -- After 11 base ID bits or 18 extended ID bits
+              bit_count       <= bit_count + 1;
               if (bit_count = c_base_id_width - 1 or
                   bit_count = c_base_id_width + c_extended_id_width - 1) then
                 state <= s_rtr_srr_rrs;
@@ -977,48 +971,30 @@ begin
             end if;
 
           -----------------------------------------------------------------
-          -- s_rtr_srr_rrs: RTR (CC basic), SRR (CC/FD extended), or
-          -- RRS (FD basic). Polarity from metadata.ftyp or fixed.
+          -- s_rtr_srr_rrs: RTR / SRR / RRS depending on frame format.
+          -- First pass (after base ID): SRR (extended), RTR (CC basic),
+          -- RRS (FD basic). Second pass (after extended ID): RTR (CC ext)
+          -- or RRS (FD ext).
           -----------------------------------------------------------------
           when s_rtr_srr_rrs =>
-            fce_o.transmitting <= '1';
-
             if (pcs_i.sp = '1' and bs_i.valid = '0') then
-              -- First pass (after base ID, bit_count = c_base_id_width):
-              --   SRR for extended, RTR for CC basic, RRS for FD basic.
-              -- Second pass (after ext ID, bit_count > c_base_id_width):
-              --   RTR for CC extended, RRS for FD extended.
               if (bit_count > c_base_id_width) then
-                -- Second pass: RTR (CC) or RRS (FD)
                 if (metadata.fdf = '1') then
-                  v_tx_polarity := c_dominant;     -- RRS always dominant
+                  v_tx_polarity := c_dominant;     -- RRS
                 else
-                  v_tx_polarity := metadata.ftyp;  -- RTR from metadata
+                  v_tx_polarity := metadata.ftyp;  -- RTR
                 end if;
               elsif (metadata.ide = '1') then
-                v_tx_polarity := c_recessive;      -- SRR always recessive
+                v_tx_polarity := c_recessive;      -- SRR
               elsif (metadata.fdf = '1') then
-                v_tx_polarity := c_dominant;        -- RRS always dominant
+                v_tx_polarity := c_dominant;       -- RRS
               else
-                v_tx_polarity := metadata.ftyp;     -- RTR from metadata
+                v_tx_polarity := metadata.ftyp;    -- RTR
               end if;
               v_bit_driven := true;
-
-              pcs_o.valid    <= '1';
-              pcs_o.polarity <= v_tx_polarity;
-              bs_o.valid     <= '1';
-              bs_o.data      <= v_tx_polarity;
-              crc_o.valid_cc <= '1';
-              crc_o.valid_fd <= '1';
-              crc_o.data_cc  <= v_tx_polarity;
-              crc_o.data_fd  <= v_tx_polarity;
-              polarity_history <= polarity_history(c_tdc_polarity_depth - 2 downto 0) & v_tx_polarity;
-
               if (bit_count > c_base_id_width) then
-                -- Second pass: skip IDE, go directly to FDF/r1
-                state <= s_fdf;
+                state <= s_fdf_r1_r0;
               else
-                -- First pass: next is IDE
                 state <= s_ide;
               end if;
             end if;
@@ -1027,163 +1003,77 @@ begin
           -- s_ide: IDE bit. Dominant for basic, recessive for extended.
           -----------------------------------------------------------------
           when s_ide =>
-            fce_o.transmitting <= '1';
-
             if (pcs_i.sp = '1' and bs_i.valid = '0') then
               v_tx_polarity := metadata.ide;
               v_bit_driven  := true;
-
-              pcs_o.valid    <= '1';
-              pcs_o.polarity <= v_tx_polarity;
-              bs_o.valid     <= '1';
-              bs_o.data      <= v_tx_polarity;
-              crc_o.valid_cc <= '1';
-              crc_o.valid_fd <= '1';
-              crc_o.data_cc  <= v_tx_polarity;
-              crc_o.data_fd  <= v_tx_polarity;
-              polarity_history <= polarity_history(c_tdc_polarity_depth - 2 downto 0) & v_tx_polarity;
-
               if (metadata.ide = c_recessive) then
-                -- Extended frame: go to extended ID
                 state     <= s_id;
                 bit_count <= c_base_id_width;
               else
-                -- Basic frame: next is FDF/r0
-                state <= s_fdf;
+                state <= s_fdf_r1_r0;
               end if;
             end if;
 
           -----------------------------------------------------------------
-          -- s_fdf: FDF bit. Recessive for FD, dominant (r0) for CC.
-          -- For CC basic this is r0, for CC extended this is r1.
+          -- s_fdf_r1_r0: FDF (FD) or r0/r1 (CC). start_tdc on FD entry.
           -----------------------------------------------------------------
-          when s_fdf =>
-            fce_o.transmitting <= '1';
-
+          when s_fdf_r1_r0 =>
             if (pcs_i.sp = '1' and bs_i.valid = '0') then
-              v_tx_polarity := metadata.fdf;
-              v_bit_driven  := true;
-
-              pcs_o.valid    <= '1';
-              pcs_o.polarity <= v_tx_polarity;
+              v_tx_polarity   := metadata.fdf;
+              v_bit_driven    := true;
               pcs_o.start_tdc <= '1' when metadata.fdf = '1' else '0';
-              bs_o.valid     <= '1';
-              bs_o.data      <= v_tx_polarity;
-              crc_o.valid_cc <= '1';
-              crc_o.valid_fd <= '1';
-              crc_o.data_cc  <= v_tx_polarity;
-              crc_o.data_fd  <= v_tx_polarity;
-              polarity_history <= polarity_history(c_tdc_polarity_depth - 2 downto 0) & v_tx_polarity;
-
               if (metadata.fdf = c_recessive or metadata.ide = '1') then
-                -- FD frame or CC extended: consume reserved bit(s)
-                state <= s_res;
+                state <= s_res_r0;
               else
-                -- CC basic: r0 already sent as FDF=dominant, go to DLC
                 state     <= s_dlc;
                 bit_count <= 0;
               end if;
             end if;
 
           -----------------------------------------------------------------
-          -- s_res: Reserved bit (dominant). FD: res then BRS.
-          -- CC extended: r0, then DLC.
+          -- s_res_r0: Reserved (dominant). FD -> BRS, CC ext -> DLC.
           -----------------------------------------------------------------
-          when s_res =>
-            fce_o.transmitting <= '1';
-
+          when s_res_r0 =>
             if (pcs_i.sp = '1' and bs_i.valid = '0') then
               v_tx_polarity := c_dominant;
               v_bit_driven  := true;
-
-              pcs_o.valid    <= '1';
-              pcs_o.polarity <= v_tx_polarity;
-              bs_o.valid     <= '1';
-              bs_o.data      <= v_tx_polarity;
-              crc_o.valid_cc <= '1';
-              crc_o.valid_fd <= '1';
-              crc_o.data_cc  <= v_tx_polarity;
-              crc_o.data_fd  <= v_tx_polarity;
-              polarity_history <= polarity_history(c_tdc_polarity_depth - 2 downto 0) & v_tx_polarity;
-
               if (metadata.fdf = '1') then
                 state <= s_brs;
               else
-                -- CC extended: r0 consumed, go to DLC
                 state     <= s_dlc;
                 bit_count <= 0;
               end if;
             end if;
 
           -----------------------------------------------------------------
-          -- s_brs: BRS bit (FD only). Switches to data rate if recessive.
+          -- s_brs: BRS bit (FD only).
           -----------------------------------------------------------------
           when s_brs =>
-            fce_o.transmitting <= '1';
-
             if (pcs_i.sp = '1' and bs_i.valid = '0') then
               v_tx_polarity := metadata.brs;
               v_bit_driven  := true;
-
-              pcs_o.valid         <= '1';
-              pcs_o.polarity      <= v_tx_polarity;
-              bs_o.valid          <= '1';
-              bs_o.data           <= v_tx_polarity;
-              crc_o.valid_cc      <= '1';
-              crc_o.valid_fd      <= '1';
-              crc_o.data_cc       <= v_tx_polarity;
-              crc_o.data_fd       <= v_tx_polarity;
-              polarity_history    <= polarity_history(c_tdc_polarity_depth - 2 downto 0) & v_tx_polarity;
-
-              state <= s_esi;
+              state         <= s_esi;
             end if;
 
           -----------------------------------------------------------------
-          -- s_esi: ESI bit (FD only). Error passive indicator.
-          -- Data rate switches here (ISO 7.3.2).
+          -- s_esi: ESI bit (FD only). Data-rate switch (ISO 7.3.2).
           -----------------------------------------------------------------
           when s_esi =>
-            fce_o.transmitting <= '1';
-
             if (pcs_i.sp = '1' and bs_i.valid = '0') then
-              v_tx_polarity := metadata.esi;
-              v_bit_driven  := true;
-
-              pcs_o.valid         <= '1';
-              pcs_o.polarity      <= v_tx_polarity;
+              v_tx_polarity       := metadata.esi;
+              v_bit_driven        := true;
               pcs_o.use_data_rate <= metadata.brs;
-              bs_o.valid     <= '1';
-              bs_o.data      <= v_tx_polarity;
-              crc_o.valid_cc <= '1';
-              crc_o.valid_fd <= '1';
-              crc_o.data_cc  <= v_tx_polarity;
-              crc_o.data_fd  <= v_tx_polarity;
-              polarity_history <= polarity_history(c_tdc_polarity_depth - 2 downto 0) & v_tx_polarity;
-
-              state     <= s_dlc;
-              bit_count <= 0;
+              state               <= s_dlc;
+              bit_count           <= 0;
             end if;
 
           -----------------------------------------------------------------
-          -- s_dlc: 4-bit DLC field. Data from metadata.dlc vector.
+          -- s_dlc: 4-bit DLC field from metadata.dlc.
           -----------------------------------------------------------------
           when s_dlc =>
-            fce_o.transmitting <= '1';
-
             if (pcs_i.sp = '1' and bs_i.valid = '0') then
               v_tx_polarity := metadata.dlc(c_dlc_field_width - 1 - bit_count);
               v_bit_driven  := true;
-
-              pcs_o.valid    <= '1';
-              pcs_o.polarity <= v_tx_polarity;
-              bs_o.valid     <= '1';
-              bs_o.data      <= v_tx_polarity;
-              crc_o.valid_cc <= '1';
-              crc_o.valid_fd <= '1';
-              crc_o.data_cc  <= v_tx_polarity;
-              crc_o.data_fd  <= v_tx_polarity;
-              polarity_history <= polarity_history(c_tdc_polarity_depth - 2 downto 0) & v_tx_polarity;
-
               if (bit_count = c_dlc_field_width - 1) then
                 bit_count <= 0;
                 if (data_len > 0) then
@@ -1200,29 +1090,15 @@ begin
             end if;
 
           -----------------------------------------------------------------
-          -- s_data: Data field. Bits from serializer, byte-by-byte.
+          -- s_data: Data field, bits from serializer.
           -----------------------------------------------------------------
           when s_data =>
-            fce_o.transmitting <= '1';
-
             if (pcs_i.sp = '1' and bs_i.valid = '0') then
-              v_tx_polarity := mac_ser_i.data;
-              v_bit_driven  := true;
-
-              pcs_o.valid     <= '1';
-              pcs_o.polarity  <= v_tx_polarity;
+              v_tx_polarity   := mac_ser_i.data;
+              v_bit_driven    := true;
               mac_ser_o.ready <= '1';
-              bs_o.valid      <= '1';
-              bs_o.data       <= v_tx_polarity;
-              crc_o.valid_cc  <= '1';
-              crc_o.valid_fd  <= '1';
-              crc_o.data_cc   <= v_tx_polarity;
-              crc_o.data_fd   <= v_tx_polarity;
-              polarity_history <= polarity_history(c_tdc_polarity_depth - 2 downto 0) & v_tx_polarity;
-
               if (bit_count = data_len * c_byte_width - 1) then
                 bit_count <= 0;
-                -- Activate FSB one bit early so BS sees rising edge
                 if (metadata.fdf = '1') then
                   fsb_active <= '1';
                   state      <= s_sbc;
@@ -1235,25 +1111,12 @@ begin
             end if;
 
           -----------------------------------------------------------------
-          -- s_sbc: Stuff bit count field (FD only, 4 bits).
-          -- SBC bits from bs_i.sbc. FSB mode enabled above.
+          -- s_sbc: Stuff bit count field (FD only, 4 bits) from bs_i.sbc.
           -----------------------------------------------------------------
           when s_sbc =>
-            fce_o.transmitting <= '1';
-
             if (pcs_i.sp = '1' and bs_i.valid = '0') then
               v_tx_polarity := bs_i.sbc((c_sbc_field_width - 1) - bit_count);
               v_bit_driven  := true;
-
-              pcs_o.valid    <= '1';
-              pcs_o.polarity <= v_tx_polarity;
-              bs_o.valid     <= '1';
-              bs_o.data      <= v_tx_polarity;
-              -- SBC feeds FD CRC only
-              crc_o.valid_fd <= '1';
-              crc_o.data_fd  <= v_tx_polarity;
-              polarity_history <= polarity_history(c_tdc_polarity_depth - 2 downto 0) & v_tx_polarity;
-
               if (bit_count = c_sbc_field_width - 1) then
                 state     <= s_crc;
                 bit_count <= 0;
@@ -1263,111 +1126,64 @@ begin
             end if;
 
           -----------------------------------------------------------------
-          -- s_crc: CRC field. Bits from crc_i.crc vector. No CRC feed.
+          -- s_crc: CRC bits then CRC delimiter. Folded like RX so the
+          -- common stuff-feed block can absorb a trailing dynamic stuff
+          -- bit (CC frames whose CRC ends with 5 same-polarity bits)
+          -- before the delimiter. ISO 11898-1: 6.6.10.5, 6.6.11.5.
           -----------------------------------------------------------------
           when s_crc =>
-            fce_o.transmitting <= '1';
-
             if (pcs_i.sp = '1' and bs_i.valid = '0') then
-              v_tx_polarity := crc_i.crc((c_crc_21_length - 1) - bit_count);
-              v_bit_driven  := true;
-
-              pcs_o.valid    <= '1';
-              pcs_o.polarity <= v_tx_polarity;
-              -- Feed BS (still in stuffing region)
-              bs_o.valid     <= '1';
-              bs_o.data      <= v_tx_polarity;
-              polarity_history <= polarity_history(c_tdc_polarity_depth - 2 downto 0) & v_tx_polarity;
-
-              if (bit_count = crc_length - 1) then
-                state      <= s_crc_delimiter;
-                bit_count  <= 0;
-                fsb_active <= '0';
+              if (bit_count < crc_length) then
+                v_tx_polarity := crc_i.crc((c_crc_21_length - 1) - bit_count);
+                v_bit_driven  := true;
+                bit_count     <= bit_count + 1;
               else
-                bit_count <= bit_count + 1;
+                -- CRC delimiter (single recessive). No BS/CRC feed (the
+                -- centralized drive block excludes bit_count = crc_length).
+                v_tx_polarity       := c_recessive;
+                v_bit_driven        := true;
+                pcs_o.use_data_rate <= '0';
+                fsb_active          <= '0';
+                state               <= s_ack;
+                bit_count           <= 0;
               end if;
             end if;
 
           -----------------------------------------------------------------
-          -- s_crc_delimiter: Single recessive bit. Switch back to nominal
-          -- bit rate.
-          -----------------------------------------------------------------
-          when s_crc_delimiter =>
-            fce_o.transmitting <= '1';
-            pcs_o.valid        <= '1';
-
-            if (pcs_i.sp = '1') then
-              v_tx_polarity       := c_recessive;
-              v_bit_driven        := true;
-              pcs_o.polarity      <= c_recessive;
-              pcs_o.use_data_rate <= '0';
-              polarity_history    <= polarity_history(c_tdc_polarity_depth - 2 downto 0) & c_recessive;
-              state <= s_ack;
-            end if;
-
-          -----------------------------------------------------------------
-          -- s_ack: ACK slot (recessive from TX). Monitor for dominant
-          -- from another node confirming reception.
+          -- s_ack: ACK slot (bc=0) and ACK delimiter (bc=1). Both
+          -- recessive. ACK reception is detected one SP late: at bc=1
+          -- bus_polarity reflects the slot read-back (dominant = ACK).
+          -- ISO 11898-1: 6.6.10.6, 6.6.11.6.
           -----------------------------------------------------------------
           when s_ack =>
-            fce_o.transmitting <= '1';
-            pcs_o.valid        <= '1';
-
             if (pcs_i.sp = '1') then
-              -- bus_polarity here reflects CRC delimiter (previous bit).
-              -- ACK detection deferred to s_ack_delimiter where bus_polarity
-              -- reflects the actual ACK slot.
-              v_tx_polarity    := c_recessive;
-              v_bit_driven     := true;
-              pcs_o.polarity   <= c_recessive;
-              polarity_history <= polarity_history(c_tdc_polarity_depth - 2 downto 0) & c_recessive;
-              state <= s_ack_delimiter;
-            end if;
-
-          -----------------------------------------------------------------
-          -- s_ack_delimiter: Single recessive bit after ACK slot.
-          -- Check for ACK error if no dominant was seen.
-          -----------------------------------------------------------------
-          when s_ack_delimiter =>
-            fce_o.transmitting <= '1';
-            pcs_o.valid        <= '1';
-
-            if (pcs_i.sp = '1') then
-              -- bus_polarity here reflects the ACK slot (previous bit).
-              -- Dominant means another node acknowledged the frame.
-              if (pcs_i.bus_polarity = c_dominant) then
-                ack_success_seen <= true;
+              v_tx_polarity := c_recessive;
+              v_bit_driven  := true;
+              if (bit_count = 0) then
+                bit_count <= 1;
+              else
+                if (pcs_i.bus_polarity = c_dominant) then
+                  ack_success_seen <= true;
+                end if;
+                state     <= s_eof;
+                bit_count <= 0;
               end if;
-              v_tx_polarity    := c_recessive;
-              v_bit_driven     := true;
-              pcs_o.polarity   <= c_recessive;
-              polarity_history <= polarity_history(c_tdc_polarity_depth - 2 downto 0) & c_recessive;
-              state     <= s_eof;
-              bit_count <= 0;
             end if;
 
           -----------------------------------------------------------------
-          -- s_eof: 7 recessive bits (ISO 11898-1: 6.6.10.7, 6.6.11.7)
+          -- s_eof: 7 recessive bits (ISO 11898-1: 6.6.10.7, 6.6.11.7).
+          -- ACK error check at bc=0: bus_polarity reflects ACK delimiter,
+          -- but ack_success_seen was set in s_ack from the slot read-back.
           -----------------------------------------------------------------
           when s_eof =>
-            fce_o.transmitting <= '1';
-            pcs_o.valid        <= '1';
-
             if (pcs_i.sp = '1') then
-              -- ACK error check at first EOF bit: bus_polarity here
-              -- reflects ACK delimiter (previous bit). The ACK slot was
-              -- checked in s_ack_delimiter.
               if (bit_count = 0 and not ack_success_seen) then
                 v_enter_error         := true;
                 ack_error_caused_flag <= true;
               end if;
-
-              v_tx_polarity    := c_recessive;
-              v_bit_driven     := true;
-              pcs_o.polarity   <= c_recessive;
-              polarity_history <= polarity_history(c_tdc_polarity_depth - 2 downto 0) & c_recessive;
+              v_tx_polarity := c_recessive;
+              v_bit_driven  := true;
               if (bit_count = c_eof_field_width - 1) then
-                -- Successful transmission
                 mac_ser_o.transfer_status <= c_transmitted;
                 was_previous_frame_tx     <= true;
                 fce_o.successful_transfer <= '1';
@@ -1379,10 +1195,10 @@ begin
             end if;
 
           -----------------------------------------------------------------
-          -- s_flag: Error flags (active/passive) and overload flag.
+          -- s_error_overload: Error flags (active/passive) and overload flag.
           -- ISO 11898-1: 6.6.5, 6.6.6
           -----------------------------------------------------------------
-          when s_flag =>
+          when s_error_overload =>
             fce_o.transmitting                <= '1';
             fce_o.sending_error_overload_flag <= '1';
             pcs_o.valid                       <= '1';
@@ -1457,9 +1273,55 @@ begin
         end case;
 
         -----------------------------------------------------------------
-        -- Bit error entry (frame-content states)
+        -- Centralized bit drive: PCS, BS feed, CRC feed, polarity
+        -- history. State logic only selects v_tx_polarity, sets
+        -- v_bit_driven, advances counters and transitions. Stuff bits
+        -- additionally set v_is_stuff_bit so the CRC feed below skips
+        -- CC CRC and only includes FD CRC for dynamic stuff bits
+        -- (ISO 6.6.4.4).
+        --
+        -- Uses the OLD bit_count and OLD state (signal assignments in
+        -- the case statement are pending and not yet visible here).
         -----------------------------------------------------------------
-        if (v_bit_error) then
+        if (v_bit_driven) then
+          pcs_o.valid      <= '1';
+          pcs_o.polarity   <= v_tx_polarity;
+          polarity_history <= polarity_history(c_tdc_polarity_depth - 2 downto 0) & v_tx_polarity;
+
+          -- BS feed: every bit in a stuffing region except the CRC
+          -- delimiter (bit_count = crc_length).
+          if (v_in_dsb_field or
+              state = s_sbc or
+              (state = s_crc and bit_count < crc_length)) then
+            bs_o.valid <= '1';
+            bs_o.data  <= v_tx_polarity;
+          end if;
+
+          -- CRC feed
+          if (v_is_stuff_bit) then
+            -- ISO 6.6.4.4: only FD dynamic stuff bits feed the FD CRC.
+            -- Fixed stuff bits (s_sbc / FD s_crc) do not feed any CRC.
+            if (v_in_dsb_field and metadata.fdf = '1' and fsb_active = '0') then
+              crc_o.valid_fd <= '1';
+              crc_o.data_fd  <= v_tx_polarity;
+            end if;
+          else
+            if (v_in_dsb_field) then
+              crc_o.valid_cc <= '1';
+              crc_o.valid_fd <= '1';
+              crc_o.data_cc  <= v_tx_polarity;
+              crc_o.data_fd  <= v_tx_polarity;
+            elsif (state = s_sbc) then
+              crc_o.valid_fd <= '1';
+              crc_o.data_fd  <= v_tx_polarity;
+            end if;
+          end if;
+        end if;
+
+        -----------------------------------------------------------------
+        -- Error entry: bit error (any frame state) or ACK error (s_eof).
+        -----------------------------------------------------------------
+        if (v_bit_error or v_enter_error) then
           fce_o.error               <= '1';
           pcs_o.polarity            <= c_recessive when fce_i.error_passive_request = '1' else c_dominant;
           pcs_o.valid               <= '1';
@@ -1470,36 +1332,18 @@ begin
           fsb_active                <= '0';
           bit_count                 <= 0;
           dominant_run_count        <= 0;
-          state                     <= s_flag;
+          state                     <= s_error_overload;
           flag_type                 <= passive_error when fce_i.error_passive_request = '1' else active_error;
         end if;
 
         -----------------------------------------------------------------
-        -- Arbitration loss (arb-field states only)
+        -- Arbitration loss (arb-field states only).
         -----------------------------------------------------------------
         if (v_lost_arb) then
           mac_ser_o.transfer_status <= c_lost_arb;
           was_previous_frame_tx     <= false;
           bit_count                 <= 0;
           state                     <= s_intermission;
-        end if;
-
-        -----------------------------------------------------------------
-        -- ACK error / protocol error entry
-        -----------------------------------------------------------------
-        if (v_enter_error) then
-          fce_o.error               <= '1';
-          pcs_o.polarity            <= c_recessive when fce_i.error_passive_request = '1' else c_dominant;
-          pcs_o.valid               <= '1';
-          mac_ser_o.transfer_status <= c_disturbed;
-          was_previous_frame_tx     <= true;
-          dominant_seen_during_flag <= false;
-          primary_error_sent        <= false;
-          fsb_active                <= '0';
-          bit_count                 <= 0;
-          dominant_run_count        <= 0;
-          state                     <= s_flag;
-          flag_type                 <= passive_error when fce_i.error_passive_request = '1' else active_error;
         end if;
 
       end if;
