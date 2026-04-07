@@ -34,8 +34,8 @@ architecture tb of can_mac_rx_tb is
   -- Constants
   ----------------------------------------------------------------------------
   constant c_sp_interval  : natural := 10;
-  constant c_bin_at_least : natural := 5;
 
+  constant c_bin_at_least : natural := 50;
   ----------------------------------------------------------------------------
   -- Signals
   ----------------------------------------------------------------------------

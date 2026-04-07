@@ -70,6 +70,9 @@ architecture rtl of can_mac_fsm_rx is
   signal llc_frame     : t_llc_frame; -- Stores received frame
   signal llc_frame_len : natural range 0 to c_internal_llc_frame_len;
   signal llc_streaming : std_logic; -- When set, the received frame is streamed to the LLC
+  signal stream_idx    : natural range 0 to c_internal_llc_frame_len - 1; -- LLC stream byte cursor (independent of RX byte_index)
+  signal stream_len    : natural range 0 to c_internal_llc_frame_len; -- Snapshot of llc_frame_len for the active stream
+  signal stream_buf    : t_llc_frame; -- Shadow of llc_frame captured when streaming starts
 begin
 
   p_fsm : process (clk_i) is
@@ -91,6 +94,9 @@ begin
         crc_length     <= c_crc_15_length;
         crc_mismatch   <= '0';
         llc_streaming  <= '0';
+        stream_idx     <= 0;
+        stream_len     <= 0;
+        stream_buf     <= (others => (others => '0'));
         llc_frame_len  <= 0;
         llc_frame      <= (others => (others => '0'));
         pcs_o          <= c_mac_to_pcs_if_reset;
@@ -184,22 +190,22 @@ begin
         -- Stream frame to LLC
         -----------------------------------------------------------------
         if (llc_streaming = '1') then
-          llc_o.avalon_st_source.data  <= llc_frame(byte_index);
+          llc_o.avalon_st_source.data  <= stream_buf(stream_idx);
           llc_o.avalon_st_source.valid <= '1';
 
-          if (byte_index = 0) then
+          if (stream_idx = 0) then
             llc_o.avalon_st_source.startofpacket <= '1';
           end if;
 
-          if (byte_index = llc_frame_len - 1) then
+          if (stream_idx = stream_len - 1) then
             llc_o.avalon_st_source.endofpacket <= '1';
           end if;
 
           if (llc_i.avalon_st_sink.ready = '1') then
-            if (byte_index = llc_frame_len - 1) then
+            if (stream_idx = stream_len - 1) then
               llc_streaming <= '0';
             else
-              byte_index <= byte_index + 1;
+              stream_idx <= stream_idx + 1;
             end if;
           end if;
         end if;
@@ -440,27 +446,18 @@ begin
           -----------------------------------------------------------------
           when s_crc =>
             if (v_real_bit) then
-              if (pcs_i.bus_polarity /= crc_i.crc((c_crc_21_length - 1) - bit_count)) then
-                crc_mismatch <= '1';
-              end if;
-              if (bit_count + 1 = crc_length) then
-                fsm_state <= s_ack;
-                bit_count <= 0;
-              else
+              if (bit_count < crc_length) then
+                if (pcs_i.bus_polarity /= crc_i.crc((c_crc_21_length - 1) - bit_count)) then
+                  crc_mismatch <= '1';
+                end if;
                 bit_count <= bit_count + 1;
-              end if;
-            end if;
-
-          -- -----------------------------------------------------------
-          -- s_ack : Handle CRC delimiter, ACK slot and ACK delimiter
-          -- ISO 11898-1: 6.6.10.6, 6.6.11.6.
-          -- bit_count 0: CRC delimiter, 1: ACK slot, 2: ACK delimiter.
-          -- -----------------------------------------------------------
-          when s_ack =>
-            if (pcs_i.sp = '1') then
-              if (bit_count = 0) then -- CRC delimiter
-                pcs_o.use_data_rate <= '0'; -- exit data rate (ISO 11898-1: 6.6.11.5). 
-
+              else
+                -- This real bit is the CRC delimiter. Any dynamic stuff bit
+                -- inserted between the last CRC bit and the delimiter has
+                -- already been consumed by the bit-reception block on a
+                -- prior SP (s_crc remains in the in_fsb_field guard until
+                -- the transition below). ISO 11898-1: 6.6.10.6, 6.6.11.6.
+                pcs_o.use_data_rate <= '0';
                 if (pcs_i.bus_polarity = c_dominant or crc_mismatch = '1') then
                   -- Form error: CRC delimiter must be recessive, or CRC mismatch (ISO 11898-1: 6.6.5.1)
                   -------------------------------------------------------------
@@ -472,14 +469,27 @@ begin
                   bit_count           <= 0;
                   -------------------------------------------------------------
                 else
-                  -- Send ACK bit
+                  -- CRC delimiter OK: drive ACK on the next bit slot
                   pcs_o.valid    <= '1';
                   pcs_o.polarity <= c_dominant;
-                  bit_count      <= 1;
+                  fsm_state      <= s_ack;
+                  bit_count      <= 0;
                 end if;
-              elsif (bit_count = 1) then -- ACK slot
-                bit_count <= 2;
-              elsif (bit_count = 2) then -- ACK delimiter
+              end if;
+            end if;
+
+          -- -----------------------------------------------------------
+          -- s_ack : Handle ACK slot and ACK delimiter (CRC delimiter is
+          -- handled at the end of s_crc, since that is where the FSM still
+          -- holds the in_fsb_field guard required to absorb a trailing
+          -- dynamic stuff bit). ISO 11898-1: 6.6.10.6, 6.6.11.6.
+          -- bit_count 0: ACK slot, 1: ACK delimiter.
+          -- -----------------------------------------------------------
+          when s_ack =>
+            if (pcs_i.sp = '1') then
+              if (bit_count = 0) then -- ACK slot
+                bit_count <= 1;
+              elsif (bit_count = 1) then -- ACK delimiter
                 if (pcs_i.bus_polarity = c_dominant) then
                   -- Form error: ACK delimiter must be recessive (ISO 11898-1: 6.6.5.1)
                   -------------------------------------------------------------
@@ -525,7 +535,9 @@ begin
                 if (bit_count = c_eof_field_width - 2) then
                   fce_o.successful_transfer <= '1';
                   llc_streaming             <= '1'; -- Start streaming frame to LLC
-                  byte_index                <= 0;
+                  stream_idx                <= 0;
+                  stream_len                <= c_data_offset + data_len;
+                  stream_buf                <= llc_frame;
                   llc_frame_len             <= c_data_offset + data_len;
                 end if;
                 if (bit_count = c_eof_field_width - 1) then

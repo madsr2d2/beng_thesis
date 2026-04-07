@@ -139,6 +139,12 @@ top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.llc_frame
 top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.llc_frame_len
 @28
 top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.llc_streaming
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.stream_idx
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.stream_len
+@420
+top.can_mac_rx_tb.u_dut.rx_mac_fsm_inst.stream_buf
 @1401200
 -rx_mac_fsm_inst
 @c00200
