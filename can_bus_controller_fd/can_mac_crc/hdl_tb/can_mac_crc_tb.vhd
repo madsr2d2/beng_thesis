@@ -17,14 +17,14 @@
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
-  use ieee.std_logic_1164.all;
-  use ieee.numeric_std.all;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 library osvvm;
-  context osvvm.OsvvmContext;
-  use osvvm.ScoreboardPkg_slv.all;
+context osvvm.OsvvmContext;
+use osvvm.ScoreboardPkg_slv.all;
 library osvvm_common;
-  context osvvm_common.OsvvmCommonContext;
+context osvvm_common.OsvvmCommonContext;
 
 use work.pk_man_global.all;
 use work.common_register_interface_pkg.all;

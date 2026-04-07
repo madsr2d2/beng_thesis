@@ -1,0 +1,26 @@
+# ---------------------------------------------------------------------------- #
+# Packages
+# ---------------------------------------------------------------------------- #
+import $abs_path/modules/ip_lib/man_global_p/hdl_src/man_global_p.evlfs
+import $abs_path/modules/ip_lib/can_bus_controller_fd/can_types_p/hdl_src/can_types_p.evlfs
+
+# ---------------------------------------------------------------------------- #
+# register
+# ---------------------------------------------------------------------------- #
+
+
+# ---------------------------------------------------------------------------- #
+# Sub Modules
+# ---------------------------------------------------------------------------- #
+import $abs_path/modules/ip_lib/can_bus_controller_fd/can_mac_fsm_tx/hdl_src/can_mac_fsm_tx.evlfs
+import $abs_path/modules/ip_lib/can_bus_controller_fd/can_mac_bs/hdl_src/can_mac_bs.evlfs
+import $abs_path/modules/ip_lib/can_bus_controller_fd/can_mac_crc/hdl_src/can_mac_crc.evlfs
+import $abs_path/modules/ip_lib/can_bus_controller_fd/can_mac_ser_tx/hdl_src/can_mac_ser_tx.evlfs
+
+# ---------------------------------------------------------------------------- #
+# Module Files
+# ---------------------------------------------------------------------------- #
+import can_mac_tx.vhd
+
+
+# eof

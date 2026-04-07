@@ -20,6 +20,7 @@
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-03-15  TMYAES:   [TRIT-4336] Initial implementation
+--                2026-03-20  TMYAES:   [TRIT-4336] Removed redundant config byte records
 --                2026-03-21  TMYAES:   [TRIT-4336] Refactored type system and constants.
 --                                      Added get_frame_params, get_mac_frame_bit.
 --                2026-03-22  TMYAES:   [TRIT-4336] Added get_bit_info. Cleaned up
@@ -30,10 +31,10 @@
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
-
-  use work.pk_man_global.all;
   use ieee.math_real.all;
 
+use work.pk_man_global.all;
+use work.pk_eth_st;
 package pk_can_types is
 
   ---------------------------------------------------------------------------
@@ -308,10 +309,6 @@ package pk_can_types is
   -- 6. Interface Records
   -- Each record is followed by its reset constant.
   ---------------------------------------------------------------------------
-
-  -- Avalon-ST streaming interface (matches company pk_eth_st)
-
-
   -- Serializer -> FSM
   type t_can_mac_ser_fsm_if_s2d is record
     data         : std_logic;
@@ -619,7 +616,6 @@ package pk_can_types is
     ser_data          : std_logic;
     metadata          : t_llc_metadata;
     frame_params      : t_frame_params;
-    previous_polarity : std_logic;
     sbc               : std_logic_vector;
     crc               : std_logic_vector
   ) return t_mac_frame_bit;
@@ -703,11 +699,9 @@ package body pk_can_types is
     ser_data          : std_logic;
     metadata          : t_llc_metadata;
     frame_params      : t_frame_params;
-    previous_polarity : std_logic;
     sbc               : std_logic_vector;
     crc               : std_logic_vector
   ) return t_mac_frame_bit is
-    variable v_pos_in_field : natural range 0 to c_max_mac_frame_length;
   begin
     -- Arbitration and control bits per format (ISO 11898-1, Figure 2)
     if (metadata.ide = '0' and metadata.fdf = '0') then
@@ -800,7 +794,6 @@ package body pk_can_types is
     end if;
 
     -- SBC field (FD only, ISO 6.6.11.5): between data_stop and crc_start.
-    -- FSB interleaving is handled by can_mac_bs (fsb_en mode), not here.
     if (metadata.fdf = '1' and bit_count >= frame_params.data_stop and bit_count < frame_params.crc_start) then
       return (bit_name => sbs_bit, polarity => sbc((c_sbc_field_width - 1) - (bit_count - frame_params.data_stop)));
     end if;

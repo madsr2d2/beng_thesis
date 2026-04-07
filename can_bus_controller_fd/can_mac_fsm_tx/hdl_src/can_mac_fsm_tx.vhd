@@ -4,17 +4,17 @@
 --
 -- Requirements:
 --
--- Description:   Media Access Control (MAC) FSM for CAN/CAN-FD transmission.
+-- Description:   MAC FSM for CAN/CAN-FD transmission side.
 --                Coordinates serialization, bit stuffing, CRC generation, and
---                physical signaling (PCS) timing.
+--                PCS control.
 --                Frame transmission is split into three pipelined states:
 --                s_frame_init  - compute frame_params, drive SOF
 --                s_monitor_bit - wait for SP/SSP, evaluate get_bit_info
 --                s_transmit_bit - drive next bit via get_mac_frame_bit
---                Protocol references: ISO 11898-1:2015
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-31  MRDSA     Converted to company header format
+--                2026-03-23  TMYAES    [TRIT-4355] Initial implementation
+--
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
@@ -418,7 +418,8 @@ begin
 
               -- Normal bit: increment position counter
               bit_count <= bit_count + 1;
-              v_next_bit := get_mac_frame_bit(bit_count + 1, mac_ser_i.data, mac_ser_i.llc_metadata, frame_params, last_transmitted_bit.polarity, bs_i.sbc, crc_i.crc);
+              -- v_next_bit := get_mac_frame_bit(bit_count + 1, mac_ser_i.data, mac_ser_i.llc_metadata, frame_params, last_transmitted_bit.polarity, bs_i.sbc, crc_i.crc);
+              v_next_bit := get_mac_frame_bit(bit_count + 1, mac_ser_i.data, mac_ser_i.llc_metadata, frame_params, bs_i.sbc, crc_i.crc);
 
               -- Signal ready if the bit is sourced from mac_ser_tx
               if (v_next_bit.bit_name = base_id_bit or v_next_bit.bit_name = extended_id_bit or v_next_bit.bit_name = data_bit) then

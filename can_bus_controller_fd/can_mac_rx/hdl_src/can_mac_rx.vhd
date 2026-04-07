@@ -4,14 +4,13 @@
 --
 -- Requirements:
 --
--- Description:   Top-level MAC transmitter wrapper.
---                - can_mac_ser_tx: LLC byte serializer
---                - can_mac_fsm_tx: Coordinating FSM
---                - can_mac_bs: CAN bit stuffing with SBC generation
---                - can_mac_crc: CRC engine interface
---
+-- Description:   Top-level MAC receiver wrapper.
+--                - can_mac_fsm_rx:   Frame reception FSM
+--                - can_mac_bs:       CAN FD bit stuffer
+--                - can_mac_crc:      CRC engine (reused for CRC checking)
+-- TODO: JIRA missing
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-30  TMYAES    [TRIT-4355] Initial implementation
+--                2026-04-03  TMYAES     Initial implementation
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
@@ -21,38 +20,31 @@ use ieee.std_logic_1164.all;
 use work.pk_man_global.all;
 use work.pk_can_types.all;
 
-entity can_mac_tx is
+entity can_mac_rx is
   port (
     clk : in    std_logic;
     rst : in    std_logic;
-
-    -- LLC interface (Logical Link Control)
-    llc_i : in    t_can_llc_mac_tx_if_s2d;
-    llc_o : out   t_can_llc_mac_tx_if_d2s;
-
-    -- PCS interface (Physical Coding Sublayer)
+    -- LLC interface (MAC is Avalon-ST source, LLC RX is sink)
+    llc_i : in    t_can_llc_mac_rx_if_d2s;
+    llc_o : out   t_can_llc_mac_rx_if_s2d;
+    -- PCS interface (bidirectional - receives bits, sends ACK/error flags)
     pcs_i : in    t_can_mac_pcs_if_s2m;
     pcs_o : out   t_can_mac_pcs_if_m2s;
-
     -- Fault Confinement Entity interface
     fce_i : in    t_can_mac_fce_if_s2m;
     fce_o : out   t_can_mac_fce_if_m2s
   );
-end entity can_mac_tx;
+end entity can_mac_rx;
 
-architecture rtl of can_mac_tx is
+architecture rtl of can_mac_rx is
 
   ---------------------------------------------------------------------------
   -- Internal signals
   ---------------------------------------------------------------------------
-  -- Serializer <-> FSM
-  signal ser_to_fsm : t_can_mac_ser_fsm_if_s2d;
-  signal fsm_to_ser : t_can_mac_ser_fsm_if_d2s;
-
-  -- FSM <-> bit stuffer
-  signal fsm_to_bs_fd  : t_can_mac_fsm_bs_if_m2s;
-  signal bs_fd_to_fsm  : t_can_mac_fsm_bs_if_s2m;
-  signal fsm_bs_fd_rst : std_logic;
+  -- FSM <-> bit stuffer (destuffing)
+  signal fsm_to_bs  : t_can_mac_fsm_bs_if_m2s;
+  signal bs_to_fsm  : t_can_mac_fsm_bs_if_s2m;
+  signal fsm_bs_rst : std_logic;
 
   -- FSM <-> CRC
   signal fsm_to_crc  : t_can_mac_fsm_crc_if_m2s;
@@ -62,48 +54,35 @@ architecture rtl of can_mac_tx is
 begin
 
   ---------------------------------------------------------------------------
-  -- can_mac_ser_tx: LLC byte serializer
+  -- can_mac_fsm_rx: Frame reception FSM
   ---------------------------------------------------------------------------
-  u_can_mac_ser_tx : entity work.can_mac_ser_tx
+  u_mac_fsm_rx : entity work.can_mac_fsm_rx
     port map (
-      clk_i        => clk,
-      rst_i        => rst,
-      llc_i        => llc_i,
-      llc_o        => llc_o,
-      tx_mac_fsm_i => fsm_to_ser,
-      tx_mac_fsm_o => ser_to_fsm
+      clk_i   => clk,
+      rst_i   => rst,
+      llc_i   => llc_i,
+      llc_o   => llc_o,
+      pcs_i   => pcs_i,
+      pcs_o   => pcs_o,
+      bs_i    => bs_to_fsm,
+      bs_o    => fsm_to_bs,
+      bs_rst  => fsm_bs_rst,
+      crc_i   => crc_to_fsm,
+      crc_o   => fsm_to_crc,
+      crc_rst => fsm_crc_rst,
+      fce_i   => fce_i,
+      fce_o   => fce_o
     );
 
   ---------------------------------------------------------------------------
-  -- can_mac_fsm_tx: Frame transmission FSM
-  ---------------------------------------------------------------------------
-  u_can_mac_fsm_tx : entity work.can_mac_fsm_tx
-    port map (
-      clk_i              => clk,
-      rst_i              => rst,
-      mac_ser_i          => ser_to_fsm,
-      mac_ser_o          => fsm_to_ser,
-      pcs_i              => pcs_i,
-      pcs_o              => pcs_o,
-      bs_i            => bs_fd_to_fsm,
-      bs_o            => fsm_to_bs_fd,
-      bs_rst          => fsm_bs_fd_rst,
-      crc_i              => crc_to_fsm,
-      crc_o              => fsm_to_crc,
-      crc_rst            => fsm_crc_rst,
-      fce_i              => fce_i,
-      fce_o              => fce_o
-    );
-
-  ---------------------------------------------------------------------------
-  -- can_mac_bs: CAN FD bit stuffing with SBC generation
+  -- can_mac_bs: CAN FD bit stuffer
   ---------------------------------------------------------------------------
   u_can_mac_bs : entity work.can_mac_bs
     port map (
       clk_i => clk,
-      rst_i => rst or fsm_bs_fd_rst,
-      bs_i  => fsm_to_bs_fd,
-      bs_o  => bs_fd_to_fsm
+      rst_i => rst or fsm_bs_rst,
+      bs_i  => fsm_to_bs,
+      bs_o  => bs_to_fsm
     );
 
   ---------------------------------------------------------------------------
