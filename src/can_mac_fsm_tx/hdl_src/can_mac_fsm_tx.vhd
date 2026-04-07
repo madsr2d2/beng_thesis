@@ -86,8 +86,7 @@ architecture rtl of can_mac_fsm_tx is
   -- Polarity history for TDC bit error detection (ISO 7.3.4)
   signal polarity_history : std_logic_vector(c_tdc_polarity_depth - 1 downto 0);
 
-  -- Frame metadata (latched from serializer at SOF)
-  signal metadata  : t_llc_metadata;
+  -- Frame metadata (read directly from serializer; held stable for frame)
   signal data_len  : natural range 0 to c_max_data_bytes;
   signal crc_length : natural range 0 to c_crc_21_length;
 
@@ -131,7 +130,6 @@ begin
         flag_type                 <= active_error;
         bit_count                 <= 0;
         polarity_history          <= (others => c_recessive);
-        metadata                  <= c_llc_metadata_reset;
         data_len                  <= 0;
         crc_length                <= c_crc_15_length;
         was_previous_frame_tx     <= false;
@@ -371,12 +369,7 @@ begin
             pcs_o.use_data_rate <= '0';
             pcs_o.start_tdc     <= '0';
 
-            -- Latch frame metadata (unconditional setup)
-            metadata <= mac_ser_i.llc_metadata;
-            v_data_len := dlc_to_data_length(
-              to_integer(unsigned(mac_ser_i.llc_metadata.dlc)),
-              mac_ser_i.llc_metadata.fdf
-            );
+            v_data_len := dlc_to_data_length( to_integer(unsigned(mac_ser_i.llc_metadata.dlc)), mac_ser_i.llc_metadata.fdf);
             data_len <= v_data_len;
 
             -- Select CRC polynomial
@@ -398,6 +391,7 @@ begin
             dominant_seen_during_flag <= false;
             dominant_run_count        <= 0;
             fsb_active                <= '0';
+            bit_count <= 0;
 
             -- Feed SOF to BS and CRC
             bs_o.valid     <= '1';
@@ -407,19 +401,17 @@ begin
             crc_o.data_cc  <= c_dominant;
             crc_o.data_fd  <= c_dominant;
 
-            polarity_history <= (0 => c_dominant, others => c_recessive);
-
             if (skip_sof) then
               -- SOF already on bus: drive first ID bit
               pcs_o.polarity  <= mac_ser_i.data;
               mac_ser_o.ready <= '1';
               polarity_history <= (0 => mac_ser_i.data, others => c_recessive);
             else
+              polarity_history <= (0 => c_dominant, others => c_recessive);
               pcs_o.polarity <= c_dominant;
             end if;
 
-            state     <= s_id;
-            bit_count <= 0;
+            state <= s_id;
 
           -----------------------------------------------------------------
           -- s_id: Base ID (11 bits) or extended ID (18 bits) from serializer.
@@ -459,17 +451,17 @@ begin
           when s_rtr_srr_rrs =>
             if (pcs_i.sp = '1' and bs_i.valid = '0') then
               if (bit_count > c_base_id_width) then
-                if (metadata.fdf = '1') then
+                if (mac_ser_i.llc_metadata.fdf = '1') then
                   v_tx_polarity := c_dominant;     -- RRS
                 else
-                  v_tx_polarity := metadata.ftyp;  -- RTR
+                  v_tx_polarity := mac_ser_i.llc_metadata.ftyp;  -- RTR
                 end if;
-              elsif (metadata.ide = '1') then
+              elsif (mac_ser_i.llc_metadata.ide = '1') then
                 v_tx_polarity := c_recessive;      -- SRR
-              elsif (metadata.fdf = '1') then
+              elsif (mac_ser_i.llc_metadata.fdf = '1') then
                 v_tx_polarity := c_dominant;       -- RRS
               else
-                v_tx_polarity := metadata.ftyp;    -- RTR
+                v_tx_polarity := mac_ser_i.llc_metadata.ftyp;    -- RTR
               end if;
               v_bit_driven := true;
               if (bit_count > c_base_id_width) then
@@ -484,9 +476,9 @@ begin
           -----------------------------------------------------------------
           when s_ide =>
             if (pcs_i.sp = '1' and bs_i.valid = '0') then
-              v_tx_polarity := metadata.ide;
+              v_tx_polarity := mac_ser_i.llc_metadata.ide;
               v_bit_driven  := true;
-              if (metadata.ide = c_recessive) then
+              if (mac_ser_i.llc_metadata.ide = c_recessive) then
                 state     <= s_id;
                 bit_count <= c_base_id_width;
               else
@@ -499,10 +491,10 @@ begin
           -----------------------------------------------------------------
           when s_fdf_r1_r0 =>
             if (pcs_i.sp = '1' and bs_i.valid = '0') then
-              v_tx_polarity   := metadata.fdf;
+              v_tx_polarity   := mac_ser_i.llc_metadata.fdf;
               v_bit_driven    := true;
-              pcs_o.start_tdc <= '1' when metadata.fdf = '1' else '0';
-              if (metadata.fdf = c_recessive or metadata.ide = '1') then
+              pcs_o.start_tdc <= '1' when mac_ser_i.llc_metadata.fdf = '1' else '0';
+              if (mac_ser_i.llc_metadata.fdf = c_recessive or mac_ser_i.llc_metadata.ide = '1') then
                 state <= s_res_r0;
               else
                 state     <= s_dlc;
@@ -517,7 +509,7 @@ begin
             if (pcs_i.sp = '1' and bs_i.valid = '0') then
               v_tx_polarity := c_dominant;
               v_bit_driven  := true;
-              if (metadata.fdf = '1') then
+              if (mac_ser_i.llc_metadata.fdf = '1') then
                 state <= s_brs;
               else
                 state     <= s_dlc;
@@ -530,7 +522,7 @@ begin
           -----------------------------------------------------------------
           when s_brs =>
             if (pcs_i.sp = '1' and bs_i.valid = '0') then
-              v_tx_polarity := metadata.brs;
+              v_tx_polarity := mac_ser_i.llc_metadata.brs;
               v_bit_driven  := true;
               state         <= s_esi;
             end if;
@@ -540,25 +532,25 @@ begin
           -----------------------------------------------------------------
           when s_esi =>
             if (pcs_i.sp = '1' and bs_i.valid = '0') then
-              v_tx_polarity       := metadata.esi;
+              v_tx_polarity       := mac_ser_i.llc_metadata.esi;
               v_bit_driven        := true;
-              pcs_o.use_data_rate <= metadata.brs;
+              pcs_o.use_data_rate <= mac_ser_i.llc_metadata.brs;
               state               <= s_dlc;
               bit_count           <= 0;
             end if;
 
           -----------------------------------------------------------------
-          -- s_dlc: 4-bit DLC field from metadata.dlc.
+          -- s_dlc: 4-bit DLC field from mac_ser_i.llc_metadata.dlc.
           -----------------------------------------------------------------
           when s_dlc =>
             if (pcs_i.sp = '1' and bs_i.valid = '0') then
-              v_tx_polarity := metadata.dlc(c_dlc_field_width - 1 - bit_count);
+              v_tx_polarity := mac_ser_i.llc_metadata.dlc(c_dlc_field_width - 1 - bit_count);
               v_bit_driven  := true;
               if (bit_count = c_dlc_field_width - 1) then
                 bit_count <= 0;
                 if (data_len > 0) then
                   state <= s_data;
-                elsif (metadata.fdf = '1') then
+                elsif (mac_ser_i.llc_metadata.fdf = '1') then
                   fsb_active <= '1';
                   state      <= s_sbc;
                 else
@@ -579,7 +571,7 @@ begin
               mac_ser_o.ready <= '1';
               if (bit_count = data_len * c_byte_width - 1) then
                 bit_count <= 0;
-                if (metadata.fdf = '1') then
+                if (mac_ser_i.llc_metadata.fdf = '1') then
                   fsb_active <= '1';
                   state      <= s_sbc;
                 else
@@ -782,7 +774,7 @@ begin
           if (v_is_stuff_bit) then
             -- ISO 6.6.4.4: only FD dynamic stuff bits feed the FD CRC.
             -- Fixed stuff bits (s_sbc / FD s_crc) do not feed any CRC.
-            if (v_in_dsb_field and metadata.fdf = '1' and fsb_active = '0') then
+            if (v_in_dsb_field and mac_ser_i.llc_metadata.fdf = '1' and fsb_active = '0') then
               crc_o.valid_fd <= '1';
               crc_o.data_fd  <= v_tx_polarity;
             end if;

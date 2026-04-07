@@ -167,8 +167,6 @@ top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.bit_count
 @22
 top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.polarity_history
 @420
-top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.metadata
-@420
 top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.data_len
 @420
 top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.crc_length
