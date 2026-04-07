@@ -725,7 +725,7 @@ package body pk_can_types is
     variable raw_len      : natural := 0;
     variable arb_end_raw  : natural;
     variable fdf_raw      : natural;
-    variable esi_raw      : natural;
+    variable brs_raw      : natural;
     variable stream_idx   : t_idx_map(0 to c_max_bus_bits - 1);
     variable id_full      : std_logic_vector(c_base_id_width + c_extended_id_width - 1 downto 0);
     variable fixed_raw    : std_logic_vector(0 to c_sbc_field_width + c_crc_21_length - 1);
@@ -752,7 +752,7 @@ package body pk_can_types is
       -- FBFF: RRS, IDE=0, FDF=1, RES=0, BRS, ESI
       arb_end_raw := 1 + c_base_id_width;
       fdf_raw     := arb_end_raw + 2;
-      esi_raw     := arb_end_raw + 5;
+      brs_raw     := arb_end_raw + 4;
       append_bit(c_dominant, raw, raw_len);
       append_bit(c_dominant, raw, raw_len);
       append_bit(c_recessive, raw, raw_len);
@@ -763,7 +763,7 @@ package body pk_can_types is
       -- FEFF: SRR, IDE=1, ext ID, RRS, FDF=1, RES=0, BRS, ESI
       arb_end_raw := 1 + c_base_id_width + 2 + c_extended_id_width;
       fdf_raw     := arb_end_raw + 1;
-      esi_raw     := arb_end_raw + 4;
+      brs_raw     := arb_end_raw + 3;
       append_bit(c_recessive, raw, raw_len);
       append_bit(c_recessive, raw, raw_len);
       append(id_full(c_extended_id_width - 1 downto 0), raw, raw_len);
@@ -790,7 +790,7 @@ package body pk_can_types is
     result.arb_end := stream_idx(arb_end_raw);
     result.fdf_pos := stream_idx(fdf_raw);
     if metadata.brs = '1' then
-      result.data_phase_start := stream_idx(esi_raw);
+      result.data_phase_start := stream_idx(brs_raw);
     end if;
 
     -- Consume preceding stuff bit (ISO 6.6.13.3.1)
