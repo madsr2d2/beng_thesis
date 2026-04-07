@@ -70,9 +70,6 @@ architecture rtl of can_mac_fsm_rx is
   signal llc_frame     : t_llc_frame; -- Stores received frame
   signal llc_frame_len : natural range 0 to c_internal_llc_frame_len;
   signal llc_streaming : std_logic; -- When set, the received frame is streamed to the LLC
-  signal stream_idx    : natural range 0 to c_internal_llc_frame_len - 1; -- LLC stream byte cursor (independent of RX byte_index)
-  signal stream_len    : natural range 0 to c_internal_llc_frame_len; -- Snapshot of llc_frame_len for the active stream
-  signal stream_buf    : t_llc_frame; -- Shadow of llc_frame captured when streaming starts
 begin
 
   p_fsm : process (clk_i) is
@@ -94,9 +91,6 @@ begin
         crc_length     <= c_crc_15_length;
         crc_mismatch   <= '0';
         llc_streaming  <= '0';
-        stream_idx     <= 0;
-        stream_len     <= 0;
-        stream_buf     <= (others => (others => '0'));
         llc_frame_len  <= 0;
         llc_frame      <= (others => (others => '0'));
         pcs_o          <= c_mac_to_pcs_if_reset;
@@ -190,22 +184,22 @@ begin
         -- Stream frame to LLC
         -----------------------------------------------------------------
         if (llc_streaming = '1') then
-          llc_o.avalon_st_source.data  <= stream_buf(stream_idx);
+          llc_o.avalon_st_source.data  <= llc_frame(byte_index);
           llc_o.avalon_st_source.valid <= '1';
 
-          if (stream_idx = 0) then
+          if (byte_index = 0) then
             llc_o.avalon_st_source.startofpacket <= '1';
           end if;
 
-          if (stream_idx = stream_len - 1) then
+          if (byte_index = llc_frame_len - 1) then
             llc_o.avalon_st_source.endofpacket <= '1';
           end if;
 
           if (llc_i.avalon_st_sink.ready = '1') then
-            if (stream_idx = stream_len - 1) then
+            if (byte_index = llc_frame_len - 1) then
               llc_streaming <= '0';
             else
-              stream_idx <= stream_idx + 1;
+              byte_index <= byte_index + 1;
             end if;
           end if;
         end if;
@@ -535,9 +529,7 @@ begin
                 if (bit_count = c_eof_field_width - 2) then
                   fce_o.successful_transfer <= '1';
                   llc_streaming             <= '1'; -- Start streaming frame to LLC
-                  stream_idx                <= 0;
-                  stream_len                <= c_data_offset + data_len;
-                  stream_buf                <= llc_frame;
+                  byte_index                <= 0;
                   llc_frame_len             <= c_data_offset + data_len;
                 end if;
                 if (bit_count = c_eof_field_width - 1) then
