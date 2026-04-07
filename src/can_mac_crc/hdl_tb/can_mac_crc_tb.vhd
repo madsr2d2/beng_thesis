@@ -214,9 +214,11 @@ begin
           crc_i.data_cc <= tx_rec.DataToModel(i + c_max_mac_frame_length);
           crc_i.data_fd <= tx_rec.DataToModel(i);
           crc_i.valid_cc   <= '1';
+          crc_i.valid_fd   <= '1';
           WaitForClock(clk);
         end loop;
         crc_i.valid_cc <= '0';
+        crc_i.valid_fd <= '0';
         WaitForClock(clk);
         tx_rec.Ack <= tx_rec.Ack + 1;
       when others => null;
