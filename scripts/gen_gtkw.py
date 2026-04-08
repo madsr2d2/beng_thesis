@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 """
-Generate GTKWave .gtkw save files from GHDL GHW waveform hierarchy.
+Generate organized, color-coded GTKWave .gtkw save files from a GHW waveform.
 
-Parses the signal hierarchy from a GHW file (via ghwdump -h) and generates
-a grouped GTKWave save file with appropriate display types.
+Parses the signal hierarchy with ``ghwdump -h`` and emits a grouped save file:
 
-Usage (called by Makefile):
-    python scripts/gen_gtkw.py sim/<tb>.ghw gtk_wave/<tb>.gtkw
-
-Signal grouping:
-  1. TB-level signals (clk, reset, test controls)
-  2. One group per DUT port record (interface groups)
-  3. One group per DUT sub-component instance (internals)
+  * TB signals (clk/reset, interface records, override signals)          - red
+  * Per DUT instance: Inputs (blue), Outputs (green), Internals (yellow)
+  * Sub-components recursively (color cycles)
 
 Display type mapping:
-  std_logic / std_ulogic / boolean  -> @28 (logic bit)
-  std_logic_vector / std_ulogic_vector / integer range -> @22 (hex)
-  enum types / integer              -> @420 (decimal/symbolic)
+  std_logic / std_ulogic / boolean    -> @28   (logic bit)
+  std_logic_vector / unsigned / ...   -> @22   (hex vector)
+  integer / natural / t_* records etc -> @420  (symbolic/decimal)
+
+Usage (from Makefile):
+    python scripts/gen_gtkw.py sim/<tb>.ghw src/<mod>/test_case/<tb>.gtkw
 """
+
+from __future__ import annotations
 
 import re
 import subprocess
@@ -26,54 +26,55 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
-# ── Signal type classification ─────────────────────────────────────────────
+# ── Signal type classification ────────────────────────────────────────────
 
-# Types displayed as single-bit logic (@28)
 LOGIC_TYPES = {"std_logic", "std_ulogic", "boolean", "bit"}
 
-# Types displayed as hex vectors (@22)
 VECTOR_RE = re.compile(
-    r"std_u?logic_vector|std_ulogic_vector|unsigned|signed|"
+    r"std_u?logic_vector|unsigned|signed|"
     r"t_byte|t_crc_vector|t_fifo_index_vec|t_tdc_polarity_history"
 )
 
-# Types displayed as decimal/symbolic (@420)
-ENUM_RE = re.compile(
-    r"^(integer|natural|positive|t_\w+|character)$"
-)
-
-# OSVVM and internal types to skip entirely
 SKIP_RE = re.compile(
     r"streamrectype|coverageidtype|alertlogidtype|randomp|"
-    r"predefinedbarriertype|scoreboard"
+    r"predefinedbarriertype|scoreboard|messagelist"
 )
 
 
 def classify_type(type_str: str) -> str:
-    """Return GTKWave display flag for a VHDL type string."""
+    """Return the GTKWave display flag for a VHDL type string."""
     t = type_str.lower().strip()
     if SKIP_RE.search(t):
         return "@skip"
-    # Vectors before scalars (std_ulogic_vector contains std_ulogic)
     if VECTOR_RE.search(t):
         return "@22"
     if any(re.search(rf"\b{lt}\b", t) for lt in LOGIC_TYPES):
         return "@28"
     if "integer" in t or "natural" in t or "positive" in t:
-        return "@420"
-    # Record or enum types starting with t_
+        return "@28"  # scalar integers - show as value
     if t.startswith("t_"):
-        return "@420"
+        return "@22"  # record types - expand as hex
     return "@22"
 
 
-# ── GHW hierarchy parsing ─────────────────────────────────────────────────
+# ── Colours ───────────────────────────────────────────────────────────────
+# GTKWave trace colours: 0=normal, 1=red, 2=orange, 3=yellow, 4=green,
+# 5=blue, 6=indigo, 7=violet.
+
+COLOR_TB       = 1  # red
+COLOR_INPUT    = 5  # blue
+COLOR_OUTPUT   = 4  # green
+COLOR_INTERNAL = 3  # yellow
+
+
+# ── Hierarchy parsing ─────────────────────────────────────────────────────
 
 @dataclass
 class Signal:
     name: str
     type_str: str
-    display: str  # GTKWave flag
+    display: str
+    kind: str  # "signal" | "port-in" | "port-out" | "port-inout"
 
 
 @dataclass
@@ -83,40 +84,39 @@ class Instance:
     children: list["Instance"] = field(default_factory=list)
 
 
+_INSTANCE_RE = re.compile(r"instance\s+(\w+)\s*:")
+_SIGNAL_RE = re.compile(
+    r"(signal|port-in|port-out|port-inout)\s+(\w+)\s*:\s*(.+?):\s*#"
+)
+
+
 def parse_ghw_hierarchy(ghw_path: Path) -> Instance | None:
-    """Run ghwdump -h and parse the hierarchy into a tree."""
     result = subprocess.run(
         ["ghwdump", "-h", str(ghw_path)],
-        capture_output=True, text=True
+        capture_output=True, text=True,
     )
     if result.returncode != 0:
         print(f"Error: ghwdump failed: {result.stderr}", file=sys.stderr)
         return None
 
-    lines = result.stdout.splitlines()
     root: Instance | None = None
     stack: list[tuple[int, Instance]] = []
 
-    for line in lines:
-        # Skip package lines
-        if line.strip().startswith("package ") or line.strip().startswith("design"):
-            continue
-        if line.strip().startswith("process "):
-            continue
-
-        # Determine indentation level
+    for line in result.stdout.splitlines():
         stripped = line.lstrip()
+        if not stripped:
+            continue
+        if stripped.startswith(("package ", "design", "process ")):
+            continue
         indent = len(line) - len(stripped)
 
-        # Instance line: "instance <name>:"
-        m = re.match(r"instance\s+(\w+)\s*:", stripped)
+        m = _INSTANCE_RE.match(stripped)
         if m:
             inst = Instance(name=m.group(1))
             if root is None:
                 root = inst
                 stack = [(indent, inst)]
             else:
-                # Find parent by indentation
                 while stack and stack[-1][0] >= indent:
                     stack.pop()
                 if stack:
@@ -124,48 +124,79 @@ def parse_ghw_hierarchy(ghw_path: Path) -> Instance | None:
                 stack.append((indent, inst))
             continue
 
-        # Signal or port line
-        m = re.match(
-            r"(?:signal|port-in|port-out|port-inout)\s+(\w+)\s*:\s*(.+?):\s*#",
-            stripped,
-        )
+        m = _SIGNAL_RE.match(stripped)
         if m and stack:
-            sig_name = m.group(1)
-            type_str = m.group(2).strip()
+            kind = m.group(1)
+            name = m.group(2)
+            type_str = m.group(3).strip()
             display = classify_type(type_str)
             if display == "@skip":
                 continue
-            stack[-1][1].signals.append(Signal(sig_name, type_str, display))
+            stack[-1][1].signals.append(Signal(name, type_str, display, kind))
 
     return root
 
 
-# ── GTKWave .gtkw generation ──────────────────────────────────────────────
+# ── .gtkw emission ────────────────────────────────────────────────────────
 
-def make_gtkw_path(tb_name: str, *parts: str) -> str:
-    """Build a GTKWave signal path: top.tb_name.part1.part2..."""
-    return "top." + ".".join([tb_name] + list(parts))
+def _path(*parts: str) -> str:
+    return "top." + ".".join(parts)
 
 
-def write_group(lines: list[str], name: str, signals: list[tuple[str, str]]) -> None:
-    """Write a GTKWave signal group."""
-    if not signals:
+def _write_group(
+    lines: list[str],
+    name: str,
+    color: int,
+    sigs: list[tuple[str, str]],
+) -> None:
+    if not sigs:
         return
+    # Group open marker (GTKWave: TR_BLANK | TR_GRP_BEGIN | highlight)
     lines.append("@c00200")
     lines.append(f"-{name}")
-    for display, path in signals:
+    lines.append(f"[color] {color}")
+    for display, path in sigs:
         lines.append(display)
         lines.append(path)
+    # Group close marker (GTKWave: TR_BLANK | TR_GRP_END | highlight)
     lines.append("@1401200")
     lines.append(f"-{name}")
 
 
+def _split_ports(inst: Instance) -> tuple[list[Signal], list[Signal], list[Signal]]:
+    inputs  = [s for s in inst.signals if s.kind == "port-in"]
+    outputs = [s for s in inst.signals if s.kind in ("port-out", "port-inout")]
+    internals = [s for s in inst.signals if s.kind == "signal"]
+    return inputs, outputs, internals
+
+
+def _emit_instance(
+    lines: list[str],
+    inst: Instance,
+    path_prefix: tuple[str, ...],
+    depth: int = 0,
+) -> None:
+    inputs, outputs, internals = _split_ports(inst)
+    base = path_prefix + (inst.name,)
+
+    def _sigs(group: list[Signal]) -> list[tuple[str, str]]:
+        return [(s.display, _path(*base, s.name)) for s in group]
+
+    header = "/".join(base[1:]) if len(base) > 1 else base[0]
+
+    _write_group(lines, f"{header} :: inputs",    COLOR_INPUT,    _sigs(inputs))
+    _write_group(lines, f"{header} :: outputs",   COLOR_OUTPUT,   _sigs(outputs))
+    _write_group(lines, f"{header} :: internals", COLOR_INTERNAL, _sigs(internals))
+
+    for child in inst.children:
+        _emit_instance(lines, child, base, depth + 1)
+
+
 def generate_gtkw(root: Instance, ghw_path: Path, gtkw_path: Path) -> None:
-    """Generate a .gtkw save file from the parsed hierarchy."""
     tb_name = root.name
     lines: list[str] = []
 
-    # Header
+    # ── Header ────────────────────────────────────────────────────────────
     lines.extend([
         "[*]",
         f"[*] GTKWave save file - auto-generated from {ghw_path.name}",
@@ -175,59 +206,36 @@ def generate_gtkw(root: Instance, ghw_path: Path, gtkw_path: Path) -> None:
         "[timestart] 0",
         "[size] 1920 1080",
         "[pos] 0 0",
-        "*-28.000000 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1",
-        f"[treeopen] top.",
+        "*-22.000000 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1",
+        "[treeopen] top.",
         f"[treeopen] top.{tb_name}.",
-        "[sst_width] 297",
-        "[signals_width] 412",
+        "[sst_width] 320",
+        "[signals_width] 460",
         "[sst_expanded] 1",
-        "[sst_vpaned_height] 434",
+        "[sst_vpaned_height] 480",
     ])
-
-    # Add treeopen for DUT instances
     for child in root.children:
         lines.append(f"[treeopen] top.{tb_name}.{child.name}.")
-        for grandchild in child.children:
-            lines.append(
-                f"[treeopen] top.{tb_name}.{child.name}.{grandchild.name}."
-            )
+        for grand in child.children:
+            lines.append(f"[treeopen] top.{tb_name}.{child.name}.{grand.name}.")
 
-    # Group 1: TB-level signals (clk, reset, controls - not OSVVM internals)
-    tb_sigs = []
-    for sig in root.signals:
-        path = make_gtkw_path(tb_name, sig.name)
-        tb_sigs.append((sig.display, path))
-    write_group(lines, "TB Signals", tb_sigs)
+    # ── TB group (always open, red) ───────────────────────────────────────
+    tb_sigs = [
+        (s.display, _path(tb_name, s.name))
+        for s in root.signals
+        if s.kind == "signal"
+    ]
+    _write_group(lines, f"{tb_name} :: TB", COLOR_TB, tb_sigs)
 
-    # Groups for DUT instances
+    # ── DUT instances (open) and sub-components (closed) ──────────────────
     for dut in root.children:
-        # DUT port signals (interface groups)
-        port_sigs = []
-        for sig in dut.signals:
-            path = make_gtkw_path(tb_name, dut.name, sig.name)
-            port_sigs.append((sig.display, path))
-        if port_sigs:
-            write_group(lines, f"{dut.name} Internals", port_sigs)
+        _emit_instance(lines, dut, (tb_name,), depth=0)
 
-        # Sub-component instances
-        for sub in dut.children:
-            sub_sigs = []
-            for sig in sub.signals:
-                path = make_gtkw_path(tb_name, dut.name, sub.name, sig.name)
-                sub_sigs.append((sig.display, path))
-            if sub_sigs:
-                write_group(lines, f"{sub.name}", sub_sigs)
-
-    lines.extend([
-        "[pattern_trace] 1",
-        "[pattern_trace] 0",
-        "",
-    ])
-
+    lines.extend(["[pattern_trace] 1", "[pattern_trace] 0", ""])
     gtkw_path.write_text("\n".join(lines))
 
 
-# ── Main ───────────────────────────────────────────────────────────────────
+# ── Main ──────────────────────────────────────────────────────────────────
 
 def main() -> None:
     if len(sys.argv) != 3:

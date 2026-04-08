@@ -42,29 +42,6 @@ entity can_mac_fsm_tx is
   );
 end entity can_mac_fsm_tx;
 
--- ===========================================================================
--- rtl: Per-field state machine, mirrors the RX FSM style.
---
--- Pre-case:
---   * Pulse defaults, guard predicates, FSB enable.
---   * Bit error / arbitration loss / SSP monitoring (SP-gated).
---   * Stuff-bit feed (drives v_bit_driven + v_is_stuff_bit).
---   * fce_o.transmitting hoisted via v_in_frame predicate.
---
--- Case statement:
---   * Quiet states (bus_reintegration, intermission, suspend, idle) handle
---     their own PCS drive and counter bookkeeping.
---   * s_sof handles its own PCS/BS/CRC/history setup (special skip_sof
---     handling, runs once on entry, not SP-gated).
---   * Frame-body states (s_id..s_eof) just select v_tx_polarity, set
---     v_bit_driven, advance counter, transition. Centralized post-case
---     drive block does PCS drive, BS feed, CRC feed, polarity history.
---
--- Post-case:
---   * Centralized bit drive (v_bit_driven path).
---   * Merged error / ACK-error entry.
---   * Arbitration loss entry.
--- ===========================================================================
 architecture rtl of can_mac_fsm_tx is
 
   type t_fsm_state is (
@@ -119,7 +96,6 @@ begin
     variable v_is_stuff_bit : boolean;  -- The driven bit was a stuff bit (BS-sourced)
     variable v_lost_arb    : boolean;   -- Arbitration lost
     variable v_enter_error : boolean;   -- Enter error flag state (bit/SSP/ACK error)
-    variable v_data_len    : natural;
 
   begin
 
@@ -179,6 +155,7 @@ begin
         v_is_stuff_bit := false;
         v_lost_arb     := false;
         v_enter_error  := false;
+        v_tx_polarity  := c_recessive;
 
         -----------------------------------------------------------------
         -- Quiet-state defaults (not transmitting a frame)
@@ -203,30 +180,11 @@ begin
           bs_o.fsb_en <= '1';
         end if;
 
-        -----------------------------------------------------------------
-        -- Bit error / arb-loss monitor (SP-gated): driven bit vs sampled.
-        -----------------------------------------------------------------
-        if (pcs_i.sp = '1' and (v_in_dsb_field or v_in_fsb_field or
-            state = s_ack or state = s_eof)) then
-          if (polarity_history(to_integer(unsigned(pcs_i.tdc_delay))) /= pcs_i.bus_polarity) then
-            if (v_in_arb_field and pcs_i.bus_polarity = c_dominant) then
-              v_lost_arb := true;
-            elsif not (state = s_ack and bit_count = 1) then
-              v_enter_error := true;
-            end if;
-          end if;
-        end if;
-
         -- SSP: latch deferred bit error (ISO 7.3.4)
         if (pcs_i.ssp = '1' and (v_in_dsb_field or v_in_fsb_field)) then
           if (polarity_history(to_integer(unsigned(pcs_i.tdc_delay))) /= pcs_i.bus_polarity) then
             ssp_error_pending <= true;
           end if;
-        end if;
-
-        if (pcs_i.sp = '1' and ssp_error_pending) then
-          v_enter_error       := true;
-          ssp_error_pending <= false;
         end if;
 
         -----------------------------------------------------------------
@@ -346,14 +304,13 @@ begin
             pcs_o.use_data_rate <= '0';
             pcs_o.start_tdc     <= '0';
 
-            v_data_len := dlc_to_data_length( to_integer(unsigned(mac_ser_i.llc_metadata.dlc)), mac_ser_i.llc_metadata.fdf);
-            data_len <= v_data_len;
+            data_len <= dlc_to_data_length(to_integer(unsigned(mac_ser_i.llc_metadata.dlc)), mac_ser_i.llc_metadata.fdf);
 
             -- Select CRC polynomial
             if (mac_ser_i.llc_metadata.fdf = '0') then
               crc_length            <= c_crc_15_length;
               crc_o.crc_poly_select <= c_crc_poly_15_sel;
-            elsif (v_data_len < c_crc_17_length) then
+            elsif (dlc_to_data_length(to_integer(unsigned(mac_ser_i.llc_metadata.dlc)), mac_ser_i.llc_metadata.fdf) < c_crc_17_length) then
               crc_length            <= c_crc_17_length;
               crc_o.crc_poly_select <= c_crc_poly_17_sel;
             else
@@ -584,12 +541,14 @@ begin
             if (pcs_i.sp = '1') then
               v_tx_polarity := c_recessive;
               v_bit_driven  := true;
+
               if (bit_count = 0) then
                 bit_count <= 1;
+                -- CC (ISO 6.6.10.6): ACK slot is bc=1 only.
+                ack_success_seen <= true when pcs_i.bus_polarity = c_dominant else false;
               else
-                if (pcs_i.bus_polarity = c_dominant) then
-                  ack_success_seen <= true;
-                end if;
+                -- FD (ISO 6.6.11.6): accept dominant at either bc=0 or bc=1
+                ack_success_seen <= true when ack_success_seen or (pcs_i.bus_polarity = c_dominant and mac_ser_i.llc_metadata.fdf = '1') else false;
                 state     <= s_eof;
                 bit_count <= 0;
               end if;
@@ -602,12 +561,13 @@ begin
           -----------------------------------------------------------------
           when s_eof =>
             if (pcs_i.sp = '1') then
-              if (bit_count = 0 and not ack_success_seen) then
-                v_enter_error         := true;
-                ack_error_caused_flag <= true;
-              end if;
               v_tx_polarity := c_recessive;
               v_bit_driven  := true;
+              if (bit_count = 0 and not ack_success_seen) then
+                v_enter_error         := true;
+                v_bit_driven          := false;
+                ack_error_caused_flag <= true;
+              end if;
               if (bit_count = c_eof_field_width - 1) then
                 mac_ser_o.transfer_status <= c_transmitted;
                 was_previous_frame_tx     <= true;
@@ -699,8 +659,33 @@ begin
         end case;
 
         -----------------------------------------------------------------
-        -- Drive bit: PCS, BS feed, CRC feed, polarity history.
-        -- Reads the pre-case bit_count/state (case assignments are pending).
+        -- Bit error / arb-loss monitor (SP-gated): driven bit vs sampled.
+        -- Clearing v_bit_driven inline keeps the post-case effects chain
+        -- mutually exclusive.
+        -----------------------------------------------------------------
+        if (pcs_i.sp = '1' and (v_in_dsb_field or v_in_fsb_field or state = s_ack or state = s_eof)) then
+          if (polarity_history(to_integer(unsigned(pcs_i.tdc_delay))) /= pcs_i.bus_polarity) then
+            if (v_in_arb_field and pcs_i.bus_polarity = c_dominant) then
+              v_lost_arb   := true;
+              v_bit_driven := false;
+            elsif not (state = s_ack and (bit_count = 0 or bit_count = 1)) then
+              v_enter_error := true;
+              v_bit_driven  := false;
+            end if;
+          end if;
+        end if;
+
+        -- SSP-deferred bit error latched at SP (ISO 7.3.4)
+        if (pcs_i.sp = '1' and ssp_error_pending) then
+          v_enter_error     := true;
+          v_bit_driven      := false;
+          ssp_error_pending <= false;
+        end if;
+
+        -----------------------------------------------------------------
+        -- Post-case effects: normal drive, error entry, or arb loss.
+        -- Mutually exclusive by construction (see suppression above and
+        -- the monitor block that sets v_enter_error / v_lost_arb).
         -----------------------------------------------------------------
         if (v_bit_driven) then
           pcs_o.valid      <= '1';
@@ -713,31 +698,23 @@ begin
             bs_o.data  <= v_tx_polarity;
           end if;
 
-          -- CRC feed
-          if (v_is_stuff_bit) then
-            -- ISO 6.6.4.4: only FD dynamic stuff bits feed the FD CRC.
-            -- Fixed stuff bits (s_sbc / FD s_crc) do not feed any CRC.
-            if (v_in_dsb_field and mac_ser_i.llc_metadata.fdf = '1' and fsb_active = '0') then
-              crc_o.valid_fd <= '1';
-              crc_o.data_fd  <= v_tx_polarity;
-            end if;
-          else
-            if (v_in_dsb_field) then
-              crc_o.valid_cc <= '1';
-              crc_o.valid_fd <= '1';
-              crc_o.data_cc  <= v_tx_polarity;
-              crc_o.data_fd  <= v_tx_polarity;
-            elsif (state = s_sbc) then
-              crc_o.valid_fd <= '1';
-              crc_o.data_fd  <= v_tx_polarity;
-            end if;
+          -- CRC feed. ISO 6.6.4.4: only FD dynamic stuff bits feed the FD
+          -- CRC; fixed stuff bits (s_sbc / FD s_crc) feed no CRC.
+          if (v_is_stuff_bit and v_in_dsb_field and
+              mac_ser_i.llc_metadata.fdf = '1' and fsb_active = '0') then
+            crc_o.valid_fd <= '1';
+            crc_o.data_fd  <= v_tx_polarity;
+          elsif (not v_is_stuff_bit and v_in_dsb_field) then
+            crc_o.valid_cc <= '1';
+            crc_o.valid_fd <= '1';
+            crc_o.data_cc  <= v_tx_polarity;
+            crc_o.data_fd  <= v_tx_polarity;
+          elsif (not v_is_stuff_bit and state = s_sbc) then
+            crc_o.valid_fd <= '1';
+            crc_o.data_fd  <= v_tx_polarity;
           end if;
-        end if;
 
-        -----------------------------------------------------------------
-        -- Error entry: bit error or ACK error.
-        -----------------------------------------------------------------
-        if (v_enter_error) then
+        elsif (v_enter_error) then
           fce_o.error               <= '1';
           pcs_o.polarity            <= c_recessive when fce_i.error_passive_request = '1' else c_dominant;
           pcs_o.valid               <= '1';
@@ -750,12 +727,7 @@ begin
           dominant_run_count        <= 0;
           state                     <= s_error_overload;
           flag_type                 <= passive_error when fce_i.error_passive_request = '1' else active_error;
-        end if;
-
-        -----------------------------------------------------------------
-        -- Arbitration loss (arb-field states only).
-        -----------------------------------------------------------------
-        if (v_lost_arb) then
+        elsif (v_lost_arb) then
           mac_ser_o.transfer_status <= c_lost_arb;
           was_previous_frame_tx     <= false;
           bit_count                 <= 0;
