@@ -191,12 +191,12 @@ begin
     -- Bus reintegration: feed 11 recessive bits so DUT reaches s_idle
     for i in 0 to c_bus_idle_condition_width - 1 loop
       pcs_i.bus_polarity <= c_recessive;
-      pcs_i.sp           <= '0';
+      pcs_i.sample_point           <= '0';
       WaitForClock(clk, c_sp_interval - 1);
-      pcs_i.sp <= '1';
+      pcs_i.sample_point <= '1';
       WaitForClock(clk);
     end loop;
-    pcs_i.sp  <= '0';
+    pcs_i.sample_point  <= '0';
     pcs_ready <= true;
     WaitForClock(clk, 5);
 
@@ -215,10 +215,10 @@ begin
         end if;
 
         pcs_i.bus_polarity <= v_bus_val;
-        pcs_i.sp           <= '0';
+        pcs_i.sample_point           <= '0';
 
         if (v_sp_count = c_sp_interval - 1) then
-          pcs_i.sp   <= '1';
+          pcs_i.sample_point   <= '1';
           v_sp_count := 0;
           v_bit_idx  := v_bit_idx + 1;
         else
@@ -227,7 +227,7 @@ begin
       end loop bit_loop;
 
       WaitForClock(clk, 2);
-      pcs_i.sp           <= '0';
+      pcs_i.sample_point           <= '0';
       pcs_i.bus_polarity <= c_recessive;
       pcs_done           <= true;
     end loop pcs_vc_loop;

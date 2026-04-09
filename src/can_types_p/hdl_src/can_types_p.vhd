@@ -253,16 +253,16 @@ package pk_can_types is
   -- PCS -> MAC (ISO 7.2, PCS_Data.Indicate)
   type t_can_mac_pcs_if_s2m is record
     bus_polarity : std_logic;
-    sp           : std_logic;
-    ssp          : std_logic;
-    tdc_delay    : std_logic_vector(integer(ceil(log2(real(c_tdc_polarity_depth)))) - 1 downto 0);
+    sample_point           : std_logic;
+    secondary_sample_point : std_logic;
+    tdc_delay              : std_logic_vector(integer(ceil(log2(real(c_tdc_polarity_depth)))) - 1 downto 0);
   end record t_can_mac_pcs_if_s2m;
 
   constant c_pcs_to_mac_if_reset : t_can_mac_pcs_if_s2m :=
   (
     bus_polarity => c_recessive,
-    sp           => '0',
-    ssp          => '0',
+    sample_point           => '0',
+    secondary_sample_point          => '0',
     tdc_delay    => (others => '0')
   );
 

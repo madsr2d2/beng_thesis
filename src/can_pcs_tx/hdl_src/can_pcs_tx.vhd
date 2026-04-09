@@ -149,7 +149,7 @@ begin
     begin
 
       if (v_tq_tick and tq_count = sp_pos - 1) then
-        v_pcs_to_mac.sp := '1';
+        v_pcs_to_mac.sample_point := '1';
       end if;
 
     end procedure emit_sp;
@@ -160,7 +160,7 @@ begin
 
       if (c_use_tdc and in_data_phase = '1' and
           v_tq_tick and tq_count = ssp_position) then
-        v_pcs_to_mac.ssp       := '1';
+        v_pcs_to_mac.secondary_sample_point       := '1';
         v_pcs_to_mac.tdc_delay := std_logic_vector(to_unsigned(tdc_delay, v_pcs_to_mac.tdc_delay'length));
       end if;
 
@@ -219,8 +219,8 @@ begin
 
         -- Output defaults
         v_pcs_to_mac.bus_polarity := rx_bus_i;
-        v_pcs_to_mac.sp           := '0';
-        v_pcs_to_mac.ssp          := '0';
+        v_pcs_to_mac.sample_point           := '0';
+        v_pcs_to_mac.secondary_sample_point          := '0';
         v_pcs_to_mac.tdc_delay    := (others => '0');
 
         -- Select active bit time and SP position based on data phase

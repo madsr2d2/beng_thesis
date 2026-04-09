@@ -485,8 +485,8 @@ begin
     end procedure arm_bus_injection;
 
   begin
-    pcs_i.sp           <= '0';
-    pcs_i.ssp          <= '0';
+    pcs_i.sample_point           <= '0';
+    pcs_i.secondary_sample_point <= '0';
     pcs_i.tdc_delay    <= (others => '0');
     pcs_i.bus_polarity <= c_recessive;
     bus_override_en    <= false;
@@ -504,8 +504,8 @@ begin
       --   TQ c_sp_tq                     : SP (sample point)
       --   TQ c_sp_tq+1 .. c_bit_time-1   : phase_seg2
       --------------------------------------------------------------------------
-      pcs_i.sp  <= '0';
-      pcs_i.ssp <= '0';
+      pcs_i.sample_point  <= '0';
+      pcs_i.secondary_sample_point <= '0';
 
       if (v_sp_active) then
         -- Bit boundary (sync_seg): latch pcs_o.polarity for loopback
@@ -523,7 +523,7 @@ begin
           if (bus_override_en and (v_subtype = c_inj_error or v_subtype = c_inj_reactive_overload or v_subtype = c_inj_error_delim_too_late)) then
             pcs_i.bus_polarity <= not pcs_o.polarity;
           end if;
-          pcs_i.sp <= '1';
+          pcs_i.sample_point <= '1';
         end if;
 
         -- Advance TQ counter
@@ -667,11 +667,11 @@ begin
     -- Activate SP strobes; FSM should remain in s_bus_reintegration for 11 SPs
     SendAsync(pcs_rec, std_logic_vector(to_unsigned(c_pcs_active, c_rec_width)));
     for sp_idx in 0 to c_bus_idle_condition_width - 2 loop
-      wait until rising_edge(clk) and pcs_i.sp = '1';
+      wait until rising_edge(clk) and pcs_i.sample_point = '1';
       AffirmIf(reset_check_id, pcs_o.valid = '0', "Reintegration: valid=0 at SP " & to_string(sp_idx));
     end loop;
     -- After the 11th SP the FSM transitions to s_bus_idle (still valid='0')
-    wait until rising_edge(clk) and pcs_i.sp = '1';
+    wait until rising_edge(clk) and pcs_i.sample_point = '1';
     AffirmIf(reset_check_id, pcs_o.valid = '0', "Bus idle: valid=0 (no pending frame)");
 
     Print("--------------------------------------------------------------------------");

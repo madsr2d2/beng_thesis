@@ -213,8 +213,6 @@ top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.ssp_error_pending
 @28
 top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.skip_sof
 @28
-top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.fsb_active
-@28
 top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.ack_error_caused_flag
 @28
 top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.dominant_seen_during_flag

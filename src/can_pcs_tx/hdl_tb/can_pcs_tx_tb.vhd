@@ -164,7 +164,7 @@ begin
       seen := false;
       for i in 1 to max_cycles loop
         wait until rising_edge(clk);
-        if (pcs_to_mac_1.sp = '1') then
+        if (pcs_to_mac_1.sample_point = '1') then
           seen := true;
           exit;
         end if;
@@ -187,7 +187,7 @@ begin
       for i in 1 to search_window loop
         wait until rising_edge(clk);
         period := period + 1;
-        if (pcs_to_mac_1.sp = '1') then
+        if (pcs_to_mac_1.sample_point = '1') then
           second_seen := true;
           exit;
         end if;
@@ -237,7 +237,7 @@ begin
       seen := false;
       for i in 1 to max_cycles loop
         wait until rising_edge(clk);
-        if (pcs_to_mac_2.sp = '1') then
+        if (pcs_to_mac_2.sample_point = '1') then
           seen := true;
           exit;
         end if;
@@ -254,7 +254,7 @@ begin
       seen := false;
       for i in 1 to max_cycles loop
         wait until rising_edge(clk);
-        if (pcs_to_mac_2.ssp = '1') then
+        if (pcs_to_mac_2.secondary_sample_point = '1') then
           seen := true;
           exit;
         end if;
@@ -277,7 +277,7 @@ begin
       for i in 1 to search_window loop
         wait until rising_edge(clk);
         period := period + 1;
-        if (pcs_to_mac_2.sp = '1') then
+        if (pcs_to_mac_2.sample_point = '1') then
           second_seen := true;
           exit;
         end if;
@@ -303,7 +303,7 @@ begin
       for i in 1 to search_window loop
         wait until rising_edge(clk);
         period := period + 1;
-        if (pcs_to_mac_2.ssp = '1') then
+        if (pcs_to_mac_2.secondary_sample_point = '1') then
           second_seen := true;
           exit;
         end if;

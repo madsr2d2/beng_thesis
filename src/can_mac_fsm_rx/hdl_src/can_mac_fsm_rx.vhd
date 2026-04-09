@@ -133,7 +133,7 @@ begin
         -- Bit reception: BS/CRC feed, stuff error check.
         -- Applies to all states between SOF and CRC delimiter.
         -----------------------------------------------------------------
-        if (pcs_i.sp = '1') and (v_in_dsb_field or v_in_fsb_field) then
+        if (pcs_i.sample_point = '1') and (v_in_dsb_field or v_in_fsb_field) then
           -- Feed BS
           bs_o.valid <= '1';
           bs_o.data  <= pcs_i.bus_polarity;
@@ -203,7 +203,7 @@ begin
           -- before participating on the bus (ISO 11898-1: 6.6.7.5)
           -----------------------------------------------------------------
           when s_bus_reintegration =>
-            if (pcs_i.sp = '1') then
+            if (pcs_i.sample_point = '1') then
               if (pcs_i.bus_polarity = c_recessive) then 
                 if bit_count = (c_bus_idle_condition_width - 1) then
                   fsm_state <= s_idle;
@@ -222,7 +222,7 @@ begin
           when s_idle =>
             pcs_o.use_data_rate <= '0';
             crc_mismatch        <= '0';
-            if (pcs_i.sp = '1') and (pcs_i.bus_polarity = c_dominant) then
+            if (pcs_i.sample_point = '1') and (pcs_i.bus_polarity = c_dominant) then
               crc_o.valid_cc <= '1';
               crc_o.valid_fd <= '1';
               crc_o.data_cc  <= c_dominant;
@@ -464,7 +464,7 @@ begin
           -- bit_count 0: ACK slot, 1: ACK delimiter.
           -- -----------------------------------------------------------
           when s_ack =>
-            if (pcs_i.sp = '1') then
+            if (pcs_i.sample_point = '1') then
               if (bit_count = 0) then -- ACK slot
                 bit_count <= 1;
               elsif (bit_count = 1) then -- ACK delimiter
@@ -489,7 +489,7 @@ begin
           -- EOF: 7 recessive bits (ISO 11898-1: 6.6.10.7, 6.6.11.7).
           -------------------------------------------------------------
           when s_eof =>
-            if (pcs_i.sp = '1') then
+            if (pcs_i.sample_point = '1') then
               if (pcs_i.bus_polarity = c_dominant) then
                   -- Form error: EOF bits must be recessive (ISO 11898-1: 6.6.11.7)
                   -------------------------------------------------------------
@@ -531,7 +531,7 @@ begin
           -- Interframe space: 3 recessive bits (ISO 11898-1: 6.6.7.2).
           -- -----------------------------------------------------------
           when s_intermission =>
-            if (pcs_i.sp = '1') then
+            if (pcs_i.sample_point = '1') then
               if bit_count = (c_intermission_width - 1) then
                 -- Reset and return to idle
                 bs_rst    <= '1';
@@ -557,7 +557,7 @@ begin
           -- Error / overload flag (ISO 11898-1: 6.6.5.2, 6.6.5.3).
           -- -----------------------------------------------------------
           when s_error_overload =>
-            if (pcs_i.sp = '1') then
+            if (pcs_i.sample_point = '1') then
               pcs_o.valid                       <= '1';
               fce_o.sending_error_overload_flag <= '1';
               bit_count <= bit_count + 1;
