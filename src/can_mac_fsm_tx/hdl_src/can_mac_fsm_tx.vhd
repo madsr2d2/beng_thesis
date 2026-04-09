@@ -525,7 +525,7 @@ begin
             end if;
 
           -----------------------------------------------------------------
-          -- s_ack : ACK slot (bc=0) and ACK delimiter (bc=1), both recessive.
+          -- s_ack : ACK slot (bit_count = 0),  ACK delimiter (bit_count = 1)
           -- (ISO : 6.6.10.6, 6.6.11.6).
           -----------------------------------------------------------------
           when s_ack =>
@@ -547,8 +547,7 @@ begin
 
           -----------------------------------------------------------------
           -- s_eof : 7 recessive bits (ISO : 6.6.10.7, 6.6.11.7).
-          -- ACK error enters the error flag at bc=0 (the bit following
-          -- the ACK delimiter, per ISO : 6.6.10.6).
+          -- ACK error is evaluated in in bit_count = 0 of EOF field (ISO : 6.6.21.3.1)
           -----------------------------------------------------------------
           when s_eof =>
             if (pcs_i.sample_point = '1') then
@@ -688,16 +687,14 @@ begin
           -- Feed bit stuffer
           bs_o.valid <= '1';
           bs_o.data  <= v_tx_polarity;
-          -- end if;
 
-          -- CRC feed (ISO : 6.6.4.4).
-          -- FD CRC: all dynamic stuff bits + SBC data bits.
+          -- FD CRC: all dynamic stuff bits + SBC data bits (ISO : 6.6.11.5).
           if (v_in_dynamic_stuff_field or (not v_is_stuff_bit and state = s_sbc)) then
             crc_o.valid_fd <= '1';
             crc_o.data_fd  <= v_tx_polarity;
           end if;
 
-          -- CC CRC: non-stuff DSB bits only (ISO : 898).
+          -- CC CRC: non-stuff DSB bits only (ISO : 6.6.10.5).
           if (not v_is_stuff_bit and v_in_dynamic_stuff_field) then
             crc_o.valid_cc <= '1';
             crc_o.data_cc  <= v_tx_polarity;
