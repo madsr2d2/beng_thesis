@@ -732,9 +732,14 @@ begin
             -- Active error flag transmits dominant -> primary_error fires
             v_exp_fce(c_fce_primary_error) := '1';
           end if;
-          -- ACK error detected at ACK delimiter (ack_pos + 1), error flag
-          -- starts at bit after that: ack_pos + 2
-          truncate_error(v_stream, v_stream.ack_pos + 2, v_error_state = c_fce_passive);
+          -- ACK error detected at first EOF bit (after entire ACK field).
+          -- CC: ack_pos + 2 (slot=1 + delim=1).
+          -- FD: ack_pos + 3 (slot=2 + delim=1).
+          if (v_metadata.fdf = '1') then
+            truncate_error(v_stream, v_stream.ack_pos + 3, v_error_state = c_fce_passive);
+          else
+            truncate_error(v_stream, v_stream.ack_pos + 2, v_error_state = c_fce_passive);
+          end if;
 
 
         when c_inj_error =>

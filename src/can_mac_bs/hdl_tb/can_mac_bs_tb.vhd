@@ -155,7 +155,7 @@ begin
     ack_stuff_bit;
 
     -- FSB-5: SBC invariant across FSB groups
-    saved_sbc := bs_o.sbc;
+    saved_sbc := bs_o.stuff_bit_count;
 
     for grp in 0 to 1 loop
       for j in 1 to 4 loop
@@ -164,7 +164,7 @@ begin
       ack_stuff_bit;
     end loop;
 
-    AffirmIf(stim_id, bs_o.sbc = saved_sbc, "FSB-5: SBC changed during FSB mode");
+    AffirmIf(stim_id, bs_o.stuff_bit_count = saved_sbc, "FSB-5: SBC changed during FSB mode");
 
     -- FSB-6: transition back to dynamic stuffing
     bs_i.fsb_en <= '0';
@@ -301,7 +301,7 @@ begin
 
       -- Parity invariant: bit 0 = xor of bits 3..1
       AffirmIf(id,
-               bs_o.sbc(0) = (bs_o.sbc(3) xor bs_o.sbc(2) xor bs_o.sbc(1)), "SBC parity bit incorrect");
+               bs_o.stuff_bit_count(0) = (bs_o.stuff_bit_count(3) xor bs_o.stuff_bit_count(2) xor bs_o.stuff_bit_count(1)), "SBC parity bit incorrect");
 
       if (rst_i = '1' or frame_rst = '1') then
         prev_sbc   := "0000";
@@ -309,13 +309,13 @@ begin
       elsif (bs_o.valid = '1' and prev_valid = '0') then
         -- Rising edge of bs_o.valid: new stuff bit event
         if (bs_i.fsb_en = '0') then
-          AffirmIf(id, bs_o.sbc /= prev_sbc, "SBC did not change after dynamic stuff bit");
+          AffirmIf(id, bs_o.stuff_bit_count /= prev_sbc, "SBC did not change after dynamic stuff bit");
         else
-          AffirmIf(id, bs_o.sbc = prev_sbc, "SBC incorrectly changed after FSB");
+          AffirmIf(id, bs_o.stuff_bit_count = prev_sbc, "SBC incorrectly changed after FSB");
         end if;
-        prev_sbc := bs_o.sbc;
+        prev_sbc := bs_o.stuff_bit_count;
       elsif (bs_o.valid = '0') then
-        AffirmIf(id, bs_o.sbc = prev_sbc, "SBC changed without a stuff bit event");
+        AffirmIf(id, bs_o.stuff_bit_count = prev_sbc, "SBC changed without a stuff bit event");
       end if;
       prev_valid := bs_o.valid;
     end loop;

@@ -53,9 +53,12 @@ package pk_can_types is
   constant c_stuff_width     : natural := 5;
   constant c_sbc_field_width : natural := 4; -- ISO 6.6.11.5, Table 8
 
-  -- Post-CRC field offsets (used by TB stream model)
-  constant c_ack_slot_offset  : natural := 1;
-  constant c_eof_start_offset : natural := 3;
+  -- Post-CRC field offsets (used by TB stream model).
+  -- CC: CRC_delim(1) + ACK_slot(1) + ACK_delim(1) = 3 before EOF.
+  -- FD: CRC_delim(1) + ACK_slot(2) + ACK_delim(1) = 4 before EOF (ISO 6.6.11.6).
+  constant c_ack_slot_offset     : natural := 1;
+  constant c_cc_eof_start_offset : natural := 3;
+  constant c_fd_eof_start_offset : natural := 4;
 
 
   -- Error signalling (ISO 6.6.5.2, 6.6.5.3)
@@ -284,14 +287,14 @@ package pk_can_types is
   type t_can_mac_fsm_bs_if_s2m is record
     data  : std_logic;
     valid : std_logic;
-    sbc   : std_logic_vector(c_sbc_field_width - 1 downto 0);
+    stuff_bit_count   : std_logic_vector(c_sbc_field_width - 1 downto 0);
   end record t_can_mac_fsm_bs_if_s2m;
 
   constant c_can_mac_fsm_bs_if_s2m_reset : t_can_mac_fsm_bs_if_s2m :=
   (
     data  => c_recessive,
     valid => '0',
-    sbc   => (others => '0')
+    stuff_bit_count   => (others => '0')
   );
 
   -- FSM -> CRC (ISO 6.6.4.4)
@@ -705,9 +708,9 @@ package body pk_can_types is
     -- Remap bookmarks into stream index
     result.arb_end := stream_idx(arb_end_raw);
 
-    -- Tail: CRC delim + ACK + ACK delim + EOF + intermission [+ suspend]
+    -- Tail: CRC delim(1) + ACK slot(1) + ACK delim(1) + EOF + IFS [+ suspend]
     result.ack_pos := result.len + c_ack_slot_offset;
-    tail_len := c_eof_start_offset + c_eof_field_width + c_intermission_width;
+    tail_len := c_cc_eof_start_offset + c_eof_field_width + c_intermission_width;
     if is_passive then
       tail_len := tail_len + c_suspend_transmission_width;
     end if;
@@ -819,9 +822,10 @@ package body pk_can_types is
       result.data_phase_end := result.len - 1;
     end if;
 
-    -- Tail: CRC delim + ACK + ACK delim + EOF + intermission [+ suspend]
+    -- Tail: CRC delim(1) + ACK slot(2) + ACK delim(1) + EOF + IFS [+ suspend]
+    -- FD ACK slot is 2 bit times (ISO 6.6.11.6).
     result.ack_pos := result.len + c_ack_slot_offset;
-    tail_len := c_eof_start_offset + c_eof_field_width + c_intermission_width;
+    tail_len := c_fd_eof_start_offset + c_eof_field_width + c_intermission_width;
     if is_passive then
       tail_len := tail_len + c_suspend_transmission_width;
     end if;

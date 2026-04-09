@@ -64,7 +64,7 @@ begin
             bs_o.data     <= not last_polarity;
             stuff_count   <= stuff_count - 1;
             v_gray        := f_to_gray(std_logic_vector(stuff_count - 1));
-            bs_o.sbc      <= v_gray & f_calc_parity(v_gray);
+            bs_o.stuff_bit_count      <= v_gray & f_calc_parity(v_gray);
           else
             bs_o.data <= not last_polarity;
           end if;
@@ -87,7 +87,7 @@ begin
               bs_o.valid  <= '1';
               stuff_count <= stuff_count + 1;
               v_gray      := f_to_gray(std_logic_vector(stuff_count + 1));
-              bs_o.sbc    <= v_gray & f_calc_parity(v_gray);
+              bs_o.stuff_bit_count    <= v_gray & f_calc_parity(v_gray);
             else
               count <= count + 1;
             end if;

@@ -406,7 +406,7 @@ begin
           -----------------------------------------------------------------
           when s_sbc =>
             if (v_real_bit) then
-              if (pcs_i.bus_polarity /= bs_i.sbc((c_sbc_field_width - 1) - bit_count)) then
+              if (pcs_i.bus_polarity /= bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count)) then
                 -- Form error : SBC mismatch (ISO 11898-1: 6.6.12.3)
                 -------------------------------------------------------------
                 fce_o.sending_error_overload_flag <= '1';

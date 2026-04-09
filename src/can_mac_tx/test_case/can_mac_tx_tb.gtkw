@@ -218,8 +218,6 @@ top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.ack_error_caused_flag
 top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.dominant_seen_during_flag
 @28
 top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.dominant_run_count
-@28
-top.can_mac_tx_tb.u_dut.tx_mac_fsm_inst.primary_error_sent
 @1401200
 -u_dut/tx_mac_fsm_inst :: internals
 @c00200
