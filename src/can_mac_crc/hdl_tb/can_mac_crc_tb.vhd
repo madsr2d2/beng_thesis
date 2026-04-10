@@ -21,6 +21,7 @@ library ieee;
   use ieee.numeric_std.all;
 
   use work.pk_can_types.all;
+  use work.pk_can_tb.all;
 
 library osvvm;
 context osvvm.OsvvmContext;

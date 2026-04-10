@@ -20,7 +20,8 @@
 # 1. Packages
 PACKAGES = \
 	src/can_types_p/hdl_src/can_types_p.vhd \
-	src/can_timing_pkg/hdl_src/can_timing_pkg.vhd
+	src/can_timing_pkg/hdl_src/can_timing_pkg.vhd \
+	src/can_tb_p/hdl_src/can_tb_p.vhd
 
 # 2. Components and Sub-modules
 COMPONENTS = \

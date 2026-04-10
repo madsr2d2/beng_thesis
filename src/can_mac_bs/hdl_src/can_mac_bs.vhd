@@ -47,12 +47,12 @@ begin
         fsb_en_latch  <= '0';
         bs_o          <= c_can_mac_fsm_bs_if_s2m_reset;
       else
-        fsb_en_latch <= bs_i.fsb_en; -- latch used to detect the rising edge
+        fsb_en_latch <= bs_i.fixed_bit_stuffing_en; -- latch used to detect the rising edge
 
         -----------------------------------------------------------------
         -- Rising edge of fsb_en: emit initial FSB
         -----------------------------------------------------------------
-        if (bs_i.fsb_en = '1' and fsb_en_latch = '0') then
+        if (bs_i.fixed_bit_stuffing_en = '1' and fsb_en_latch = '0') then
           if (bs_i.valid = '1') then
             last_polarity <= bs_i.data;
             bs_o.data     <= not bs_i.data;
@@ -75,7 +75,7 @@ begin
           last_polarity <= bs_i.data;
           bs_o.valid    <= '0';
 
-          if (bs_i.fsb_en = '0') then
+          if (bs_i.fixed_bit_stuffing_en = '0') then
             -----------------------------------------------------------------
             -- Dynamic stuffing: stuff bit after 5 consecutive same-polarity
             -----------------------------------------------------------------
