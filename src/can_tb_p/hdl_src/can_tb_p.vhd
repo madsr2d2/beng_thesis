@@ -186,16 +186,16 @@ package body pk_can_tb is
       -- CBFF: RTR, IDE=0, r0
       append_bit(metadata.ftyp, raw, raw_len);
       append_bit(c_dominant, raw, raw_len);
-      append_bit(c_dominant, raw, raw_len);
       arb_end_raw := raw_len - 1;
+      append_bit(c_dominant, raw, raw_len);
     else
       -- CEFF: SRR, IDE=1, ext ID, RTR, r1, r0
       append_bit(c_recessive, raw, raw_len);
       append_bit(c_recessive, raw, raw_len);
       append(id_full(c_extended_id_width - 1 downto 0), raw, raw_len);
       append_bit(metadata.ftyp, raw, raw_len);
-      append_bit(c_dominant, raw, raw_len);
       arb_end_raw := raw_len - 1;
+      append_bit(c_dominant, raw, raw_len);
       append_bit(c_dominant, raw, raw_len);
     end if;
 
@@ -265,26 +265,26 @@ package body pk_can_tb is
       -- FBFF: RRS, IDE=0, FDF=1, RES=0, BRS, ESI
       append_bit(c_dominant, v_raw, v_raw_len);   -- RRS
       append_bit(c_dominant, v_raw, v_raw_len);   -- IDE
+      v_arb_end_raw := v_raw_len - 1;
       v_fdf_raw := v_raw_len;
       append_bit(c_recessive, v_raw, v_raw_len);  -- FDF
       append_bit(c_dominant, v_raw, v_raw_len);   -- RES
       v_brs_raw := v_raw_len;
       append_bit(metadata.brs, v_raw, v_raw_len); -- BRS
       append_bit(metadata.esi, v_raw, v_raw_len); -- ESI
-      v_arb_end_raw := v_raw_len - 1;             -- ESI (last control-field bit)
     else
       -- FEFF: SRR, IDE=1, ext ID, RRS, FDF=1, RES=0, BRS, ESI
       append_bit(c_recessive, v_raw, v_raw_len);  -- SRR
       append_bit(c_recessive, v_raw, v_raw_len);  -- IDE
       append(v_id_full(c_extended_id_width - 1 downto 0), v_raw, v_raw_len);
       append_bit(c_dominant, v_raw, v_raw_len);   -- RRS
+      v_arb_end_raw := v_raw_len - 1;
       v_fdf_raw := v_raw_len;
       append_bit(c_recessive, v_raw, v_raw_len);  -- FDF
       append_bit(c_dominant, v_raw, v_raw_len);   -- RES
       v_brs_raw := v_raw_len;
       append_bit(metadata.brs, v_raw, v_raw_len); -- BRS
       append_bit(metadata.esi, v_raw, v_raw_len); -- ESI
-      v_arb_end_raw := v_raw_len - 1;             -- ESI (last control-field bit)
     end if;
 
     -- DLC + data

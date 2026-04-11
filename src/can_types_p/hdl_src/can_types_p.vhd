@@ -39,7 +39,7 @@ package pk_can_types is
 
   -- Bus polarity (ISO 7.4.3)
   constant c_dominant  : std_logic := '0';
-  constant c_recessive : std_logic := '1';
+    constant c_recessive : std_logic := '1';
 
   -- Frame field widths (ISO 6.6.10, 6.6.11)
   constant c_byte_width        : natural := 8;
@@ -58,7 +58,6 @@ package pk_can_types is
   constant c_ack_slot_offset     : natural := 1;
   constant c_cc_eof_start_offset : natural := 3;
   constant c_fd_eof_start_offset : natural := 4;
-
 
   -- Error signalling (ISO 6.6.5.2, 6.6.5.3)
   constant c_error_flag_width      : natural := 6;
