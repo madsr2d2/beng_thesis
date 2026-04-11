@@ -209,7 +209,7 @@ package body pk_can_tb is
     crc := f_calc_can_crc(raw(0 to raw_len - 1), c_crc_init_15_vec, c_crc_poly_15_vec);
     append(crc, raw, raw_len);
 
-    -- Stuff raw onto the wire, recording raw->stream index mapping
+    -- Stuff raw, recording raw->stream index mapping
     for i in 0 to raw_len - 1 loop
       stuff_feed(raw(i), false, st, result);
       stream_idx(i) := result.len - 1;
@@ -234,116 +234,116 @@ package body pk_can_tb is
   -- CAN-FD CAN reference stream (ISO Figure 2):
   function build_fd_stream (frame : t_llc_frame; metadata : t_llc_metadata; is_passive : boolean := false) return t_bus_stream is
     type t_idx_map is array (natural range <>) of natural;
-    variable raw          : std_logic_vector(0 to c_max_bus_bits - 1);
-    variable raw_len      : natural := 0;
-    variable arb_end_raw  : natural;
-    variable fdf_raw      : natural;
-    variable brs_raw      : natural;
-    variable stream_idx   : t_idx_map(0 to c_max_bus_bits - 1);
-    variable id_full      : std_logic_vector(c_base_id_width + c_extended_id_width - 1 downto 0);
-    variable fixed_raw    : std_logic_vector(0 to c_sbc_field_width + c_crc_21_length - 1);
-    variable fixed_len    : natural;
-    variable sbc          : std_logic_vector(c_sbc_field_width - 1 downto 0);
-    variable result       : t_bus_stream;
-    variable st           : t_stuff_state := c_stuff_state_init;
-    variable tail_len     : natural;
+    variable v_raw          : std_logic_vector(0 to c_max_bus_bits - 1);
+    variable v_raw_len      : natural := 0;
+    variable v_arb_end_raw  : natural;
+    variable v_fdf_raw      : natural;
+    variable v_brs_raw      : natural;
+    variable v_stream_idx   : t_idx_map(0 to c_max_bus_bits - 1);
+    variable v_id_full      : std_logic_vector(c_base_id_width + c_extended_id_width - 1 downto 0);
+    variable v_fixed_raw    : std_logic_vector(0 to c_sbc_field_width + c_crc_21_length - 1);
+    variable v_fixed_len    : natural;
+    variable v_sbc          : std_logic_vector(c_sbc_field_width - 1 downto 0);
+    variable v_result       : t_bus_stream;
+    variable v_st           : t_stuff_state := c_stuff_state_init;
+    variable v_tail_len     : natural;
   begin
-    result.len              := 0;
-    result.ack_pos          := 0;
-    result.arb_end          := 0;
-    result.fdf_pos          := -1;
-    result.data_phase_start := -1;
-    result.data_phase_end   := -1;
+    v_result.len              := 0;
+    v_result.ack_pos          := 0;
+    v_result.arb_end          := 0;
+    v_result.fdf_pos          := -1;
+    v_result.data_phase_start := -1;
+    v_result.data_phase_end   := -1;
 
-    id_full := frame(2) & frame(3) & frame(4) & frame(5)(c_byte_width - 1 downto c_byte_width - 5);
+    v_id_full := frame(2) & frame(3) & frame(4) & frame(5)(c_byte_width - 1 downto c_byte_width - 5);
 
     -- SOF + base ID
-    append_bit(c_dominant, raw, raw_len);
-    append(id_full(id_full'high downto c_extended_id_width), raw, raw_len);
+    append_bit(c_dominant, v_raw, v_raw_len);
+    append(v_id_full(v_id_full'high downto c_extended_id_width), v_raw, v_raw_len);
 
     if metadata.ide = '0' then
       -- FBFF: RRS, IDE=0, FDF=1, RES=0, BRS, ESI
-      arb_end_raw := 1 + c_base_id_width;
-      fdf_raw     := arb_end_raw + 2;
-      brs_raw     := arb_end_raw + 4;
-      append_bit(c_dominant, raw, raw_len);
-      append_bit(c_dominant, raw, raw_len);
-      append_bit(c_recessive, raw, raw_len);
-      append_bit(c_dominant, raw, raw_len);
-      append_bit(metadata.brs, raw, raw_len);
-      append_bit(metadata.esi, raw, raw_len);
+      append_bit(c_dominant, v_raw, v_raw_len);   -- RRS
+      append_bit(c_dominant, v_raw, v_raw_len);   -- IDE
+      v_fdf_raw := v_raw_len;
+      append_bit(c_recessive, v_raw, v_raw_len);  -- FDF
+      append_bit(c_dominant, v_raw, v_raw_len);   -- RES
+      v_brs_raw := v_raw_len;
+      append_bit(metadata.brs, v_raw, v_raw_len); -- BRS
+      append_bit(metadata.esi, v_raw, v_raw_len); -- ESI
+      v_arb_end_raw := v_raw_len - 1;             -- ESI (last control-field bit)
     else
       -- FEFF: SRR, IDE=1, ext ID, RRS, FDF=1, RES=0, BRS, ESI
-      arb_end_raw := 1 + c_base_id_width + 2 + c_extended_id_width;
-      fdf_raw     := arb_end_raw + 1;
-      brs_raw     := arb_end_raw + 3;
-      append_bit(c_recessive, raw, raw_len);
-      append_bit(c_recessive, raw, raw_len);
-      append(id_full(c_extended_id_width - 1 downto 0), raw, raw_len);
-      append_bit(c_dominant, raw, raw_len);
-      append_bit(c_recessive, raw, raw_len);
-      append_bit(c_dominant, raw, raw_len);
-      append_bit(metadata.brs, raw, raw_len);
-      append_bit(metadata.esi, raw, raw_len);
+      append_bit(c_recessive, v_raw, v_raw_len);  -- SRR
+      append_bit(c_recessive, v_raw, v_raw_len);  -- IDE
+      append(v_id_full(c_extended_id_width - 1 downto 0), v_raw, v_raw_len);
+      append_bit(c_dominant, v_raw, v_raw_len);   -- RRS
+      v_fdf_raw := v_raw_len;
+      append_bit(c_recessive, v_raw, v_raw_len);  -- FDF
+      append_bit(c_dominant, v_raw, v_raw_len);   -- RES
+      v_brs_raw := v_raw_len;
+      append_bit(metadata.brs, v_raw, v_raw_len); -- BRS
+      append_bit(metadata.esi, v_raw, v_raw_len); -- ESI
+      v_arb_end_raw := v_raw_len - 1;             -- ESI (last control-field bit)
     end if;
 
     -- DLC + data
-    append(frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end), raw, raw_len);
+    append(frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end), v_raw, v_raw_len);
     for i in 0 to dlc_to_data_length(to_integer(unsigned(metadata.dlc)), '1') - 1 loop
-      append(frame(c_llc_frame_data_byte + i), raw, raw_len);
+      append(frame(c_llc_frame_data_byte + i), v_raw, v_raw_len);
     end loop;
 
     -- Stuff SOF..data onto the wire, recording raw->stream index mapping
-    for i in 0 to raw_len - 1 loop
-      stuff_feed(raw(i), false, st, result);
-      stream_idx(i) := result.len - 1;
+    for i in 0 to v_raw_len - 1 loop
+      stuff_feed(v_raw(i), false, v_st, v_result);
+      v_stream_idx(i) := v_result.len - 1;
     end loop;
 
     -- Remap bookmarks into stream index
-    result.arb_end := stream_idx(arb_end_raw);
-    result.fdf_pos := stream_idx(fdf_raw);
+    v_result.arb_end := v_stream_idx(v_arb_end_raw);
+    v_result.fdf_pos := v_stream_idx(v_fdf_raw);
     if metadata.brs = '1' then
-      result.data_phase_start := stream_idx(brs_raw);
+      v_result.data_phase_start := v_stream_idx(v_brs_raw);
     end if;
 
     -- Consume preceding stuff bit (ISO 6.6.13.3.1)
-    enter_fixed_mode(st, result);
+    enter_fixed_mode(v_st, v_result);
 
     -- SBC (6.6.11.5): Gray(ds_count) and parity
-    sbc(c_sbc_field_width - 1 downto 1) := f_to_gray(std_logic_vector(st.ds_count));
-    sbc(0)                               := f_calc_parity(sbc(c_sbc_field_width - 1 downto 1));
+    v_sbc(c_sbc_field_width - 1 downto 1) := f_to_gray(std_logic_vector(v_st.ds_count));
+    v_sbc(0)                               := f_calc_parity(v_sbc(c_sbc_field_width - 1 downto 1));
 
     -- Build fixed-region raw vector: SBC (MSB-first) & CRC (MSB-first).
     -- CRC-17 for < 16 data bytes, else CRC-21.
-    fixed_len := 0;
-    append(sbc, fixed_raw, fixed_len);
+    v_fixed_len := 0;
+    append(v_sbc, v_fixed_raw, v_fixed_len);
     if dlc_to_data_length(to_integer(unsigned(metadata.dlc)), metadata.fdf) < c_crc_17_length then
-      append(f_calc_can_crc(result.bits(0 to result.len - 1) & sbc, c_crc_init_17_vec, c_crc_poly_17_vec), fixed_raw, fixed_len);
+      append(f_calc_can_crc(v_result.bits(0 to v_result.len - 1) & v_sbc, c_crc_init_17_vec, c_crc_poly_17_vec), v_fixed_raw, v_fixed_len);
     else
-      append(f_calc_can_crc(result.bits(0 to result.len - 1) & sbc, c_crc_init_21_vec, c_crc_poly_21_vec), fixed_raw, fixed_len);
+      append(f_calc_can_crc(v_result.bits(0 to v_result.len - 1) & v_sbc, c_crc_init_21_vec, c_crc_poly_21_vec), v_fixed_raw, v_fixed_len);
     end if;
 
     -- Fixed stuffing of SBC & CRC (initial FSB + 1 FSB per 4 real bits)
-    for i in 0 to fixed_len - 1 loop
-      stuff_feed(fixed_raw(i), true, st, result);
+    for i in 0 to v_fixed_len - 1 loop
+      stuff_feed(v_fixed_raw(i), true, v_st, v_result);
     end loop;
 
-    if result.data_phase_start >= 0 then
-      result.data_phase_end := result.len - 1;
+    if v_result.data_phase_start >= 0 then
+      v_result.data_phase_end := v_result.len - 1;
     end if;
 
     -- Tail: CRC delim(1) + ACK slot(2) + ACK delim(1) + EOF + IFS [+ suspend]
     -- FD ACK slot is 2 bit times (ISO 6.6.11.6).
-    result.ack_pos := result.len + c_ack_slot_offset;
-    tail_len := c_fd_eof_start_offset + c_eof_field_width + c_intermission_width;
+    v_result.ack_pos := v_result.len + c_ack_slot_offset;
+    v_tail_len := c_fd_eof_start_offset + c_eof_field_width + c_intermission_width;
     if is_passive then
-      tail_len := tail_len + c_suspend_transmission_width;
+      v_tail_len := v_tail_len + c_suspend_transmission_width;
     end if;
-    for i in 0 to tail_len - 1 loop
-      append_bit(c_recessive, result.bits, result.len);
+    for i in 0 to v_tail_len - 1 loop
+      append_bit(c_recessive, v_result.bits, v_result.len);
     end loop;
 
-    return result;
+    return v_result;
   end function build_fd_stream;
 
   -- Dispatcher: pick CC vs FD based on metadata.fdf

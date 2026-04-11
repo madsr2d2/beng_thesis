@@ -21,8 +21,6 @@
 @c00200
 -can_mac_tx_tb :: TB
 [color] 1
-@22
-top.can_mac_tx_tb.inj_type
 @28
 top.can_mac_tx_tb.clk
 @28
@@ -77,8 +75,6 @@ top.can_mac_tx_tb.fce_o.successful_transfer
 top.can_mac_tx_tb.fce_o.error_passive_response
 @28
 top.can_mac_tx_tb.fce_o.error_active_response
-@28
-top.can_mac_tx_tb.bus_override
 @28
 top.can_mac_tx_tb.bus_override_en
 @22

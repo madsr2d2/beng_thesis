@@ -37,11 +37,6 @@ end entity can_mac_tx_tb;
 architecture tb of can_mac_tx_tb is
 
   ----------------------------------------------------------------------------
-  -- Types
-  ----------------------------------------------------------------------------
-  type injection_type is (ack, ack_delim, ack_error, error, lost_arb, reactive_overload, error_delimiter_too_late);
-
-  ----------------------------------------------------------------------------
   -- Constants
   ----------------------------------------------------------------------------
   -- Nominal bit timing (ISO 7.3.2, midpoint of subtype ranges in pk_can_types)
@@ -60,7 +55,6 @@ architecture tb of can_mac_tx_tb is
   constant c_pos_bin_num   : natural := 50;
 
   -- PCS VC subtypes (0 = activate SP strobe, 1..7 = injection types)
-  constant c_pcs_active               : natural := 0;
   constant c_inj_ack                  : natural := 1;
   constant c_inj_ack_error            : natural := 2;
   constant c_inj_error                : natural := 3;
@@ -69,7 +63,6 @@ architecture tb of can_mac_tx_tb is
   constant c_inj_error_delim_too_late : natural := 6;
   constant c_inj_ack_delim            : natural := 7;
 
-  signal inj_type : injection_type;
 
   -- FCE state coverage bins
   constant c_fce_active  : natural := 0;
@@ -99,7 +92,6 @@ architecture tb of can_mac_tx_tb is
   signal fce_i : t_can_mac_fce_if_s2m    := c_fce_to_mac_if_reset;
   signal fce_o : t_can_mac_fce_if_m2s;
 
-  signal bus_override    : std_logic := c_recessive;
   signal bus_override_en : boolean   := false;
   signal status_latch    : std_logic_vector(2 downto 0) := c_ongoing;
   signal fce_latch       : std_logic_vector(c_fce_latch_width - 1 downto 0) := (others => '0');
@@ -145,30 +137,30 @@ architecture tb of can_mac_tx_tb is
   -- Random frame and expected bus stream generator
   ----------------------------------------------------------------------------
   procedure gen_frame (
-    variable frame       : out t_llc_frame;
-    variable metadata    : out t_llc_metadata;
-    variable last_byte   : out natural;
-    variable stream      : out t_bus_stream;
-    variable error_state : out natural
+    variable v_frame       : out t_llc_frame;
+    variable v_metadata    : out t_llc_metadata;
+    variable v_last_byte   : out natural;
+    variable v_stream      : out t_bus_stream;
+    variable v_error_state : out natural
   ) is
     variable is_passive : boolean;
   begin
     -- Generate random frame bytes
-    for i in frame'range loop
-      frame(i) := RV.RandSlv(8);
+    for i in v_frame'range loop
+      v_frame(i) := RV.RandSlv(8);
     end loop;
     -- Coverage-driven generation of configuration bytes
-    error_state := GetRandPoint(fce_cov);
-    is_passive  := error_state = c_fce_passive;
-    frame(0)(c_llc_frame_ide) := std_logic(to_unsigned(GetRandPoint(ide_cov), 1)(0));
-    frame(0)(c_llc_frame_fdf) := std_logic(to_unsigned(GetRandPoint(fdf_cov), 1)(0));
-    frame(0)(c_llc_frame_esi) := std_logic(to_unsigned(GetRandPoint(esi_cov), 1)(0));
-    frame(0)(c_llc_frame_brs) := std_logic(to_unsigned(GetRandPoint(brs_cov), 1)(0));
-    frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) := std_logic_vector(to_unsigned(GetRandPoint(dlc_cov), 4));
+    v_error_state := GetRandPoint(fce_cov);
+    is_passive  := v_error_state = c_fce_passive;
+    v_frame(0)(c_llc_frame_ide) := std_logic(to_unsigned(GetRandPoint(ide_cov), 1)(0));
+    v_frame(0)(c_llc_frame_fdf) := std_logic(to_unsigned(GetRandPoint(fdf_cov), 1)(0));
+    v_frame(0)(c_llc_frame_esi) := std_logic(to_unsigned(GetRandPoint(esi_cov), 1)(0));
+    v_frame(0)(c_llc_frame_brs) := std_logic(to_unsigned(GetRandPoint(brs_cov), 1)(0));
+    v_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) := std_logic_vector(to_unsigned(GetRandPoint(dlc_cov), 4));
     -- Get metadata and expected bus stream for the generated frame
-    metadata  := extract_metadata(frame(0), frame(1));
-    last_byte := c_llc_frame_data_byte + dlc_to_data_length(to_integer(unsigned(metadata.dlc)), metadata.fdf) - 1;
-    stream    := build_bus_stream(frame, metadata, is_passive);
+    v_metadata  := extract_metadata(v_frame(0), v_frame(1));
+    v_last_byte := c_llc_frame_data_byte + dlc_to_data_length(to_integer(unsigned(v_metadata.dlc)), v_metadata.fdf) - 1;
+    v_stream    := build_bus_stream(v_frame, v_metadata, is_passive);
   end procedure gen_frame;
   ----------------------------------------------------------------------------
 
@@ -197,19 +189,6 @@ architecture tb of can_mac_tx_tb is
     end if;
   end procedure add_ifs;
 
-  procedure clamp_metadata (stream : inout t_bus_stream; inject_pos : in natural) is
-  begin
-    if (stream.fdf_pos >= 0 and inject_pos < stream.fdf_pos) then
-      stream.fdf_pos := -1;
-    end if;
-    if (stream.data_phase_start >= 0 and inject_pos < stream.data_phase_start) then
-      stream.data_phase_start := -1;
-      stream.data_phase_end   := -1;
-    elsif (stream.data_phase_start >= 0 and inject_pos <= stream.data_phase_end) then
-      stream.data_phase_end := inject_pos;
-    end if;
-  end procedure clamp_metadata;
-
   procedure truncate_error (stream : inout t_bus_stream; inject_pos : in natural; is_passive : in boolean := false) is
     variable idx      : natural   := inject_pos;
     variable flag_pol : std_logic := c_dominant;
@@ -217,24 +196,22 @@ architecture tb of can_mac_tx_tb is
     if (is_passive) then
       flag_pol := c_recessive;
     end if;
-    clamp_metadata(stream, inject_pos);
     add_flag_and_delim(stream, idx, flag_pol);
     add_ifs(stream, idx, is_passive);
-    stream.len := idx;
+    stream.len := idx; -- update stream length
   end procedure truncate_error;
 
   procedure truncate_reactive_overload (stream : inout t_bus_stream; inject_pos : in natural; is_passive : in boolean := false) is
-    variable idx      : natural   := inject_pos + 1;
+    variable idx      : natural   := inject_pos;
     variable flag_pol : std_logic := c_dominant;
   begin
     if (is_passive) then
       flag_pol := c_recessive;
     end if;
-    clamp_metadata(stream, inject_pos);
     add_flag_and_delim(stream, idx, flag_pol);
     add_flag_and_delim(stream, idx, c_dominant);
     add_ifs(stream, idx, is_passive);
-    stream.len := idx;
+    stream.len := idx; -- update stream length
   end procedure truncate_reactive_overload;
   ----------------------------------------------------------------------------
 
@@ -272,7 +249,7 @@ begin
     variable v_pos_cov    : CoverageIDType;
     variable v_fce_cov    : CoverageIDType;
   begin
-    SetAlertStopCount(ERROR, 1);
+    SetAlertStopCount(ERROR, 10);
     v_test_id         := NewID("can_mac_tx");
     v_reset_id        := NewID("Reset check", v_test_id);
     v_status_id       := NewID("Transfer Status check", v_test_id);
@@ -421,140 +398,92 @@ begin
   p_pcs_vc : process is
     variable v_bus_idx             : natural;
     variable v_inject_pos          : natural;
-    variable v_subtype             : natural;
-    variable v_expected            : std_logic_vector(2 downto 0);
-    variable v_sp_active           : boolean := false;
+    variable v_inj_subtype             : natural;
     variable v_checking            : boolean := false;
     variable v_burst_check_pending : boolean := false;
-    variable v_tq_count            : natural range 0 to c_bit_time - 1 := 0;
+    variable v_tq_count            : natural range 0 to c_bit_time := 0;
 
     -- Bit timing model (bus delay = 0, TDC delay testing in can_pcs_tx_tb)
-    variable v_active_bt  : natural := c_bit_time;
-    variable v_active_sp  : natural := c_sp;
-    variable v_ssp_armed  : boolean := false;
+    variable v_active_bit_time : natural := c_bit_time;
+    variable v_active_sp       : natural := c_sp;
 
     --------------------------------------------------------------------------
     -- Arm/disarm bus override at programmed position(s)
     --------------------------------------------------------------------------
+    -- v_inject_pos is the first bit index where the override takes effect.
+    -- arm_bus_injection runs at v_tq_count = 0 (start of new bit) BEFORE
+    -- v_bus_idx is incremented, so v_bus_idx still holds the just-completed
+    -- bit index. A bus_override_en signal assignment takes effect on the next
+    -- clock edge. Together these produce a one-bit delay: matching against
+    -- (v_inject_pos - 1) arms the override exactly on bit v_inject_pos.
     procedure arm_bus_injection is
     begin
-      -- Primary injection position
-      if (v_bus_idx = v_inject_pos) then
-        if (v_subtype = c_inj_ack or v_subtype = c_inj_ack_delim or v_subtype = c_inj_lost_arb) then
-          bus_override <= c_dominant;
-        end if;
-        if (v_subtype /= c_inj_ack_error) then
-          bus_override_en <= true;
-        end if;
-      elsif (v_bus_idx = v_inject_pos + 1) then
-        bus_override_en <= false;
-      end if;
-      -- Secondary injection: reactive overload (dominant at last error delimiter bit)
-      if (v_subtype = c_inj_reactive_overload) then
-        if (v_bus_idx = v_inject_pos + c_error_sequence_width) then
-          bus_override    <= c_dominant;
-          bus_override_en <= true;
-        elsif (v_bus_idx = v_inject_pos + c_error_sequence_width + 1) then
-          bus_override_en <= false;
-        end if;
-      -- Secondary injection: error delimiter too late (dominant during full delimiter)
-      elsif (v_subtype = c_inj_error_delim_too_late) then
-        if (v_bus_idx = v_inject_pos + 1 + c_error_flag_width) then
-          bus_override    <= c_dominant;
-          bus_override_en <= true;
-        elsif (v_bus_idx = v_inject_pos + 1 + c_error_flag_width + c_error_delimiter_width) then
-          bus_override_en <= false;
-        end if;
-      end if;
+      case v_inj_subtype is
+        when c_inj_ack_error =>
+          null;  -- No override: DUT sees recessive ACK slot and reports ack error
+        when c_inj_reactive_overload =>
+          bus_override_en <= true when (v_bus_idx = v_inject_pos - 1) or (v_bus_idx = v_inject_pos - 1 + c_error_sequence_width)
+                              else false;
+        when c_inj_error_delim_too_late =>
+          if (v_bus_idx = v_inject_pos - 1) then
+            bus_override_en <= true;
+          elsif (v_bus_idx >= v_inject_pos + c_error_flag_width and v_bus_idx <  v_inject_pos + c_error_flag_width + c_error_delimiter_width) then
+            bus_override_en <= true;
+          else
+            bus_override_en <= false;
+          end if;
+        when others =>
+          -- Single-bit override at v_inject_pos (ack, ack_delim, lost_arb, bit_error)
+          bus_override_en <= true when (v_bus_idx = v_inject_pos - 1) else false;
+      end case;
     end procedure arm_bus_injection;
 
   begin
-    pcs_i.sample_point           <= '0';
-    pcs_i.secondary_sample_point <= '0';
-    pcs_i.tdc_delay    <= (others => '0');
-    pcs_i.bus_polarity <= c_recessive;
-    bus_override_en    <= false;
     WaitForBarrier(init_barrier);
-    FinishTransaction(pcs_rec.Ack);
 
     pcs_vc_loop : loop
       wait until rising_edge(clk);
+        --------------------------------------------------------------------------
+        -- PCS model (bit time is set using the pcs_o.use_data_rate signal from the DUT)
+        --------------------------------------------------------------------------
+        v_tq_count := 0 when v_tq_count = v_active_bit_time else v_tq_count + 1; -- Advance TQ counter
+        v_active_bit_time := c_data_bit_time when pcs_o.use_data_rate = '1' and v_tq_count = 0 else c_bit_time;
+        v_active_sp := c_data_sp when pcs_o.use_data_rate  = '1' and v_tq_count = 0 else c_sp;
+        pcs_i.sample_point <= '1' when v_tq_count = v_active_sp else '0'; -- Sample point strobe
+        pcs_i.secondary_sample_point <= '1' when v_tq_count = c_data_ssp and pcs_o.use_data_rate = '1' else '0'; -- Secondary sample point
+        pcs_i.tdc_delay <= (others => '0'); -- No transmissions delay in this model so tdc_delay is always 0
 
-      --------------------------------------------------------------------------
-      -- Bit time model
-      --------------------------------------------------------------------------
-      pcs_i.sample_point           <= '0';
-      pcs_i.secondary_sample_point <= '0';
-
-      if (v_sp_active) then
-        -- Latch bit timing at bit boundary from DUT data rate signal
-        if (v_tq_count = 0) then
-          if (pcs_o.use_data_rate = '1') then
-            v_active_bt := c_data_bit_time;
-            v_active_sp := c_data_sp;
-          else
-            v_active_bt := c_bit_time;
-            v_active_sp := c_sp;
-            v_ssp_armed := false;
-          end if;
-        end if;
-
-        -- Zero-delay loopback
-        pcs_i.bus_polarity <= pcs_o.polarity;
-
-        -- ACK / arb-loss / ack-delim override (persistent for one bit time)
-        if (bus_override_en and not (v_subtype = c_inj_error or v_subtype = c_inj_reactive_overload or v_subtype = c_inj_error_delim_too_late)) then
-          pcs_i.bus_polarity <= bus_override;
-        end if;
-
-        -- Sample point strobe
-        if (v_tq_count = v_active_sp) then
-          if (bus_override_en and (v_subtype = c_inj_error or v_subtype = c_inj_reactive_overload or v_subtype = c_inj_error_delim_too_late)) then
+        -- Set bus polarity
+        if bus_override_en then -- Override bus
+          -- Dominant polarity override injection types
+          if v_inj_subtype = c_inj_ack or v_inj_subtype = c_inj_lost_arb or v_inj_subtype = c_inj_ack_delim then
+            pcs_i.bus_polarity <= c_dominant;
+          -- Opposite polarity override injection types 
+          elsif v_inj_subtype = c_inj_error or v_inj_subtype = c_inj_reactive_overload or v_inj_subtype = c_inj_error_delim_too_late then
             pcs_i.bus_polarity <= not pcs_o.polarity;
           end if;
-          pcs_i.sample_point <= '1';
-          if (pcs_o.use_data_rate = '1') then
-            v_ssp_armed := true;
-          end if;
+        else -- Zero-delay loop back
+          pcs_i.bus_polarity <= pcs_o.polarity; 
         end if;
+      --------------------------------------------------------------------------
 
-        -- Secondary sample point strobe (data phase only, ISO 7.3.4).
-        -- Suppress first data-phase SP so polarity_history(0) is populated.
-        if (pcs_o.use_data_rate = '1' and v_tq_count = c_data_ssp and v_ssp_armed) then
-          if (bus_override_en and (v_subtype = c_inj_error or v_subtype = c_inj_reactive_overload or v_subtype = c_inj_error_delim_too_late)) then
-            pcs_i.bus_polarity <= not pcs_o.polarity;
-          end if;
-          pcs_i.secondary_sample_point <= '1';
-          pcs_i.tdc_delay <= (others => '0');
-        end if;
-
-        -- Advance TQ counter (wraps at active bit time)
-        if (v_tq_count = v_active_bt - 1) then
-          v_tq_count := 0;
-        else
-          v_tq_count := v_tq_count + 1;
+      --------------------------------------------------------------------------
+      -- Bit checking: Check polarity, start_tdc and use_data_rate
+      --------------------------------------------------------------------------
+      if (v_checking) then
+        if v_tq_count = 0 and (v_bus_idx > 0 or pcs_o.valid = '1') then 
+          Check(pcs_rec.BurstFifo, pcs_o.start_tdc & pcs_o.use_data_rate & pcs_o.polarity);
+          arm_bus_injection;
+          v_bus_idx := v_bus_idx + 1;
         end if;
       end if;
 
-      --------------------------------------------------------------------------
-      -- Bit checking: pop-and-compare at each bit boundary.
-      -- Gate on valid='1' for the first bit; v_bus_idx > 0 keeps checking
-      -- through IFS where the DUT deasserts valid.
-      --------------------------------------------------------------------------
-      if (v_checking and v_tq_count = 0 and (v_bus_idx > 0 or pcs_o.valid = '1')) then
-        v_expected := Pop(pcs_rec.BurstFifo);
-        AffirmIfEqual(stream_check_id, pcs_o.polarity, v_expected(0), "polarity");
-        AffirmIfEqual(stream_check_id, pcs_o.use_data_rate, v_expected(1), "use_data_rate");
-        AffirmIfEqual(stream_check_id, pcs_o.start_tdc, v_expected(2), "start_tdc");
-        arm_bus_injection;
-        v_bus_idx := v_bus_idx + 1;
-        -- Stream done: stop checking, unblock pending CHECK_BURST
-        if (Empty(pcs_rec.BurstFifo)) then
-          v_checking := false;
-          if (v_burst_check_pending) then
-            v_burst_check_pending := false;
-            FinishTransaction(pcs_rec.Ack);
-          end if;
+      -- Stream done: stop checking, unblock pending CHECK_BURST
+      if Empty(pcs_rec.BurstFifo) then
+        v_checking := false;
+        if (v_burst_check_pending) then
+          v_burst_check_pending := false;
+          FinishTransaction(pcs_rec.Ack);
         end if;
       end if;
 
@@ -564,20 +493,11 @@ begin
       if TransactionPending(pcs_rec.Rdy, pcs_rec.Ack) then
         case pcs_rec.Operation is
           when SEND_ASYNC =>
-            v_subtype := to_integer(unsigned(pcs_rec.DataToModel));
-            if (v_subtype = c_pcs_active) then
-              v_sp_active := true;
-              v_tq_count  := 0;
-              v_bus_idx   := 0;
-              v_active_bt := c_bit_time;
-              v_active_sp  := c_sp;
-              v_ssp_armed  := false;
-              bus_override_en <= false;
-              pcs_i.tdc_delay <= (others => '0');
-            else
-              v_inject_pos := to_integer(unsigned(pcs_rec.ParamToModel));
-              v_checking   := true;
-            end if;
+            v_inj_subtype := to_integer(unsigned(pcs_rec.DataToModel));
+            v_inject_pos := to_integer(unsigned(pcs_rec.ParamToModel));
+            v_checking   := true;
+            bus_override_en <= false;
+            v_bus_idx   := 0;
             FinishTransaction(pcs_rec.Ack);
           when CHECK_BURST =>
             if (v_checking) then
@@ -585,8 +505,7 @@ begin
             else
               FinishTransaction(pcs_rec.Ack);
             end if;
-          when others =>
-            FinishTransaction(pcs_rec.Ack);
+          when others => FinishTransaction(pcs_rec.Ack);
         end case;
       end if;
     end loop;
@@ -606,6 +525,7 @@ begin
     variable v_inj_pos     : natural;
     variable v_exp_status  : std_logic_vector(2 downto 0);
     variable v_exp_fce     : std_logic_vector(c_fce_latch_width - 1 downto 0);
+
 
     --------------------------------------------------------------------------
     -- Test 1: Verify all DUT outputs are in reset state
@@ -628,7 +548,6 @@ begin
       Print("--------------------------------------------------------------------------");
       Print("Test 2: Bus reintegration");
       Print("--------------------------------------------------------------------------");
-      SendAsync(pcs_rec, std_logic_vector(to_unsigned(c_pcs_active, c_rec_width)));
       for sp_idx in 0 to c_bus_idle_condition_width - 2 loop
         wait until rising_edge(clk) and pcs_i.sample_point = '1';
         AffirmIf(reset_check_id, pcs_o.valid = '0',
@@ -646,31 +565,27 @@ begin
     --------------------------------------------------------------------------
     procedure prepare_ack is
     begin
-      -- Inject dominant one bit early to absorb TB arm-to-latch delay
       v_inj_type   := c_inj_ack;
-      v_inj_pos    := v_stream.ack_pos - 1;
+      v_inj_pos    := v_stream.ack_pos;
       v_exp_status := c_transmitted;
       v_exp_fce(c_fce_successful_transfer) := '1';
-      inj_type <= ack;
     end procedure prepare_ack;
 
     procedure prepare_ack_delim is
     begin
       -- FD-only: dominant ACK at s_ack bc=1 (ISO 6.6.11.6)
       v_inj_type   := c_inj_ack_delim;
-      v_inj_pos    := v_stream.ack_pos;
+      v_inj_pos    := v_stream.ack_pos + 1;
       v_exp_status := c_transmitted;
       v_exp_fce(c_fce_successful_transfer) := '1';
-      inj_type <= ack_delim;
     end procedure prepare_ack_delim;
 
     procedure prepare_ack_error is
     begin
       v_inj_type   := c_inj_ack_error;
       v_inj_pos    := v_stream.ack_pos;
-      v_exp_status := c_disturbed;
+      v_exp_status    := c_disturbed;
       v_exp_fce(c_fce_error) := '1';
-      inj_type <= ack_error;
       if (v_error_state = c_fce_passive) then
         -- ISO 8.1.4.2 rule c) Exception 1: counters_unchanged
         v_exp_fce(c_fce_counters_unchanged) := '1';
@@ -678,7 +593,7 @@ begin
         v_exp_fce(c_fce_primary_error) := '1';
       end if;
       -- Error detected at first EOF bit (CC: slot+delim=2, FD: slot+delim=3)
-      if (v_metadata.fdf = '1') then
+      if v_metadata.fdf = '1' then
         truncate_error(v_stream, v_stream.ack_pos + 3, v_error_state = c_fce_passive);
       else
         truncate_error(v_stream, v_stream.ack_pos + 2, v_error_state = c_fce_passive);
@@ -686,56 +601,50 @@ begin
     end procedure prepare_ack_error;
 
     procedure prepare_bit_error is
-      variable v_candidate : natural;
     begin
-      -- Coverage-driven position within [arb_end, ack_pos-2]
-      -- Arb field excluded (ISO 6.6.21.2.a Exception 1)
+      -- Coverage-driven position within [arb_end+1, ack_pos-1].
       v_inj_type := c_inj_error;
-      v_inj_pos  := RV.RandInt(v_stream.arb_end, v_stream.ack_pos - 2);
-      inj_type <= error;
-      for attempt in 0 to 9 loop
-        v_candidate := GetRandPoint(pos_cov);
-        if (v_candidate >= v_stream.arb_end and v_candidate <= v_stream.ack_pos - 2) then
-          v_inj_pos := v_candidate;
-          exit;
-        end if;
+      for attempt in 0 to 15 loop
+        v_inj_pos := GetRandPoint(pos_cov);
+        exit when (v_inj_pos > v_stream.arb_end and v_inj_pos < v_stream.ack_pos - 1);
       end loop;
-      -- Skip first data-phase bit (SSP warmup suppresses error detection)
-      if (v_stream.data_phase_start >= 0 and v_inj_pos = v_stream.data_phase_start) then
-        v_inj_pos := v_inj_pos + 1;
+      -- Coverage driven loop did not find a position within current frame, so force position to fall in right region
+      if (v_inj_pos <= v_stream.arb_end or v_inj_pos >= v_stream.ack_pos - 1) then
+        v_inj_pos := RV.RandInt(v_stream.arb_end + 1, v_stream.ack_pos - 2);
       end if;
+      -- Set expected status and FCE output signals
       v_exp_status := c_disturbed;
       v_exp_fce(c_fce_error) := '1';
-      if not (v_error_state = c_fce_passive) then
-        v_exp_fce(c_fce_primary_error) := '1';
-      end if;
-      truncate_error(v_stream, v_inj_pos + 1, v_error_state = c_fce_passive);
+      v_exp_fce(c_fce_primary_error) := '1' when v_error_state = c_fce_active else '0';
+      -- Truncate bit stream starting at the overridden bit
+      truncate_error(v_stream, v_inj_pos, v_error_state = c_fce_passive);
     end procedure prepare_bit_error;
 
     procedure prepare_lost_arb is
     begin
       v_inj_type   := c_inj_lost_arb;
       v_exp_status := c_lost_arb;
-      -- Force recessive MSB in first ID byte so arbiter loses immediately
-      v_frame(2)(c_byte_width - 1) := c_recessive;
+      -- Force all ID bytes recessive so arbitration can be lost anywhere in the ID field
+      for i in c_id_offset to c_id_offset + 3 loop
+        v_frame(i) := (others => '1');
+      end loop;
       v_metadata := extract_metadata(v_frame(0), v_frame(1));
       v_stream   := build_bus_stream(v_frame, v_metadata, v_error_state = c_fce_passive);
-      v_inj_pos               := 1;
-      v_stream.len             := v_inj_pos + 1;
-      v_stream.fdf_pos         := -1;
-      v_stream.data_phase_start := -1;
-      v_stream.data_phase_end  := -1;
-      inj_type <= lost_arb;
+      -- Pick a random recessive bit within the arbitration field to override with dominant
+      for attempt in 0 to 31 loop
+        v_inj_pos := RV.RandInt(1, v_stream.arb_end);
+        exit when v_stream.bits(v_inj_pos) = c_recessive;
+      end loop;
+      v_stream.len := v_inj_pos;
     end procedure prepare_lost_arb;
 
     procedure prepare_reactive_overload is
     begin
       -- Bit error + dominant at last error delimiter bit triggers overload
       v_inj_type   := c_inj_reactive_overload;
-      v_inj_pos    := RV.RandInt(v_stream.arb_end, v_stream.ack_pos - 2);
+      v_inj_pos    := RV.RandInt(v_stream.arb_end + 1, v_stream.ack_pos - 2);
       v_exp_status := c_disturbed;
       v_exp_fce(c_fce_error) := '1';
-      inj_type <= reactive_overload;
       if not (v_error_state = c_fce_passive) then
         v_exp_fce(c_fce_primary_error) := '1';
       end if;
@@ -746,11 +655,10 @@ begin
     begin
       -- Bit error + 8 dominant during error delimiter
       v_inj_type   := c_inj_error_delim_too_late;
-      v_inj_pos    := RV.RandInt(v_stream.arb_end, v_stream.ack_pos - 2);
+      v_inj_pos    := RV.RandInt(v_stream.arb_end + 1, v_stream.ack_pos - 2);
       v_exp_status := c_disturbed;
       v_exp_fce(c_fce_error) := '1';
       v_exp_fce(c_fce_error_delim_too_late) := '1';
-      inj_type <= error_delimiter_too_late;
       if not (v_error_state = c_fce_passive) then
         v_exp_fce(c_fce_primary_error) := '1';
       end if;
@@ -761,10 +669,11 @@ begin
     -- Submit frame to DUT and verify all three outputs
     --------------------------------------------------------------------------
     procedure submit_and_verify is
-      variable v_entry    : std_logic_vector(2 downto 0);
-      variable v_fdf      : integer := v_stream.fdf_pos;
-      variable v_dp_start : integer := v_stream.data_phase_start;
-      variable v_dp_end   : integer := v_stream.data_phase_end;
+      variable v_entry      : std_logic_vector(2 downto 0);
+      variable v_fdf        : integer := v_stream.fdf_pos;
+      variable v_dp_start   : integer := v_stream.data_phase_start;
+      variable v_dp_end     : integer := v_stream.data_phase_end;
+      variable v_err_before : integer;
     begin
       -- Clamp data-phase bounds for injection types that truncate the stream
       case v_inj_type is
@@ -773,23 +682,22 @@ begin
           v_dp_start := -1;
           v_dp_end   := -1;
         when c_inj_error | c_inj_reactive_overload | c_inj_error_delim_too_late =>
-          if (v_fdf >= 0 and v_inj_pos < v_fdf) then
+          -- v_inj_pos is the first truncated bit; the last DUT-driven bit is v_inj_pos - 1.
+          if (v_fdf >= 0 and v_inj_pos <= v_fdf) then
             v_fdf := -1;
           end if;
-          if (v_dp_start >= 0 and v_inj_pos < v_dp_start) then
+          if (v_dp_start >= 0 and v_inj_pos <= v_dp_start) then
             v_dp_start := -1;
             v_dp_end   := -1;
           elsif (v_dp_start >= 0 and v_inj_pos <= v_dp_end) then
-            v_dp_end := v_inj_pos;
+            v_dp_end := v_inj_pos - 1;
           end if;
         when others =>
           null;
       end case;
       -- Configure PCS VC: reset bit-time model, then arm injection
-      SendAsync(pcs_rec, std_logic_vector(to_unsigned(c_pcs_active, c_rec_width)));
-      SendAsync(pcs_rec, std_logic_vector(to_unsigned(v_inj_type, c_rec_width)),
-                         std_logic_vector(to_unsigned(v_inj_pos, c_rec_width)));
-      -- Push expected bus stream: (2)=start_tdc, (1)=use_data_rate, (0)=polarity
+      SendAsync(pcs_rec, std_logic_vector(to_unsigned(v_inj_type, c_rec_width)), std_logic_vector(to_unsigned(v_inj_pos, c_rec_width)));
+      -- Push expected bus stream:   (0)=polarity,(1)=use_data_rate,(2)=start_tdc
       for i in 0 to v_stream.len - 1 loop
         v_entry(0) := v_stream.bits(i);
         if (v_dp_start >= 0 and i >= v_dp_start and i <= v_dp_end) then
@@ -813,6 +721,7 @@ begin
         end if;
       end loop;
       -- Verify: bus stream, transfer status, FCE events
+      v_err_before := GetAlertCount;
       CheckBurst(pcs_rec, GetFifoCount(pcs_rec.BurstFifo));
       Check(llc_rec, v_exp_status);
       Check(fce_rec, std_logic_vector(resize(unsigned(v_exp_fce), c_rec_width)));
