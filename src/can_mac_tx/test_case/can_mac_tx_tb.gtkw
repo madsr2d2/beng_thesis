@@ -84,6 +84,8 @@ top.can_mac_tx_tb.fce_latch
 @420
 top.can_mac_tx_tb.bus_idx
 @420
+top.can_mac_tx_tb.aux_inj_pos
+@420
 top.can_mac_tx_tb.test_id
 @420
 top.can_mac_tx_tb.reset_check_id

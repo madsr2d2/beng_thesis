@@ -512,7 +512,7 @@ begin
 
           -----------------------------------------------------------------
           -- s_eof : 7 recessive bits (ISO : 6.6.10.7, 6.6.11.7).
-          -- ACK error is evaluated at bit_count = 0 of EOF field (ISO : 6.6.21.3.1)
+          -- ACK error is evaluated at bit_count = 0 of EOF field (ISO : 6.6.21.3.1, 6.6.15.2)
           -----------------------------------------------------------------
           when s_eof =>
             if (pcs_i.sample_point = '1') then
