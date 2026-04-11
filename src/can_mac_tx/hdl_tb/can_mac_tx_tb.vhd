@@ -95,6 +95,7 @@ architecture tb of can_mac_tx_tb is
   signal bus_override_en : boolean   := false;
   signal status_latch    : std_logic_vector(2 downto 0) := c_ongoing;
   signal fce_latch       : std_logic_vector(c_fce_latch_width - 1 downto 0) := (others => '0');
+  signal bus_idx       : natural;
 
   -- OSVVM signals
   shared variable RV  : RandomPType;
@@ -396,7 +397,6 @@ begin
   -- PCS Verification Component
   ----------------------------------------------------------------------------
   p_pcs_vc : process is
-    variable v_bus_idx             : natural;
     variable v_inject_pos          : natural;
     variable v_inj_subtype             : natural;
     variable v_checking            : boolean := false;
@@ -422,19 +422,19 @@ begin
         when c_inj_ack_error =>
           null;  -- No override: DUT sees recessive ACK slot and reports ack error
         when c_inj_reactive_overload =>
-          bus_override_en <= true when (v_bus_idx = v_inject_pos - 1) or (v_bus_idx = v_inject_pos - 1 + c_error_sequence_width)
+          bus_override_en <= true when (bus_idx = v_inject_pos - 1) or (bus_idx = v_inject_pos - 1 + c_error_sequence_width)
                               else false;
         when c_inj_error_delim_too_late =>
-          if (v_bus_idx = v_inject_pos - 1) then
+          if (bus_idx = v_inject_pos - 1) then
             bus_override_en <= true;
-          elsif (v_bus_idx >= v_inject_pos + c_error_flag_width and v_bus_idx <  v_inject_pos + c_error_flag_width + c_error_delimiter_width) then
+          elsif (bus_idx >= v_inject_pos + c_error_flag_width and bus_idx <  v_inject_pos + c_error_flag_width + c_error_delimiter_width) then
             bus_override_en <= true;
           else
             bus_override_en <= false;
           end if;
         when others =>
           -- Single-bit override at v_inject_pos (ack, ack_delim, lost_arb, bit_error)
-          bus_override_en <= true when (v_bus_idx = v_inject_pos - 1) else false;
+          bus_override_en <= true when (bus_idx = v_inject_pos - 1) else false;
       end case;
     end procedure arm_bus_injection;
 
@@ -471,10 +471,10 @@ begin
       -- Bit checking: Check polarity, start_tdc and use_data_rate
       --------------------------------------------------------------------------
       if (v_checking) then
-        if v_tq_count = 0 and (v_bus_idx > 0 or pcs_o.valid = '1') then 
+        if v_tq_count = 0 and (bus_idx > 0 or pcs_o.valid = '1') then 
           Check(pcs_rec.BurstFifo, pcs_o.start_tdc & pcs_o.use_data_rate & pcs_o.polarity);
           arm_bus_injection;
-          v_bus_idx := v_bus_idx + 1;
+          bus_idx <= bus_idx + 1;
         end if;
       end if;
 
@@ -497,7 +497,7 @@ begin
             v_inject_pos := to_integer(unsigned(pcs_rec.ParamToModel));
             v_checking   := true;
             bus_override_en <= false;
-            v_bus_idx   := 0;
+            bus_idx   <= 0;
             FinishTransaction(pcs_rec.Ack);
           when CHECK_BURST =>
             if (v_checking) then
