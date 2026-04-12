@@ -56,11 +56,9 @@ src/                                  # Per-module folders (mirrors company layo
 ├── can_mac_bs/
 │   ├── hdl_src/can_mac_bs.vhd        # Bit stuffer with SBC generation (shared TX/RX)
 │   └── hdl_tb/can_mac_bs_tb.vhd      # Bit stuffer testbench
-├── can_mac_fsm_tx/
-│   ├── hdl_src/can_mac_fsm_tx.vhd    # Frame transmission FSM (coordinator)
-│   └── hdl_tb/can_mac_fsm_tx_tb.vhd, can_mac_fsm_tx_err_tb.vhd
 ├── can_mac_tx/
 │   ├── hdl_src/can_mac_tx.vhd        # MAC TX sub-layer wrapper
+│   ├── hdl_src/can_mac_fsm_tx.vhd    # Frame transmission FSM (coordinator)
 │   └── hdl_tb/can_mac_tx_tb.vhd      # MAC TX testbench (~209k affirmations)
 ├── can_pcs_tx/
 │   ├── hdl_src/can_pcs_tx.vhd        # PCS sub-layer (bit timing, TDC, bus interface)
@@ -73,20 +71,20 @@ src/                                  # Per-module folders (mirrors company layo
 ├── can_fce/
 │   ├── hdl_src/can_fce.vhd           # Fault Confinement Entity
 │   └── hdl_tb/can_fce_tb.vhd
-├── can_mac_fsm_rx/
-│   └── hdl_src/can_mac_fsm_rx.vhd    # Frame reception FSM (stub)
 ├── can_mac_deser_rx/
 │   └── hdl_src/can_mac_deser_rx.vhd  # Serial-to-byte deserializer (stub)
 └── can_mac_rx/
-    └── hdl_src/can_mac_rx.vhd        # MAC RX sub-layer wrapper (stub)
+    ├── hdl_src/can_mac_rx.vhd        # MAC RX sub-layer wrapper (stub)
+    └── hdl_src/can_mac_fsm_rx.vhd    # Frame reception FSM (stub)
 
 can_bus_controller_fd/                # Company-format mirror (synced via scripts/sync_to_company.py)
 ├── can_types_p/                      # Same per-module layout with hdl_src/, hdl_tb/, test_case/
+├── can_tb_p/                         # Testbench utility package
 ├── can_mac_bs/                       # Shared modules (no _tx suffix)
 ├── can_mac_crc/                      # gen_crc stripped (company has it at ip_lib/gen_crc/)
 ├── can_mac_ser_tx/
-├── can_mac_fsm_tx/
-└── can_mac_tx/
+├── can_mac_tx/                       # Includes can_mac_fsm_tx (FSM + wrapper together)
+└── can_mac_rx/                       # Includes can_mac_fsm_rx (FSM + wrapper together)
 
 scripts/                # Build and sync scripts
 ├── sync_to_company.py  # Local -> company format conversion
@@ -125,7 +123,7 @@ ghdl -a --std=08 -fpsl --warn-no-vital-generic --warn-no-hide \
   src/can_mac_ser_tx/hdl_src/can_mac_ser_tx.vhd \
   src/can_mac_crc/hdl_src/can_mac_crc.vhd \
   src/can_mac_bs/hdl_src/can_mac_bs.vhd \
-  src/can_mac_fsm_tx/hdl_src/can_mac_fsm_tx.vhd \
+  src/can_mac_tx/hdl_src/can_mac_fsm_tx.vhd \
   src/can_mac_tx/hdl_src/can_mac_tx.vhd \
   src/can_pcs_tx/hdl_src/can_pcs_tx.vhd \
   src/can_llc_tx/hdl_src/can_llc_tx.vhd \
