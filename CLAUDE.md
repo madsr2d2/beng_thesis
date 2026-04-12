@@ -15,6 +15,8 @@ This is a B.Eng thesis project implementing a **full CAN (Controller Area Networ
 - GTKWave waveform viewer integration
 - Formal verification with PSL assertions (SymbiYosys + ghdl-yosys-plugin)
 
+**Roadmap Progress**: `docs/roadmap_progress.md` tracks implementation status against the advisor roadmap. Keep this file updated as modules and TBs are completed.
+
 **Key Dependencies**: GHDL compiler, OSVVM libraries, VSG linter
 
 **Standards Reference**: `docs/md_out/ISO_11898_1_CAN_bus_link/ISO_11898_1_CAN_bus_link.md` (ISO 11898-1:2015) - searchable markdown version

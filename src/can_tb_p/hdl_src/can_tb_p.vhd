@@ -146,7 +146,7 @@ package body pk_can_tb is
     end if;
   end procedure stuff_feed;
 
-  -- Dynamic->fixed boundary (ISO 6.6.13.3.1): drop a trailing dyn stuff bit so
+  -- Dynamic->fixed boundary (ISO 6.6.13.3.1): drop a trailing dynamic stuff bit
   procedure enter_fixed_mode (st : inout t_stuff_state; stream : inout t_bus_stream) is
   begin
     if st.just_stuffed then

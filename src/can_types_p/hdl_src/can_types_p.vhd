@@ -39,7 +39,7 @@ package pk_can_types is
 
   -- Bus polarity (ISO 7.4.3)
   constant c_dominant  : std_logic := '0';
-    constant c_recessive : std_logic := '1';
+  constant c_recessive : std_logic := '1';
 
   -- Frame field widths (ISO 6.6.10, 6.6.11)
   constant c_byte_width        : natural := 8;
@@ -69,6 +69,12 @@ package pk_can_types is
   constant c_suspend_transmission_width : natural := 8;   -- ISO 6.6.7.4
   constant c_bus_idle_condition_width   : natural := 11;  -- ISO 6.6.7.5
   constant c_bus_off_recovery_count     : natural := 128; -- ISO 8.1.4.4
+
+
+  constant c_fce_tec_max                 : natural := 511;
+  constant c_fce_rec_max                 : natural := 255;
+  constant c_fce_error_passive_threshold : natural := 127; -- ISO 8.1.4.1
+  constant c_fce_bus_off_threshold       : natural := 255; -- ISO 8.1.4.1
 
   -- Frame limits
   constant c_dlc_max              : natural := 15; -- ISO Table 5
@@ -401,12 +407,14 @@ package pk_can_types is
   type t_can_pcs_fce_if_s2m is record
     bus_off_response         : std_logic;
     bus_off_release_response : std_logic;
+    idle_condition           : std_logic; -- Pulse: 11 consecutive recessive bits detected (bus-off recovery)
   end record t_can_pcs_fce_if_s2m;
 
   constant c_pcs_to_fce_if_reset : t_can_pcs_fce_if_s2m :=
   (
     bus_off_response         => '0',
-    bus_off_release_response => '0'
+    bus_off_release_response => '0',
+    idle_condition           => '0'
   );
 
   ---------------------------------------------------------------------------

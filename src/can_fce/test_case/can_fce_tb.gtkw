@@ -6,93 +6,133 @@
 [timestart] 0
 [size] 1920 1080
 [pos] 0 0
-*-28.000000 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-22.000000 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.can_fce_tb.
-[sst_width] 297
-[signals_width] 412
+[sst_width] 320
+[signals_width] 460
 [sst_expanded] 1
-[sst_vpaned_height] 434
-[treeopen] top.can_fce_tb.dut.
+[sst_vpaned_height] 480
+[treeopen] top.can_fce_tb.u_dut.
 @c00200
--TB Signals
+-can_fce_tb :: TB
+[color] 1
 @28
 top.can_fce_tb.clk
 @28
-top.can_fce_tb.rst
-@420
-top.can_fce_tb.llc_i
-@420
-top.can_fce_tb.llc_o
-@420
-top.can_fce_tb.tx_mac_i
-@420
-top.can_fce_tb.tx_mac_o
-@420
-top.can_fce_tb.rx_mac_i
-@420
-top.can_fce_tb.rx_mac_o
-@420
-top.can_fce_tb.pcs_i
-@420
-top.can_fce_tb.pcs_o
+top.can_fce_tb.reset
 @28
-top.can_fce_tb.rx_bus
+top.can_fce_tb.llc_i.normal_mode_request
+@28
+top.can_fce_tb.llc_o.normal_mode_response
+@28
+top.can_fce_tb.llc_o.bus_off
+@28
+top.can_fce_tb.mac_i.transmitting
+@28
+top.can_fce_tb.mac_i.error
+@28
+top.can_fce_tb.mac_i.primary_error
+@28
+top.can_fce_tb.mac_i.sending_error_overload_flag
+@28
+top.can_fce_tb.mac_i.counters_unchanged
+@28
+top.can_fce_tb.mac_i.error_delimiter_too_late
+@28
+top.can_fce_tb.mac_i.successful_transfer
+@28
+top.can_fce_tb.mac_i.error_passive_response
+@28
+top.can_fce_tb.mac_i.error_active_response
+@28
+top.can_fce_tb.mac_o.error_passive_request
+@28
+top.can_fce_tb.mac_o.error_active_request
+@28
+top.can_fce_tb.pcs_i.bus_off_response
+@28
+top.can_fce_tb.pcs_i.bus_off_release_response
+@28
+top.can_fce_tb.pcs_i.idle_condition
+@28
+top.can_fce_tb.pcs_o.bus_off_request
+@28
+top.can_fce_tb.pcs_o.bus_off_release_request
 @420
-top.can_fce_tb.debug_tec
-@420
-top.can_fce_tb.debug_rec
-@22
-top.can_fce_tb.debug_state
-@420
-top.can_fce_tb.alert_id
+top.can_fce_tb.test_id
+@28
+top.can_fce_tb.init_barrier
 @1401200
--TB Signals
+-can_fce_tb :: TB
 @c00200
--dut Internals
+-u_dut :: inputs
+[color] 5
 @28
-top.can_fce_tb.dut.clk_i
+top.can_fce_tb.u_dut.clk_i
 @28
-top.can_fce_tb.dut.rst_i
-@420
-top.can_fce_tb.dut.llc_i
-@420
-top.can_fce_tb.dut.llc_o
-@420
-top.can_fce_tb.dut.tx_mac_i
-@420
-top.can_fce_tb.dut.tx_mac_o
-@420
-top.can_fce_tb.dut.rx_mac_i
-@420
-top.can_fce_tb.dut.rx_mac_o
-@420
-top.can_fce_tb.dut.pcs_i
-@420
-top.can_fce_tb.dut.pcs_o
+top.can_fce_tb.u_dut.rst_i
 @28
-top.can_fce_tb.dut.rx_bus_i
-@420
-top.can_fce_tb.dut.debug_tec_o
-@420
-top.can_fce_tb.dut.debug_rec_o
-@22
-top.can_fce_tb.dut.debug_state_o
-@420
-top.can_fce_tb.dut.tec
-@420
-top.can_fce_tb.dut.rec
-@22
-top.can_fce_tb.dut.fce_state
-@22
-top.can_fce_tb.dut.idle_shift_reg
-@420
-top.can_fce_tb.dut.idle_count
-@420
-top.can_fce_tb.dut.prescaler_count
+top.can_fce_tb.u_dut.llc_i.normal_mode_request
 @28
-top.can_fce_tb.dut.bus_off_active
+top.can_fce_tb.u_dut.mac_i.transmitting
+@28
+top.can_fce_tb.u_dut.mac_i.error
+@28
+top.can_fce_tb.u_dut.mac_i.primary_error
+@28
+top.can_fce_tb.u_dut.mac_i.sending_error_overload_flag
+@28
+top.can_fce_tb.u_dut.mac_i.counters_unchanged
+@28
+top.can_fce_tb.u_dut.mac_i.error_delimiter_too_late
+@28
+top.can_fce_tb.u_dut.mac_i.successful_transfer
+@28
+top.can_fce_tb.u_dut.mac_i.error_passive_response
+@28
+top.can_fce_tb.u_dut.mac_i.error_active_response
+@28
+top.can_fce_tb.u_dut.pcs_i.bus_off_response
+@28
+top.can_fce_tb.u_dut.pcs_i.bus_off_release_response
+@28
+top.can_fce_tb.u_dut.pcs_i.idle_condition
 @1401200
--dut Internals
+-u_dut :: inputs
+@c00200
+-u_dut :: outputs
+[color] 4
+@28
+top.can_fce_tb.u_dut.llc_o.normal_mode_response
+@28
+top.can_fce_tb.u_dut.llc_o.bus_off
+@28
+top.can_fce_tb.u_dut.mac_o.error_passive_request
+@28
+top.can_fce_tb.u_dut.mac_o.error_active_request
+@28
+top.can_fce_tb.u_dut.pcs_o.bus_off_request
+@28
+top.can_fce_tb.u_dut.pcs_o.bus_off_release_request
+@420
+top.can_fce_tb.u_dut.debug_tec_o
+@420
+top.can_fce_tb.u_dut.debug_rec_o
+@1401200
+-u_dut :: outputs
+@c00200
+-u_dut :: internals
+[color] 3
+@420
+top.can_fce_tb.u_dut.tec
+@420
+top.can_fce_tb.u_dut.rec
+@420
+top.can_fce_tb.u_dut.fce_state
+@420
+top.can_fce_tb.u_dut.idle_count
+@1401200
+-u_dut :: internals
 [pattern_trace] 1
 [pattern_trace] 0
