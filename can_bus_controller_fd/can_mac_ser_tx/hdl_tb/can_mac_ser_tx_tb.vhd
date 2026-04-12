@@ -31,7 +31,6 @@ use work.pk_man_global.all;
 use work.common_register_interface_pkg.all;
 use work.common_tb_pkg.all;
 use work.pk_can_types.all;
-use work.pk_eth_st;
 
 entity can_mac_ser_tx_tb is
   generic (
@@ -92,8 +91,8 @@ architecture tb of can_mac_ser_tx_tb is
   end function to_slv;
 
   procedure avalon_st_send (
-    signal   sink   : in    pk_eth_st.t_eth_st_d2s;
-    signal   source : out   pk_eth_st.t_eth_st_s2d;
+    signal   sink   : in    t_eth_st_d2s;
+    signal   source : out   t_eth_st_s2d;
     constant data   : in    std_logic_vector(c_byte_width - 1 downto 0);
     constant sop    : in    std_logic;
     constant eop    : in    std_logic

@@ -305,7 +305,7 @@ begin
     end procedure test_normal;
 
     --------------------------------------------------------------------------
-    -- Test 3: Random stress
+    -- Test 3: Random stress - exercise counter rules with random sequences
     --------------------------------------------------------------------------
     procedure test_random is
       variable v_action : natural;

@@ -16,10 +16,17 @@
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
-  use work.pk_can_types.all;
 
 library osvvm;
   context osvvm.OsvvmContext;
+  use osvvm.ScoreboardPkg_slv.all;
+library osvvm_common;
+  context osvvm_common.OsvvmCommonContext;
+
+use work.pk_man_global.all;
+use work.common_register_interface_pkg.all;
+use work.common_tb_pkg.all;
+use work.pk_can_types.all;
 
 entity can_fce_tb is
   generic (
@@ -48,105 +55,87 @@ architecture tb of can_fce_tb is
   -- OSVVM signals
   shared variable RV : RandomPType;
   signal test_id      : AlertLogIDType;
-  signal init_barrier : std_logic := '0';
+  signal init_barrier : integer_barrier := 1;
 
   ----------------------------------------------------------------------------
   -- Pulse procedures
   ----------------------------------------------------------------------------
-  procedure pulse_tx_error (
-    signal s2d : inout t_can_mac_fce_if_m2s
-  ) is
+  procedure pulse_tx_error (signal s2d : inout t_can_mac_fce_if_m2s) is
   begin
     s2d.transmitting <= '1';
-    s2d.error        <= '1';
+    s2d.error <= '1';
     wait until rising_edge(clk);
-    s2d              <= c_mac_to_fce_if_reset;
+    s2d <= c_mac_to_fce_if_reset;
     s2d.transmitting <= '1';
     wait until rising_edge(clk);
   end procedure pulse_tx_error;
 
-  procedure pulse_tx_success (
-    signal s2d : inout t_can_mac_fce_if_m2s
-  ) is
+  procedure pulse_tx_success (signal s2d : inout t_can_mac_fce_if_m2s) is
   begin
-    s2d.transmitting        <= '1';
+    s2d.transmitting <= '1';
     s2d.successful_transfer <= '1';
     wait until rising_edge(clk);
-    s2d                     <= c_mac_to_fce_if_reset;
+    s2d <= c_mac_to_fce_if_reset;
     wait until rising_edge(clk);
   end procedure pulse_tx_success;
 
-  procedure pulse_rx_error (
-    signal s2d : inout t_can_mac_fce_if_m2s
-  ) is
+  procedure pulse_rx_error (signal s2d : inout t_can_mac_fce_if_m2s) is
   begin
     s2d.transmitting <= '0';
-    s2d.error        <= '1';
+    s2d.error <= '1';
     wait until rising_edge(clk);
-    s2d              <= c_mac_to_fce_if_reset;
+    s2d <= c_mac_to_fce_if_reset;
     wait until rising_edge(clk);
   end procedure pulse_rx_error;
 
-  procedure pulse_rx_primary_error (
-    signal s2d : inout t_can_mac_fce_if_m2s
-  ) is
+  procedure pulse_rx_primary_error (signal s2d : inout t_can_mac_fce_if_m2s) is
   begin
-    s2d.transmitting  <= '0';
+    s2d.transmitting <= '0';
     s2d.primary_error <= '1';
     wait until rising_edge(clk);
-    s2d               <= c_mac_to_fce_if_reset;
+    s2d <= c_mac_to_fce_if_reset;
     wait until rising_edge(clk);
   end procedure pulse_rx_primary_error;
 
-  procedure pulse_rx_success (
-    signal s2d : inout t_can_mac_fce_if_m2s
-  ) is
+  procedure pulse_rx_success (signal s2d : inout t_can_mac_fce_if_m2s) is
   begin
-    s2d.transmitting        <= '0';
+    s2d.transmitting <= '0';
     s2d.successful_transfer <= '1';
     wait until rising_edge(clk);
-    s2d                     <= c_mac_to_fce_if_reset;
+    s2d <= c_mac_to_fce_if_reset;
     wait until rising_edge(clk);
   end procedure pulse_rx_success;
 
-  procedure pulse_tx_delim_late (
-    signal s2d : inout t_can_mac_fce_if_m2s
-  ) is
+  procedure pulse_tx_delim_late (signal s2d : inout t_can_mac_fce_if_m2s) is
   begin
-    s2d.transmitting             <= '1';
+    s2d.transmitting <= '1';
     s2d.error_delimiter_too_late <= '1';
     wait until rising_edge(clk);
-    s2d                          <= c_mac_to_fce_if_reset;
-    s2d.transmitting             <= '1';
+    s2d <= c_mac_to_fce_if_reset;
+    s2d.transmitting <= '1';
     wait until rising_edge(clk);
   end procedure pulse_tx_delim_late;
 
-  procedure pulse_rx_delim_late (
-    signal s2d : inout t_can_mac_fce_if_m2s
-  ) is
+  procedure pulse_rx_delim_late (signal s2d : inout t_can_mac_fce_if_m2s) is
   begin
-    s2d.transmitting             <= '0';
+    s2d.transmitting <= '0';
     s2d.error_delimiter_too_late <= '1';
     wait until rising_edge(clk);
-    s2d                          <= c_mac_to_fce_if_reset;
+    s2d <= c_mac_to_fce_if_reset;
     wait until rising_edge(clk);
   end procedure pulse_rx_delim_late;
 
-  procedure pulse_rx_error_in_flag (
-    signal s2d : inout t_can_mac_fce_if_m2s
-  ) is
+  procedure pulse_rx_error_in_flag (signal s2d : inout t_can_mac_fce_if_m2s) is
   begin
-    s2d.transmitting                <= '0';
-    s2d.error                       <= '1';
+    s2d.transmitting <= '0';
+    s2d.error <= '1';
     s2d.sending_error_overload_flag <= '1';
     wait until rising_edge(clk);
-    s2d                             <= c_mac_to_fce_if_reset;
+    s2d <= c_mac_to_fce_if_reset;
     wait until rising_edge(clk);
   end procedure pulse_rx_error_in_flag;
 
-  procedure pulse_idle_condition (
-    signal pcs : inout t_can_pcs_fce_if_s2m
-  ) is
+  procedure pulse_idle_condition (signal pcs : inout t_can_pcs_fce_if_s2m) is
   begin
     pcs.idle_condition <= '1';
     wait until rising_edge(clk);
@@ -172,6 +161,7 @@ begin
   p_init : process is
     variable v_test_id : AlertLogIDType;
   begin
+    RV.InitSeed(random_seed);
     SetAlertStopCount(ERROR, 1);
     v_test_id := NewID("can_fce");
     test_id   <= v_test_id;
@@ -232,7 +222,7 @@ begin
       mac_i.error              <= '1';
       mac_i.counters_unchanged <= '1';
       wait until rising_edge(clk);
-      mac_i                    <= c_mac_to_fce_if_reset;
+      mac_i <= c_mac_to_fce_if_reset;
       wait until rising_edge(clk);
       AffirmIf(test_id, mac_o.error_active_request = '1', "Rule c exception: still error_active");
 
@@ -323,7 +313,7 @@ begin
     end procedure test_normal;
 
     --------------------------------------------------------------------------
-    -- Test 3: Random stress - exercise counter rules with random sequences
+    -- Test 3: Random stress
     --------------------------------------------------------------------------
     procedure test_random is
       variable v_action : natural;
@@ -349,9 +339,7 @@ begin
         -- After each action, verify interface consistency:
         -- exactly one of error_active/error_passive must be asserted
         WaitForClock(clk);
-        AffirmIf(test_id,
-          (mac_o.error_active_request xor mac_o.error_passive_request) = '1',
-          "Random iteration " & to_string(iteration) & ": exactly one of error_active/error_passive asserted");
+        AffirmIf(test_id, (mac_o.error_active_request xor mac_o.error_passive_request) = '1', "Random test");
 
         -- If bus_off, recover before continuing
         if (llc_o.bus_off = '1') then

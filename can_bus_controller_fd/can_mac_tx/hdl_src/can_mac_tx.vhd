@@ -4,22 +4,22 @@
 --
 -- Requirements:
 --
--- Description:   Top-level MAC transmitter wrapper.
---                - can_mac_ser_tx: LLC byte serializer
---                - can_mac_fsm_tx: Coordinating FSM
---                - can_mac_bs: CAN bit stuffing with SBC generation
---                - can_mac_crc: CRC engine interface
+-- Description:   Top-level MAC transmitter wrapper. Instantiates and wires:
+--                - can_mac_ser_tx:  LLC byte serializer (LLC -> serial bit stream)
+--                - can_mac_fsm_tx:  Frame transmission FSM (coordinator)
+--                - can_mac_bs:   CAN FD bit stuffing with SBC generation
+--                - can_mac_crc:  CRC engine interface
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-30  TMYAES    [TRIT-4355] Initial implementation
+--                2026-03-31  MRDSA     Converted to company header format
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
-use ieee.numeric_std.all;
-use ieee.std_logic_1164.all;
+  use ieee.std_logic_1164.all;
+  use ieee.numeric_std.all;
 
-use work.pk_man_global.all;
-use work.pk_can_types.all;
+  use work.pk_man_global.all;
+  use work.pk_can_types.all;
 
 entity can_mac_tx is
   port (
@@ -49,7 +49,7 @@ architecture rtl of can_mac_tx is
   signal ser_to_fsm : t_can_mac_ser_fsm_if_s2d;
   signal fsm_to_ser : t_can_mac_ser_fsm_if_d2s;
 
-  -- FSM <-> bit stuffer
+  -- FSM <-> bit stuffer FD
   signal fsm_to_bs_fd  : t_can_mac_fsm_bs_if_m2s;
   signal bs_fd_to_fsm  : t_can_mac_fsm_bs_if_s2m;
   signal fsm_bs_fd_rst : std_logic;
@@ -77,7 +77,7 @@ begin
   ---------------------------------------------------------------------------
   -- can_mac_fsm_tx: Frame transmission FSM
   ---------------------------------------------------------------------------
-  u_can_mac_fsm_tx : entity work.can_mac_fsm_tx
+  u_can_mac_fsm_tx : entity work.can_mac_fsm_tx(rtl)
     port map (
       clk_i              => clk,
       rst_i              => rst,
@@ -118,5 +118,3 @@ begin
     );
 
 end architecture rtl;
-
--- eof

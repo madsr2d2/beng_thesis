@@ -18,14 +18,17 @@
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
-  use work.pk_can_types.all;
-  use work.pk_can_tb.all;
 
 library osvvm;
   context osvvm.OsvvmContext;
   use osvvm.ScoreboardPkg_slv.all;
 library osvvm_common;
   context osvvm_common.OsvvmCommonContext;
+
+use work.pk_man_global.all;
+use work.common_register_interface_pkg.all;
+use work.common_tb_pkg.all;
+use work.pk_can_types.all;
 
 entity can_mac_rx_tb is
   generic (
@@ -64,7 +67,7 @@ architecture tb of can_mac_rx_tb is
   signal ide_cov      : CoverageIDType;
   signal fdf_cov      : CoverageIDType;
   signal dlc_cov      : CoverageIDType;
-  signal init_barrier : std_logic := '0';
+  signal init_barrier : integer_barrier := 1;
 
   -- Transaction interfaces
   signal pcs_rec : StreamRecType(
@@ -105,6 +108,7 @@ begin
     variable v_fdf_cov  : CoverageIDType;
     variable v_dlc_cov  : CoverageIDType;
   begin
+    RV.InitSeed(random_seed);
     SetAlertStopCount(ERROR, 1);
     v_test_id  := NewID("can_mac_rx");
     v_check_id := NewID("Frame check", v_test_id);
@@ -146,9 +150,7 @@ begin
     );
 
   ----------------------------------------------------------------------------
-  -- PCS Bus Source VC: continuous clock model that drives bus stream with
-  -- SP pulses. Pops bus bits from BurstFifo on SEND_BURST. Wired-AND: if
-  -- DUT drives dominant via pcs_o, bus is overridden to dominant.
+  -- PCS VC
   ----------------------------------------------------------------------------
   p_pcs_vc : process is
     variable v_bus_val  : std_logic;
@@ -183,13 +185,13 @@ begin
       if TransactionPending(pcs_rec.Rdy, pcs_rec.Ack) then
         case pcs_rec.Operation is
           when SEND_BURST =>
-            -- Play all bits from BurstFifo, then ACK
+            -- Feed all bits from BurstFifo
             while not Empty(pcs_rec.BurstFifo) loop
               v_bit    := Pop(pcs_rec.BurstFifo);
               v_bus_val := v_bit(0);
               drive_bit(v_bus_val);
             end loop;
-            FinishTransaction(pcs_rec.Ack);
+            FinishTransaction(pcs_rec.Ack); -- Ack the transaction
           when others =>
             FinishTransaction(pcs_rec.Ack);
         end case;
@@ -198,9 +200,7 @@ begin
   end process p_pcs_vc;
 
   ----------------------------------------------------------------------------
-  -- LLC Sink VC: collects frame bytes from Avalon-ST output. Runs every
-  -- clock cycle to capture bytes. Verifies against BurstFifo on CHECK,
-  -- then resets collector for the next frame.
+  -- LLC Sink VC
   ----------------------------------------------------------------------------
   p_llc_sink_vc : process is
     variable v_byte_idx  : natural := 0;
@@ -217,7 +217,7 @@ begin
     llc_sink_loop : loop
       wait until rising_edge(clk);
 
-      -- Passive byte collection
+      -- Collect bytes
       if (not v_got_frame and llc_o.avalon_st_source.valid = '1') then
         v_frame(v_byte_idx) := llc_o.avalon_st_source.data;
         if (llc_o.avalon_st_source.endofpacket = '1') then
@@ -228,23 +228,20 @@ begin
         end if;
       end if;
 
-      -- Transaction dispatch (CHECK blocks until frame received)
+      -- Check received frame
       if v_got_frame and TransactionPending(llc_rec.Rdy, llc_rec.Ack) then
         case llc_rec.Operation is
           when CHECK =>
             v_exp_len := to_integer(unsigned(llc_rec.DataToModel(7 downto 0)));
             v_count   := to_integer(unsigned(llc_rec.ParamToModel(15 downto 0)));
-            AffirmIfEqual(check_id, v_frame_len, v_exp_len,
-              "Frame " & to_string(v_count) & " length");
+            AffirmIfEqual(check_id, v_frame_len, v_exp_len, "Frame " & to_string(v_count) & " length");
             for i in 0 to v_exp_len - 1 loop
               v_exp_byte := Pop(llc_rec.BurstFifo);
-              AffirmIfEqual(check_id, v_frame(i), v_exp_byte(7 downto 0),
-                "Frame " & to_string(v_count) & " byte " & to_string(i));
+              AffirmIfEqual(check_id, v_frame(i), v_exp_byte(7 downto 0), "Frame " & to_string(v_count) & " byte " & to_string(i));
             end loop;
             v_byte_idx  := 0;
             v_got_frame := false;
-          when others =>
-            null;
+          when others => null;
         end case;
         FinishTransaction(llc_rec.Ack);
       end if;
@@ -257,7 +254,7 @@ begin
   p_test_ctrl : process is
 
     --------------------------------------------------------------------------
-    -- gen_frame: random LLC frame + expected bus stream via shared ref model
+    -- gen_frame: random LLC frame + expected bus stream
     --------------------------------------------------------------------------
     procedure gen_frame (
       variable frame    : out t_llc_frame;
@@ -304,7 +301,7 @@ begin
     end procedure gen_frame;
 
     --------------------------------------------------------------------------
-    -- Submit stream to PCS VC and verify LLC output via LLC Sink VC
+    -- Submit stream to PCS VC and verify LLC output
     --------------------------------------------------------------------------
     procedure submit_and_verify (
       variable v_frame       : in t_llc_frame;

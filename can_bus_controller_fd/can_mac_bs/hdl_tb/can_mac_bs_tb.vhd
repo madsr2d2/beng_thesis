@@ -102,7 +102,7 @@ begin
     begin
       bs_i.data   <= data;
       bs_i.valid  <= '1';
-      bs_i.fsb_en <= fsb_en;
+      bs_i.fixed_bit_stuffing_en <= fsb_en;
       WaitForClock(clk_i);
       bs_i.valid  <= '0';
       WaitForClock(clk_i);
@@ -126,7 +126,7 @@ begin
 
     -- FSB-1: initial FSB on rising edge of fsb_en
     send_bit(c_dominant);
-    bs_i.fsb_en <= '1';
+    bs_i.fixed_bit_stuffing_en <= '1';
     WaitForClock(clk_i, 2);
 
     AffirmIf(stim_id, bs_o.valid = '1', "FSB-1: initial FSB not asserted after fsb_en rising edge");
@@ -162,7 +162,7 @@ begin
     ack_stuff_bit;
 
     -- FSB-5: SBC invariant across FSB groups
-    saved_sbc := bs_o.sbc;
+    saved_sbc := bs_o.stuff_bit_count;
 
     for grp in 0 to 1 loop
       for j in 1 to 4 loop
@@ -171,10 +171,10 @@ begin
       ack_stuff_bit;
     end loop;
 
-    AffirmIf(stim_id, bs_o.sbc = saved_sbc, "FSB-5: SBC changed during FSB mode");
+    AffirmIf(stim_id, bs_o.stuff_bit_count = saved_sbc, "FSB-5: SBC changed during FSB mode");
 
     -- FSB-6: transition back to dynamic stuffing
-    bs_i.fsb_en <= '0';
+    bs_i.fixed_bit_stuffing_en <= '0';
     WaitForClock(clk_i);
 
     for j in 1 to 5 loop
@@ -200,7 +200,7 @@ begin
 
       bs_i.data   <= c_dominant when RV.DistBool((false => 50, true => 50)) else c_recessive;
       bs_i.valid  <= '1' when RV.DistBool((false => 25, true => 75)) else '0';
-      bs_i.fsb_en <= '0';
+      bs_i.fixed_bit_stuffing_en <= '0';
       WaitForClock(clk_i);
 
       if (bs_o.valid = '1') then
@@ -212,7 +212,7 @@ begin
     end loop;
 
     bs_i.valid  <= '0';
-    bs_i.fsb_en <= '0';
+    bs_i.fixed_bit_stuffing_en <= '0';
     WaitForClock(clk_i, 5);
     WaitForBarrier(test_done);
 
@@ -267,14 +267,14 @@ begin
         fsb_en_prev := '0';
       else
         -- Falling edge of fsb_en: restart tracking for dynamic mode
-        if (bs_i.fsb_en = '0' and fsb_en_prev = '1') then
+        if (bs_i.fixed_bit_stuffing_en = '0' and fsb_en_prev = '1') then
           consecutive := 0;
           polarity    := c_recessive;
         end if;
-        fsb_en_prev := bs_i.fsb_en;
+        fsb_en_prev := bs_i.fixed_bit_stuffing_en;
 
         -- Count consecutive same-polarity bits (dynamic mode only)
-        if (bs_i.valid = '1' and bs_i.fsb_en = '0') then
+        if (bs_i.valid = '1' and bs_i.fixed_bit_stuffing_en = '0') then
           if (bs_i.data /= polarity) then
             consecutive := 1;
             polarity    := bs_i.data;
@@ -308,21 +308,21 @@ begin
 
       -- Parity invariant: bit 0 = xor of bits 3..1
       AffirmIf(id,
-               bs_o.sbc(0) = (bs_o.sbc(3) xor bs_o.sbc(2) xor bs_o.sbc(1)), "SBC parity bit incorrect");
+               bs_o.stuff_bit_count(0) = (bs_o.stuff_bit_count(3) xor bs_o.stuff_bit_count(2) xor bs_o.stuff_bit_count(1)), "SBC parity bit incorrect");
 
       if (rst_i = '1' or frame_rst = '1') then
         prev_sbc   := "0000";
         prev_valid := '0';
       elsif (bs_o.valid = '1' and prev_valid = '0') then
         -- Rising edge of bs_o.valid: new stuff bit event
-        if (bs_i.fsb_en = '0') then
-          AffirmIf(id, bs_o.sbc /= prev_sbc, "SBC did not change after dynamic stuff bit");
+        if (bs_i.fixed_bit_stuffing_en = '0') then
+          AffirmIf(id, bs_o.stuff_bit_count /= prev_sbc, "SBC did not change after dynamic stuff bit");
         else
-          AffirmIf(id, bs_o.sbc = prev_sbc, "SBC incorrectly changed after FSB");
+          AffirmIf(id, bs_o.stuff_bit_count = prev_sbc, "SBC incorrectly changed after FSB");
         end if;
-        prev_sbc := bs_o.sbc;
+        prev_sbc := bs_o.stuff_bit_count;
       elsif (bs_o.valid = '0') then
-        AffirmIf(id, bs_o.sbc = prev_sbc, "SBC changed without a stuff bit event");
+        AffirmIf(id, bs_o.stuff_bit_count = prev_sbc, "SBC changed without a stuff bit event");
       end if;
       prev_valid := bs_o.valid;
     end loop;
@@ -362,7 +362,7 @@ begin
         real_bit_count := 0;
         expect_fsb     := false;
 
-      elsif (bs_i.fsb_en = '1') then
+      elsif (bs_i.fixed_bit_stuffing_en = '1') then
         -- Rising edge: expect initial FSB
         if (fsb_en_prev = '0') then
           expect_fsb     := true;
@@ -391,7 +391,7 @@ begin
         end if;
       end if;
 
-      fsb_en_prev := bs_i.fsb_en;
+      fsb_en_prev := bs_i.fixed_bit_stuffing_en;
     end loop;
   end process p_fsb_checker;
 
@@ -426,7 +426,7 @@ begin
 
       -- Classify input
       if (frame_rst = '1') then                                           v_in := 3;
-      elsif (bs_i.fsb_en = '1' and bs_i.valid = '1') then
+      elsif (bs_i.fixed_bit_stuffing_en = '1' and bs_i.valid = '1') then
         if (bs_i.data = c_dominant) then                                  v_in := 4;
         else                                                              v_in := 5;
         end if;
@@ -440,7 +440,7 @@ begin
 
       -- Classify output
       if (bs_o.valid = '1') then
-        if (bs_i.fsb_en = '1') then
+        if (bs_i.fixed_bit_stuffing_en = '1') then
           if (bs_o.data = c_dominant) then                                v_out := 3;
           else                                                            v_out := 4;
           end if;

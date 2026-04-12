@@ -25,6 +25,8 @@
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
+
+  use work.pk_man_global.all;
   use work.pk_can_types.all;
 
 entity can_fce is
