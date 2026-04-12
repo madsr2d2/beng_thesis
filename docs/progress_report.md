@@ -1,8 +1,5 @@
-# Progress Report - CAN-FD Bus Transceiver
 
-**Date**: 2026-04-12
-
-## Milestone Progress
+::: {.landscape-tables}
 
 | # | Milestone | Status | Progress | Est. Remaining | Notes |
 |---|---|---|---|---|---|
@@ -22,7 +19,8 @@
 | - | Documentation (report, verification plan) | Ongoing | - | Continuous |  |
 | **Sum** | | | | **16 days** | |
 
-## Test Summary
+: Milestone progress for the CAN-FD bus transceiver implementation. {#tbl:milestone-progress}
+
 
 | Testbench | Affirmations | Coverage | Status |
 |---|---|---|---|
@@ -32,3 +30,5 @@
 | `can_mac_ser_tx_tb` | 793,708 | IDE, FDF, DLC 0-15 (Reset, normal usage, random frames) | Passing |
 | `can_mac_tx_tb` | 268,903 | All formats, 8 error injection types (Reset, normal usage, random frames and injections) | Passing |
 | `can_mac_rx_tb` | 14,704 | IDE, FDF, DLC 0-15 (Reset, normal usage, random frames) | Passing |
+
+: Testbench execution status and affirmation counts. {#tbl:testbench-summary}
