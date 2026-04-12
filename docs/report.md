@@ -197,7 +197,7 @@ The verification plan drives a layered testing strategy, where each level target
 # Design and Architecture {#sec:design-architecture}
 
 ## System Overview {#sec:system-overview}
-A complete CAN node decomposes into a TX path and an RX path, coordinated by shared Fault Confinement Entity (FCE) and Physical Medium Attachment (PMA) control, as shown in @fig:can-node-architecture. Each path spans three sub-layers - LLC (@sec:llc-sub-layer), MAC (@sec:mac-sub-layer), and PCS (@sec:pcs-sub-layer) - with the LLC frame format defined in @sec:llc-frame-format and interface bundles defined in @sec:interface-definition-tables. A protocol-driven type system (@sec:protocol-driven-type-system) underpins all inter-module interfaces, encoding ISO semantics directly into the VHDL type hierarchy.
+A complete CAN node decomposes into a TX path and an RX path, coordinated by a shared Fault Confinement Entity (FCE) and Physical Medium Attachment (PMA) control, as shown in @fig:can-node-architecture. Each path spans three sub-layers - LLC (@sec:llc-sub-layer), MAC (@sec:mac-sub-layer), and PCS (@sec:pcs-sub-layer) - with the LLC frame format defined in @sec:llc-frame-format and interface bundles defined in @sec:interface-definition-tables. A centralized types package (@sec:protocol-driven-type-system) defines all protocol constants and interface records. Within the MAC sub-layer, a unified `can_mac` wrapper (@sec:can-mac-wrapper) instantiates `can_mac_tx`, `can_mac_rx`, and `can_fce`, merging their error signals internally so that the wrapper exposes only LLC and PCS interfaces for each path plus the FCE's LLC and PCS interfaces.
 
 ```{.mermaid #fig:can-node-architecture caption="CAN node decomposition across LLC, MAC, PCS, FCE, and PMA boundaries. Interface definitions are provided for llc_tx_if (@tbl:llc-tx-if), llc_rx_if (@tbl:llc-rx-if), llc_mac_tx_if (@tbl:llc-mac-tx-if), llc_mac_rx_if (@tbl:llc-mac-rx-if), mac_pcs_if (@tbl:mac-pcs-if), aui_if (@tbl:aui-if), fce_llc_if (@tbl:fce-llc-if), fce_mac_if (@tbl:fce-mac-if), and fce_pcs_if (@tbl:fce-pcs-if)."}
 ---
@@ -322,7 +322,7 @@ packet
 
 The interface bundles shown in @fig:can-node-architecture are defined in full below, with each signal mapped to its corresponding ISO 11898-1 service primitive, [@iso11898_1]. This normative anchoring provides a direct traceability path from protocol clauses to VHDL ports. The types used in these interfaces are defined in @sec:protocol-driven-type-system.
 
-All module interfaces use `std_logic` and `std_logic_vector` exclusively, as mandated for synthesis compatibility. Protocol semantics such as polarity, frame format, and transfer status are encoded as named `std_logic`/`std_logic_vector` constants rather than enumeration types. The enumeration types and composite record types described in @sec:protocol-driven-type-system are used only internally within the MAC layer and on simulation-only debug ports. The LLC-User interface (`llc_tx_if`, `llc_rx_if`) is implemented as an Avalon-ST byte stream to maintain backward compatibility with the existing CAN bus controller, which uses the same `valid`/`ready`/`startofpacket` handshake convention.
+All module interfaces use `std_logic` and `std_logic_vector` exclusively, as mandated for synthesis compatibility. Protocol semantics such as polarity, frame format, and transfer status are encoded as named `std_logic`/`std_logic_vector` constants defined in `pk_can_types` (@sec:protocol-driven-type-system). The LLC-User interface (`llc_tx_if`, `llc_rx_if`) is implemented as an Avalon-ST byte stream to maintain backward compatibility with the existing CAN bus controller, which uses the same `valid`/`ready`/`startofpacket` handshake convention.
 
 ::: {.landscape-tables}
 
@@ -360,10 +360,10 @@ All module interfaces use `std_logic` and `std_logic_vector` exclusively, as man
 
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| 6.6.4.3, 6.6.9 | `DLL SDU` | Reconstructed `LLC Frame` | Transfer reconstructed LLC frame to LLC | `MAC -> LLC` | | Issued when MAC has reconstructed a frame from the received bitstream |
-| 6.6.3 | Time reference notification | `SOF/frame-valid indication` | Provide timing reference for timestamping | `MAC -> LLC` | | Generated for transmitted/received DF/RF |
+| 6.6.4.3, 6.6.9 | `DLL SDU` | Reconstructed `LLC Frame` | Transfer reconstructed LLC frame to LLC | `MAC -> LLC` | `llc_mac_rx_if.data` (`byte_t`), `llc_mac_rx_if.valid` (`std_logic`), `llc_mac_rx_if.sop` (`std_logic`), `llc_mac_rx_if.eop` (`std_logic`) | Avalon-ST byte stream; the RX FSM streams the stored `llc_frame` array during the quiet phase |
+| 6.6.4.3, 6.6.9 | `DLL SDU` | | Flow control | `LLC -> MAC` | `llc_mac_rx_if.ready` (`std_logic`) | Asserted by LLC when able to consume next byte |
 
-: Interface definition for `llc_mac_rx_if`. Carries the reconstructed LLC frame from `can_mac_rx` to `can_llc_rx` (@sec:can-mac-rx). Full decomposition of RX sub-module interfaces is deferred to future work. {#tbl:llc-mac-rx-if}
+: Interface definition for `llc_mac_rx_if`. Carries the reconstructed LLC frame from `can_mac_rx` to `can_llc_rx` (@sec:can-mac-rx) as an Avalon-ST byte stream. The RX FSM stores received bits in an internal frame array during reception and streams the completed frame after EOF. {#tbl:llc-mac-rx-if}
 
 
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
@@ -424,155 +424,18 @@ All module interfaces use `std_logic` and `std_logic_vector` exclusively, as man
 
 ## Protocol-Driven Type System {#sec:protocol-driven-type-system}
 
-The type system encodes protocol semantics into named constants and internal record types, as shown in @fig:types-diagram. At module boundaries, all signals use `std_logic` and `std_logic_vector` exclusively - protocol concepts such as polarity, frame format, and transfer status are represented as named constant groups. Internally, enumeration types (`t_mac_frame_bit_name`, `t_monitor_event_tx`) and composite record types (`t_bit`, `t_mac_frame_bit`, `t_frame_params`) make protocol semantics visible in simulation waveforms and debug ports.
+Two VHDL packages centralize the shared definitions used across the design. All module interfaces use `std_logic` and `std_logic_vector` exclusively - protocol concepts such as polarity, frame format, and transfer status are encoded as named constants. Enumeration types such as FSM state types are declared locally within each module's architecture, keeping the packages free of module-specific types.
 
-```{.mermaid #fig:types-diagram caption="Type and constant hierarchy. The Interface Constants namespace groups the std_logic and std_logic_vector constants that encode protocol semantics at module boundaries. The Internal Enumerations namespace contains enumeration types used only within the MAC layer and on simulation-only debug ports. Compound record types compose these primitives: t_mac_frame_bit carries semantic context by combining a polarity with a protocol bit name, so each transmitted bit remains identifiable throughout the design. t_llc_metadata captures the five LLC config byte fields - named to match their ISO 11898-1 definitions - passed from the serializer to the FSM. t_frame_params aggregates derived field boundary positions and CRC polynomial selection, computed once per frame by the FSM (@sec:can-mac-fsm-tx). t_bit_info supports bus monitoring for error detection and arbitration loss (@sec:can-mac-fsm-tx). Constant groups derive from the root protocol constants."}
----
-config:
-  layout: elk
-  elk:
-    algorithm: layered
-    mergeEdges: false
-    nodePlacementStrategy: SIMPLE
-    edgeRouting: ORTHOGONAL
-  look: classic
-  theme: neutral
-  themeVariables:
-    fontFamily: "Libertinus Serif, Noto Serif, serif"
-    fontSize: "14px"
-    primaryTextColor: "#000"
-  class:
-    hideEmptyMembersBox: true
----
-classDiagram
+**`pk_can_types`** (`can_types_p.vhd`) is the primary design package, organized into the following sections:
 
-    %% 1. Interface Constants (std_logic / std_logic_vector) ===================
+1. **Protocol constants** - bus polarity (`c_dominant` = '`0`', `c_recessive` = '`1`'), frame field widths (base ID 11 bits, extended ID 18 bits, DLC 4 bits, EOF 7 bits), bit stuffing parameters (`c_stuff_width` = 5), CRC polynomial vectors and selector constants (CRC-15, CRC-17, CRC-21), transfer status encodings (`c_ongoing`, `c_transmitted`, `c_aborted`, `c_lost_arb`, `c_disturbed`), error signalling widths, inter-frame spacing widths, and FCE counter thresholds.
+2. **Bit timing subtypes** - constrained natural ranges matching ISO Table 12 [@iso11898_1, sec. 7.3.2]: prescaler (1-32), propagation segments, phase segments, and SSP offset (1-63).
+3. **Composite types** - the sole composite type is `t_llc_metadata`, a record capturing the six LLC config byte fields (IDE, FDF, DLC, FTYP, BRS, ESI) extracted by the serializer and held stable for the duration of a frame.
+4. **Interface records** - typed bundles for each inter-module boundary (serializer-FSM, LLC-MAC TX/RX, MAC-PCS, FSM-bit stuffer, FSM-CRC, MAC-FCE, LLC-FCE, FCE-PCS), each paired with a reset constant. These are defined in full in @sec:interface-definition-tables.
+5. **LLC frame format** - array types and config byte bit-position constants for both the internal LLC frame format (variable length, streamed to the serializer) and the legacy 71-byte user-facing format.
+6. **Utility functions** - `dlc_to_data_length` (ISO Table 5 DLC-to-byte-count conversion), `f_to_gray` (binary-to-Gray encoding for the SBC field), and `f_calc_parity` (XOR parity for SBC).
 
-    namespace `**Interface Constants**` {
-        class polarity_constants["constants (std_logic)"]
-        class format_constants["constants (std_logic_vector)"]
-        class status_constants["constants (std_logic_vector)"]
-    }
-
-    polarity_constants : c_dominant = '0'
-    polarity_constants : c_recessive = '1'
-
-    format_constants : c_llc_fmt_cb = "000"
-    format_constants : c_llc_fmt_ce = "100"
-    format_constants : c_llc_fmt_fb = "010"
-    format_constants : c_llc_fmt_fe = "110"
-
-    status_constants : c_ongoing = "000"
-    status_constants : c_lost_arb = "100"
-    status_constants : c_transmitted = "010"
-    status_constants : c_aborted = "001"
-    status_constants : c_disturbed = "110"
-
-    %% 2. Internal Enumerations (MAC-internal and debug ports only) ============
-
-    namespace `**Internal Enumerations**` {
-        class t_mac_frame_bit_name["type t_mac_frame_bit_name"]
-        class t_position["subtype t_position"]
-        class t_monitor_event_tx["type t_monitor_event_tx"]
-    }
-
-    t_mac_frame_bit_name : active_error_flag_bit
-    t_mac_frame_bit_name : passive_error_flag_bit
-    t_mac_frame_bit_name : overload_flag_bit
-    t_mac_frame_bit_name : bus_integration_bit
-    t_mac_frame_bit_name : intermission_bit
-    t_mac_frame_bit_name : suspend_transmission_bit
-    t_mac_frame_bit_name : idle_bit
-    t_mac_frame_bit_name : stuff_bit
-    t_mac_frame_bit_name : fixed_stuff_bit
-    t_mac_frame_bit_name : sof_bit
-    t_mac_frame_bit_name : base_id_bit
-    t_mac_frame_bit_name : extended_id_bit
-    t_mac_frame_bit_name : rtr_bit
-    t_mac_frame_bit_name : srr_bit
-    t_mac_frame_bit_name : rrs_bit
-    t_mac_frame_bit_name : ide_bit
-    t_mac_frame_bit_name : r0_bit
-    t_mac_frame_bit_name : r1_bit
-    t_mac_frame_bit_name : fdf_bit
-    t_mac_frame_bit_name : res_bit
-    t_mac_frame_bit_name : brs_bit
-    t_mac_frame_bit_name : esi_bit
-    t_mac_frame_bit_name : dlc_bit
-    t_mac_frame_bit_name : data_bit
-    t_mac_frame_bit_name : sbs_bit
-    t_mac_frame_bit_name : crc_bit
-    t_mac_frame_bit_name : crc_delimiter_bit
-    t_mac_frame_bit_name : ack_bit
-    t_mac_frame_bit_name : ack_delimiter_bit
-    t_mac_frame_bit_name : eof_bit
-    t_mac_frame_bit_name : error_delimiter_bit
-
-    t_position : integer range 0 to c_max_mac_frame_length
-
-    t_monitor_event_tx : none
-    t_monitor_event_tx : ack_detected
-    t_monitor_event_tx : ack_error
-    t_monitor_event_tx : bit_error
-    t_monitor_event_tx : lost_arbitration
-
-    %% 3. Compound Record Types =====================================
-
-    class t_mac_frame_bit["record t_mac_frame_bit"]
-    t_mac_frame_bit : polarity sl
-    t_mac_frame_bit : bit_name t_mac_frame_bit_name
-
-    class t_llc_metadata["record t_llc_metadata"]
-    t_llc_metadata : format slv3
-    t_llc_metadata : dlc slv4
-    t_llc_metadata : ftyp sl
-    t_llc_metadata : brs sl
-    t_llc_metadata : esi sl
-
-    class t_frame_params["record t_frame_params"]
-    t_frame_params : dlc_start t_position
-    t_frame_params : data_stop t_position
-    t_frame_params : dynamic_stuff_stop t_position
-    t_frame_params : crc_start t_position
-    t_frame_params : crc_delimiter t_position
-    t_frame_params : crc_poly_select slv2
-
-    class t_bit_info["record t_bit_info"]
-    t_bit_info : event_type t_monitor_event_tx
-    t_bit_info : transfer_status slv3
-
-    %% 4. Constant Groups ==============================================
-
-    class protocol_constants["Protocol Constants"]
-    protocol_constants : constant c_sof integer = 0
-    protocol_constants : constant c_max_mac_frame_length integer = 640
-    protocol_constants : constant c_base_id_width integer = 11
-    protocol_constants : ⋮
-
-    class frame_layout_constants["Frame Layout Constants"]
-    frame_layout_constants : constant c_cb_ide integer
-    frame_layout_constants : constant c_fb_fdf integer
-    frame_layout_constants : constant c_fe_brs integer
-    frame_layout_constants : ⋮
-
-    class common_frame_bits["Common Frame Bits"]
-    common_frame_bits : constant c_sof_bit t_mac_frame_bit
-    common_frame_bits : constant c_active_error_flag_bit t_mac_frame_bit
-    common_frame_bits : constant c_eof_bit t_mac_frame_bit
-    common_frame_bits : ⋮
-
-    %% 5. Relationships ===============================================
-
-    t_position ..> protocol_constants
-    frame_layout_constants ..> protocol_constants
-    common_frame_bits ..> protocol_constants
-    t_mac_frame_bit *-- t_mac_frame_bit_name
-    common_frame_bits ..> t_mac_frame_bit
-    t_llc_metadata ..> format_constants
-    t_frame_params *-- t_position
-    t_bit_info *-- t_monitor_event_tx
-    t_bit_info ..> status_constants
-```
+**`can_tb_p`** (`can_tb_p.vhd`) is the testbench utility package, extracted from `pk_can_types` to separate simulation-only code from synthesizable definitions. It provides CRC reference calculation, metadata extraction, and bus stream reference model functions used by the testbenches for expected-value computation.
 
 ## LLC Sub-layer {#sec:llc-sub-layer}
 Responsible for frame buffering and retransmission management. It provides an Avalon-ST interface to the user application and communicates with the FCE to handle retransmission limits and error status reporting.
@@ -590,18 +453,18 @@ The MAC sub-layer is the core of the protocol logic, responsible for bit seriali
 
 The earlier CAN bus controller concentrated TX, RX, MAC, and FCE logic in a single monolithic FSM (`can_fsm`), with the sub-functions - serialization (`can_ast_to_serial`), bit stuffing (`can_stuff_bit_gen`), and CRC (`gen_crc`) - implemented in satellite modules driven directly by it. PCS timing logic was implemented in `can_node_clock`, which fed sample-point and transmit pulses into `can_fsm` - a strategy retained in the current design.
 
-The current design restructures these modules around the ISO 11898-1 [@iso11898_1] layer boundaries. On the TX side the mapping is direct: `can_ast_to_serial` becomes `can_mac_ser_tx` (@sec:can-mac-ser-tx), `can_stuff_bit_gen` becomes `can_mac_bs_tx` (@sec:can-mac-bs-tx), `gen_crc` becomes `can_mac_crc_tx` (@sec:can-mac-crc-tx), and `can_node_clock` becomes `can_pcs_tx` (@sec:can-pcs-tx). The RX-side counterparts - deserialization (`can_serial_to_ast`), bit destuffing, and CRC checking - will map to submodules within `can_mac_rx` (@sec:can-mac-rx). Fault confinement, previously embedded in `can_fsm`, is separated into its own layer.
+The current design restructures these modules around the ISO 11898-1 [@iso11898_1] layer boundaries. On the TX side the mapping is direct: `can_ast_to_serial` becomes `can_mac_ser_tx` (@sec:can-mac-ser-tx), `can_stuff_bit_gen` becomes `can_mac_bs` (@sec:can-mac-bs), `gen_crc` becomes `can_mac_crc` (@sec:can-mac-crc), and `can_node_clock` becomes `can_pcs_tx` (@sec:can-pcs-tx). The bit stuffer and CRC engine are shared between the TX and RX paths - each path instantiates its own copy of the same `can_mac_bs` and `can_mac_crc` entities, reusing the bit stuffer for destuffing and the CRC engine for CRC checking on the RX side. The RX FSM (`can_mac_fsm_rx`) stores received bits directly in an internal frame array and streams the completed frame to the LLC during the quiet phase, eliminating the need for a separate deserializer module. Fault confinement, previously embedded in `can_fsm`, is separated into its own entity (`can_fce`) and wired through the unified `can_mac` wrapper (@sec:can-mac-wrapper).
 
 ### `can_mac_tx` {#sec:can-mac-tx}
 
 The `can_mac_tx` (@fig:mac-tx-architecture) is composed of four main components:
 
 1. **can_mac_ser_tx**: Converts LLC bytes into a serial bit stream, extracts LLC metadata from config bytes
-2. **can_mac_fsm_tx**: Coordinates frame transmission, computes frame parameters from LLC metadata, controls all submodules
-3. **can_mac_bs_tx**: Implements CAN/CAN-FD bit stuffing rules
-4. **can_mac_crc_tx**: Generates CRC-15/CRC-17/CRC-21 based on frame type
+2. **can_mac_fsm_tx**: Coordinates frame transmission with per-field state granularity, controls all submodules
+3. **can_mac_bs**: Shared bit stuffer implementing both dynamic and fixed bit stuffing modes
+4. **can_mac_crc**: CRC engine with three parallel generators (CRC-15, CRC-17, CRC-21) and dual data feeds for CC/FD
 
-```{.mermaid #fig:mac-tx-architecture fig-width=0.5 caption="can_mac_tx architecture showing internal component interconnections and external interfaces. Internal interface definitions are provided for can_mac_fsm_ser_tx_if (@tbl:mac-fsm-ser-if), can_mac_fsm_bs_tx_if (@tbl:mac-fsm-bs-if), and can_mac_fsm_crc_tx_if (@tbl:mac-fsm-crc-if)."}
+```{.mermaid #fig:mac-tx-architecture fig-width=0.5 caption="can_mac_tx architecture showing internal component interconnections and external interfaces. Internal interface definitions are provided for can_mac_ser_fsm_if (@tbl:mac-fsm-ser-if), can_mac_fsm_bs_if (@tbl:mac-fsm-bs-if), and can_mac_fsm_crc_if (@tbl:mac-fsm-crc-if). The bit stuffer and CRC engine are the same entities reused in can_mac_rx."}
 ---
 config:
   flowchart:
@@ -624,12 +487,12 @@ flowchart TD
     subgraph MAC_TX ["**can_mac_tx**<br/>─────────<br/>MAC Sub-layer, §6.6"]
         SER["**can_mac_ser_tx**<br/>─────────<br/>LLC Frame Serializer"]
         FSM["**can_mac_fsm_tx**<br/>─────────<br/>Controlling FSM"]
-        BS["**can_mac_bs_tx**<br/>─────────<br/>Bit Stuffer"]
-        CRC["**can_mac_crc_tx**<br/>─────────<br/>CRC Generator"]
+        BS["**can_mac_bs**<br/>─────────<br/>Bit Stuffer"]
+        CRC["**can_mac_crc**<br/>─────────<br/>CRC Engine"]
 
-        SER <==>|can_mac_fsm_ser_tx_if| FSM
-        FSM <==>|can_mac_fsm_bs_tx_if| BS
-        FSM <==>|can_mac_fsm_crc_tx_if| CRC
+        SER <==>|can_mac_ser_fsm_if| FSM
+        FSM <==>|can_mac_fsm_bs_if| BS
+        FSM <==>|can_mac_fsm_crc_if| CRC
     end
 
     LLC <==>|llc_mac_tx_if| SER
@@ -640,85 +503,58 @@ flowchart TD
 
 #### `can_mac_tx` Internal Interfaces {#sec:mac-internal-interfaces}
 
-The interfaces between MAC sub-components are implementation-defined and carry no direct ISO service primitive mapping. @tbl:mac-fsm-ser-if, @tbl:mac-fsm-bs-if, and @tbl:mac-fsm-crc-if define each bidirectional bundle; the Direction column identifies the driving component for each field.
+The interfaces between MAC sub-components are implementation-defined and carry no direct ISO service primitive mapping. @tbl:mac-fsm-ser-if, @tbl:mac-fsm-bs-if, and @tbl:mac-fsm-crc-if define each bidirectional bundle; the Direction column identifies the driving component for each field. The bit stuffer and CRC engine interfaces are shared between the TX and RX paths - each path instantiates its own copy wired through identical record types.
 
 
 | field | type | direction | description |
 | --- | --- | --- | --- |
-| `data` | `std_logic` | `ser → fsm` | current bit polarity; fsm reads this when `valid` is asserted |
-| `valid` | `std_logic` | `ser → fsm` | asserted while a bit is available for the fsm to consume |
-| `llc_metadata` | `t_llc_metadata` | `ser → fsm` | LLC config byte fields (format, DLC, flags) extracted by the serializer; valid for the lifetime of the frame |
-| `ready` | `std_logic` | `fsm → ser` | pulsed when the fsm has consumed the current bit; advances the serializer to the next bit |
-| `transfer_status` | `std_logic_vector(2:0)` | `fsm → ser` | frame outcome; any non-`c_ongoing` value terminates serialization |
+| `data` | `std_logic` | `ser -> fsm` | current bit polarity; FSM reads this when `valid` is asserted |
+| `valid` | `std_logic` | `ser -> fsm` | asserted while a bit is available for the FSM to consume |
+| `llc_metadata` | `t_llc_metadata` | `ser -> fsm` | LLC config byte fields (IDE, FDF, DLC, FTYP, BRS, ESI) extracted by the serializer; valid for the lifetime of the frame |
+| `ready` | `std_logic` | `fsm -> ser` | pulsed when the FSM has consumed the current bit; advances the serializer to the next bit |
+| `transfer_status` | `std_logic_vector(2:0)` | `fsm -> ser` | frame outcome; any non-`c_ongoing` value terminates serialization |
 
-: interface definition for `can_mac_fsm_ser_tx_if`, connecting `can_mac_ser_tx` and `can_mac_fsm_tx` (see @fig:mac-tx-architecture). {#tbl:mac-fsm-ser-if}
-
-
-| field | type | direction | description |
-| --- | --- | --- | --- |
-| `data` | `std_logic` | `fsm → bs` | bit polarity fed into the bit stuffer |
-| `valid` | `std_logic` | `fsm → bs` | pulsed when a new bit is presented to the stuffer |
-| `start` | `std_logic` | `fsm → bs` | pulsed at frame start to reinitialize the stuffer state |
-| `data` | `std_logic` | `bs → fsm` | polarity of the required stuff bit |
-| `valid` | `std_logic` | `bs → fsm` | asserted when a stuff bit insertion is required |
-| `sbc` | `std_logic_vector(3:0)` | `bs → fsm` | gray-coded stuff bit count with parity, used in the fd fixed-stuffing region |
-
-: interface definition for `can_mac_fsm_bs_tx_if`, connecting `can_mac_fsm_tx` and `can_mac_bs_tx` (see @fig:mac-tx-architecture). {#tbl:mac-fsm-bs-if}
+: Interface definition for `can_mac_ser_fsm_if`, connecting `can_mac_ser_tx` and `can_mac_fsm_tx` (see @fig:mac-tx-architecture). {#tbl:mac-fsm-ser-if}
 
 
 | field | type | direction | description |
 | --- | --- | --- | --- |
-| `crc_poly_select` | `std_logic_vector(1:0)` | `fsm → crc` | selects the active crc polynomial: crc-15, crc-17, or crc-21 |
-| `valid` | `std_logic` | `fsm → crc` | pulsed when `data` should be included in the crc accumulation |
-| `data` | `std_logic` | `fsm → crc` | bit value to feed into the crc engine |
-| `start` | `std_logic` | `fsm → crc` | pulsed to reinitialize the crc engine |
-| `crc` | `t_crc_vector` | `crc → fsm` | current crc register value; fsm reads this when serializing the crc field |
+| `data` | `std_logic` | `fsm -> bs` | bit polarity fed into the bit stuffer |
+| `valid` | `std_logic` | `fsm -> bs` | pulsed when a new bit is presented to the stuffer |
+| `fixed_bit_stuffing_en` | `std_logic` | `fsm -> bs` | when high, the bit stuffer operates in fixed bit stuffing mode (FD CRC region) |
+| `data` | `std_logic` | `bs -> fsm` | polarity of the required stuff bit |
+| `valid` | `std_logic` | `bs -> fsm` | asserted when a stuff bit insertion is required |
+| `stuff_bit_count` | `std_logic_vector(3:0)` | `bs -> fsm` | gray-coded stuff bit count with parity for the FD SBC field |
 
-: interface definition for `can_mac_fsm_crc_tx_if`, connecting `can_mac_fsm_tx` and `can_mac_crc_tx` (see @fig:mac-tx-architecture). {#tbl:mac-fsm-crc-if}
+: Interface definition for `can_mac_fsm_bs_if`, connecting `can_mac_fsm_tx`/`can_mac_fsm_rx` and `can_mac_bs` (see @fig:mac-tx-architecture). The bit stuffer is reset by a dedicated `bs_rst` signal from the FSM rather than a field in this record. {#tbl:mac-fsm-bs-if}
+
+
+| field | type | direction | description |
+| --- | --- | --- | --- |
+| `crc_poly_select` | `std_logic_vector(1:0)` | `fsm -> crc` | selects the active CRC polynomial: CRC-15, CRC-17, or CRC-21 |
+| `valid_cc` | `std_logic` | `fsm -> crc` | pulsed when `data_cc` should be accumulated into the CRC-15 engine |
+| `valid_fd` | `std_logic` | `fsm -> crc` | pulsed when `data_fd` should be accumulated into the CRC-17/CRC-21 engines |
+| `data_cc` | `std_logic` | `fsm -> crc` | bit value fed to the CRC-15 engine (CC frames: data bits only, no stuff bits) |
+| `data_fd` | `std_logic` | `fsm -> crc` | bit value fed to the CRC-17/CRC-21 engines (FD frames: dynamic stuff bits + data bits) |
+| `crc` | `std_logic_vector(20:0)` | `crc -> fsm` | current CRC register value, left-aligned and zero-padded to 21 bits |
+
+: Interface definition for `can_mac_fsm_crc_if`, connecting `can_mac_fsm_tx`/`can_mac_fsm_rx` and `can_mac_crc` (see @fig:mac-tx-architecture). Separate data feeds for CC and FD are required because CC and FD frames compute CRC over different bit streams: CC excludes stuff bits while FD includes them [@iso11898_1, sec. 10.4.2.6]. This dual-feed design also allows the RX path to run both CRC engines in parallel until the frame type is known. The CRC engine is reset by a dedicated `crc_rst` signal from the FSM. {#tbl:mac-fsm-crc-if}
 
 #### `can_mac_fsm_tx` {#sec:can-mac-fsm-tx}
 
-`can_mac_fsm_tx` (@fig:mac-tx-fsm) orchestrates frame transmission, coordinating the serializer (@sec:can-mac-ser-tx), bit stuffer (@sec:can-mac-bs-tx), and CRC engine (@sec:can-mac-crc-tx). When a frame request arrives in `s_bus_idle`, the FSM transitions to `s_transmitting_frame` and computes all format-dependent field boundaries up front:
+`can_mac_fsm_tx` (@fig:mac-tx-fsm) orchestrates frame transmission, coordinating the serializer (@sec:can-mac-ser-tx), bit stuffer (@sec:can-mac-bs), and CRC engine (@sec:can-mac-crc). The FSM uses per-field state granularity: rather than a single `s_transmitting_frame` state with function-dispatched field logic, each protocol field (SOF, ID, DLC, data, CRC, ACK, EOF, etc.) has its own dedicated FSM state. This design makes the field boundaries explicit in the state encoding and eliminates the need for frame parameter precomputation functions. The FSM derives `data_len` and `crc_length` from `t_llc_metadata` on frame entry and tracks `bit_count` within each field state.
 
-```vhdl
-get_frame_params(metadata : t_llc_metadata) -> t_frame_params
-```
+On each sample-point strobe from `can_pcs_tx` (@sec:can-pcs-tx), each frame-field state executes the following sequence:
 
-This call derives `dlc_start`, `data_stop`, `dynamic_stuff_stop`, `crc_start`, `crc_delimiter`, and `crc_poly_select` from the LLC metadata, so the per-bit loop never recalculates frame geometry.
+1. **Monitor the bus.** The sampled bus polarity is compared against the previously transmitted bit to detect errors, ACK, and arbitration loss. In the CAN-FD data phase, the FSM maintains a 32-bit polarity history shift register for Transmitter Delay Compensation (TDC). Any pending secondary sample point (SSP) observation from the previous bit period is evaluated against this history before the current bit is checked [@iso11898_1, sec. 7.3.4]. A detected error triggers a transition to `s_error_overload` with the appropriate flag type based on the FCE fault confinement status [@iso11898_1, sec. 8.1.3-8.1.4]. Arbitration loss during the ID or control fields causes the FSM to stop driving and return to `s_intermission`.
 
-On each sample-point strobe from `can_pcs_tx` (@sec:can-pcs-tx), the `s_transmitting_frame` state executes the following sequence:
+2. **Determine the next bit.** If the bit stuffer has a pending stuff bit (`bs_i.valid`), that takes priority. Otherwise, the polarity is determined by the current state: form bits (SOF, IDE, FDF, reserved, delimiters, EOF) have fixed polarities, while ID, DLC, data, SBC, and CRC bits are sourced from the serializer, metadata, bit stuffer count, or CRC register respectively.
 
-1. **Monitor the bus.** The sampled bus polarity is compared against the previously transmitted bit to detect errors, ACK, and arbitration loss. In the CAN-FD data phase, any pending SSP observation from the previous bit period is evaluated first [@iso11898_1, sec. 7.3.4].
+3. **Feed the CRC engine and bit stuffer.** The output polarity is forwarded to the CRC engine (for bits within the CRC-protected region) via separate `data_cc` and `data_fd` feeds, and to the bit stuffer (for bits within the stuffing region). The FSM asserts `fixed_bit_stuffing_en` when entering the SBC/CRC field region of FD frames to switch the bit stuffer from dynamic to fixed mode.
 
-    ```vhdl
-    get_bit_info(bit_name               : t_mac_frame_bit_name,
-                 polarity_history       : t_tdc_polarity_history,
-                 tdc_delay              : integer,
-                 monitored_bit_polarity : std_logic,
-                 metadata               : t_llc_metadata) -> t_bit_info
-    ```
+4. **Present the bit at the PCS interface.** The resolved polarity is driven onto the `t_can_mac_pcs_if_m2s` interface. The `use_data_rate` signal is asserted during the CAN-FD data phase to switch the PCS to faster bit timing, and `start_tdc` is pulsed at the FDF bit to initiate transmitter delay compensation [@iso11898_1, sec. 7.3.4].
 
-    The returned `t_bit_info` carries a `t_monitor_event_tx` (none, ack_detected, ack_error, bit_error, or lost_arbitration) and a `transfer_status` encoding. A detected error triggers a transition to the appropriate error flag state based on the FCE fault confinement status [@iso11898_1, sec. 8.1.3-8.1.4]. Arbitration loss causes the FSM to stop driving and return to `s_intermission`.
-
-2. **Determine the next bit.** If the bit stuffer has a pending stuff bit, that takes priority. Otherwise, the next protocol bit is computed from the current `bit_count` and the cached `t_frame_params`:
-
-    ```vhdl
-    get_mac_frame_bit(bit_count         : t_position,
-                      ser_data          : std_logic,
-                      metadata          : t_llc_metadata,
-                      frame_params      : t_frame_params,
-                      previous_polarity : std_logic,
-                      sbc               : t_sbc,
-                      crc               : t_crc_vector) -> t_mac_frame_bit
-    ```
-
-    The returned `t_mac_frame_bit` pairs a polarity with a `t_mac_frame_bit_name`, identifying both the value to drive and the protocol field it belongs to.
-
-3. **Feed the CRC engine and bit stuffer, increment `bit_count`.** The output polarity is forwarded to the CRC engine (for bits within the CRC-protected region) and to the bit stuffer (for bits within the dynamic stuffing region, bounded by `dynamic_stuff_stop` in `t_frame_params`). The FSM then advances `bit_count` for the next sample point.
-
-4. **Present the bit at the PCS interface.** The resolved polarity is driven onto the `t_can_mac_pcs_tx_if_m2s` interface together with the appropriate control signals: `use_data_rate` is asserted during the CAN-FD data phase to switch the PCS to the faster bit timing, and `start_tdc` is pulsed at the FDF bit to initiate transmitter delay compensation [@iso11898_1, sec. 7.3.4].
-
-```{.mermaid #fig:mac-tx-fsm caption="can_mac_fsm_tx FSM. After a successful frame or arbitration loss the FSM passes through intermission before returning to idle. Detected errors branch to either the active (dominant) or passive (recessive) error flag state depending on FCE fault confinement status. Both paths then rejoin the common intermission sequence. Overload frames can be injected from intermission or from either error flag state. The s_transmitting_frame state bullet points show the per-bit operation: on entry, get_frame_params computes field boundaries from t_llc_metadata. Then, on each sample point, get_bit_info first evaluates the sampled bus polarity against the previously transmitted bit, then get_mac_frame_bit produces the next t_mac_frame_bit to transmit."}
+```{.mermaid #fig:mac-tx-fsm caption="can_mac_fsm_tx FSM with per-field state granularity. Frame-field states (s_sof through s_eof) each handle one protocol field, with bit_count tracking position within the field. After a successful frame or arbitration loss the FSM passes through s_intermission before returning to s_bus_idle. Detected errors branch to s_error_overload, which drives either an active (dominant) or passive (recessive) error flag depending on FCE status. The dashed box groups the frame-field states for clarity."}
 ---
 config:
   layout: elk
@@ -740,42 +576,66 @@ stateDiagram-v2
   state "**s_bus_reintegration**<br/>─────────<br/>• Bus not driving<br/>• Await 11 recessive bits, or<br/>  128 x 11 recessive bits if bus-off" as s_bus_reintegration
   class s_bus_reintegration reset
   state "**s_bus_idle**<br/>─────────<br/>• Bus not driving<br/>• Await frame request" as s_bus_idle
-  state "**s_transmitting_frame**<br/>─────────<br/>• On entry: get_frame_params(t_llc_metadata)<br/>  -> t_frame_params<br/>• Per SP:<br/>  1) get_bit_info(bus_polarity)<br/>  -> t_bit_info<br/>  2) get_mac_frame_bit(bit_count, t_frame_params)<br/>  -> t_mac_frame_bit<br/>  3) Feed CRC engine and bit stuffer,<br/>  increment bit_count" as s_transmitting_frame
-  state "**s_active_error_flag**<br/>─────────<br/>• Driving dominant error flag<br/>• Signalling error to FCE" as s_active_error_flag
-  state "**s_passive_error_flag**<br/>─────────<br/>• Driving recessive error flag<br/>• Signalling error to FCE" as s_passive_error_flag
-  state "**s_overload_flag**<br/>─────────<br/>• Driving dominant overload flag<br/>• Signalling error to FCE" as s_overload_flag
-  state "**s_intermission**<br/>─────────<br/>• Bus not driving<br/>• Monitoring for overload" as s_intermission
-  state "**s_suspend_transmission**<br/>─────────<br/>• Bus not driving<br/>• Error-passive hold-off" as s_suspend_transmission
+  state "**s_intermission**<br/>─────────<br/>• Bus not driving<br/>• 3-bit inter-frame spacing<br/>• Monitoring for overload" as s_intermission
+  state "**s_suspend_transmission**<br/>─────────<br/>• Bus not driving<br/>• Error-passive 8-bit hold-off" as s_suspend_transmission
+  state "**s_error_overload**<br/>─────────<br/>• Active: 6 dominant + 8 recessive<br/>• Passive: 6 recessive + 8 recessive<br/>• Overload: 6 dominant + 8 recessive<br/>• Signals error to FCE" as s_error_overload
+
+  state frame_fields {
+    state "**s_sof**" as s_sof
+    state "**s_id**" as s_id
+    state "**s_rtr_srr_rrs**" as s_rtr
+    state "**s_ide**" as s_ide
+    state "**s_fdf_r1_r0**" as s_fdf
+    state "**s_res_r0**" as s_res
+    state "**s_brs**" as s_brs
+    state "**s_esi**" as s_esi
+    state "**s_dlc**" as s_dlc
+    state "**s_data**" as s_data
+    state "**s_sbc**" as s_sbc
+    state "**s_crc**" as s_crc
+    state "**s_ack**" as s_ack
+    state "**s_eof**" as s_eof
+
+    s_sof --> s_id
+    s_id --> s_rtr
+    s_id --> s_ide : extended
+    s_rtr --> s_ide
+    s_ide --> s_fdf
+    s_fdf --> s_res : FD
+    s_fdf --> s_dlc : CC
+    s_res --> s_brs
+    s_brs --> s_esi
+    s_esi --> s_dlc
+    s_dlc --> s_data
+    s_data --> s_sbc : FD
+    s_data --> s_crc : CC
+    s_sbc --> s_crc
+    s_crc --> s_ack
+    s_ack --> s_eof
+  }
 
 s_bus_reintegration --> s_bus_idle : 11 recessive bits
 
-s_bus_idle --> s_transmitting_frame : frame pending
+s_bus_idle --> s_sof : frame pending
 
-s_transmitting_frame --> s_intermission : frame complete
-s_transmitting_frame --> s_intermission : lost arbitration
-s_transmitting_frame --> s_active_error_flag : error (active)
-s_transmitting_frame --> s_passive_error_flag : error (passive)
+s_eof --> s_intermission : frame complete
+frame_fields --> s_intermission : lost arbitration
+frame_fields --> s_error_overload : error detected
 
-s_active_error_flag --> s_intermission : sequence complete
-s_active_error_flag --> s_overload_flag : overload detected
-
-s_passive_error_flag --> s_intermission : sequence complete
-s_passive_error_flag --> s_overload_flag : overload detected
-
-s_overload_flag --> s_intermission : sequence complete
-s_overload_flag --> s_overload_flag : overload detected
+s_error_overload --> s_intermission : sequence complete
+s_error_overload --> s_error_overload : overload detected
 
 s_intermission --> s_bus_idle : intermission complete
 s_intermission --> s_suspend_transmission : error-passive transmitter
-s_intermission --> s_overload_flag : overload detected
+s_intermission --> s_error_overload : overload detected
 
 s_suspend_transmission --> s_bus_idle : suspend complete
-s_suspend_transmission --> s_overload_flag : overload detected
+s_suspend_transmission --> s_error_overload : overload detected
 ```
 
 #### `can_mac_ser_tx` {#sec:can-mac-ser-tx}
 
-`can_mac_ser_tx` converts the LLC byte stream into a serial polarity bit stream for the MAC FSM. Its four-state FSM (@fig:mac-ser-fsm-tx) manages the two-byte configuration handshake, byte fetching, and bit-by-bit serialization. The serializer extracts LLC metadata (format, DLC, flags) from the two config bytes and passes it to the FSM via `t_llc_metadata`. The FSM then computes `t_frame_params` internally from this metadata.
+`can_mac_ser_tx` converts the LLC byte stream into a serial polarity bit stream for the MAC FSM. Its four-state FSM (@fig:mac-ser-fsm-tx) manages the two-byte configuration handshake, byte fetching, and bit-by-bit serialization. The serializer extracts LLC metadata (IDE, FDF, DLC, FTYP, BRS, ESI) from the two config bytes and registers it in `t_llc_metadata`, which remains stable for the entire frame. The serializer also handles ID field padding - skipping unused bits in the 32-bit ID field for 11-bit base identifiers - and forwards `transfer_status` from the FSM back to the LLC to terminate serialization on error or completion.
 
 ```{.mermaid #fig:mac-ser-fsm-tx fig-width=0.6 caption="can_mac_ser_tx FSM. The serializer accepts LLC frame bytes over a ready/valid handshake and shifts them out MSB-first to the MAC FSM one bit per ready pulse. LLC metadata is extracted from the two config bytes and registered in t_llc_metadata for use by the FSM throughout the frame."}
 ---
@@ -812,11 +672,13 @@ stateDiagram-v2
   s3 --> s2 : byte serialized
 ```
 
-#### `can_mac_bs_tx` {#sec:can-mac-bs-tx}
+#### `can_mac_bs` {#sec:can-mac-bs}
 
-`can_mac_bs_tx` performs dynamic bit stuffing for both CAN Classic and CAN-FD frames [@iso11898_1, sec. 10.6]. It monitors the polarity stream from the FSM (@sec:can-mac-fsm-tx) and inserts an inverse-polarity stuff bit after every five consecutive identical bits. It also maintains a Gray-coded Stuff Bit Count (SBC) with parity for the CAN-FD CRC field. The data path diagram is shown in @fig:mac-bs-tx-dataflow.
+`can_mac_bs` implements both dynamic and fixed bit stuffing for CAN Classic and CAN-FD frames [@iso11898_1, sec. 10.6]. The same entity is instantiated in both `can_mac_tx` and `can_mac_rx` - on the TX side it inserts stuff bits, while on the RX side the FSM uses its output to detect and remove stuff bits from the received stream.
 
-```{.mermaid #fig:mac-bs-tx-dataflow fig-width=0.8 caption="can_mac_bs_tx data path diagram. When valid and data = last_polarity, consecutive_count increments. Otherwise it restarts at 1 with last_polarity updated to data. When consecutive_count reaches stuff_width, valid and inverted data are driven and stuff_count increments. The to_gray() + calc_parity() block encodes stuff_count into the sbc output. The start pulse resets consecutive_count and stuff_count to zero. All outputs are registered."}
+In **dynamic mode** (`fixed_bit_stuffing_en` = '0'), the stuffer monitors the polarity stream and inserts an inverse-polarity stuff bit after every five consecutive identical bits (ISO 6.6.13.2). In **fixed mode** (`fixed_bit_stuffing_en` = '1'), used for the FD CRC region, one fixed stuff bit (FSB) is inserted on the rising edge of `fixed_bit_stuffing_en`, then one every four real bits (ISO 6.6.13.3.1). Any dynamic stuff bit pending at the mode boundary is suppressed. The stuffer maintains a Gray-coded stuff bit count with parity for the SBC field via `f_to_gray()` and `f_calc_parity()`. The data path diagram is shown in @fig:mac-bs-dataflow.
+
+```{.mermaid #fig:mac-bs-dataflow fig-width=0.8 caption="can_mac_bs data path diagram. When valid and data = last_polarity, consecutive_count increments. Otherwise it restarts at 1 with last_polarity updated to data. When consecutive_count reaches stuff_width (5 in dynamic mode, 4 in fixed mode), valid and inverted data are driven and stuff_count increments. The to_gray() + calc_parity() block encodes stuff_count into the stuff_bit_count output. The external rst signal resets consecutive_count and stuff_count to zero. The fixed_bit_stuffing_en signal selects between dynamic and fixed modes. All outputs are registered."}
 ---
 config:
   layout: elk
@@ -859,11 +721,76 @@ stateDiagram-v2
   stuff --> wait
 ```
 
-#### `can_mac_crc_tx` {#sec:can-mac-crc-tx}
+#### `can_mac_crc` {#sec:can-mac-crc}
 
-`can_mac_crc_tx` provides CRC generation for both CAN Classic and CAN-FD frames. CAN Classic frames use CRC-15, while CAN-FD frames use CRC-17 (data payloads up to 16 bytes) or CRC-21 (data payloads above 16 bytes) [@iso11898_1, sec. 10.4.2.6]. The FSM selects the appropriate polynomial via the `crc_poly_select` field (@tbl:mac-fsm-crc-if). The data path diagram is shown in @fig:mac-crc-tx.
+`can_mac_crc` provides CRC generation and checking for both CAN Classic and CAN-FD frames. CAN Classic frames use CRC-15, while CAN-FD frames use CRC-17 (data payloads up to 16 bytes) or CRC-21 (data payloads above 16 bytes) [@iso11898_1, sec. 10.4.2.6]. The same entity is instantiated in both `can_mac_tx` (for generation) and `can_mac_rx` (for checking). The FSM selects the appropriate polynomial via the `crc_poly_select` field (@tbl:mac-fsm-crc-if). The data path diagram is shown in @fig:mac-crc.
 
-```{.mermaid #fig:mac-crc-tx fig-width=0.5 caption="can_mac_crc_tx data path diagram. data, valid, and start are joined and demuxed by crc_poly_select to gate only the selected CRC engine. The mux selects the active engine result, which is zero-padded to the common crc_vector_t width. All outputs are registered."}
+Three parallel `gen_crc` instances run continuously on separate data feeds: `data_cc` drives CRC-15 via `valid_cc`, while `data_fd` drives both CRC-17 and CRC-21 via `valid_fd`. This dual-feed architecture is necessary because CC and FD frames compute CRC over different bit streams (CC excludes stuff bits; FD includes them), and the RX path does not know which CRC engine to use until after the frame type has been determined. The output multiplexer selects the active engine's result based on `crc_poly_select` and left-aligns it to the common 21-bit output width.
+
+```{.mermaid #fig:mac-crc fig-width=0.8 caption="can_mac_crc data path diagram. Three parallel gen_crc instances accumulate continuously: data_cc drives CRC-15 via valid_cc, while data_fd drives both CRC-17 and CRC-21 via valid_fd. The output register selects the active engine result based on crc_poly_select and left-aligns it to 21 bits. The external rst signal reinitializes all three engines and the output register."}
+---
+config:
+  layout: elk
+  look: classic
+  theme: neutral
+  themeVariables:
+    fontFamily: "Libertinus Serif, Noto Serif, serif"
+    fontSize: "14px"
+    primaryTextColor: "#000"
+---
+stateDiagram-v2
+  classDef reset stroke:#000,stroke-width:3px
+
+  state "crc15 <= init_15<br/>crc17 <= init_17<br/>crc21 <= init_21<br/>crc_o <= (others => '0')" as reset
+  class reset reset
+
+  state "Wait for valid_cc or valid_fd" as wait
+
+  state "valid_cc?" as check_cc
+  state "u_crc15: accumulate data_cc<br/>(CRC-15, CAN Classic)" as acc_cc
+
+  state "valid_fd?" as check_fd
+  state "u_crc17: accumulate data_fd<br/>(CRC-17, FD ≤ 16B)<br/>u_crc21: accumulate data_fd<br/>(CRC-21, FD > 16B)" as acc_fd
+
+  state "crc_poly_select?" as sel
+
+  state "crc_o <= crc15 & 000000" as out15
+  state "crc_o <= crc17 & 0000" as out17
+  state "crc_o <= crc21" as out21
+
+  reset --> wait
+
+  wait --> check_cc : valid_cc
+  wait --> check_fd : valid_fd
+
+  check_cc --> acc_cc : yes
+  acc_cc --> sel
+
+  check_fd --> acc_fd : yes
+  acc_fd --> sel
+
+  sel --> out15 : "00" (CRC-15)
+  sel --> out17 : "01" (CRC-17)
+  sel --> out21 : "10" (CRC-21)
+
+  out15 --> wait
+  out17 --> wait
+  out21 --> wait
+```
+
+### `can_mac_rx` {#sec:can-mac-rx}
+
+`can_mac_rx` receives the bit stream from the PCS, performs bit destuffing and CRC verification, and reconstructs the LLC frame for delivery to `can_llc_rx` [@iso11898_1, sec. 6.6]. Unlike the TX path, the RX path has no separate deserializer module. The RX FSM (`can_mac_fsm_rx`) stores received bits directly into an internal `llc_frame` array during reception and streams the completed frame byte-by-byte to the LLC during the quiet phase (after EOF and intermission) using a dedicated Avalon-ST streaming process.
+
+The `can_mac_rx` wrapper instantiates three components:
+
+1. **can_mac_fsm_rx**: Frame reception FSM with 17 per-field states mirroring the TX FSM structure
+2. **can_mac_bs**: Shared bit stuffer entity, reused for destuffing
+3. **can_mac_crc**: Shared CRC engine entity, reused for CRC checking
+
+The RX FSM (@fig:mac-rx-fsm) validates SBC and CRC fields during reception, detects form errors (reserved bits, CRC mismatch, delimiter errors), and drives ACK dominant during the ACK slot (1 bit for CC, 2 bits for FD). It reports errors to the FCE through the same `t_can_mac_fce_if_m2s` interface used by the TX FSM.
+
+```{.mermaid #fig:mac-rx-fsm caption="can_mac_fsm_rx FSM with per-field state granularity. The RX FSM mirrors the TX FSM structure (@fig:mac-tx-fsm) but replaces transmission logic with reception, storage, and validation. On detecting a dominant SOF in s_idle, the FSM enters s_id and stores received bits into an internal llc_frame array. After EOF, the FSM transitions through s_intermission and a dedicated streaming process transfers the stored frame to the LLC. Form errors (reserved bit violations, CRC mismatch, delimiter errors) and SBC mismatches trigger s_error_overload. The dashed box groups the frame-field states for clarity."}
 ---
 config:
   layout: elk
@@ -878,50 +805,107 @@ config:
     fontSize: "14px"
     primaryTextColor: "#000"
 ---
-flowchart TD
-  subgraph inputs ["**Inputs**"]
+stateDiagram-v2
 
-    subgraph fsm_in ["**can_mac_fsm_crc_tx_if_m2s_t**"]
-      data_crc["**data**<br/>(std_logic)"]
-      valid_crc["**valid**<br/>(boolean)"]
-      start_crc["**start**<br/>(boolean)"]
-      sel["**crc_poly_select**<br/>(std_logic_vector(1 downto 0))"]
-    end
-  end
+  classDef reset stroke:#000,stroke-width:3px
 
-  join["**join**"]
-  demux[/"**demux**"\]
-  crc15["**u_crc15**<br/>CRC-15<br/>(CAN Classic)"]
-  crc17["**u_crc17**<br/>CRC-17<br/>(CAN-FD ≤ 16 Byte)"]
-  crc21["**u_crc21**<br/>CRC-21<br/>(CAN-FD > 16 Byte)"]
-  mux[\"**mux**"/]
-  pad["**zero-pad right to crc_vector_t length**"]
+  state "**s_bus_reintegration**<br/>─────────<br/>• Not driving bus<br/>• Await 11 recessive bits" as s_bus_reintegration
+  class s_bus_reintegration reset
+  state "**s_idle**<br/>─────────<br/>• Not driving bus<br/>• Await dominant SOF" as s_idle
+  state "**s_intermission**<br/>─────────<br/>• 3-bit inter-frame spacing<br/>• Stream llc_frame to LLC<br/>• Signal successful_transfer to FCE" as s_intermission
+  state "**s_error_overload**<br/>─────────<br/>• Active: 6 dominant + 8 recessive<br/>• Passive: 6 recessive + 8 recessive<br/>• Overload: 6 dominant + 8 recessive<br/>• Signal error to FCE" as s_error_overload
 
-subgraph outputs ["**Outputs**"]
-  subgraph fsm_out ["**can_mac_fsm_crc_tx_if_s2m_t**"]
-    crc_out["**crc**<br/>(crc_vector_t)"]
-  end
-end
+  state frame_fields {
+    state "**s_id**" as s_id
+    state "**s_rtr_srr_rrs**" as s_rtr
+    state "**s_ide**" as s_ide
+    state "**s_fdf_r1_r0**" as s_fdf
+    state "**s_res_r0**" as s_res
+    state "**s_brs**" as s_brs
+    state "**s_esi**" as s_esi
+    state "**s_dlc**" as s_dlc
+    state "**s_data**" as s_data
+    state "**s_sbc**" as s_sbc
+    state "**s_crc**" as s_crc
+    state "**s_ack**" as s_ack
+    state "**s_eof**" as s_eof
 
-  valid_crc --> join
-  start_crc --> join
-  data_crc --> join
-  join ==> demux
-  sel ==>|select| demux
-  demux ==> crc15
-  demux ==> crc17
-  demux ==> crc21
-  crc15 ==> mux
-  crc17 ==> mux
-  crc21 ==> mux
-  sel ==>|select| mux
-  mux ==> pad
-  pad ==> crc_out
+    s_id --> s_rtr
+    s_id --> s_ide : base ID complete
+    s_rtr --> s_ide
+    s_rtr --> s_fdf : extended
+    s_ide --> s_id : extended (IDE=1)
+    s_ide --> s_fdf : base (IDE=0)
+    s_fdf --> s_res : FD or CC extended
+    s_fdf --> s_dlc : CC base
+    s_res --> s_brs : FD
+    s_res --> s_dlc : CC extended
+    s_brs --> s_esi
+    s_esi --> s_dlc
+    s_dlc --> s_data
+    s_data --> s_sbc : FD
+    s_data --> s_crc : CC
+    s_sbc --> s_crc
+    s_crc --> s_ack : CRC delimiter OK
+    s_ack --> s_eof
+  }
+
+s_bus_reintegration --> s_idle : 11 recessive bits
+
+s_idle --> s_id : dominant SOF detected
+
+s_eof --> s_intermission : frame complete
+frame_fields --> s_error_overload : form/CRC/SBC error
+
+s_error_overload --> s_intermission : sequence complete
+s_error_overload --> s_error_overload : overload detected
+
+s_intermission --> s_idle : intermission complete
+s_intermission --> s_error_overload : overload detected
 ```
 
-### `can_mac_rx` {#sec:can-mac-rx}
+### `can_mac` Unified Wrapper {#sec:can-mac-wrapper}
 
-`can_mac_rx` deserializes the bit stream received from the PCS, performs bit destuffing and CRC verification, and reconstructs the LLC frame for delivery to `can_llc_rx` [@iso11898_1, sec. 6.6].
+`can_mac` is a structural wrapper that instantiates `can_mac_tx`, `can_mac_rx`, and `can_fce` (@sec:fce-sub-layer), wiring the FCE internally so that the wrapper exposes only LLC and PCS interfaces for each path plus the FCE's LLC and PCS interfaces. TX and RX have separate PCS interfaces (half-duplex; only one path drives the bus at a time). The TX and RX FCE output records (`t_can_mac_fce_if_m2s`) are merged by OR-ing all fields before feeding the FCE input - the half-duplex guarantee ensures no simultaneous assertions from both paths. The FCE's response (`t_can_mac_fce_if_s2m`, carrying `error_passive_request` and `error_active_request`) is fanned back to both TX and RX paths.
+
+## FCE Sub-layer {#sec:fce-sub-layer}
+
+The Fault Confinement Entity (`can_fce`) implements the error state machine and counter management specified in [@iso11898_1, sec. 8.1.3-8.1.4]. It maintains two error counters - TEC (Transmitter Error Counter, 0-511) and REC (Receiver Error Counter, 0-255) - and transitions between three states: `s_error_active` (normal operation), `s_error_passive` (TEC or REC > 127), and `s_bus_off` (TEC > 255).
+
+Counter updates follow the ISO 8.1.4.2 rules: TEC increments by 8 on TX errors (unless `counters_unchanged` is asserted), decrements by 1 on successful TX. REC increments by 1 on RX errors during non-error-flag phases, by 8 on primary errors or error-flag-phase errors, and decrements by 1 or clamps to 127 on successful RX. The FCE state machine (@fig:fce-fsm) transitions between error-active, error-passive, and bus-off based on counter thresholds. Bus-off recovery requires counting 128 idle conditions (11 consecutive recessive bits each) from the PCS via the `idle_condition` signal, or a `normal_mode_request` from the LLC.
+
+```{.mermaid #fig:fce-fsm fig-width=0.6 caption="can_fce FSM (ISO 8.1.4.1, Figure 43). The s_error_active state is the normal operating mode. When either TEC or REC exceeds 127, the FCE transitions to s_error_passive and asserts error_passive_request to both MAC paths. If TEC exceeds 255, the node enters s_bus_off: the FCE issues bus_off_request to the PCS and bus_off to the LLC. Recovery from bus-off requires 128 idle conditions (each 11 consecutive recessive bits) counted from the PCS, or a normal_mode_request from the LLC, after which the counters are reset and the FCE returns to s_error_active."}
+---
+config:
+  layout: elk
+  elk:
+    algorithm: layered
+    mergeEdges: false
+    nodePlacementStrategy: LINEAR_SEGMENTS
+  look: classic
+  theme: neutral
+  themeVariables:
+    fontFamily: "Libertinus Serif, Noto Serif, serif"
+    fontSize: "14px"
+    primaryTextColor: "#000"
+---
+stateDiagram-v2
+
+  classDef reset stroke:#000,stroke-width:3px
+
+  state "**s_error_active**<br/>─────────<br/>• Normal operation<br/>• error_active_request = 1<br/>• TEC/REC updated per ISO 8.1.4.2" as s_error_active
+  class s_error_active reset
+  state "**s_error_passive**<br/>─────────<br/>• error_passive_request = 1<br/>• TEC/REC updated per ISO 8.1.4.2" as s_error_passive
+  state "**s_bus_off**<br/>─────────<br/>• bus_off = 1, bus_off_request = 1<br/>• Count idle_condition pulses<br/>• Await 128 idle conditions or<br/>  normal_mode_request" as s_bus_off
+
+s_error_active --> s_error_passive : TEC > 127 or REC > 127
+s_error_active --> s_bus_off : TEC > 255
+
+s_error_passive --> s_error_active : TEC ≤ 127 and REC ≤ 127
+s_error_passive --> s_bus_off : TEC > 255
+
+s_bus_off --> s_error_active : 128 idle conditions or normal_mode_request<br/>(TEC/REC reset to 0)
+```
 
 ## PCS Sub-layer {#sec:pcs-sub-layer}
 Handles bit timing and synchronization. It generates the sample point (SP) and secondary sample point (SSP) strobes. It provides bit-level monitoring data to the FCE to detect synchronization and timing errors.
