@@ -201,17 +201,7 @@ architecture tb of can_mac_tx_tb is
     stream.len := idx; -- update stream length
   end procedure truncate_error;
 
-  -- Reactive overload tail. When with_err_flag is true (default), an error
-  -- flag + delim precedes the overload flag (used for reactive overload
-  -- triggered inside the error delimiter / EOF after a bit error). When false,
-  -- only the overload flag + delim + IFS is written (used for reactive
-  -- overload triggered by a dominant during the first 2 bits of intermission,
-  -- where the frame itself was already successfully transmitted).
-  procedure truncate_reactive_overload (
-    stream        : inout t_bus_stream;
-    inject_pos    : in    natural;
-    is_passive    : in    boolean := false;
-    with_err_flag : in    boolean := true
+  procedure truncate_reactive_overload (stream : inout t_bus_stream; inject_pos : in natural; is_passive : in boolean := false; with_err_flag : in boolean := true
   ) is
     variable idx      : natural := inject_pos;
     variable flag_pol : std_logic;
@@ -283,7 +273,14 @@ begin
     AddBins(v_esi_cov, GenBin(c_bin_at_least, (0, 1)));
     AddBins(v_brs_cov, GenBin(c_bin_at_least, (0, 1)));
     AddBins(v_dlc_cov, GenBin(c_bin_at_least, 0, c_dlc_max, c_dlc_max + 1));
-    AddBins(v_inj_cov, GenBin(c_bin_at_least, (c_inj_ack, c_inj_ack_delim, c_inj_ack_error, c_inj_error, c_inj_lost_arb, c_inj_reactive_overload_in_eof, c_inj_reactive_overload_in_ifs, c_inj_error_delim_too_late)));
+    AddBins(v_inj_cov, GenBin(c_bin_at_least, (c_inj_ack,
+                                                c_inj_ack_delim,
+                                                c_inj_ack_error,
+                                                c_inj_error,
+                                                c_inj_lost_arb,
+                                                c_inj_reactive_overload_in_eof,
+                                                c_inj_reactive_overload_in_ifs,
+                                                c_inj_error_delim_too_late)));
     AddBins(v_pos_cov, GenBin(c_bin_at_least, c_min_err_pos, c_max_err_pos, c_pos_bin_num));
     AddBins(v_fce_cov, GenBin(c_bin_at_least, (c_fce_active, c_fce_passive)));
 
@@ -425,9 +422,6 @@ begin
         when c_inj_reactive_overload_in_eof =>
           bus_override_en <= true when (bus_idx = v_inject_pos - 1) or (bus_idx = v_inject_pos - 1 + c_error_sequence_width) else false;
         when c_inj_reactive_overload_in_ifs =>
-          -- Two dominant injections needed: ACK slot (aux_inj_pos) so the
-          -- frame is successfully acknowledged, and first/second intermission
-          -- bit (v_inject_pos - 1) to trigger the reactive overload response.
           if (bus_idx = aux_inj_pos - 1) or (bus_idx = v_inject_pos - 1) then
             bus_override_en <= true;
           else
@@ -498,7 +492,7 @@ begin
               bus_idx         <= 0;
               FinishTransaction(pcs_rec.Ack);
             when CHECK =>
-              -- Just wit for the burst fifo to go empty
+              -- Just block until burst fifo goes empty
               if Empty(pcs_rec.BurstFifo) then
                 FinishTransaction(pcs_rec.Ack);
               end if;
@@ -548,12 +542,10 @@ begin
       Print("--------------------------------------------------------------------------");
       for sp_idx in 0 to c_bus_idle_condition_width - 2 loop
         wait until rising_edge(clk) and pcs_i.sample_point = '1';
-        AffirmIf(reset_check_id, pcs_o.valid = '0',
-                 "Reintegration: valid=0 at SP " & to_string(sp_idx));
+        AffirmIf(reset_check_id, pcs_o.valid = '0', "Reintegration: valid=0 at SP " & to_string(sp_idx));
       end loop;
       wait until rising_edge(clk) and pcs_i.sample_point = '1';
-      AffirmIf(reset_check_id, pcs_o.valid = '0',
-               "Bus idle: valid=0 (no pending frame)");
+      AffirmIf(reset_check_id, pcs_o.valid = '0', "Bus idle: valid=0 (no pending frame)");
     end procedure test_bus_reintegration;
 
     --------------------------------------------------------------------------
@@ -650,16 +642,8 @@ begin
     procedure prepare_reactive_overload_in_ifs is
       variable v_ifs_first : natural;
     begin
-      -- Dominant in the first 2 bits of intermission triggers an overload
-      -- response (ISO 6.6.21.3.2 b). The 3rd intermission bit is SOF-detect,
-      -- not an overload trigger. The frame itself was successfully
-      -- transmitted, so we must inject a dominant ACK at ack_pos before
-      -- injecting the dominant in intermission.
+      -- Dominant in the first 2 bits of intermission triggers an overload (ISO 6.6.21.3.2 b).
       v_inj_type := c_inj_reactive_overload_in_ifs;
-      -- First IFS bit sits after ACK slot(s) + ACK delim + 7 EOF bits. The
-      -- c_*_eof_start_offset constants count from the end of CRC (including
-      -- the CRC delim), but v_stream.ack_pos already points past the CRC
-      -- delim, so subtract 1 when indexing from ack_pos.
       if (v_metadata.fdf = '1') then
         v_ifs_first := v_stream.ack_pos + (c_fd_eof_start_offset - 1) + c_eof_field_width; -- 2-bit ACK + delim + 7 EOF
       else
@@ -667,11 +651,6 @@ begin
       end if;
       -- Secondary arm: dominant ACK so the frame is acknowledged.
       aux_inj_pos <= v_stream.ack_pos;
-      -- v_inj_pos is the stream index of the bit that will be overridden to
-      -- dominant. The arm condition uses v_inj_pos - 1, and the PCS VC's arm
-      -- pipeline overrides bit (arm_index + 1) = v_inj_pos. Must land on the
-      -- 1st or 2nd IFS bit (v_ifs_first or v_ifs_first + 1); the 3rd IFS bit
-      -- (v_ifs_first + 2) is SOF-detect and does not trigger overload.
       v_inj_pos    := v_ifs_first + RV.RandInt(0, 1);
       v_exp_status := c_transmitted;
       v_exp_fce(c_fce_successful_transfer) := '1';
@@ -695,47 +674,32 @@ begin
     --------------------------------------------------------------------------
     procedure submit_and_verify is
       variable v_entry      : std_logic_vector(2 downto 0);
-      variable v_fdf        : integer := v_stream.fdf_pos;
-      variable v_dp_start   : integer := v_stream.data_phase_start;
-      variable v_dp_end     : integer := v_stream.data_phase_end;
     begin
       -- Clamp data-phase bounds for injection types that truncate the stream
       case v_inj_type is
         when c_inj_lost_arb =>
-          v_fdf      := -1;
-          v_dp_start := -1;
-          v_dp_end   := -1;
+          v_stream.fdf_pos          := -1;
+          v_stream.data_phase_start := -1;
+          v_stream.data_phase_end   := -1;
         when c_inj_error | c_inj_reactive_overload_in_eof | c_inj_error_delim_too_late =>
-          -- v_inj_pos is the first truncated bit; the last DUT-driven bit is v_inj_pos - 1.
-          if (v_fdf >= 0 and v_inj_pos <= v_fdf) then
-            v_fdf := -1;
-          end if;
-          if (v_dp_start >= 0 and v_inj_pos <= v_dp_start) then
-            v_dp_start := -1;
-            v_dp_end   := -1;
-          elsif (v_dp_start >= 0 and v_inj_pos <= v_dp_end) then
-            v_dp_end := v_inj_pos - 1;
-          end if;
-        when others =>
-          null;
+          v_stream.fdf_pos          := -1 when v_stream.fdf_pos >= 0 and v_inj_pos <= v_stream.fdf_pos;
+          v_stream.data_phase_start := -1 when v_stream.data_phase_start >= 0 and v_inj_pos <= v_stream.data_phase_start;
+          v_stream.data_phase_end   := -1 when v_stream.data_phase_start >= 0 and v_inj_pos <= v_stream.data_phase_start;
+          v_stream.data_phase_end   := v_inj_pos - 1 when v_stream.data_phase_start >= 0 and v_inj_pos <= v_stream.data_phase_end;
+        when others => null;
       end case;
+
       -- Configure PCS VC: reset bit-time model, then arm injection
       Send(pcs_rec, std_logic_vector(to_unsigned(v_inj_type, c_rec_width)), std_logic_vector(to_unsigned(v_inj_pos, c_rec_width)));
+
       -- Push expected bus stream:   (0)=polarity,(1)=use_data_rate,(2)=start_tdc
       for i in 0 to v_stream.len - 1 loop
         v_entry(0) := v_stream.bits(i);
-        if (v_dp_start >= 0 and i >= v_dp_start and i <= v_dp_end) then
-          v_entry(1) := '1';
-        else
-          v_entry(1) := '0';
-        end if;
-        if (v_fdf >= 0 and i = v_fdf) then
-          v_entry(2) := '1';
-        else
-          v_entry(2) := '0';
-        end if;
+        v_entry(1) := '1' when v_stream.data_phase_start >= 0 and i >= v_stream.data_phase_start and i <= v_stream.data_phase_end else '0';
+        v_entry(2) := '1' when v_stream.fdf_pos >= 0 and i = v_stream.fdf_pos else '0';
         Push(pcs_rec.BurstFifo, v_entry);
       end loop;
+
       -- Drive frame bytes through LLC VC
       for i in 0 to v_last_byte loop
         if (i = 0) then
@@ -816,15 +780,15 @@ begin
         end if;
         v_exp_fce := (others => '0');
         case v_inj_type is
-          when c_inj_ack                  => prepare_ack;
-          when c_inj_ack_delim            => prepare_ack_delim;
-          when c_inj_ack_error            => prepare_ack_error;
-          when c_inj_error                => prepare_bit_error;
-          when c_inj_lost_arb             => prepare_lost_arb;
-          when c_inj_reactive_overload_in_eof    => prepare_reactive_overload_in_eof;
-          when c_inj_reactive_overload_in_ifs    => prepare_reactive_overload_in_ifs;
-          when c_inj_error_delim_too_late => prepare_error_delim_too_late;
-          when others                     => null;
+          when c_inj_ack                      => prepare_ack;
+          when c_inj_ack_delim                => prepare_ack_delim;
+          when c_inj_ack_error                => prepare_ack_error;
+          when c_inj_error                    => prepare_bit_error;
+          when c_inj_lost_arb                 => prepare_lost_arb;
+          when c_inj_reactive_overload_in_eof => prepare_reactive_overload_in_eof;
+          when c_inj_reactive_overload_in_ifs => prepare_reactive_overload_in_ifs;
+          when c_inj_error_delim_too_late     => prepare_error_delim_too_late;
+          when others                         => null;
         end case;
         submit_and_verify;
         ICover(inj_cov, v_inj_type);
@@ -832,7 +796,6 @@ begin
         if (v_inj_type = c_inj_error) then
           ICover(pos_cov, v_inj_pos);
         end if;
-
       end loop;
     end procedure test_error_injection;
 
