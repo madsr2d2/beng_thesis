@@ -64,7 +64,6 @@ architecture tb of can_mac_tx_tb is
   constant c_inj_error_delim_too_late : natural := 7;
   constant c_inj_ack_delim            : natural := 8;
 
-
   -- FCE state coverage bins
   constant c_fce_active  : natural := 0;
   constant c_fce_passive : natural := 1;
@@ -76,6 +75,11 @@ architecture tb of can_mac_tx_tb is
   constant c_fce_counters_unchanged   : natural := 3;
   constant c_fce_error_delim_too_late : natural := 4;
   constant c_fce_latch_width          : natural := 5;
+
+  -- Avalon-ST stream byte encoding [1] = startofpacket, [0] = endofpacket
+  constant c_avalon_sop_byte : std_logic_vector := "10";
+  constant c_avalon_eop_byte : std_logic_vector := "01";
+  constant c_avalon_byte : std_logic_vector     := "00";
 
   -- Transaction record data width
   constant c_rec_width : natural := 16;
@@ -413,20 +417,15 @@ begin
     variable v_active_sp       : natural := c_sp;
 
     --------------------------------------------------------------------------
-    -- Arm/disarm bus override at programmed position(s)
+    -- Arm/disarm bus override
     --------------------------------------------------------------------------
     procedure arm_bus_injection is
     begin
       case v_inj_subtype is
-        when c_inj_ack_error => null; -- No override: DUT sees recessive ACK slot and reports ack error
         when c_inj_reactive_overload_in_eof =>
           bus_override_en <= true when (bus_idx = v_inject_pos - 1) or (bus_idx = v_inject_pos - 1 + c_error_sequence_width) else false;
         when c_inj_reactive_overload_in_ifs =>
-          if (bus_idx = aux_inj_pos - 1) or (bus_idx = v_inject_pos - 1) then
-            bus_override_en <= true;
-          else
-            bus_override_en <= false;
-          end if;
+          bus_override_en <= true when (bus_idx = aux_inj_pos - 1) or (bus_idx = v_inject_pos - 1) else false;
         when c_inj_error_delim_too_late =>
           if (bus_idx = v_inject_pos - 1) then
             bus_override_en <= true;
@@ -435,9 +434,9 @@ begin
           else
             bus_override_en <= false;
           end if;
-        when others =>
-          -- Single-bit override at v_inject_pos (ack, ack_delim, lost_arb, bit_error)
+        when c_inj_ack | c_inj_lost_arb | c_inj_ack_delim | c_inj_error => -- Single bit overrides
           bus_override_en <= true when (bus_idx = v_inject_pos - 1) else false;
+        when others => null;
       end case;
     end procedure arm_bus_injection;
 
@@ -458,14 +457,14 @@ begin
 
         -- Set bus polarity
         if bus_override_en then -- Override bus
-          -- Dominant polarity override injection types
-          if v_inj_subtype = c_inj_ack or v_inj_subtype = c_inj_lost_arb or v_inj_subtype = c_inj_ack_delim or v_inj_subtype = c_inj_reactive_overload_in_ifs then
-            pcs_i.bus_polarity <= c_dominant;
-          -- Opposite polarity override injection types 
-          elsif v_inj_subtype = c_inj_error or v_inj_subtype = c_inj_reactive_overload_in_eof or v_inj_subtype = c_inj_error_delim_too_late then
-            pcs_i.bus_polarity <= not pcs_o.polarity;
-          end if;
-        else -- Zero-delay loop back
+          case v_inj_subtype is
+            when c_inj_ack | c_inj_lost_arb | c_inj_ack_delim =>
+              pcs_i.bus_polarity <= c_dominant; -- Always dominant override
+            when c_inj_error | c_inj_reactive_overload_in_eof | c_inj_error_delim_too_late | c_inj_reactive_overload_in_ifs =>
+              pcs_i.bus_polarity <= not pcs_o.polarity; -- Opposite polarity override
+            when others => null;
+          end case;
+        else -- No bus injection -> Zero-delay loop back
           pcs_i.bus_polarity <= pcs_o.polarity; 
         end if;
         --------------------------------------------------------------------------
@@ -475,7 +474,7 @@ begin
         --------------------------------------------------------------------------
         if v_tq_count = 0 and not Empty(pcs_rec.BurstFifo) and (bus_idx > 0 or pcs_o.valid = '1') then
           Check(pcs_rec.BurstFifo, pcs_o.start_tdc & pcs_o.use_data_rate & pcs_o.polarity);
-          arm_bus_injection;
+          arm_bus_injection; -- Arm next bus injection
           bus_idx <= bus_idx + 1;
         end if;
         --------------------------------------------------------------------------
@@ -700,18 +699,23 @@ begin
         Push(pcs_rec.BurstFifo, v_entry);
       end loop;
 
-      -- Drive frame bytes through LLC VC
+      -- Drive frame bytes through DUT
       for i in 0 to v_last_byte loop
         if (i = 0) then
-          Send(llc_rec, v_frame(i), "10");
+          Send(llc_rec, v_frame(i), c_avalon_sop_byte);
+        elsif (i < v_last_byte) then
+          Send(llc_rec, v_frame(i), c_avalon_byte);
         else
-          Send(llc_rec, v_frame(i), "00");
+          Send(llc_rec, v_frame(i), c_avalon_eop_byte);
         end if;
       end loop;
-      -- Verify: bus stream, transfer status, FCE events
-      Check(pcs_rec, "");
-      Check(llc_rec, v_exp_status);
-      Check(fce_rec, std_logic_vector(resize(unsigned(v_exp_fce), c_rec_width)));
+
+      -- Verify: 1) pcs_o interface (bus stream and control signals).
+      --         2) Transfer status (llc_o interface).
+      --         3) FCE events (fce_o interface).
+      Check(pcs_rec, ""); -- Bus stream and PCS control signals
+      Check(llc_rec, v_exp_status); -- Transfer status
+      Check(fce_rec, std_logic_vector(resize(unsigned(v_exp_fce), c_rec_width))); -- FCE events
     end procedure submit_and_verify;
 
     --------------------------------------------------------------------------
@@ -801,11 +805,9 @@ begin
 
     --------------------------------------------------------------------------
     procedure report_results is
-      variable v_errors : integer;
     begin
       AlertIfNotCovered;
-      v_errors := EndOfTestReports(ReportAll => true);
-      if (v_errors = 0) then
+      if (EndOfTestReports(ReportAll => true) = 0) then
         Print("--------------------------------------------------------------------------");
         Print("Test Pass!");
         Print("--------------------------------------------------------------------------");
