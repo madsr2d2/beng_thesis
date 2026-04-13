@@ -87,7 +87,8 @@ begin
       pcs_i => rx_pcs_i,
       pcs_o => rx_pcs_o,
       fce_i => fce_mac_o,
-      fce_o => rx_fce_o
+      fce_o => rx_fce_o,
+      transmitting_i => tx_fce_o.transmitting
     );
 
   ---------------------------------------------------------------------------

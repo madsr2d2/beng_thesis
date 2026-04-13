@@ -65,6 +65,7 @@ architecture tb of can_mac_rx_tb is
   signal fdf_cov      : CoverageIDType;
   signal dlc_cov      : CoverageIDType;
   signal init_barrier : std_logic := '0';
+  signal test_num     : natural;
 
   -- Transaction interfaces
   signal pcs_rec : StreamRecType(
@@ -82,8 +83,14 @@ architecture tb of can_mac_rx_tb is
 
   -- Bus reintegration sync
   signal pcs_ready : boolean := false;
+  signal transmitting : std_logic := '0';
 
-begin
+  -- Gating test latches (driven only by p_gating_monitor)
+  signal pcs_valid_seen  : boolean := false;
+  signal llc_valid_seen  : boolean := false;
+  signal fce_active_seen : boolean := false;
+  signal clear_latches   : boolean := false;
+  begin
 
   ----------------------------------------------------------------------------
   -- Infrastructure
@@ -142,8 +149,33 @@ begin
       pcs_i => pcs_i,
       pcs_o => pcs_o,
       fce_i => fce_i,
-      fce_o => fce_o
+      fce_o => fce_o,
+      transmitting_i => transmitting
     );
+
+  ----------------------------------------------------------------------------
+  -- Gating monitor: latch if pcs_o.valid or llc_o.valid pulses while TX active
+  ----------------------------------------------------------------------------
+  p_gating_monitor : process (clk) is
+  begin
+    if rising_edge(clk) then
+      if clear_latches then
+        pcs_valid_seen  <= false;
+        llc_valid_seen  <= false;
+        fce_active_seen <= false;
+      elsif transmitting = '1' then
+        if pcs_o.valid = '1' then
+          pcs_valid_seen <= true;
+        end if;
+        if llc_o.avalon_st_source.valid = '1' then
+          llc_valid_seen <= true;
+        end if;
+        if fce_o /= c_mac_to_fce_if_reset then
+          fce_active_seen <= true;
+        end if;
+      end if;
+    end if;
+  end process p_gating_monitor;
 
   ----------------------------------------------------------------------------
   -- PCS VC
@@ -331,6 +363,7 @@ begin
     --------------------------------------------------------------------------
     procedure test_reset is
     begin
+      test_num <= 1;
       Print("--------------------------------------------------------------------------");
       Print("Test 1: Reset");
       Print("--------------------------------------------------------------------------");
@@ -349,11 +382,14 @@ begin
       variable v_exp_len     : natural;
       variable v_frame_count : natural := 0;
     begin
+      test_num <= 2;
       Print("--------------------------------------------------------------------------");
       Print("Test 2: Normal Usage");
       Print("--------------------------------------------------------------------------");
 
-      wait until pcs_ready;
+      if not pcs_ready then
+        wait until pcs_ready;
+      end if;
       WaitForClock(clk, 5);
 
       while not (IsCovered(ide_cov) and IsCovered(fdf_cov) and IsCovered(dlc_cov)) loop
@@ -378,6 +414,50 @@ begin
           " len=" & to_string(v_stream.len), DEBUG);
       end loop;
     end procedure test_normal;
+
+    --------------------------------------------------------------------------
+    -- Test 3: Gating RX during transmission
+    --------------------------------------------------------------------------
+    procedure test_transmitting is
+      variable v_frame       : t_llc_frame;
+      variable v_metadata    : t_llc_metadata;
+      variable v_stream      : t_bus_stream;
+    begin
+      test_num <= 3;
+      Print("--------------------------------------------------------------------------");
+      Print("Test 3: Gating RX during transmission");
+      Print("--------------------------------------------------------------------------");
+
+      -- Clear latches and assert transmitting
+      clear_latches <= true;
+      WaitForClock(clk);
+      clear_latches <= false;
+      transmitting  <= '1';
+      WaitForClock(clk, 5);
+
+      -- Generate a frame
+      gen_frame(v_frame, v_metadata, v_stream);
+
+      -- Push bus stream bits into PCS BurstFifo
+      for i in 0 to v_stream.len - 1 loop
+        Push(pcs_rec.BurstFifo, std_logic_vector(to_unsigned( std_logic'pos(v_stream.bits(i)), c_rec_width)));
+      end loop;
+
+      -- Play bus stream (blocks until done)
+      SendBurst(pcs_rec, v_stream.len);
+
+      -- Verify that pcs_o.valid never pulsed during the frame
+      AffirmIf(check_id, not pcs_valid_seen, "pcs_o.valid pulsed during transmission");
+
+      -- Verify that llc_o.valid never pulsed during the frame
+      AffirmIf(check_id, not llc_valid_seen, "llc_o.valid pulsed during transmission");
+
+      -- Verify that fce_o stayed at reset (no error/transfer signaling to FCE)
+      AffirmIf(check_id, not fce_active_seen, "fce_o signaled during transmission");
+
+      transmitting <= '0';
+      WaitForClock(clk, 10);
+    end procedure test_transmitting;
 
     --------------------------------------------------------------------------
     procedure report_results is
@@ -406,6 +486,7 @@ begin
 
     test_reset;
     test_normal;
+    test_transmitting;
 
     report_results;
     std.env.finish;

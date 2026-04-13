@@ -17,6 +17,10 @@ library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
   use work.pk_can_types.all;
+-- synthesis translate_off
+library osvvm;
+  use osvvm.AlertLogPkg.all;
+-- synthesis translate_on
 
 entity can_mac_fsm_tx is
   port (
@@ -630,6 +634,15 @@ begin
           -- and reacted to at sample point (ISO : 6.6.21.3.1).
           -- Sample point polarity mismatch is only checked in the nominal rate phase.
           if (pcs_o.use_data_rate = '0' and polarity_history(0) /= pcs_i.bus_polarity) then
+            -- synthesis translate_off
+            report "[TX-FSM] BIT_ERR_CHECK: state=" & t_fsm_state'image(state) &
+                  " bc=" & to_string(bit_count) &
+                  " pol_hist(0)=" & to_string(polarity_history(0)) &
+                  " bus_pol=" & to_string(pcs_i.bus_polarity) &
+                  " arb=" & boolean'image(v_in_arbitration_field) &
+                  " fdf=" & to_string(mac_ser_i.llc_metadata.fdf) &
+                  " at " & to_string(now) severity note;
+            -- synthesis translate_on
             if (v_in_arbitration_field and pcs_i.bus_polarity = c_dominant) then
               v_lost_arb := true; -- Recessive bit sent, dominant observed in arbitration field -> Lost arbitration
             elsif (not (state = s_ack and (bit_count = 0 or (bit_count = 1 and mac_ser_i.llc_metadata.fdf = '1')))) then

@@ -37,7 +37,10 @@ entity can_mac_rx is
 
     -- Fault Confinement Entity interface
     fce_i : in    t_can_mac_fce_if_s2m;
-    fce_o : out   t_can_mac_fce_if_m2s
+    fce_o : out   t_can_mac_fce_if_m2s;
+
+    -- TX status interface
+    transmitting_i : in    std_logic
   );
 end entity can_mac_rx;
 
@@ -76,7 +79,8 @@ begin
       crc_o   => fsm_to_crc,
       crc_rst => fsm_crc_rst,
       fce_i   => fce_i,
-      fce_o   => fce_o
+      fce_o   => fce_o,
+      transmitting_i => transmitting_i
     );
 
   ---------------------------------------------------------------------------

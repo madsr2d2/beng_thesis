@@ -39,7 +39,9 @@ entity can_mac_fsm_rx is
     crc_rst : out   std_logic;
     -- Fault Confinement Entity interface
     fce_i : in    t_can_mac_fce_if_s2m;
-    fce_o : out   t_can_mac_fce_if_m2s
+    fce_o : out   t_can_mac_fce_if_m2s;
+    -- TX status interface
+    transmitting_i : in    std_logic
   );
 end entity can_mac_fsm_rx;
 
@@ -598,6 +600,17 @@ begin
           when others =>
             fsm_state <= s_bus_reintegration;
         end case;
+
+        -----------------------------------------------------------------
+        -- Gating RX outputs when node is transmitting:
+        -- Skip ACK drive, LLC delivery, and FCE error signaling.
+        -----------------------------------------------------------------
+        if (transmitting_i = '1') then
+          pcs_o.valid      <= '0';
+          fce_o            <= c_mac_to_fce_if_reset;
+          llc_stream_start <= false;
+        end if;
+
       end if;
     end if;
 

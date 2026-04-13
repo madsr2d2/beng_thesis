@@ -36,6 +36,7 @@ COMPONENTS = \
 LAYERS = \
 	src/can_mac_tx/hdl_src/can_mac_tx.vhd \
 	src/can_mac_rx/hdl_src/can_mac_rx.vhd \
+	src/can_mac/hdl_src/can_mac.vhd \
 	src/can_pcs_tx/hdl_src/can_pcs_tx.vhd \
 	src/can_llc_tx/hdl_src/can_llc_tx.vhd \
 	src/can_tx/hdl_src/can_tx.vhd

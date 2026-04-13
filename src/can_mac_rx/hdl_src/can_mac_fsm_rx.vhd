@@ -37,7 +37,9 @@ entity can_mac_fsm_rx is
     crc_rst : out   std_logic;
     -- Fault Confinement Entity interface
     fce_i : in    t_can_mac_fce_if_s2m;
-    fce_o : out   t_can_mac_fce_if_m2s
+    fce_o : out   t_can_mac_fce_if_m2s;
+    -- TX status interface
+    transmitting_i : in    std_logic
   );
 end entity can_mac_fsm_rx;
 
@@ -138,10 +140,9 @@ begin
         bs_rst              <= '0';
         crc_rst             <= '0';
         fce_o               <= c_mac_to_fce_if_reset;
-        pcs_o.valid         <= '0';
-        pcs_o.polarity      <= c_recessive;
+        -- pcs_o.valid         <= '0';
+        -- pcs_o.polarity      <= c_recessive;
         pcs_o.start_tdc     <= '0';
-        pcs_o.use_data_rate <= llc_frame(c_conf_0_offset)(c_llc_frame_brs);
         llc_stream_start <= not llc_stream_done when llc_stream_done; -- Clear
 
         -----------------------------------------------------------------
@@ -447,6 +448,7 @@ begin
                 end if;
                 bit_count <= bit_count + 1;
               else -- CRC delimiter bit
+                pcs_o.use_data_rate <= '0';
                 if (pcs_i.bus_polarity = c_dominant) or (crc_mismatch) then
                   -- Form error: CRC delimiter must be recessive, or CRC mismatch (checked at the CRC delimiter) (ISO 11898-1: 6.6.21.2.c)
                   -------------------------------------------------------------
@@ -458,11 +460,12 @@ begin
                   bit_count                         <= 0;
                   -------------------------------------------------------------
                 else
-                  -- CRC delimiter OK: drive ACK on the next bit slot
-                  pcs_o.valid    <= '1';
-                  pcs_o.polarity <= c_dominant;
-                  fsm_state      <= s_ack;
-                  bit_count      <= 0;
+                  -- CRC delimiter OK: switch back to nominal rate and drive ACK
+                  pcs_o.use_data_rate <= '0';
+                  pcs_o.valid         <= '1';
+                  pcs_o.polarity      <= c_dominant;
+                  fsm_state           <= s_ack;
+                  bit_count           <= 0;
                 end if;
               end if;
             end if;
@@ -476,8 +479,8 @@ begin
             if (pcs_i.sample_point = '1') then
               if (bit_count = 0) then
                 -- ACK slot bit 0: drive dominant to acknowledge
-                pcs_o.valid    <= '1';
-                pcs_o.polarity <= c_dominant;
+                pcs_o.valid    <= '0';
+                pcs_o.polarity <= c_recessive;
                 bit_count      <= 1;
               elsif (bit_count = 1 and llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1') then
                 -- ACK slot bit 1 (FD only): recessive, wait for alignment
@@ -520,7 +523,6 @@ begin
                   fsm_state <= s_error_overload;
                   bit_count <= 0;
                   -------------------------------------------------------------
-                end if;
               else
                 if bit_count = (c_eof_field_width - 1) then
                   -- Last EOF bit: transition to intermission
@@ -537,7 +539,7 @@ begin
                   bit_count <= bit_count + 1;
                 end if;
               end if;
-            -- end if;
+            end if;
 
           -- -----------------------------------------------------------
           -- Interframe space: 3 recessive bits (ISO 11898-1: 6.6.7.2).
@@ -596,6 +598,18 @@ begin
           when others =>
             fsm_state <= s_bus_reintegration;
         end case;
+
+        -----------------------------------------------------------------
+        -- Gating RX outputs when node is transmitting:
+        -- Skip ACK drive, LLC delivery, and FCE error signaling.
+        -----------------------------------------------------------------
+        if (transmitting_i) then
+          pcs_o.valid      <= '0';
+          pcs_o.polarity   <= '1';
+          fce_o            <= c_mac_to_fce_if_reset;
+          llc_stream_start <= false;
+        end if;
+
       end if;
     end if;
 
