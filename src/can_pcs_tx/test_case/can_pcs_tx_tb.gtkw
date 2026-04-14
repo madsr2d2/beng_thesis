@@ -6,17 +6,18 @@
 [timestart] 0
 [size] 1920 1080
 [pos] 0 0
-*-28.000000 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-22.000000 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.can_pcs_tx_tb.
-[sst_width] 297
-[signals_width] 412
+[sst_width] 320
+[signals_width] 460
 [sst_expanded] 1
-[sst_vpaned_height] 434
+[sst_vpaned_height] 480
 [treeopen] top.can_pcs_tx_tb.dut_no_tdc.
 [treeopen] top.can_pcs_tx_tb.dut_tdc.
 @c00200
--TB Signals
+-can_pcs_tx_tb :: TB
+[color] 1
 @28
 top.can_pcs_tx_tb.clk
 @28
@@ -25,18 +26,38 @@ top.can_pcs_tx_tb.rst
 top.can_pcs_tx_tb.test_done
 @420
 top.can_pcs_tx_tb.current_test_id
-@420
-top.can_pcs_tx_tb.mac_to_pcs_1
-@420
-top.can_pcs_tx_tb.pcs_to_mac_1
+@28
+top.can_pcs_tx_tb.mac_to_pcs_1.polarity
+@28
+top.can_pcs_tx_tb.mac_to_pcs_1.use_data_rate
+@28
+top.can_pcs_tx_tb.mac_to_pcs_1.start_tdc
+@28
+top.can_pcs_tx_tb.pcs_to_mac_1.bus_polarity
+@28
+top.can_pcs_tx_tb.pcs_to_mac_1.sample_point
+@28
+top.can_pcs_tx_tb.pcs_to_mac_1.secondary_sample_point
+@22
+top.can_pcs_tx_tb.pcs_to_mac_1.tdc_delay
 @28
 top.can_pcs_tx_tb.tx_bus_1
 @28
 top.can_pcs_tx_tb.rx_bus_1
-@420
-top.can_pcs_tx_tb.mac_to_pcs_2
-@420
-top.can_pcs_tx_tb.pcs_to_mac_2
+@28
+top.can_pcs_tx_tb.mac_to_pcs_2.polarity
+@28
+top.can_pcs_tx_tb.mac_to_pcs_2.use_data_rate
+@28
+top.can_pcs_tx_tb.mac_to_pcs_2.start_tdc
+@28
+top.can_pcs_tx_tb.pcs_to_mac_2.bus_polarity
+@28
+top.can_pcs_tx_tb.pcs_to_mac_2.sample_point
+@28
+top.can_pcs_tx_tb.pcs_to_mac_2.secondary_sample_point
+@22
+top.can_pcs_tx_tb.pcs_to_mac_2.tdc_delay
 @28
 top.can_pcs_tx_tb.tx_bus_2
 @28
@@ -48,22 +69,43 @@ top.can_pcs_tx_tb.rx_bus_2_manual
 @28
 top.can_pcs_tx_tb.rx_bus_2_loopback
 @1401200
--TB Signals
+-can_pcs_tx_tb :: TB
 @c00200
--dut_no_tdc Internals
+-dut_no_tdc :: inputs
+[color] 5
 @28
 top.can_pcs_tx_tb.dut_no_tdc.clk_i
 @28
 top.can_pcs_tx_tb.dut_no_tdc.rst_i
-@420
-top.can_pcs_tx_tb.dut_no_tdc.mac_to_pcs_i
-@420
-top.can_pcs_tx_tb.dut_no_tdc.pcs_to_mac_o
 @28
-top.can_pcs_tx_tb.dut_no_tdc.tx_bus_o
+top.can_pcs_tx_tb.dut_no_tdc.mac_to_pcs_i.polarity
+@28
+top.can_pcs_tx_tb.dut_no_tdc.mac_to_pcs_i.use_data_rate
+@28
+top.can_pcs_tx_tb.dut_no_tdc.mac_to_pcs_i.start_tdc
 @28
 top.can_pcs_tx_tb.dut_no_tdc.rx_bus_i
+@1401200
+-dut_no_tdc :: inputs
+@c00200
+-dut_no_tdc :: outputs
+[color] 4
+@28
+top.can_pcs_tx_tb.dut_no_tdc.pcs_to_mac_o.bus_polarity
+@28
+top.can_pcs_tx_tb.dut_no_tdc.pcs_to_mac_o.sample_point
+@28
+top.can_pcs_tx_tb.dut_no_tdc.pcs_to_mac_o.secondary_sample_point
 @22
+top.can_pcs_tx_tb.dut_no_tdc.pcs_to_mac_o.tdc_delay
+@28
+top.can_pcs_tx_tb.dut_no_tdc.tx_bus_o
+@1401200
+-dut_no_tdc :: outputs
+@c00200
+-dut_no_tdc :: internals
+[color] 3
+@420
 top.can_pcs_tx_tb.dut_no_tdc.state
 @420
 top.can_pcs_tx_tb.dut_no_tdc.clk_count
@@ -81,25 +123,58 @@ top.can_pcs_tx_tb.dut_no_tdc.tdc_delay
 top.can_pcs_tx_tb.dut_no_tdc.prev_rx_bus
 @28
 top.can_pcs_tx_tb.dut_no_tdc.prev_tx_bus
+@420
+top.can_pcs_tx_tb.dut_no_tdc.ssp_delay
 @28
-top.can_pcs_tx_tb.dut_no_tdc.in_data_phase
+top.can_pcs_tx_tb.dut_no_tdc.ssp_standoff_valid
+@28
+top.can_pcs_tx_tb.dut_no_tdc.ssp_active
+@28
+top.can_pcs_tx_tb.dut_no_tdc.tq_tick
+@28
+top.can_pcs_tx_tb.dut_no_tdc.bit_boundary
+@420
+top.can_pcs_tx_tb.dut_no_tdc.active_bit_time
+@420
+top.can_pcs_tx_tb.dut_no_tdc.active_sp
 @1401200
--dut_no_tdc Internals
+-dut_no_tdc :: internals
 @c00200
--dut_tdc Internals
+-dut_tdc :: inputs
+[color] 5
 @28
 top.can_pcs_tx_tb.dut_tdc.clk_i
 @28
 top.can_pcs_tx_tb.dut_tdc.rst_i
-@420
-top.can_pcs_tx_tb.dut_tdc.mac_to_pcs_i
-@420
-top.can_pcs_tx_tb.dut_tdc.pcs_to_mac_o
 @28
-top.can_pcs_tx_tb.dut_tdc.tx_bus_o
+top.can_pcs_tx_tb.dut_tdc.mac_to_pcs_i.polarity
+@28
+top.can_pcs_tx_tb.dut_tdc.mac_to_pcs_i.use_data_rate
+@28
+top.can_pcs_tx_tb.dut_tdc.mac_to_pcs_i.start_tdc
 @28
 top.can_pcs_tx_tb.dut_tdc.rx_bus_i
+@1401200
+-dut_tdc :: inputs
+@c00200
+-dut_tdc :: outputs
+[color] 4
+@28
+top.can_pcs_tx_tb.dut_tdc.pcs_to_mac_o.bus_polarity
+@28
+top.can_pcs_tx_tb.dut_tdc.pcs_to_mac_o.sample_point
+@28
+top.can_pcs_tx_tb.dut_tdc.pcs_to_mac_o.secondary_sample_point
 @22
+top.can_pcs_tx_tb.dut_tdc.pcs_to_mac_o.tdc_delay
+@28
+top.can_pcs_tx_tb.dut_tdc.tx_bus_o
+@1401200
+-dut_tdc :: outputs
+@c00200
+-dut_tdc :: internals
+[color] 3
+@420
 top.can_pcs_tx_tb.dut_tdc.state
 @420
 top.can_pcs_tx_tb.dut_tdc.clk_count
@@ -117,9 +192,21 @@ top.can_pcs_tx_tb.dut_tdc.tdc_delay
 top.can_pcs_tx_tb.dut_tdc.prev_rx_bus
 @28
 top.can_pcs_tx_tb.dut_tdc.prev_tx_bus
+@420
+top.can_pcs_tx_tb.dut_tdc.ssp_delay
 @28
-top.can_pcs_tx_tb.dut_tdc.in_data_phase
+top.can_pcs_tx_tb.dut_tdc.ssp_standoff_valid
+@28
+top.can_pcs_tx_tb.dut_tdc.ssp_active
+@28
+top.can_pcs_tx_tb.dut_tdc.tq_tick
+@28
+top.can_pcs_tx_tb.dut_tdc.bit_boundary
+@420
+top.can_pcs_tx_tb.dut_tdc.active_bit_time
+@420
+top.can_pcs_tx_tb.dut_tdc.active_sp
 @1401200
--dut_tdc Internals
+-dut_tdc :: internals
 [pattern_trace] 1
 [pattern_trace] 0

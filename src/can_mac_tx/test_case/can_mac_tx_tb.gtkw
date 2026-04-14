@@ -54,9 +54,7 @@ top.can_mac_tx_tb.pcs_o.use_data_rate
 @28
 top.can_mac_tx_tb.pcs_o.start_tdc
 @28
-top.can_mac_tx_tb.fce_i.error_passive_request
-@28
-top.can_mac_tx_tb.fce_i.error_active_request
+top.can_mac_tx_tb.fce_i.error_active
 @28
 top.can_mac_tx_tb.fce_o.transmitting
 @28
@@ -66,15 +64,11 @@ top.can_mac_tx_tb.fce_o.primary_error
 @28
 top.can_mac_tx_tb.fce_o.sending_error_overload_flag
 @28
-top.can_mac_tx_tb.fce_o.counters_unchanged
+top.can_mac_tx_tb.fce_o.passive_tx_ack_error
 @28
 top.can_mac_tx_tb.fce_o.error_delimiter_too_late
 @28
 top.can_mac_tx_tb.fce_o.successful_transfer
-@28
-top.can_mac_tx_tb.fce_o.error_passive_response
-@28
-top.can_mac_tx_tb.fce_o.error_active_response
 @28
 top.can_mac_tx_tb.bus_override_en
 @22
@@ -123,9 +117,7 @@ top.can_mac_tx_tb.u_dut.pcs_i.secondary_sample_point
 @22
 top.can_mac_tx_tb.u_dut.pcs_i.tdc_delay
 @28
-top.can_mac_tx_tb.u_dut.fce_i.error_passive_request
-@28
-top.can_mac_tx_tb.u_dut.fce_i.error_active_request
+top.can_mac_tx_tb.u_dut.fce_i.error_active
 @1401200
 -u_dut :: inputs
 @c00200
@@ -152,15 +144,11 @@ top.can_mac_tx_tb.u_dut.fce_o.primary_error
 @28
 top.can_mac_tx_tb.u_dut.fce_o.sending_error_overload_flag
 @28
-top.can_mac_tx_tb.u_dut.fce_o.counters_unchanged
+top.can_mac_tx_tb.u_dut.fce_o.passive_tx_ack_error
 @28
 top.can_mac_tx_tb.u_dut.fce_o.error_delimiter_too_late
 @28
 top.can_mac_tx_tb.u_dut.fce_o.successful_transfer
-@28
-top.can_mac_tx_tb.u_dut.fce_o.error_passive_response
-@28
-top.can_mac_tx_tb.u_dut.fce_o.error_active_response
 @1401200
 -u_dut :: outputs
 @c00200
@@ -317,9 +305,7 @@ top.can_mac_tx_tb.u_dut.u_can_mac_fsm_tx.bs_i.stuff_bit_count
 @22
 top.can_mac_tx_tb.u_dut.u_can_mac_fsm_tx.crc_i.crc
 @28
-top.can_mac_tx_tb.u_dut.u_can_mac_fsm_tx.fce_i.error_passive_request
-@28
-top.can_mac_tx_tb.u_dut.u_can_mac_fsm_tx.fce_i.error_active_request
+top.can_mac_tx_tb.u_dut.u_can_mac_fsm_tx.fce_i.error_active
 @1401200
 -u_dut/u_can_mac_fsm_tx :: inputs
 @c00200
@@ -366,15 +352,11 @@ top.can_mac_tx_tb.u_dut.u_can_mac_fsm_tx.fce_o.primary_error
 @28
 top.can_mac_tx_tb.u_dut.u_can_mac_fsm_tx.fce_o.sending_error_overload_flag
 @28
-top.can_mac_tx_tb.u_dut.u_can_mac_fsm_tx.fce_o.counters_unchanged
+top.can_mac_tx_tb.u_dut.u_can_mac_fsm_tx.fce_o.passive_tx_ack_error
 @28
 top.can_mac_tx_tb.u_dut.u_can_mac_fsm_tx.fce_o.error_delimiter_too_late
 @28
 top.can_mac_tx_tb.u_dut.u_can_mac_fsm_tx.fce_o.successful_transfer
-@28
-top.can_mac_tx_tb.u_dut.u_can_mac_fsm_tx.fce_o.error_passive_response
-@28
-top.can_mac_tx_tb.u_dut.u_can_mac_fsm_tx.fce_o.error_active_response
 @1401200
 -u_dut/u_can_mac_fsm_tx :: outputs
 @c00200

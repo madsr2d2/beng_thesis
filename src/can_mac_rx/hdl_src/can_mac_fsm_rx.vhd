@@ -183,9 +183,8 @@ begin
               -------------------------------------------------------------
               fce_o.sending_error_overload_flag <= '1';
               fce_o.error         <= '1';
-              pcs_o.valid         <= '1';
               pcs_o.use_data_rate <= '0';
-              pcs_o.polarity      <= c_recessive when fce_i.error_passive_request = '1' else c_dominant;
+              pcs_o.polarity      <= c_recessive when fce_i.error_active = '0' else c_dominant;
               fsm_state           <= s_error_overload;
               bit_count           <= 0;
               -------------------------------------------------------------
@@ -422,8 +421,7 @@ begin
                 -------------------------------------------------------------
                 fce_o.sending_error_overload_flag <= '1';
                 fce_o.error         <= '1';
-                pcs_o.valid         <= '1';
-                pcs_o.polarity      <= c_recessive when fce_i.error_passive_request = '1' else c_dominant;
+                pcs_o.polarity      <= c_recessive when fce_i.error_active = '0' else c_dominant;
                 fsm_state           <= s_error_overload;
                 bit_count           <= 0;
                 -------------------------------------------------------------
@@ -454,15 +452,13 @@ begin
                   -------------------------------------------------------------
                   fce_o.sending_error_overload_flag <= '1';
                   fce_o.error                       <= '1';
-                  pcs_o.valid                       <= '1';
-                  pcs_o.polarity                    <= c_recessive when fce_i.error_passive_request = '1' else c_dominant;
+                  pcs_o.polarity                    <= c_recessive when fce_i.error_active = '0' else c_dominant;
                   fsm_state                         <= s_error_overload;
                   bit_count                         <= 0;
                   -------------------------------------------------------------
                 else
                   -- CRC delimiter OK: switch back to nominal rate and drive ACK
                   pcs_o.use_data_rate <= '0';
-                  pcs_o.valid         <= '1';
                   pcs_o.polarity      <= c_dominant;
                   fsm_state           <= s_ack;
                   bit_count           <= 0;
@@ -479,7 +475,6 @@ begin
             if (pcs_i.sample_point = '1') then
               if (bit_count = 0) then
                 -- ACK slot bit 0: drive dominant to acknowledge
-                pcs_o.valid    <= '0';
                 pcs_o.polarity <= c_recessive;
                 bit_count      <= 1;
               elsif (bit_count = 1 and llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1') then
@@ -490,8 +485,7 @@ begin
                 if (pcs_i.bus_polarity = c_dominant) then
                   fce_o.sending_error_overload_flag <= '1';
                   fce_o.error    <= '1';
-                  pcs_o.valid    <= '1';
-                  pcs_o.polarity <= c_recessive when fce_i.error_passive_request = '1' else c_dominant;
+                  pcs_o.polarity <= c_recessive when fce_i.error_active = '0' else c_dominant;
                   fsm_state      <= s_error_overload;
                   bit_count      <= 0;
                 else
@@ -512,13 +506,12 @@ begin
                   -- ISO 6.6.15.2: last EOF bit dominant is overload, not form error
                   fce_o.sending_error_overload_flag <= '1';
                   fce_o.error                       <= '1';
-                  pcs_o.valid                       <= '1';
 
                   if bit_count = (c_eof_field_width - 1) then -- Overload if last EOF bit is dominant
                     pcs_o.polarity <=  c_dominant;
                     overload       <= true;
                   else -- Else form error
-                    pcs_o.polarity <= c_recessive when fce_i.error_passive_request = '1' else c_dominant;
+                    pcs_o.polarity <= c_recessive when fce_i.error_active = '0' else c_dominant;
                   end if;
                   fsm_state <= s_error_overload;
                   bit_count <= 0;
@@ -556,7 +549,6 @@ begin
                 -- ISO 11898-1: Dominant in first two bits of IFS is overload
                 -------------------------------------------------------------
                 fce_o.sending_error_overload_flag <= '1';
-                pcs_o.valid                       <= '1';
                 pcs_o.polarity                    <= c_dominant;
                 fsm_state                         <= s_error_overload;
                 overload                          <= true;
@@ -572,7 +564,6 @@ begin
           -- -----------------------------------------------------------
           when s_error_overload =>
             if (pcs_i.sample_point = '1') then
-              pcs_o.valid                       <= '1';
               fce_o.sending_error_overload_flag <= '1';
               bit_count <= bit_count + 1;
 
@@ -581,7 +572,6 @@ begin
                 bit_count <= 0;
 
                 if pcs_i.bus_polarity /= c_dominant then
-                  pcs_o.valid <= '0';
                   fsm_state   <= s_intermission;
                 else
                   -- Last bit of flag delimiter seen dominant is overload, so we start sending a new overload flag (ISO : 6.6.15.2).
@@ -589,7 +579,7 @@ begin
                 end if;
               elsif (bit_count < c_error_flag_width) then
                 -- Send flag (overload is always dominant)
-                pcs_o.polarity <= c_recessive when (fce_i.error_passive_request = '1') and not overload else c_dominant;
+                pcs_o.polarity <= c_recessive when (fce_i.error_active = '0') and not overload else c_dominant;
               else
                 -- Send delimiter
                 pcs_o.polarity <= c_recessive;
@@ -604,7 +594,6 @@ begin
         -- Skip ACK drive, LLC delivery, and FCE error signaling.
         -----------------------------------------------------------------
         if (transmitting_i) then
-          pcs_o.valid      <= '0';
           pcs_o.polarity   <= '1';
           fce_o            <= c_mac_to_fce_if_reset;
           llc_stream_start <= false;

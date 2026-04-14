@@ -1,0 +1,964 @@
+[*]
+[*] GTKWave save file - auto-generated from can_mac_tb.ghw
+[*]
+[dumpfile] "/home/madsr2d2/beng_thesis/sim/can_mac_tb.ghw"
+[savefile] "/home/madsr2d2/beng_thesis/src/can_mac/test_case/can_mac_tb.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] 0 0
+*-22.000000 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.can_mac_tb.
+[sst_width] 320
+[signals_width] 460
+[sst_expanded] 1
+[sst_vpaned_height] 480
+[treeopen] top.can_mac_tb.u_mac_tx.
+[treeopen] top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.
+[treeopen] top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.
+[treeopen] top.can_mac_tb.u_mac_tx.u_can_mac_bs.
+[treeopen] top.can_mac_tb.u_mac_tx.u_can_mac_crc.
+[treeopen] top.can_mac_tb.u_mac_rx.
+[treeopen] top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.
+[treeopen] top.can_mac_tb.u_mac_rx.u_can_mac_bs.
+[treeopen] top.can_mac_tb.u_mac_rx.u_can_mac_crc.
+@c00200
+-can_mac_tb :: TB
+[color] 1
+@28
+top.can_mac_tb.clk
+@28
+top.can_mac_tb.reset
+@28
+top.can_mac_tb.bus_level
+@22
+top.can_mac_tb.tx_llc_i.avalon_st_source.data
+@28
+top.can_mac_tb.tx_llc_i.avalon_st_source.valid
+@28
+top.can_mac_tb.tx_llc_i.avalon_st_source.startofpacket
+@28
+top.can_mac_tb.tx_llc_i.avalon_st_source.endofpacket
+@28
+top.can_mac_tb.tx_llc_o.avalon_st_sink.ready
+@22
+top.can_mac_tb.tx_llc_o.transfer_status
+@28
+top.can_mac_tb.tx_pcs_i.bus_polarity
+@28
+top.can_mac_tb.tx_pcs_i.sample_point
+@28
+top.can_mac_tb.tx_pcs_i.secondary_sample_point
+@22
+top.can_mac_tb.tx_pcs_i.tdc_delay
+@28
+top.can_mac_tb.tx_pcs_o.polarity
+@28
+top.can_mac_tb.tx_pcs_o.use_data_rate
+@28
+top.can_mac_tb.tx_pcs_o.start_tdc
+@28
+top.can_mac_tb.tx_fce_i.error_active
+@28
+top.can_mac_tb.tx_fce_o.transmitting
+@28
+top.can_mac_tb.tx_fce_o.error
+@28
+top.can_mac_tb.tx_fce_o.primary_error
+@28
+top.can_mac_tb.tx_fce_o.sending_error_overload_flag
+@28
+top.can_mac_tb.tx_fce_o.passive_tx_ack_error
+@28
+top.can_mac_tb.tx_fce_o.error_delimiter_too_late
+@28
+top.can_mac_tb.tx_fce_o.successful_transfer
+@22
+top.can_mac_tb.status_latch
+@28
+top.can_mac_tb.clear_status
+@28
+top.can_mac_tb.rx_llc_i.avalon_st_sink.ready
+@22
+top.can_mac_tb.rx_llc_o.avalon_st_source.data
+@28
+top.can_mac_tb.rx_llc_o.avalon_st_source.valid
+@28
+top.can_mac_tb.rx_llc_o.avalon_st_source.startofpacket
+@28
+top.can_mac_tb.rx_llc_o.avalon_st_source.endofpacket
+@28
+top.can_mac_tb.rx_pcs_i.bus_polarity
+@28
+top.can_mac_tb.rx_pcs_i.sample_point
+@28
+top.can_mac_tb.rx_pcs_i.secondary_sample_point
+@22
+top.can_mac_tb.rx_pcs_i.tdc_delay
+@28
+top.can_mac_tb.rx_pcs_o.polarity
+@28
+top.can_mac_tb.rx_pcs_o.use_data_rate
+@28
+top.can_mac_tb.rx_pcs_o.start_tdc
+@28
+top.can_mac_tb.rx_fce_i.error_active
+@28
+top.can_mac_tb.rx_fce_o.transmitting
+@28
+top.can_mac_tb.rx_fce_o.error
+@28
+top.can_mac_tb.rx_fce_o.primary_error
+@28
+top.can_mac_tb.rx_fce_o.sending_error_overload_flag
+@28
+top.can_mac_tb.rx_fce_o.passive_tx_ack_error
+@28
+top.can_mac_tb.rx_fce_o.error_delimiter_too_late
+@28
+top.can_mac_tb.rx_fce_o.successful_transfer
+@420
+top.can_mac_tb.test_id
+@420
+top.can_mac_tb.check_id
+@28
+top.can_mac_tb.init_barrier
+@420
+top.can_mac_tb.test_num
+@28
+top.can_mac_tb.transmitting
+@28
+top.can_mac_tb.pcs_valid_seen
+@28
+top.can_mac_tb.llc_valid_seen
+@28
+top.can_mac_tb.fce_active_seen
+@28
+top.can_mac_tb.clear_latches
+@1401200
+-can_mac_tb :: TB
+@c00200
+-u_mac_tx :: inputs
+[color] 5
+@28
+top.can_mac_tb.u_mac_tx.clk
+@28
+top.can_mac_tb.u_mac_tx.rst
+@22
+top.can_mac_tb.u_mac_tx.llc_i.avalon_st_source.data
+@28
+top.can_mac_tb.u_mac_tx.llc_i.avalon_st_source.valid
+@28
+top.can_mac_tb.u_mac_tx.llc_i.avalon_st_source.startofpacket
+@28
+top.can_mac_tb.u_mac_tx.llc_i.avalon_st_source.endofpacket
+@28
+top.can_mac_tb.u_mac_tx.pcs_i.bus_polarity
+@28
+top.can_mac_tb.u_mac_tx.pcs_i.sample_point
+@28
+top.can_mac_tb.u_mac_tx.pcs_i.secondary_sample_point
+@22
+top.can_mac_tb.u_mac_tx.pcs_i.tdc_delay
+@28
+top.can_mac_tb.u_mac_tx.fce_i.error_active
+@1401200
+-u_mac_tx :: inputs
+@c00200
+-u_mac_tx :: outputs
+[color] 4
+@28
+top.can_mac_tb.u_mac_tx.llc_o.avalon_st_sink.ready
+@22
+top.can_mac_tb.u_mac_tx.llc_o.transfer_status
+@28
+top.can_mac_tb.u_mac_tx.pcs_o.polarity
+@28
+top.can_mac_tb.u_mac_tx.pcs_o.use_data_rate
+@28
+top.can_mac_tb.u_mac_tx.pcs_o.start_tdc
+@28
+top.can_mac_tb.u_mac_tx.fce_o.transmitting
+@28
+top.can_mac_tb.u_mac_tx.fce_o.error
+@28
+top.can_mac_tb.u_mac_tx.fce_o.primary_error
+@28
+top.can_mac_tb.u_mac_tx.fce_o.sending_error_overload_flag
+@28
+top.can_mac_tb.u_mac_tx.fce_o.passive_tx_ack_error
+@28
+top.can_mac_tb.u_mac_tx.fce_o.error_delimiter_too_late
+@28
+top.can_mac_tb.u_mac_tx.fce_o.successful_transfer
+@1401200
+-u_mac_tx :: outputs
+@c00200
+-u_mac_tx :: internals
+[color] 3
+@28
+top.can_mac_tb.u_mac_tx.ser_to_fsm.data
+@28
+top.can_mac_tb.u_mac_tx.ser_to_fsm.valid
+@28
+top.can_mac_tb.u_mac_tx.ser_to_fsm.llc_metadata.ide
+@28
+top.can_mac_tb.u_mac_tx.ser_to_fsm.llc_metadata.fdf
+@22
+top.can_mac_tb.u_mac_tx.ser_to_fsm.llc_metadata.dlc
+@28
+top.can_mac_tb.u_mac_tx.ser_to_fsm.llc_metadata.ftyp
+@28
+top.can_mac_tb.u_mac_tx.ser_to_fsm.llc_metadata.brs
+@28
+top.can_mac_tb.u_mac_tx.ser_to_fsm.llc_metadata.esi
+@22
+top.can_mac_tb.u_mac_tx.fsm_to_ser.transfer_status
+@28
+top.can_mac_tb.u_mac_tx.fsm_to_ser.ready
+@28
+top.can_mac_tb.u_mac_tx.fsm_to_bs_fd.data
+@28
+top.can_mac_tb.u_mac_tx.fsm_to_bs_fd.valid
+@28
+top.can_mac_tb.u_mac_tx.fsm_to_bs_fd.fixed_bit_stuffing_en
+@28
+top.can_mac_tb.u_mac_tx.bs_fd_to_fsm.data
+@28
+top.can_mac_tb.u_mac_tx.bs_fd_to_fsm.valid
+@22
+top.can_mac_tb.u_mac_tx.bs_fd_to_fsm.stuff_bit_count
+@28
+top.can_mac_tb.u_mac_tx.fsm_bs_fd_rst
+@22
+top.can_mac_tb.u_mac_tx.fsm_to_crc.crc_poly_select
+@28
+top.can_mac_tb.u_mac_tx.fsm_to_crc.valid_cc
+@28
+top.can_mac_tb.u_mac_tx.fsm_to_crc.valid_fd
+@28
+top.can_mac_tb.u_mac_tx.fsm_to_crc.data_cc
+@28
+top.can_mac_tb.u_mac_tx.fsm_to_crc.data_fd
+@22
+top.can_mac_tb.u_mac_tx.crc_to_fsm.crc
+@28
+top.can_mac_tb.u_mac_tx.fsm_crc_rst
+@1401200
+-u_mac_tx :: internals
+@c00200
+-u_mac_tx/u_can_mac_ser_tx :: inputs
+[color] 5
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.clk_i
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.rst_i
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.llc_i.avalon_st_source.data
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.llc_i.avalon_st_source.valid
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.llc_i.avalon_st_source.startofpacket
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.llc_i.avalon_st_source.endofpacket
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.tx_mac_fsm_i.transfer_status
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.tx_mac_fsm_i.ready
+@1401200
+-u_mac_tx/u_can_mac_ser_tx :: inputs
+@c00200
+-u_mac_tx/u_can_mac_ser_tx :: outputs
+[color] 4
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.llc_o.avalon_st_sink.ready
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.llc_o.transfer_status
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.tx_mac_fsm_o.data
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.tx_mac_fsm_o.valid
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.tx_mac_fsm_o.llc_metadata.ide
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.tx_mac_fsm_o.llc_metadata.fdf
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.tx_mac_fsm_o.llc_metadata.dlc
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.tx_mac_fsm_o.llc_metadata.ftyp
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.tx_mac_fsm_o.llc_metadata.brs
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.tx_mac_fsm_o.llc_metadata.esi
+@1401200
+-u_mac_tx/u_can_mac_ser_tx :: outputs
+@c00200
+-u_mac_tx/u_can_mac_ser_tx :: internals
+[color] 3
+@420
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.state
+@420
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.count
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.llc_frame_buffer
+@420
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.id_bits_remaining
+@420
+top.can_mac_tb.u_mac_tx.u_can_mac_ser_tx.padding_bits_remaining
+@1401200
+-u_mac_tx/u_can_mac_ser_tx :: internals
+@c00200
+-u_mac_tx/u_can_mac_fsm_tx :: inputs
+[color] 5
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.clk_i
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.rst_i
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.mac_ser_i.data
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.mac_ser_i.valid
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.mac_ser_i.llc_metadata.ide
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.mac_ser_i.llc_metadata.fdf
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.mac_ser_i.llc_metadata.dlc
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.mac_ser_i.llc_metadata.ftyp
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.mac_ser_i.llc_metadata.brs
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.mac_ser_i.llc_metadata.esi
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.pcs_i.bus_polarity
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.pcs_i.sample_point
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.pcs_i.secondary_sample_point
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.pcs_i.tdc_delay
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.bs_i.data
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.bs_i.valid
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.bs_i.stuff_bit_count
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.crc_i.crc
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.fce_i.error_active
+@1401200
+-u_mac_tx/u_can_mac_fsm_tx :: inputs
+@c00200
+-u_mac_tx/u_can_mac_fsm_tx :: outputs
+[color] 4
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.mac_ser_o.transfer_status
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.mac_ser_o.ready
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.pcs_o.polarity
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.pcs_o.use_data_rate
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.pcs_o.start_tdc
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.bs_o.data
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.bs_o.valid
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.bs_o.fixed_bit_stuffing_en
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.bs_rst
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.crc_o.crc_poly_select
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.crc_o.valid_cc
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.crc_o.valid_fd
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.crc_o.data_cc
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.crc_o.data_fd
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.crc_rst
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.fce_o.transmitting
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.fce_o.error
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.fce_o.primary_error
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.fce_o.sending_error_overload_flag
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.fce_o.passive_tx_ack_error
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.fce_o.error_delimiter_too_late
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.fce_o.successful_transfer
+@1401200
+-u_mac_tx/u_can_mac_fsm_tx :: outputs
+@c00200
+-u_mac_tx/u_can_mac_fsm_tx :: internals
+[color] 3
+@420
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.state
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.overload
+@420
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.bit_count
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.polarity_history
+@420
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.data_len
+@420
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.crc_length
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.was_previous_frame_tx
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.ack_success_seen
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.secondary_sample_point_error_pending
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.skip_sof
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.ack_error_caused_flag
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.dominant_seen_during_flag
+@420
+top.can_mac_tb.u_mac_tx.u_can_mac_fsm_tx.dominant_run_count
+@1401200
+-u_mac_tx/u_can_mac_fsm_tx :: internals
+@c00200
+-u_mac_tx/u_can_mac_bs :: inputs
+[color] 5
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_bs.clk_i
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_bs.rst_i
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_bs.bs_i.data
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_bs.bs_i.valid
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_bs.bs_i.fixed_bit_stuffing_en
+@1401200
+-u_mac_tx/u_can_mac_bs :: inputs
+@c00200
+-u_mac_tx/u_can_mac_bs :: outputs
+[color] 4
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_bs.bs_o.data
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_bs.bs_o.valid
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_bs.bs_o.stuff_bit_count
+@1401200
+-u_mac_tx/u_can_mac_bs :: outputs
+@c00200
+-u_mac_tx/u_can_mac_bs :: internals
+[color] 3
+@420
+top.can_mac_tb.u_mac_tx.u_can_mac_bs.count
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_bs.last_polarity
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_bs.stuff_count
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_bs.fsb_en_latch
+@1401200
+-u_mac_tx/u_can_mac_bs :: internals
+@c00200
+-u_mac_tx/u_can_mac_crc :: inputs
+[color] 5
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.clk_i
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.rst_i
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.crc_i.crc_poly_select
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.crc_i.valid_cc
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.crc_i.valid_fd
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.crc_i.data_cc
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.crc_i.data_fd
+@1401200
+-u_mac_tx/u_can_mac_crc :: inputs
+@c00200
+-u_mac_tx/u_can_mac_crc :: outputs
+[color] 4
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.crc_o.crc
+@1401200
+-u_mac_tx/u_can_mac_crc :: outputs
+@c00200
+-u_mac_tx/u_can_mac_crc :: internals
+[color] 3
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.crc15_out
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.crc17_out
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.crc21_out
+@1401200
+-u_mac_tx/u_can_mac_crc :: internals
+@c00200
+-u_mac_tx/u_can_mac_crc/u_crc15 :: inputs
+[color] 5
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc15.clk_i
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc15.reset_i
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc15.start_crc_i
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc15.data_i
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc15.data_valid_i
+@1401200
+-u_mac_tx/u_can_mac_crc/u_crc15 :: inputs
+@c00200
+-u_mac_tx/u_can_mac_crc/u_crc15 :: outputs
+[color] 4
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc15.crc_o
+@1401200
+-u_mac_tx/u_can_mac_crc/u_crc15 :: outputs
+@c00200
+-u_mac_tx/u_can_mac_crc/u_crc15 :: internals
+[color] 3
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc15.crc_reg
+@1401200
+-u_mac_tx/u_can_mac_crc/u_crc15 :: internals
+@c00200
+-u_mac_tx/u_can_mac_crc/u_crc17 :: inputs
+[color] 5
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc17.clk_i
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc17.reset_i
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc17.start_crc_i
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc17.data_i
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc17.data_valid_i
+@1401200
+-u_mac_tx/u_can_mac_crc/u_crc17 :: inputs
+@c00200
+-u_mac_tx/u_can_mac_crc/u_crc17 :: outputs
+[color] 4
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc17.crc_o
+@1401200
+-u_mac_tx/u_can_mac_crc/u_crc17 :: outputs
+@c00200
+-u_mac_tx/u_can_mac_crc/u_crc17 :: internals
+[color] 3
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc17.crc_reg
+@1401200
+-u_mac_tx/u_can_mac_crc/u_crc17 :: internals
+@c00200
+-u_mac_tx/u_can_mac_crc/u_crc21 :: inputs
+[color] 5
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc21.clk_i
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc21.reset_i
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc21.start_crc_i
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc21.data_i
+@28
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc21.data_valid_i
+@1401200
+-u_mac_tx/u_can_mac_crc/u_crc21 :: inputs
+@c00200
+-u_mac_tx/u_can_mac_crc/u_crc21 :: outputs
+[color] 4
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc21.crc_o
+@1401200
+-u_mac_tx/u_can_mac_crc/u_crc21 :: outputs
+@c00200
+-u_mac_tx/u_can_mac_crc/u_crc21 :: internals
+[color] 3
+@22
+top.can_mac_tb.u_mac_tx.u_can_mac_crc.u_crc21.crc_reg
+@1401200
+-u_mac_tx/u_can_mac_crc/u_crc21 :: internals
+@c00200
+-u_mac_rx :: inputs
+[color] 5
+@28
+top.can_mac_tb.u_mac_rx.clk
+@28
+top.can_mac_tb.u_mac_rx.rst
+@28
+top.can_mac_tb.u_mac_rx.llc_i.avalon_st_sink.ready
+@28
+top.can_mac_tb.u_mac_rx.pcs_i.bus_polarity
+@28
+top.can_mac_tb.u_mac_rx.pcs_i.sample_point
+@28
+top.can_mac_tb.u_mac_rx.pcs_i.secondary_sample_point
+@22
+top.can_mac_tb.u_mac_rx.pcs_i.tdc_delay
+@28
+top.can_mac_tb.u_mac_rx.fce_i.error_active
+@28
+top.can_mac_tb.u_mac_rx.transmitting_i
+@1401200
+-u_mac_rx :: inputs
+@c00200
+-u_mac_rx :: outputs
+[color] 4
+@22
+top.can_mac_tb.u_mac_rx.llc_o.avalon_st_source.data
+@28
+top.can_mac_tb.u_mac_rx.llc_o.avalon_st_source.valid
+@28
+top.can_mac_tb.u_mac_rx.llc_o.avalon_st_source.startofpacket
+@28
+top.can_mac_tb.u_mac_rx.llc_o.avalon_st_source.endofpacket
+@28
+top.can_mac_tb.u_mac_rx.pcs_o.polarity
+@28
+top.can_mac_tb.u_mac_rx.pcs_o.use_data_rate
+@28
+top.can_mac_tb.u_mac_rx.pcs_o.start_tdc
+@28
+top.can_mac_tb.u_mac_rx.fce_o.transmitting
+@28
+top.can_mac_tb.u_mac_rx.fce_o.error
+@28
+top.can_mac_tb.u_mac_rx.fce_o.primary_error
+@28
+top.can_mac_tb.u_mac_rx.fce_o.sending_error_overload_flag
+@28
+top.can_mac_tb.u_mac_rx.fce_o.passive_tx_ack_error
+@28
+top.can_mac_tb.u_mac_rx.fce_o.error_delimiter_too_late
+@28
+top.can_mac_tb.u_mac_rx.fce_o.successful_transfer
+@1401200
+-u_mac_rx :: outputs
+@c00200
+-u_mac_rx :: internals
+[color] 3
+@28
+top.can_mac_tb.u_mac_rx.fsm_to_bs.data
+@28
+top.can_mac_tb.u_mac_rx.fsm_to_bs.valid
+@28
+top.can_mac_tb.u_mac_rx.fsm_to_bs.fixed_bit_stuffing_en
+@28
+top.can_mac_tb.u_mac_rx.bs_to_fsm.data
+@28
+top.can_mac_tb.u_mac_rx.bs_to_fsm.valid
+@22
+top.can_mac_tb.u_mac_rx.bs_to_fsm.stuff_bit_count
+@28
+top.can_mac_tb.u_mac_rx.fsm_bs_rst
+@22
+top.can_mac_tb.u_mac_rx.fsm_to_crc.crc_poly_select
+@28
+top.can_mac_tb.u_mac_rx.fsm_to_crc.valid_cc
+@28
+top.can_mac_tb.u_mac_rx.fsm_to_crc.valid_fd
+@28
+top.can_mac_tb.u_mac_rx.fsm_to_crc.data_cc
+@28
+top.can_mac_tb.u_mac_rx.fsm_to_crc.data_fd
+@22
+top.can_mac_tb.u_mac_rx.crc_to_fsm.crc
+@28
+top.can_mac_tb.u_mac_rx.fsm_crc_rst
+@1401200
+-u_mac_rx :: internals
+@c00200
+-u_mac_rx/u_can_mac_fsm_rx :: inputs
+[color] 5
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.clk_i
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.rst_i
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.llc_i.avalon_st_sink.ready
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.pcs_i.bus_polarity
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.pcs_i.sample_point
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.pcs_i.secondary_sample_point
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.pcs_i.tdc_delay
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.bs_i.data
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.bs_i.valid
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.bs_i.stuff_bit_count
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.crc_i.crc
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.fce_i.error_active
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.transmitting_i
+@1401200
+-u_mac_rx/u_can_mac_fsm_rx :: inputs
+@c00200
+-u_mac_rx/u_can_mac_fsm_rx :: outputs
+[color] 4
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.llc_o.avalon_st_source.data
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.llc_o.avalon_st_source.valid
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.llc_o.avalon_st_source.startofpacket
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.llc_o.avalon_st_source.endofpacket
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.pcs_o.polarity
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.pcs_o.use_data_rate
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.pcs_o.start_tdc
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.bs_o.data
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.bs_o.valid
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.bs_o.fixed_bit_stuffing_en
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.bs_rst
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.crc_o.crc_poly_select
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.crc_o.valid_cc
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.crc_o.valid_fd
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.crc_o.data_cc
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.crc_o.data_fd
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.crc_rst
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.fce_o.transmitting
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.fce_o.error
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.fce_o.primary_error
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.fce_o.sending_error_overload_flag
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.fce_o.passive_tx_ack_error
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.fce_o.error_delimiter_too_late
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.fce_o.successful_transfer
+@1401200
+-u_mac_rx/u_can_mac_fsm_rx :: outputs
+@c00200
+-u_mac_rx/u_can_mac_fsm_rx :: internals
+[color] 3
+@420
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.fsm_state
+@420
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.bit_count
+@420
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.byte_index
+@420
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.stream_index
+@420
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.bit_index
+@420
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.data_len
+@420
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.crc_length
+@420
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.llc_frame_len
+@420
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.llc_frame
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.crc_mismatch
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.llc_stream_start
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.llc_stream_done
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.overload
+@1401200
+-u_mac_rx/u_can_mac_fsm_rx :: internals
+@c00200
+-u_mac_rx/u_can_mac_bs :: inputs
+[color] 5
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_bs.clk_i
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_bs.rst_i
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_bs.bs_i.data
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_bs.bs_i.valid
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_bs.bs_i.fixed_bit_stuffing_en
+@1401200
+-u_mac_rx/u_can_mac_bs :: inputs
+@c00200
+-u_mac_rx/u_can_mac_bs :: outputs
+[color] 4
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_bs.bs_o.data
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_bs.bs_o.valid
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_bs.bs_o.stuff_bit_count
+@1401200
+-u_mac_rx/u_can_mac_bs :: outputs
+@c00200
+-u_mac_rx/u_can_mac_bs :: internals
+[color] 3
+@420
+top.can_mac_tb.u_mac_rx.u_can_mac_bs.count
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_bs.last_polarity
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_bs.stuff_count
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_bs.fsb_en_latch
+@1401200
+-u_mac_rx/u_can_mac_bs :: internals
+@c00200
+-u_mac_rx/u_can_mac_crc :: inputs
+[color] 5
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.clk_i
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.rst_i
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.crc_i.crc_poly_select
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.crc_i.valid_cc
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.crc_i.valid_fd
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.crc_i.data_cc
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.crc_i.data_fd
+@1401200
+-u_mac_rx/u_can_mac_crc :: inputs
+@c00200
+-u_mac_rx/u_can_mac_crc :: outputs
+[color] 4
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.crc_o.crc
+@1401200
+-u_mac_rx/u_can_mac_crc :: outputs
+@c00200
+-u_mac_rx/u_can_mac_crc :: internals
+[color] 3
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.crc15_out
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.crc17_out
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.crc21_out
+@1401200
+-u_mac_rx/u_can_mac_crc :: internals
+@c00200
+-u_mac_rx/u_can_mac_crc/u_crc15 :: inputs
+[color] 5
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc15.clk_i
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc15.reset_i
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc15.start_crc_i
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc15.data_i
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc15.data_valid_i
+@1401200
+-u_mac_rx/u_can_mac_crc/u_crc15 :: inputs
+@c00200
+-u_mac_rx/u_can_mac_crc/u_crc15 :: outputs
+[color] 4
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc15.crc_o
+@1401200
+-u_mac_rx/u_can_mac_crc/u_crc15 :: outputs
+@c00200
+-u_mac_rx/u_can_mac_crc/u_crc15 :: internals
+[color] 3
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc15.crc_reg
+@1401200
+-u_mac_rx/u_can_mac_crc/u_crc15 :: internals
+@c00200
+-u_mac_rx/u_can_mac_crc/u_crc17 :: inputs
+[color] 5
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc17.clk_i
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc17.reset_i
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc17.start_crc_i
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc17.data_i
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc17.data_valid_i
+@1401200
+-u_mac_rx/u_can_mac_crc/u_crc17 :: inputs
+@c00200
+-u_mac_rx/u_can_mac_crc/u_crc17 :: outputs
+[color] 4
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc17.crc_o
+@1401200
+-u_mac_rx/u_can_mac_crc/u_crc17 :: outputs
+@c00200
+-u_mac_rx/u_can_mac_crc/u_crc17 :: internals
+[color] 3
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc17.crc_reg
+@1401200
+-u_mac_rx/u_can_mac_crc/u_crc17 :: internals
+@c00200
+-u_mac_rx/u_can_mac_crc/u_crc21 :: inputs
+[color] 5
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc21.clk_i
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc21.reset_i
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc21.start_crc_i
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc21.data_i
+@28
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc21.data_valid_i
+@1401200
+-u_mac_rx/u_can_mac_crc/u_crc21 :: inputs
+@c00200
+-u_mac_rx/u_can_mac_crc/u_crc21 :: outputs
+[color] 4
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc21.crc_o
+@1401200
+-u_mac_rx/u_can_mac_crc/u_crc21 :: outputs
+@c00200
+-u_mac_rx/u_can_mac_crc/u_crc21 :: internals
+[color] 3
+@22
+top.can_mac_tb.u_mac_rx.u_can_mac_crc.u_crc21.crc_reg
+@1401200
+-u_mac_rx/u_can_mac_crc/u_crc21 :: internals
+[pattern_trace] 1
+[pattern_trace] 0

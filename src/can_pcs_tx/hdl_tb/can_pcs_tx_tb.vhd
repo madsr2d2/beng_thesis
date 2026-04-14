@@ -146,7 +146,6 @@ begin
     ) is
     begin
       mac_to_pcs_1.polarity <= pol;
-      mac_to_pcs_1.valid    <= '1';
       wait_clocks(hold_clocks);
     end procedure send_nom_bit_1;
 
@@ -219,7 +218,6 @@ begin
     ) is
     begin
       mac_to_pcs_2.polarity <= pol;
-      mac_to_pcs_2.valid    <= '1';
       wait_clocks(hold_clocks);
     end procedure send_nom_bit_2;
 

@@ -88,10 +88,8 @@ begin
   fce_o.error                       <= tx_fce_o.error or rx_fce_o.error;
   fce_o.primary_error               <= tx_fce_o.primary_error or rx_fce_o.primary_error;
   fce_o.sending_error_overload_flag <= tx_fce_o.sending_error_overload_flag or rx_fce_o.sending_error_overload_flag;
-  fce_o.counters_unchanged          <= tx_fce_o.counters_unchanged or rx_fce_o.counters_unchanged;
+  fce_o.passive_tx_ack_error        <= tx_fce_o.passive_tx_ack_error or rx_fce_o.passive_tx_ack_error;
   fce_o.error_delimiter_too_late    <= tx_fce_o.error_delimiter_too_late or rx_fce_o.error_delimiter_too_late;
   fce_o.successful_transfer         <= tx_fce_o.successful_transfer or rx_fce_o.successful_transfer;
-  fce_o.error_passive_response      <= tx_fce_o.error_passive_response or rx_fce_o.error_passive_response;
-  fce_o.error_active_response       <= tx_fce_o.error_active_response or rx_fce_o.error_active_response;
 
 end architecture rtl;

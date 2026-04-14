@@ -107,7 +107,6 @@ begin
       gc_data_prop_seg   => gc_data_prop_seg,
       gc_data_phase_seg1 => gc_data_phase_seg1,
       gc_data_phase_seg2 => gc_data_phase_seg2,
-      gc_ssp_offset      => gc_ssp_offset,
       gc_tdc_enable      => gc_tdc_enable
     )
     port map (

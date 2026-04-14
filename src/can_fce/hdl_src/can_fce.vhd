@@ -110,17 +110,15 @@ begin
           when s_error_active | s_error_passive =>
             llc_o.bus_off <= '0';
             if (fce_state = s_error_passive) then
-              mac_o.error_passive_request <= '1';
-              mac_o.error_active_request  <= '0';
+              mac_o.error_active  <= '0';
             else
-              mac_o.error_passive_request <= '0';
-              mac_o.error_active_request  <= '1';
+              mac_o.error_active  <= '1';
             end if;
 
             ---------------------------------------------------------------
             -- TEC updates (ISO 8.1.4.2)
             ---------------------------------------------------------------
-            if (mac_i.error = '1' and mac_i.transmitting = '1' and mac_i.counters_unchanged = '0') then
+            if (mac_i.error = '1' and mac_i.transmitting = '1' and mac_i.passive_tx_ack_error = '0') then
               tec <= count_up(tec, 8, c_fce_tec_max); -- Rule c: TEC += 8
             elsif (mac_i.error_delimiter_too_late = '1' and mac_i.transmitting = '1') then
               tec <= count_up(tec, 8, c_fce_tec_max); -- Rule d/f: TEC += 8
@@ -154,24 +152,20 @@ begin
               fce_state                     <= s_bus_off;
               idle_count                    <= 0;
               pcs_o.bus_off_request         <= '1';
-              mac_o.error_passive_request   <= '1';
-              mac_o.error_active_request    <= '0';
+              mac_o.error_active    <= '0';
               llc_o.bus_off                 <= '1';
             elsif (fce_state = s_error_active and (tec > c_fce_error_passive_threshold or rec > c_fce_error_passive_threshold)) then
               fce_state                     <= s_error_passive;
-              mac_o.error_passive_request   <= '1';
-              mac_o.error_active_request    <= '0';
+              mac_o.error_active    <= '0';
             end if;
 
             if (fce_state = s_error_passive and tec <= c_fce_error_passive_threshold and rec <= c_fce_error_passive_threshold) then
               fce_state                   <= s_error_active;
-              mac_o.error_passive_request <= '0';
-              mac_o.error_active_request  <= '1';
+              mac_o.error_active  <= '1';
             end if;
 
           when s_bus_off =>
-            mac_o.error_passive_request <= '1';
-            mac_o.error_active_request  <= '0';
+            mac_o.error_active  <= '0';
             llc_o.bus_off               <= '1';
             -- Count idle conditions from PCS
             if (pcs_i.idle_condition = '1' and idle_count < c_bus_off_recovery_count) then
@@ -181,8 +175,7 @@ begin
               tec                           <= 0;
               rec                           <= 0;
               idle_count                    <= 0;
-              mac_o.error_passive_request   <= '0';
-              mac_o.error_active_request    <= '1';
+              mac_o.error_active    <= '1';
               llc_o.bus_off                 <= '0';
               llc_o.normal_mode_response    <= '1';
               pcs_o.bus_off_release_request <= '1';

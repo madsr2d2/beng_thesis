@@ -4,18 +4,20 @@
 --
 -- Requirements:
 --
--- Description:   Testbench for can_mac + can_fce node-to-node integration.
---                Two can_mac + can_fce pairs share a dominant-wins bus.
---                Node A transmits, Node B receives. A simplified PCS model
---                provides bit timing (SP strobes) for both nodes.
---                  p_tx_pcs_vc      - TX PCS model (bit timing, bus drive, loopback).
---                  p_rx_pcs_vc      - RX PCS model (bus sample, SP strobe).
---                  p_tx_llc_vc      - LLC Avalon-ST source VC (drives frame bytes to Node A TX).
---                  p_rx_llc_sink_vc - LLC Avalon-ST sink VC (collects and verifies at Node B RX).
---                  p_test_ctrl      - Test sequencer.
+-- Description:   MAC sub-layer testbench (can_mac_tx + can_mac_rx with
+--                shared PCS model).
+--                  p_pcs_model     - Shared PCS model (SP generation, bus routing).
+--                  p_tx_llc_vc     - TX LLC Avalon-ST source VC (drives frame bytes to can_mac_tx).
+--                  p_llc_sink_vc   - RX LLC Avalon-ST sink VC (collects and verifies received frame bytes).
+--                  p_gating_monitor - Latches unexpected RX activity while transmitting_i asserted.
+--                  p_test_ctrl     - Coverage-driven test sequencer.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-04-13  MRDSA     Initial node-to-node wiring testbench
+--                2026-04-05  MRDSA     Initial happy-path testbench
+--                2026-04-12  MRDSA     Restructured to company TB standard
+--                                      with OSVVM transaction interfaces
+--                2026-04-13  MRDSA     Replaced PCS bit-stream driver with
+--                                      can_mac_tx + shared PCS model
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
@@ -32,7 +34,7 @@ library osvvm_common;
 
 entity can_mac_tb is
   generic (
-    gc_TbTimeOut   : time := 50 ms;
+    gc_TbTimeOut   : time := 500 ms;
     gc_TbClkPeriod : time := 10 ns
   );
 end entity can_mac_tb;
@@ -42,7 +44,7 @@ architecture tb of can_mac_tb is
   ----------------------------------------------------------------------------
   -- Constants
   ----------------------------------------------------------------------------
-  -- Nominal bit timing (same as can_mac_tx_tb)
+  -- Nominal bit timing (ISO 7.3.2, midpoint of subtype ranges in pk_can_types)
   constant c_sp       : natural := c_sync_seg + (t_nominal_prop_seg'high - t_nominal_prop_seg'low) / 2 + (t_nominal_phase_seg1'high - t_nominal_phase_seg1'low) / 2;
   constant c_bit_time : natural := c_sp + (t_nominal_phase_seg2'high - t_nominal_phase_seg2'low) / 2;
 
@@ -51,8 +53,8 @@ architecture tb of can_mac_tb is
   constant c_data_ssp      : natural := c_data_sp / 2;
   constant c_data_bit_time : natural := c_data_sp + t_data_phase_seg2'high;
 
+  constant c_bin_at_least : natural := 50;
   constant c_rec_width    : natural := 16;
-  constant c_bin_at_least : natural := 5;
 
   -- Avalon-ST byte encoding [1] = startofpacket, [0] = endofpacket
   constant c_avalon_sop_byte : std_logic_vector := "10";
@@ -68,45 +70,25 @@ architecture tb of can_mac_tb is
   -- Shared bus (dominant-wins / wired-AND)
   signal bus_level : std_logic;
 
-  -- Node A (transmitter): MAC + FCE
-  signal a_tx_llc_i : t_can_llc_mac_tx_if_s2d;
-  signal a_tx_llc_o : t_can_llc_mac_tx_if_d2s;
-  signal a_rx_llc_i : t_can_llc_mac_rx_if_d2s;
-  signal a_rx_llc_o : t_can_llc_mac_rx_if_s2d;
-  signal a_tx_pcs_i : t_can_mac_pcs_if_s2m := c_pcs_to_mac_if_reset;
-  signal a_tx_pcs_o : t_can_mac_pcs_if_m2s;
-  signal a_rx_pcs_i : t_can_mac_pcs_if_s2m := c_pcs_to_mac_if_reset;
-  signal a_rx_pcs_o : t_can_mac_pcs_if_m2s;
-  signal a_mac_fce_o : t_can_mac_fce_if_m2s;
-  signal a_fce_mac_o : t_can_mac_fce_if_s2m;
-  signal a_fce_llc_i : t_can_llc_fce_if_m2s := c_llc_to_fce_if_reset;
-  signal a_fce_llc_o : t_can_fce_llc_if_s2m;
-  signal a_fce_pcs_i : t_can_pcs_fce_if_s2m := c_pcs_to_fce_if_reset;
-  signal a_fce_pcs_o : t_can_fce_pcs_if_m2s;
-  signal a_debug_tec : natural range 0 to c_fce_tec_max;
-  signal a_debug_rec : natural range 0 to c_fce_rec_max;
+  -- TX module interface (can_mac_tx)
+  signal tx_llc_i : t_can_llc_mac_tx_if_s2d;
+  signal tx_llc_o : t_can_llc_mac_tx_if_d2s;
+  signal tx_pcs_i : t_can_mac_pcs_if_s2m := c_pcs_to_mac_if_reset;
+  signal tx_pcs_o : t_can_mac_pcs_if_m2s;
+  signal tx_fce_i : t_can_mac_fce_if_s2m := c_fce_to_mac_if_reset;
+  signal tx_fce_o : t_can_mac_fce_if_m2s;
 
-  -- Node B (receiver): MAC + FCE
-  signal b_tx_llc_i : t_can_llc_mac_tx_if_s2d;
-  signal b_tx_llc_o : t_can_llc_mac_tx_if_d2s;
-  signal b_rx_llc_i : t_can_llc_mac_rx_if_d2s;
-  signal b_rx_llc_o : t_can_llc_mac_rx_if_s2d;
-  signal b_tx_pcs_i : t_can_mac_pcs_if_s2m := c_pcs_to_mac_if_reset;
-  signal b_tx_pcs_o : t_can_mac_pcs_if_m2s;
-  signal b_rx_pcs_i : t_can_mac_pcs_if_s2m := c_pcs_to_mac_if_reset;
-  signal b_rx_pcs_o : t_can_mac_pcs_if_m2s;
-  signal b_mac_fce_o : t_can_mac_fce_if_m2s;
-  signal b_fce_mac_o : t_can_mac_fce_if_s2m;
-  signal b_fce_llc_i : t_can_llc_fce_if_m2s := c_llc_to_fce_if_reset;
-  signal b_fce_llc_o : t_can_fce_llc_if_s2m;
-  signal b_fce_pcs_i : t_can_pcs_fce_if_s2m := c_pcs_to_fce_if_reset;
-  signal b_fce_pcs_o : t_can_fce_pcs_if_m2s;
-  signal b_debug_tec : natural range 0 to c_fce_tec_max;
-  signal b_debug_rec : natural range 0 to c_fce_rec_max;
-
-  -- Transfer status latch (Node A TX)
+  -- Transfer status latch (TX)
   signal status_latch : std_logic_vector(2 downto 0) := c_ongoing;
   signal clear_status : boolean := false;
+
+  -- RX DUT interface (can_mac_rx)
+  signal rx_llc_i : t_can_llc_mac_rx_if_d2s;
+  signal rx_llc_o : t_can_llc_mac_rx_if_s2d;
+  signal rx_pcs_i : t_can_mac_pcs_if_s2m := c_pcs_to_mac_if_reset;
+  signal rx_pcs_o : t_can_mac_pcs_if_m2s;
+  signal rx_fce_i : t_can_mac_fce_if_s2m := c_fce_to_mac_if_reset;
+  signal rx_fce_o : t_can_mac_fce_if_m2s;
 
   -- OSVVM signals
   shared variable RV : RandomPType;
@@ -116,6 +98,7 @@ architecture tb of can_mac_tb is
   signal fdf_cov      : CoverageIDType;
   signal dlc_cov      : CoverageIDType;
   signal init_barrier : std_logic := '0';
+  signal test_num     : natural;
 
   -- Transaction interfaces
   signal tx_llc_rec : StreamRecType(
@@ -124,12 +107,21 @@ architecture tb of can_mac_tb is
     DataFromModel  (c_rec_width - 1 downto 0),
     ParamFromModel (c_rec_width - 1 downto 0)
   );
-  signal rx_llc_rec : StreamRecType(
+  signal llc_rec : StreamRecType(
     DataToModel    (c_rec_width - 1 downto 0),
     ParamToModel   (c_rec_width - 1 downto 0),
     DataFromModel  (c_rec_width - 1 downto 0),
     ParamFromModel (c_rec_width - 1 downto 0)
   );
+
+  -- TX gating for RX
+  signal transmitting : std_logic := '0';
+
+  -- Gating test latches (driven only by p_gating_monitor)
+  signal pcs_valid_seen  : boolean := false;
+  signal llc_valid_seen  : boolean := false;
+  signal fce_active_seen : boolean := false;
+  signal clear_latches   : boolean := false;
 
 begin
 
@@ -154,7 +146,7 @@ begin
     variable v_dlc_cov  : CoverageIDType;
   begin
     SetAlertStopCount(ERROR, 1);
-    v_test_id  := NewID("can_mac_tb");
+    v_test_id  := NewID("can_mac");
     v_check_id := NewID("Frame check", v_test_id);
     v_ide_cov  := NewID("IDE Coverage", v_test_id, ReportMode => ENABLED);
     v_fdf_cov  := NewID("FDF Coverage", v_test_id, ReportMode => ENABLED);
@@ -164,7 +156,7 @@ begin
     AddBins(v_fdf_cov, c_bin_at_least, GenBin(0, 1));
     AddBins(v_dlc_cov, c_bin_at_least, GenBin(0, c_dlc_max));
     tx_llc_rec.BurstFifo <= NewID("TX LLC Burst fifo");
-    rx_llc_rec.BurstFifo <= NewID("RX LLC Burst fifo");
+    llc_rec.BurstFifo    <= NewID("RX LLC Burst fifo");
     test_id  <= v_test_id;
     check_id <= v_check_id;
     ide_cov  <= v_ide_cov;
@@ -174,113 +166,52 @@ begin
     wait;
   end process p_init;
 
-  -- Node A: RX LLC sink always ready (unused, but prevents backpressure stall)
-  a_rx_llc_i.avalon_st_sink.ready <= '1';
-  -- Node B: TX LLC idle, RX LLC sink ready
-  b_tx_llc_i.avalon_st_source.valid         <= '0';
-  b_tx_llc_i.avalon_st_source.data          <= (others => '0');
-  b_tx_llc_i.avalon_st_source.startofpacket <= '0';
-  b_tx_llc_i.avalon_st_source.endofpacket   <= '0';
-  b_rx_llc_i.avalon_st_sink.ready           <= '1';
+  -- FCE: error-active for both TX and RX
+  tx_fce_i.error_active  <= '1';
+  rx_fce_i.error_active     <= '1';
+
+  -- RX LLC sink always ready
+  rx_llc_i.avalon_st_sink.ready <= '1';
 
   ----------------------------------------------------------------------------
   -- Shared bus: dominant-wins (AND logic, c_dominant = '0')
-  -- Each node can drive dominant via TX pcs_o (frame bits) or RX pcs_o (ACK, error flags).
-  -- A node only drives the bus when its pcs_o.valid = '1'; otherwise it's recessive.
-  ----------------------------------------------------------------------------
-  bus_level <= (a_tx_pcs_o.polarity or not a_tx_pcs_o.valid)
-           and (a_rx_pcs_o.polarity or not a_rx_pcs_o.valid)
-           and (b_tx_pcs_o.polarity or not b_tx_pcs_o.valid)
-           and (b_rx_pcs_o.polarity or not b_rx_pcs_o.valid);
+  -- TX drives bus via tx_pcs_o, RX drives ACK/error flags via pcs_o.
+  ---------------------------------------------------------------------------- 
+  bus_level <= tx_pcs_o.polarity and rx_pcs_o.polarity;
 
   ----------------------------------------------------------------------------
-  -- Node A: can_mac + can_fce (transmitter)
+  -- TX module: can_mac_tx (bit-stream source)
   ----------------------------------------------------------------------------
-  u_mac_a : entity work.can_mac
+  u_mac_tx : entity work.can_mac_tx
     port map (
-      clk      => clk,
-      rst      => reset,
-      tx_llc_i => a_tx_llc_i,
-      tx_llc_o => a_tx_llc_o,
-      rx_llc_i => a_rx_llc_i,
-      rx_llc_o => a_rx_llc_o,
-      tx_pcs_i => a_tx_pcs_i,
-      tx_pcs_o => a_tx_pcs_o,
-      rx_pcs_i => a_rx_pcs_i,
-      rx_pcs_o => a_rx_pcs_o,
-      fce_i    => a_fce_mac_o,
-      fce_o    => a_mac_fce_o
-    );
-
-  u_fce_a : entity work.can_fce
-    port map (
-      clk_i       => clk,
-      rst_i       => reset,
-      llc_i       => a_fce_llc_i,
-      llc_o       => a_fce_llc_o,
-      mac_i       => a_mac_fce_o,
-      mac_o       => a_fce_mac_o,
-      pcs_i       => a_fce_pcs_i,
-      pcs_o       => a_fce_pcs_o,
-      debug_tec_o => a_debug_tec,
-      debug_rec_o => a_debug_rec
+      clk   => clk,
+      rst   => reset,
+      llc_i => tx_llc_i,
+      llc_o => tx_llc_o,
+      pcs_i => tx_pcs_i,
+      pcs_o => tx_pcs_o,
+      fce_i => tx_fce_i,
+      fce_o => tx_fce_o
     );
 
   ----------------------------------------------------------------------------
-  -- Node B: can_mac + can_fce (receiver)
+  -- RX DUT: can_mac_rx
   ----------------------------------------------------------------------------
-  u_mac_b : entity work.can_mac
+  u_mac_rx : entity work.can_mac_rx
     port map (
-      clk      => clk,
-      rst      => reset,
-      tx_llc_i => b_tx_llc_i,
-      tx_llc_o => b_tx_llc_o,
-      rx_llc_i => b_rx_llc_i,
-      rx_llc_o => b_rx_llc_o,
-      tx_pcs_i => b_tx_pcs_i,
-      tx_pcs_o => b_tx_pcs_o,
-      rx_pcs_i => b_rx_pcs_i,
-      rx_pcs_o => b_rx_pcs_o,
-      fce_i    => b_fce_mac_o,
-      fce_o    => b_mac_fce_o
-    );
-
-  u_fce_b : entity work.can_fce
-    port map (
-      clk_i       => clk,
-      rst_i       => reset,
-      llc_i       => b_fce_llc_i,
-      llc_o       => b_fce_llc_o,
-      mac_i       => b_mac_fce_o,
-      mac_o       => b_fce_mac_o,
-      pcs_i       => b_fce_pcs_i,
-      pcs_o       => b_fce_pcs_o,
-      debug_tec_o => b_debug_tec,
-      debug_rec_o => b_debug_rec
+      clk            => clk,
+      rst            => reset,
+      llc_i          => rx_llc_i,
+      llc_o          => rx_llc_o,
+      pcs_i          => rx_pcs_i,
+      pcs_o          => rx_pcs_o,
+      fce_i          => rx_fce_i,
+      fce_o          => rx_fce_o,
+      transmitting_i => transmitting
     );
 
   ----------------------------------------------------------------------------
-  -- Debug: monitor Node B RX LLC output and Node A RX LLC output
-  ----------------------------------------------------------------------------
-  p_debug_monitor : process (clk) is
-    variable v_b_rx_count : natural := 0;
-  begin
-    if rising_edge(clk) then
-      if b_rx_llc_o.avalon_st_source.valid = '1' then
-        v_b_rx_count := v_b_rx_count + 1;
-        if b_rx_llc_o.avalon_st_source.startofpacket = '1' then
-          Print("  [DBG] Node B RX LLC SOP byte #" & to_string(v_b_rx_count) & " at " & to_string(now));
-        end if;
-        if b_rx_llc_o.avalon_st_source.endofpacket = '1' then
-          Print("  [DBG] Node B RX LLC EOP byte #" & to_string(v_b_rx_count) & " at " & to_string(now));
-          v_b_rx_count := 0;
-        end if;
-      end if;
-    end if;
-  end process p_debug_monitor;
-
-  ----------------------------------------------------------------------------
-  -- Transfer status latch (Node A TX)
+  -- Transfer status latch (TX)
   ----------------------------------------------------------------------------
   p_status_latch : process (clk) is
   begin
@@ -288,119 +219,68 @@ begin
       if reset = '1' or clear_status then
         status_latch <= c_ongoing;
       else
-        status_latch <= a_tx_llc_o.transfer_status when a_tx_llc_o.transfer_status /= c_ongoing;
+        status_latch <= tx_llc_o.transfer_status when tx_llc_o.transfer_status /= c_ongoing;
       end if;
     end if;
   end process p_status_latch;
 
   ----------------------------------------------------------------------------
-  -- PCS model Node A: shared bit timing for TX and RX paths.
-  -- The TX path's use_data_rate controls the bit rate switch since Node A
-  -- is the transmitter; the RX path follows the same timing.
+  -- Shared PCS model: generates SP strobes for both TX and RX paths.
+  -- Bit timing is controlled by tx_pcs_o.use_data_rate (TX is the master).
   ----------------------------------------------------------------------------
-  p_pcs_a : process is
+  p_pcs_model : process is
     variable v_tq_count        : natural range 0 to c_bit_time := 0;
     variable v_active_bit_time : natural := c_bit_time;
     variable v_active_sp       : natural := c_sp;
-    variable v_sp_strobe       : std_logic;
+    variable v_tx_sp_strobe    : std_logic;
+    variable v_rx_sp_strobe    : std_logic;
     variable v_ssp_strobe      : std_logic;
   begin
     WaitForBarrier(init_barrier);
 
-    pcs_a_loop : loop
+    pcs_loop : loop
       wait until rising_edge(clk);
-      v_tq_count := 0 when v_tq_count = v_active_bit_time else v_tq_count + 1;
-      v_active_bit_time := c_data_bit_time when a_tx_pcs_o.use_data_rate = '1' and v_tq_count = 0 else c_bit_time;
-      v_active_sp := c_data_sp when a_tx_pcs_o.use_data_rate = '1' and v_tq_count = 0 else c_sp;
-      v_sp_strobe  := '1' when v_tq_count = v_active_sp else '0';
-      v_ssp_strobe := '1' when v_tq_count = c_data_ssp and a_tx_pcs_o.use_data_rate = '1' else '0';
-
-      if v_sp_strobe = '1' then
-        Print("  [PCS-A] SP tq=" & to_string(v_tq_count) &
-              " bus=" & to_string(bus_level) &
-              " tx_val=" & to_string(a_tx_pcs_o.valid) &
-              " tx_pol=" & to_string(a_tx_pcs_o.polarity) &
-              " rx_val=" & to_string(a_rx_pcs_o.valid) &
-              " rx_pol=" & to_string(a_rx_pcs_o.polarity) &
-              " at " & to_string(now));
+      v_tq_count        := 0 when v_tq_count = v_active_bit_time else v_tq_count + 1;
+      if v_tq_count = 0 then
+        v_active_bit_time := c_data_bit_time when tx_pcs_o.use_data_rate = '1' else c_bit_time;
+        v_active_sp       := c_data_sp       when tx_pcs_o.use_data_rate = '1' else c_sp;
       end if;
+      v_tx_sp_strobe    := '1' when v_tq_count = v_active_sp else '0';
+      v_rx_sp_strobe    := '1' when v_tq_count = v_active_sp + 2 else '0'; -- The 2 is from 1 clk internal can_mac_tx delay + 1 clk TB delay = 2
+      v_ssp_strobe      := '1' when v_tq_count = c_data_ssp and tx_pcs_o.use_data_rate = '1' else '0';
+      
 
       -- TX PCS input
-      a_tx_pcs_i.sample_point           <= v_sp_strobe;
-      a_tx_pcs_i.secondary_sample_point <= v_ssp_strobe;
-      a_tx_pcs_i.tdc_delay              <= (others => '0');
-      a_tx_pcs_i.bus_polarity           <= bus_level;
+      tx_pcs_i.sample_point           <= v_tx_sp_strobe;
+      tx_pcs_i.secondary_sample_point <= v_ssp_strobe;
+      tx_pcs_i.tdc_delay              <= (others => '0');
+      tx_pcs_i.bus_polarity           <= bus_level;
 
-      -- RX PCS input (same timing, same bus)
-      a_rx_pcs_i.sample_point           <= v_sp_strobe;
-      a_rx_pcs_i.secondary_sample_point <= v_ssp_strobe;
-      a_rx_pcs_i.tdc_delay              <= (others => '0');
-      a_rx_pcs_i.bus_polarity           <= bus_level;
-    end loop pcs_a_loop;
-  end process p_pcs_a;
-
-  ----------------------------------------------------------------------------
-  -- PCS model Node B: shared bit timing for TX and RX paths.
-  -- Node B is the receiver; its RX path's use_data_rate controls the
-  -- bit rate switch after it decodes BRS.
-  ----------------------------------------------------------------------------
-  p_pcs_b : process is
-    variable v_tq_count        : natural range 0 to c_bit_time := 0;
-    variable v_active_bit_time : natural := c_bit_time;
-    variable v_active_sp       : natural := c_sp;
-    variable v_sp_strobe       : std_logic;
-    variable v_ssp_strobe      : std_logic;
-  begin
-    WaitForBarrier(init_barrier);
-
-    pcs_b_loop : loop
-      wait until rising_edge(clk);
-      v_tq_count := 0 when v_tq_count = v_active_bit_time else v_tq_count + 1;
-      v_active_bit_time := c_data_bit_time when b_rx_pcs_o.use_data_rate = '1' and v_tq_count = 0 else c_bit_time;
-      v_active_sp := c_data_sp when b_rx_pcs_o.use_data_rate = '1' and v_tq_count = 0 else c_sp;
-      v_sp_strobe  := '1' when v_tq_count = v_active_sp else '0';
-      v_ssp_strobe := '1' when v_tq_count = c_data_ssp and b_rx_pcs_o.use_data_rate = '1' else '0';
-
-      if v_sp_strobe = '1' then
-        Print("  [PCS-B] SP tq=" & to_string(v_tq_count) &
-              " bus=" & to_string(bus_level) &
-              " tx_val=" & to_string(b_tx_pcs_o.valid) &
-              " tx_pol=" & to_string(b_tx_pcs_o.polarity) &
-              " rx_val=" & to_string(b_rx_pcs_o.valid) &
-              " rx_pol=" & to_string(b_rx_pcs_o.polarity) &
-              " at " & to_string(now));
-      end if;
-
-      -- TX PCS input
-      b_tx_pcs_i.sample_point           <= v_sp_strobe;
-      b_tx_pcs_i.secondary_sample_point <= v_ssp_strobe;
-      b_tx_pcs_i.tdc_delay              <= (others => '0');
-      b_tx_pcs_i.bus_polarity           <= bus_level;
-
-      -- RX PCS input (same timing, same bus)
-      b_rx_pcs_i.sample_point           <= v_sp_strobe;
-      b_rx_pcs_i.secondary_sample_point <= v_ssp_strobe;
-      b_rx_pcs_i.tdc_delay              <= (others => '0');
-      b_rx_pcs_i.bus_polarity           <= bus_level;
-    end loop pcs_b_loop;
-  end process p_pcs_b;
+      -- RX PCS input (SP offset by 2 TQ so the TX's newly driven
+      -- bit has propagated through the bus model)
+      rx_pcs_i.sample_point           <= v_rx_sp_strobe;
+      rx_pcs_i.secondary_sample_point <= v_ssp_strobe;
+      rx_pcs_i.tdc_delay              <= (others => '0');
+      rx_pcs_i.bus_polarity           <= bus_level;
+    end loop pcs_loop;
+  end process p_pcs_model;
 
   ----------------------------------------------------------------------------
-  -- Node A: TX LLC source VC (drives frame bytes)
+  -- TX LLC source VC (drives frame bytes to can_mac_tx)
   ----------------------------------------------------------------------------
   p_tx_llc_vc : process is
   begin
     WaitForBarrier(init_barrier);
-    tx_llc_loop : loop
+    tx_llc_vc_loop : loop
       WaitForTransaction(tx_llc_rec.Rdy, tx_llc_rec.Ack);
       case tx_llc_rec.Operation is
         when SEND =>
-          a_tx_llc_i.avalon_st_source.valid         <= '1';
-          a_tx_llc_i.avalon_st_source.data          <= SafeResize(std_logic_vector(tx_llc_rec.DataToModel), c_byte_width);
-          a_tx_llc_i.avalon_st_source.startofpacket <= tx_llc_rec.ParamToModel(1);
-          a_tx_llc_i.avalon_st_source.endofpacket   <= tx_llc_rec.ParamToModel(0);
-          wait until rising_edge(clk) and a_tx_llc_o.avalon_st_sink.ready = '1';
-          a_tx_llc_i.avalon_st_source.valid <= '0';
+          tx_llc_i.avalon_st_source.valid         <= '1';
+          tx_llc_i.avalon_st_source.data          <= SafeResize(std_logic_vector(tx_llc_rec.DataToModel), c_byte_width);
+          tx_llc_i.avalon_st_source.startofpacket <= tx_llc_rec.ParamToModel(1);
+          tx_llc_i.avalon_st_source.endofpacket   <= tx_llc_rec.ParamToModel(0);
+          wait until rising_edge(clk) and tx_llc_o.avalon_st_sink.ready = '1';
+          tx_llc_i.avalon_st_source.valid <= '0';
         when CHECK =>
           if status_latch = c_ongoing then
             wait until status_latch /= c_ongoing;
@@ -411,13 +291,13 @@ begin
           clear_status <= false;
         when others => null;
       end case;
-    end loop tx_llc_loop;
+    end loop tx_llc_vc_loop;
   end process p_tx_llc_vc;
 
   ----------------------------------------------------------------------------
-  -- Node B: RX LLC sink VC (collects and verifies received frame)
+  -- RX LLC Sink VC (collects and verifies received frame bytes)
   ----------------------------------------------------------------------------
-  p_rx_llc_sink_vc : process is
+  p_llc_sink_vc : process is
     variable v_byte_idx  : natural := 0;
     variable v_frame     : t_llc_frame;
     variable v_frame_len : natural := 0;
@@ -431,16 +311,16 @@ begin
 
     -- Initialize Ack from default (-1) to 0 so FinishTransaction
     -- increments to the value RequestTransaction expects.
-    rx_llc_rec.Ack <= rx_llc_rec.Ack + 1;
+    llc_rec.Ack <= llc_rec.Ack + 1;
     wait for 0 ns;
 
-    rx_llc_loop : loop
+    llc_sink_loop : loop
       wait until rising_edge(clk);
 
-      -- Collect bytes from Node B RX LLC output
-      if (not v_got_frame and b_rx_llc_o.avalon_st_source.valid = '1') then
-        v_frame(v_byte_idx) := b_rx_llc_o.avalon_st_source.data;
-        if (b_rx_llc_o.avalon_st_source.endofpacket = '1') then
+      -- Collect bytes
+      if (not v_got_frame and rx_llc_o.avalon_st_source.valid = '1') then
+        v_frame(v_byte_idx) := rx_llc_o.avalon_st_source.data;
+        if (rx_llc_o.avalon_st_source.endofpacket = '1') then
           v_frame_len := v_byte_idx + 1;
           v_got_frame := true;
         else
@@ -449,24 +329,48 @@ begin
       end if;
 
       -- Check received frame against expected
-      if v_got_frame and TransactionPending(rx_llc_rec.Rdy, rx_llc_rec.Ack) then
-        case rx_llc_rec.Operation is
+      if v_got_frame and TransactionPending(llc_rec.Rdy, llc_rec.Ack) then
+        case llc_rec.Operation is
           when CHECK =>
-            v_exp_len := to_integer(unsigned(rx_llc_rec.DataToModel(7 downto 0)));
-            v_count   := to_integer(unsigned(rx_llc_rec.ParamToModel(15 downto 0)));
+            v_exp_len := to_integer(unsigned(llc_rec.DataToModel(7 downto 0)));
+            v_count   := to_integer(unsigned(llc_rec.ParamToModel(15 downto 0)));
             AffirmIfEqual(check_id, v_frame_len, v_exp_len, "Frame " & to_string(v_count) & " length");
             for i in 0 to v_exp_len - 1 loop
-              v_exp_byte := Pop(rx_llc_rec.BurstFifo);
+              v_exp_byte := Pop(llc_rec.BurstFifo);
               AffirmIfEqual(check_id, v_frame(i), v_exp_byte(7 downto 0), "Frame " & to_string(v_count) & " byte " & to_string(i));
             end loop;
             v_byte_idx  := 0;
             v_got_frame := false;
           when others => null;
         end case;
-        FinishTransaction(rx_llc_rec.Ack);
+        FinishTransaction(llc_rec.Ack);
       end if;
-    end loop rx_llc_loop;
-  end process p_rx_llc_sink_vc;
+    end loop llc_sink_loop;
+  end process p_llc_sink_vc;
+
+  ----------------------------------------------------------------------------
+  -- Gating monitor: latch if pcs_o.valid or llc_o.valid pulses while TX active
+  ----------------------------------------------------------------------------
+  p_gating_monitor : process (clk) is
+  begin
+    if rising_edge(clk) then
+      if clear_latches then
+        pcs_valid_seen  <= false;
+        llc_valid_seen  <= false;
+        fce_active_seen <= false;
+      elsif transmitting = '1' then
+        if rx_pcs_o.polarity = c_dominant then
+          pcs_valid_seen <= true;
+        end if;
+        if rx_llc_o.avalon_st_source.valid = '1' then
+          llc_valid_seen <= true;
+        end if;
+        if rx_fce_o /= c_mac_to_fce_if_reset then
+          fce_active_seen <= true;
+        end if;
+      end if;
+    end if;
+  end process p_gating_monitor;
 
   ----------------------------------------------------------------------------
   -- p_test_ctrl
@@ -474,13 +378,13 @@ begin
   p_test_ctrl : process is
 
     --------------------------------------------------------------------------
-    -- gen_frame: random LLC frame + expected RX frame (sanitized)
+    -- gen_frame: random LLC frame + expected sanitized RX frame
     --------------------------------------------------------------------------
     procedure gen_frame (
-      variable tx_frame    : out t_llc_frame;
-      variable rx_frame    : out t_llc_frame;
-      variable metadata    : out t_llc_metadata;
-      variable last_byte   : out natural
+      variable tx_frame  : out t_llc_frame;
+      variable rx_frame  : out t_llc_frame;
+      variable metadata  : out t_llc_metadata;
+      variable last_byte : out natural
     ) is
       variable v_data_len : natural;
     begin
@@ -491,9 +395,9 @@ begin
       tx_frame(0)(c_llc_frame_fdf) := std_logic(to_unsigned(GetRandPoint(fdf_cov), 1)(0));
       tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) :=
         std_logic_vector(to_unsigned(GetRandPoint(dlc_cov), 4));
-      metadata  := extract_metadata(tx_frame(0), tx_frame(1));
+      metadata   := extract_metadata(tx_frame(0), tx_frame(1));
       v_data_len := dlc_to_data_length(to_integer(unsigned(metadata.dlc)), metadata.fdf);
-      last_byte := c_llc_frame_data_byte + v_data_len - 1;
+      last_byte  := c_llc_frame_data_byte + v_data_len - 1;
 
       -- Build expected RX frame (sanitize fields RX cannot reconstruct)
       rx_frame := tx_frame;
@@ -519,7 +423,7 @@ begin
     end procedure gen_frame;
 
     --------------------------------------------------------------------------
-    -- Submit frame via Node A TX, verify at Node B RX
+    -- submit_and_verify: send frame via TX, verify at RX
     --------------------------------------------------------------------------
     procedure submit_and_verify (
       variable v_tx_frame    : in t_llc_frame;
@@ -535,11 +439,10 @@ begin
 
       -- Push expected RX bytes into LLC sink BurstFifo
       for i in 0 to v_exp_len - 1 loop
-        Push(rx_llc_rec.BurstFifo, std_logic_vector(resize(unsigned(v_rx_frame(i)), c_rec_width)));
+        Push(llc_rec.BurstFifo, std_logic_vector(resize(unsigned(v_rx_frame(i)), c_rec_width)));
       end loop;
 
-      -- Drive TX frame bytes through Node A LLC
-      Print("  Sending " & to_string(v_last_byte + 1) & " LLC bytes...");
+      -- Drive TX frame bytes through can_mac_tx
       for i in 0 to v_last_byte loop
         if (i = 0) then
           Send(tx_llc_rec, v_tx_frame(i), c_avalon_sop_byte);
@@ -549,65 +452,138 @@ begin
           Send(tx_llc_rec, v_tx_frame(i), c_avalon_eop_byte);
         end if;
       end loop;
-      Print("  LLC bytes sent, waiting for transfer status...");
 
-      -- Wait for TX to complete
+      -- Wait for TX to complete with c_transmitted
       Check(tx_llc_rec, std_logic_vector(resize(unsigned(c_transmitted), c_rec_width)));
-      Print("  TX complete, checking RX...");
 
       -- Verify RX collected the frame
-      Check(rx_llc_rec,
+      Check(llc_rec,
         std_logic_vector(to_unsigned(v_exp_len, c_rec_width)),
         std_logic_vector(to_unsigned(v_frame_count, c_rec_width)));
-      Print("  RX verified.");
     end procedure submit_and_verify;
 
-    variable v_tx_frame    : t_llc_frame;
-    variable v_rx_frame    : t_llc_frame;
-    variable v_metadata    : t_llc_metadata;
-    variable v_last_byte   : natural;
-    variable v_frame_count : natural := 0;
+    --------------------------------------------------------------------------
+    -- Test 1: Reset
+    --------------------------------------------------------------------------
+    procedure test_reset is
+    begin
+      test_num <= 1;
+      Print("--------------------------------------------------------------------------");
+      Print("Test 1: Reset");
+      Print("--------------------------------------------------------------------------");
+      AffirmIf(check_id, rx_pcs_o = c_mac_to_pcs_if_reset, "pcs_o not reset correctly");
+      AffirmIf(check_id, rx_fce_o = c_mac_to_fce_if_reset, "fce_o not reset correctly");
+      AffirmIf(check_id, rx_llc_o = c_mac_rx_to_llc_if_reset, "llc_o not reset correctly");
+    end procedure test_reset;
+
+    --------------------------------------------------------------------------
+    -- Test 2: Normal usage - cover all frame format combinations
+    --------------------------------------------------------------------------
+    procedure test_normal is
+      variable v_tx_frame    : t_llc_frame;
+      variable v_rx_frame    : t_llc_frame;
+      variable v_metadata    : t_llc_metadata;
+      variable v_last_byte   : natural;
+      variable v_frame_count : natural := 0;
+    begin
+      test_num <= 2;
+      Print("--------------------------------------------------------------------------");
+      Print("Test 2: Normal Usage (MAC TX -> MAC RX)");
+      Print("--------------------------------------------------------------------------");
+
+      while not (IsCovered(ide_cov) and IsCovered(fdf_cov) and IsCovered(dlc_cov)) loop
+        v_frame_count := v_frame_count + 1;
+
+        gen_frame(v_tx_frame, v_rx_frame, v_metadata, v_last_byte);
+        submit_and_verify(v_tx_frame, v_rx_frame, v_last_byte, v_metadata, v_frame_count);
+
+        ICover(ide_cov, to_integer(unsigned'("" & v_metadata.ide)));
+        ICover(fdf_cov, to_integer(unsigned'("" & v_metadata.fdf)));
+        ICover(dlc_cov, to_integer(unsigned(v_metadata.dlc)));
+      end loop;
+    end procedure test_normal;
+
+    --------------------------------------------------------------------------
+    -- Test 3: Gating RX during transmission
+    --------------------------------------------------------------------------
+    procedure test_transmitting is
+      variable v_tx_frame    : t_llc_frame;
+      variable v_rx_frame    : t_llc_frame;
+      variable v_metadata    : t_llc_metadata;
+      variable v_last_byte   : natural;
+    begin
+      test_num <= 3;
+      Print("--------------------------------------------------------------------------");
+      Print("Test 3: Gating RX during transmission");
+      Print("--------------------------------------------------------------------------");
+
+      -- Clear latches and assert transmitting
+      clear_latches <= true;
+      WaitForClock(clk);
+      clear_latches <= false;
+      transmitting  <= '1';
+      WaitForClock(clk, 5);
+
+      -- Generate a frame and send via TX module
+      gen_frame(v_tx_frame, v_rx_frame, v_metadata, v_last_byte);
+
+      -- Drive TX frame bytes (TX will complete but RX should ignore)
+      for i in 0 to v_last_byte loop
+        if (i = 0) then
+          Send(tx_llc_rec, v_tx_frame(i), c_avalon_sop_byte);
+        elsif (i < v_last_byte) then
+          Send(tx_llc_rec, v_tx_frame(i), c_avalon_byte);
+        else
+          Send(tx_llc_rec, v_tx_frame(i), c_avalon_eop_byte);
+        end if;
+      end loop;
+
+      -- Wait for TX to finish (RX won't ACK so TX gets disturbed)
+      if status_latch = c_ongoing then
+        wait until status_latch /= c_ongoing;
+      end if;
+
+      -- Verify that RX did not activate during the frame
+      AffirmIf(check_id, not pcs_valid_seen, "pcs_o.polarity went dominant during transmission");
+      AffirmIf(check_id, not llc_valid_seen, "llc_o.valid pulsed during transmission");
+      AffirmIf(check_id, not fce_active_seen, "fce_o signaled during transmission");
+
+      transmitting <= '0';
+      WaitForClock(clk, 10);
+    end procedure test_transmitting;
+
+    --------------------------------------------------------------------------
+    procedure report_results is
+    begin
+      AffirmIf(test_id, IsCovered(ide_cov), "IDE covered");
+      AffirmIf(test_id, IsCovered(fdf_cov), "FDF covered");
+      AffirmIf(test_id, IsCovered(dlc_cov), "DLC covered");
+      WriteBin(ide_cov);
+      WriteBin(fdf_cov);
+      WriteBin(dlc_cov);
+      if (EndOfTestReports(ReportAll => true) = 0) then
+        Print("--------------------------------------------------------------------------");
+        Print("Test Pass!");
+        Print("--------------------------------------------------------------------------");
+      else
+        Print("--------------------------------------------------------------------------");
+        Print("Test Fail!");
+        Print("--------------------------------------------------------------------------");
+      end if;
+    end procedure report_results;
 
   begin
     WaitForBarrier(init_barrier);
     wait until reset = '0';
 
-    -- Wait for both nodes to complete bus reintegration (11 bit times + margin)
+    -- Wait for both TX and RX to complete bus reintegration (11+ bit times)
     WaitForClock(clk, (c_bus_idle_condition_width + 2) * (c_bit_time + 1));
 
-    Print("--------------------------------------------------------------------------");
-    Print("can_mac_tb: Node-to-node frame transfer");
-    Print("--------------------------------------------------------------------------");
+    test_reset;
+    test_normal;
+    test_transmitting;
 
-    while not (IsCovered(ide_cov) and IsCovered(fdf_cov) and IsCovered(dlc_cov)) loop
-      v_frame_count := v_frame_count + 1;
-
-      gen_frame(v_tx_frame, v_rx_frame, v_metadata, v_last_byte);
-      submit_and_verify(v_tx_frame, v_rx_frame, v_last_byte, v_metadata, v_frame_count);
-
-      ICover(ide_cov, to_integer(unsigned'("" & v_metadata.ide)));
-      ICover(fdf_cov, to_integer(unsigned'("" & v_metadata.fdf)));
-      ICover(dlc_cov, to_integer(unsigned(v_metadata.dlc)));
-
-      Log(test_id,
-        "Frame " & to_string(v_frame_count) &
-        " ide=" & to_string(v_metadata.ide) &
-        " fdf=" & to_string(v_metadata.fdf) &
-        " dlc=" & to_hstring(v_metadata.dlc), DEBUG);
-    end loop;
-
-    WriteBin(ide_cov);
-    WriteBin(fdf_cov);
-    WriteBin(dlc_cov);
-    if (EndOfTestReports(ReportAll => true) = 0) then
-      Print("--------------------------------------------------------------------------");
-      Print("Test Pass!");
-      Print("--------------------------------------------------------------------------");
-    else
-      Print("--------------------------------------------------------------------------");
-      Print("Test Fail!");
-      Print("--------------------------------------------------------------------------");
-    end if;
+    report_results;
     std.env.finish;
     wait;
   end process p_test_ctrl;
