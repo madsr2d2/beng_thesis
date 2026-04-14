@@ -19,17 +19,14 @@ add wave -vgroup "can_mac_tx_tb :: TB" \
 	( -logic /can_mac_tx_tb/pcs_o/valid ) \
 	( -logic /can_mac_tx_tb/pcs_o/use_data_rate ) \
 	( -logic /can_mac_tx_tb/pcs_o/start_tdc ) \
-	( -logic /can_mac_tx_tb/fce_i/error_passive_request ) \
-	( -logic /can_mac_tx_tb/fce_i/error_active_request ) \
+	( -logic /can_mac_tx_tb/fce_i/error_active ) \
 	( -logic /can_mac_tx_tb/fce_o/transmitting ) \
 	( -logic /can_mac_tx_tb/fce_o/error ) \
 	( -logic /can_mac_tx_tb/fce_o/primary_error ) \
 	( -logic /can_mac_tx_tb/fce_o/sending_error_overload_flag ) \
-	( -logic /can_mac_tx_tb/fce_o/counters_unchanged ) \
+	( -logic /can_mac_tx_tb/fce_o/passive_tx_ack_error ) \
 	( -logic /can_mac_tx_tb/fce_o/error_delimiter_too_late ) \
 	( -logic /can_mac_tx_tb/fce_o/successful_transfer ) \
-	( -logic /can_mac_tx_tb/fce_o/error_passive_response ) \
-	( -logic /can_mac_tx_tb/fce_o/error_active_response ) \
 	( -logic /can_mac_tx_tb/bus_override_en ) \
 	( -literal /can_mac_tx_tb/status_latch ) \
 	( -literal /can_mac_tx_tb/fce_latch ) \
@@ -53,8 +50,7 @@ add wave -vgroup "u_dut :: inputs" \
 	( -logic /can_mac_tx_tb/u_dut/pcs_i/sample_point ) \
 	( -logic /can_mac_tx_tb/u_dut/pcs_i/secondary_sample_point ) \
 	( -literal /can_mac_tx_tb/u_dut/pcs_i/tdc_delay ) \
-	( -logic /can_mac_tx_tb/u_dut/fce_i/error_passive_request ) \
-	( -logic /can_mac_tx_tb/u_dut/fce_i/error_active_request )
+	( -logic /can_mac_tx_tb/u_dut/fce_i/error_active )
 
 add wave -vgroup "u_dut :: outputs" \
 	( -logic /can_mac_tx_tb/u_dut/llc_o/avalon_st_sink/ready ) \
@@ -67,11 +63,9 @@ add wave -vgroup "u_dut :: outputs" \
 	( -logic /can_mac_tx_tb/u_dut/fce_o/error ) \
 	( -logic /can_mac_tx_tb/u_dut/fce_o/primary_error ) \
 	( -logic /can_mac_tx_tb/u_dut/fce_o/sending_error_overload_flag ) \
-	( -logic /can_mac_tx_tb/u_dut/fce_o/counters_unchanged ) \
+	( -logic /can_mac_tx_tb/u_dut/fce_o/passive_tx_ack_error ) \
 	( -logic /can_mac_tx_tb/u_dut/fce_o/error_delimiter_too_late ) \
-	( -logic /can_mac_tx_tb/u_dut/fce_o/successful_transfer ) \
-	( -logic /can_mac_tx_tb/u_dut/fce_o/error_passive_response ) \
-	( -logic /can_mac_tx_tb/u_dut/fce_o/error_active_response )
+	( -logic /can_mac_tx_tb/u_dut/fce_o/successful_transfer )
 
 add wave -vgroup "u_dut :: internals" \
 	( -logic /can_mac_tx_tb/u_dut/ser_to_fsm/data ) \
@@ -147,8 +141,7 @@ add wave -vgroup "u_dut/u_can_mac_fsm_tx :: inputs" \
 	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/bs_i/valid ) \
 	( -literal /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/bs_i/stuff_bit_count ) \
 	( -literal /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/crc_i/crc ) \
-	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_i/error_passive_request ) \
-	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_i/error_active_request )
+	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_i/error_active )
 
 add wave -vgroup "u_dut/u_can_mac_fsm_tx :: outputs" \
 	( -literal /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/mac_ser_o/transfer_status ) \
@@ -171,11 +164,9 @@ add wave -vgroup "u_dut/u_can_mac_fsm_tx :: outputs" \
 	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_o/error ) \
 	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_o/primary_error ) \
 	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_o/sending_error_overload_flag ) \
-	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_o/counters_unchanged ) \
+	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_o/passive_tx_ack_error ) \
 	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_o/error_delimiter_too_late ) \
-	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_o/successful_transfer ) \
-	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_o/error_passive_response ) \
-	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_o/error_active_response )
+	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_o/successful_transfer )
 
 add wave -vgroup "u_dut/u_can_mac_fsm_tx :: internals" \
 	( -decimal /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/state ) \

@@ -131,10 +131,11 @@ begin
         -----------------------------------------------------------------
         -- Defaults
         -----------------------------------------------------------------
-        bs_o <= c_mac_fsm_to_bs_fd_if_reset;
         -- Enable fixed stuff bit mode for SBC and CRC fields in FD frames (ISO : 6.6.13.3)
         bs_o.fixed_bit_stuffing_en <= '1' when mac_ser_i.llc_metadata.fdf = '1' and (state = s_sbc or state = s_crc) else '0';
-        bs_rst      <= '0';
+        bs_o.data  <= pcs_i.bus_polarity;
+        bs_o.valid <= '0';
+        bs_rst     <= '0';
         -----------------------------------------------------------------
         crc_o                 <= c_mac_fsm_to_crc_if_reset;
         crc_o.crc_poly_select <= crc_o.crc_poly_select; -- Override reset with current value
@@ -170,7 +171,6 @@ begin
           bs_rst                    <= '1';
           crc_rst                   <= '1';
           ack_success_seen          <= false;
-          secondary_sample_point_error_pending         <= false;
           ack_error_caused_flag     <= false;
           dominant_seen_during_flag <= false;
           dominant_run_count        <= 0;
@@ -218,7 +218,7 @@ begin
                   overload  <= true;
                 else
                   -- Dominant bit ar 3rd bit is SOF
-                  if (mac_ser_i.valid = '1' and (fce_i.error_passive_request = '0' or not was_previous_frame_tx)) then
+                  if (mac_ser_i.valid = '1' and (fce_i.error_active = '1' or not was_previous_frame_tx)) then
                     state     <= s_sof;
                     bit_count <= 0;
                     skip_sof  <= true;
@@ -229,7 +229,7 @@ begin
                   bit_count <= bit_count + 1;
                 else
                   bit_count <= 0;
-                  if (fce_i.error_passive_request = '1' and was_previous_frame_tx) then
+                  if (fce_i.error_active = '0' and was_previous_frame_tx) then
                     -- Suspend transmission if was transmitter of last frame and in error passive state (ISO : 6.6.7.4)
                     state <= s_suspend_transmission;
                   else
@@ -269,6 +269,7 @@ begin
           -- drive first ID bit instead (ISO : 6.6.8).
           -----------------------------------------------------------------
           when s_sof =>
+            -- Frame setup (runs every clock; values are constant from metadata)
             data_len <= dlc_to_data_length(to_integer(unsigned(mac_ser_i.llc_metadata.dlc)), mac_ser_i.llc_metadata.fdf);
 
             -- Select CRC polynomial
@@ -283,31 +284,36 @@ begin
               crc_o.crc_poly_select <= c_crc_poly_21_sel;
             end if;
 
+            -- Hold SOF dominant on the bus until the sample point
+            pcs_o.polarity <= c_dominant;
+
             if skip_sof then
-              -- Drive first ID bit
+              -- SOF was already detected as 3rd intermission dominant;
+              -- drive first ID bit immediately.
               pcs_o.polarity   <= mac_ser_i.data;
+              bs_o.valid       <= '1';
               bs_o.data        <= mac_ser_i.data;
+              crc_o.valid_cc   <= '1';
+              crc_o.valid_fd   <= '1';
               crc_o.data_cc    <= mac_ser_i.data;
               crc_o.data_fd    <= mac_ser_i.data;
               mac_ser_o.ready  <= '1';
               polarity_history <= (0 => mac_ser_i.data, others => c_recessive);
               bit_count        <= 1;
               skip_sof         <= false;
-            else
-              -- Drive SOF bit
-              pcs_o.polarity   <= c_dominant;
+              state            <= s_id;
+            elsif (pcs_i.sample_point = '1') then
+              -- SOF sampled: feed BS/CRC and advance to s_id
+              bs_o.valid       <= '1';
               bs_o.data        <= c_dominant;
+              crc_o.valid_cc   <= '1';
+              crc_o.valid_fd   <= '1';
               crc_o.data_cc    <= c_dominant;
               crc_o.data_fd    <= c_dominant;
               polarity_history <= (0 => c_dominant, others => c_recessive);
               bit_count        <= 0;
+              state            <= s_id;
             end if;
-
-            pcs_o.valid <= '1';
-            bs_o.valid     <= '1';
-            crc_o.valid_cc <= '1';
-            crc_o.valid_fd <= '1';
-            state <= s_id;
 
           -----------------------------------------------------------------
           -- s_id : Base ID (11 bits) or extended ID (18 bits) from mac_ser.
@@ -543,7 +549,6 @@ begin
           when s_error_overload =>
             fce_o.transmitting                <= '1';
             fce_o.sending_error_overload_flag <= '1';
-            pcs_o.valid                       <= '1';
             pcs_o.use_data_rate               <= '0';
             pcs_o.start_tdc                   <= '0';
 
@@ -556,7 +561,7 @@ begin
 
             -- Flag polarity: 6 dominant (active/overload) or 6 recessive
             -- (passive), then 8 recessive delimiter
-            if (bit_count < c_error_flag_width and (overload or fce_i.error_passive_request = '0')) then
+            if (bit_count < c_error_flag_width and (overload or fce_i.error_active = '1')) then
               pcs_o.polarity <= c_dominant;
             else
               pcs_o.polarity <= c_recessive;
@@ -575,7 +580,7 @@ begin
                   if not overload then
                     fce_o.primary_error <= '1';
                   end if;
-                  if (not overload and fce_i.error_passive_request = '1' and ack_error_caused_flag) then
+                  if (not overload and fce_i.error_active = '0' and ack_error_caused_flag) then
                     dominant_seen_during_flag <= true;
                   end if;
                 end if;
@@ -597,8 +602,8 @@ begin
                 -----------------------------------------------------------------
                 if (bit_count = c_error_sequence_width - 1) then
                   -- ISO 8.1.4.2 rule c) Exception 1: passive TX ACK error
-                  if (not overload and fce_i.error_passive_request = '1' and ack_error_caused_flag and not dominant_seen_during_flag) then
-                    fce_o.counters_unchanged <= '1';
+                  if (not overload and fce_i.error_active = '0' and ack_error_caused_flag and not dominant_seen_during_flag) then
+                    fce_o.passive_tx_ack_error <= '1';
                   end if;
 
                   -- Dominant -> overload restart, recessive -> intermission
@@ -642,8 +647,7 @@ begin
           if v_enter_error then -- Error was detected
             fce_o.error               <= '1';
             fce_o.sending_error_overload_flag <= '1';
-            pcs_o.polarity            <= c_recessive when fce_i.error_passive_request = '1' else c_dominant;
-            pcs_o.valid               <= '1';
+            pcs_o.polarity            <= c_recessive when fce_i.error_active = '0' else c_dominant;
             pcs_o.use_data_rate       <= '0';
             mac_ser_o.transfer_status <= c_disturbed;
             was_previous_frame_tx     <= true;
@@ -657,7 +661,6 @@ begin
             bit_count                 <= 0;
             state                     <= s_intermission;
           else -- Drive bit
-            pcs_o.valid      <= '1';
             pcs_o.polarity   <= v_tx_polarity;
             -- Push to polarity history
             polarity_history <= polarity_history(c_tdc_polarity_depth - 2 downto 0) & v_tx_polarity;

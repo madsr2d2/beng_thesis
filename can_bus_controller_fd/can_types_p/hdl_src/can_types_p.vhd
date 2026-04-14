@@ -237,7 +237,6 @@ package pk_can_types is
   -- MAC -> PCS (ISO 7.2, PCS_Data.Request)
   type t_can_mac_pcs_if_m2s is record
     polarity      : std_logic; -- Polarity of the next bit to transmit.
-    valid         : std_logic; -- High when frame is being transmitted.
     use_data_rate : std_logic; -- High when the PCS should use the data rate bit timing (used in FD frames only).
     start_tdc     : std_logic; -- High when the PCS should start the Transmitter Delay Compensation (TDC) measurement (ISO : 7.3.4).
   end record t_can_mac_pcs_if_m2s;
@@ -245,7 +244,6 @@ package pk_can_types is
   constant c_mac_to_pcs_if_reset : t_can_mac_pcs_if_m2s :=
   (
     polarity      => c_recessive,
-    valid         => '0',
     use_data_rate => '0',
     start_tdc     => '0'
   );
@@ -330,11 +328,9 @@ package pk_can_types is
     error                       : std_logic;
     primary_error               : std_logic;
     sending_error_overload_flag : std_logic;
-    counters_unchanged          : std_logic;
+    passive_tx_ack_error          : std_logic;
     error_delimiter_too_late    : std_logic;
     successful_transfer         : std_logic;
-    error_passive_response      : std_logic;
-    error_active_response       : std_logic;
   end record t_can_mac_fce_if_m2s;
 
   constant c_mac_to_fce_if_reset : t_can_mac_fce_if_m2s :=
@@ -343,23 +339,19 @@ package pk_can_types is
     error                       => '0',
     primary_error               => '0',
     sending_error_overload_flag => '0',
-    counters_unchanged          => '0',
+    passive_tx_ack_error          => '0',
     error_delimiter_too_late    => '0',
-    successful_transfer         => '0',
-    error_passive_response      => '0',
-    error_active_response       => '0'
+    successful_transfer         => '0'
   );
 
   -- FCE -> MAC (ISO Table 16, Table 17)
   type t_can_mac_fce_if_s2m is record
-    error_passive_request : std_logic;
-    error_active_request  : std_logic;
+    error_active  : std_logic;
   end record t_can_mac_fce_if_s2m;
 
   constant c_fce_to_mac_if_reset : t_can_mac_fce_if_s2m :=
   (
-    error_passive_request => '0',
-    error_active_request  => '1'
+    error_active  => '1'
   );
 
   -- LLC -> FCE (ISO Table 14)
