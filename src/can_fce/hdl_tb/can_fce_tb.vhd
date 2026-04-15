@@ -175,9 +175,7 @@ begin
       mac_i       => mac_i,
       mac_o       => mac_o,
       pcs_i       => pcs_i,
-      pcs_o       => pcs_o,
-      debug_tec_o => open,
-      debug_rec_o => open
+      pcs_o       => pcs_o
     );
 
   ----------------------------------------------------------------------------
@@ -199,119 +197,211 @@ begin
     end procedure test_reset;
 
     --------------------------------------------------------------------------
-    -- Test 2: Normal usage - TEC/REC counter rules (ISO 8.1.4.2)
+    -- zero_counters: drive TEC past bus_off, use LLC normal_mode to recover.
+    -- FCE bus_off recovery zeroes both TEC and REC (can_fce.vhd s_bus_off).
+    -- Leaves DUT in s_error_active with TEC = REC = 0.
     --------------------------------------------------------------------------
-    procedure test_normal is
+    procedure zero_counters is
     begin
-      Print("--------------------------------------------------------------------------");
-      Print("Test 2: Normal usage");
-      Print("--------------------------------------------------------------------------");
-
-      -- Rule c: TX error -> mac_o stays error_active, TEC increments internally
-      pulse_tx_error(mac_i);
-      AffirmIf(test_id, mac_o.error_active = '1', "Rule c: still error_active after 1 TX error");
-
-      -- Rule c exception: counters_unchanged flag suppresses TEC increment
-      mac_i.transmitting       <= '1';
-      mac_i.error              <= '1';
-      mac_i.passive_tx_ack_error_exempt <= '1';
-      wait until rising_edge(clk);
-      mac_i <= c_mac_to_fce_if_reset;
-      wait until rising_edge(clk);
-      AffirmIf(test_id, mac_o.error_active = '1', "Rule c exception: still error_active");
-
-      -- Rule g: TX success -> TEC decrements
-      pulse_tx_success(mac_i);
-      AffirmIf(test_id, mac_o.error_active = '1', "Rule g: still error_active after TX success");
-
-      -- Rule a: RX error -> REC += 1
-      pulse_rx_error(mac_i);
-      AffirmIf(test_id, mac_o.error_active = '1', "Rule a: still error_active after RX error");
-
-      -- Rule b: RX primary error -> REC += 8
-      pulse_rx_primary_error(mac_i);
-      AffirmIf(test_id, mac_o.error_active = '1', "Rule b: still error_active after RX primary error");
-
-      -- Rule e: RX error during flag -> REC += 8
-      pulse_rx_error_in_flag(mac_i);
-      AffirmIf(test_id, mac_o.error_active = '1', "Rule e: still error_active after RX error in flag");
-
-      -- Rule d/f: TX delimiter too late -> TEC += 8
-      pulse_tx_delim_late(mac_i);
-      AffirmIf(test_id, mac_o.error_active = '1', "Rule d/f: still error_active after TX delim late");
-
-      -- Rule f (RX): RX delimiter too late -> REC += 8
-      pulse_rx_delim_late(mac_i);
-      AffirmIf(test_id, mac_o.error_active = '1', "Rule f RX: still error_active after RX delim late");
-
-      -- Rule h: RX success decrements REC
-      pulse_rx_success(mac_i);
-      AffirmIf(test_id, mac_o.error_active = '1', "Rule h: still error_active after RX success");
-
-      -- T2: Drive TEC past error_passive threshold (16 TX errors = TEC 128+)
-      for i in 1 to 16 loop
-        pulse_tx_error(mac_i);
-      end loop;
-      WaitForClock(clk);
-      -- AffirmIf(test_id, mac_o.error_passive_request = '1', "T2: error_passive after TEC > 127");
-      AffirmIf(test_id, mac_o.error_active = '0', "T2: error_active deasserted");
-      AffirmIf(test_id, llc_o.bus_off = '0', "T2: not bus_off");
-
-      -- T3: Drive TEC back below threshold via successes
-      for i in 1 to 20 loop
-        pulse_tx_success(mac_i);
-      end loop;
-      WaitForClock(clk);
-      AffirmIf(test_id, mac_o.error_active = '1', "T3: error_active restored");
-      -- AffirmIf(test_id, mac_o.error_passive_request = '0', "T3: error_passive deasserted");
-
-      -- T4: Drive TEC past bus_off threshold (TEC > 255)
       for i in 1 to 32 loop
         pulse_tx_error(mac_i);
       end loop;
       WaitForClock(clk);
-      AffirmIf(test_id, llc_o.bus_off = '1', "T4: bus_off asserted");
-      AffirmIf(test_id, pcs_o.bus_off = '1', "T4: pcs_o.bus_off held high");
-
-      -- T5: 128 idle conditions -> recovery. pcs_o.bus_off must stay high
-      -- throughout the recovery window (not just pulse on entry).
-      for i in 1 to 64 loop
-        pulse_idle_condition(pcs_i);
-      end loop;
-      AffirmIf(test_id, llc_o.bus_off = '1', "T5 mid: still bus_off after 64 pulses");
-      AffirmIf(test_id, pcs_o.bus_off = '1', "T5 mid: pcs_o.bus_off still high after 64 pulses");
-      for i in 1 to 64 loop
-        pulse_idle_condition(pcs_i);
-      end loop;
-      WaitForClock(clk);
-      AffirmIf(test_id, llc_o.bus_off = '0', "T5: bus_off cleared after 128 idle conditions");
-      AffirmIf(test_id, pcs_o.bus_off = '0', "T5: pcs_o.bus_off released after recovery");
-      AffirmIf(test_id, mac_o.error_active = '1', "T5: error_active after recovery");
-
-      -- T5 via LLC normal_mode_request
-      for i in 1 to 32 loop
-        pulse_tx_error(mac_i);
-      end loop;
-      WaitForClock(clk);
-      AffirmIf(test_id, llc_o.bus_off = '1', "bus_off before LLC recovery");
       llc_i.normal_mode <= '1';
+      for i in 1 to 128 loop
+        pulse_idle_condition(pcs_i);
+      end loop;
       WaitForClock(clk);
       llc_i.normal_mode <= '0';
       WaitForClock(clk);
-      AffirmIf(test_id, llc_o.bus_off = '0', "T5 LLC: bus_off cleared after normal_mode_request");
-      AffirmIf(test_id, mac_o.error_active = '1', "T5 LLC: error_active after LLC recovery");
+      AffirmIf(test_id, mac_o.error_active = '1', "zero_counters: back to error_active");
+      AffirmIf(test_id, llc_o.bus_off = '0', "zero_counters: bus_off cleared");
+    end procedure zero_counters;
 
-      -- Rule h special case: RX success with REC > 127 -> REC = 127
+    --------------------------------------------------------------------------
+    -- Per-rule tests (ISO 8.1.4.2). Without direct TEC/REC observability,
+    -- each rule is verified by counting events until the error_passive
+    -- threshold is crossed (TEC/REC > 127 -> mac_o.error_active = '0').
+    -- The event count needed identifies the rule's increment coefficient.
+    --------------------------------------------------------------------------
+
+    -- Rule a: RX error -> REC += 1. 128 events must cross the threshold.
+    procedure test_rule_a is
+    begin
+      Print("-- Test: Rule a (RX error, REC += 1) --");
+      for i in 1 to 127 loop
+        pulse_rx_error(mac_i);
+      end loop;
+      AffirmIf(test_id, mac_o.error_active = '1', "Rule a: still active at REC=127");
+      pulse_rx_error(mac_i);
+      WaitForClock(clk);
+      AffirmIf(test_id, mac_o.error_active = '0', "Rule a: passive at REC=128");
+      zero_counters;
+    end procedure test_rule_a;
+
+    -- Rule b: RX primary error -> REC += 8. 16 events cross threshold.
+    procedure test_rule_b is
+    begin
+      Print("-- Test: Rule b (RX primary error, REC += 8) --");
+      for i in 1 to 15 loop
+        pulse_rx_primary_error(mac_i);
+      end loop;
+      AffirmIf(test_id, mac_o.error_active = '1', "Rule b: still active at REC=120");
+      pulse_rx_primary_error(mac_i);
+      WaitForClock(clk);
+      AffirmIf(test_id, mac_o.error_active = '0', "Rule b: passive at REC=128");
+      zero_counters;
+    end procedure test_rule_b;
+
+    -- Rule c: TX error -> TEC += 8. 16 events cross threshold.
+    procedure test_rule_c is
+    begin
+      Print("-- Test: Rule c (TX error, TEC += 8) --");
+      for i in 1 to 15 loop
+        pulse_tx_error(mac_i);
+      end loop;
+      AffirmIf(test_id, mac_o.error_active = '1', "Rule c: still active at TEC=120");
+      pulse_tx_error(mac_i);
+      WaitForClock(clk);
+      AffirmIf(test_id, mac_o.error_active = '0', "Rule c: passive at TEC=128");
+      zero_counters;
+    end procedure test_rule_c;
+
+    -- Rule c Exception 1: passive_tx_ack_error_exempt suppresses TEC bump.
+    -- 32 "exempt" TX errors must leave TEC unchanged -> stays error_active.
+    procedure test_rule_c_exception is
+    begin
+      Print("-- Test: Rule c Exception 1 (passive_tx_ack_error_exempt) --");
+      for i in 1 to 32 loop
+        mac_i.transmitting                <= '1';
+        mac_i.error                       <= '1';
+        mac_i.passive_tx_ack_error_exempt <= '1';
+        wait until rising_edge(clk);
+        mac_i <= c_mac_to_fce_if_reset;
+        wait until rising_edge(clk);
+      end loop;
+      AffirmIf(test_id, mac_o.error_active = '1', "Rule c Exc.1: still active (TEC not bumped)");
+      zero_counters;
+    end procedure test_rule_c_exception;
+
+    -- Rule e: RX error during flag -> REC += 8. 16 events cross threshold.
+    procedure test_rule_e is
+    begin
+      Print("-- Test: Rule e (RX error in flag, REC += 8) --");
+      for i in 1 to 15 loop
+        pulse_rx_error_in_flag(mac_i);
+      end loop;
+      AffirmIf(test_id, mac_o.error_active = '1', "Rule e: still active at REC=120");
+      pulse_rx_error_in_flag(mac_i);
+      WaitForClock(clk);
+      AffirmIf(test_id, mac_o.error_active = '0', "Rule e: passive at REC=128");
+      zero_counters;
+    end procedure test_rule_e;
+
+    -- Rule f (TX): delimiter too late while transmitting -> TEC += 8.
+    procedure test_rule_f_tx is
+    begin
+      Print("-- Test: Rule f TX (delim late, TEC += 8) --");
+      for i in 1 to 15 loop
+        pulse_tx_delim_late(mac_i);
+      end loop;
+      AffirmIf(test_id, mac_o.error_active = '1', "Rule f TX: still active at TEC=120");
+      pulse_tx_delim_late(mac_i);
+      WaitForClock(clk);
+      AffirmIf(test_id, mac_o.error_active = '0', "Rule f TX: passive at TEC=128");
+      zero_counters;
+    end procedure test_rule_f_tx;
+
+    -- Rule f (RX): delimiter too late while receiving -> REC += 8.
+    procedure test_rule_f_rx is
+    begin
+      Print("-- Test: Rule f RX (delim late, REC += 8) --");
+      for i in 1 to 15 loop
+        pulse_rx_delim_late(mac_i);
+      end loop;
+      AffirmIf(test_id, mac_o.error_active = '1', "Rule f RX: still active at REC=120");
+      pulse_rx_delim_late(mac_i);
+      WaitForClock(clk);
+      AffirmIf(test_id, mac_o.error_active = '0', "Rule f RX: passive at REC=128");
+      zero_counters;
+    end procedure test_rule_f_rx;
+
+    -- Rule g: TX success -> TEC -= 1. Drive to passive via 16 TX errors
+    -- (TEC=128), then TX successes must bring TEC back below threshold.
+    procedure test_rule_g is
+    begin
+      Print("-- Test: Rule g (TX success, TEC -= 1) --");
+      for i in 1 to 16 loop
+        pulse_tx_error(mac_i);
+      end loop;
+      WaitForClock(clk);
+      AffirmIf(test_id, mac_o.error_active = '0', "Rule g setup: passive at TEC=128");
+      for i in 1 to 16 loop
+        pulse_tx_success(mac_i);
+      end loop;
+      WaitForClock(clk);
+      AffirmIf(test_id, mac_o.error_active = '1', "Rule g: active again after 16 TX success");
+      zero_counters;
+    end procedure test_rule_g;
+
+    -- Rule h: RX success -> REC -= 1 with clamp: if REC > 127 at time of
+    -- success, REC is set to 127 (single success recovers).
+    procedure test_rule_h is
+    begin
+      Print("-- Test: Rule h (RX success, REC -= 1 with clamp) --");
       for i in 1 to 16 loop
         pulse_rx_primary_error(mac_i);
       end loop;
-     WaitForClock(clk);
-      -- AffirmIf(test_id, mac_o.error_passive_request = '1', "REC > 127: error_passive");
+      WaitForClock(clk);
+      AffirmIf(test_id, mac_o.error_active = '0', "Rule h setup: passive at REC=128");
       pulse_rx_success(mac_i);
       WaitForClock(clk);
-      AffirmIf(test_id, mac_o.error_active = '1', "Rule h: back to error_active after RX success clamps REC");
+      AffirmIf(test_id, mac_o.error_active = '1', "Rule h: clamp to 127 after single RX success");
+      zero_counters;
+    end procedure test_rule_h;
 
-   end procedure test_normal;
+    --------------------------------------------------------------------------
+    -- State transition tests (ISO 8.1.4.4 Figure 43, T4/T5)
+    --------------------------------------------------------------------------
+
+    -- T4: TEC > 255 -> bus_off.
+    procedure test_t4_bus_off is
+    begin
+      Print("-- Test: T4 (bus_off when TEC > 255) --");
+      for i in 1 to 32 loop
+        pulse_tx_error(mac_i);
+      end loop;
+      WaitForClock(clk);
+      AffirmIf(test_id, llc_o.bus_off = '1', "T4: llc_o.bus_off asserted");
+      AffirmIf(test_id, pcs_o.bus_off = '1', "T4: pcs_o.bus_off asserted");
+      zero_counters;
+    end procedure test_t4_bus_off;
+
+    -- T5 via idle: 128 idle_condition pulses from PCS clear bus_off.
+    -- pcs_o.bus_off must stay high throughout the recovery window.
+    procedure test_t5_recovery_idle is
+    begin
+      Print("-- Test: T5 (bus_off recovery via 128 idle pulses) --");
+      for i in 1 to 32 loop
+        pulse_tx_error(mac_i);
+      end loop;
+      WaitForClock(clk);
+      AffirmIf(test_id, llc_o.bus_off = '1', "T5 idle: bus_off before recovery");
+      llc_i.normal_mode <= '1'; -- required alongside idle count to release
+      for i in 1 to 64 loop
+        pulse_idle_condition(pcs_i);
+      end loop;
+      AffirmIf(test_id, llc_o.bus_off = '1', "T5 idle mid: still bus_off at 64 pulses");
+      AffirmIf(test_id, pcs_o.bus_off = '1', "T5 idle mid: pcs_o.bus_off still high");
+      for i in 1 to 64 loop
+        pulse_idle_condition(pcs_i);
+      end loop;
+      WaitForClock(clk);
+      llc_i.normal_mode <= '0';
+      AffirmIf(test_id, llc_o.bus_off = '0', "T5 idle: bus_off cleared after 128 pulses");
+      AffirmIf(test_id, pcs_o.bus_off = '0', "T5 idle: pcs_o.bus_off released");
+      AffirmIf(test_id, mac_o.error_active = '1', "T5 idle: error_active after recovery");
+    end procedure test_t5_recovery_idle;
 
     --------------------------------------------------------------------------
     -- Test 3: Random stress - exercise counter rules with random sequences
@@ -344,9 +434,12 @@ begin
 
         -- If bus_off, recover before continuing
         if (llc_o.bus_off = '1') then
+          llc_i.normal_mode <= '1';
           for i in 1 to 128 loop
             pulse_idle_condition(pcs_i);
           end loop;
+          WaitForClock(clk);
+          llc_i.normal_mode <= '0';
           WaitForClock(clk);
           AffirmIf(test_id, llc_o.bus_off = '0', "Random recovery: bus_off cleared");
         end if;
@@ -373,7 +466,26 @@ begin
     WaitForClock(clk, 5);
 
     test_reset;
-    test_normal;
+
+    Print("--------------------------------------------------------------------------");
+    Print("ISO 8.1.4.2 counter rules");
+    Print("--------------------------------------------------------------------------");
+    test_rule_a;
+    test_rule_b;
+    test_rule_c;
+    test_rule_c_exception;
+    test_rule_e;
+    test_rule_f_tx;
+    test_rule_f_rx;
+    test_rule_g;
+    test_rule_h;
+
+    Print("--------------------------------------------------------------------------");
+    Print("ISO 8.1.4.4 state transitions");
+    Print("--------------------------------------------------------------------------");
+    test_t4_bus_off;
+    test_t5_recovery_idle;
+
     test_random;
 
     report_results;

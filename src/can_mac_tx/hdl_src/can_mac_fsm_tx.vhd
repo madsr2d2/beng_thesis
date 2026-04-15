@@ -530,19 +530,38 @@ begin
             if (pcs_i.sample_point = '1') then
               v_tx_polarity := c_recessive;
               v_bit_driven  := true;
+              bit_count     <= bit_count + 1;
+
+              -- ACK error: no dominant seen in ACK slot (ISO : 6.6.21.3.1).
               if (bit_count = 0 and not ack_success_seen) then
                 v_enter_error         := true;
                 v_ack_error           := true;
                 ack_error_caused_flag <= true;
               end if;
+
+              -- Dominant in EOF bits 0..5 is a form error (ISO : 6.6.21.3.2,a).
+              if (bit_count < c_eof_field_width - 1 and pcs_i.bus_polarity = c_dominant) then
+                v_enter_error := true;
+              end if;
+
+              -- Last EOF bit: frame successfully transmitted. A dominant here
+              -- is an overload condition, not a bit error (ISO : 6.6.21.3.2,b).
               if (bit_count = c_eof_field_width - 1) then
                 mac_ser_o.transfer_status <= c_transmitted;
                 was_previous_frame_tx     <= true;
                 fce_o.successful_transfer <= '1';
-                state                     <= s_intermission;
                 bit_count                 <= 0;
-              else
-                bit_count <= bit_count + 1;
+                if (pcs_i.bus_polarity = c_dominant) then
+                  v_bit_driven        := false; -- bypass generic bit-error path
+                  state               <= s_error_overload;
+                  overload            <= true;
+                  dominant_run_count  <= 0;
+                  pcs_o.polarity      <= c_dominant;
+                  pcs_o.use_data_rate <= '0';
+                  pcs_o.start_tdc     <= '0';
+                else
+                  state <= s_intermission;
+                end if;
               end if;
             end if;
 
@@ -550,20 +569,11 @@ begin
           -- s_error_overload : Error flag (active/passive) or overload
           -----------------------------------------------------------------
           when s_error_overload =>
-            pcs_o.use_data_rate               <= '0';
-            pcs_o.start_tdc                   <= '0';
-
-            -- Transfer status: overload keeps ongoing, error sets disturbed
-            mac_ser_o.transfer_status <= c_ongoing when overload else c_disturbed;
-            -- Set flag polarity
-            pcs_o.polarity <= c_dominant when overload or fce_i.error_active = '1' else c_recessive;
-
             if (pcs_i.sample_point = '1') then
-
               -----------------------------------------------------------------
               -- Count flag bits
               -----------------------------------------------------------------
-              if (bit_count < c_error_flag_width) then
+              if (bit_count < c_error_flag_width - 1) then
                 -- Passive flag requires 6 consecutive recessive bits so restart count on dominant.
                 if (not overload and fce_i.error_active = '0' and pcs_i.bus_polarity = c_dominant) then
                   -- Track dominant observation for the ISO 8.1.4.2.c  Exemption 1.
@@ -574,42 +584,41 @@ begin
                 end if;
               else
                 -----------------------------------------------------------------
-                -- Flag sent: monitor bus for delimiter (ISO 8.1.4.2 rule f).
-                -- On transition to delimiter, emit the deferred TX error strobe
-                -- with the ACK exemption flag if applicable (ISO 8.1.4.2 c) Exc.1).
+                -- Flag complete: release bus to recessive and transition to
+                -- delimiter. Monitor bus for dominant-run behaviour there
+                -- (ISO 8.1.4.2 rule f, primary-error ISO 8.1.3.3 Table 16).
                 -----------------------------------------------------------------
-                if (pcs_i.bus_polarity = c_recessive) then
-                  dominant_run_count <= 0;
-                  bit_count          <= 0;
-                  overload           <= false;
-                  state              <= s_error_delimiter;
-                  if (ack_error_caused_flag) then
-                    fce_o.error                       <= '1';
-                    fce_o.passive_tx_ack_error_exempt <= '1' when fce_i.error_active = '0' and not saw_dominant_during_flag;
-                  end if;
-
-                elsif (dominant_run_count = c_error_delimiter_width - 1) then -- Tolerate up to 8 dominant bits after sending error flag
-                  fce_o.error_delimiter_too_late <= '1';
-                  dominant_run_count <= 0;
-                else
-                  -- Primary error: only the node that sent the first error flag sees dominants
-                  -- after its own flag (ISO : 8.1.3.3 Table 16).
-                  fce_o.primary_error <= '1' when not overload and dominant_run_count = 0;
-                  dominant_run_count  <= dominant_run_count + 1;
+                dominant_run_count <= 0;
+                bit_count          <= 0;
+                overload           <= false;
+                state              <= s_error_delimiter;
+                pcs_o.polarity     <= c_recessive;
+                if (ack_error_caused_flag) then
+                  fce_o.error                       <= '1';
+                  fce_o.passive_tx_ack_error_exempt <= '1' when fce_i.error_active = '0' and not saw_dominant_during_flag;
                 end if;
               end if;
             end if;
 
           when s_error_delimiter =>
-            pcs_o.polarity <= c_recessive;
             if (pcs_i.sample_point = '1') then
+              pcs_o.polarity <= c_recessive;
               if (pcs_i.bus_polarity = c_dominant) then
+                -- Dominant during delimiter: track primary-error / delimiter-too-late.
+                if (dominant_run_count = c_error_delimiter_width - 1) then
+                  fce_o.error_delimiter_too_late <= '1';
+                  dominant_run_count <= 0;
+                else
+                  fce_o.primary_error <= '1' when not overload and dominant_run_count = 0;
+                  dominant_run_count  <= dominant_run_count + 1;
+                end if;
                 -- Dominant at last delimiter bit is overload (ISO : 6.6.21.3.2,b);
                 -- dominant earlier is a form error.
-                overload    <= (bit_count = c_error_delimiter_width - 2);
-                fce_o.error <= '1' when bit_count /= c_error_delimiter_width - 2;
-                bit_count   <= 0;
-                state       <= s_error_overload;
+                overload       <= (bit_count = c_error_delimiter_width - 2);
+                fce_o.error    <= '1' when bit_count /= c_error_delimiter_width - 2;
+                bit_count      <= 0;
+                state          <= s_error_overload;
+                pcs_o.polarity <= c_dominant;
               else
                 if (bit_count = c_error_delimiter_width - 2) then
                   state     <= s_intermission;
@@ -655,6 +664,7 @@ begin
             dominant_run_count        <= 0;
             state                     <= s_error_overload;
             overload                  <= false;
+            pcs_o.start_tdc                   <= '0';
           elsif v_lost_arb then -- Lost arbitration
             mac_ser_o.transfer_status <= c_lost_arb;
             was_previous_frame_tx     <= false;

@@ -39,10 +39,7 @@ entity can_fce is
     mac_o : out   t_can_mac_fce_if_s2m;
     -- PCS interface
     pcs_i : in    t_can_pcs_fce_if_s2m;
-    pcs_o : out   t_can_fce_pcs_if_m2s;
-    -- Debug output
-    debug_tec_o   : out   natural range 0 to c_bus_off_threshold - 1;
-    debug_rec_o   : out   natural range 0 to c_error_count_threshold - 1
+    pcs_o : out   t_can_fce_pcs_if_m2s
   );
 end entity can_fce;
 
@@ -56,8 +53,9 @@ architecture rtl of can_fce is
   ---------------------------------------------------------------------------
   -- Signals
   ---------------------------------------------------------------------------
-  signal transmitter_error_count        : natural range 0 to c_bus_off_threshold - 1;
-  signal reciever_error_count        : natural range 0 to c_error_count_threshold - 1;
+  -- Ranges allow crossing the thresholds with headroom for coefficient bumps.
+  signal transmitter_error_count : natural range 0 to c_bus_off_threshold + 8;
+  signal reciever_error_count    : natural range 0 to c_bus_off_threshold + 8;
   signal fce_state  : t_fce_state;
   signal idle_count : natural range 0 to c_bus_off_recovery_count;
 
@@ -155,8 +153,8 @@ begin
               idle_count <= idle_count + 1;
             elsif (idle_count = c_bus_off_recovery_count and llc_i.normal_mode = '1') then
               fce_state          <= s_error_active;
-              transmitter_error_count                <= 0;
-              reciever_error_count                <= 0;
+              transmitter_error_count  <= 0;
+              reciever_error_count     <= 0;
               idle_count         <= 0;
               mac_o.error_active <= '1';
               mac_o.bus_off      <= '0';
@@ -170,10 +168,6 @@ begin
       end if;
     end if;
   end process p_fsm;
-
-  debug_tec_o <= transmitter_error_count;
-  debug_rec_o <= reciever_error_count;
-
 end architecture rtl;
 
 -- eof
