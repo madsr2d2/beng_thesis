@@ -72,7 +72,7 @@ architecture tb of can_mac_tx_tb is
   constant c_fce_successful_transfer  : natural := 0;
   constant c_fce_error                : natural := 1;
   constant c_fce_primary_error        : natural := 2;
-  constant c_fce_passive_tx_ack_error   : natural := 3;
+  constant c_fce_passive_tx_ack_exempt  : natural := 3;
   constant c_fce_error_delim_too_late : natural := 4;
   constant c_fce_latch_width          : natural := 5;
 
@@ -348,7 +348,7 @@ begin
         fce_latch(c_fce_successful_transfer)  <= fce_o.successful_transfer when fce_o.successful_transfer;
         fce_latch(c_fce_error)                <= fce_o.error when fce_o.error;
         fce_latch(c_fce_primary_error)        <= fce_o.primary_error when fce_o.primary_error ;
-        fce_latch(c_fce_passive_tx_ack_error)   <= fce_o.passive_tx_ack_error when fce_o.passive_tx_ack_error;
+        fce_latch(c_fce_passive_tx_ack_exempt)  <= fce_o.passive_tx_ack_error_exempt when fce_o.passive_tx_ack_error_exempt;
         fce_latch(c_fce_error_delim_too_late) <= fce_o.error_delimiter_too_late when fce_o.error_delimiter_too_late;
       end if;
     end if;
@@ -597,7 +597,7 @@ begin
       v_exp_fce(c_fce_error) := '1';
       if (v_error_state = c_fce_passive) then
         -- ISO 8.1.4.2 rule c) Exception 1: counters_unchanged
-        v_exp_fce(c_fce_passive_tx_ack_error) := '1';
+        v_exp_fce(c_fce_passive_tx_ack_exempt) := '1';
       else
         v_exp_fce(c_fce_primary_error) := '1';
       end if;

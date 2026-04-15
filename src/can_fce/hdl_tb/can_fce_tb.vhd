@@ -53,6 +53,8 @@ architecture tb of can_fce_tb is
   ----------------------------------------------------------------------------
   -- Pulse procedures
   ----------------------------------------------------------------------------
+
+
   procedure pulse_tx_error (signal s2d : inout t_can_mac_fce_if_m2s) is
   begin
     s2d.transmitting <= '1';
@@ -212,7 +214,7 @@ begin
       -- Rule c exception: counters_unchanged flag suppresses TEC increment
       mac_i.transmitting       <= '1';
       mac_i.error              <= '1';
-      mac_i.passive_tx_ack_error <= '1';
+      mac_i.passive_tx_ack_error_exempt <= '1';
       wait until rising_edge(clk);
       mac_i <= c_mac_to_fce_if_reset;
       wait until rising_edge(clk);
@@ -269,14 +271,21 @@ begin
       end loop;
       WaitForClock(clk);
       AffirmIf(test_id, llc_o.bus_off = '1', "T4: bus_off asserted");
-      -- AffirmIf(test_id, mac_o.error_passive_request = '1', "T4: error_passive in bus_off");
+      AffirmIf(test_id, pcs_o.bus_off = '1', "T4: pcs_o.bus_off held high");
 
-      -- T5: 128 idle conditions -> recovery
-      for i in 1 to 128 loop
+      -- T5: 128 idle conditions -> recovery. pcs_o.bus_off must stay high
+      -- throughout the recovery window (not just pulse on entry).
+      for i in 1 to 64 loop
+        pulse_idle_condition(pcs_i);
+      end loop;
+      AffirmIf(test_id, llc_o.bus_off = '1', "T5 mid: still bus_off after 64 pulses");
+      AffirmIf(test_id, pcs_o.bus_off = '1', "T5 mid: pcs_o.bus_off still high after 64 pulses");
+      for i in 1 to 64 loop
         pulse_idle_condition(pcs_i);
       end loop;
       WaitForClock(clk);
       AffirmIf(test_id, llc_o.bus_off = '0', "T5: bus_off cleared after 128 idle conditions");
+      AffirmIf(test_id, pcs_o.bus_off = '0', "T5: pcs_o.bus_off released after recovery");
       AffirmIf(test_id, mac_o.error_active = '1', "T5: error_active after recovery");
 
       -- T5 via LLC normal_mode_request
@@ -285,9 +294,9 @@ begin
       end loop;
       WaitForClock(clk);
       AffirmIf(test_id, llc_o.bus_off = '1', "bus_off before LLC recovery");
-      llc_i.normal_mode_request <= '1';
+      llc_i.normal_mode <= '1';
       WaitForClock(clk);
-      llc_i.normal_mode_request <= '0';
+      llc_i.normal_mode <= '0';
       WaitForClock(clk);
       AffirmIf(test_id, llc_o.bus_off = '0', "T5 LLC: bus_off cleared after normal_mode_request");
       AffirmIf(test_id, mac_o.error_active = '1', "T5 LLC: error_active after LLC recovery");

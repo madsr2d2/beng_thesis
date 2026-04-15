@@ -57,12 +57,16 @@ architecture test of can_pcs_tx_tb is
   -- DUT 1 signals
   signal mac_to_pcs_1 : t_can_mac_pcs_if_m2s := c_mac_to_pcs_if_reset;
   signal pcs_to_mac_1 : t_can_mac_pcs_if_s2m;
+  signal fce_to_pcs_1 : t_can_fce_pcs_if_m2s := c_fce_to_pcs_if_reset;
+  signal pcs_to_fce_1 : t_can_pcs_fce_if_s2m;
   signal tx_bus_1      : std_logic;
   signal rx_bus_1      : std_logic := c_recessive;
 
   -- DUT 2 signals
   signal mac_to_pcs_2 : t_can_mac_pcs_if_m2s := c_mac_to_pcs_if_reset;
   signal pcs_to_mac_2 : t_can_mac_pcs_if_s2m;
+  signal fce_to_pcs_2 : t_can_fce_pcs_if_m2s := c_fce_to_pcs_if_reset;
+  signal pcs_to_fce_2 : t_can_pcs_fce_if_s2m;
   signal tx_bus_2      : std_logic;
   signal rx_bus_2      : std_logic := c_recessive;
 
@@ -97,8 +101,10 @@ begin
     port map (
       clk_i         => clk,
       rst_i         => rst,
-      mac_to_pcs_i  => mac_to_pcs_1,
-      pcs_to_mac_o  => pcs_to_mac_1,
+      mac_i  => mac_to_pcs_1,
+      mac_o  => pcs_to_mac_1,
+      fce_i  => fce_to_pcs_1,
+      fce_o  => pcs_to_fce_1,
       tx_bus_o      => tx_bus_1,
       rx_bus_i      => rx_bus_1
     );
@@ -110,8 +116,10 @@ begin
     port map (
       clk_i         => clk,
       rst_i         => rst,
-      mac_to_pcs_i  => mac_to_pcs_2,
-      pcs_to_mac_o  => pcs_to_mac_2,
+      mac_i  => mac_to_pcs_2,
+      mac_o  => pcs_to_mac_2,
+      fce_i  => fce_to_pcs_2,
+      fce_o  => pcs_to_fce_2,
       tx_bus_o      => tx_bus_2,
       rx_bus_i      => rx_bus_2
     );
@@ -355,7 +363,9 @@ begin
       wait_clocks(tdc_nom_bit_clk_c * 2);
     end procedure enter_fd_data_phase_2;
 
-    variable pulse_seen : boolean;
+    variable pulse_seen    : boolean;
+    variable v_idle_seen   : boolean;
+    variable v_idle_count  : natural;
 
   begin
     SetLogEnable(INFO, true);
@@ -656,6 +666,71 @@ begin
             "Very slow timing should not require TDC", ERROR);
 
     Log("Test 11 PASSED", PASSED);
+
+    --------------------------------------------------------------------------
+    -- Test 12: idle_condition pulses during bus-off recovery only
+    --   Semantics: while fce_i.bus_off = '1' the PCS emits one
+    --   idle_condition strobe per window of 11 consecutive recessive SPs
+    --   (the FCE counts 128 to leave bus-off per ISO 8.1.4.4). With
+    --   bus_off = '0' the counter is dormant and no pulses appear.
+    --   A dominant RX at SP resets the window. TX is held recessive
+    --   throughout bus-off regardless of mac_i.polarity.
+    --------------------------------------------------------------------------
+    current_test_id <= 12;
+    Log("Test 12: idle_condition pulses during bus-off (DUT 1)", INFO);
+
+    reset_duts;
+
+    -- With bus_off = '0' and bus recessive, no idle_condition pulses.
+    v_idle_count := 0;
+    for i in 1 to no_tdc_nom_bit_clk_c * 15 loop
+      wait until rising_edge(clk);
+      if (pcs_to_fce_1.idle_condition = '1') then
+        v_idle_count := v_idle_count + 1;
+      end if;
+    end loop;
+    AlertIf(v_idle_count /= 0,
+            "idle_condition must not pulse while bus_off = '0', got " &
+            natural'image(v_idle_count), ERROR);
+
+    -- Assert bus_off. Over 35 nominal bit times expect ~3 pulses.
+    fce_to_pcs_1.bus_off <= '1';
+    wait_clocks(no_tdc_nom_bit_clk_c);
+
+    v_idle_count := 0;
+    for i in 1 to no_tdc_nom_bit_clk_c * 35 loop
+      wait until rising_edge(clk);
+      if (pcs_to_fce_1.idle_condition = '1') then
+        v_idle_count := v_idle_count + 1;
+      end if;
+    end loop;
+    AlertIf(v_idle_count < 2 or v_idle_count > 4,
+            "Expected ~3 idle_condition pulses during bus_off over 35 bits, got " &
+            natural'image(v_idle_count), ERROR);
+
+    -- TX bus must stay recessive during bus_off regardless of mac_i.polarity.
+    mac_to_pcs_1.polarity <= c_dominant;
+    wait_clocks(no_tdc_nom_bit_clk_c * 2);
+    AlertIf(tx_bus_1 /= c_recessive,
+            "tx_bus_o must be held recessive while bus_off = '1'", ERROR);
+    mac_to_pcs_1.polarity <= c_recessive;
+
+    -- Release bus_off; no more idle pulses should appear.
+    fce_to_pcs_1.bus_off <= '0';
+    wait_clocks(no_tdc_nom_bit_clk_c);
+
+    v_idle_count := 0;
+    for i in 1 to no_tdc_nom_bit_clk_c * 15 loop
+      wait until rising_edge(clk);
+      if (pcs_to_fce_1.idle_condition = '1') then
+        v_idle_count := v_idle_count + 1;
+      end if;
+    end loop;
+    AlertIf(v_idle_count /= 0,
+            "idle_condition must stop pulsing after bus_off release, got " &
+            natural'image(v_idle_count), ERROR);
+
+    Log("Test 12 PASSED", PASSED);
 
     --------------------------------------------------------------------------
     -- Summary

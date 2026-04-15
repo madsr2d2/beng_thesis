@@ -73,7 +73,7 @@ begin
   p_stream_to_LLC: process(clk_i)
   begin
     if rising_edge(clk_i) then
-      if rst_i = '1' then
+      if (rst_i = '1' or fce_i.bus_off = '1') then
         llc_o           <= c_mac_rx_to_llc_if_reset;
         stream_index    <= 0;
         llc_stream_done <= false;
@@ -111,7 +111,7 @@ begin
 
   begin
     if rising_edge(clk_i) then
-      if (rst_i = '1') then
+      if (rst_i = '1' or fce_i.bus_off = '1') then
         bs_rst         <= '1';
         crc_rst        <= '1';
         bit_count      <= 0;
@@ -139,9 +139,7 @@ begin
         crc_o.valid_fd      <= '0';
         bs_rst              <= '0';
         crc_rst             <= '0';
-        fce_o               <= c_mac_to_fce_if_reset;
-        -- pcs_o.valid         <= '0';
-        -- pcs_o.polarity      <= c_recessive;
+        fce_o               <= c_mac_to_fce_if_reset; -- pcs_o.valid         <= '0'; -- pcs_o.polarity      <= c_recessive;
         pcs_o.start_tdc     <= '0';
         llc_stream_start <= not llc_stream_done when llc_stream_done; -- Clear
 
@@ -481,7 +479,7 @@ begin
                 -- ACK slot bit 1 (FD only): recessive, wait for alignment
                 bit_count <= 2;
               else
-                -- ACK delimiter: must be recessive (ISO 6.6.5.1)
+                -- Form error: ACK delimiter must be recessive (ISO 6.6.5.1)
                 if (pcs_i.bus_polarity = c_dominant) then
                   fce_o.sending_error_overload_flag <= '1';
                   fce_o.error    <= '1';
@@ -510,6 +508,7 @@ begin
                   if bit_count = (c_eof_field_width - 1) then -- Overload if last EOF bit is dominant
                     pcs_o.polarity <=  c_dominant;
                     overload       <= true;
+                    fce_o.error    <= '0'; -- Not error
                   else -- Else form error
                     pcs_o.polarity <= c_recessive when fce_i.error_active = '0' else c_dominant;
                   end if;
@@ -593,8 +592,8 @@ begin
         -- Gating RX outputs when node is transmitting:
         -- Skip ACK drive, LLC delivery, and FCE error signaling.
         -----------------------------------------------------------------
-        if (transmitting_i) then
-          pcs_o.polarity   <= '1';
+        if transmitting_i then
+          pcs_o.polarity   <= c_recessive;
           fce_o            <= c_mac_to_fce_if_reset;
           llc_stream_start <= false;
         end if;

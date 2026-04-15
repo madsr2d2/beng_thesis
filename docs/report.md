@@ -1127,6 +1127,10 @@ Implementation details of the flexible CRC generator and the hybrid bit stuffer.
 # Discussion {#sec:discussion}
 Comparison of the implemented architecture against theoretical models. Performance analysis in high-load scenarios.
 
+## Future Work {#sec:future-work}
+1. Make the the CRC and BS modules to save area on the FPGA.
+2. CAN XL implementation...
+
 # Conclusion {#sec:conclusion}
 Summary of work completed and how objectives were met.
 

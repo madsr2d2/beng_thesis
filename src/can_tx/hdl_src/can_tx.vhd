@@ -40,9 +40,13 @@ entity can_tx is
     llc_user_i : in    t_can_user_llc_tx_if_s2d;
     llc_user_o : out   t_can_user_llc_tx_if_d2s;
 
-    -- Fault Confinement Entity interface
+    -- Fault Confinement Entity interface (MAC side)
     fce_i : in    t_can_mac_fce_if_s2m;
     fce_o : out   t_can_mac_fce_if_m2s;
+
+    -- Fault Confinement Entity interface (PCS side)
+    fce_pcs_i : in    t_can_fce_pcs_if_m2s := c_fce_to_pcs_if_reset;
+    fce_pcs_o : out   t_can_pcs_fce_if_s2m;
 
     -- Physical bus interface
     tx_bus_o : out   std_logic;
@@ -112,8 +116,10 @@ begin
     port map (
       clk_i         => clk_i,
       rst_i         => rst_i,
-      mac_to_pcs_i  => mac_to_pcs,
-      pcs_to_mac_o  => pcs_to_mac,
+      mac_i  => mac_to_pcs,
+      mac_o  => pcs_to_mac,
+      fce_i  => fce_pcs_i,
+      fce_o  => fce_pcs_o,
       tx_bus_o      => tx_bus_o,
       rx_bus_i      => rx_bus_i
     );

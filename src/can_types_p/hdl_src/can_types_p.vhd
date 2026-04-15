@@ -69,12 +69,8 @@ package pk_can_types is
   constant c_suspend_transmission_width : natural := 8;   -- ISO 6.6.7.4
   constant c_bus_idle_condition_width   : natural := 11;  -- ISO 6.6.7.5
   constant c_bus_off_recovery_count     : natural := 128; -- ISO 8.1.4.4
-
-
-  constant c_fce_tec_max                 : natural := 511;
-  constant c_fce_rec_max                 : natural := 255;
-  constant c_fce_error_passive_threshold : natural := 127; -- ISO 8.1.4.1
-  constant c_fce_bus_off_threshold       : natural := 255; -- ISO 8.1.4.1
+  constant c_error_count_threshold : natural := 127; -- ISO 8.1.4.4
+  constant c_bus_off_threshold       : natural := 255; -- ISO 8.1.4.4
 
   -- Frame limits
   constant c_dlc_max              : natural := 15; -- ISO Table 5
@@ -335,7 +331,7 @@ package pk_can_types is
     error                       : std_logic;
     primary_error               : std_logic;
     sending_error_overload_flag : std_logic;
-    passive_tx_ack_error          : std_logic;
+    passive_tx_ack_error_exempt : std_logic; -- ISO 8.1.4.2 c) Exc.1: asserted when exemption applies (passive + ACK-caused + no dominant during flag)
     error_delimiter_too_late    : std_logic;
     successful_transfer         : std_logic;
   end record t_can_mac_fce_if_m2s;
@@ -346,7 +342,7 @@ package pk_can_types is
     error                       => '0',
     primary_error               => '0',
     sending_error_overload_flag => '0',
-    passive_tx_ack_error          => '0',
+    passive_tx_ack_error_exempt => '0',
     error_delimiter_too_late    => '0',
     successful_transfer         => '0'
   );
@@ -354,58 +350,56 @@ package pk_can_types is
   -- FCE -> MAC (ISO Table 16, Table 17)
   type t_can_mac_fce_if_s2m is record
     error_active  : std_logic;
+    bus_off       : std_logic;
   end record t_can_mac_fce_if_s2m;
 
   constant c_fce_to_mac_if_reset : t_can_mac_fce_if_s2m :=
   (
-    error_active  => '1'
+    error_active  => '1',
+    bus_off       => '0'
   );
 
   -- LLC -> FCE (ISO Table 14)
   type t_can_llc_fce_if_m2s is record
-    normal_mode_request : std_logic;
+    normal_mode : std_logic;
   end record t_can_llc_fce_if_m2s;
 
   constant c_llc_to_fce_if_reset : t_can_llc_fce_if_m2s :=
   (
-    normal_mode_request => '0'
+    normal_mode => '0'
   );
 
   -- FCE -> LLC (ISO Table 15)
   type t_can_fce_llc_if_s2m is record
-    normal_mode_response : std_logic;
     bus_off              : std_logic;
   end record t_can_fce_llc_if_s2m;
 
   constant c_fce_to_llc_if_reset : t_can_fce_llc_if_s2m :=
   (
-    normal_mode_response => '0',
-    bus_off              => '0'
+    bus_off => '0'
   );
 
   -- FCE -> PCS (ISO Table 18)
   type t_can_fce_pcs_if_m2s is record
-    bus_off_request         : std_logic;
-    bus_off_release_request : std_logic;
+    bus_off         : std_logic;
   end record t_can_fce_pcs_if_m2s;
 
   constant c_fce_to_pcs_if_reset : t_can_fce_pcs_if_m2s :=
   (
-    bus_off_request         => '0',
-    bus_off_release_request => '0'
+    bus_off => '0'
   );
 
   -- PCS -> FCE (ISO Table 19)
   type t_can_pcs_fce_if_s2m is record
-    bus_off_response         : std_logic;
-    bus_off_release_response : std_logic;
+    -- bus_off_response         : std_logic;
+    -- bus_off_release_response : std_logic;
     idle_condition           : std_logic; -- Pulse: 11 consecutive recessive bits detected (bus-off recovery)
   end record t_can_pcs_fce_if_s2m;
 
   constant c_pcs_to_fce_if_reset : t_can_pcs_fce_if_s2m :=
   (
-    bus_off_response         => '0',
-    bus_off_release_response => '0',
+    -- bus_off_response         => '0',
+    -- bus_off_release_response => '0',
     idle_condition           => '0'
   );
 

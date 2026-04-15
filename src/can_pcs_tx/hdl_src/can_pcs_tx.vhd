@@ -4,32 +4,11 @@
 --
 -- Requirements:
 --
--- Description:   Physical Signaling layer implementing bit timing, transmission,
---                and Transmitter Delay Compensation (TDC) per ISO 11898-1:2015
---                Section 7.2 (PCS Services) and 7.3.4 (TDC).
---                Responsibilities:
---                - Bit timing generation (nominal and data bit rates)
---                - Serial bit transmission to bus
---                - TDC delay measurement (triggered by MAC via start_tdc pulse)
---                - Sample Point (SP) and Secondary Sample Point (SSP) generation
---                - Bus monitoring (RX input for loopback and delay measurement)
---                Interface:
---                MAC tells PCS what to do via level signals, stable before each
---                bit boundary and sampled by PCS at the start of each bit time:
---                polarity      - bit value to transmit
---                valid         - frame active (high during entire frame)
---                use_data_rate - high during data bit rate phase
---                start_tdc     - high during FDF bit (triggers TDC measurement)
---                FSM State Transitions:
---                idle -> transmitting                     (valid = '1')
---                transmitting: nominal or data rate       (use_data_rate selects)
---                transmitting -> measuring_delay          (start_tdc = '1')
---                any non-idle -> idle                     (valid = '0')
+-- Description:   PCS TX per ISO 11898-1:2015 (7.2, 7.3.4). Handles bit timing,
+--                SP/SSP generation, TDC measurement, and bus-off idle detection.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-31  MRDSA     Converted to company header format
---                2026-04-14  MRDSA     Refactored procedures to synchronised processes
---                2026-04-14  MRDSA     SSP blanking per ISO 7.3.4, inlined TDC calc
+--                2026-03-31  MRDSA     Initial
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
@@ -54,8 +33,11 @@ entity can_pcs_tx is
     clk_i : in    std_logic;
     rst_i : in    std_logic;
     ---
-    mac_to_pcs_i : in    t_can_mac_pcs_if_m2s;
-    pcs_to_mac_o : out   t_can_mac_pcs_if_s2m;
+    mac_i : in    t_can_mac_pcs_if_m2s;
+    mac_o : out   t_can_mac_pcs_if_s2m;
+    ---
+    fce_i : in t_can_fce_pcs_if_m2s;
+    fce_o : out t_can_pcs_fce_if_s2m;
     ---
     tx_bus_o : out   std_logic;
     rx_bus_i : in    std_logic
@@ -100,6 +82,8 @@ architecture rtl of can_pcs_tx is
   signal bit_boundary       : std_logic;
   signal active_bit_time    : natural range 0 to c_nom_bit_time;
   signal active_sp          : natural range 0 to c_sp_position;
+  signal recessive_counter  : natural range 0 to c_bus_idle_condition_width -1;
+
 
 begin
 
@@ -144,7 +128,8 @@ begin
         tx_bus_o <= c_recessive;
       elsif bit_boundary = '1' then
         tq_count <= 0;
-        tx_bus_o <= mac_to_pcs_i.polarity;
+        -- Hold bus recessive during bus-off recovery; otherwise drive MAC polarity
+        tx_bus_o <= c_recessive when fce_i.bus_off = '1' else mac_i.polarity;
       else
         tq_count <= tq_count + 1 when tq_tick = '1';
       end if;
@@ -152,17 +137,36 @@ begin
   end process p_tq_counter;
 
   ---------------------------------------------------------------------------
-  -- Sample point generation
+  -- Sample point and idle_condition strobes
   ---------------------------------------------------------------------------
   p_sample_point : process (clk_i) is
   begin
     if rising_edge(clk_i) then
       if (rst_i = '1') then
-        pcs_to_mac_o.sample_point <= '0';
-      elsif (tq_tick = '1' and tq_count = active_sp - 1) then
-        pcs_to_mac_o.sample_point <= '1';
+        mac_o.sample_point   <= '0';
+        fce_o.idle_condition <= '0';
+        recessive_counter    <= 0;
       else
-        pcs_to_mac_o.sample_point <= '0';
+        mac_o.sample_point   <= '0';
+        fce_o.idle_condition <= '0';
+
+        if (tq_tick = '1' and tq_count = active_sp - 1) then
+          if (fce_i.bus_off = '0') then
+            mac_o.sample_point <= '1'; -- Sample point strobe (suppressed while bus_off asserted by FCE)
+
+          else -- While FCE asserts bus_off, pulse idle_condition (FCE counts these pulses, 128 = bus-off recovery per ISO 8.1.4.4)
+            if (rx_bus_i = c_dominant) then
+              recessive_counter <= 0;
+            else
+              if (recessive_counter = c_bus_idle_condition_width - 1) then
+                fce_o.idle_condition <= '1';
+                recessive_counter <= 0;
+              else
+                recessive_counter <= recessive_counter + 1;
+              end if;
+            end if;
+          end if;
+        end if;
       end if;
     end if;
   end process p_sample_point;
@@ -194,13 +198,13 @@ begin
   begin
     if rising_edge(clk_i) then
       if (rst_i = '1' or state /= s_data) then
-        pcs_to_mac_o.secondary_sample_point <= '0';
-        pcs_to_mac_o.tdc_delay              <= (others => '0');
+        mac_o.secondary_sample_point <= '0';
+        mac_o.tdc_delay              <= (others => '0');
       elsif (c_use_tdc and ssp_active = '1' and tq_tick = '1' and tq_count = ssp_position) then
-        pcs_to_mac_o.secondary_sample_point <= '1';
-        pcs_to_mac_o.tdc_delay              <= std_logic_vector(to_unsigned(tdc_delay, pcs_to_mac_o.tdc_delay'length));
+        mac_o.secondary_sample_point <= '1';
+        mac_o.tdc_delay              <= std_logic_vector(to_unsigned(tdc_delay, mac_o.tdc_delay'length));
       else
-        pcs_to_mac_o.secondary_sample_point <= '0';
+        mac_o.secondary_sample_point <= '0';
       end if;
     end if;
   end process p_ssp;
@@ -212,9 +216,9 @@ begin
   begin
     if rising_edge(clk_i) then
       if (rst_i = '1') then
-        pcs_to_mac_o.bus_polarity <= c_recessive;
+        mac_o.bus_polarity <= c_recessive;
       else
-        pcs_to_mac_o.bus_polarity <= rx_bus_i;
+        mac_o.bus_polarity <= rx_bus_i;
       end if;
     end if;
   end process p_bus_polarity;
@@ -223,7 +227,7 @@ begin
   -- TDC delay measurement (ISO 7.3.4)
   -- Measures transmitter delay in clocks, converts to TQs, computes:
   --   ssp_position  = (TDC value + ssp_offset) mod data_bit_time
-j  --   tdc_delay     = ceil(TDC value / data_bit_time)
+  --   tdc_delay     = ceil(TDC value / data_bit_time)
   ---------------------------------------------------------------------------
   p_tdc : process (clk_i) is
     variable v_delay_tq   : natural;
@@ -278,25 +282,18 @@ j  --   tdc_delay     = ceil(TDC value / data_bit_time)
       if (rst_i = '1') then
         state <= s_nominal;
       else
-        case state is
-          when s_nominal =>
-            if (bit_boundary = '1' and mac_to_pcs_i.start_tdc = '1') then
-              state <= s_measuring;
-            end if;
-            if (bit_boundary = '1' and mac_to_pcs_i.use_data_rate = '1') then
-              state <= s_data;
-            end if;
-          when s_measuring =>
-            if (bit_boundary = '1' and mac_to_pcs_i.use_data_rate = '1') then
-              state <= s_data;
-            end if;
-          when s_data =>
-            if (bit_boundary = '1' and mac_to_pcs_i.use_data_rate = '0') then
+        if bit_boundary = '1' then
+          case state is
+            when s_nominal =>
+                state <= s_measuring when mac_i.use_data_rate = '1';
+            when s_measuring =>
+                state <= s_data when mac_i.use_data_rate = '1';
+            when s_data =>
+                state <= s_nominal when mac_i.use_data_rate = '0';
+            when others =>
               state <= s_nominal;
-            end if;
-          when others =>
-            state <= s_nominal;
-        end case;
+          end case;
+        end if;
       end if;
     end if;
   end process p_fsm;
