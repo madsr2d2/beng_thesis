@@ -71,12 +71,8 @@ package pk_can_types is
   constant c_suspend_transmission_width : natural := 8;   -- ISO 6.6.7.4
   constant c_bus_idle_condition_width   : natural := 11;  -- ISO 6.6.7.5
   constant c_bus_off_recovery_count     : natural := 128; -- ISO 8.1.4.4
-
-
-  constant c_fce_tec_max                 : natural := 511;
-  constant c_fce_rec_max                 : natural := 255;
-  constant c_fce_error_passive_threshold : natural := 127; -- ISO 8.1.4.1
-  constant c_fce_bus_off_threshold       : natural := 255; -- ISO 8.1.4.1
+  constant c_error_count_threshold : natural := 127; -- ISO 8.1.4.4
+  constant c_bus_off_threshold       : natural := 255; -- ISO 8.1.4.4
 
   -- Frame limits
   constant c_dlc_max              : natural := 15; -- ISO Table 5
@@ -126,6 +122,7 @@ package pk_can_types is
   subtype t_nominal_phase_seg2 is natural range 2 to 32;
   subtype t_data_phase_seg2 is natural range 2 to 8;
   subtype t_ssp_offset is natural range 1 to 63;
+  subtype t_sjw is natural range 1 to 4;               -- ISO 7.3.2, Table 13
 
   ---------------------------------------------------------------------------
   -- 4. Composite Types
@@ -266,6 +263,32 @@ package pk_can_types is
     tdc_delay    => (others => '0')
   );
 
+  -- MAC -> PCS RX (ISO 7.3.5, receiver synchronization control)
+  type t_can_mac_pcs_rx_if_m2s is record
+    polarity      : std_logic; -- TX bus drive polarity for ACK/error/overload flags.
+    use_data_rate : std_logic; -- High when the PCS should use the data rate bit timing (FD frames, BRS=1).
+    hard_sync_en  : std_logic; -- '1': next valid edge triggers hard sync; '0': resynchronization (ISO 7.3.5.1 rules c/d). The MAC FSM knows the frame context and sets this flag according to rule c. 
+  end record t_can_mac_pcs_rx_if_m2s;
+
+  constant c_mac_to_pcs_rx_if_reset : t_can_mac_pcs_rx_if_m2s :=
+  (
+    polarity      => c_recessive,
+    use_data_rate => '0',
+    hard_sync_en  => '1'
+  );
+
+  -- PCS -> MAC RX (ISO 7.2, PCS_Data.Indicate for receiver)
+  type t_can_mac_pcs_rx_if_s2m is record
+    bus_polarity : std_logic; -- Registered bus polarity (one clock delay from rx_bus_i).
+    sample_point : std_logic; -- Sample point strobe (single clock pulse).
+  end record t_can_mac_pcs_rx_if_s2m;
+
+  constant c_pcs_to_mac_rx_if_reset : t_can_mac_pcs_rx_if_s2m :=
+  (
+    bus_polarity => c_recessive,
+    sample_point => '0'
+  );
+
   -- FSM -> Bit Stuffer (ISO 6.6.13)
   type t_can_mac_fsm_bs_if_m2s is record
     data                   : std_logic;
@@ -328,7 +351,7 @@ package pk_can_types is
     error                       : std_logic;
     primary_error               : std_logic;
     sending_error_overload_flag : std_logic;
-    passive_tx_ack_error          : std_logic;
+    passive_tx_ack_error_exempt : std_logic; -- ISO 8.1.4.2 c) Exc.1: asserted when exemption applies (passive + ACK-caused + no dominant during flag)
     error_delimiter_too_late    : std_logic;
     successful_transfer         : std_logic;
   end record t_can_mac_fce_if_m2s;
@@ -339,7 +362,7 @@ package pk_can_types is
     error                       => '0',
     primary_error               => '0',
     sending_error_overload_flag => '0',
-    passive_tx_ack_error          => '0',
+    passive_tx_ack_error_exempt => '0',
     error_delimiter_too_late    => '0',
     successful_transfer         => '0'
   );
@@ -347,58 +370,56 @@ package pk_can_types is
   -- FCE -> MAC (ISO Table 16, Table 17)
   type t_can_mac_fce_if_s2m is record
     error_active  : std_logic;
+    bus_off       : std_logic;
   end record t_can_mac_fce_if_s2m;
 
   constant c_fce_to_mac_if_reset : t_can_mac_fce_if_s2m :=
   (
-    error_active  => '1'
+    error_active  => '1',
+    bus_off       => '0'
   );
 
   -- LLC -> FCE (ISO Table 14)
   type t_can_llc_fce_if_m2s is record
-    normal_mode_request : std_logic;
+    normal_mode : std_logic;
   end record t_can_llc_fce_if_m2s;
 
   constant c_llc_to_fce_if_reset : t_can_llc_fce_if_m2s :=
   (
-    normal_mode_request => '0'
+    normal_mode => '0'
   );
 
   -- FCE -> LLC (ISO Table 15)
   type t_can_fce_llc_if_s2m is record
-    normal_mode_response : std_logic;
     bus_off              : std_logic;
   end record t_can_fce_llc_if_s2m;
 
   constant c_fce_to_llc_if_reset : t_can_fce_llc_if_s2m :=
   (
-    normal_mode_response => '0',
-    bus_off              => '0'
+    bus_off => '0'
   );
 
   -- FCE -> PCS (ISO Table 18)
   type t_can_fce_pcs_if_m2s is record
-    bus_off_request         : std_logic;
-    bus_off_release_request : std_logic;
+    bus_off         : std_logic;
   end record t_can_fce_pcs_if_m2s;
 
   constant c_fce_to_pcs_if_reset : t_can_fce_pcs_if_m2s :=
   (
-    bus_off_request         => '0',
-    bus_off_release_request => '0'
+    bus_off => '0'
   );
 
   -- PCS -> FCE (ISO Table 19)
   type t_can_pcs_fce_if_s2m is record
-    bus_off_response         : std_logic;
-    bus_off_release_response : std_logic;
+    -- bus_off_response         : std_logic;
+    -- bus_off_release_response : std_logic;
     idle_condition           : std_logic; -- Pulse: 11 consecutive recessive bits detected (bus-off recovery)
   end record t_can_pcs_fce_if_s2m;
 
   constant c_pcs_to_fce_if_reset : t_can_pcs_fce_if_s2m :=
   (
-    bus_off_response         => '0',
-    bus_off_release_response => '0',
+    -- bus_off_response         => '0',
+    -- bus_off_release_response => '0',
     idle_condition           => '0'
   );
 

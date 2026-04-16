@@ -31,11 +31,11 @@ entity can_mac is
     rx_llc_i : in    t_can_llc_mac_rx_if_d2s;
     rx_llc_o : out   t_can_llc_mac_rx_if_s2d;
 
-    -- Separate PCS interfaces
+    -- Separate PCS interfaces (TX uses t_can_mac_pcs_if, RX uses t_can_mac_pcs_rx_if)
     tx_pcs_i : in    t_can_mac_pcs_if_s2m;
     tx_pcs_o : out   t_can_mac_pcs_if_m2s;
-    rx_pcs_i : in    t_can_mac_pcs_if_s2m;
-    rx_pcs_o : out   t_can_mac_pcs_if_m2s;
+    rx_pcs_i : in    t_can_mac_pcs_rx_if_s2m;
+    rx_pcs_o : out   t_can_mac_pcs_rx_if_m2s;
 
     -- FCE interface (exposed for top-level wiring)
     fce_i : in    t_can_mac_fce_if_s2m;
@@ -88,7 +88,7 @@ begin
   fce_o.error                       <= tx_fce_o.error or rx_fce_o.error;
   fce_o.primary_error               <= tx_fce_o.primary_error or rx_fce_o.primary_error;
   fce_o.sending_error_overload_flag <= tx_fce_o.sending_error_overload_flag or rx_fce_o.sending_error_overload_flag;
-  fce_o.passive_tx_ack_error        <= tx_fce_o.passive_tx_ack_error or rx_fce_o.passive_tx_ack_error;
+  fce_o.passive_tx_ack_error_exempt <= tx_fce_o.passive_tx_ack_error_exempt or rx_fce_o.passive_tx_ack_error_exempt;
   fce_o.error_delimiter_too_late    <= tx_fce_o.error_delimiter_too_late or rx_fce_o.error_delimiter_too_late;
   fce_o.successful_transfer         <= tx_fce_o.successful_transfer or rx_fce_o.successful_transfer;
 

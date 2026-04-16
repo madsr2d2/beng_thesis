@@ -31,9 +31,9 @@ entity can_mac_rx is
     llc_i : in    t_can_llc_mac_rx_if_d2s;
     llc_o : out   t_can_llc_mac_rx_if_s2d;
 
-    -- PCS interface (bidirectional - receives bits, sends ACK/error flags)
-    pcs_i : in    t_can_mac_pcs_if_s2m;
-    pcs_o : out   t_can_mac_pcs_if_m2s;
+    -- PCS interface (RX-specific, ISO 7.3.5)
+    pcs_i : in    t_can_mac_pcs_rx_if_s2m;
+    pcs_o : out   t_can_mac_pcs_rx_if_m2s;
 
     -- Fault Confinement Entity interface
     fce_i : in    t_can_mac_fce_if_s2m;

@@ -16,15 +16,15 @@ add wave -vgroup "can_mac_tx_tb :: TB" \
 	( -logic /can_mac_tx_tb/pcs_i/secondary_sample_point ) \
 	( -literal /can_mac_tx_tb/pcs_i/tdc_delay ) \
 	( -logic /can_mac_tx_tb/pcs_o/polarity ) \
-	( -logic /can_mac_tx_tb/pcs_o/valid ) \
 	( -logic /can_mac_tx_tb/pcs_o/use_data_rate ) \
 	( -logic /can_mac_tx_tb/pcs_o/start_tdc ) \
 	( -logic /can_mac_tx_tb/fce_i/error_active ) \
+	( -logic /can_mac_tx_tb/fce_i/bus_off ) \
 	( -logic /can_mac_tx_tb/fce_o/transmitting ) \
 	( -logic /can_mac_tx_tb/fce_o/error ) \
 	( -logic /can_mac_tx_tb/fce_o/primary_error ) \
 	( -logic /can_mac_tx_tb/fce_o/sending_error_overload_flag ) \
-	( -logic /can_mac_tx_tb/fce_o/passive_tx_ack_error ) \
+	( -logic /can_mac_tx_tb/fce_o/passive_tx_ack_error_exempt ) \
 	( -logic /can_mac_tx_tb/fce_o/error_delimiter_too_late ) \
 	( -logic /can_mac_tx_tb/fce_o/successful_transfer ) \
 	( -logic /can_mac_tx_tb/bus_override_en ) \
@@ -50,20 +50,20 @@ add wave -vgroup "u_dut :: inputs" \
 	( -logic /can_mac_tx_tb/u_dut/pcs_i/sample_point ) \
 	( -logic /can_mac_tx_tb/u_dut/pcs_i/secondary_sample_point ) \
 	( -literal /can_mac_tx_tb/u_dut/pcs_i/tdc_delay ) \
-	( -logic /can_mac_tx_tb/u_dut/fce_i/error_active )
+	( -logic /can_mac_tx_tb/u_dut/fce_i/error_active ) \
+	( -logic /can_mac_tx_tb/u_dut/fce_i/bus_off )
 
 add wave -vgroup "u_dut :: outputs" \
 	( -logic /can_mac_tx_tb/u_dut/llc_o/avalon_st_sink/ready ) \
 	( -literal /can_mac_tx_tb/u_dut/llc_o/transfer_status ) \
 	( -logic /can_mac_tx_tb/u_dut/pcs_o/polarity ) \
-	( -logic /can_mac_tx_tb/u_dut/pcs_o/valid ) \
 	( -logic /can_mac_tx_tb/u_dut/pcs_o/use_data_rate ) \
 	( -logic /can_mac_tx_tb/u_dut/pcs_o/start_tdc ) \
 	( -logic /can_mac_tx_tb/u_dut/fce_o/transmitting ) \
 	( -logic /can_mac_tx_tb/u_dut/fce_o/error ) \
 	( -logic /can_mac_tx_tb/u_dut/fce_o/primary_error ) \
 	( -logic /can_mac_tx_tb/u_dut/fce_o/sending_error_overload_flag ) \
-	( -logic /can_mac_tx_tb/u_dut/fce_o/passive_tx_ack_error ) \
+	( -logic /can_mac_tx_tb/u_dut/fce_o/passive_tx_ack_error_exempt ) \
 	( -logic /can_mac_tx_tb/u_dut/fce_o/error_delimiter_too_late ) \
 	( -logic /can_mac_tx_tb/u_dut/fce_o/successful_transfer )
 
@@ -141,13 +141,13 @@ add wave -vgroup "u_dut/u_can_mac_fsm_tx :: inputs" \
 	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/bs_i/valid ) \
 	( -literal /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/bs_i/stuff_bit_count ) \
 	( -literal /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/crc_i/crc ) \
-	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_i/error_active )
+	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_i/error_active ) \
+	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_i/bus_off )
 
 add wave -vgroup "u_dut/u_can_mac_fsm_tx :: outputs" \
 	( -literal /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/mac_ser_o/transfer_status ) \
 	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/mac_ser_o/ready ) \
 	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/pcs_o/polarity ) \
-	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/pcs_o/valid ) \
 	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/pcs_o/use_data_rate ) \
 	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/pcs_o/start_tdc ) \
 	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/bs_o/data ) \
@@ -164,7 +164,7 @@ add wave -vgroup "u_dut/u_can_mac_fsm_tx :: outputs" \
 	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_o/error ) \
 	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_o/primary_error ) \
 	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_o/sending_error_overload_flag ) \
-	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_o/passive_tx_ack_error ) \
+	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_o/passive_tx_ack_error_exempt ) \
 	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_o/error_delimiter_too_late ) \
 	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/fce_o/successful_transfer )
 
@@ -180,7 +180,7 @@ add wave -vgroup "u_dut/u_can_mac_fsm_tx :: internals" \
 	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/secondary_sample_point_error_pending ) \
 	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/skip_sof ) \
 	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/ack_error_caused_flag ) \
-	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/dominant_seen_during_flag ) \
+	( -logic /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/saw_dominant_during_flag ) \
 	( -decimal /can_mac_tx_tb/u_dut/u_can_mac_fsm_tx/dominant_run_count )
 
 add wave -vgroup "u_dut/u_can_mac_bs :: inputs" \

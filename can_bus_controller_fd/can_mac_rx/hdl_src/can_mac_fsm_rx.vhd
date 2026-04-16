@@ -26,9 +26,9 @@ entity can_mac_fsm_rx is
     -- LLC interface (MAC is source, LLC is destination)
     llc_i : in    t_can_llc_mac_rx_if_d2s;
     llc_o : out   t_can_llc_mac_rx_if_s2d;
-    -- PCS interface
-    pcs_i : in    t_can_mac_pcs_if_s2m;
-    pcs_o : out   t_can_mac_pcs_if_m2s;
+    -- PCS interface (RX-specific, ISO 7.3.5)
+    pcs_i : in    t_can_mac_pcs_rx_if_s2m;
+    pcs_o : out   t_can_mac_pcs_rx_if_m2s;
     -- Bit stuffer interface
     bs_i   : in    t_can_mac_fsm_bs_if_s2m;
     bs_o   : out   t_can_mac_fsm_bs_if_m2s;
@@ -75,7 +75,7 @@ begin
   p_stream_to_LLC: process(clk_i)
   begin
     if rising_edge(clk_i) then
-      if rst_i = '1' then
+      if (rst_i = '1' or fce_i.bus_off = '1') then
         llc_o           <= c_mac_rx_to_llc_if_reset;
         stream_index    <= 0;
         llc_stream_done <= false;
@@ -113,7 +113,7 @@ begin
 
   begin
     if rising_edge(clk_i) then
-      if (rst_i = '1') then
+      if (rst_i = '1' or fce_i.bus_off = '1') then
         bs_rst         <= '1';
         crc_rst        <= '1';
         bit_count      <= 0;
@@ -126,7 +126,7 @@ begin
         llc_stream_start  <= false;
         llc_frame_len  <= 0;
         llc_frame      <= (others => (others => '0'));
-        pcs_o          <= c_mac_to_pcs_if_reset;
+        pcs_o          <= c_mac_to_pcs_rx_if_reset;
         bs_o           <= c_mac_fsm_to_bs_fd_if_reset;
         crc_o          <= c_mac_fsm_to_crc_if_reset;
         fce_o          <= c_mac_to_fce_if_reset;
@@ -142,9 +142,7 @@ begin
         bs_rst              <= '0';
         crc_rst             <= '0';
         fce_o               <= c_mac_to_fce_if_reset;
-        -- pcs_o.valid         <= '0';
-        -- pcs_o.polarity      <= c_recessive;
-        pcs_o.start_tdc     <= '0';
+        pcs_o.hard_sync_en  <= '0'; -- Default: resynchronization (ISO 7.3.5.1 rule d)
         llc_stream_start <= not llc_stream_done when llc_stream_done; -- Clear
 
         -----------------------------------------------------------------
@@ -216,6 +214,7 @@ begin
           -- before participating on the bus (ISO 11898-1: 6.6.7.5)
           -----------------------------------------------------------------
           when s_bus_reintegration =>
+            pcs_o.hard_sync_en <= '1'; -- ISO 7.3.5.1 rule c: hard sync during bus integration
             if (pcs_i.sample_point = '1') then
               if (pcs_i.bus_polarity = c_recessive) then 
                 if bit_count = (c_bus_idle_condition_width - 1) then
@@ -233,6 +232,7 @@ begin
           -- s_idle : Waits for SOF and resets state variables
           -----------------------------------------------------------------
           when s_idle =>
+            pcs_o.hard_sync_en  <= '1'; -- ISO 7.3.5.1 rule c: hard sync during inter-frame space
             pcs_o.use_data_rate <= '0';
             crc_mismatch        <= false;
             if (pcs_i.sample_point = '1') and (pcs_i.bus_polarity = c_dominant) then
@@ -313,6 +313,10 @@ begin
           -- s_res : Consumes reserved bit(s) in FD or CC extended frames
           -----------------------------------------------------------------
           when s_res_r0 =>
+            -- ISO 7.3.5.1 rule c: hard sync at FDF-to-res edge in FD frames
+            if llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' then
+              pcs_o.hard_sync_en <= '1';
+            end if;
             if (v_real_bit) then
               if (llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1') then
                 if (pcs_i.bus_polarity = c_dominant) then
@@ -483,7 +487,7 @@ begin
                 -- ACK slot bit 1 (FD only): recessive, wait for alignment
                 bit_count <= 2;
               else
-                -- ACK delimiter: must be recessive (ISO 6.6.5.1)
+                -- Form error: ACK delimiter must be recessive (ISO 6.6.5.1)
                 if (pcs_i.bus_polarity = c_dominant) then
                   fce_o.sending_error_overload_flag <= '1';
                   fce_o.error    <= '1';
@@ -512,6 +516,7 @@ begin
                   if bit_count = (c_eof_field_width - 1) then -- Overload if last EOF bit is dominant
                     pcs_o.polarity <=  c_dominant;
                     overload       <= true;
+                    fce_o.error    <= '0'; -- Not error
                   else -- Else form error
                     pcs_o.polarity <= c_recessive when fce_i.error_active = '0' else c_dominant;
                   end if;
@@ -540,6 +545,7 @@ begin
           -- Interframe space: 3 recessive bits (ISO 11898-1: 6.6.7.2).
           -- -----------------------------------------------------------
           when s_intermission =>
+            pcs_o.hard_sync_en <= '1'; -- ISO 7.3.5.1 rule c: hard sync during inter-frame space
             if (pcs_i.sample_point = '1') then
               if bit_count = (c_intermission_width - 1) then
                 -- Reset and return to idle
@@ -595,8 +601,8 @@ begin
         -- Gating RX outputs when node is transmitting:
         -- Skip ACK drive, LLC delivery, and FCE error signaling.
         -----------------------------------------------------------------
-        if (transmitting_i) then
-          pcs_o.polarity   <= '1';
+        if transmitting_i then
+          pcs_o.polarity   <= c_recessive;
           fce_o            <= c_mac_to_fce_if_reset;
           llc_stream_start <= false;
         end if;
