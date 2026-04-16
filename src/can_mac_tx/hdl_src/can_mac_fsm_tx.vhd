@@ -191,6 +191,8 @@ begin
         end if;
 
 
+        if pcs_i.sample_point then
+
         -----------------------------------------------------------------
         -- State machine
         -----------------------------------------------------------------
@@ -530,38 +532,19 @@ begin
             if (pcs_i.sample_point = '1') then
               v_tx_polarity := c_recessive;
               v_bit_driven  := true;
-              bit_count     <= bit_count + 1;
-
-              -- ACK error: no dominant seen in ACK slot (ISO : 6.6.21.3.1).
               if (bit_count = 0 and not ack_success_seen) then
                 v_enter_error         := true;
                 v_ack_error           := true;
                 ack_error_caused_flag <= true;
               end if;
-
-              -- Dominant in EOF bits 0..5 is a form error (ISO : 6.6.21.3.2,a).
-              if (bit_count < c_eof_field_width - 1 and pcs_i.bus_polarity = c_dominant) then
-                v_enter_error := true;
-              end if;
-
-              -- Last EOF bit: frame successfully transmitted. A dominant here
-              -- is an overload condition, not a bit error (ISO : 6.6.21.3.2,b).
               if (bit_count = c_eof_field_width - 1) then
                 mac_ser_o.transfer_status <= c_transmitted;
                 was_previous_frame_tx     <= true;
                 fce_o.successful_transfer <= '1';
+                state                     <= s_intermission;
                 bit_count                 <= 0;
-                if (pcs_i.bus_polarity = c_dominant) then
-                  v_bit_driven        := false; -- bypass generic bit-error path
-                  state               <= s_error_overload;
-                  overload            <= true;
-                  dominant_run_count  <= 0;
-                  pcs_o.polarity      <= c_dominant;
-                  pcs_o.use_data_rate <= '0';
-                  pcs_o.start_tdc     <= '0';
-                else
-                  state <= s_intermission;
-                end if;
+              else
+                bit_count <= bit_count + 1;
               end if;
             end if;
 
@@ -634,6 +617,7 @@ begin
             bit_count <= 0;
         end case;
 
+        end if;
         -----------------------------------------------------------------
         -- Drive bit, error entry, or arbitration loss.
         -----------------------------------------------------------------

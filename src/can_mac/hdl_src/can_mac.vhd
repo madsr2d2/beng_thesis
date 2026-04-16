@@ -31,11 +31,11 @@ entity can_mac is
     rx_llc_i : in    t_can_llc_mac_rx_if_d2s;
     rx_llc_o : out   t_can_llc_mac_rx_if_s2d;
 
-    -- Separate PCS interfaces
+    -- Separate PCS interfaces (TX uses t_can_mac_pcs_if, RX uses t_can_mac_pcs_rx_if)
     tx_pcs_i : in    t_can_mac_pcs_if_s2m;
     tx_pcs_o : out   t_can_mac_pcs_if_m2s;
-    rx_pcs_i : in    t_can_mac_pcs_if_s2m;
-    rx_pcs_o : out   t_can_mac_pcs_if_m2s;
+    rx_pcs_i : in    t_can_mac_pcs_rx_if_s2m;
+    rx_pcs_o : out   t_can_mac_pcs_rx_if_m2s;
 
     -- FCE interface (exposed for top-level wiring)
     fce_i : in    t_can_mac_fce_if_s2m;

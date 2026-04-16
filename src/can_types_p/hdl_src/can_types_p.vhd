@@ -120,6 +120,7 @@ package pk_can_types is
   subtype t_nominal_phase_seg2 is natural range 2 to 32;
   subtype t_data_phase_seg2 is natural range 2 to 8;
   subtype t_ssp_offset is natural range 1 to 63;
+  subtype t_sjw is natural range 1 to 4;               -- ISO 7.3.2, Table 13
 
   ---------------------------------------------------------------------------
   -- 4. Composite Types
@@ -267,6 +268,32 @@ package pk_can_types is
     sample_point           => '0',
     secondary_sample_point          => '0',
     tdc_delay    => (others => '0')
+  );
+
+  -- MAC -> PCS RX (ISO 7.3.5, receiver synchronization control)
+  type t_can_mac_pcs_rx_if_m2s is record
+    polarity      : std_logic; -- TX bus drive polarity for ACK/error/overload flags.
+    use_data_rate : std_logic; -- High when the PCS should use the data rate bit timing (FD frames, BRS=1).
+    hard_sync_en  : std_logic; -- '1': next valid edge triggers hard sync; '0': resynchronization (ISO 7.3.5.1 rules c/d). The MAC FSM knows the frame context and sets this flag according to rule c. 
+  end record t_can_mac_pcs_rx_if_m2s;
+
+  constant c_mac_to_pcs_rx_if_reset : t_can_mac_pcs_rx_if_m2s :=
+  (
+    polarity      => c_recessive,
+    use_data_rate => '0',
+    hard_sync_en  => '1'
+  );
+
+  -- PCS -> MAC RX (ISO 7.2, PCS_Data.Indicate for receiver)
+  type t_can_mac_pcs_rx_if_s2m is record
+    bus_polarity : std_logic; -- Registered bus polarity (one clock delay from rx_bus_i).
+    sample_point : std_logic; -- Sample point strobe (single clock pulse).
+  end record t_can_mac_pcs_rx_if_s2m;
+
+  constant c_pcs_to_mac_rx_if_reset : t_can_mac_pcs_rx_if_s2m :=
+  (
+    bus_polarity => c_recessive,
+    sample_point => '0'
   );
 
   -- FSM -> Bit Stuffer (ISO 6.6.13)

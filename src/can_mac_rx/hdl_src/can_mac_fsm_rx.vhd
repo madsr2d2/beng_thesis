@@ -24,9 +24,9 @@ entity can_mac_fsm_rx is
     -- LLC interface (MAC is source, LLC is destination)
     llc_i : in    t_can_llc_mac_rx_if_d2s;
     llc_o : out   t_can_llc_mac_rx_if_s2d;
-    -- PCS interface
-    pcs_i : in    t_can_mac_pcs_if_s2m;
-    pcs_o : out   t_can_mac_pcs_if_m2s;
+    -- PCS interface (RX-specific, ISO 7.3.5)
+    pcs_i : in    t_can_mac_pcs_rx_if_s2m;
+    pcs_o : out   t_can_mac_pcs_rx_if_m2s;
     -- Bit stuffer interface
     bs_i   : in    t_can_mac_fsm_bs_if_s2m;
     bs_o   : out   t_can_mac_fsm_bs_if_m2s;
@@ -124,7 +124,7 @@ begin
         llc_stream_start  <= false;
         llc_frame_len  <= 0;
         llc_frame      <= (others => (others => '0'));
-        pcs_o          <= c_mac_to_pcs_if_reset;
+        pcs_o          <= c_mac_to_pcs_rx_if_reset;
         bs_o           <= c_mac_fsm_to_bs_fd_if_reset;
         crc_o          <= c_mac_fsm_to_crc_if_reset;
         fce_o          <= c_mac_to_fce_if_reset;
@@ -139,8 +139,8 @@ begin
         crc_o.valid_fd      <= '0';
         bs_rst              <= '0';
         crc_rst             <= '0';
-        fce_o               <= c_mac_to_fce_if_reset; -- pcs_o.valid         <= '0'; -- pcs_o.polarity      <= c_recessive;
-        pcs_o.start_tdc     <= '0';
+        fce_o               <= c_mac_to_fce_if_reset;
+        pcs_o.hard_sync_en  <= '0'; -- Default: resynchronization (ISO 7.3.5.1 rule d)
         llc_stream_start <= not llc_stream_done when llc_stream_done; -- Clear
 
         -----------------------------------------------------------------
@@ -212,6 +212,7 @@ begin
           -- before participating on the bus (ISO 11898-1: 6.6.7.5)
           -----------------------------------------------------------------
           when s_bus_reintegration =>
+            pcs_o.hard_sync_en <= '1'; -- ISO 7.3.5.1 rule c: hard sync during bus integration
             if (pcs_i.sample_point = '1') then
               if (pcs_i.bus_polarity = c_recessive) then 
                 if bit_count = (c_bus_idle_condition_width - 1) then
@@ -229,6 +230,7 @@ begin
           -- s_idle : Waits for SOF and resets state variables
           -----------------------------------------------------------------
           when s_idle =>
+            pcs_o.hard_sync_en  <= '1'; -- ISO 7.3.5.1 rule c: hard sync during inter-frame space
             pcs_o.use_data_rate <= '0';
             crc_mismatch        <= false;
             if (pcs_i.sample_point = '1') and (pcs_i.bus_polarity = c_dominant) then
@@ -309,6 +311,10 @@ begin
           -- s_res : Consumes reserved bit(s) in FD or CC extended frames
           -----------------------------------------------------------------
           when s_res_r0 =>
+            -- ISO 7.3.5.1 rule c: hard sync at FDF-to-res edge in FD frames
+            if llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' then
+              pcs_o.hard_sync_en <= '1';
+            end if;
             if (v_real_bit) then
               if (llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1') then
                 if (pcs_i.bus_polarity = c_dominant) then
@@ -537,6 +543,7 @@ begin
           -- Interframe space: 3 recessive bits (ISO 11898-1: 6.6.7.2).
           -- -----------------------------------------------------------
           when s_intermission =>
+            pcs_o.hard_sync_en <= '1'; -- ISO 7.3.5.1 rule c: hard sync during inter-frame space
             if (pcs_i.sample_point = '1') then
               if bit_count = (c_intermission_width - 1) then
                 -- Reset and return to idle

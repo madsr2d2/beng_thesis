@@ -1,0 +1,240 @@
+[*]
+[*] GTKWave save file - auto-generated from can_pcs_tb.ghw
+[*]
+[dumpfile] "/home/madsr2d2/beng_thesis/sim/can_pcs_tb.ghw"
+[savefile] "/home/madsr2d2/beng_thesis/src/can_pcs/test_case/can_pcs_tb.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] 0 0
+*-22.000000 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.can_pcs_tb.
+[sst_width] 320
+[signals_width] 460
+[sst_expanded] 1
+[sst_vpaned_height] 480
+[treeopen] top.can_pcs_tb.u_pcs_tx.
+[treeopen] top.can_pcs_tb.u_pcs_rx.
+@c00200
+-can_pcs_tb :: TB
+[color] 1
+@28
+top.can_pcs_tb.clk_tx
+@28
+top.can_pcs_tb.clk_rx
+@28
+top.can_pcs_tb.reset
+@28
+top.can_pcs_tb.tx_bus_wire
+@28
+top.can_pcs_tb.rx_bus_wire
+@28
+top.can_pcs_tb.rx_tx_bus
+@28
+top.can_pcs_tb.bus_level
+@28
+top.can_pcs_tb.tx_loopback
+@28
+top.can_pcs_tb.tx_mac_i.polarity
+@28
+top.can_pcs_tb.tx_mac_i.use_data_rate
+@28
+top.can_pcs_tb.tx_mac_i.start_tdc
+@28
+top.can_pcs_tb.tx_mac_o.bus_polarity
+@28
+top.can_pcs_tb.tx_mac_o.sample_point
+@28
+top.can_pcs_tb.tx_mac_o.secondary_sample_point
+@22
+top.can_pcs_tb.tx_mac_o.tdc_delay
+@28
+top.can_pcs_tb.tx_fce_i.bus_off
+@28
+top.can_pcs_tb.tx_fce_o.idle_condition
+@28
+top.can_pcs_tb.rx_mac_i.polarity
+@28
+top.can_pcs_tb.rx_mac_i.use_data_rate
+@28
+top.can_pcs_tb.rx_mac_i.hard_sync_en
+@28
+top.can_pcs_tb.rx_mac_o.bus_polarity
+@28
+top.can_pcs_tb.rx_mac_o.sample_point
+@28
+top.can_pcs_tb.rx_fce_i.bus_off
+@28
+top.can_pcs_tb.rx_fce_o.idle_condition
+@420
+top.can_pcs_tb.rx_phase1_ext
+@420
+top.can_pcs_tb.rx_phase2_short
+@28
+top.can_pcs_tb.rx_prescaler_reset
+@420
+top.can_pcs_tb.test_id
+@420
+top.can_pcs_tb.check_id
+@28
+top.can_pcs_tb.init_barrier
+@420
+top.can_pcs_tb.test_num
+@1401200
+-can_pcs_tb :: TB
+@c00200
+-u_pcs_tx :: inputs
+[color] 5
+@28
+top.can_pcs_tb.u_pcs_tx.clk_i
+@28
+top.can_pcs_tb.u_pcs_tx.rst_i
+@28
+top.can_pcs_tb.u_pcs_tx.mac_i.polarity
+@28
+top.can_pcs_tb.u_pcs_tx.mac_i.use_data_rate
+@28
+top.can_pcs_tb.u_pcs_tx.mac_i.start_tdc
+@28
+top.can_pcs_tb.u_pcs_tx.fce_i.bus_off
+@28
+top.can_pcs_tb.u_pcs_tx.rx_bus_i
+@1401200
+-u_pcs_tx :: inputs
+@c00200
+-u_pcs_tx :: outputs
+[color] 4
+@28
+top.can_pcs_tb.u_pcs_tx.mac_o.bus_polarity
+@28
+top.can_pcs_tb.u_pcs_tx.mac_o.sample_point
+@28
+top.can_pcs_tb.u_pcs_tx.mac_o.secondary_sample_point
+@22
+top.can_pcs_tb.u_pcs_tx.mac_o.tdc_delay
+@28
+top.can_pcs_tb.u_pcs_tx.fce_o.idle_condition
+@28
+top.can_pcs_tb.u_pcs_tx.tx_bus_o
+@1401200
+-u_pcs_tx :: outputs
+@c00200
+-u_pcs_tx :: internals
+[color] 3
+@420
+top.can_pcs_tb.u_pcs_tx.state
+@420
+top.can_pcs_tb.u_pcs_tx.clk_count
+@420
+top.can_pcs_tb.u_pcs_tx.tq_count
+@420
+top.can_pcs_tb.u_pcs_tx.delay_count_clk
+@28
+top.can_pcs_tb.u_pcs_tx.tdc_counting
+@420
+top.can_pcs_tb.u_pcs_tx.ssp_position
+@420
+top.can_pcs_tb.u_pcs_tx.tdc_delay
+@28
+top.can_pcs_tb.u_pcs_tx.prev_rx_bus
+@28
+top.can_pcs_tb.u_pcs_tx.prev_tx_bus
+@420
+top.can_pcs_tb.u_pcs_tx.ssp_delay
+@28
+top.can_pcs_tb.u_pcs_tx.ssp_standoff_start
+@28
+top.can_pcs_tb.u_pcs_tx.ssp_active
+@28
+top.can_pcs_tb.u_pcs_tx.tq_tick
+@28
+top.can_pcs_tb.u_pcs_tx.bit_boundary
+@420
+top.can_pcs_tb.u_pcs_tx.active_bit_time
+@420
+top.can_pcs_tb.u_pcs_tx.active_sp
+@420
+top.can_pcs_tb.u_pcs_tx.recessive_counter
+@1401200
+-u_pcs_tx :: internals
+@c00200
+-u_pcs_rx :: inputs
+[color] 5
+@28
+top.can_pcs_tb.u_pcs_rx.clk_i
+@28
+top.can_pcs_tb.u_pcs_rx.rst_i
+@28
+top.can_pcs_tb.u_pcs_rx.mac_i.polarity
+@28
+top.can_pcs_tb.u_pcs_rx.mac_i.use_data_rate
+@28
+top.can_pcs_tb.u_pcs_rx.mac_i.hard_sync_en
+@28
+top.can_pcs_tb.u_pcs_rx.fce_i.bus_off
+@28
+top.can_pcs_tb.u_pcs_rx.rx_bus_i
+@1401200
+-u_pcs_rx :: inputs
+@c00200
+-u_pcs_rx :: outputs
+[color] 4
+@28
+top.can_pcs_tb.u_pcs_rx.mac_o.bus_polarity
+@28
+top.can_pcs_tb.u_pcs_rx.mac_o.sample_point
+@28
+top.can_pcs_tb.u_pcs_rx.fce_o.idle_condition
+@28
+top.can_pcs_tb.u_pcs_rx.tx_bus_o
+@420
+top.can_pcs_tb.u_pcs_rx.debug_phase1_extension_o
+@420
+top.can_pcs_tb.u_pcs_rx.debug_phase2_shortening_o
+@28
+top.can_pcs_tb.u_pcs_rx.debug_prescaler_restart_o
+@1401200
+-u_pcs_rx :: outputs
+@c00200
+-u_pcs_rx :: internals
+[color] 3
+@420
+top.can_pcs_tb.u_pcs_rx.rate_state
+@420
+top.can_pcs_tb.u_pcs_rx.segment
+@420
+top.can_pcs_tb.u_pcs_rx.prescaler_count
+@28
+top.can_pcs_tb.u_pcs_rx.prescaler_restart
+@420
+top.can_pcs_tb.u_pcs_rx.seg_count
+@28
+top.can_pcs_tb.u_pcs_rx.rx_bus_prev
+@28
+top.can_pcs_tb.u_pcs_rx.sync_inhibit
+@28
+top.can_pcs_tb.u_pcs_rx.sampled_polarity
+@420
+top.can_pcs_tb.u_pcs_rx.phase1_extension
+@420
+top.can_pcs_tb.u_pcs_rx.phase2_shortening
+@420
+top.can_pcs_tb.u_pcs_rx.recessive_counter
+@28
+top.can_pcs_tb.u_pcs_rx.tq_tick
+@28
+top.can_pcs_tb.u_pcs_rx.edge_detected
+@420
+top.can_pcs_tb.u_pcs_rx.active_prop_seg
+@420
+top.can_pcs_tb.u_pcs_rx.active_phase_seg1
+@420
+top.can_pcs_tb.u_pcs_rx.active_phase_seg2
+@28
+top.can_pcs_tb.u_pcs_rx.bit_boundary
+@28
+top.can_pcs_tb.u_pcs_rx.sample_point
+@1401200
+-u_pcs_rx :: internals
+[pattern_trace] 1
+[pattern_trace] 0

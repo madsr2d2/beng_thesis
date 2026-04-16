@@ -146,6 +146,7 @@ begin
         mac_o.sample_point   <= '0';
         fce_o.idle_condition <= '0';
         recessive_counter    <= 0;
+        mac_o.bus_polarity <= c_recessive;
       else
         mac_o.sample_point   <= '0';
         fce_o.idle_condition <= '0';
@@ -153,6 +154,7 @@ begin
         if (tq_tick = '1' and tq_count = active_sp - 1) then
           if (fce_i.bus_off = '0') then
             mac_o.sample_point <= '1'; -- Sample point strobe (suppressed while bus_off asserted by FCE)
+            mac_o.bus_polarity <= rx_bus_i;
 
           else -- While FCE asserts bus_off, pulse idle_condition (FCE counts these pulses, 128 = bus-off recovery per ISO 8.1.4.4)
             if (rx_bus_i = c_dominant) then
@@ -177,16 +179,21 @@ begin
   p_ssp_standoff : process (clk_i) is
   begin
     if rising_edge(clk_i) then
-      if (rst_i = '1' or state /= s_data) then
-        ssp_delay <= 0;
-        ssp_active<= '0';
+      if (rst_i = '1' or state = s_nominal) then
+        ssp_delay  <= 0;
+        ssp_active <= '0';
       elsif ssp_standoff_start then
+        -- Fired during s_measuring when TDC measurement completes.
+        -- Load the standoff; countdown begins when state reaches s_data.
         ssp_delay  <= tdc_delay;
         ssp_active <= '0';
-      elsif (ssp_delay > 0 and bit_boundary = '1') then
-        ssp_delay <= ssp_delay - 1;
-      elsif (ssp_delay = 0 and ssp_active = '0') then
-        ssp_active <= '1';
+      elsif state = s_data then
+        -- Only countdown on data-rate bit boundaries (not nominal during s_measuring)
+        if (ssp_delay > 0 and bit_boundary = '1') then
+          ssp_delay <= ssp_delay - 1;
+        elsif (ssp_delay = 0 and ssp_active = '0') then
+          ssp_active <= '1';
+        end if;
       end if;
     end if;
   end process p_ssp_standoff;
@@ -208,20 +215,6 @@ begin
       end if;
     end if;
   end process p_ssp;
-
-  ---------------------------------------------------------------------------
-  -- Bus polarity passthrough
-  ---------------------------------------------------------------------------
-  p_bus_polarity : process (clk_i) is
-  begin
-    if rising_edge(clk_i) then
-      if (rst_i = '1') then
-        mac_o.bus_polarity <= c_recessive;
-      else
-        mac_o.bus_polarity <= rx_bus_i;
-      end if;
-    end if;
-  end process p_bus_polarity;
 
   ---------------------------------------------------------------------------
   -- TDC delay measurement (ISO 7.3.4)
@@ -285,7 +278,7 @@ begin
         if bit_boundary = '1' then
           case state is
             when s_nominal =>
-                state <= s_measuring when mac_i.use_data_rate = '1';
+                state <= s_measuring when mac_i.start_tdc = '1';
             when s_measuring =>
                 state <= s_data when mac_i.use_data_rate = '1';
             when s_data =>
