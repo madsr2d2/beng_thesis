@@ -39,11 +39,7 @@ entity can_pcs_rx is
     fce_o : out   t_can_pcs_fce_if_s2m;
     ---
     tx_bus_o : out   std_logic;
-    rx_bus_i : in    std_logic;
-    ---
-    debug_phase1_extension_o  : out natural;
-    debug_phase2_shortening_o : out natural;
-    debug_prescaler_restart_o : out boolean
+    rx_bus_i : in    std_logic
   );
 end entity can_pcs_rx;
 
@@ -289,7 +285,7 @@ begin
         tx_bus_o <= c_recessive;
       else
         if bit_boundary then
-          tx_bus_o <= mac_i.polarity when fce_i.bus_off = '1' else c_recessive;
+          tx_bus_o <= mac_i.polarity when fce_i.bus_off = '0' else c_recessive;
         end if;
       end if;
     end if;
@@ -315,13 +311,6 @@ begin
       end if;
     end if;
   end process p_rate_switch;
-
-  ---------------------------------------------------------------------------
-  -- Debug port assignments (simulation-only, optimized away in synthesis)
-  ---------------------------------------------------------------------------
-  debug_phase1_extension_o  <= phase1_extension;
-  debug_phase2_shortening_o <= phase2_shortening;
-  debug_prescaler_restart_o <= prescaler_restart;
 
 end architecture rtl;
 -- eof

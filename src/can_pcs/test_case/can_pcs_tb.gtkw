@@ -25,13 +25,13 @@ top.can_pcs_tb.clk_rx
 @28
 top.can_pcs_tb.reset
 @28
-top.can_pcs_tb.tx_bus_wire
-@28
-top.can_pcs_tb.rx_bus_wire
+top.can_pcs_tb.tx_tx_bus
 @28
 top.can_pcs_tb.rx_tx_bus
 @28
 top.can_pcs_tb.bus_level
+@28
+top.can_pcs_tb.rx_bus_wire
 @28
 top.can_pcs_tb.tx_loopback
 @28
@@ -66,12 +66,6 @@ top.can_pcs_tb.rx_mac_o.sample_point
 top.can_pcs_tb.rx_fce_i.bus_off
 @28
 top.can_pcs_tb.rx_fce_o.idle_condition
-@420
-top.can_pcs_tb.rx_phase1_ext
-@420
-top.can_pcs_tb.rx_phase2_short
-@28
-top.can_pcs_tb.rx_prescaler_reset
 @420
 top.can_pcs_tb.test_id
 @420
@@ -187,12 +181,6 @@ top.can_pcs_tb.u_pcs_rx.mac_o.sample_point
 top.can_pcs_tb.u_pcs_rx.fce_o.idle_condition
 @28
 top.can_pcs_tb.u_pcs_rx.tx_bus_o
-@420
-top.can_pcs_tb.u_pcs_rx.debug_phase1_extension_o
-@420
-top.can_pcs_tb.u_pcs_rx.debug_phase2_shortening_o
-@28
-top.can_pcs_tb.u_pcs_rx.debug_prescaler_restart_o
 @1401200
 -u_pcs_rx :: outputs
 @c00200
