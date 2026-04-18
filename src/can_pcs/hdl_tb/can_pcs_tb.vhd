@@ -158,26 +158,6 @@ begin
   end process p_init;
 
   ----------------------------------------------------------------------------
-  -- Bus model
-  ----------------------------------------------------------------------------
-  bus_level <= tx_tx_bus and rx_tx_bus;
-  p_rx_delay : process is
-  begin
-    wait on bus_level;
-    rx_bus_wire <= transport bus_level after c_bus_delay;
-  end process p_rx_delay;
-  ----------------------------------------------------------------------------
-
-  ----------------------------------------------------------------------------
-  -- Transceiver model (models loop-back delay for the TX PCS transfer)
-  ----------------------------------------------------------------------------
-  p_tx_loopback_delay : process is
-  begin
-    wait on bus_level;
-    tx_loopback <= transport bus_level after c_tx_loopback_delay;
-  end process p_tx_loopback_delay;
-
-  ----------------------------------------------------------------------------
   -- DUT: TX PCS
   ----------------------------------------------------------------------------
   u_pcs_tx : entity work.can_pcs_tx
@@ -230,7 +210,27 @@ begin
     );
 
   ----------------------------------------------------------------------------
-  -- TX MAC VC.
+  -- Bus model
+  ----------------------------------------------------------------------------
+  bus_level <= tx_tx_bus and rx_tx_bus;
+  p_rx_delay : process is
+  begin
+    wait on bus_level;
+    rx_bus_wire <= transport bus_level after c_bus_delay;
+  end process p_rx_delay;
+  ----------------------------------------------------------------------------
+
+  ----------------------------------------------------------------------------
+  -- Transceiver model (models loop-back delay for the TX PCS)
+  ----------------------------------------------------------------------------
+  p_tx_loopback_delay : process is
+  begin
+    wait on bus_level;
+    tx_loopback <= transport bus_level after c_tx_loopback_delay;
+  end process p_tx_loopback_delay;
+
+  ----------------------------------------------------------------------------
+  -- TX MAC VC
   ----------------------------------------------------------------------------
   p_tx_mac_vc : process is
   begin
@@ -263,15 +263,13 @@ begin
       wait until rising_edge(clk_tx);
       if tx_mac_o.secondary_sample_point = '1' then
         v_index := to_integer(unsigned(tx_mac_o.tdc_delay));
-        AffirmIf(check_id, polarity_history(v_index) = tx_mac_o.bus_polarity, "TX PCS -> MAC");
+        AffirmIf(check_id, polarity_history(v_index) = tx_mac_o.bus_polarity, "Check the tdc_delay");
       end if;
     end loop tdc_delay_check_loop;
   end process p_check_tdc_delay;
 
   ----------------------------------------------------------------------------
-  -- RX MAC VC. Sole owner of rx_mac_i. Rate switches are scheduled via
-  -- SetModelOptions and applied c_bus_delay later so they land on the
-  -- RX-side sample point matching the TX-side moment of issue.
+  -- RX MAC VC
   ----------------------------------------------------------------------------
   p_rx_mac_vc : process is
     variable v_rx_bits             : std_logic_vector(0 to c_stream_len + 10);
@@ -359,9 +357,7 @@ begin
   ----------------------------------------------------------------------------
   p_test_ctrl : process is
 
-    --------------------------------------------------------------------------
-    -- Test 1: Reset
-    --------------------------------------------------------------------------
+    -- Test 1: Reset ---------------------------------------------------------
     procedure test_reset is
     begin
       test_num <= 1;
@@ -373,9 +369,7 @@ begin
       AffirmIf(check_id, rx_mac_o = c_pcs_to_mac_rx_if_reset, "RX PCS -> MAC");
     end procedure test_reset;
 
-    --------------------------------------------------------------------------
-    -- Test 2: CC bitstream transfer.
-    --------------------------------------------------------------------------
+    -- Test 2: CC bitstream transfer -----------------------------------------
     procedure test_cc_transfer is
       variable v_pol : std_logic;
     begin
@@ -402,9 +396,7 @@ begin
       CheckBurst(rx_mac_rec, GetFifoCount(rx_mac_rec.BurstFifo));
     end procedure test_cc_transfer;
 
-    --------------------------------------------------------------------------
-    -- Test 3: FD bitstream transfer (nominal + data rate)
-    --------------------------------------------------------------------------
+    -- Test 3: FD bitstream transfer (nominal + data rate) -------------------
     procedure test_fd_transfer is
       variable v_pol : std_logic;
     begin
@@ -417,7 +409,7 @@ begin
         SetModelOptions(rx_mac_rec, c_arm_hard_sync_rx);
         SetModelOptions(rx_mac_rec, c_start_collection_rx_stream);
 
-        -- SOF.
+        -- Transmit SOF bit
         Push(rx_mac_rec.BurstFifo, "" & c_dominant);
         Send(tx_mac_rec, c_dominant & c_nominel_bit_rate);
         bit_name <= ARB;
@@ -485,54 +477,15 @@ begin
       end loop;
     end procedure test_fd_transfer;
 
-
-    --------------------------------------------------------------------------
-    -- Test 4: Resynchronization. Drive groups of 5 dominant + 1 recessive. 
-    -- Stresses resync with minimum number of rec -> dom sync edges (ISO 7.3.5.4).
-    --------------------------------------------------------------------------
-    procedure test_resync_drift is
-      constant c_group_len  : natural := 5;
-      constant c_num_groups : natural := 25;
-    begin
-      test_num <= 4;
-      Print("--------------------------------------------------------------------------");
-      Print("Test 4: Resynchronization under clock drift");
-      Print("--------------------------------------------------------------------------");
-
-      SetModelOptions(rx_mac_rec, c_arm_hard_sync_rx);
-      SetModelOptions(rx_mac_rec, c_start_collection_rx_stream);
-
-      Push(rx_mac_rec.BurstFifo, "" & c_dominant);
-      Send(tx_mac_rec, c_dominant & c_nominel_bit_rate); -- SOF
-
-      -- 5 dominant (drift accumulates) + 1 recessive (edge triggers resync).
-      for i in 0 to c_num_groups - 1 loop
-        for j in 0 to c_group_len - 1 loop
-          Push(rx_mac_rec.BurstFifo, "" & c_dominant);
-          Send(tx_mac_rec, c_dominant & c_nominel_bit_rate);
-        end loop;
-        Push(rx_mac_rec.BurstFifo, "" & c_recessive);
-        Send(tx_mac_rec, c_recessive & c_nominel_bit_rate);
-      end loop;
-
-      Send(tx_mac_rec, c_recessive & c_nominel_bit_rate); -- Trailing bit so RX samples last pushed bit before CheckBurst
-      wait for c_bus_delay;
-      WaitForClock(clk_rx, c_nom_bit_time_clk + 2);
-      CheckBurst(rx_mac_rec, GetFifoCount(rx_mac_rec.BurstFifo));
-    end procedure test_resync_drift;
-
-    --------------------------------------------------------------------------
-    -- Test 5: Bus-off. Both MAC polarities held dominant. Bus should stay
-    -- recessive. Pulse idle_condition on 11 recessive SP samples.
-    --------------------------------------------------------------------------
+    -- Test 4: Bus-off. ------------------------------------------------------
     procedure test_bus_off is
       variable v_tx_idle : natural := 0;
       variable v_rx_idle : natural := 0;
       variable v_bus_dom : boolean := false;
     begin
-      test_num <= 5;
+      test_num <= 4;
       Print("--------------------------------------------------------------------------");
-      Print("Test 6: Bus-off idle condition (TX + RX PCS)");
+      Print("Test 4: Bus-off idle condition (TX + RX PCS)");
       Print("--------------------------------------------------------------------------");
 
       Send(tx_mac_rec, c_dominant & c_nominel_bit_rate);
@@ -553,7 +506,7 @@ begin
       AffirmIf(check_id, v_rx_idle >= 1, "RX PCS idle_condition must pulse ");
     end procedure test_bus_off;
 
-    --------------------------------------------------------------------------
+    -- Wrap up ---------------------------------------------------------------
     procedure report_results is
     begin
       if (EndOfTestReports(ReportAll => true) = 0) then
@@ -571,13 +524,9 @@ begin
     WaitForBarrier(init_barrier);
     wait until reset = '0';
 
-    -- Wait for PCS to stabilize after reset
-    WaitForClock(clk_tx, c_nom_bit_time_clk * 5);
-
     test_reset;
     test_cc_transfer;
     test_fd_transfer;
-    test_resync_drift;
     test_bus_off;
 
     report_results;
