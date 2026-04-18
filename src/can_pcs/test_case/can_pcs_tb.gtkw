@@ -72,8 +72,6 @@ top.can_pcs_tb.test_id
 top.can_pcs_tb.check_id
 @28
 top.can_pcs_tb.init_barrier
-@28
-top.can_pcs_tb.fd_sync
 @420
 top.can_pcs_tb.test_num
 @420

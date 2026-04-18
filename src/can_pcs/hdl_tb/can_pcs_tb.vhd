@@ -71,12 +71,18 @@ architecture tb of can_pcs_tb is
   constant c_data_phase_len   : natural := (c_max_data_bytes * 8 + c_crc_21_length) + (c_max_data_bytes * 8 + c_crc_21_length)/5;
   constant c_arbitration_phase_2_len : natural := 3 + c_eof_field_width;
   constant c_stream_len : natural := c_arbitration_phase_1_len + c_data_phase_len + c_arbitration_phase_2_len;
-  constant c_start_collection_rx_stream : natural := 0;
-  constant c_nominel_bit_rate  : std_logic_vector(1 downto 0) := "00"; -- nominal TDC idle
-  constant c_tx_start_tdc  : std_logic_vector(1 downto 0) := "01"; -- start TDC
-  constant c_tx_data_bit_rate : std_logic_vector(1 downto 0) := "10"; -- data rate
-  constant c_rx_data_bit_rate  : std_logic_vector(1 downto 0) := "01"; -- data rate
-  constant c_rx_hard_sync_nominel : std_logic_vector(1 downto 0) := "10"; -- arm hard_sync
+  constant c_fd_iterations : natural := 100;
+  -- RX VC SetModelOptions codes
+  constant c_start_collection_rx_stream    : natural := 0;
+  constant c_switch_to_data_rate_rx_stream : natural := 1;
+  constant c_switch_to_nominal_rx_stream   : natural := 2;
+  constant c_force_polarity_dominant_rx    : natural := 3;
+  constant c_force_polarity_recessive_rx   : natural := 4;
+  constant c_arm_hard_sync_rx              : natural := 5;
+  -- TX VC Send encodings: DataToModel = polarity & mode (use_data_rate, start_tdc)
+  constant c_nominel_bit_rate  : std_logic_vector(1 downto 0) := "00"; -- nominal
+  constant c_tx_start_tdc      : std_logic_vector(1 downto 0) := "01"; -- start TDC
+  constant c_tx_data_bit_rate  : std_logic_vector(1 downto 0) := "10"; -- data rate
   ----------------------------------------------------------------------------
 
   ----------------------------------------------------------------------------
@@ -110,7 +116,6 @@ architecture tb of can_pcs_tb is
   signal test_id      : AlertLogIDType;
   signal check_id     : AlertLogIDType;
   signal init_barrier : std_logic := '0';
-  signal fd_sync : std_logic := '0'; -- Used to sync TX and RX PCS's in the FD test
   signal test_num     : natural := 0;
   signal bit_name : t_bit_name; -- Just for debugging in the waveforms
   signal polarity_history : std_logic_vector(c_tdc_polarity_depth - 1 downto 0) := (others => c_recessive); -- Holds the bits transmitted by the TX PCS
@@ -141,7 +146,7 @@ begin
     variable v_test_id  : AlertLogIDType;
     variable v_check_id : AlertLogIDType;
   begin
-    SetAlertStopCount(ERROR, 1);
+    SetAlertStopCount(ERROR, 100);
     v_test_id  := NewID("can_pcs");
     v_check_id := NewID("Bit check", v_test_id);
     RV.InitSeed(RV'instance_name & to_string(now));
@@ -264,22 +269,34 @@ begin
   end process p_check_tdc_delay;
 
   ----------------------------------------------------------------------------
-  -- RX MAC VC.
+  -- RX MAC VC. Sole owner of rx_mac_i. Rate switches are scheduled via
+  -- SetModelOptions and applied c_bus_delay later so they land on the
+  -- RX-side sample point matching the TX-side moment of issue.
   ----------------------------------------------------------------------------
   p_rx_mac_vc : process is
-    variable v_rx_bits         : std_logic_vector(0 to c_stream_len + 10);
-    variable v_rx_len          : natural := 0;
-    variable v_collecting      : boolean := false;
-    variable v_sof_seen  : boolean := false;
-    variable v_hard_sync_armed : boolean := false;
-    variable v_expected        : std_logic_vector(0 downto 0);
+    variable v_rx_bits             : std_logic_vector(0 to c_stream_len + 10);
+    variable v_rx_len              : natural := 0;
+    variable v_collecting          : boolean := false;
+    variable v_sof_seen            : boolean := false;
+    variable v_hard_sync_armed     : boolean := false;
+    variable v_expected            : std_logic_vector(0 downto 0);
+    variable v_rate_switch_time    : time      := time'high;
+    variable v_rate_switch_value   : std_logic := '0';
   begin
+    rx_mac_i.polarity      <= c_recessive;
+    rx_mac_i.use_data_rate <= '0';
+    rx_mac_i.hard_sync_en  <= '1';
     WaitForBarrier(init_barrier);
-    rx_mac_i <= c_mac_to_pcs_rx_if_reset;
     wait until reset = '0';
 
     rx_mac_loop : loop
       wait until rising_edge(clk_rx);
+
+      -- Apply pending rate switch once its RX-aligned deadline elapses.
+      if now >= v_rate_switch_time then
+        rx_mac_i.use_data_rate <= v_rate_switch_value;
+        v_rate_switch_time     := time'high;
+      end if;
 
       -- Collect bit string received at RC MAC -----------------------------------
       if (v_collecting and rx_mac_o.sample_point = '1') then
@@ -302,18 +319,26 @@ begin
       if TransactionPending(rx_mac_rec.Rdy, rx_mac_rec.Ack) then
         case rx_mac_rec.Operation is
           when SET_MODEL_OPTIONS =>
-            if rx_mac_rec.Options = c_start_collection_rx_stream then
-              v_rx_len         := 0;
-              v_sof_seen := false;
-              v_collecting     := true;
-            end if;
-
-          when SEND =>
-            wait until rx_mac_o.sample_point = '1';
-            -- Assign after internal RX MAC delay
-            rx_mac_i.hard_sync_en  <= rx_mac_rec.DataToModel(1) after 2 * gc_TbClkPeriod;
-            rx_mac_i.use_data_rate <= rx_mac_rec.DataToModel(0) after 2 * gc_TbClkPeriod;
-            v_hard_sync_armed      := (rx_mac_rec.DataToModel(1) = '1');
+            case rx_mac_rec.Options is
+              when c_start_collection_rx_stream =>
+                v_rx_len     := 0;
+                v_sof_seen   := false;
+                v_collecting := true;
+              when c_switch_to_data_rate_rx_stream =>
+                v_rate_switch_value := '1';
+                v_rate_switch_time  := now + c_bus_delay;
+              when c_switch_to_nominal_rx_stream =>
+                v_rate_switch_value := '0';
+                v_rate_switch_time  := now + c_bus_delay;
+              when c_force_polarity_dominant_rx =>
+                rx_mac_i.polarity <= c_dominant;
+              when c_force_polarity_recessive_rx =>
+                rx_mac_i.polarity <= c_recessive;
+              when c_arm_hard_sync_rx =>
+                rx_mac_i.hard_sync_en <= '1';
+                v_hard_sync_armed     := true;
+              when others => null;
+            end case;
 
           when CHECK_BURST =>
             v_collecting := false;
@@ -328,32 +353,6 @@ begin
       end if;
     end loop rx_mac_loop;
   end process p_rx_mac_vc;
-
-  ----------------------------------------------------------------------------
-  -- RX driver for test 3 (syncs the RX side)
-  ----------------------------------------------------------------------------
-  p_test3_rx_driver : process is
-  begin
-    WaitForBarrier(init_barrier);
-    wait until reset = '0';
-
-    WaitForBarrier(fd_sync); -- S1: RX hard sync on SOF
-    Send(rx_mac_rec, c_rx_hard_sync_nominel);
-    SetModelOptions(rx_mac_rec, c_start_collection_rx_stream);
-
-    WaitForBarrier(fd_sync); -- S2: Arm hard_sync for FDF->res dominant edge
-    Send(rx_mac_rec, c_rx_hard_sync_nominel);
-
-    WaitForBarrier(fd_sync); -- S3: Switch RX PCS to data rate
-    Send(rx_mac_rec, c_rx_data_bit_rate);
-
-    WaitForBarrier(fd_sync); -- S4: Switch to nominal bit rate 
-    Send(rx_mac_rec, c_nominel_bit_rate);
-
-    WaitForBarrier(fd_sync); -- R5: TX arb2 bit 1 done
-    Send(rx_mac_rec, c_rx_hard_sync_nominel); -- S5: Hard sync on first dom edge after CRC delimiter
-
-  end process p_test3_rx_driver;
 
   ----------------------------------------------------------------------------
   -- p_test_ctrl
@@ -385,12 +384,11 @@ begin
       Print("Test 2: CC bitstream transfer");
       Print("--------------------------------------------------------------------------");
 
-      Send(rx_mac_rec, c_rx_hard_sync_nominel); -- Arm hard sync for SOF bit
+      SetModelOptions(rx_mac_rec, c_arm_hard_sync_rx);
       SetModelOptions(rx_mac_rec, c_start_collection_rx_stream);
 
-      -- Send SOF bit
       Push(rx_mac_rec.BurstFifo, "" & c_dominant);
-      Send(tx_mac_rec, c_dominant & c_nominel_bit_rate);
+      Send(tx_mac_rec, c_dominant & c_nominel_bit_rate); -- SOF
 
       for i in 1 to c_stream_len - 1 loop
         v_pol := RV.RandSlv(1)(1);
@@ -398,10 +396,10 @@ begin
         Send(tx_mac_rec, v_pol & c_nominel_bit_rate);
       end loop;
 
-      wait for c_bus_delay; 
+      Send(tx_mac_rec, c_recessive & c_nominel_bit_rate); -- Trailing bit so RX samples last pushed bit before CheckBurst
+      wait for c_bus_delay;
       WaitForClock(clk_rx, c_nom_bit_time_clk + 2);
-      CheckBurst(rx_mac_rec, GetFifoCount(rx_mac_rec.BurstFifo)); -- Check received bits after they have arrived at the RX PCS 
-      Send(tx_mac_rec, c_recessive & c_nominel_bit_rate); -- Drive bus recessive before next test
+      CheckBurst(rx_mac_rec, GetFifoCount(rx_mac_rec.BurstFifo));
     end procedure test_cc_transfer;
 
     --------------------------------------------------------------------------
@@ -415,71 +413,76 @@ begin
       Print("Test 3: FD bitstream transfer (nominal + data rate)");
       Print("--------------------------------------------------------------------------");
 
-      WaitForBarrier(fd_sync); -- S1 : Sync RX PCS to hard sync on SOF
+      for i in 1 to c_fd_iterations loop
+        SetModelOptions(rx_mac_rec, c_arm_hard_sync_rx);
+        SetModelOptions(rx_mac_rec, c_start_collection_rx_stream);
 
-      -- SOF.
-      Push(rx_mac_rec.BurstFifo, "" & c_dominant);
-      Send(tx_mac_rec, c_dominant & c_nominel_bit_rate);
-      bit_name <= ARB;
-
-      -- Arbitration phase 1.
-      for i in 1 to c_arbitration_phase_1_len - 1 loop
-        v_pol := RV.RandSlv(1)(1);
-        Push(rx_mac_rec.BurstFifo, "" & v_pol);
-        Send(tx_mac_rec, v_pol & c_nominel_bit_rate);
-      end loop;
-
-      WaitForBarrier(fd_sync); -- S2: Arm hard sync for FDF->res dominant edge
-
-      -- FDF, res, BRS, esi (ISO : Figure 2).
-      Push(rx_mac_rec.BurstFifo, "" & c_recessive);
-      Send(tx_mac_rec, c_recessive & c_tx_start_tdc);      -- FDF bit, start_tdc
-      bit_name <= FDF;
-
-      Push(rx_mac_rec.BurstFifo, "" & c_dominant);
-      Send(tx_mac_rec, c_dominant  & c_nominel_bit_rate);  -- res bit
-      bit_name <= res;
-
-      Push(rx_mac_rec.BurstFifo, "" & c_recessive);
-      Send(tx_mac_rec, c_recessive & c_nominel_bit_rate);  -- BRS bit
-      bit_name <= BRS;
-
-      Push(rx_mac_rec.BurstFifo, "" & c_recessive);
-      Send(tx_mac_rec, c_recessive & c_tx_data_bit_rate);  -- esi bit (first data rate bit)
-      bit_name <= esi;
-
-      WaitForBarrier(fd_sync); -- S3: Switch RX to data rate
-
-      -- Data phase.
-      for i in 1 to c_data_phase_len loop
-        v_pol := RV.RandSlv(1)(1);
-        Push(rx_mac_rec.BurstFifo, "" & v_pol);
-        Send(tx_mac_rec, v_pol & c_tx_data_bit_rate);
-        bit_name <= DATA;
-      end loop;
-
-      -- CRC delimiter (back to nominal).
-      Push(rx_mac_rec.BurstFifo, "" & c_recessive);
-      Send(tx_mac_rec, c_recessive & c_nominel_bit_rate);
-      bit_name <= CRC_delim;
-
-      WaitForBarrier(fd_sync); -- S4: Switch RX PCS to nominal bit rate
-
-      -- Arbitration phase 2.
-      for i in 1 to c_arbitration_phase_2_len - 1 loop
-        v_pol := RV.RandSlv(1)(1);
-        Push(rx_mac_rec.BurstFifo, "" & v_pol);
-        Send(tx_mac_rec, v_pol & c_nominel_bit_rate);
-        if i = 1 then
-          WaitForBarrier(fd_sync); -- S5: Wait for RX to arm hard_sync on first dom edge after CRC delimiter (ISO : 7.3.5.1,b)
-        end if;
+        -- SOF.
+        Push(rx_mac_rec.BurstFifo, "" & c_dominant);
+        Send(tx_mac_rec, c_dominant & c_nominel_bit_rate);
         bit_name <= ARB;
-      end loop;
 
-      wait for c_bus_delay;
-      WaitForClock(clk_rx, c_nom_bit_time_clk + 2);
-      CheckBurst(rx_mac_rec, GetFifoCount(rx_mac_rec.BurstFifo)); -- Check received bits after they have arrived at the RX PCS
-      Send(tx_mac_rec, c_recessive & c_nominel_bit_rate); -- Drive bus recessive before next test
+        -- Arbitration phase 1.
+        for i in 1 to c_arbitration_phase_1_len - 1 loop
+          v_pol := RV.RandSlv(1)(1);
+          Push(rx_mac_rec.BurstFifo, "" & v_pol);
+          Send(tx_mac_rec, v_pol & c_nominel_bit_rate);
+        end loop;
+
+        -- FDF, res, BRS, esi (ISO : Figure 2).
+        Push(rx_mac_rec.BurstFifo, "" & c_recessive);
+        Send(tx_mac_rec, c_recessive & c_tx_start_tdc);      -- FDF bit, start_tdc
+        SetModelOptions(rx_mac_rec, c_arm_hard_sync_rx);     -- RX PCS should hard sync dom FDF->rex edge (ISO : 7.3.5.1,c) 
+        bit_name <= FDF;
+
+        Push(rx_mac_rec.BurstFifo, "" & c_dominant);
+        Send(tx_mac_rec, c_dominant  & c_nominel_bit_rate);  -- res bit
+        bit_name <= res;
+
+        Push(rx_mac_rec.BurstFifo, "" & c_recessive);
+        Send(tx_mac_rec, c_recessive & c_nominel_bit_rate);  -- BRS bit
+        bit_name <= BRS;
+
+        Push(rx_mac_rec.BurstFifo, "" & c_recessive);
+        Send(tx_mac_rec, c_recessive & c_tx_data_bit_rate);  -- esi bit (first data rate bit)
+        bit_name <= esi;
+
+        -- Tell RX VC to switch to data rate
+        SetModelOptions(rx_mac_rec, c_switch_to_data_rate_rx_stream);
+
+        -- Data phase.
+        for i in 1 to c_data_phase_len loop
+          v_pol := RV.RandSlv(1)(1);
+          Push(rx_mac_rec.BurstFifo, "" & v_pol);
+          Send(tx_mac_rec, v_pol & c_tx_data_bit_rate);
+          bit_name <= DATA;
+        end loop;
+
+        -- CRC delimiter (back to nominal).
+        Push(rx_mac_rec.BurstFifo, "" & c_recessive);
+        Send(tx_mac_rec, c_recessive & c_nominel_bit_rate);
+        bit_name <= CRC_delim;
+
+        SetModelOptions(rx_mac_rec, c_switch_to_nominal_rx_stream);
+
+        -- Arbitration phase 2.
+        for i in 1 to c_arbitration_phase_2_len - 1 loop
+          v_pol := RV.RandSlv(1)(1);
+          Push(rx_mac_rec.BurstFifo, "" & v_pol);
+          Send(tx_mac_rec, v_pol & c_nominel_bit_rate);
+          bit_name <= ARB;
+        end loop;
+
+        -- Wait for last bit to arrive at RX PCS before check
+        WaitForClock(clk_rx, c_nom_bit_time_clk + 2);
+        wait for c_bus_delay;
+        WaitForClock(clk_tx, c_nom_bit_time_clk + 2);
+        CheckBurst(rx_mac_rec, GetFifoCount(rx_mac_rec.BurstFifo));
+
+        -- Settle idle bits so the next SOF's rec->dom edge is clean.
+        Send(tx_mac_rec, c_recessive & c_nominel_bit_rate); -- Trailing bit so RX samples last pushed bit before CheckBurst
+        WaitForClock(clk_tx, c_nom_bit_time_clk * 3);
+      end loop;
     end procedure test_fd_transfer;
 
 
@@ -493,10 +496,10 @@ begin
     begin
       test_num <= 4;
       Print("--------------------------------------------------------------------------");
-      Print("Test 5: Resynchronization under oscillator drift (ISO 7.3.5.4)");
+      Print("Test 4: Resynchronization under clock drift");
       Print("--------------------------------------------------------------------------");
 
-      Send(rx_mac_rec, c_rx_hard_sync_nominel); -- Arm hard sync for SOF bit
+      SetModelOptions(rx_mac_rec, c_arm_hard_sync_rx);
       SetModelOptions(rx_mac_rec, c_start_collection_rx_stream);
 
       Push(rx_mac_rec.BurstFifo, "" & c_dominant);
@@ -512,9 +515,10 @@ begin
         Send(tx_mac_rec, c_recessive & c_nominel_bit_rate);
       end loop;
 
-      wait for c_bus_delay; 
+      Send(tx_mac_rec, c_recessive & c_nominel_bit_rate); -- Trailing bit so RX samples last pushed bit before CheckBurst
+      wait for c_bus_delay;
       WaitForClock(clk_rx, c_nom_bit_time_clk + 2);
-      CheckBurst(rx_mac_rec, GetFifoCount(rx_mac_rec.BurstFifo)); -- Check received bits after they have arrived at the RX PCS 
+      CheckBurst(rx_mac_rec, GetFifoCount(rx_mac_rec.BurstFifo));
     end procedure test_resync_drift;
 
     --------------------------------------------------------------------------
@@ -532,7 +536,7 @@ begin
       Print("--------------------------------------------------------------------------");
 
       Send(tx_mac_rec, c_dominant & c_nominel_bit_rate);
-      rx_mac_i.polarity <= c_dominant;
+      SetModelOptions(rx_mac_rec, c_force_polarity_dominant_rx);
       tx_fce_i.bus_off  <= '1';
       rx_fce_i.bus_off  <= '1';
       WaitForClock(clk_tx, c_nom_bit_time_clk * 2);
@@ -572,9 +576,7 @@ begin
 
     test_reset;
     test_cc_transfer;
-    for i in 0 to 10 loop
     test_fd_transfer;
-  end loop;
     test_resync_drift;
     test_bus_off;
 
