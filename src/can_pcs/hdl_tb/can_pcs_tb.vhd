@@ -292,7 +292,7 @@ begin
     rx_mac_loop : loop
       wait until rising_edge(clk_rx);
 
-      -- Apply pending rate switch once its RX-aligned deadline elapses.
+      -- Apply pending rate switch
       if now >= v_rate_switch_time then
         rx_mac_i.use_data_rate <= v_rate_switch_value;
         v_rate_switch_time     := time'high;
