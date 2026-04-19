@@ -53,9 +53,8 @@ architecture rtl of can_fce is
   ---------------------------------------------------------------------------
   -- Signals
   ---------------------------------------------------------------------------
-  -- Ranges allow crossing the thresholds with headroom for coefficient bumps.
   signal transmitter_error_count : natural range 0 to c_bus_off_threshold + 8;
-  signal reciever_error_count    : natural range 0 to c_bus_off_threshold + 8;
+  signal reciever_error_count    : natural range 0 to c_error_count_threshold + 8;
   signal fce_state  : t_fce_state;
   signal idle_count : natural range 0 to c_bus_off_recovery_count;
 
@@ -74,9 +73,9 @@ begin
         llc_o      <= c_fce_to_llc_if_reset;
         pcs_o      <= c_fce_to_pcs_if_reset;
       else
-        -----------------------------------------------------------------
+        ---------------------------------------------------------------------------
         -- State machine
-        -----------------------------------------------------------------
+        ---------------------------------------------------------------------------
         case fce_state is
 
           when s_error_active | s_error_passive =>
@@ -87,30 +86,23 @@ begin
               mac_o.error_active  <= '1';
             end if;
 
-            ---------------------------------------------------------------
-            -- Transmitter error count updates (ISO 8.1.4.2)
-            ---------------------------------------------------------------
-            if mac_i.transmitting = '1' then
-              if (mac_i.error = '1' and mac_i.passive_tx_ack_error_exempt = '0') then
-                transmitter_error_count <= transmitter_error_count + 8; -- ISO 8.1.4.2,c/d (TEC += 8)
-              elsif (mac_i.error_delimiter_too_late = '1' ) then
-                transmitter_error_count <= transmitter_error_count + 8; -- ISO 8.1.4.2,f (TEC += 8)
-              elsif (mac_i.successful_transfer = '1' ) then
+
+            ---------------------------------------------------------------------------
+            -- Error counting (ISO : 8.1.4.2)
+            ---------------------------------------------------------------------------
+            -- Transmitter error count ------------------------------------------------
+            if mac_i.transmitting then
+              if ((mac_i.error and not mac_i.passive_tx_ack_error_exempt_1) or mac_i.error_delimiter_too_late) then
+                transmitter_error_count <= transmitter_error_count + 8; -- ISO 8.1.4.2,c/d/f (TEC += 8)
+              elsif (mac_i.successful_transfer) then
                 transmitter_error_count <= 0 when transmitter_error_count = 0 else transmitter_error_count - 1; -- ISO 8.1.4.2,g (TEC -= 1)
               end if;
-
-            ---------------------------------------------------------------
-            -- REC updates (ISO 8.1.4.2)
-            ---------------------------------------------------------------
+            -- Receiver error count ---------------------------------------------------
             else
-              if (mac_i.error = '1' and mac_i.sending_error_overload_flag = '1') then
-                reciever_error_count <= reciever_error_count + 8; -- ISO 8.1.4.2,e (REC += 8)
-              elsif (mac_i.error = '1') then
+              if ((mac_i.error and mac_i.sending_error_overload_flag) or mac_i.primary_error or mac_i.error_delimiter_too_late) then
+                reciever_error_count <= reciever_error_count + 8; -- ISO 8.1.4.2,b/e/f (REC += 8)
+              elsif mac_i.error then
                 reciever_error_count <= reciever_error_count + 1; -- ISO 8.1.4.2,a (REC += 1)
-              elsif (mac_i.primary_error = '1') then
-                reciever_error_count <= reciever_error_count + 8; -- ISO 8.1.4.2,b (REC += 8)
-              elsif (mac_i.error_delimiter_too_late = '1') then
-                reciever_error_count <= reciever_error_count + 8; -- ISO 8.1.4.2,f (REC += 8)
               elsif (mac_i.successful_transfer = '1') then
                 if (reciever_error_count > c_error_count_threshold) then -- ISO 8.1.4.2,h (REC adjustment)
                   reciever_error_count <= c_error_count_threshold;
@@ -120,9 +112,9 @@ begin
               end if;
             end if;
 
-            ---------------------------------------------------------------
+            ---------------------------------------------------------------------------
             -- State transitions (ISO : 8.1.4.4 Figure 43)
-            ---------------------------------------------------------------
+            ---------------------------------------------------------------------------
             if (transmitter_error_count > c_bus_off_threshold) then
               fce_state          <= s_bus_off;
               idle_count         <= 0;
@@ -139,9 +131,9 @@ begin
               mac_o.error_active <= '1';
             end if;
 
-            ---------------------------------------------------------------
+            ---------------------------------------------------------------------------
             -- State transitions (ISO : 8.1.4.4 Figure 43)
-            ---------------------------------------------------------------
+            ---------------------------------------------------------------------------
           when s_bus_off =>
             mac_o.error_active <= '0';
             mac_o.bus_off      <= '1'; -- Force MAC FSM to idle/reintegration

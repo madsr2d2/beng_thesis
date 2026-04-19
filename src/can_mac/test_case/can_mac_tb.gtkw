@@ -94,15 +94,11 @@ top.can_mac_tb.rx_pcs_i.bus_polarity
 @28
 top.can_mac_tb.rx_pcs_i.sample_point
 @28
-top.can_mac_tb.rx_pcs_i.secondary_sample_point
-@22
-top.can_mac_tb.rx_pcs_i.tdc_delay
-@28
 top.can_mac_tb.rx_pcs_o.polarity
 @28
 top.can_mac_tb.rx_pcs_o.use_data_rate
 @28
-top.can_mac_tb.rx_pcs_o.start_tdc
+top.can_mac_tb.rx_pcs_o.hard_sync_en
 @28
 top.can_mac_tb.rx_fce_i.error_active
 @28
@@ -615,10 +611,6 @@ top.can_mac_tb.u_mac_rx.pcs_i.bus_polarity
 @28
 top.can_mac_tb.u_mac_rx.pcs_i.sample_point
 @28
-top.can_mac_tb.u_mac_rx.pcs_i.secondary_sample_point
-@22
-top.can_mac_tb.u_mac_rx.pcs_i.tdc_delay
-@28
 top.can_mac_tb.u_mac_rx.fce_i.error_active
 @28
 top.can_mac_tb.u_mac_rx.fce_i.bus_off
@@ -642,7 +634,7 @@ top.can_mac_tb.u_mac_rx.pcs_o.polarity
 @28
 top.can_mac_tb.u_mac_rx.pcs_o.use_data_rate
 @28
-top.can_mac_tb.u_mac_rx.pcs_o.start_tdc
+top.can_mac_tb.u_mac_rx.pcs_o.hard_sync_en
 @28
 top.can_mac_tb.u_mac_rx.fce_o.transmitting
 @28
@@ -706,10 +698,6 @@ top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.pcs_i.bus_polarity
 @28
 top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.pcs_i.sample_point
 @28
-top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.pcs_i.secondary_sample_point
-@22
-top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.pcs_i.tdc_delay
-@28
 top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.bs_i.data
 @28
 top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.bs_i.valid
@@ -741,7 +729,7 @@ top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.pcs_o.polarity
 @28
 top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.pcs_o.use_data_rate
 @28
-top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.pcs_o.start_tdc
+top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.pcs_o.hard_sync_en
 @28
 top.can_mac_tb.u_mac_rx.u_can_mac_fsm_rx.bs_o.data
 @28

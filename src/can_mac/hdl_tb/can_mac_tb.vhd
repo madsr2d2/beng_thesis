@@ -85,8 +85,8 @@ architecture tb of can_mac_tb is
   -- RX DUT interface (can_mac_rx)
   signal rx_llc_i : t_can_llc_mac_rx_if_d2s;
   signal rx_llc_o : t_can_llc_mac_rx_if_s2d;
-  signal rx_pcs_i : t_can_mac_pcs_if_s2m := c_pcs_to_mac_if_reset;
-  signal rx_pcs_o : t_can_mac_pcs_if_m2s;
+  signal rx_pcs_i : t_can_mac_pcs_rx_if_s2m;
+  signal rx_pcs_o : t_can_mac_pcs_rx_if_m2s;
   signal rx_fce_i : t_can_mac_fce_if_s2m := c_fce_to_mac_if_reset;
   signal rx_fce_o : t_can_mac_fce_if_m2s;
 
@@ -259,8 +259,6 @@ begin
       -- RX PCS input (SP offset by 2 TQ so the TX's newly driven
       -- bit has propagated through the bus model)
       rx_pcs_i.sample_point           <= v_rx_sp_strobe;
-      rx_pcs_i.secondary_sample_point <= v_ssp_strobe;
-      rx_pcs_i.tdc_delay              <= (others => '0');
       rx_pcs_i.bus_polarity           <= bus_level;
     end loop pcs_loop;
   end process p_pcs_model;
@@ -471,7 +469,7 @@ begin
       Print("--------------------------------------------------------------------------");
       Print("Test 1: Reset");
       Print("--------------------------------------------------------------------------");
-      AffirmIf(check_id, rx_pcs_o = c_mac_to_pcs_if_reset, "pcs_o not reset correctly");
+      AffirmIf(check_id, rx_pcs_o = c_mac_to_pcs_rx_if_reset , "pcs_o not reset correctly");
       AffirmIf(check_id, rx_fce_o = c_mac_to_fce_if_reset, "fce_o not reset correctly");
       AffirmIf(check_id, rx_llc_o = c_mac_rx_to_llc_if_reset, "llc_o not reset correctly");
     end procedure test_reset;

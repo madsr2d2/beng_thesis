@@ -348,7 +348,7 @@ begin
         fce_latch(c_fce_successful_transfer)  <= fce_o.successful_transfer when fce_o.successful_transfer;
         fce_latch(c_fce_error)                <= fce_o.error when fce_o.error;
         fce_latch(c_fce_primary_error)        <= fce_o.primary_error when fce_o.primary_error ;
-        fce_latch(c_fce_passive_tx_ack_exempt)  <= fce_o.passive_tx_ack_error_exempt when fce_o.passive_tx_ack_error_exempt;
+        fce_latch(c_fce_passive_tx_ack_exempt)  <= fce_o.passive_tx_ack_error_exempt_1 when fce_o.passive_tx_ack_error_exempt_1;
         fce_latch(c_fce_error_delim_too_late) <= fce_o.error_delimiter_too_late when fce_o.error_delimiter_too_late;
       end if;
     end if;

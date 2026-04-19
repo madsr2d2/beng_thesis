@@ -578,7 +578,7 @@ begin
                 pcs_o.polarity     <= c_recessive;
                 if (ack_error_caused_flag) then
                   fce_o.error                       <= '1';
-                  fce_o.passive_tx_ack_error_exempt <= '1' when fce_i.error_active = '0' and not saw_dominant_during_flag;
+                  fce_o.passive_tx_ack_error_exempt_1 <= '1' when fce_i.error_active = '0' and not saw_dominant_during_flag;
                 end if;
               end if;
             end if;

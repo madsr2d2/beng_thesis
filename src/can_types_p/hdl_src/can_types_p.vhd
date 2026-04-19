@@ -358,7 +358,7 @@ package pk_can_types is
     error                       : std_logic;
     primary_error               : std_logic;
     sending_error_overload_flag : std_logic;
-    passive_tx_ack_error_exempt : std_logic; -- ISO 8.1.4.2 c) Exc.1: asserted when exemption applies (passive + ACK-caused + no dominant during flag)
+    passive_tx_ack_error_exempt_1 : std_logic; -- ISO 8.1.4.2 c) Exc.1: asserted when exemption applies (passive + ACK-caused + no dominant during flag)
     error_delimiter_too_late    : std_logic;
     successful_transfer         : std_logic;
   end record t_can_mac_fce_if_m2s;
@@ -369,7 +369,7 @@ package pk_can_types is
     error                       => '0',
     primary_error               => '0',
     sending_error_overload_flag => '0',
-    passive_tx_ack_error_exempt => '0',
+    passive_tx_ack_error_exempt_1 => '0',
     error_delimiter_too_late    => '0',
     successful_transfer         => '0'
   );

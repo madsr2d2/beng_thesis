@@ -88,7 +88,7 @@ begin
   fce_o.error                       <= tx_fce_o.error or rx_fce_o.error;
   fce_o.primary_error               <= tx_fce_o.primary_error or rx_fce_o.primary_error;
   fce_o.sending_error_overload_flag <= tx_fce_o.sending_error_overload_flag or rx_fce_o.sending_error_overload_flag;
-  fce_o.passive_tx_ack_error_exempt <= tx_fce_o.passive_tx_ack_error_exempt or rx_fce_o.passive_tx_ack_error_exempt;
+  fce_o.passive_tx_ack_error_exempt_1 <= tx_fce_o.passive_tx_ack_error_exempt_1 or rx_fce_o.passive_tx_ack_error_exempt_1;
   fce_o.error_delimiter_too_late    <= tx_fce_o.error_delimiter_too_late or rx_fce_o.error_delimiter_too_late;
   fce_o.successful_transfer         <= tx_fce_o.successful_transfer or rx_fce_o.successful_transfer;
 
