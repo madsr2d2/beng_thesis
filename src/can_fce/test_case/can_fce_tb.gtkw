@@ -117,7 +117,7 @@ top.can_fce_tb.u_dut.pcs_o.bus_off
 @420
 top.can_fce_tb.u_dut.transmitter_error_count
 @420
-top.can_fce_tb.u_dut.reciever_error_count
+top.can_fce_tb.u_dut.receiver_error_count
 @420
 top.can_fce_tb.u_dut.fce_state
 @420
