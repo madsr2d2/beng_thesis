@@ -1,20 +1,20 @@
---------------------------------------------------------------------------------
--- Title      : CAN MAC Bit Stuffer
--- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
---------------------------------------------------------------------------------
--- File       : can_mac_bs.vhd
--- Author     : Mads Richardt
--- Standard   : VHDL-2008
---------------------------------------------------------------------------------
--- Description: Unified bit stuffer for CAN/CAN-FD TX and RX paths.
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Copyright 2025 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
+-- Requirements:  
+--
+-- Description: Unified bit stuffer for CAN/CAN-FD TX and RX paths.
 --              Dynamic mode (fsb_en='0'): inserts an inverse stuff bit after
 --              c_stuff_width (5) consecutive identical bits.
---
 --              Fixed mode (fsb_en='1'): inserts one FSB on the rising edge of
 --              fsb_en, then one FSB every 4 real bits. Maintains Gray-coded
 --              SBC with parity. ISO 11898-1 Sec. 8.5.
---------------------------------------------------------------------------------
+--
+-- Revision log:  Date:       Initial:  JIRA:
+--                2026-03-15  TMYAES:   [TRIT-4342] [FPGA] Bit stuffer module for the CAN-FD module
+--
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;
@@ -54,7 +54,7 @@ begin
         -----------------------------------------------------------------
         -- Rising edge of fsb_en: emit initial FSB
         -----------------------------------------------------------------
-        if (bs_i.fixed_bit_stuffing_en = '1' and fsb_en_latch = '0') then
+        if (bs_i.fixed_bit_stuffing_en = '1') and (fsb_en_latch = '0') then
           if (bs_i.valid = '1') then
             last_polarity <= bs_i.data;
             bs_o.data     <= not bs_i.data;
@@ -83,7 +83,7 @@ begin
             -----------------------------------------------------------------
             if (bs_i.data /= last_polarity) then
               count <= 1;
-            elsif (count = c_stuff_width - 1) then
+            elsif count = (c_stuff_width - 1) then
               count       <= 0;
               bs_o.data   <= not last_polarity;
               bs_o.valid  <= '1';
@@ -99,7 +99,7 @@ begin
             -- Fixed stuffing: 1 FSB every 4 real bits (ISO 6.6.13.3.1)
             -----------------------------------------------------------------
             if (bs_o.valid = '0') then
-              if (count = c_stuff_width - 2) then
+              if count = (c_stuff_width - 2) then
                 bs_o.data  <= not bs_i.data;
                 bs_o.valid <= '1';
                 count      <= 0;

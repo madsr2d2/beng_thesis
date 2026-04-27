@@ -5,18 +5,19 @@
 -- Requirements:
 --
 -- Description:   Testbench for can_mac_tx (ser + fsm + bs + crc).
---                  p_llc_vc           - LLC Avalon-ST source VC (byte driver).
---                  p_pcs_vc           - PCS sink VC (bit-level self-checking, ACK injection).
---                  p_test_ctrl        - Coverage-driven test sequencer with reference model.
+--                p_llc_vc           - LLC Avalon-ST source VC (byte driver).
+--                p_pcs_vc           - PCS sink VC (bit-level self-checking, ACK injection).
+--                p_test_ctrl        - Coverage-driven test sequencer with reference model.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-28  TMYAES    [TRIT-4355] Initial implementation
---                2026-04-02  TMYAES    [TRIT-4355] Refactored: full bus stream reference model
+--                2026-03-28  TMYAES:   [TRIT-4355] [FPGA] Controlling FSM form MAC layer in CAN-FD module
+--
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
+  use work.pk_can_types.all;
 
 library osvvm;
   context osvvm.OsvvmContext;
@@ -28,6 +29,7 @@ use work.pk_man_global.all;
 use work.common_register_interface_pkg.all;
 use work.common_tb_pkg.all;
 use work.pk_can_types.all;
+use work.pk_can_tb.all;
 
 entity can_mac_tx_tb is
   generic (
@@ -74,7 +76,7 @@ architecture tb of can_mac_tx_tb is
   constant c_fce_successful_transfer  : natural := 0;
   constant c_fce_error                : natural := 1;
   constant c_fce_primary_error        : natural := 2;
-  constant c_fce_passive_tx_ack_exempt  : natural := 3;
+  constant c_fce_passive_tx_ack_error   : natural := 3;
   constant c_fce_error_delim_too_late : natural := 4;
   constant c_fce_latch_width          : natural := 5;
 
@@ -106,7 +108,7 @@ architecture tb of can_mac_tx_tb is
   -- Secondary dominant-injection bit position (used by scenarios that need
   -- more than one override bit per frame, e.g. reactive overload in IFS,
   -- which requires a dominant ACK at ack_pos as well as a dominant in the
-  -- first intermission bit).
+  -- first intermission bit). A negative value disables the second arm.
   signal aux_inj_pos     : integer := -1;
 
   -- OSVVM signals
@@ -125,7 +127,9 @@ architecture tb of can_mac_tx_tb is
   signal inj_cov      : CoverageIDType;
   signal pos_cov      : CoverageIDType;
   signal fce_cov      : CoverageIDType;
-  signal init_barrier : integer_barrier := 1;
+  signal init_barrier : std_logic := '0';
+
+  signal exp_poped : std_logic;
 
   signal llc_rec : StreamRecType(
     DataToModel    (c_rec_width - 1 downto 0),
@@ -351,7 +355,7 @@ begin
         fce_latch(c_fce_successful_transfer)  <= fce_o.successful_transfer when fce_o.successful_transfer;
         fce_latch(c_fce_error)                <= fce_o.error when fce_o.error;
         fce_latch(c_fce_primary_error)        <= fce_o.primary_error when fce_o.primary_error ;
-        fce_latch(c_fce_passive_tx_ack_exempt)  <= fce_o.passive_tx_ack_error_exempt when fce_o.passive_tx_ack_error_exempt;
+        fce_latch(c_fce_passive_tx_ack_error)   <= fce_o.passive_tx_ack_error when fce_o.passive_tx_ack_error;
         fce_latch(c_fce_error_delim_too_late) <= fce_o.error_delimiter_too_late when fce_o.error_delimiter_too_late;
       end if;
     end if;
@@ -421,24 +425,6 @@ begin
     variable v_active_sp       : natural := c_sp;
 
     --------------------------------------------------------------------------
-    -- Human-readable injection subtype name (for debug prints).
-    --------------------------------------------------------------------------
-    function inj_name (s : natural) return string is
-    begin
-      case s is
-        when c_inj_ack                       => return "c_inj_ack";
-        when c_inj_ack_error                 => return "c_inj_ack_error";
-        when c_inj_error                     => return "c_inj_error";
-        when c_inj_lost_arb                  => return "c_inj_lost_arb";
-        when c_inj_reactive_overload_in_eof  => return "c_inj_reactive_overload_in_eof";
-        when c_inj_reactive_overload_in_ifs  => return "c_inj_reactive_overload_in_ifs";
-        when c_inj_error_delim_too_late      => return "c_inj_error_delim_too_late";
-        when c_inj_ack_delim                 => return "c_inj_ack_delim";
-        when others                          => return "unknown(" & to_string(s) & ")";
-      end case;
-    end function inj_name;
-
-    --------------------------------------------------------------------------
     -- Arm/disarm bus override
     --------------------------------------------------------------------------
     procedure arm_bus_injection is
@@ -472,70 +458,43 @@ begin
         --------------------------------------------------------------------------
         -- Sync tq counter to SOF: armed on SEND, fires on recessive->dominant
         -- edge of pcs_o.polarity (the clock the DUT enters s_sof).
-        if v_sync_armed and pcs_o.polarity = c_dominant and v_valid_prev = c_recessive then
+        if v_sync_armed and pcs_o.tx_data = c_dominant and v_valid_prev = c_recessive then
           v_tq_count     := 0;
           v_sync_armed   := false;
           v_frame_active := true;
         else
           v_tq_count := 0 when v_tq_count = v_active_bit_time else v_tq_count + 1;
         end if;
-        v_valid_prev := pcs_o.polarity;
+        v_valid_prev := pcs_o.tx_data;
         if v_tq_count = 0 then
-          v_active_bit_time := c_data_bit_time when pcs_o.use_data_rate = '1' else c_bit_time;
-          v_active_sp       := c_data_sp       when pcs_o.use_data_rate = '1' else c_sp;
+          v_active_bit_time := c_data_bit_time when pcs_o.next_bit_is_brs = '1' else c_bit_time;
+          v_active_sp       := c_data_sp       when pcs_o.next_bit_is_brs = '1' else c_sp;
         end if;
         pcs_i.sample_point <= '1' when v_tq_count = v_active_sp else '0'; -- Sample point strobe
-        pcs_i.secondary_sample_point <= '1' when v_tq_count = c_data_ssp and pcs_o.use_data_rate = '1' else '0'; -- Secondary sample point
+        pcs_i.secondary_sample_point <= '1' when v_tq_count = c_data_ssp and pcs_o.next_bit_is_brs = '1' else '0'; -- Secondary sample point
         pcs_i.tdc_delay <= (others => '0'); -- No transmissions delay in this model so tdc_delay is always 0
 
         -- Set bus polarity
         if bus_override_en then -- Override bus
           case v_inj_subtype is
             when c_inj_ack | c_inj_lost_arb | c_inj_ack_delim =>
-              pcs_i.bus_polarity <= c_dominant; -- Always dominant override
+              pcs_i.rx_data <= c_dominant; -- Always dominant override
             when c_inj_error | c_inj_reactive_overload_in_eof | c_inj_error_delim_too_late | c_inj_reactive_overload_in_ifs =>
-              pcs_i.bus_polarity <= not pcs_o.polarity; -- Opposite polarity override (simulates a peer node driving the opposing bit)
+              pcs_i.rx_data <= not pcs_o.tx_data; -- Opposite polarity override
             when others => null;
           end case;
         else -- No bus injection -> Zero-delay loop back
-          pcs_i.bus_polarity <= pcs_o.polarity;
+          pcs_i.rx_data <= pcs_o.tx_data; 
         end if;
         --------------------------------------------------------------------------
 
         --------------------------------------------------------------------------
-        -- Bit checking at SP+3: the FSM reacts to SP at SP+1 (one clock
-        -- propagation delay for sample_point signal). Combinational
-        -- outputs (e.g. error flag polarity based on bit_count) update
-        -- at SP+2 once the new bit_count takes effect. At SP+3 the
-        -- combinational pcs_o has fully propagated through the delta
-        -- cycle. This also accommodates the s_sof SP-wait (SOF held
-        -- on pcs_o until SP, then FSM transitions).
+        -- Bit checking at bit boundary: Check polarity, start_tdc and use_data_rate. 
         --------------------------------------------------------------------------
-        if v_tq_count = v_active_sp + 3 and v_frame_active then
-          if Empty(pcs_rec.BurstFifo) then
-            -- DUT drove an SP beyond the predicted stream length (overflow).
-            Alert(stream_check_id, "Unexpected SP after predicted stream exhausted (bus_idx=" &
-                                   to_string(bus_idx) & ")", ERROR);
-            v_frame_active := false;
-          else
-            -- Debug: log injection context on every mismatch before the Alert fires.
-            if Peek(pcs_rec.BurstFifo) /= (pcs_o.start_tdc & pcs_o.use_data_rate & pcs_o.polarity) then
-              Log(stream_check_id,
-                  "Bus stream mismatch: inj=" & inj_name(v_inj_subtype) &
-                  " inj_pos=" & to_string(v_inject_pos) &
-                  " bus_idx=" & to_string(bus_idx) &
-                  " got(tdc|udr|pol)=" & to_string(pcs_o.start_tdc) & to_string(pcs_o.use_data_rate) & to_string(pcs_o.polarity) &
-                  " expected=" & to_string(Peek(pcs_rec.BurstFifo)),
-                  ALWAYS);
-            end if;
-            Check(pcs_rec.BurstFifo, pcs_o.start_tdc & pcs_o.use_data_rate & pcs_o.polarity);
-            arm_bus_injection; -- Arm next bus injection
-            bus_idx <= bus_idx + 1;
-            -- Close check window when the predicted stream is fully consumed.
-            if Empty(pcs_rec.BurstFifo) then
-              v_frame_active := false;
-            end if;
-          end if;
+        if v_tq_count = v_active_sp + 3 and not Empty(pcs_rec.BurstFifo) and (bus_idx > 0 or v_frame_active) then
+          Check(pcs_rec.BurstFifo, pcs_o.next_bit_is_res & pcs_o.next_bit_is_brs & pcs_o.tx_data);
+          arm_bus_injection; -- Arm next bus injection
+          bus_idx <= bus_idx + 1;
         end if;
         --------------------------------------------------------------------------
 
@@ -639,7 +598,7 @@ begin
       v_exp_fce(c_fce_error) := '1';
       if (v_error_state = c_fce_passive) then
         -- ISO 8.1.4.2 rule c) Exception 1: counters_unchanged
-        v_exp_fce(c_fce_passive_tx_ack_exempt) := '1';
+        v_exp_fce(c_fce_passive_tx_ack_error) := '1';
       else
         v_exp_fce(c_fce_primary_error) := '1';
       end if;

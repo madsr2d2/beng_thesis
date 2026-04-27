@@ -4,20 +4,19 @@
 --
 -- Requirements:
 --
--- Description:   Top-level MAC receiver wrapper. Instantiates and wires:
---                - can_mac_fsm_rx:   Frame reception FSM (coordinator, streams
---                                    llc_frame to LLC during quiet phase)
---                - can_mac_bs:       CAN FD bit stuffer (reused for destuffing)
+-- Description:   Top-level MAC receiver wrapper.
+--                - can_mac_fsm_rx:   Frame reception FSM
+--                - can_mac_bs:       CAN FD bit stuffer
 --                - can_mac_crc:      CRC engine (reused for CRC checking)
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-31  MRDSA     Converted to company header format
---                2026-04-05  MRDSA     Remove deser, FSM streams to LLC directly
+--                2026-04-03  TMYAES:   [TRIT-4355] [FPGA] Controlling FSM form MAC layer in CAN-FD module
+--
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
-  use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
+use ieee.std_logic_1164.all;
 
   use work.pk_man_global.all;
   use work.pk_can_types.all;
@@ -31,9 +30,9 @@ entity can_mac_rx is
     llc_i : in    t_can_llc_mac_rx_if_d2s;
     llc_o : out   t_can_llc_mac_rx_if_s2d;
 
-    -- PCS interface (RX-specific, ISO 7.3.5)
-    pcs_i : in    t_can_mac_pcs_rx_if_s2m;
-    pcs_o : out   t_can_mac_pcs_rx_if_m2s;
+    -- PCS interface (bidirectional - receives bits, sends ACK/error flags)
+    pcs_i : in    t_can_mac_pcs_if_s2m;
+    pcs_o : out   t_can_mac_pcs_if_m2s;
 
     -- Fault Confinement Entity interface
     fce_i : in    t_can_mac_fce_if_s2m;
@@ -84,7 +83,7 @@ begin
     );
 
   ---------------------------------------------------------------------------
-  -- can_mac_bs: CAN FD bit stuffer (reused for destuffing)
+  -- can_mac_bs: CAN FD bit stuffer
   ---------------------------------------------------------------------------
   u_can_mac_bs : entity work.can_mac_bs
     port map (
@@ -95,7 +94,7 @@ begin
     );
 
   ---------------------------------------------------------------------------
-  -- can_mac_crc: CRC engine (reused for CRC checking)
+  -- can_mac_crc: CRC engine
   ---------------------------------------------------------------------------
   u_can_mac_crc : entity work.can_mac_crc
     port map (
@@ -106,3 +105,5 @@ begin
     );
 
 end architecture rtl;
+
+-- eof

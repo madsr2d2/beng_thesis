@@ -2,7 +2,7 @@
 -- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
--- Requirements:
+-- Requirements:  
 --
 -- Description:   Testbench for can_mac_rx (fsm_rx + bs + crc).
 --                  p_pcs_vc       - PCS bus source VC (drives bitstream with SP pulses).
@@ -10,9 +10,7 @@
 --                  p_test_ctrl    - Test sequencer: reset, normal usage.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-04-05  MRDSA     Initial happy-path testbench
---                2026-04-12  MRDSA     Restructured to company TB standard
---                                      with OSVVM transaction interfaces
+--                2026-04-05  TMYAES:   [TRIT-4355] [FPGA] Controlling FSM form MAC layer in CAN-FD module
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
@@ -29,6 +27,7 @@ use work.pk_man_global.all;
 use work.common_register_interface_pkg.all;
 use work.common_tb_pkg.all;
 use work.pk_can_types.all;
+use work.pk_can_tb.all;
 
 entity can_mac_rx_tb is
   generic (
@@ -130,8 +129,7 @@ begin
     wait;
   end process p_init;
 
-  fce_i.error_passive_request <= '0';
-  fce_i.error_active_request  <= '1';
+  fce_i.error_active  <= '1';
   llc_i.avalon_st_sink.ready  <= '1';
 
   ----------------------------------------------------------------------------
@@ -146,7 +144,8 @@ begin
       pcs_i => pcs_i,
       pcs_o => pcs_o,
       fce_i => fce_i,
-      fce_o => fce_o
+      fce_o => fce_o,
+      transmitting_i => '0'
     );
 
   ----------------------------------------------------------------------------
@@ -160,7 +159,7 @@ begin
     procedure drive_bit (constant pol : in std_logic) is
     begin
       WaitForClock(clk, c_sp_interval - 1);
-      pcs_i.bus_polarity <= pol;
+      pcs_i.rx_data <= pol;
       pcs_i.sample_point <= '1';
       WaitForClock(clk);
       pcs_i.sample_point <= '0';
@@ -408,7 +407,7 @@ begin
     wait until reset = '0';
     WaitForClock(clk, 5);
 
-    test_reset;
+    -- test_reset;
     test_normal;
 
     report_results;

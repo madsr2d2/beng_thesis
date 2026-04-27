@@ -11,13 +11,13 @@
 --                - can_mac_crc:  CRC engine interface
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-31  MRDSA     Converted to company header format
+--                2026-03-30  TMYAES:   [TRIT-4355] [TRIT-4355] [FPGA] Controlling FSM form MAC layer in CAN-FD module
+--
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
-  use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
-
+  use ieee.std_logic_1164.all;
   use work.pk_man_global.all;
   use work.pk_can_types.all;
 
@@ -49,7 +49,7 @@ architecture rtl of can_mac_tx is
   signal ser_to_fsm : t_can_mac_ser_fsm_if_s2d;
   signal fsm_to_ser : t_can_mac_ser_fsm_if_d2s;
 
-  -- FSM <-> bit stuffer FD
+  -- FSM <-> bit stuffer
   signal fsm_to_bs_fd  : t_can_mac_fsm_bs_if_m2s;
   signal bs_fd_to_fsm  : t_can_mac_fsm_bs_if_s2m;
   signal fsm_bs_fd_rst : std_logic;
@@ -77,7 +77,7 @@ begin
   ---------------------------------------------------------------------------
   -- can_mac_fsm_tx: Frame transmission FSM
   ---------------------------------------------------------------------------
-  u_can_mac_fsm_tx : entity work.can_mac_fsm_tx(rtl)
+  u_can_mac_fsm_tx : entity work.can_mac_fsm_tx
     port map (
       clk_i              => clk,
       rst_i              => rst,
@@ -118,3 +118,5 @@ begin
     );
 
 end architecture rtl;
+
+-- eof

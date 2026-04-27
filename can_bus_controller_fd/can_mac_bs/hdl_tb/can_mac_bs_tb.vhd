@@ -2,19 +2,18 @@
 -- Copyright 2025 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
--- Requirements:
+-- Requirements:  
 --
 -- Description:   Testbench for can_mac_bs.
---                  p_stim              - Two-phase driver: directed FSB tests then random dynamic.
---                  p_reset_checker     - Verifies outputs cleared after reset.
---                  p_stuff_bit_checker - Verifies dynamic stuff bit after 5 consecutive same bits.
---                  p_sbc_checker       - Verifies SBC parity, increments on dynamic, holds on FSB.
---                  p_fsb_checker       - Verifies initial and periodic FSB timing and polarity.
---                  p_coverage          - Input/output functional coverage.
+--                p_stim              - Two-phase driver: directed FSB tests then random dynamic.
+--                p_reset_checker     - Verifies outputs cleared after reset.
+--                p_stuff_bit_checker - Verifies dynamic stuff bit after 5 consecutive same bits.
+--                p_sbc_checker       - Verifies SBC parity, increments on dynamic, holds on FSB.
+--                p_fsb_checker       - Verifies initial and periodic FSB timing and polarity.
+--                p_coverage          - Input/output functional coverage.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-15  TMYAES    Initial implementation
---                2026-04-05  MRDSA     Add FSB mode directed tests and checkers
+--                2026-03-15  TMYAES:   [TRIT-4342] [FPGA] Bit stuffer module for the CAN-FD module
 --
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 

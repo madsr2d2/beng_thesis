@@ -12,15 +12,14 @@ import $abs_path/modules/ip_lib/can_bus_controller_fd/can_types_p/hdl_src/can_ty
 # ---------------------------------------------------------------------------- #
 # Sub Modules
 # ---------------------------------------------------------------------------- #
-import $abs_path/modules/ip_lib/can_bus_controller_fd/can_mac_tx/hdl_src/can_mac_fsm_tx.evlfs
-import $abs_path/modules/ip_lib/can_bus_controller_fd/can_mac_bs/hdl_src/can_mac_bs.evlfs
-import $abs_path/modules/ip_lib/can_bus_controller_fd/can_mac_crc/hdl_src/can_mac_crc.evlfs
-import $abs_path/modules/ip_lib/can_bus_controller_fd/can_mac_ser_tx/hdl_src/can_mac_ser_tx.evlfs
+import $abs_path/modules/ip_lib/can_bus_controller_fd/can_mac/hdl_src/can_mac.evlfs
+import $abs_path/modules/ip_lib/can_bus_controller_fd/can_fce/hdl_src/can_fce.evlfs
+import $abs_path/modules/ip_lib/can_bus_controller_fd/can_pcs/hdl_src/can_pcs.evlfs
 
 # ---------------------------------------------------------------------------- #
 # Module Files
 # ---------------------------------------------------------------------------- #
-import can_mac_tx.vhd
+import can_mac_pcs_fce.vhd
 
 
 # eof

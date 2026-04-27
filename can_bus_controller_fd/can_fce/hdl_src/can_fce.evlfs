@@ -3,7 +3,6 @@
 # ---------------------------------------------------------------------------- #
 import $abs_path/modules/ip_lib/man_global_p/hdl_src/man_global_p.evlfs
 import $abs_path/modules/ip_lib/can_bus_controller_fd/can_types_p/hdl_src/can_types_p.evlfs
-
 # ---------------------------------------------------------------------------- #
 # register
 # ---------------------------------------------------------------------------- #

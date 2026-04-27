@@ -2,16 +2,18 @@
 -- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
--- Requirements:
+-- Requirements:  
 --
 -- Description:   MAC serializer for CAN/CAN-FD TX path. Serializes LLC frame
 --                bytes into a bit stream for the MAC FSM.
 --                Internal LLC frame format (variable length, streamed by
 --                can_llc_tx to can_mac_ser_tx):
---                Byte 0:    [7:5]=FORMAT, [4]=FTYP(RTR), [3]=ESI, [2]=BRS
+--                Byte 0:    [7]=IDE, [6]=FDF, [5]=FTYP(RTR), [4]=ESI, [3]=BRS
 --                Byte 1:    [7:4]=DLC, [3:0]=0000
 --                Bytes 2-5: ID (32-bit, MSB first, left-aligned)
 --                Bytes 6+:  Data (DLC count, no padding)
+--                Note: The internal LLC frame format is different from the LLC frame format (used for the LLC-User interface).
+--                The Internal LLC frame format has config bytes first, allowing the MAC FSM to start streaming out ID/DATA bits as soon as possible.
 --                Responsibilities:
 --                1) Extract LLC metadata from config bytes and register at
 --                the MAC FSM interface.
@@ -21,7 +23,8 @@
 --                4) Forward transfer status from MAC FSM back to LLC.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-31  MRDSA     Converted to company header format
+--                2026-03-16  TMYAES:   [TRIT-4340] [FPGA] Serializer module for the CAN-FD module
+--
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
