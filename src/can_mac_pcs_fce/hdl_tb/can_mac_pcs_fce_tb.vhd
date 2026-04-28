@@ -266,7 +266,8 @@ begin
       if reset = '1' or clear_status then
         status_latch <= c_ongoing;
       else
-        if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing then
+        if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing
+           and llc_to_mac_tx_d2s_dut_1.transfer_status /= status_latch then
           status_latch <= llc_to_mac_tx_d2s_dut_1.transfer_status;
         end if;
       end if;
@@ -303,6 +304,56 @@ begin
   end process p_tx_llc_vc;
 
   ----------------------------------------------------------------------------
+  -- RX LLC sink VC: collects bytes from DUT 2 RX output and services Check
+  -- transactions on llc_rec.
+  ----------------------------------------------------------------------------
+  p_rx_llc_sink_vc : process is
+    variable v_byte_idx  : natural := 0;
+    variable v_frame     : t_llc_frame;
+    variable v_frame_len : natural := 0;
+    variable v_got_frame : boolean := false;
+    variable v_exp_len   : natural;
+    variable v_exp_byte  : std_logic_vector(c_rec_width - 1 downto 0);
+    variable v_count     : natural;
+  begin
+    WaitForBarrier(init_barrier);
+    wait until reset = '0';
+    llc_rec.Ack <= llc_rec.Ack + 1;
+    wait for 0 ns;
+
+    rx_sink_loop : loop
+      wait until rising_edge(clk);
+
+      if (not v_got_frame and mac_to_llc_tx_s2d_dut_2.avalon_st_source.valid = '1') then
+        v_frame(v_byte_idx) := mac_to_llc_tx_s2d_dut_2.avalon_st_source.data;
+        if (mac_to_llc_tx_s2d_dut_2.avalon_st_source.endofpacket = '1') then
+          v_frame_len := v_byte_idx + 1;
+          v_got_frame := true;
+        else
+          v_byte_idx := v_byte_idx + 1;
+        end if;
+      end if;
+
+      if v_got_frame and TransactionPending(llc_rec.Rdy, llc_rec.Ack) then
+        case llc_rec.Operation is
+          when CHECK =>
+            v_exp_len := to_integer(unsigned(llc_rec.DataToModel(7 downto 0)));
+            v_count   := to_integer(unsigned(llc_rec.ParamToModel(15 downto 0)));
+            AffirmIfEqual(check_id, v_frame_len, v_exp_len, "Frame " & to_string(v_count) & " length");
+            for i in 0 to v_exp_len - 1 loop
+              v_exp_byte := Pop(llc_rec.BurstFifo);
+              AffirmIfEqual(check_id, v_frame(i), v_exp_byte(7 downto 0), "Frame " & to_string(v_count) & " byte " & to_string(i));
+            end loop;
+            v_byte_idx  := 0;
+            v_got_frame := false;
+          when others => null;
+        end case;
+        FinishTransaction(llc_rec.Ack);
+      end if;
+    end loop rx_sink_loop;
+  end process p_rx_llc_sink_vc;
+
+  ----------------------------------------------------------------------------
   -- p_test_ctrl
   ----------------------------------------------------------------------------
   p_test_ctrl : process is
@@ -323,15 +374,15 @@ begin
       v_data_len                                                    := dlc_to_data_length(to_integer(unsigned(metadata.dlc)), metadata.fdf);
       last_byte                                                     := c_llc_frame_data_byte + v_data_len - 1;
 
-      -- Zero unused fields
-      tx_frame(0)(5)          := '0';
-      tx_frame(0)(1 downto 0) := "00";
-      tx_frame(1)(3 downto 0) := "0000";
+      -- Zero unused / non-transmitted bits so the expected frame matches what
+      -- the RX can actually reconstruct. Always force FTYP=0 (data frame) so
+      -- the test only generates data frames; RTR coverage is not in scope here.
+      tx_frame(0)(c_llc_frame_ftyp) := '0';
+      tx_frame(0)(2 downto 0)       := "000";
+      tx_frame(1)(3 downto 0)       := "0000";
       if (metadata.fdf = '0') then
         tx_frame(0)(c_llc_frame_esi) := '0';
         tx_frame(0)(c_llc_frame_brs) := '0';
-      else
-        tx_frame(0)(c_llc_frame_ftyp) := '0';
       end if;
       if (metadata.ide = '1') then
         tx_frame(5)(2 downto 0) := "000";
@@ -368,6 +419,14 @@ begin
           Send(tx_llc_rec, v_tx_frame(i), c_avalon_eop_byte);
         end if;
       end loop;
+
+      -- Wait for TX to complete
+      Check(tx_llc_rec, std_logic_vector(resize(unsigned(c_transmitted), c_rec_width)));
+
+      -- Verify DUT 2 RX received the correct frame
+      Check(llc_rec,
+        std_logic_vector(to_unsigned(v_exp_len, c_rec_width)),
+        std_logic_vector(to_unsigned(v_frame_count, c_rec_width)));
     end procedure submit_and_verify;
 
     --------------------------------------------------------------------------

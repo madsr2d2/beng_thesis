@@ -27,19 +27,17 @@ COMPONENTS = \
 	src/can_mac_bs/hdl_src/can_mac_bs.vhd \
 	src/can_mac_crc/hdl_src/can_mac_crc.vhd \
 	src/can_mac_ser_tx/hdl_src/can_mac_ser_tx.vhd \
-	src/can_mac_tx/hdl_src/can_mac_fsm_tx.vhd \
-	src/can_mac_rx/hdl_src/can_mac_fsm_rx.vhd \
+	src/can_mac/hdl_src/can_mac_fsm.vhd \
 	src/can_fce/hdl_src/can_fce.vhd
 
 # 3. Layer wrappers and Top-level
+# Note: can_tx.vhd and can_mac_tx/rx.vhd depend on the legacy split FSM and are
+# kept on disk for reference but excluded from the build (see plan).
 LAYERS = \
-	src/can_mac_tx/hdl_src/can_mac_tx.vhd \
-	src/can_mac_rx/hdl_src/can_mac_rx.vhd \
 	src/can_mac/hdl_src/can_mac.vhd \
 	src/can_pcs/hdl_src/can_pcs.vhd \
 	src/can_mac_pcs_fce/hdl_src/can_mac_pcs_fce.vhd \
-	src/can_llc_tx/hdl_src/can_llc_tx.vhd \
-	src/can_tx/hdl_src/can_tx.vhd
+	src/can_llc_tx/hdl_src/can_llc_tx.vhd
 
 SRCFILES = $(PACKAGES) $(COMPONENTS) $(LAYERS)
 VHDLEX = .vhd
