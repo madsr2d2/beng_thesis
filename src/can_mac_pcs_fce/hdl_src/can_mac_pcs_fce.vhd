@@ -27,6 +27,7 @@ entity can_mac_pcs_fce is
     -- RX LLC interface
     rx_llc_i : in  t_can_llc_mac_rx_if_d2s;
     rx_llc_o : out t_can_llc_mac_rx_if_s2d;
+    --
     llc_fce_i : in  t_can_llc_fce_if_m2s;
     llc_fce_o : out t_can_fce_llc_if_s2m;
     -- Bus interface
