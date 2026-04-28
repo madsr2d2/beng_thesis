@@ -29,6 +29,9 @@ entity can_mac_pcs_fce is
     -- RX LLC interface
     rx_llc_i : in  t_can_llc_mac_rx_if_d2s;
     rx_llc_o : out t_can_llc_mac_rx_if_s2d;
+    --
+    llc_fce_i : in  t_can_llc_fce_if_m2s;
+    llc_fce_o : out t_can_fce_llc_if_s2m;
     -- Bus interface
     tx_o     : out std_logic;
     rx_i     : in  std_logic
@@ -43,10 +46,7 @@ architecture rtl of can_mac_pcs_fce is
   -- FCE <-> PCS interface --------------------------------------------------
   signal pcs_to_fce : t_can_pcs_fce_if_s2m;
   signal fce_to_pcs : t_can_fce_pcs_if_m2s;
-  -- FCE <-> LLC interface --------------------------------------------------
-  signal llc_to_fce : t_can_llc_fce_if_m2s;
-  signal fce_to_llc : t_can_fce_llc_if_s2m;
-  -- PCS <-> MAC interface ------------------------------------------------
+  -- PCS <-> MAC interface --------------------------------------------------
   signal mac_to_pcs : t_can_mac_pcs_if_m2s;
   signal pcs_to_mac : t_can_mac_pcs_if_s2m;
 
@@ -76,8 +76,8 @@ begin
     port map(
       clk_i => clk,
       rst_i => rst,
-      llc_i => llc_to_fce,
-      llc_o => fce_to_llc,
+      llc_i => llc_fce_i,
+      llc_o => llc_fce_o,
       mac_i => mac_to_fce,
       mac_o => fce_to_mac,
       pcs_i => pcs_to_fce,

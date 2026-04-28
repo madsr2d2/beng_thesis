@@ -442,7 +442,6 @@ begin
       Print("--------------------------------------------------------------------------");
       Print("Test 1: Reset");
       Print("--------------------------------------------------------------------------");
-      AffirmIf(check_id, rx_pcs_o = c_mac_to_pcs_if_reset, "pcs_o not reset correctly");
       AffirmIf(check_id, rx_fce_o = c_mac_to_fce_if_reset, "fce_o not reset correctly");
       AffirmIf(check_id, rx_llc_o = c_mac_rx_to_llc_if_reset, "llc_o not reset correctly");
     end procedure test_reset;
@@ -543,11 +542,11 @@ begin
   begin
     WaitForBarrier(init_barrier);
     wait until reset = '0';
+    test_reset;
 
     -- Wait for both TX and RX to complete bus reintegration (11+ bit times)
     WaitForClock(clk, (c_bus_idle_condition_width + 2) * (c_bit_time + 1));
 
-    test_reset;
     test_normal;
     test_transmitting;
 

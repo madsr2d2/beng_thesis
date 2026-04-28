@@ -73,43 +73,34 @@ architecture tb of can_mac_pcs_fce_tb is
   signal rx_on_bus_at_tx : std_logic := c_recessive;
   signal bus_at_tx       : std_logic := c_recessive;
   signal bus_at_rx       : std_logic := c_recessive;
-  signal bus_level       : std_logic;
 
-  -- DUT bus interfaces ------------------------------------------------------
-  signal tx_from_tx_dut : std_logic;                                            -- TX PCX tx to bus
-  signal tx_from_rx_dut : std_logic;                                            -- RX PCS tx to bus
-  signal rx_at_rx_dut   : std_logic := c_recessive;                             -- bus seen by RX (delayed)
-  signal rx_at_tx_dut   : std_logic := c_recessive;                             -- bus seen by TX (delayed)
+  -- DUT bus interfaces -----------------------------------------------------
+  signal tx_from_tx_dut : std_logic;
+  signal tx_from_rx_dut : std_logic;
+  signal rx_at_rx_dut   : std_logic := c_recessive;
+  signal rx_at_tx_dut   : std_logic := c_recessive;
 
-
-  -- DUT 1 interfaces 
+  -- DUT 1 interfaces
   signal llc_to_mac_tx_s2d_dut_1 : t_can_llc_mac_tx_if_s2d;
   signal llc_to_mac_tx_d2s_dut_1 : t_can_llc_mac_tx_if_d2s;
   signal mac_to_llc_tx_s2d_dut_1 : t_can_llc_mac_rx_if_s2d;
   signal mac_to_llc_tx_d2s_dut_1 : t_can_llc_mac_rx_if_d2s;
 
-  -- DUT 2 interfaces 
+  -- DUT 2 interfaces
   signal llc_to_mac_tx_s2d_dut_2 : t_can_llc_mac_tx_if_s2d;
   signal llc_to_mac_tx_d2s_dut_2 : t_can_llc_mac_tx_if_d2s;
   signal mac_to_llc_tx_s2d_dut_2 : t_can_llc_mac_rx_if_s2d;
   signal mac_to_llc_tx_d2s_dut_2 : t_can_llc_mac_rx_if_d2s;
 
-  -- signal tx_pcs_i : t_can_mac_pcs_if_s2m := c_pcs_to_mac_if_reset;
-  -- signal tx_pcs_o : t_can_mac_pcs_if_m2s;
-  -- signal tx_fce_i : t_can_mac_fce_if_s2m := c_fce_to_mac_if_reset;
-  -- signal tx_fce_o : t_can_mac_fce_if_m2s;
+  -- LLC-FCE interfaces (both DUTs always in normal mode for simulation)
+  signal llc_fce_i_dut_1 : t_can_llc_fce_if_m2s := (normal_mode => '1');
+  signal llc_fce_o_dut_1 : t_can_fce_llc_if_s2m;
+  signal llc_fce_i_dut_2 : t_can_llc_fce_if_m2s := (normal_mode => '1');
+  signal llc_fce_o_dut_2 : t_can_fce_llc_if_s2m;
 
-  -- Transfer status latch (TX)
+  -- Transfer status latch (TX DUT 1)
   signal status_latch : std_logic_vector(2 downto 0) := c_ongoing;
   signal clear_status : boolean                      := false;
-
-  -- RX DUT interface (can_mac_rx)
-  signal rx_llc_i : t_can_llc_mac_rx_if_d2s;
-  signal rx_llc_o : t_can_llc_mac_rx_if_s2d;
-  signal rx_pcs_i : t_can_mac_pcs_if_s2m := c_pcs_to_mac_if_reset;
-  signal rx_pcs_o : t_can_mac_pcs_if_m2s;
-  signal rx_fce_i : t_can_mac_fce_if_s2m := c_fce_to_mac_if_reset;
-  signal rx_fce_o : t_can_mac_fce_if_m2s;
 
   -- OSVVM signals
   shared variable RV           : RandomPType;
@@ -135,15 +126,6 @@ architecture tb of can_mac_pcs_fce_tb is
     ParamFromModel(c_rec_width - 1 downto 0)
   );
 
-  -- TX gating for RX
-  signal transmitting : std_logic := '0';
-
-  -- Gating test latches (driven only by p_gating_monitor)
-  signal pcs_valid_seen  : boolean := false;
-  signal llc_valid_seen  : boolean := false;
-  signal fce_active_seen : boolean := false;
-  signal clear_latches   : boolean := false;
-
 begin
 
   ----------------------------------------------------------------------------
@@ -166,9 +148,8 @@ begin
     variable v_fdf_cov  : CoverageIDType;
     variable v_dlc_cov  : CoverageIDType;
   begin
-    RV.InitSeed(random_seed);
     SetAlertStopCount(ERROR, 1);
-    v_test_id            := NewID("can_mac");
+    v_test_id            := NewID("can_mac_pcs_fce");
     v_check_id           := NewID("Frame check", v_test_id);
     v_ide_cov            := NewID("IDE Coverage", v_test_id, ReportMode => ENABLED);
     v_fdf_cov            := NewID("FDF Coverage", v_test_id, ReportMode => ENABLED);
@@ -188,102 +169,97 @@ begin
     wait;
   end process p_init;
 
-  -- FCE: error-active for both TX and RX
-  -- tx_fce_i.error_active <= '1';
-  -- rx_fce_i.error_active <= '1';
-
-  -- RX LLC sink always ready
-  -- rx_llc_i.avalon_st_sink.ready <= '1';
-
-  ----------------------------------------------------------------------------
-  -- Shared bus: dominant-wins
-  ---------------------------------------------------------------------------- 
-  -- bus_level <= tx_pcs_o.tx_data and rx_pcs_o.tx_data;
-  -- bus_rx < 
+  -- DUT 1: RX LLC sink always ready (prevents backpressure stall)
+  mac_to_llc_tx_d2s_dut_1.avalon_st_sink.ready <= '1';
+  -- DUT 2: TX LLC idle, RX LLC sink always ready
+  llc_to_mac_tx_s2d_dut_2.avalon_st_source.valid         <= '0';
+  llc_to_mac_tx_s2d_dut_2.avalon_st_source.data          <= (others => '0');
+  llc_to_mac_tx_s2d_dut_2.avalon_st_source.startofpacket <= '0';
+  llc_to_mac_tx_s2d_dut_2.avalon_st_source.endofpacket   <= '0';
+  mac_to_llc_tx_d2s_dut_2.avalon_st_sink.ready           <= '1';
 
   ----------------------------------------------------------------------------
-  -- DUT 1:
+  -- DUT 1 (Transmitter)
   ----------------------------------------------------------------------------
   u_dut_1 : entity work.can_mac_pcs_fce
     port map(
       clk      => clk,
       rst      => reset,
-      --
-      tx_llc_i => llc_to_mac_tx_s2d_dut_1,
-      tx_llc_o => llc_to_mac_tx_d2s_dut_1,
-      rx_llc_i => mac_to_llc_tx_d2s_dut_1,
-      rx_llc_o => mac_to_llc_tx_s2d_dut_1,
-      --
-      tx_o     =>  tx_from_tx_dut,
-      rx_i     => rx_at_tx_dut
+      tx_llc_i  => llc_to_mac_tx_s2d_dut_1,
+      tx_llc_o  => llc_to_mac_tx_d2s_dut_1,
+      rx_llc_i  => mac_to_llc_tx_d2s_dut_1,
+      rx_llc_o  => mac_to_llc_tx_s2d_dut_1,
+      llc_fce_i => llc_fce_i_dut_1,
+      llc_fce_o => llc_fce_o_dut_1,
+      tx_o      => tx_from_tx_dut,
+      rx_i      => rx_at_tx_dut
     );
 
   ----------------------------------------------------------------------------
-  -- DUT 2:
+  -- DUT 2 (Receiver)
   ----------------------------------------------------------------------------
   u_dut_2 : entity work.can_mac_pcs_fce
     port map(
       clk      => clk,
       rst      => reset,
-      --
-      tx_llc_i => llc_to_mac_tx_s2d_dut_2,
-      tx_llc_o => llc_to_mac_tx_d2s_dut_2,
-      rx_llc_i => mac_to_llc_tx_d2s_dut_2,
-      rx_llc_o => mac_to_llc_tx_s2d_dut_2,
-      --
-      tx_o     =>  tx_from_rx_dut,
-      rx_i     => rx_at_rx_dut
+      tx_llc_i  => llc_to_mac_tx_s2d_dut_2,
+      tx_llc_o  => llc_to_mac_tx_d2s_dut_2,
+      rx_llc_i  => mac_to_llc_tx_d2s_dut_2,
+      rx_llc_o  => mac_to_llc_tx_s2d_dut_2,
+      llc_fce_i => llc_fce_i_dut_2,
+      llc_fce_o => llc_fce_o_dut_2,
+      tx_o      => tx_from_rx_dut,
+      rx_i      => rx_at_rx_dut
     );
 
   ----------------------------------------------------------------------------
-  -- Bus model 
+  -- Bus model: dominant-wins wired-AND
   ----------------------------------------------------------------------------
-  -- Bus at TX DUT -----------------------------------------------------------
-  bus_at_tx <= tx_on_bus_at_tx and rx_on_bus_at_tx;                             -- Bus value at TX-DUT
+  -- Bus at TX DUT
+  bus_at_tx <= tx_on_bus_at_tx and rx_on_bus_at_tx;
 
-  p_tx_onto_bus : process is                                                    -- TX -> bus (at the TX-DUT end of the bus)
+  p_tx_onto_bus : process is
   begin
     wait on tx_from_tx_dut;
     tx_on_bus_at_tx <= transport tx_from_tx_dut after c_transceiver_tx_delay;
   end process;
 
-  p_tx_loopback : process is                                                    -- bus -> RX (at TX-DUT end of the bus)
+  p_tx_loopback : process is
   begin
     wait on bus_at_tx;
     rx_at_tx_dut <= transport bus_at_tx after c_transceiver_rx_delay;
   end process;
-  ----------------------------------------------------------------------------
-  -- Bus at RX DUT -----------------------------------------------------------
+
+  -- Bus at RX DUT
   bus_at_rx <= tx_on_bus_at_rx and rx_on_bus_at_rx;
 
-  p_rx_onto_wire : process is                                                   -- TX -> bus (at the RX-DUT end of the bus)
+  p_rx_onto_wire : process is
   begin
     wait on tx_from_rx_dut;
     rx_on_bus_at_rx <= transport tx_from_rx_dut after c_transceiver_tx_delay;
   end process;
 
-  p_rx_sees_bus : process is                                                    -- bus -> RX (at RX-DUT end of the bus)
+  p_rx_sees_bus : process is
   begin
     wait on bus_at_rx;
     rx_at_rx_dut <= transport bus_at_rx after c_transceiver_rx_delay;
   end process;
-  ----------------------------------------------------------------------------
-  -- Bus propagation delay ---------------------------------------------------
-  p_tx_propagate : process is                                                   -- TX-DUT -> RX-DUT propagation
+
+  -- Cross-propagation between the two DUT ends
+  p_tx_propagate : process is
   begin
     wait on tx_on_bus_at_tx;
     tx_on_bus_at_rx <= transport tx_on_bus_at_tx after c_bus_delay_max;
   end process;
 
-  p_rx_propagate : process is                                                   -- RX-DUT -> TX-DUT propagation
+  p_rx_propagate : process is
   begin
     wait on rx_on_bus_at_rx;
     rx_on_bus_at_tx <= transport rx_on_bus_at_rx after c_bus_delay_max;
   end process;
-  ----------------------------------------------------------------------------
 
   ----------------------------------------------------------------------------
-  -- Transfer status latch (TX)
+  -- Transfer status latch (DUT 1 TX)
   ----------------------------------------------------------------------------
   p_status_latch : process(clk) is
   begin
@@ -291,47 +267,15 @@ begin
       if reset = '1' or clear_status then
         status_latch <= c_ongoing;
       else
-        status_latch <= llc_to_mac_tx_d2s_dut_1.transfer_status when llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing;
+        if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing then
+          status_latch <= llc_to_mac_tx_d2s_dut_1.transfer_status;
+        end if;
       end if;
     end if;
   end process p_status_latch;
 
   ----------------------------------------------------------------------------
-  -- Shared PCS model: generates SP strobes for both TX and RX paths.
-  ----------------------------------------------------------------------------
-  -- p_pcs_model : process is
-  --   variable v_tq_count        : natural range 0 to c_bit_time := 0;
-  --   variable v_active_bit_time : natural                       := c_bit_time;
-  --   variable v_active_sp       : natural                       := c_sp;
-  --   variable v_ssp_strobe      : std_logic;
-  -- begin
-  --   WaitForBarrier(init_barrier);
-
-  --   pcs_loop : loop
-  --     wait until rising_edge(clk);
-  --     v_tq_count            := 0 when v_tq_count = v_active_bit_time else v_tq_count + 1;
-  --     if v_tq_count = 0 then
-  --       v_active_bit_time := c_data_bit_time when tx_pcs_o.next_bit_is_brs = '1' else c_bit_time;
-  --       v_active_sp       := c_data_sp when tx_pcs_o.next_bit_is_brs = '1' else c_sp;
-  --     end if;
-  --     tx_pcs_i.sample_point <= '1' when v_tq_count = v_active_sp else '0';
-  --     rx_pcs_i.sample_point <= '1' when v_tq_count = v_active_sp + 2 else '0';  -- The 2 is from 1 clk internal can_mac_tx delay + 1 clk TB delay = 2
-  --     v_ssp_strobe          := '1' when v_tq_count = c_data_ssp and tx_pcs_o.next_bit_is_brs = '1' else '0';
-
-  --     -- TX PCS input
-  --     tx_pcs_i.secondary_sample_point <= v_ssp_strobe;
-  --     tx_pcs_i.tdc_delay              <= (others => '0');                       -- Zero delay bus model
-  --     tx_pcs_i.rx_data                <= bus_level;
-
-  --     -- RX PCS input
-  --     rx_pcs_i.secondary_sample_point <= v_ssp_strobe;
-  --     rx_pcs_i.tdc_delay              <= (others => '0');                       -- Zero delay bus model
-  --     rx_pcs_i.rx_data                <= bus_level;
-  --   end loop pcs_loop;
-  -- end process p_pcs_model;
-
-  ----------------------------------------------------------------------------
-  -- TX LLC source VC (drives frame bytes to can_mac_tx)
+  -- TX LLC source VC
   ----------------------------------------------------------------------------
   p_tx_llc_vc : process is
   begin
@@ -360,79 +304,6 @@ begin
   end process p_tx_llc_vc;
 
   ----------------------------------------------------------------------------
-  -- RX LLC Sink VC (collects and verifies received frame bytes)
-  ----------------------------------------------------------------------------
-  -- p_llc_sink_vc : process is
-  --   variable v_byte_idx  : natural := 0;
-  --   variable v_frame     : t_llc_frame;
-  --   variable v_frame_len : natural := 0;
-  --   variable v_got_frame : boolean := false;
-  --   variable v_exp_len   : natural;
-  --   variable v_exp_byte  : std_logic_vector(c_rec_width - 1 downto 0);
-  --   variable v_count     : natural;
-  -- begin
-  --   WaitForBarrier(init_barrier);
-  --   wait until reset = '0';
-
-  --   llc_sink_loop : loop
-  --     wait until rising_edge(clk);
-
-  --     -- Collect bytes
-  --     if (not v_got_frame and rx_llc_o.avalon_st_source.valid = '1') then
-  --       v_frame(v_byte_idx) := rx_llc_o.avalon_st_source.data;
-  --       if (rx_llc_o.avalon_st_source.endofpacket = '1') then
-  --         v_frame_len := v_byte_idx + 1;
-  --         v_got_frame := true;
-  --       else
-  --         v_byte_idx := v_byte_idx + 1;
-  --       end if;
-  --     end if;
-
-  --     -- Check received frame against expected
-  --     if v_got_frame and TransactionPending(llc_rec.Rdy, llc_rec.Ack) then
-  --       case llc_rec.Operation is
-  --         when CHECK =>
-  --           v_exp_len   := to_integer(unsigned(llc_rec.DataToModel(7 downto 0)));
-  --           v_count     := to_integer(unsigned(llc_rec.ParamToModel(15 downto 0)));
-  --           AffirmIfEqual(check_id, v_frame_len, v_exp_len, "Frame " & to_string(v_count) & " length");
-  --           for i in 0 to v_exp_len - 1 loop
-  --             v_exp_byte := Pop(llc_rec.BurstFifo);
-  --             AffirmIfEqual(check_id, v_frame(i), v_exp_byte(7 downto 0), "Frame " & to_string(v_count) & " byte " & to_string(i));
-  --           end loop;
-  --           v_byte_idx  := 0;
-  --           v_got_frame := false;
-  --         when others => null;
-  --       end case;
-  --       FinishTransaction(llc_rec.Ack);
-  --     end if;
-  --   end loop llc_sink_loop;
-  -- end process p_llc_sink_vc;
-
-  ----------------------------------------------------------------------------
-  -- Gating monitor: latch if pcs_o.valid or llc_o.valid pulses while TX active
-  ----------------------------------------------------------------------------
-  -- p_gating_monitor : process(clk) is
-  -- begin
-  --   if rising_edge(clk) then
-  --     if clear_latches then
-  --       pcs_valid_seen  <= false;
-  --       llc_valid_seen  <= false;
-  --       fce_active_seen <= false;
-  --     elsif transmitting = '1' then
-  --       if rx_pcs_o.tx_data = c_dominant then
-  --         pcs_valid_seen <= true;
-  --       end if;
-  --       if rx_llc_o.avalon_st_source.valid = '1' then
-  --         llc_valid_seen <= true;
-  --       end if;
-  --       if rx_fce_o /= c_mac_to_fce_if_reset then
-  --         fce_active_seen <= true;
-  --       end if;
-  --     end if;
-  --   end if;
-  -- end process p_gating_monitor;
-
-  ----------------------------------------------------------------------------
   -- p_test_ctrl
   ----------------------------------------------------------------------------
   p_test_ctrl : process is
@@ -453,7 +324,7 @@ begin
       v_data_len                                                    := dlc_to_data_length(to_integer(unsigned(metadata.dlc)), metadata.fdf);
       last_byte                                                     := c_llc_frame_data_byte + v_data_len - 1;
 
-      -- Zero the unused fields
+      -- Zero unused fields
       tx_frame(0)(5)          := '0';
       tx_frame(0)(1 downto 0) := "00";
       tx_frame(1)(3 downto 0) := "0000";
@@ -488,7 +359,7 @@ begin
         Push(llc_rec.BurstFifo, std_logic_vector(resize(unsigned(v_tx_frame(i)), c_rec_width)));
       end loop;
 
-      -- Drive TX frame bytes through can_mac_tx
+      -- Drive TX frame bytes through DUT 1
       for i in 0 to v_last_byte loop
         if (i = 0) then
           Send(tx_llc_rec, v_tx_frame(i), c_avalon_sop_byte);
@@ -498,30 +369,10 @@ begin
           Send(tx_llc_rec, v_tx_frame(i), c_avalon_eop_byte);
         end if;
       end loop;
-
-      -- Wait for TX to complete with c_transmitted
-      -- Check(tx_llc_rec, std_logic_vector(resize(unsigned(c_transmitted), c_rec_width)));
-
-      -- Verify RX collected the frame
-      -- Check(llc_rec, std_logic_vector(to_unsigned(v_exp_len, c_rec_width)), std_logic_vector(to_unsigned(v_frame_count, c_rec_width)));
     end procedure submit_and_verify;
 
     --------------------------------------------------------------------------
-    -- Test 1: Reset
-    --------------------------------------------------------------------------
-    procedure test_reset is
-    begin
-      test_num <= 1;
-      Print("--------------------------------------------------------------------------");
-      Print("Test 1: Reset");
-      Print("--------------------------------------------------------------------------");
-      AffirmIf(check_id, rx_pcs_o = c_mac_to_pcs_if_reset, "pcs_o not reset correctly");
-      AffirmIf(check_id, rx_fce_o = c_mac_to_fce_if_reset, "fce_o not reset correctly");
-      AffirmIf(check_id, rx_llc_o = c_mac_rx_to_llc_if_reset, "llc_o not reset correctly");
-    end procedure test_reset;
-
-    --------------------------------------------------------------------------
-    -- Test 2: Normal usage - cover all frame format combinations
+    -- Test 1: Normal usage - cover all frame format combinations
     --------------------------------------------------------------------------
     procedure test_normal is
       variable v_frame       : t_llc_frame;
@@ -529,9 +380,9 @@ begin
       variable v_last_byte   : natural;
       variable v_frame_count : natural := 0;
     begin
-      test_num <= 2;
+      test_num <= 1;
       Print("--------------------------------------------------------------------------");
-      Print("Test 2: Normal Usage (MAC TX -> MAC RX)");
+      Print("Test 1: Normal Usage (DUT 1 TX -> DUT 2 RX)");
       Print("--------------------------------------------------------------------------");
 
       while not (IsCovered(ide_cov) and IsCovered(fdf_cov) and IsCovered(dlc_cov)) loop
@@ -545,53 +396,6 @@ begin
         ICover(dlc_cov, to_integer(unsigned(v_metadata.dlc)));
       end loop;
     end procedure test_normal;
-
-    --------------------------------------------------------------------------
-    -- Test 3: Gating RX during transmission
-    --------------------------------------------------------------------------
-    procedure test_transmitting is
-      variable v_frame     : t_llc_frame;
-      variable v_metadata  : t_llc_metadata;
-      variable v_last_byte : natural;
-    begin
-      test_num <= 3;
-      Print("--------------------------------------------------------------------------");
-      Print("Test 3: Gating RX during transmission (RX should remain passive when transmitting_i is high)  ");
-      Print("--------------------------------------------------------------------------");
-
-      -- Clear latches and assert transmitting
-      clear_latches <= true;
-      WaitForClock(clk);
-      clear_latches <= false;
-      transmitting  <= '1';
-      WaitForClock(clk, 5);
-
-      -- Generate a frame and send via TX module
-      gen_frame(v_frame, v_metadata, v_last_byte);
-
-      -- Drive TX frame bytes (TX will complete but RX should ignore)
-      for i in 0 to v_last_byte loop
-        if (i = 0) then
-          Send(tx_llc_rec, v_frame(i), c_avalon_sop_byte);
-        elsif (i < v_last_byte) then
-          Send(tx_llc_rec, v_frame(i), c_avalon_byte);
-        else
-          Send(tx_llc_rec, v_frame(i), c_avalon_eop_byte);
-        end if;
-      end loop;
-
-      -- Wait for TX to finish (RX won't ACK so TX gets disturbed)
-      wait until status_latch /= c_ongoing;
-
-      -- Verify that RX did not activate during the frame
-      AffirmIf(check_id, not pcs_valid_seen, "pcs_o.polarity went dominant during transmission");
-      AffirmIf(check_id, not llc_valid_seen, "llc_o.valid pulsed during transmission");
-      AffirmIf(check_id, not fce_active_seen, "fce_o signaled during transmission");
-      AffirmIf(check_id, status_latch = c_disturbed, "TX transfer status should be c_disturbed since RX did not ACK");
-
-      transmitting <= '0';
-      WaitForClock(clk, 10);
-    end procedure test_transmitting;
 
     --------------------------------------------------------------------------
     procedure report_results is
@@ -617,14 +421,12 @@ begin
     WaitForBarrier(init_barrier);
     wait until reset = '0';
 
-    -- Wait for both TX and RX to complete bus reintegration (11+ bit times)
+    -- Wait for both DUTs to complete bus reintegration (11+ bit times)
     WaitForClock(clk, (c_bus_idle_condition_width + 2) * (c_bit_time + 1));
 
-    -- test_reset;
     test_normal;
-    -- test_transmitting;
 
-    -- report_results;
+    report_results;
     std.env.finish;
     wait;
   end process p_test_ctrl;

@@ -90,6 +90,7 @@ begin
   fce_o.sending_error_overload_flag   <= tx_fce_o.sending_error_overload_flag or rx_fce_o.sending_error_overload_flag; -- Set by either path 
   fce_o.passive_tx_ack_error_exempt_1 <= tx_fce_o.passive_tx_ack_error_exempt_1; -- Only relevant for TX path
   fce_o.error_delimiter_too_late      <= tx_fce_o.error_delimiter_too_late or rx_fce_o.error_delimiter_too_late; -- Set by either path
+  fce_o.successful_transfer           <= tx_fce_o.successful_transfer;
   ---------------------------------------------------------------------------
 
   -- PCS interface ----------------------------------------------------------
@@ -100,7 +101,5 @@ begin
   pcs_o.next_bit_is_res <= tx_pcs_o.next_bit_is_res;                            -- Only set by the TX path
   pcs_o.data_phase_stop <= tx_pcs_o.data_phase_stop or rx_pcs_o.data_phase_stop; -- Stop data phase if either path signals it
   ---------------------------------------------------------------------------
-
-
 
 end architecture rtl;

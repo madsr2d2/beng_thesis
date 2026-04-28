@@ -431,12 +431,12 @@ package pk_can_types is
 
   type t_legacy_frame is array (0 to c_legacy_frame_len - 1) of std_logic_vector(c_byte_width - 1 downto 0);
 
-  -- Config byte 0 bit positions: [7]=IDE, [6]=FDF, [5]=reserved, [4]=FTYP, [3]=ESI, [2]=BRS
+  -- Config byte 0 bit positions: [7]=IDE, [6]=FDF, [5]=FTYP, [4]=ESI, [3]=BRS
   constant c_llc_frame_ide  : natural := 7;
   constant c_llc_frame_fdf  : natural := 6;
-  constant c_llc_frame_ftyp : natural := 4;
-  constant c_llc_frame_esi  : natural := 3;
-  constant c_llc_frame_brs  : natural := 2;
+  constant c_llc_frame_ftyp : natural := 5;
+  constant c_llc_frame_esi  : natural := 4;
+  constant c_llc_frame_brs  : natural := 5;
 
   -- Config byte 1 bit positions: [7:4]=DLC
   constant c_llc_frame_dlc_start : natural := 7;
