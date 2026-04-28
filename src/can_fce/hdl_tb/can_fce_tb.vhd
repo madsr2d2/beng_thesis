@@ -4,24 +4,23 @@
 --
 -- Requirements:
 --
--- Description:   Testbench for can_fce. Tests error counter and bus-off logic (ISO : 8.1.4.2-4) 
+-- Description:   Test bench for can_fce. Tests error counter and bus-off logic (ISO : 8.1.4.2-4) 
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-31  MRDSA     Converted to company header format
---                2026-04-12  MRDSA     Updated for single MAC interface,
---                                      PCS idle_condition recovery, black-box only
+--                2026-04-10  TMYAES:   [TRIT-4336] [FPGA] CAN FD extensions of TRIT-3880
+--
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
-  use ieee.std_logic_1164.all;
-  use ieee.numeric_std.all;
-  use work.pk_can_types.all;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.pk_can_types.all;
 
 library osvvm;
-  context osvvm.OsvvmContext;
+context osvvm.OsvvmContext;
 
 entity can_fce_tb is
-  generic (
+  generic(
     gc_TbTimeOut   : time := 50 ms;
     gc_TbClkPeriod : time := 10 ns
   );
@@ -32,105 +31,105 @@ architecture tb of can_fce_tb is
   ----------------------------------------------------------------------------
   -- Signals
   ----------------------------------------------------------------------------
-  signal clk   : std_logic;
-  signal reset : std_logic := '1';
+  signal clk              : std_logic;
+  signal reset            : std_logic            := '1';
   -- DUT interface -----------------------------------------------------------
-  signal llc_i : t_can_llc_fce_if_m2s := c_llc_to_fce_if_reset;
-  signal llc_o : t_can_fce_llc_if_s2m;
-  signal mac_i : t_can_mac_fce_if_m2s := c_mac_to_fce_if_reset;
-  signal mac_o : t_can_mac_fce_if_s2m;
-  signal pcs_i : t_can_pcs_fce_if_s2m := c_pcs_to_fce_if_reset;
-  signal pcs_o : t_can_fce_pcs_if_m2s;
+  signal llc_i            : t_can_llc_fce_if_m2s := c_llc_to_fce_if_reset;
+  signal llc_o            : t_can_fce_llc_if_s2m;
+  signal mac_i            : t_can_mac_fce_if_m2s := c_mac_to_fce_if_reset;
+  signal mac_o            : t_can_mac_fce_if_s2m;
+  signal pcs_i            : t_can_pcs_fce_if_s2m := c_pcs_to_fce_if_reset;
+  signal pcs_o            : t_can_fce_pcs_if_m2s;
   ----------------------------------------------------------------------------
-  signal test_id      : AlertLogIDType;
-  signal bus_off      : AlertLogIDType;
-  signal bus_off_recovery      : AlertLogIDType;
-  signal rule_a      : AlertLogIDType;
-  signal rule_b      : AlertLogIDType;
-  signal rule_c_d      : AlertLogIDType;
-  signal rule_e      : AlertLogIDType;
-  signal rule_f      : AlertLogIDType;
-  signal rule_g      : AlertLogIDType;
-  signal rule_h      : AlertLogIDType;
-  signal init_barrier : std_logic := '0';
+  signal test_id          : AlertLogIDType;
+  signal bus_off          : AlertLogIDType;
+  signal bus_off_recovery : AlertLogIDType;
+  signal rule_a           : AlertLogIDType;
+  signal rule_b           : AlertLogIDType;
+  signal rule_c_d         : AlertLogIDType;
+  signal rule_e           : AlertLogIDType;
+  signal rule_f           : AlertLogIDType;
+  signal rule_g           : AlertLogIDType;
+  signal rule_h           : AlertLogIDType;
+  signal init_barrier     : std_logic            := '0';
 
   ----------------------------------------------------------------------------
   -- Pulse procedures
   ----------------------------------------------------------------------------
-  procedure pulse_tx_error (signal s2d : inout t_can_mac_fce_if_m2s) is
+  procedure pulse_tx_error(signal s2d : inout t_can_mac_fce_if_m2s) is
   begin
     s2d.transmitting <= '1';
-    s2d.error <= '1';
+    s2d.error        <= '1';
     wait until rising_edge(clk);
-    s2d <= c_mac_to_fce_if_reset;
+    s2d              <= c_mac_to_fce_if_reset;
     s2d.transmitting <= '1';
     wait until rising_edge(clk);
   end procedure pulse_tx_error;
-  procedure pulse_tx_success (signal s2d : inout t_can_mac_fce_if_m2s) is
+  procedure pulse_tx_success(signal s2d : inout t_can_mac_fce_if_m2s) is
   begin
-    s2d.transmitting <= '1';
+    s2d.transmitting        <= '1';
     s2d.successful_transfer <= '1';
     wait until rising_edge(clk);
-    s2d <= c_mac_to_fce_if_reset;
+    s2d                     <= c_mac_to_fce_if_reset;
     wait until rising_edge(clk);
   end procedure pulse_tx_success;
 
-  procedure pulse_rx_error (signal s2d : inout t_can_mac_fce_if_m2s) is
+  procedure pulse_rx_error(signal s2d : inout t_can_mac_fce_if_m2s) is
   begin
     s2d.transmitting <= '0';
-    s2d.error <= '1';
+    s2d.error        <= '1';
     wait until rising_edge(clk);
-    s2d <= c_mac_to_fce_if_reset;
+    s2d              <= c_mac_to_fce_if_reset;
     wait until rising_edge(clk);
   end procedure pulse_rx_error;
 
-  procedure pulse_rx_primary_error (signal s2d : inout t_can_mac_fce_if_m2s) is
+  procedure pulse_rx_primary_error(signal s2d : inout t_can_mac_fce_if_m2s) is
   begin
-    s2d.transmitting <= '0';
+    s2d.transmitting  <= '0';
     s2d.primary_error <= '1';
     wait until rising_edge(clk);
-    s2d <= c_mac_to_fce_if_reset;
+    s2d               <= c_mac_to_fce_if_reset;
     wait until rising_edge(clk);
   end procedure pulse_rx_primary_error;
 
-  procedure pulse_rx_success (signal s2d : inout t_can_mac_fce_if_m2s) is
+  procedure pulse_rx_success(signal s2d : inout t_can_mac_fce_if_m2s) is
   begin
-    s2d.transmitting <= '0';
+    s2d.transmitting        <= '0';
     s2d.successful_transfer <= '1';
     wait until rising_edge(clk);
-    s2d <= c_mac_to_fce_if_reset;
+    s2d                     <= c_mac_to_fce_if_reset;
     wait until rising_edge(clk);
   end procedure pulse_rx_success;
 
-  procedure pulse_tx_delim_late (signal s2d : inout t_can_mac_fce_if_m2s) is
+  procedure pulse_tx_delim_late(signal s2d : inout t_can_mac_fce_if_m2s) is
   begin
-    s2d.transmitting <= '1';
+    s2d.transmitting             <= '1';
     s2d.error_delimiter_too_late <= '1';
     wait until rising_edge(clk);
-    s2d <= c_mac_to_fce_if_reset;
-    s2d.transmitting <= '1';
+    s2d                          <= c_mac_to_fce_if_reset;
+    s2d.transmitting             <= '1';
     wait until rising_edge(clk);
   end procedure pulse_tx_delim_late;
 
-  procedure pulse_rx_delim_late (signal s2d : inout t_can_mac_fce_if_m2s) is
+  procedure pulse_rx_delim_late(signal s2d : inout t_can_mac_fce_if_m2s) is
   begin
-    s2d.transmitting <= '0';
+    s2d.transmitting             <= '0';
     s2d.error_delimiter_too_late <= '1';
     wait until rising_edge(clk);
-    s2d <= c_mac_to_fce_if_reset;
+    s2d                          <= c_mac_to_fce_if_reset;
     wait until rising_edge(clk);
   end procedure pulse_rx_delim_late;
 
-  procedure pulse_rx_error_in_flag (signal s2d : inout t_can_mac_fce_if_m2s) is
+  procedure pulse_rx_error_in_flag(signal s2d : inout t_can_mac_fce_if_m2s) is
   begin
-    s2d.transmitting <= '0';
-    s2d.error <= '1';
+    s2d.transmitting                <= '0';
+    s2d.error                       <= '1';
     s2d.sending_error_overload_flag <= '1';
     wait until rising_edge(clk);
-    s2d <= c_mac_to_fce_if_reset;
+    s2d                             <= c_mac_to_fce_if_reset;
     wait until rising_edge(clk);
   end procedure pulse_rx_error_in_flag;
-  procedure pulse_idle_condition (signal pcs : inout t_can_pcs_fce_if_s2m) is
+  procedure pulse_idle_condition(signal pcs : inout t_can_pcs_fce_if_s2m) is
   begin
     pcs.idle_condition <= '1';
     wait until rising_edge(clk);
@@ -152,38 +151,38 @@ begin
   end process p_timeout;
 
   p_init : process is
-    variable v_test_id : AlertLogIDType;
-    variable v_rule_a : AlertLogIDType;
-    variable v_rule_b : AlertLogIDType;
-    variable v_rule_c_d : AlertLogIDType;
-    variable v_rule_e : AlertLogIDType;
-    variable v_rule_f : AlertLogIDType;
-    variable v_rule_g : AlertLogIDType;
-    variable v_rule_h : AlertLogIDType;
-    variable v_bus_off : AlertLogIDType;
+    variable v_test_id          : AlertLogIDType;
+    variable v_rule_a           : AlertLogIDType;
+    variable v_rule_b           : AlertLogIDType;
+    variable v_rule_c_d         : AlertLogIDType;
+    variable v_rule_e           : AlertLogIDType;
+    variable v_rule_f           : AlertLogIDType;
+    variable v_rule_g           : AlertLogIDType;
+    variable v_rule_h           : AlertLogIDType;
+    variable v_bus_off          : AlertLogIDType;
     variable v_bus_off_recovery : AlertLogIDType;
   begin
     SetAlertStopCount(ERROR, 1);
-    v_test_id := NewID("can_fce");
-    v_bus_off := NewID("can_bus_off");
+    v_test_id          := NewID("can_fce");
+    v_bus_off          := NewID("can_bus_off");
     v_bus_off_recovery := NewID("can_bus_off_recovery");
-    v_rule_a := NewID("fce_rule_a");
-    v_rule_b := NewID("fce_rule_b");
-    v_rule_c_d := NewID("fce_rule_c/d");
-    v_rule_e := NewID("fce_rule_e");
-    v_rule_f := NewID("fce_rule_f");
-    v_rule_g := NewID("fce_rule_g");
-    v_rule_h := NewID("fce_rule_h");
-    test_id   <= v_test_id;
-    bus_off   <= v_bus_off;
+    v_rule_a           := NewID("fce_rule_a");
+    v_rule_b           := NewID("fce_rule_b");
+    v_rule_c_d         := NewID("fce_rule_c/d");
+    v_rule_e           := NewID("fce_rule_e");
+    v_rule_f           := NewID("fce_rule_f");
+    v_rule_g           := NewID("fce_rule_g");
+    v_rule_h           := NewID("fce_rule_h");
+    test_id            <= v_test_id;
+    bus_off            <= v_bus_off;
     bus_off_recovery   <= v_bus_off_recovery;
-    rule_a   <= v_rule_a;
-    rule_b   <= v_rule_b;
-    rule_c_d   <= v_rule_c_d;
-    rule_e   <= v_rule_e;
-    rule_f   <= v_rule_f;
-    rule_g   <= v_rule_g;
-    rule_h   <= v_rule_h;
+    rule_a             <= v_rule_a;
+    rule_b             <= v_rule_b;
+    rule_c_d           <= v_rule_c_d;
+    rule_e             <= v_rule_e;
+    rule_f             <= v_rule_f;
+    rule_g             <= v_rule_g;
+    rule_h             <= v_rule_h;
     WaitForBarrier(init_barrier);
     wait;
   end process p_init;
@@ -192,15 +191,15 @@ begin
   -- DUT
   ----------------------------------------------------------------------------
   u_dut : entity work.can_fce
-    port map (
-      clk_i       => clk,
-      rst_i       => reset,
-      llc_i       => llc_i,
-      llc_o       => llc_o,
-      mac_i       => mac_i,
-      mac_o       => mac_o,
-      pcs_i       => pcs_i,
-      pcs_o       => pcs_o
+    port map(
+      clk_i => clk,
+      rst_i => reset,
+      llc_i => llc_i,
+      llc_o => llc_o,
+      mac_i => mac_i,
+      mac_o => mac_o,
+      pcs_i => pcs_i,
+      pcs_o => pcs_o
     );
 
   ----------------------------------------------------------------------------
@@ -273,8 +272,8 @@ begin
     begin
       reset_dut;
       for i in 1 to 16 loop
-        mac_i.transmitting                <= '1';
-        mac_i.error                       <= '1';
+        mac_i.transmitting                  <= '1';
+        mac_i.error                         <= '1';
         mac_i.passive_tx_ack_error_exempt_1 <= '1';
         wait until rising_edge(clk);
       end loop;
@@ -370,7 +369,7 @@ begin
       end loop;
       WaitForClock(clk);
       AffirmIf(bus_off_recovery, llc_o.bus_off = '1', "Bus_off before recovery");
-      llc_i.normal_mode <= '1'; -- required alongside idle count to release bus-off
+      llc_i.normal_mode <= '1';                                                 -- required alongside idle count to release bus-off
 
       for i in 1 to 64 loop
         pulse_idle_condition(pcs_i);

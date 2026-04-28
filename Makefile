@@ -20,7 +20,6 @@
 # 1. Packages
 PACKAGES = \
 	src/can_types_p/hdl_src/can_types_p.vhd \
-	src/can_timing_pkg/hdl_src/can_timing_pkg.vhd \
 	src/can_tb_p/hdl_src/can_tb_p.vhd
 
 # 2. Components and Sub-modules
@@ -37,8 +36,8 @@ LAYERS = \
 	src/can_mac_tx/hdl_src/can_mac_tx.vhd \
 	src/can_mac_rx/hdl_src/can_mac_rx.vhd \
 	src/can_mac/hdl_src/can_mac.vhd \
-	src/can_pcs_tx/hdl_src/can_pcs_tx.vhd \
-	src/can_pcs_rx/hdl_src/can_pcs_rx.vhd \
+	src/can_pcs/hdl_src/can_pcs.vhd \
+	src/can_mac_pcs_fce/hdl_src/can_mac_pcs_fce.vhd \
 	src/can_llc_tx/hdl_src/can_llc_tx.vhd \
 	src/can_tx/hdl_src/can_tx.vhd
 

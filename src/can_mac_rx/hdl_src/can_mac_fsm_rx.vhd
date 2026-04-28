@@ -9,12 +9,14 @@
 --
 -- TODO: Missing JIRA
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-04-03  TMYAES    Initial implementation
+--                2026-04-03  TMYAES:   [TRIT-4355] [FPGA] Controlling FSM form MAC layer in CAN-FD module
+--
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+
 use work.pk_can_types.all;
 
 entity can_mac_fsm_rx is
@@ -25,8 +27,8 @@ entity can_mac_fsm_rx is
     llc_i : in    t_can_llc_mac_rx_if_d2s;
     llc_o : out   t_can_llc_mac_rx_if_s2d;
     -- PCS interface (RX-specific, ISO 7.3.5)
-    pcs_i : in    t_can_mac_pcs_rx_if_s2m;
-    pcs_o : out   t_can_mac_pcs_rx_if_m2s;
+    pcs_i : in    t_can_mac_pcs_if_s2m;
+    pcs_o : out   t_can_mac_pcs_if_m2s;
     -- Bit stuffer interface
     bs_i   : in    t_can_mac_fsm_bs_if_s2m;
     bs_o   : out   t_can_mac_fsm_bs_if_m2s;
@@ -124,7 +126,7 @@ begin
         llc_stream_start  <= false;
         llc_frame_len  <= 0;
         llc_frame      <= (others => (others => '0'));
-        pcs_o          <= c_mac_to_pcs_rx_if_reset;
+        pcs_o          <= c_mac_to_pcs_if_reset;
         bs_o           <= c_mac_fsm_to_bs_fd_if_reset;
         crc_o          <= c_mac_fsm_to_crc_if_reset;
         fce_o          <= c_mac_to_fce_if_reset;
@@ -140,7 +142,10 @@ begin
         bs_rst              <= '0';
         crc_rst             <= '0';
         fce_o               <= c_mac_to_fce_if_reset;
-        pcs_o.hard_sync_en  <= '0'; -- Default: resynchronization (ISO 7.3.5.1 rule d)
+        pcs_o.do_hard_sync  <= '0'; -- Default: resynchronization (ISO 7.3.5.1 rule d)
+        -- Pulse signals: cleared at every SP so callers only need to assert for one SP cycle
+        pcs_o.next_bit_is_brs <= '0' when pcs_i.sample_point = '1' else pcs_o.next_bit_is_brs;
+        pcs_o.data_phase_stop <= '0' when pcs_i.sample_point = '1' else pcs_o.data_phase_stop;
         llc_stream_start <= not llc_stream_done when llc_stream_done; -- Clear
 
         -----------------------------------------------------------------
@@ -169,20 +174,21 @@ begin
         if (pcs_i.sample_point = '1') and (v_in_dsb_field or v_in_fsb_field) then
           -- Feed BS
           bs_o.valid <= '1';
-          bs_o.data  <= pcs_i.bus_polarity;
+          bs_o.data  <= pcs_i.rx_data;
           if (bs_i.valid = '1') then
             -- Stuff bit: feed FD CRC in arb region (ISO 11898-1: 6.6.4.4), check polarity
             if (v_in_dsb_field) then
               crc_o.valid_fd <= '1';
-              crc_o.data_fd  <= pcs_i.bus_polarity;
+              crc_o.data_fd  <= pcs_i.rx_data;
             end if;
-            if (bs_i.data /= pcs_i.bus_polarity) then
+            if (bs_i.data /= pcs_i.rx_data) then
               -- Stuff error (ISO 11898-1: 6.6.5.1)
               -------------------------------------------------------------
               fce_o.sending_error_overload_flag <= '1';
               fce_o.error         <= '1';
-              pcs_o.use_data_rate <= '0';
-              pcs_o.polarity      <= c_recessive when fce_i.error_active = '0' else c_dominant;
+              pcs_o.data_phase_stop <= '1';
+              pcs_o.tx_data      <= c_recessive when fce_i.error_active = '0' else c_dominant;
+              pcs_o.transmitting <= '1';
               fsm_state           <= s_error_overload;
               bit_count           <= 0;
               -------------------------------------------------------------
@@ -193,11 +199,11 @@ begin
             if (v_in_dsb_field) then
               crc_o.valid_cc <= '1';
               crc_o.valid_fd <= '1';
-              crc_o.data_cc  <= pcs_i.bus_polarity;
-              crc_o.data_fd  <= pcs_i.bus_polarity;
+              crc_o.data_cc  <= pcs_i.rx_data;
+              crc_o.data_fd  <= pcs_i.rx_data;
             elsif (fsm_state = s_sbc) then
               crc_o.valid_fd <= '1';
-              crc_o.data_fd  <= pcs_i.bus_polarity;
+              crc_o.data_fd  <= pcs_i.rx_data;
             end if;
           end if;
         end if;
@@ -212,9 +218,9 @@ begin
           -- before participating on the bus (ISO 11898-1: 6.6.7.5)
           -----------------------------------------------------------------
           when s_bus_reintegration =>
-            pcs_o.hard_sync_en <= '1'; -- ISO 7.3.5.1 rule c: hard sync during bus integration
+            pcs_o.do_hard_sync <= '1'; -- ISO 7.3.5.1 rule c: hard sync during bus integration
             if (pcs_i.sample_point = '1') then
-              if (pcs_i.bus_polarity = c_recessive) then 
+              if (pcs_i.rx_data = c_recessive) then 
                 if bit_count = (c_bus_idle_condition_width - 1) then
                   fsm_state <= s_idle;
                   bit_count <= 0;
@@ -230,10 +236,9 @@ begin
           -- s_idle : Waits for SOF and resets state variables
           -----------------------------------------------------------------
           when s_idle =>
-            pcs_o.hard_sync_en  <= '1'; -- ISO 7.3.5.1 rule c: hard sync during inter-frame space
-            pcs_o.use_data_rate <= '0';
+            pcs_o.do_hard_sync  <= '1'; -- ISO 7.3.5.1 rule c: hard sync during inter-frame space
             crc_mismatch        <= false;
-            if (pcs_i.sample_point = '1') and (pcs_i.bus_polarity = c_dominant) then
+            if (pcs_i.sample_point = '1') and (pcs_i.rx_data = c_dominant) then
               crc_o.valid_cc <= '1';
               crc_o.valid_fd <= '1';
               crc_o.data_cc  <= c_dominant;
@@ -253,7 +258,7 @@ begin
           when s_id =>
             if (v_real_bit) then
               -- Store ID bit
-              llc_frame(c_id_offset + byte_index)((c_byte_width - 1) - bit_index) <= pcs_i.bus_polarity;
+              llc_frame(c_id_offset + byte_index)((c_byte_width - 1) - bit_index) <= pcs_i.rx_data;
               -- Increment counters
               bit_index  <= 0 when bit_index = (c_byte_width - 1) else (bit_index + 1);
               byte_index <= (byte_index + 1) when bit_index = (c_byte_width - 1);
@@ -270,7 +275,7 @@ begin
           -----------------------------------------------------------------
           when s_rtr_srr_rrs =>
             if (v_real_bit) then
-              llc_frame(c_conf_0_offset)(c_llc_frame_ftyp) <= pcs_i.bus_polarity;
+              llc_frame(c_conf_0_offset)(c_llc_frame_ftyp) <= pcs_i.rx_data;
               if (llc_frame(c_conf_0_offset)(c_llc_frame_ide) = '1') then
                 fsm_state <= s_fdf_r1_r0;
               else
@@ -283,8 +288,8 @@ begin
           -----------------------------------------------------------------
           when s_ide =>
             if (v_real_bit) then
-              llc_frame(c_conf_0_offset)(c_llc_frame_ide) <= pcs_i.bus_polarity; -- Set IDE bit
-              if (pcs_i.bus_polarity = c_recessive) then 
+              llc_frame(c_conf_0_offset)(c_llc_frame_ide) <= pcs_i.rx_data; -- Set IDE bit
+              if (pcs_i.rx_data = c_recessive) then 
                 fsm_state <= s_id; -- Extended ID frame format: Go back to s_id to grab the extended ID bits
               else
                 fsm_state <= s_fdf_r1_r0;
@@ -296,8 +301,8 @@ begin
           -----------------------------------------------------------------
           when s_fdf_r1_r0 =>
             if (v_real_bit) then
-              llc_frame(c_conf_0_offset)(c_llc_frame_fdf) <= pcs_i.bus_polarity; -- Set FDF bit
-              if (pcs_i.bus_polarity = c_recessive) or (llc_frame(c_conf_0_offset)(c_llc_frame_ide) = '1') then
+              llc_frame(c_conf_0_offset)(c_llc_frame_fdf) <= pcs_i.rx_data; -- Set FDF bit
+              if (pcs_i.rx_data = c_recessive) or (llc_frame(c_conf_0_offset)(c_llc_frame_ide) = '1') then
                 -- FDF=1 (FD frame) or CC extended: consume r1 bit
                 fsm_state <= s_res_r0;
               else
@@ -313,12 +318,13 @@ begin
           when s_res_r0 =>
             -- ISO 7.3.5.1 rule c: hard sync at FDF-to-res edge in FD frames
             if llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' then
-              pcs_o.hard_sync_en <= '1';
+              pcs_o.do_hard_sync <= '1';
             end if;
             if (v_real_bit) then
               if (llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1') then
-                if (pcs_i.bus_polarity = c_dominant) then
-                  fsm_state <= s_brs;
+                if (pcs_i.rx_data = c_dominant) then
+                  pcs_o.next_bit_is_brs <= '1'; -- Pulse: PCS switches to data rate at BRS SP
+                  fsm_state             <= s_brs;
                 else
                   -- Form error: res bit must be dominant in FD (ISO 11898-1: 6.6.11.3)
                   fce_o.error         <= '1';
@@ -338,9 +344,8 @@ begin
           -----------------------------------------------------------------
           when s_brs =>
             if (v_real_bit) then
-              pcs_o.use_data_rate                         <= pcs_i.bus_polarity;
-              llc_frame(c_conf_0_offset)(c_llc_frame_brs) <= pcs_i.bus_polarity;
-              fsm_state                                   <= s_esi;
+              llc_frame(c_conf_0_offset)(c_llc_frame_brs) <= pcs_i.rx_data;
+              fsm_state                                    <= s_esi;
             end if;
 
           -----------------------------------------------------------------
@@ -348,7 +353,7 @@ begin
           -----------------------------------------------------------------
           when s_esi =>
             if (v_real_bit) then
-              llc_frame(c_conf_0_offset)(c_llc_frame_esi) <= pcs_i.bus_polarity;
+              llc_frame(c_conf_0_offset)(c_llc_frame_esi) <= pcs_i.rx_data;
               fsm_state                                   <= s_dlc;
               bit_count                                   <= 0;
             end if;
@@ -361,12 +366,12 @@ begin
           when s_dlc =>
             if (v_real_bit) then
               -- Store DLC bit and increment bit count
-              llc_frame(c_conf_1_offset)(c_llc_frame_dlc_start - bit_count) <= pcs_i.bus_polarity;
+              llc_frame(c_conf_1_offset)(c_llc_frame_dlc_start - bit_count) <= pcs_i.rx_data;
               bit_count <= bit_count + 1;
               if bit_count = (c_dlc_field_width - 1) then
                 -- Calculate and set data length
                 v_dlc_vec := llc_frame(c_conf_1_offset)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
-                v_dlc_vec(c_llc_frame_dlc_start - bit_count) := pcs_i.bus_polarity;
+                v_dlc_vec(c_llc_frame_dlc_start - bit_count) := pcs_i.rx_data;
                 v_data_len := dlc_to_data_length(to_integer(unsigned(v_dlc_vec)), llc_frame(c_conf_0_offset)(c_llc_frame_fdf));
                 bit_count  <= 0;
                 bit_index  <= 0;
@@ -399,7 +404,7 @@ begin
           when s_data =>
             if (v_real_bit) then
               -- Store data bit
-              llc_frame(c_data_offset + byte_index)((c_byte_width - 1) - bit_index) <= pcs_i.bus_polarity;
+              llc_frame(c_data_offset + byte_index)((c_byte_width - 1) - bit_index) <= pcs_i.rx_data;
               if (byte_index = (data_len - 1)) and (bit_index = (c_byte_width - 1)) then
               -- Last bit received
                 if (llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1') then
@@ -420,12 +425,14 @@ begin
           -----------------------------------------------------------------
           when s_sbc =>
             if (v_real_bit) then
-              if (pcs_i.bus_polarity /= bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count)) then
+              if (pcs_i.rx_data /= bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count)) then
                 -- Form error : SBC mismatch (ISO 11898-1: 6.6.12.3)
                 -------------------------------------------------------------
                 fce_o.sending_error_overload_flag <= '1';
                 fce_o.error         <= '1';
-                pcs_o.polarity      <= c_recessive when fce_i.error_active = '0' else c_dominant;
+                pcs_o.tx_data      <= c_recessive when fce_i.error_active = '0' else c_dominant;
+                pcs_o.transmitting <= '1';
+                pcs_o.data_phase_stop <= '1';
                 fsm_state           <= s_error_overload;
                 bit_count           <= 0;
                 -------------------------------------------------------------
@@ -445,25 +452,27 @@ begin
             if (v_real_bit) then
               if (bit_count < crc_length) then -- CRC bits
                 -- Check for CRC mismatch
-                if (pcs_i.bus_polarity /= crc_i.crc((c_crc_21_length - 1) - bit_count)) then
+                if (pcs_i.rx_data /= crc_i.crc((c_crc_21_length - 1) - bit_count)) then
                   crc_mismatch <= true;
                 end if;
                 bit_count <= bit_count + 1;
               else -- CRC delimiter bit
-                pcs_o.use_data_rate <= '0';
-                if (pcs_i.bus_polarity = c_dominant) or (crc_mismatch) then
+                pcs_o.data_phase_stop <= '1';
+                if (pcs_i.rx_data = c_dominant) or (crc_mismatch) then
                   -- Form error: CRC delimiter must be recessive, or CRC mismatch (checked at the CRC delimiter) (ISO 11898-1: 6.6.21.2.c)
                   -------------------------------------------------------------
                   fce_o.sending_error_overload_flag <= '1';
                   fce_o.error                       <= '1';
-                  pcs_o.polarity                    <= c_recessive when fce_i.error_active = '0' else c_dominant;
+                  pcs_o.tx_data                    <= c_recessive when fce_i.error_active = '0' else c_dominant;
+                  pcs_o.transmitting                 <= '1';
+                  pcs_o.data_phase_stop              <= '1';
                   fsm_state                         <= s_error_overload;
                   bit_count                         <= 0;
                   -------------------------------------------------------------
                 else
                   -- CRC delimiter OK: switch back to nominal rate and drive ACK
-                  pcs_o.use_data_rate <= '0';
-                  pcs_o.polarity      <= c_dominant;
+                  pcs_o.data_phase_stop <= '1';
+                  pcs_o.tx_data      <= c_dominant;
                   fsm_state           <= s_ack;
                   bit_count           <= 0;
                 end if;
@@ -479,17 +488,17 @@ begin
             if (pcs_i.sample_point = '1') then
               if (bit_count = 0) then
                 -- ACK slot bit 0: drive dominant to acknowledge
-                pcs_o.polarity <= c_recessive;
+                pcs_o.tx_data <= c_recessive;
                 bit_count      <= 1;
               elsif (bit_count = 1 and llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1') then
                 -- ACK slot bit 1 (FD only): recessive, wait for alignment
                 bit_count <= 2;
               else
                 -- Form error: ACK delimiter must be recessive (ISO 6.6.5.1)
-                if (pcs_i.bus_polarity = c_dominant) then
+                if (pcs_i.rx_data = c_dominant) then
                   fce_o.sending_error_overload_flag <= '1';
                   fce_o.error    <= '1';
-                  pcs_o.polarity <= c_recessive when fce_i.error_active = '0' else c_dominant;
+                  pcs_o.tx_data <= c_recessive when fce_i.error_active = '0' else c_dominant;
                   fsm_state      <= s_error_overload;
                   bit_count      <= 0;
                 else
@@ -504,7 +513,7 @@ begin
           -------------------------------------------------------------
           when s_eof =>
             if (pcs_i.sample_point = '1') then
-              if (pcs_i.bus_polarity = c_dominant) then
+              if (pcs_i.rx_data = c_dominant) then
                   -- Form error: EOF bits must be recessive (ISO 11898-1: 6.6.11.7)
                   -------------------------------------------------------------
                   -- ISO 6.6.15.2: last EOF bit dominant is overload, not form error
@@ -512,11 +521,11 @@ begin
                   fce_o.error                       <= '1';
 
                   if bit_count = (c_eof_field_width - 1) then -- Overload if last EOF bit is dominant
-                    pcs_o.polarity <=  c_dominant;
+                    pcs_o.tx_data <=  c_dominant;
                     overload       <= true;
                     fce_o.error    <= '0'; -- Not error
                   else -- Else form error
-                    pcs_o.polarity <= c_recessive when fce_i.error_active = '0' else c_dominant;
+                    pcs_o.tx_data <= c_recessive when fce_i.error_active = '0' else c_dominant;
                   end if;
                   fsm_state <= s_error_overload;
                   bit_count <= 0;
@@ -543,7 +552,7 @@ begin
           -- Interframe space: 3 recessive bits (ISO 11898-1: 6.6.7.2).
           -- -----------------------------------------------------------
           when s_intermission =>
-            pcs_o.hard_sync_en <= '1'; -- ISO 7.3.5.1 rule c: hard sync during inter-frame space
+            pcs_o.do_hard_sync <= '1'; -- ISO 7.3.5.1 rule c: hard sync during inter-frame space
             if (pcs_i.sample_point = '1') then
               if bit_count = (c_intermission_width - 1) then
                 -- Reset and return to idle
@@ -551,11 +560,11 @@ begin
                 crc_rst   <= '1';
                 bit_count <= 0;
                 fsm_state <= s_idle;
-              elsif pcs_i.bus_polarity = c_dominant then 
+              elsif pcs_i.rx_data = c_dominant then 
                 -- ISO 11898-1: Dominant in first two bits of IFS is overload
                 -------------------------------------------------------------
                 fce_o.sending_error_overload_flag <= '1';
-                pcs_o.polarity                    <= c_dominant;
+                pcs_o.tx_data                    <= c_dominant;
                 fsm_state                         <= s_error_overload;
                 overload                          <= true;
                 -------------------------------------------------------------
@@ -577,18 +586,18 @@ begin
                 -- Last bit of error/overload sequence
                 bit_count <= 0;
 
-                if pcs_i.bus_polarity /= c_dominant then
+                if pcs_i.rx_data /= c_dominant then
                   fsm_state   <= s_intermission;
                 else
                   -- Last bit of flag delimiter seen dominant is overload, so we start sending a new overload flag (ISO : 6.6.15.2).
-                  pcs_o.polarity <= c_dominant;
+                  pcs_o.tx_data <= c_dominant;
                 end if;
               elsif (bit_count < c_error_flag_width) then
                 -- Send flag (overload is always dominant)
-                pcs_o.polarity <= c_recessive when (fce_i.error_active = '0') and not overload else c_dominant;
+                pcs_o.tx_data <= c_recessive when (fce_i.error_active = '0') and not overload else c_dominant;
               else
                 -- Send delimiter
-                pcs_o.polarity <= c_recessive;
+                pcs_o.tx_data <= c_recessive;
               end if;
             end if;
           when others =>
@@ -600,7 +609,7 @@ begin
         -- Skip ACK drive, LLC delivery, and FCE error signaling.
         -----------------------------------------------------------------
         if transmitting_i then
-          pcs_o.polarity   <= c_recessive;
+          pcs_o.tx_data   <= c_recessive;
           fce_o            <= c_mac_to_fce_if_reset;
           llc_stream_start <= false;
         end if;

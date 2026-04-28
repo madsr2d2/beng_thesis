@@ -42,14 +42,14 @@ architecture tb of can_mac_n2n_tb is
   ----------------------------------------------------------------------------
   -- Constants
   ----------------------------------------------------------------------------
-  -- Nominal bit timing (same as can_mac_tx_tb)
-  constant c_sp       : natural := c_sync_seg + (t_nominal_prop_seg'high - t_nominal_prop_seg'low) / 2 + (t_nominal_phase_seg1'high - t_nominal_phase_seg1'low) / 2;
-  constant c_bit_time : natural := c_sp + (t_nominal_phase_seg2'high - t_nominal_phase_seg2'low) / 2;
+  -- Nominal bit timing (ISO 7.3.2, midpoint of subtype ranges in pk_can_types)
+  constant c_sp       : natural := 80;
+  constant c_bit_time : natural := 100;
 
   -- Data phase bit timing
-  constant c_data_sp       : natural := c_sync_seg + (t_data_prop_seg'high - t_data_prop_seg'low) / 2 + (t_data_phase_seg1'high - t_data_phase_seg1'low) / 2;
-  constant c_data_ssp      : natural := c_data_sp / 2;
-  constant c_data_bit_time : natural := c_data_sp + t_data_phase_seg2'high;
+  constant c_data_sp       : natural := 8;
+  constant c_data_ssp      : natural := 7;
+  constant c_data_bit_time : natural := 10;
 
   constant c_rec_width    : natural := 16;
   constant c_bin_at_least : natural := 5;
@@ -69,40 +69,32 @@ architecture tb of can_mac_n2n_tb is
   signal bus_level : std_logic;
 
   -- Node A (transmitter): MAC + FCE
-  signal a_tx_llc_i : t_can_llc_mac_tx_if_s2d;
-  signal a_tx_llc_o : t_can_llc_mac_tx_if_d2s;
-  signal a_rx_llc_i : t_can_llc_mac_rx_if_d2s;
-  signal a_rx_llc_o : t_can_llc_mac_rx_if_s2d;
-  signal a_tx_pcs_i : t_can_mac_pcs_if_s2m := c_pcs_to_mac_if_reset;
-  signal a_tx_pcs_o : t_can_mac_pcs_if_m2s;
-  signal a_rx_pcs_i : t_can_mac_pcs_if_s2m := c_pcs_to_mac_if_reset;
-  signal a_rx_pcs_o : t_can_mac_pcs_if_m2s;
+  signal a_tx_llc_i  : t_can_llc_mac_tx_if_s2d;
+  signal a_tx_llc_o  : t_can_llc_mac_tx_if_d2s;
+  signal a_rx_llc_i  : t_can_llc_mac_rx_if_d2s;
+  signal a_rx_llc_o  : t_can_llc_mac_rx_if_s2d;
+  signal a_pcs_i     : t_can_mac_pcs_if_s2m := c_pcs_to_mac_if_reset;
+  signal a_pcs_o     : t_can_mac_pcs_if_m2s;
   signal a_mac_fce_o : t_can_mac_fce_if_m2s;
   signal a_fce_mac_o : t_can_mac_fce_if_s2m;
   signal a_fce_llc_i : t_can_llc_fce_if_m2s := c_llc_to_fce_if_reset;
   signal a_fce_llc_o : t_can_fce_llc_if_s2m;
   signal a_fce_pcs_i : t_can_pcs_fce_if_s2m := c_pcs_to_fce_if_reset;
   signal a_fce_pcs_o : t_can_fce_pcs_if_m2s;
-  signal a_debug_tec : natural range 0 to c_fce_tec_max;
-  signal a_debug_rec : natural range 0 to c_fce_rec_max;
 
   -- Node B (receiver): MAC + FCE
-  signal b_tx_llc_i : t_can_llc_mac_tx_if_s2d;
-  signal b_tx_llc_o : t_can_llc_mac_tx_if_d2s;
-  signal b_rx_llc_i : t_can_llc_mac_rx_if_d2s;
-  signal b_rx_llc_o : t_can_llc_mac_rx_if_s2d;
-  signal b_tx_pcs_i : t_can_mac_pcs_if_s2m := c_pcs_to_mac_if_reset;
-  signal b_tx_pcs_o : t_can_mac_pcs_if_m2s;
-  signal b_rx_pcs_i : t_can_mac_pcs_if_s2m := c_pcs_to_mac_if_reset;
-  signal b_rx_pcs_o : t_can_mac_pcs_if_m2s;
+  signal b_tx_llc_i  : t_can_llc_mac_tx_if_s2d;
+  signal b_tx_llc_o  : t_can_llc_mac_tx_if_d2s;
+  signal b_rx_llc_i  : t_can_llc_mac_rx_if_d2s;
+  signal b_rx_llc_o  : t_can_llc_mac_rx_if_s2d;
+  signal b_pcs_i     : t_can_mac_pcs_if_s2m := c_pcs_to_mac_if_reset;
+  signal b_pcs_o     : t_can_mac_pcs_if_m2s;
   signal b_mac_fce_o : t_can_mac_fce_if_m2s;
   signal b_fce_mac_o : t_can_mac_fce_if_s2m;
   signal b_fce_llc_i : t_can_llc_fce_if_m2s := c_llc_to_fce_if_reset;
   signal b_fce_llc_o : t_can_fce_llc_if_s2m;
   signal b_fce_pcs_i : t_can_pcs_fce_if_s2m := c_pcs_to_fce_if_reset;
   signal b_fce_pcs_o : t_can_fce_pcs_if_m2s;
-  signal b_debug_tec : natural range 0 to c_fce_tec_max;
-  signal b_debug_rec : natural range 0 to c_fce_rec_max;
 
   -- Transfer status latch (Node A TX)
   signal status_latch : std_logic_vector(2 downto 0) := c_ongoing;
@@ -188,7 +180,7 @@ begin
   -- Each MAC holds pcs_o.polarity recessive in quiet states, so plain AND
   -- of all four drivers gives correct wired-AND semantics.
   ----------------------------------------------------------------------------
-  bus_level <= a_tx_pcs_o.polarity and a_rx_pcs_o.polarity and b_tx_pcs_o.polarity and b_rx_pcs_o.polarity;
+  bus_level <= a_pcs_o.tx_data and b_pcs_o.tx_data;
 
   ----------------------------------------------------------------------------
   -- Node A: can_mac + can_fce (transmitter)
@@ -201,26 +193,22 @@ begin
       tx_llc_o => a_tx_llc_o,
       rx_llc_i => a_rx_llc_i,
       rx_llc_o => a_rx_llc_o,
-      tx_pcs_i => a_tx_pcs_i,
-      tx_pcs_o => a_tx_pcs_o,
-      rx_pcs_i => a_rx_pcs_i,
-      rx_pcs_o => a_rx_pcs_o,
+      pcs_i    => a_pcs_i,
+      pcs_o    => a_pcs_o,
       fce_i    => a_fce_mac_o,
       fce_o    => a_mac_fce_o
     );
 
   u_fce_a : entity work.can_fce
     port map (
-      clk_i       => clk,
-      rst_i       => reset,
-      llc_i       => a_fce_llc_i,
-      llc_o       => a_fce_llc_o,
-      mac_i       => a_mac_fce_o,
-      mac_o       => a_fce_mac_o,
-      pcs_i       => a_fce_pcs_i,
-      pcs_o       => a_fce_pcs_o,
-      debug_tec_o => a_debug_tec,
-      debug_rec_o => a_debug_rec
+      clk_i => clk,
+      rst_i => reset,
+      llc_i => a_fce_llc_i,
+      llc_o => a_fce_llc_o,
+      mac_i => a_mac_fce_o,
+      mac_o => a_fce_mac_o,
+      pcs_i => a_fce_pcs_i,
+      pcs_o => a_fce_pcs_o
     );
 
   ----------------------------------------------------------------------------
@@ -234,26 +222,22 @@ begin
       tx_llc_o => b_tx_llc_o,
       rx_llc_i => b_rx_llc_i,
       rx_llc_o => b_rx_llc_o,
-      tx_pcs_i => b_tx_pcs_i,
-      tx_pcs_o => b_tx_pcs_o,
-      rx_pcs_i => b_rx_pcs_i,
-      rx_pcs_o => b_rx_pcs_o,
+      pcs_i    => b_pcs_i,
+      pcs_o    => b_pcs_o,
       fce_i    => b_fce_mac_o,
       fce_o    => b_mac_fce_o
     );
 
   u_fce_b : entity work.can_fce
     port map (
-      clk_i       => clk,
-      rst_i       => reset,
-      llc_i       => b_fce_llc_i,
-      llc_o       => b_fce_llc_o,
-      mac_i       => b_mac_fce_o,
-      mac_o       => b_fce_mac_o,
-      pcs_i       => b_fce_pcs_i,
-      pcs_o       => b_fce_pcs_o,
-      debug_tec_o => b_debug_tec,
-      debug_rec_o => b_debug_rec
+      clk_i => clk,
+      rst_i => reset,
+      llc_i => b_fce_llc_i,
+      llc_o => b_fce_llc_o,
+      mac_i => b_mac_fce_o,
+      mac_o => b_fce_mac_o,
+      pcs_i => b_fce_pcs_i,
+      pcs_o => b_fce_pcs_o
     );
 
   ----------------------------------------------------------------------------
@@ -271,82 +255,75 @@ begin
   end process p_status_latch;
 
   ----------------------------------------------------------------------------
-  -- PCS model Node A: shared bit timing for TX and RX paths.
-  -- The TX path's use_data_rate controls the bit rate switch since Node A
-  -- is the transmitter; the RX path follows the same timing.
+  -- PCS model Node A: Node A is the transmitter; next_bit_is_brs controls
+  -- the bit rate switch.
   ----------------------------------------------------------------------------
   p_pcs_a : process is
-    variable v_tq_count        : natural range 0 to c_bit_time := 0;
-    variable v_active_bit_time : natural := c_bit_time;
-    variable v_active_sp       : natural := c_sp;
-    variable v_tx_sp_strobe    : std_logic;
-    variable v_rx_sp_strobe    : std_logic;
-    variable v_ssp_strobe      : std_logic;
+    variable v_tq_count           : natural range 0 to c_bit_time := 0;
+    variable v_active_bit_time    : natural  := c_bit_time;
+    variable v_active_sp          : natural  := c_sp;
+    variable v_data_phase_active  : boolean  := false;
+    variable v_ssp_strobe         : std_logic;
   begin
     WaitForBarrier(init_barrier);
 
     pcs_a_loop : loop
       wait until rising_edge(clk);
+      -- At bit-period boundary: update rate from latched phase state
       v_tq_count := 0 when v_tq_count = v_active_bit_time else v_tq_count + 1;
       if v_tq_count = 0 then
-        v_active_bit_time := c_data_bit_time when a_tx_pcs_o.use_data_rate = '1' else c_bit_time;
-        v_active_sp       := c_data_sp       when a_tx_pcs_o.use_data_rate = '1' else c_sp;
+        -- next_bit_is_brs / data_phase_stop are registered outputs; they are stable
+        -- by TQ=0 (at least 2 clocks after the SP that set them)
+        if a_pcs_o.next_bit_is_brs = '1' then
+          v_data_phase_active := true;
+        elsif a_pcs_o.data_phase_stop = '1' then
+          v_data_phase_active := false;
+        end if;
+        v_active_bit_time := c_data_bit_time when v_data_phase_active else c_bit_time;
+        v_active_sp       := c_data_sp       when v_data_phase_active else c_sp;
       end if;
-      v_tx_sp_strobe := '1' when v_tq_count = v_active_sp else '0';
-      v_rx_sp_strobe := '1' when v_tq_count = v_active_sp + 2 else '0';
-      v_ssp_strobe   := '1' when v_tq_count = c_data_ssp and a_tx_pcs_o.use_data_rate = '1' else '0';
+      v_ssp_strobe := '1' when v_tq_count = c_data_ssp and v_data_phase_active else '0';
 
-      -- TX PCS input
-      a_tx_pcs_i.sample_point           <= v_tx_sp_strobe;
-      a_tx_pcs_i.secondary_sample_point <= v_ssp_strobe;
-      a_tx_pcs_i.tdc_delay              <= (others => '0');
-      a_tx_pcs_i.bus_polarity           <= bus_level;
-
-      -- RX PCS input (SP offset by +2 TQ for bus propagation)
-      a_rx_pcs_i.sample_point           <= v_rx_sp_strobe;
-      a_rx_pcs_i.secondary_sample_point <= v_ssp_strobe;
-      a_rx_pcs_i.tdc_delay              <= (others => '0');
-      a_rx_pcs_i.bus_polarity           <= bus_level;
+      a_pcs_i.sample_point           <= '1' when v_tq_count = v_active_sp else '0';
+      a_pcs_i.secondary_sample_point <= v_ssp_strobe;
+      a_pcs_i.tdc_delay              <= (others => '0');
+      a_pcs_i.rx_data                <= bus_level;
     end loop pcs_a_loop;
   end process p_pcs_a;
 
   ----------------------------------------------------------------------------
-  -- PCS model Node B: shared bit timing for TX and RX paths.
-  -- Node B is the receiver; its RX path's use_data_rate controls the
-  -- bit rate switch after it decodes BRS.
+  -- PCS model Node B: Node B is the receiver; next_bit_is_brs controls the
+  -- bit rate switch after it decodes BRS. SP is offset +2 TQ from Node A.
   ----------------------------------------------------------------------------
   p_pcs_b : process is
-    variable v_tq_count        : natural range 0 to c_bit_time := 0;
-    variable v_active_bit_time : natural := c_bit_time;
-    variable v_active_sp       : natural := c_sp;
-    variable v_tx_sp_strobe    : std_logic;
-    variable v_rx_sp_strobe    : std_logic;
-    variable v_ssp_strobe      : std_logic;
+    variable v_tq_count           : natural range 0 to c_bit_time := 0;
+    variable v_active_bit_time    : natural  := c_bit_time;
+    variable v_active_sp          : natural  := c_sp;
+    variable v_data_phase_active  : boolean  := false;
+    variable v_ssp_strobe         : std_logic;
   begin
     WaitForBarrier(init_barrier);
 
     pcs_b_loop : loop
       wait until rising_edge(clk);
+      -- At bit-period boundary: update rate from latched phase state
       v_tq_count := 0 when v_tq_count = v_active_bit_time else v_tq_count + 1;
       if v_tq_count = 0 then
-        v_active_bit_time := c_data_bit_time when b_rx_pcs_o.use_data_rate = '1' else c_bit_time;
-        v_active_sp       := c_data_sp       when b_rx_pcs_o.use_data_rate = '1' else c_sp;
+        if b_pcs_o.next_bit_is_brs = '1' then
+          v_data_phase_active := true;
+        elsif b_pcs_o.data_phase_stop = '1' then
+          v_data_phase_active := false;
+        end if;
+        v_active_bit_time := c_data_bit_time when v_data_phase_active else c_bit_time;
+        v_active_sp       := c_data_sp       when v_data_phase_active else c_sp;
       end if;
-      v_tx_sp_strobe := '1' when v_tq_count = v_active_sp else '0';
-      v_rx_sp_strobe := '1' when v_tq_count = v_active_sp + 2 else '0';
-      v_ssp_strobe   := '1' when v_tq_count = c_data_ssp and b_rx_pcs_o.use_data_rate = '1' else '0';
+      v_ssp_strobe := '1' when v_tq_count = c_data_ssp and v_data_phase_active else '0';
 
-      -- TX PCS input
-      b_tx_pcs_i.sample_point           <= v_tx_sp_strobe;
-      b_tx_pcs_i.secondary_sample_point <= v_ssp_strobe;
-      b_tx_pcs_i.tdc_delay              <= (others => '0');
-      b_tx_pcs_i.bus_polarity           <= bus_level;
-
-      -- RX PCS input (SP offset by +2 TQ for bus propagation)
-      b_rx_pcs_i.sample_point           <= v_rx_sp_strobe;
-      b_rx_pcs_i.secondary_sample_point <= v_ssp_strobe;
-      b_rx_pcs_i.tdc_delay              <= (others => '0');
-      b_rx_pcs_i.bus_polarity           <= bus_level;
+      -- SP offset by +2 TQ to account for Node A's 1-cycle internal delay + 1-cycle TB delay
+      b_pcs_i.sample_point           <= '1' when v_tq_count = v_active_sp + 2 else '0';
+      b_pcs_i.secondary_sample_point <= v_ssp_strobe;
+      b_pcs_i.tdc_delay              <= (others => '0');
+      b_pcs_i.rx_data                <= bus_level;
     end loop pcs_b_loop;
   end process p_pcs_b;
 

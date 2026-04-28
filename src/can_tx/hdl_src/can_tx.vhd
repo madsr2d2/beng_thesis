@@ -4,13 +4,16 @@
 --
 -- Requirements:
 --
--- Description:   Top-level CAN transmitter integrating all three layers:
+-- Description:   Top-level CAN transmitter integrating LLC, MAC TX, and PCS.
 --                - can_llc_tx:  LLC sub-layer (frame buffering, retransmission, Avalon-ST)
 --                - can_mac_tx:  MAC sub-layer (serializer, FSM, bit stuffing, CRC)
---                - can_pcs_tx:  PCS sub-layer (bit timing, TDC, bus interface)
+--                - can_pcs:     PCS sub-layer (bit timing, TDC, bus interface)
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-03-31  MRDSA     Converted to company header format
+--                2026-04-27  MRDSA     Updated PCS instantiation to unified can_pcs.
+--                                      Replaced deleted subtypes with natural.
+--
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
@@ -20,17 +23,15 @@ library ieee;
 
 entity can_tx is
   generic (
-    gc_prescaler       : t_prescaler          := 4;
-    gc_nom_sync_seg    : natural              := c_sync_seg;
-    gc_nom_prop_seg    : t_nominal_prop_seg   := 24;
-    gc_nom_phase_seg1  : t_nominal_phase_seg1 := 15;
-    gc_nom_phase_seg2  : t_nominal_phase_seg2 := 10;
-    gc_data_sync_seg   : natural              := c_sync_seg;
-    gc_data_prop_seg   : t_data_prop_seg      := 8;
-    gc_data_phase_seg1 : t_data_phase_seg1    := 4;
-    gc_data_phase_seg2 : t_data_phase_seg2    := 4;
-    gc_ssp_offset      : t_ssp_offset         := 1;
-    gc_tdc_enable      : std_logic            := '1'
+    gc_prescaler       : natural   := 4;
+    gc_nom_prop_seg    : natural   := 24;
+    gc_nom_phase_seg1  : natural   := 15;
+    gc_nom_phase_seg2  : natural   := 10;
+    gc_nom_sjw         : natural   := 4;
+    gc_data_prop_seg   : natural   := 8;
+    gc_data_phase_seg1 : natural   := 4;
+    gc_data_phase_seg2 : natural   := 4;
+    gc_data_sjw        : natural   := 2
   );
   port (
     clk_i : in    std_logic;
@@ -87,41 +88,40 @@ begin
   -- =========================================================================
   mac_tx_inst : entity work.can_mac_tx
     port map (
-      clk                => clk_i,
-      rst                => rst_i,
-      llc_i              => llc_to_mac,
-      llc_o              => mac_to_llc,
-      pcs_i              => pcs_to_mac,
-      pcs_o              => mac_to_pcs,
-      fce_i              => fce_i,
-      fce_o              => fce_o
+      clk   => clk_i,
+      rst   => rst_i,
+      llc_i => llc_to_mac,
+      llc_o => mac_to_llc,
+      pcs_i => pcs_to_mac,
+      pcs_o => mac_to_pcs,
+      fce_i => fce_i,
+      fce_o => fce_o
     );
 
   -- =========================================================================
-  -- can_pcs_tx: PCS sub-layer
+  -- can_pcs: PCS sub-layer
   -- =========================================================================
-  tx_pcs_inst : entity work.can_pcs_tx
+  pcs_inst : entity work.can_pcs
     generic map (
       gc_prescaler       => gc_prescaler,
-      gc_nom_sync_seg    => gc_nom_sync_seg,
       gc_nom_prop_seg    => gc_nom_prop_seg,
       gc_nom_phase_seg1  => gc_nom_phase_seg1,
       gc_nom_phase_seg2  => gc_nom_phase_seg2,
-      gc_data_sync_seg   => gc_data_sync_seg,
+      gc_nom_sjw         => gc_nom_sjw,
       gc_data_prop_seg   => gc_data_prop_seg,
       gc_data_phase_seg1 => gc_data_phase_seg1,
       gc_data_phase_seg2 => gc_data_phase_seg2,
-      gc_tdc_enable      => gc_tdc_enable
+      gc_data_sjw        => gc_data_sjw
     )
     port map (
-      clk_i         => clk_i,
-      rst_i         => rst_i,
-      mac_i  => mac_to_pcs,
-      mac_o  => pcs_to_mac,
-      fce_i  => fce_pcs_i,
-      fce_o  => fce_pcs_o,
-      tx_bus_o      => tx_bus_o,
-      rx_bus_i      => rx_bus_i
+      clk_i => clk_i,
+      rst_i => rst_i,
+      mac_i => mac_to_pcs,
+      mac_o => pcs_to_mac,
+      fce_i => fce_pcs_i,
+      fce_o => fce_pcs_o,
+      tx_o  => tx_bus_o,
+      rx_i  => rx_bus_i
     );
 
 end architecture rtl;

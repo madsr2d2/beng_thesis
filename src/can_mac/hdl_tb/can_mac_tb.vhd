@@ -4,33 +4,29 @@
 --
 -- Requirements:
 --
--- Description:   MAC sub-layer testbench (can_mac_tx + can_mac_rx with
---                shared PCS model).
---                  p_pcs_model     - Shared PCS model (SP generation, bus routing).
---                  p_tx_llc_vc     - TX LLC Avalon-ST source VC (drives frame bytes to can_mac_tx).
---                  p_llc_sink_vc   - RX LLC Avalon-ST sink VC (collects and verifies received frame bytes).
+-- Description:   MAC sub-layer testbench (can_mac_tx + can_mac_rx with shared PCS model).
+--                  p_pcs_model      - Shared PCS model (SP generation, bus routing).
+--                  p_tx_llc_vc      - TX LLC Avalon-ST source VC (drives frame bytes to can_mac_tx).
+--                  p_llc_sink_vc    - RX LLC Avalon-ST sink VC (collects and verifies received frame bytes).
 --                  p_gating_monitor - Latches unexpected RX activity while transmitting_i asserted.
---                  p_test_ctrl     - Coverage-driven test sequencer.
+--                  p_test_ctrl      - Coverage-driven test sequencer.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-04-05  MRDSA     Initial happy-path testbench
---                2026-04-12  MRDSA     Restructured to company TB standard
---                                      with OSVVM transaction interfaces
---                2026-04-13  MRDSA     Replaced PCS bit-stream driver with
---                                      can_mac_tx + shared PCS model
+--                2026-04-14  TMYAES:   [TRIT-4355] [FPGA] Controlling FSM form MAC layer in CAN-FD module
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
-  use work.pk_can_types.all;
-  use work.pk_can_tb.all;
 
 library osvvm;
   context osvvm.OsvvmContext;
   use osvvm.ScoreboardPkg_slv.all;
 library osvvm_common;
   context osvvm_common.OsvvmCommonContext;
+
+use work.pk_can_types.all;
+use work.pk_can_tb.all;
 
 entity can_mac_tb is
   generic (
@@ -45,13 +41,13 @@ architecture tb of can_mac_tb is
   -- Constants
   ----------------------------------------------------------------------------
   -- Nominal bit timing (ISO 7.3.2, midpoint of subtype ranges in pk_can_types)
-  constant c_sp       : natural := c_sync_seg + (t_nominal_prop_seg'high - t_nominal_prop_seg'low) / 2 + (t_nominal_phase_seg1'high - t_nominal_phase_seg1'low) / 2;
-  constant c_bit_time : natural := c_sp + (t_nominal_phase_seg2'high - t_nominal_phase_seg2'low) / 2;
+  constant c_sp       : natural := 80;
+  constant c_bit_time : natural := 100;
 
   -- Data phase bit timing
-  constant c_data_sp       : natural := c_sync_seg + (t_data_prop_seg'high - t_data_prop_seg'low) / 2 + (t_data_phase_seg1'high - t_data_phase_seg1'low) / 2;
-  constant c_data_ssp      : natural := c_data_sp / 2;
-  constant c_data_bit_time : natural := c_data_sp + t_data_phase_seg2'high;
+  constant c_data_sp       : natural := 8;
+  constant c_data_ssp      : natural := 7;
+  constant c_data_bit_time : natural := 10;
 
   constant c_bin_at_least : natural := 50;
   constant c_rec_width    : natural := 16;
@@ -85,8 +81,8 @@ architecture tb of can_mac_tb is
   -- RX DUT interface (can_mac_rx)
   signal rx_llc_i : t_can_llc_mac_rx_if_d2s;
   signal rx_llc_o : t_can_llc_mac_rx_if_s2d;
-  signal rx_pcs_i : t_can_mac_pcs_rx_if_s2m;
-  signal rx_pcs_o : t_can_mac_pcs_rx_if_m2s;
+  signal rx_pcs_i : t_can_mac_pcs_if_s2m := c_pcs_to_mac_if_reset;
+  signal rx_pcs_o : t_can_mac_pcs_if_m2s;
   signal rx_fce_i : t_can_mac_fce_if_s2m := c_fce_to_mac_if_reset;
   signal rx_fce_o : t_can_mac_fce_if_m2s;
 
@@ -167,17 +163,16 @@ begin
   end process p_init;
 
   -- FCE: error-active for both TX and RX
-  tx_fce_i.error_active  <= '1';
-  rx_fce_i.error_active     <= '1';
+  tx_fce_i.error_active <= '1';
+  rx_fce_i.error_active <= '1';
 
   -- RX LLC sink always ready
   rx_llc_i.avalon_st_sink.ready <= '1';
 
   ----------------------------------------------------------------------------
-  -- Shared bus: dominant-wins (AND logic, c_dominant = '0')
-  -- TX drives bus via tx_pcs_o, RX drives ACK/error flags via pcs_o.
-  ---------------------------------------------------------------------------- 
-  bus_level <= tx_pcs_o.polarity and rx_pcs_o.polarity;
+  -- Shared bus: dominant-wins
+  ----------------------------------------------------------------------------
+  bus_level <= tx_pcs_o.tx_data and rx_pcs_o.tx_data;
 
   ----------------------------------------------------------------------------
   -- TX module: can_mac_tx (bit-stream source)
@@ -226,40 +221,35 @@ begin
 
   ----------------------------------------------------------------------------
   -- Shared PCS model: generates SP strobes for both TX and RX paths.
-  -- Bit timing is controlled by tx_pcs_o.use_data_rate (TX is the master).
   ----------------------------------------------------------------------------
   p_pcs_model : process is
     variable v_tq_count        : natural range 0 to c_bit_time := 0;
     variable v_active_bit_time : natural := c_bit_time;
     variable v_active_sp       : natural := c_sp;
-    variable v_tx_sp_strobe    : std_logic;
-    variable v_rx_sp_strobe    : std_logic;
     variable v_ssp_strobe      : std_logic;
   begin
     WaitForBarrier(init_barrier);
 
     pcs_loop : loop
       wait until rising_edge(clk);
-      v_tq_count        := 0 when v_tq_count = v_active_bit_time else v_tq_count + 1;
+      v_tq_count := 0 when v_tq_count = v_active_bit_time else v_tq_count + 1;
       if v_tq_count = 0 then
-        v_active_bit_time := c_data_bit_time when tx_pcs_o.use_data_rate = '1' else c_bit_time;
-        v_active_sp       := c_data_sp       when tx_pcs_o.use_data_rate = '1' else c_sp;
+        v_active_bit_time := c_data_bit_time when tx_pcs_o.next_bit_is_brs = '1' else c_bit_time;
+        v_active_sp       := c_data_sp       when tx_pcs_o.next_bit_is_brs = '1' else c_sp;
       end if;
-      v_tx_sp_strobe    := '1' when v_tq_count = v_active_sp else '0';
-      v_rx_sp_strobe    := '1' when v_tq_count = v_active_sp + 2 else '0'; -- The 2 is from 1 clk internal can_mac_tx delay + 1 clk TB delay = 2
-      v_ssp_strobe      := '1' when v_tq_count = c_data_ssp and tx_pcs_o.use_data_rate = '1' else '0';
-      
+      tx_pcs_i.sample_point <= '1' when v_tq_count = v_active_sp else '0';
+      rx_pcs_i.sample_point <= '1' when v_tq_count = v_active_sp + 2 else '0'; -- The 2 is from 1 clk internal can_mac_tx delay + 1 clk TB delay = 2
+      v_ssp_strobe := '1' when v_tq_count = c_data_ssp and tx_pcs_o.next_bit_is_brs = '1' else '0';
 
       -- TX PCS input
-      tx_pcs_i.sample_point           <= v_tx_sp_strobe;
       tx_pcs_i.secondary_sample_point <= v_ssp_strobe;
-      tx_pcs_i.tdc_delay              <= (others => '0');
-      tx_pcs_i.bus_polarity           <= bus_level;
+      tx_pcs_i.tdc_delay              <= (others => '0'); -- Zero delay bus model
+      tx_pcs_i.rx_data                <= bus_level;
 
-      -- RX PCS input (SP offset by 2 TQ so the TX's newly driven
-      -- bit has propagated through the bus model)
-      rx_pcs_i.sample_point           <= v_rx_sp_strobe;
-      rx_pcs_i.bus_polarity           <= bus_level;
+      -- RX PCS input
+      rx_pcs_i.secondary_sample_point <= v_ssp_strobe;
+      rx_pcs_i.tdc_delay              <= (others => '0'); -- Zero delay bus model
+      rx_pcs_i.rx_data                <= bus_level;
     end loop pcs_loop;
   end process p_pcs_model;
 
@@ -357,7 +347,7 @@ begin
         llc_valid_seen  <= false;
         fce_active_seen <= false;
       elsif transmitting = '1' then
-        if rx_pcs_o.polarity = c_dominant then
+        if rx_pcs_o.tx_data = c_dominant then
           pcs_valid_seen <= true;
         end if;
         if rx_llc_o.avalon_st_source.valid = '1' then
@@ -469,7 +459,7 @@ begin
       Print("--------------------------------------------------------------------------");
       Print("Test 1: Reset");
       Print("--------------------------------------------------------------------------");
-      AffirmIf(check_id, rx_pcs_o = c_mac_to_pcs_rx_if_reset , "pcs_o not reset correctly");
+      AffirmIf(check_id, rx_pcs_o = c_mac_to_pcs_if_reset, "pcs_o not reset correctly");
       AffirmIf(check_id, rx_fce_o = c_mac_to_fce_if_reset, "fce_o not reset correctly");
       AffirmIf(check_id, rx_llc_o = c_mac_rx_to_llc_if_reset, "llc_o not reset correctly");
     end procedure test_reset;
@@ -512,7 +502,7 @@ begin
     begin
       test_num <= 3;
       Print("--------------------------------------------------------------------------");
-      Print("Test 3: Gating RX during transmission");
+      Print("Test 3: Gating RX during transmission (RX should remain passive when transmitting_i is high)  ");
       Print("--------------------------------------------------------------------------");
 
       -- Clear latches and assert transmitting
@@ -537,14 +527,13 @@ begin
       end loop;
 
       -- Wait for TX to finish (RX won't ACK so TX gets disturbed)
-      if status_latch = c_ongoing then
-        wait until status_latch /= c_ongoing;
-      end if;
+      wait until status_latch /= c_ongoing;
 
       -- Verify that RX did not activate during the frame
-      AffirmIf(check_id, not pcs_valid_seen, "pcs_o.polarity went dominant during transmission");
+      AffirmIf(check_id, not pcs_valid_seen, "pcs_o.tx_data went dominant during transmission");
       AffirmIf(check_id, not llc_valid_seen, "llc_o.valid pulsed during transmission");
       AffirmIf(check_id, not fce_active_seen, "fce_o signaled during transmission");
+      AffirmIf(check_id, status_latch = c_disturbed, "TX transfer status should be c_disturbed since RX did not ACK");
 
       transmitting <= '0';
       WaitForClock(clk, 10);
@@ -574,10 +563,11 @@ begin
     WaitForBarrier(init_barrier);
     wait until reset = '0';
 
+    test_reset;
+
     -- Wait for both TX and RX to complete bus reintegration (11+ bit times)
     WaitForClock(clk, (c_bus_idle_condition_width + 2) * (c_bit_time + 1));
 
-    test_reset;
     test_normal;
     test_transmitting;
 

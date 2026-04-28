@@ -135,7 +135,7 @@ begin
         -----------------------------------------------------------------
         -- Enable fixed stuff bit mode for SBC and CRC fields in FD frames (ISO : 6.6.13.3)
         bs_o.fixed_bit_stuffing_en <= '1' when mac_ser_i.llc_metadata.fdf = '1' and (state = s_sbc or state = s_crc) else '0';
-        bs_o.data  <= pcs_i.bus_polarity;
+        bs_o.data  <= pcs_i.rx_data;
         bs_o.valid <= '0';
         bs_rst     <= '0';
         -----------------------------------------------------------------
@@ -145,15 +145,19 @@ begin
         -----------------------------------------------------------------
         fce_o              <= c_mac_to_fce_if_reset;
         fce_o.transmitting <= '1' when v_in_dynamic_stuff_field or v_in_fixed_stuff_field or state = s_sof or state = s_ack or state = s_eof or state = s_error_overload else '0';
+        pcs_o.transmitting <= '1' when v_in_dynamic_stuff_field or v_in_fixed_stuff_field or state = s_sof or state = s_ack or state = s_eof or state = s_error_overload else '0';
         fce_o.sending_error_overload_flag <= '1' when state = s_error_overload else '0';
         -----------------------------------------------------------------
         mac_ser_o.ready           <= '0';
         mac_ser_o.transfer_status <= mac_ser_o.transfer_status;
         -----------------------------------------------------------------
         -- Hold Transmitter Delay Compensation (TDC) signal until next sample point (ISO : 7.3.4)
-        pcs_o.start_tdc <= '0' when pcs_i.sample_point = '1' else pcs_o.start_tdc;
+        pcs_o.next_bit_is_res <= '0' when pcs_i.sample_point = '1' else pcs_o.next_bit_is_res;
+        -- Pulse signals: cleared at every SP so callers only need to assert for one SP cycle
+        pcs_o.next_bit_is_brs <= '0' when pcs_i.sample_point = '1' else pcs_o.next_bit_is_brs;
+        pcs_o.data_phase_stop <= '0' when pcs_i.sample_point = '1' else pcs_o.data_phase_stop;
         -- SSP: latch deferred bit error (ISO : 7.3.4). Hold until consumed at SP.
-        if (pcs_i.secondary_sample_point = '1' and polarity_history(to_integer(unsigned(pcs_i.tdc_delay))) /= pcs_i.bus_polarity) then
+        if (pcs_i.secondary_sample_point = '1' and polarity_history(to_integer(unsigned(pcs_i.tdc_delay))) /= pcs_i.rx_data) then
           secondary_sample_point_error_pending <= true;
         end if;
         -----------------------------------------------------------------
@@ -177,7 +181,6 @@ begin
           ack_error_caused_flag     <= false;
           saw_dominant_during_flag  <= false;
           dominant_run_count        <= 0;
-          pcs_o.use_data_rate       <= '0';
         end if;
         -----------------------------------------------------------------
 
@@ -202,7 +205,7 @@ begin
           -- before participating on the bus (ISO : 6.6.7.5)
           -----------------------------------------------------------------
           when s_bus_reintegration =>
-            if (pcs_i.sample_point = '1' and pcs_i.bus_polarity = c_recessive) then
+            if (pcs_i.sample_point = '1' and pcs_i.rx_data = c_recessive) then
               if (bit_count = c_bus_idle_condition_width - 1) then
                 state     <= s_bus_idle;
                 bit_count <= 0;
@@ -216,7 +219,7 @@ begin
           -----------------------------------------------------------------
           when s_intermission =>
             if (pcs_i.sample_point = '1') then
-              if (pcs_i.bus_polarity = c_dominant) then
+              if (pcs_i.rx_data = c_dominant) then
                 if (bit_count < c_intermission_width - 1) then
                   -- Dominant bit at first 2 bits is overload (ISO : 6.6.21.3.2 b)
                   state     <= s_error_overload;
@@ -251,7 +254,7 @@ begin
           -- after transmitting (ISO : 6.6.7.4)
           -----------------------------------------------------------------
           when s_suspend_transmission =>
-            if (pcs_i.sample_point = '1' and pcs_i.bus_polarity = c_recessive) then
+            if (pcs_i.sample_point = '1' and pcs_i.rx_data = c_recessive) then
               if (bit_count = c_suspend_transmission_width - 1) then
                 state     <= s_bus_idle;
                 bit_count <= 0;
@@ -291,12 +294,12 @@ begin
             end if;
 
             -- Hold SOF dominant on the bus until the sample point
-            pcs_o.polarity <= c_dominant;
+            pcs_o.tx_data <= c_dominant;
 
             if skip_sof then
               -- SOF was already detected as 3rd intermission dominant;
               -- drive first ID bit immediately.
-              pcs_o.polarity   <= mac_ser_i.data;
+              pcs_o.tx_data   <= mac_ser_i.data;
               bs_o.valid       <= '1';
               bs_o.data        <= mac_ser_i.data;
               crc_o.valid_cc   <= '1';
@@ -378,7 +381,7 @@ begin
               v_tx_polarity   := mac_ser_i.llc_metadata.fdf;
               v_bit_driven    := true;
               -- Signal PCS to start Transmitter Delay Compensation (ISO : 7.3.4)
-              pcs_o.start_tdc <= '1' when mac_ser_i.llc_metadata.fdf = '1';
+              pcs_o.next_bit_is_res <= '1' when mac_ser_i.llc_metadata.fdf = '1';
               if (mac_ser_i.llc_metadata.fdf = c_recessive or mac_ser_i.llc_metadata.ide = '1') then
                 state <= s_res_r0;
               else
@@ -408,7 +411,7 @@ begin
           when s_brs =>
             if (pcs_i.sample_point = '1' and bs_i.valid = '0') then
               v_tx_polarity       := mac_ser_i.llc_metadata.brs;
-              pcs_o.use_data_rate <= mac_ser_i.llc_metadata.brs;
+              pcs_o.next_bit_is_brs <= mac_ser_i.llc_metadata.brs;
               v_bit_driven        := true;
               state               <= s_esi;
             end if;
@@ -492,10 +495,10 @@ begin
                 v_tx_polarity := crc_i.crc((c_crc_21_length - 1) - bit_count);
                 bit_count     <= bit_count + 1;
               else
-                -- CRC delimiter (single recessive).
-                pcs_o.use_data_rate <= '0';
-                state               <= s_ack;
-                bit_count           <= 0;
+                -- CRC delimiter: pulse data_phase_stop to switch PCS back to nominal rate.
+                pcs_o.data_phase_stop <= '1';
+                state                 <= s_ack;
+                bit_count             <= 0;
               end if;
             end if;
 
@@ -510,12 +513,12 @@ begin
 
               if (bit_count = 0) then
                 bit_count <= 1;
-                if (pcs_i.bus_polarity = c_dominant) then
+                if (pcs_i.rx_data = c_dominant) then
                   ack_success_seen <= true;
                 end if;
               elsif (bit_count = 1 and mac_ser_i.llc_metadata.fdf = '1') then
                 bit_count <= 2;
-                if (pcs_i.bus_polarity = c_dominant) then
+                if (pcs_i.rx_data = c_dominant) then
                   ack_success_seen <= true;
                 end if;
               else
@@ -558,7 +561,7 @@ begin
               -----------------------------------------------------------------
               if (bit_count < c_error_flag_width - 1) then
                 -- Passive flag requires 6 consecutive recessive bits so restart count on dominant.
-                if (not overload and fce_i.error_active = '0' and pcs_i.bus_polarity = c_dominant) then
+                if (not overload and fce_i.error_active = '0' and pcs_i.rx_data = c_dominant) then
                   -- Track dominant observation for the ISO 8.1.4.2.c  Exemption 1.
                   saw_dominant_during_flag <= true;
                   bit_count <= 0;
@@ -575,7 +578,7 @@ begin
                 bit_count          <= 0;
                 overload           <= false;
                 state              <= s_error_delimiter;
-                pcs_o.polarity     <= c_recessive;
+                pcs_o.tx_data     <= c_recessive;
                 if (ack_error_caused_flag) then
                   fce_o.error                       <= '1';
                   fce_o.passive_tx_ack_error_exempt_1 <= '1' when fce_i.error_active = '0' and not saw_dominant_during_flag;
@@ -585,8 +588,8 @@ begin
 
           when s_error_delimiter =>
             if (pcs_i.sample_point = '1') then
-              pcs_o.polarity <= c_recessive;
-              if (pcs_i.bus_polarity = c_dominant) then
+              pcs_o.tx_data <= c_recessive;
+              if (pcs_i.rx_data = c_dominant) then
                 -- Dominant during delimiter: track primary-error / delimiter-too-late.
                 if (dominant_run_count = c_error_delimiter_width - 1) then
                   fce_o.error_delimiter_too_late <= '1';
@@ -601,7 +604,7 @@ begin
                 fce_o.error    <= '1' when bit_count /= c_error_delimiter_width - 2;
                 bit_count      <= 0;
                 state          <= s_error_overload;
-                pcs_o.polarity <= c_dominant;
+                pcs_o.tx_data <= c_dominant;
               else
                 if (bit_count = c_error_delimiter_width - 2) then
                   state     <= s_intermission;
@@ -629,8 +632,8 @@ begin
           end if;
 
           -- Only detect errors at the sample point if we are not using transmitter delay compensation (use_data_rate = '0').
-          if (pcs_o.use_data_rate = '0' and polarity_history(0) /= pcs_i.bus_polarity) then
-            if (v_in_arbitration_field and pcs_i.bus_polarity = c_dominant) then
+          if (pcs_o.next_bit_is_brs = '0' and polarity_history(0) /= pcs_i.rx_data) then
+            if (v_in_arbitration_field and pcs_i.rx_data = c_dominant) then
               v_lost_arb := true; -- Recessive bit sent, dominant observed in arbitration field is lost arbitration
             elsif (not v_in_ack_slot) then
               v_enter_error := true; -- Mismatch outside of the ACK slot is a bit error
@@ -640,22 +643,23 @@ begin
           if v_enter_error then -- Error was detected
             -- ACK errors must defer fce_o.error to flag-end so the exemption decision (ISO 8.1.4.2 c) Exc.1) can accompany the strobe.
             fce_o.error               <= '1' when not v_ack_error;
-            pcs_o.polarity            <= c_recessive when fce_i.error_active = '0' else c_dominant;
-            pcs_o.use_data_rate       <= '0';
+            pcs_o.tx_data             <= c_recessive when fce_i.error_active = '0' else c_dominant;
+            pcs_o.next_bit_is_brs     <= '0';
+            pcs_o.data_phase_stop     <= '1';
             mac_ser_o.transfer_status <= c_disturbed;
             was_previous_frame_tx     <= true;
             bit_count                 <= 0;
             dominant_run_count        <= 0;
             state                     <= s_error_overload;
             overload                  <= false;
-            pcs_o.start_tdc                   <= '0';
+            pcs_o.next_bit_is_res     <= '0';
           elsif v_lost_arb then -- Lost arbitration
             mac_ser_o.transfer_status <= c_lost_arb;
             was_previous_frame_tx     <= false;
             bit_count                 <= 0;
             state                     <= s_intermission;
           else -- Drive bit
-            pcs_o.polarity   <= v_tx_polarity;
+            pcs_o.tx_data   <= v_tx_polarity;
             -- Push to polarity history
             polarity_history <= polarity_history(c_tdc_polarity_depth - 2 downto 0) & v_tx_polarity;
             -- Feed bit stuffer
