@@ -163,6 +163,7 @@ begin
         -- Clear strobe signals
         mac_o.sample_point           <= '0';
         mac_o.secondary_sample_point <= '0';
+        mac_o.bit_boundary           <= '0';
         fce_o.idle_condition         <= '0';
         bit_boundary                 <= '0';
         -- Latch bus on clock
@@ -382,8 +383,9 @@ begin
 
                 -- Bit boundary -----------------------------------------------------------
                 elsif seg_count >= ((active_phase_seg2 - 1) - phase2_shortening) then
-                  bit_boundary      <= '1';
-                  segment           <= s_sync_seg;
+                  bit_boundary       <= '1';
+                  mac_o.bit_boundary <= '1';
+                  segment            <= s_sync_seg;
                   seg_count         <= 0;
                   phase2_shortening <= 0;
                   -- Allow sync again now that we've reached the next bit boundary

@@ -84,6 +84,10 @@ architecture rtl of can_mac_fsm is
   signal was_previous_frame_tx                : boolean;
   signal ack_success_seen                     : boolean;
   signal secondary_sample_point_error_pending : boolean;
+  -- Set in RX s_crc path at the delim's MAC-SP. The bit_boundary block at
+  -- the top of p_fsm samples rx_data on the next pcs_i.bit_boundary
+  -- pulse and raises a form error if the sampled level is dominant.
+  signal delim_form_check_pending             : boolean;
   signal skip_sof                             : boolean;
   signal ack_error_caused_flag                : boolean;
   signal saw_dominant_during_flag             : boolean;
@@ -181,6 +185,7 @@ begin
         was_previous_frame_tx                <= false;
         ack_success_seen                     <= false;
         secondary_sample_point_error_pending <= false;
+        delim_form_check_pending             <= false;
         skip_sof                             <= false;
         ack_error_caused_flag                <= false;
         saw_dominant_during_flag             <= false;
@@ -267,6 +272,33 @@ begin
         end if;
 
         -----------------------------------------------------------------
+        -- CRC delimiter form-error check (ISO 11898-1 6.6.10.5).
+        -- The delim's data-phase SP samples too early under realistic
+        -- propagation delay, so the strict form check at the delim's
+        -- MAC-SP would false-fire on every frame. Instead the RX path
+        -- arms delim_form_check_pending at the delim's MAC-SP, and we
+        -- sample rx_data at the very end of the delim's bit time --
+        -- the bit_boundary strobe -- where the recessive level has had
+        -- the delim's nominal phase_seg2 to propagate. A dominant
+        -- level at the bit_boundary is a real form error.
+        --
+        -- The schedule here transitions directly to s_error_overload;
+        -- the next MAC-SP (which would have been ACK bc=0) runs the
+        -- error-overload body instead of s_ack.
+        -----------------------------------------------------------------
+        if (pcs_i.bit_boundary = '1' and delim_form_check_pending) then
+          delim_form_check_pending <= false;
+          if (pcs_i.rx_data = c_dominant) then
+            fce_o.sending_error_overload_flag <= '1';
+            fce_o.error                       <= '1';
+            pcs_o.tx_data                     <= c_recessive when fce_i.error_active = '0' else c_dominant;
+            pcs_o.transmitting                <= '1';
+            state                             <= s_error_overload;
+            bit_count                         <= 0;
+          end if;
+        end if;
+
+        -----------------------------------------------------------------
         -- Working variables
         -----------------------------------------------------------------
         v_bit_driven    := false;
@@ -289,6 +321,7 @@ begin
           mac_ser_o                            <= c_ser_fsm_if_d2s_reset;
           bs_o                                 <= c_mac_fsm_to_bs_fd_if_reset;
           secondary_sample_point_error_pending <= false;
+          delim_form_check_pending             <= false;
           bs_rst                               <= '1';
           crc_rst                              <= '1';
           ack_success_seen                     <= false;
@@ -883,21 +916,16 @@ begin
                     bit_count <= bit_count + 1;
                   else
                     in_data_phase <= false;
-                    -- LIMITATION: the strict ISO form-error check
-                    -- (delim must be recessive) is not implemented on
-                    -- the RX path. At this MAC-SP RX is sampling the
-                    -- delim's data-phase SP (TQ 6 of a 10 TQ data
-                    -- bit), so the bus pin still shows the previous
-                    -- CRC bit's polarity until propagation completes.
-                    -- A correct check would sample at the bit boundary
-                    -- into ACK, where the recessive level has had the
-                    -- delim's full nominal phase_seg2 to propagate
-                    -- through TDC. That requires a new bit_boundary
-                    -- strobe in t_can_mac_pcs_if_s2m, which is a PCS-
-                    -- interface change. Today crc_mismatch covers CRC
-                    -- corruption bit-by-bit; a dominant CRC delim
-                    -- without a corresponding CRC corruption is
-                    -- silently accepted by RX.
+                    -- ISO 11898-1 6.6.10.5 form-error check on the CRC
+                    -- delim is performed at the delim's bit_boundary,
+                    -- not at this MAC-SP. The data-phase SP samples
+                    -- too early under realistic propagation -- the
+                    -- recessive delim has not yet reached the RX bus
+                    -- pin. Arm delim_form_check_pending; the
+                    -- bit_boundary block at the top of p_fsm samples
+                    -- rx_data at the very end of the delim and raises
+                    -- a form error if dominant.
+                    delim_form_check_pending <= true;
                     if crc_mismatch then
                       fce_o.sending_error_overload_flag <= '1';
                       fce_o.error                       <= '1';
@@ -1130,12 +1158,21 @@ begin
             secondary_sample_point_error_pending <= false;
           end if;
 
-          -- Bit error detection at SP - only valid in nominal phase. In data
-          -- phase the bus has multi-bit propagation delay, so the SP-based
-          -- check using polarity_history(0) is meaningless; bit errors there
-          -- are detected via SSP (secondary_sample_point_error_pending).
-          -- Skip during the BRS bit itself and throughout data phase.
-          if (pcs_o.next_bit_is_brs = '0' and not in_data_phase
+          -- Bit error detection at SP - only valid in nominal phase. In
+          -- data phase the bus has multi-bit propagation delay, so the
+          -- SP-based check using polarity_history(0) is meaningless; bit
+          -- errors there are detected via SSP
+          -- (secondary_sample_point_error_pending). The `not in_data_phase`
+          -- gate alone is sufficient: in_data_phase is set at MAC-SP of
+          -- BRS body so the gate suppresses ESI and every subsequent
+          -- data-phase bit. At MAC-SP of BRS itself the check is active
+          -- and passes naturally (BRS-SP is in nominal timing, prop is
+          -- covered, polarity_history(0) holds the BRS value). The
+          -- previous additional `pcs_o.next_bit_is_brs = '0'` gate was
+          -- redundant for the data-phase suppression and only had the
+          -- side-effect of masking real bit errors at the BRS bit, so it
+          -- has been removed.
+          if (not in_data_phase
               and polarity_history(0) /= pcs_i.rx_data) then
             if (v_in_arbitration_field and pcs_i.rx_data = c_dominant) then
               v_lost_arb := true;
