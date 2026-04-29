@@ -838,28 +838,32 @@ begin
                   v_bit_driven := true;
                   if (bit_count < crc_length) then
                     v_tx_polarity := crc_i.crc((c_crc_21_length - 1) - bit_count);
-                    bit_count     <= bit_count + 1;
+                    if (bit_count = crc_length - 1) then
+                      -- Assert data_phase_stop one MAC-SP before the CRC
+                      -- delim SP. The signal is registered, so the PCS
+                      -- observes data_phase_stop = '1' at its NEXT SP --
+                      -- which is the delim SP. The PCS therefore performs
+                      -- the phase switch (active_phase_seg2 <- nominal)
+                      -- at the delim SP, making the delim itself the
+                      -- mixed-timing bit (data-phase before SP, nominal
+                      -- after) and ACK fully nominal. ISO 11898-1
+                      -- 6.6.10.5.
+                      pcs_o.data_phase_stop <= '1';
+                    end if;
+                    bit_count <= bit_count + 1;
                   else
-                    -- TODO: data_phase_stop here lands at the WRONG PCS SP.
-                    -- The PCS reads mac_i.data_phase_stop at its NEXT SP
-                    -- (one PCS-SP after the FSM-SP assertion), so the
-                    -- phase switch happens at ACK bc=0 SP instead of the
-                    -- CRC-delimiter SP. Result: CRC delim ends up fully
-                    -- data-phase and ACK bc=0 becomes the mixed-timing
-                    -- bit, shrinking RX's ACK pulse from 2 us to ~560 ns
-                    -- and only working at one specific delay (300 ns).
-                    -- ISO 11898-1 6.6.10.5 requires CRC delim itself to
-                    -- be the mixed-timing bit and ACK fully nominal.
-                    -- The fix likely needs to assert data_phase_stop one
-                    -- bit earlier (at bc=crc_length-1 SP) AND ensure RX
-                    -- doesn't false-trigger on the ensuing reception
-                    -- timing -- attempted previously and breaks frame 7
-                    -- for reasons not yet understood. See
-                    -- can_mac_pcs_fce_tb's delay sweep (Test 2).
-                    pcs_o.data_phase_stop <= '1';
-                    state                 <= s_ack;
-                    bit_count             <= 0;
-                    in_data_phase         <= false;
+                    -- bit_count = crc_length: CRC delim SP. Phase switch
+                    -- already performed by PCS at this SP via the
+                    -- assertion one bit earlier above. Clear
+                    -- in_data_phase here so the SP-based bit-error check
+                    -- (line ~1117) only goes active starting from ACK
+                    -- bc=0 SP -- it must stay suppressed for the delim
+                    -- itself, whose front half is still data-phase and
+                    -- whose SP samples before the recessive delim level
+                    -- has propagated through TDC.
+                    state         <= s_ack;
+                    bit_count     <= 0;
+                    in_data_phase <= false;
                   end if;
                 else
                   -- Receiver: compare CRC, then handle CRC delimiter
@@ -867,10 +871,17 @@ begin
                     if (pcs_i.rx_data /= crc_i.crc((c_crc_21_length - 1) - bit_count)) then
                       crc_mismatch <= true;
                     end if;
+                    if (bit_count = crc_length - 1) then
+                      -- See TX path comment above: assert one bit early
+                      -- so the RX PCS performs the phase switch at the
+                      -- delim SP, in lockstep with TX's PCS. Both PCSs
+                      -- must use identical active phase-seg widths around
+                      -- the delim/ACK boundary or the bit clocks drift.
+                      pcs_o.data_phase_stop <= '1';
+                    end if;
                     bit_count <= bit_count + 1;
                   else
-                    pcs_o.data_phase_stop <= '1';
-                    in_data_phase         <= false;
+                    in_data_phase <= false;
                     -- NOTE: at this SP RX is still in data phase. With realistic
                     -- bus delays (450 ns one-way) the CRC delimiter that TX has
                     -- driven hasn't yet propagated to the RX bus pin -- RX would

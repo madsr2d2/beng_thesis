@@ -78,11 +78,11 @@ architecture tb of can_mac_pcs_fce_tb is
   -- can be validated against multiple operating points.
   constant c_delay_sweep : t_delay_cfg_arr := (
     (tx_d => 300 ns, rx_d => 300 ns, bus_d => 150 ns),  -- nominal (ISO)
-    (tx_d => 400 ns, rx_d => 400 ns, bus_d => 200 ns),
     (tx_d => 250 ns, rx_d => 250 ns, bus_d => 125 ns),
     (tx_d => 200 ns, rx_d => 200 ns, bus_d => 100 ns),
     (tx_d => 100 ns, rx_d => 100 ns, bus_d =>  50 ns),
-    (tx_d =>  50 ns, rx_d =>  50 ns, bus_d =>  25 ns)
+    (tx_d =>  50 ns, rx_d =>  50 ns, bus_d =>  25 ns),
+    (tx_d => 400 ns, rx_d => 400 ns, bus_d => 200 ns)
   );
   ----------------------------------------------------------------------------
   -- Signals
