@@ -342,11 +342,18 @@ begin
                   mac_o.rx_data                <= rx_i;
                   ssp_seen                     <= '1';
 
-                  if tdc_delay > 0 then
-                    mac_o.tdc_delay <= std_logic_vector(to_unsigned(tdc_delay - 1, mac_o.tdc_delay'length));
-                  else
-                    mac_o.tdc_delay <= std_logic_vector(to_unsigned(tdc_delay, mac_o.tdc_delay'length));
-                  end if;
+                  -- tdc_delay register holds the count of complete data-phase
+                  -- bit boundaries elapsed since first_data_bit_boundary_seen
+                  -- was set (incremented once per boundary while ssp_seen=0,
+                  -- not incremented at boundary 0 itself). When SSP fires
+                  -- inside bit M, the register equals M, and the bus polarity
+                  -- being sampled reflects the TX drive from M bits ago in
+                  -- the polarity_history shift register convention where
+                  -- polarity_history(0) = the drive placed at the most
+                  -- recent MAC-SP. The FSM therefore wants
+                  -- polarity_history(tdc_delay) for its bit-error compare,
+                  -- so we report tdc_delay directly with no offset.
+                  mac_o.tdc_delay <= std_logic_vector(to_unsigned(tdc_delay, mac_o.tdc_delay'length));
                 end if;
               ---------------------------------------------------------------------------
 

@@ -253,14 +253,15 @@ begin
         -- do_hard_sync is a LEVEL signal: held high during quiet/idle states so
         -- the PCS can hard-sync to a SOF edge whenever it arrives (NOT a strobe).
         pcs_o.do_hard_sync                <= '1' when v_in_quiet_field else '0';
-        -- SSP-based deferred bit error detection (ISO 7.3.4). NOTE: the index
-        -- alignment between PCS-reported tdc_delay and our polarity_history
-        -- shift convention needs calibration; with realistic FD bus delays
-        -- the SSP check currently fires false positives in data phase. Left
-        -- as-is for nominal phase compatibility; FD data-phase bit errors
-        -- are not reliably detected. Use of `if false and ...` suppresses
-        -- the check entirely until calibrated.
-        if false and (pcs_i.secondary_sample_point = '1'
+        -- SSP-based deferred bit error detection (ISO 7.3.4).
+        -- The PCS reports tdc_delay = M when SSP fires inside bus bit M
+        -- (counting from the first data-phase bit boundary). At MAC-SSP
+        -- cycle, the polarity_history shift register reflects shifts
+        -- through MAC-SP of bit M-1, so polarity_history(M) holds the
+        -- TX drive that the bus pin currently reflects after the
+        -- propagation delay. Compare against the SSP-sampled rx_data
+        -- and defer the error so it is acted on at the next MAC-SP.
+        if (pcs_i.secondary_sample_point = '1'
             and polarity_history(to_integer(unsigned(pcs_i.tdc_delay))) /= pcs_i.rx_data) then
           secondary_sample_point_error_pending <= true;
         end if;
