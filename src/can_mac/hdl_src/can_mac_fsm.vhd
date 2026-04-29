@@ -840,6 +840,22 @@ begin
                     v_tx_polarity := crc_i.crc((c_crc_21_length - 1) - bit_count);
                     bit_count     <= bit_count + 1;
                   else
+                    -- TODO: data_phase_stop here lands at the WRONG PCS SP.
+                    -- The PCS reads mac_i.data_phase_stop at its NEXT SP
+                    -- (one PCS-SP after the FSM-SP assertion), so the
+                    -- phase switch happens at ACK bc=0 SP instead of the
+                    -- CRC-delimiter SP. Result: CRC delim ends up fully
+                    -- data-phase and ACK bc=0 becomes the mixed-timing
+                    -- bit, shrinking RX's ACK pulse from 2 us to ~560 ns
+                    -- and only working at one specific delay (300 ns).
+                    -- ISO 11898-1 6.6.10.5 requires CRC delim itself to
+                    -- be the mixed-timing bit and ACK fully nominal.
+                    -- The fix likely needs to assert data_phase_stop one
+                    -- bit earlier (at bc=crc_length-1 SP) AND ensure RX
+                    -- doesn't false-trigger on the ensuing reception
+                    -- timing -- attempted previously and breaks frame 7
+                    -- for reasons not yet understood. See
+                    -- can_mac_pcs_fce_tb's delay sweep (Test 2).
                     pcs_o.data_phase_stop <= '1';
                     state                 <= s_ack;
                     bit_count             <= 0;
