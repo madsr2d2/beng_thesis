@@ -84,10 +84,6 @@ architecture rtl of can_mac_fsm is
   signal was_previous_frame_tx                : boolean;
   signal ack_success_seen                     : boolean;
   signal secondary_sample_point_error_pending : boolean;
-  -- Set in RX s_crc path at the delim's MAC-SP. The bit_boundary block at
-  -- the top of p_fsm samples rx_data on the next pcs_i.bit_boundary
-  -- pulse and raises a form error if the sampled level is dominant.
-  signal delim_form_check_pending             : boolean;
   signal skip_sof                             : boolean;
   signal ack_error_caused_flag                : boolean;
   signal saw_dominant_during_flag             : boolean;
@@ -185,7 +181,6 @@ begin
         was_previous_frame_tx                <= false;
         ack_success_seen                     <= false;
         secondary_sample_point_error_pending <= false;
-        delim_form_check_pending             <= false;
         skip_sof                             <= false;
         ack_error_caused_flag                <= false;
         saw_dominant_during_flag             <= false;
@@ -272,33 +267,6 @@ begin
         end if;
 
         -----------------------------------------------------------------
-        -- CRC delimiter form-error check (ISO 11898-1 6.6.10.5).
-        -- The delim's data-phase SP samples too early under realistic
-        -- propagation delay, so the strict form check at the delim's
-        -- MAC-SP would false-fire on every frame. Instead the RX path
-        -- arms delim_form_check_pending at the delim's MAC-SP, and we
-        -- sample rx_data at the very end of the delim's bit time --
-        -- the bit_boundary strobe -- where the recessive level has had
-        -- the delim's nominal phase_seg2 to propagate. A dominant
-        -- level at the bit_boundary is a real form error.
-        --
-        -- The schedule here transitions directly to s_error_overload;
-        -- the next MAC-SP (which would have been ACK bc=0) runs the
-        -- error-overload body instead of s_ack.
-        -----------------------------------------------------------------
-        if (pcs_i.bit_boundary = '1' and delim_form_check_pending) then
-          delim_form_check_pending <= false;
-          if (pcs_i.rx_data = c_dominant) then
-            fce_o.sending_error_overload_flag <= '1';
-            fce_o.error                       <= '1';
-            pcs_o.tx_data                     <= c_recessive when fce_i.error_active = '0' else c_dominant;
-            pcs_o.transmitting                <= '1';
-            state                             <= s_error_overload;
-            bit_count                         <= 0;
-          end if;
-        end if;
-
-        -----------------------------------------------------------------
         -- Working variables
         -----------------------------------------------------------------
         v_bit_driven    := false;
@@ -321,7 +289,6 @@ begin
           mac_ser_o                            <= c_ser_fsm_if_d2s_reset;
           bs_o                                 <= c_mac_fsm_to_bs_fd_if_reset;
           secondary_sample_point_error_pending <= false;
-          delim_form_check_pending             <= false;
           bs_rst                               <= '1';
           crc_rst                              <= '1';
           ack_success_seen                     <= false;
@@ -916,16 +883,28 @@ begin
                     bit_count <= bit_count + 1;
                   else
                     in_data_phase <= false;
-                    -- ISO 11898-1 6.6.10.5 form-error check on the CRC
-                    -- delim is performed at the delim's bit_boundary,
-                    -- not at this MAC-SP. The data-phase SP samples
-                    -- too early under realistic propagation -- the
-                    -- recessive delim has not yet reached the RX bus
-                    -- pin. Arm delim_form_check_pending; the
-                    -- bit_boundary block at the top of p_fsm samples
-                    -- rx_data at the very end of the delim and raises
-                    -- a form error if dominant.
-                    delim_form_check_pending <= true;
+                    -- LIMITATION (intentional, per ISO 11898-1
+                    -- 6.6.10.5 + 6.6.11.6): no direct form-error check
+                    -- is performed on the CRC delimiter. ISO places
+                    -- the delim's SP in the data phase, where prop is
+                    -- not covered, so an SP-based check at this MAC-
+                    -- SP would false-fire on every frame. ISO does not
+                    -- require an alternative RX-side check; delim
+                    -- corruption is detected indirectly:
+                    --   (a) crc_mismatch -- bit-by-bit CRC field check
+                    --       below catches CRC corruption, including
+                    --       the cases where a delim disturbance also
+                    --       disturbs preceding CRC bits.
+                    --   (b) ACK absence -- if RX sees disturbance
+                    --       around the delim and goes to error/over-
+                    --       load, the dominant ACK never appears at
+                    --       TX, which TX detects as a missing ACK and
+                    --       signals an error frame (see ISO Figure 35
+                    --       and the s_ack TX path).
+                    --   (c) optional extended SSP -- ISO Figure 36
+                    --       allows continuing the SSP sequence past
+                    --       the data-phase boundary for TX-side local
+                    --       error detection. Not implemented today.
                     if crc_mismatch then
                       fce_o.sending_error_overload_flag <= '1';
                       fce_o.error                       <= '1';

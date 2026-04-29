@@ -624,16 +624,19 @@ which is bit-rate engineering, not a bug.
   (`gc_nom_prop_seg = 800 ns`) cap the one-way propagation at
   800 ns for the current 1 Mbit/s nominal phase. Beyond that the
   bit-timing generics must be re-tuned.
-- The CRC delim form-error check is implemented on RX. It is not.
-  The strict check was removed because at any non-zero
-  propagation delay the data-phase SP samples the previous CRC
-  bit, not the just-driven recessive delim. A correct check would
-  require a new `bit_boundary` strobe in
-  `t_can_mac_pcs_if_s2m` so the FSM can sample after the delim's
-  nominal phase_seg2 has had time to propagate -- a PCS-interface
-  change deferred for later. Today only `crc_mismatch` is active
-  on the field; a dominant delim without a corresponding CRC
-  corruption is silently accepted by RX.
+- A direct RX-side form-error check is performed on the CRC
+  delim. It is not -- and ISO 11898-1 does not require one. The
+  delim's SP is in the data phase (ISO 6.6.10.5), where prop is
+  not covered, so an SP-based form check would false-fire on
+  every frame. ISO's design instead detects delim disturbance
+  indirectly: (a) `crc_mismatch` for CRC field corruption,
+  (b) ACK absence at the transmitter (if RX goes to error/over-
+  load due to delim disturbance, no dominant ACK appears), and
+  (c) optional extended SSP at the transmitter for local-error
+  coverage (ISO Figure 36, not implemented today). The earlier
+  attempt to use a `bit_boundary` strobe to do an RX form check
+  was reverted because it broke the MAC's "sample at SP"
+  discipline without solving an ISO-mandated requirement.
 
 ### 10.4 How this fits the verification narrative
 

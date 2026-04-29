@@ -265,11 +265,6 @@ package pk_can_types is
     rx_data                : std_logic;                                         -- Bus polarity
     sample_point           : std_logic;                                         -- Sample point strobe
     secondary_sample_point : std_logic;                                         -- Secondary sample point strobe (used in FD frames only)
-    -- Bit boundary strobe (one clk pulse at the end of phase_seg2). Lets the
-    -- MAC sample bus polarity at the very end of a bit time, which is needed
-    -- for ISO 11898-1 6.6.10.5 form-error detection on the CRC delimiter
-    -- (whose data-phase SP samples too early under propagation delay).
-    bit_boundary           : std_logic;
     -- Transmitter delay. This is the index used by the MAC TX FSM to fetch the correct bit from the polarity history shift register.
     -- Used FD frames to compensate for the transmitter delay when checking bit errors (ISO : 7.3.4)
     tdc_delay              : std_logic_vector(integer(ceil(log2(real(c_tdc_polarity_depth)))) - 1 downto 0);
@@ -280,7 +275,6 @@ package pk_can_types is
     rx_data                => c_recessive,
     sample_point           => '0',
     secondary_sample_point => '0',
-    bit_boundary           => '0',
     tdc_delay              => (others => '0')
   );
 
