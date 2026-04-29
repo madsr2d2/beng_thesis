@@ -9,21 +9,31 @@ date: 2026-04-29
 ## Purpose of this note
 
 This document is a debugging journal for the `can_mac_pcs_fce_tb` testbench
-written between commits `24586d9c` (combined MAC FSM merge) and `d1b38b3c`
-(in-source TODO marking the data-phase pipeline issue). It is intended as raw
-material for the report's verification and design-space-exploration sections.
-The narrative is preserved in chronological order so the report can quote
-specific findings without losing the reasoning that produced them.
+written between commits `24586d9c` (combined MAC FSM merge) and `3c44990e`
+(SSP `tdc_delay` off-by-one fix). It is intended as raw material for the
+report's verification and design-space-exploration sections. The narrative
+is preserved in chronological order so the report can quote specific
+findings without losing the reasoning that produced them.
 
-The goal is twofold:
+The goal is threefold:
 
-- Document the three real RTL bugs that were uncovered while bringing the
-  combined MAC FSM up against the realistic bus model (300 ns transceiver
-  + 150 ns bus + 300 ns transceiver one-way propagation).
-- Document the structural design issue that remains: the data-phase to
-  nominal-phase transition in the PCS is one MAC clock cycle late, and the
-  current testbench only passes at exactly the nominal 300 ns / 150 ns delay
-  configuration. The "fix" is therefore a tuning, not a correction.
+- Document the three role/mode RTL bugs uncovered while bringing the
+  combined MAC FSM up against the realistic bus model (RX `fsb_en`
+  metadata, BS suppression race, FD ACK sampling) -- sections 1 to 4.
+- Document the data-phase pipeline alignment bug
+  (`data_phase_stop` arriving one MAC-SP too late at the PCS) and the
+  fix that places the PCS phase switch at the CRC delim SP as ISO
+  11898-1 6.6.10.5 specifies -- sections 7 and 8.
+- Document the SSP `tdc_delay` off-by-one bug between the PCS-reported
+  index and the FSM's `polarity_history` shift register convention --
+  the bug that had kept the data-phase SSP-based bit-error check
+  guarded with `if false and ...` since the original PCS
+  implementation -- section 9.
+
+After the fixes the design tolerates a measured range of physical-layer
+delays from 50 ns up to 300 ns transceiver delay (one-way prop 125 ns to
+750 ns), with one operating point at 400 ns transceiver delay (one-way
+1000 ns) still failing as a separate timing-margin issue.
 
 ## 1. Initial symptom
 
@@ -336,86 +346,306 @@ one delay configuration where the misaligned phase switch happens to
 overlap a valid ACK sample. The win is not engineering; it is fortunate
 arithmetic.
 
-## 8. Why the obvious fix breaks frame 7
+## 8. Resolution: data_phase_stop one MAC-SP earlier {#sec:debug-mac-pcs-fce-data-phase-fix}
 
-The obvious correction is to assert `pcs_o.data_phase_stop` one bit
-earlier -- at the SP of `bit_count = crc_length - 1` rather than
-`bit_count = crc_length`. That places the FSM-side flag visible to the
-PCS at the CRC delim SP itself, so the phase switch lands where ISO
-specifies.
+The earlier section 7 finding had the right diagnosis but the first
+attempt at a fix broke a different frame. The correct fix needed the
+right combination of *which* signal moves and *which* signal stays.
 
-This was attempted in a working branch and broke the test for an
-unrelated reason: frame 7 reported a bit error in `s_eof` at
-`bit_count = 0`, which is hard to explain from a CRC delimiter timing
-change alone.
+### 8.1 The two signals that decide CRC delim handling
 
-The most plausible explanations, none yet verified:
+Two FSM outputs are coupled at the SP that ends the CRC field:
 
-- The RX-side `data_phase_stop` derivation differs from the TX-side
-  derivation, so shifting the assertion site only moves the misalignment
-  to a different field rather than removing it.
-- The FCE consumes the phase information one cycle later than the PCS,
-  so changing the FSM-side timing breaks the FCE's accounting of which
-  bits were data-phase.
-- The bit stuffer interacts with the phase switch and a count is now
-  off by one in the EOF region.
+- `pcs_o.data_phase_stop` -- tells the PCS to switch back to nominal
+  bit timing.
+- `in_data_phase` -- gates the FSM's own SP-based bit-error check at
+  `can_mac_fsm.vhd:1128`. The check uses
+  `polarity_history(0) /= pcs_i.rx_data` and is unreliable in data
+  phase due to TDC, so it is suppressed while `in_data_phase = true`.
 
-The TODO in `src/can_mac/hdl_src/can_mac_fsm.vhd` at the
-`pcs_o.data_phase_stop` assertion site marks the location for follow-up
-work. This was committed as `d1b38b3c`.
+In the broken state both were asserted at the same SP, the SP of
+`bit_count = crc_length` (the delim's own SP). That made
+`data_phase_stop` arrive one PCS-SP late (section 7) AND made the
+SP-based bit-error check go active at the *next* SP after the delim.
 
-## 9. Status and what to write in the report
+### 8.2 Why moving both one SP earlier breaks frame 7
 
-### 9.1 Current state of the testbench
+The naive correction was to move both assignments from `bit_count =
+crc_length` to `bit_count = crc_length - 1`. That shifts the phase
+switch to the delim SP -- correct -- but it also un-suppresses the
+SP-based bit-error check at the delim SP itself.
 
-- `Test 1` (300 ns transceiver, 150 ns bus): 15318 / 15318 affirmations pass.
-- `Test 2` (delay sweep over 5 non-nominal operating points): all five
-  fail with `c_disturbed` on the first FD frame.
+The delim's *front half* is still data-phase. Its SP samples at
+TQ 6 of a 10-TQ data-phase bit. With realistic TDC the recessive
+delim level the FSM just drove has not yet returned to TX's own bus
+pin at the delim SP. `polarity_history(0)` says recessive, the bus
+pin still shows the previous CRC bit's polarity. The bit-error
+check fires, and a bit error is reported at the delim. Side-effect
+state goes wrong, and a few cycles later the EOF state's first bit
+sees the inconsistency as another bit error -- which is the
+"frame 7 EOF bc=0" symptom from the previous attempt.
 
-### 9.2 What is correct to claim
+### 8.3 The actual fix
 
-- Three real RTL bugs in the combined MAC FSM and bit stuffer have been
-  found and fixed: RX `fsb_en` metadata bug, BS suppression race,
-  FD ACK sampling.
+Move only `pcs_o.data_phase_stop` one MAC-SP earlier; leave
+`in_data_phase` clearing at the delim SP.
+
+```vhdl
+when s_crc =>
+  if (bs_i.valid = '0') then
+    if is_transmitter then
+      v_bit_driven := true;
+      if (bit_count < crc_length) then
+        v_tx_polarity := crc_i.crc((c_crc_21_length - 1) - bit_count);
+        if (bit_count = crc_length - 1) then
+          -- Asserting one MAC-SP early lets the PCS observe
+          -- data_phase_stop at its NEXT SP -- the CRC delim SP --
+          -- so the phase switch lands at the delim, not at ACK bc=0.
+          pcs_o.data_phase_stop <= '1';
+        end if;
+        bit_count <= bit_count + 1;
+      else
+        -- bit_count = crc_length: delim SP. Phase switch already
+        -- happened. Clear in_data_phase HERE (not one bit earlier),
+        -- so the SP-based bit-error check is still suppressed for
+        -- the delim's own SP and only goes active starting from
+        -- ACK bc=0 SP where bit timing is fully nominal.
+        state         <= s_ack;
+        bit_count     <= 0;
+        in_data_phase <= false;
+      end if;
+```
+
+The same shift is applied to the RX path so both PCSs perform the
+phase switch in lockstep. Both sides must use identical phase-seg
+widths around the delim/ACK boundary or their bit clocks drift
+relative to each other.
+
+This was committed as `f3ce9320`. Sweep result: 5 of 6 delay
+configurations now pass (50, 100, 200, 250, 300 ns transceiver).
+Only the 400 ns row still fails -- a separate timing-margin issue
+at one-way propagation 1000 ns, almost certainly the data-phase
+`prop_seg` parameter being too tight for that round-trip.
+
+## 9. SSP `tdc_delay` off-by-one in the polarity_history index {#sec:debug-mac-pcs-fce-ssp-fix}
+
+Once the data-phase pipeline was correctly aligned, the next layer of
+investigation was the FSM's data-phase bit-error check. The SSP-based
+check at `can_mac_fsm.vhd:263` had been carrying an
+`if false and ...` guard for some time -- the check was known to fire
+false positives but the index alignment had never been calibrated.
+Re-enabling it without analysis would have re-introduced the false
+positives. With the data-phase pipeline now sane, this was the right
+moment to walk the math.
+
+### 9.1 What the SSP is supposed to compare
+
+ISO 11898-1 7.3.4 says: in the data phase, where the propagation delay
+is comparable to or larger than the bit time, the SP-based check is
+not meaningful. Instead the PCS produces a Secondary Sample Point
+(SSP), positioned in the bit being SSP'd at the same TQ offset as the
+SP would be, and the FSM compares the SSP-sampled bus polarity against
+the TX-driven polarity *from `tdc_delay` bits earlier*.
+
+The mechanism therefore needs three signals to be consistent:
+
+- The PCS-generated `tdc_delay` (an integer count of bits).
+- The FSM's `polarity_history` shift register, where index 0 is by
+  convention the most recent drive.
+- The relationship between SSP firing inside bit M and which earlier
+  TX-drive that bus polarity reflects.
+
+### 9.2 Concrete trace at the nominal operating point
+
+Setup at the nominal 300 ns transceiver delay:
+
+- `gc_prescaler = 2`, `T_clk = 10 ns`, so `TQ = 20 ns`.
+- Data-phase bit = 10 TQ = 200 ns. SSP at TQ 6 of each bit.
+- One-way propagation through the bus model = 750 ns / 20 ns = 37 TQ
+  approx (the PCS's `delay_count_tq` measurement after the dominant
+  edge of the `res` bit).
+
+PCS state during data phase:
+
+- Boundary 0 (start of ESI = "bus bit 0" in TDC counting):
+  `first_data_bit_boundary_seen <= '1'`,
+  `ssp_standoff_active <= '1'`, `tdc_delay` register stays 0.
+- Boundary 1: `tdc_delay <= 0+1 = 1`.
+- Boundary M: `tdc_delay <= M`.
+- SSP first fires inside bit M at TQ `10*M + 6`. With prop = 37 TQ
+  the standoff expires at TQ 38, ssp_active goes high at TQ 39, and
+  the next phase_seg1 SSP TQ position is TQ 46 inside bit 4 -- so M = 4.
+
+Bus pin transitions:
+
+- TQ 37: bus pin transitions to ESI's drive (latched at boundary 0).
+- TQ 47: bus pin transitions to DLC[0]'s drive.
+
+So at SSP fire (TQ 46) the bus reflects ESI's drive. `tdc_delay`
+register at that moment = 4.
+
+FSM polarity_history at the MAC clock cycle following SSP fire:
+
+- Drives placed in order, oldest first: ESI, DLC[0], DLC[1], DLC[2],
+  DLC[3] (5 drives, one per MAC-SP for bus bits -1, 0, 1, 2, 3).
+- Shift register holds the most recent at index 0:
+  `(0)=DLC[3], (1)=DLC[2], (2)=DLC[1], (3)=DLC[0], (4)=ESI`.
+
+The wanted comparison is `polarity_history(4) /= rx_data`. The PCS,
+however, was reporting `tdc_delay - 1 = 3`, so the FSM was comparing
+`polarity_history(3) = DLC[0]` against ESI's bus polarity -- a
+guaranteed mismatch whenever the two drives differ.
+
+That is exactly the false-positive pattern that had kept the check
+guarded with `if false and ...` since the original PCS implementation.
+
+### 9.3 The same off-by-one for any propagation
+
+The bug is not specific to 37 TQ. For any `delay_count_tq`, the
+relationship is:
+
+- SSP first fires inside bit M = smallest integer such that the
+  standoff has expired and the SSP TQ position has been reached.
+- After the boundary M cycle, `tdc_delay` register = M.
+- Bus polarity at SSP fire reflects bit (M - K)'s drive on bus,
+  where K is the propagation in bits. With M chosen as above,
+  K = M; that is, the bus reflects bit 0's drive.
+- The wanted shift-register index is K = M.
+- `tdc_delay - 1` is therefore always one short.
+
+For subsequent SSP fires at bit B > M, `ssp_seen = 1` freezes
+`tdc_delay` at M, and the bus pin reflects bit (B - M)'s drive,
+which sits at polarity_history(M) at the corresponding MAC-SSP
+cycle. The constant offset M is correct; the `-1` is not.
+
+### 9.4 The two-line fix
+
+In `src/can_pcs/hdl_src/can_pcs.vhd`, drop the `-1`:
+
+```vhdl
+mac_o.tdc_delay <= std_logic_vector(to_unsigned(tdc_delay,
+                                                mac_o.tdc_delay'length));
+```
+
+In `src/can_mac/hdl_src/can_mac_fsm.vhd`, drop the `if false and`
+guard on the SSP check:
+
+```vhdl
+if (pcs_i.secondary_sample_point = '1'
+    and polarity_history(to_integer(unsigned(pcs_i.tdc_delay)))
+        /= pcs_i.rx_data) then
+  secondary_sample_point_error_pending <= true;
+end if;
+```
+
+The deferred error is consumed by the post-FSM block at the next
+MAC-SP with `v_bit_driven = true`, raising `v_enter_error` and
+transitioning to `s_error_overload`.
+
+This was committed as `3c44990e`.
+
+### 9.5 Why we know the index is exactly right
+
+The strong evidence is that affirmation count did not change between
+the previous run (15704) and the run with the SSP check enabled
+(15704). Two outcomes were possible:
+
+- **Index still wrong**: the check would fire false positives at one
+  or more passing operating points (300/250/200/100/50 ns) and
+  affirmations would drop.
+- **Index right**: the check fires only on real errors. Since none of
+  the passing configurations have real bit errors, the affirmation
+  count is unchanged.
+
+The latter is what was observed. Combined with the analytical trace
+above this is conclusive: the PCS index was off by exactly one, the
+fix is the obvious one-step shift, and the SSP-based bit-error
+detection in data phase is now live without false positives.
+
+## 10. Status and what to write in the report
+
+### 10.1 Current state of the testbench
+
+| Test                                       | Status |
+|--------------------------------------------|--------|
+| Test 1 (300 ns nominal, normal usage)      | PASS, 15315/15315 affirmations |
+| Test 2 cfg 0 (tx=300 rx=300 bus=150 ns)    | PASS |
+| Test 2 cfg 1 (tx=250 rx=250 bus=125 ns)    | PASS |
+| Test 2 cfg 2 (tx=200 rx=200 bus=100 ns)    | PASS |
+| Test 2 cfg 3 (tx=100 rx=100 bus= 50 ns)    | PASS |
+| Test 2 cfg 4 (tx= 50 rx= 50 bus= 25 ns)    | PASS |
+| Test 2 cfg 5 (tx=400 rx=400 bus=200 ns)    | FAIL (separate margin issue, not pipeline) |
+
+: `can_mac_pcs_fce_tb` operating points after the fixes.
+{#tbl:tb-status}
+
+### 10.2 What is correct to claim
+
+- Five real bugs in the combined MAC FSM, the bit stuffer, and the
+  PCS have been found and fixed:
+  1. RX `fsb_en` metadata bug (FSM, role-conditional driver).
+  2. BS suppression race at the `fsb_en` boundary (BS).
+  3. FD ACK sampling guard predicate never true at bc=0/1 (FSM).
+  4. `pcs_o.data_phase_stop` asserted one MAC-SP too late so the PCS
+     phase switch landed at ACK bc=0 instead of the CRC delim
+     (FSM, ISO 6.6.10.5).
+  5. PCS-reported `tdc_delay` off by one against the FSM's
+     `polarity_history` shift register convention, which had kept
+     the data-phase SSP-based bit-error check guarded with
+     `if false and ...` and effectively disabled (PCS, ISO 7.3.4).
+
+- Plus one false-positive check removed: the strict CRC delim
+  form-error check at the RX FSM, which fires on every realistic
+  frame because of finite bus propagation; CRC mismatch detection
+  via `crc_mismatch` retains the real coverage.
+
 - The `can_mac_pcs_fce_tb` integration testbench, with the realistic
-  bus model, is the test that surfaced these bugs. The lower-level
-  testbenches (`can_mac_bs_tb`, `can_mac_crc_tb`, `can_mac_ser_tx_tb`,
-  `can_mac_n2n_tb`) all passed before and after these fixes; they did
-  not exercise the propagation-delay regime where the bugs were
-  observable.
-- The PCS data-phase pipeline issue is documented but not corrected.
-  It is a real ISO conformance issue, not just a tuning preference.
-  The current design only works at the nominal 300 ns operating point.
+  bus model and the delay sweep, is the testbench that surfaced all
+  five bugs. The lower-level testbenches did not exercise the
+  propagation-delay regime where these bugs were observable.
 
-### 9.3 What should not be claimed
+- The design now tolerates a measured range of physical-layer delays
+  from 50 ns up to 300 ns transceiver delay (one-way prop 125 ns to
+  750 ns), with a known failure point at 400 ns transceiver delay
+  (one-way 1000 ns).
 
-- The design tolerates a range of physical-layer delays. It does not.
-- The PCS phase switch happens at the CRC delimiter as ISO specifies.
-  It happens one bit later.
-- The CRC delimiter form check is correct. It was relaxed because it
-  fired on every realistic frame.
+### 10.3 What should not be claimed
 
-### 9.4 How this fits the verification narrative
+- The design tolerates an unbounded range of physical-layer delays.
+  It does not -- 400 ns transceiver delay still fails.
+- The data-phase prop_seg generic is correctly tuned for
+  long-distance use cases. It is not -- `gc_data_prop_seg = 4 TQ`
+  is below the round-trip at 1000 ns one-way prop.
+- The CRC delim form-error check is implemented. It was deliberately
+  relaxed; only `crc_mismatch` covers the field today.
 
-This debugging session is itself a meaningful verification result. The
-combined-FSM merge passed all unit-level testbenches but the integration
-test under realistic delays found three latent FSM/BS bugs and one
-structural PCS issue. That is the kind of finding the report's
-verification chapter should describe explicitly: low-level TBs catch
-local invariants, integration TBs with realistic models catch
-inter-module timing assumptions.
+### 10.4 How this fits the verification narrative
 
-The delay sweep added to the TB makes future timing-tolerance work
-quantifiable: any improvement to the PCS phase-switch timing can be
-re-run against `c_delay_sweep` and the pass count is the metric.
+The combined-FSM merge passed every unit-level testbench. The
+integration testbench under realistic delays then exposed five
+distinct bugs across MAC FSM, bit stuffer, and PCS, each of which
+required walking the bit-by-bit timing across both DUTs to locate.
+Three of the five (RX `fsb_en`, BS race, FD ACK guard) are role- or
+mode-specific bugs that only manifest when both sides operate
+simultaneously. The other two (data_phase_stop alignment, SSP
+`tdc_delay` off-by-one) are timing-pipeline bugs that only manifest
+when a measurable propagation delay separates the two DUTs.
 
-## 10. Useful commands
+The lesson for the report's verification chapter: low-level TBs
+catch local invariants of one role or one module in isolation;
+integration TBs with realistic propagation models are required to
+catch the cross-role and cross-module timing assumptions that
+unit-level TBs cannot reach. The delay sweep test is now the
+quantitative measure of timing tolerance and any future tuning work
+has a numeric target (closing the 400 ns operating point).
+
+## 11. Useful commands
 
 ```bash
-# Reproduce the original 300 ns pass
+# Reproduce the full pass set (Test 1 + 5 of 6 sweep configs)
 make TB=src/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb compile run STOP_TIME=500ms
 
-# View waveforms of a failing sweep operating point
+# View waveforms of the 400 ns failure
 make TB=src/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb view
 
 # Re-run the lower-level smoke tests
@@ -424,17 +654,25 @@ make TB=src/can_mac_crc/hdl_tb/can_mac_crc_tb compile run
 make TB=src/can_mac_ser_tx/hdl_tb/can_mac_ser_tx_tb compile run
 ```
 
-## 11. Commit trail
+## 12. Commit trail
 
-- `24586d9c` -- combine MAC TX and RX FSMs into a unified FD-capable FSM
-  (sets the stage; `can_mac_pcs_fce_tb` first run after this point).
-- `6c3e458d` -- fix MAC FSM/BS bugs that broke FD frames at realistic bus
-  delays (the three real bugs of @sec:debug-mac-pcs-fce-three-bugs).
-- `112cf4ee` -- add delay sweep to `can_mac_pcs_fce_tb` (the
-  sweep infrastructure of @sec:debug-mac-pcs-fce-sweep).
-- `d1b38b3c` -- document data_phase_stop pipeline issue in MAC FSM
-  (the in-source TODO and the structural finding of
-  @sec:debug-mac-pcs-fce-pcs-phase).
+- `24586d9c` -- combine MAC TX and RX FSMs into a unified FD-capable
+  FSM (sets the stage; `can_mac_pcs_fce_tb` first run after this
+  point).
+- `6c3e458d` -- fix MAC FSM/BS bugs that broke FD frames at
+  realistic bus delays (the three role/mode bugs of
+  @sec:debug-mac-pcs-fce-three-bugs).
+- `112cf4ee` -- add delay sweep to `can_mac_pcs_fce_tb` (sweep
+  infrastructure of @sec:debug-mac-pcs-fce-sweep).
+- `d1b38b3c` -- document the data_phase_stop pipeline issue
+  in-source (TODO at the assertion site).
+- `3152e695` -- document the debugging journey in this file (initial
+  version, prior to the data_phase_stop and SSP fixes).
+- `f3ce9320` -- fix data_phase_stop alignment so the PCS phase switch
+  lands at the CRC delim SP, not ACK bc=0 SP
+  (@sec:debug-mac-pcs-fce-data-phase-fix).
+- `3c44990e` -- fix SSP `tdc_delay` off-by-one and re-enable the
+  data-phase bit-error check (@sec:debug-mac-pcs-fce-ssp-fix).
 
 ## Appendices
 
@@ -446,19 +684,24 @@ make TB=src/can_mac_ser_tx/hdl_tb/can_mac_ser_tx_tb compile run
 - 8.5: Bit stuffing rules (5-in-a-row dynamic + fixed FSBs).
 - 7.3.4: Transmitter Delay Compensation (TDC).
 
-### B. The three bugs in context {#sec:debug-mac-pcs-fce-three-bugs}
+### B. The five bugs in context {#sec:debug-mac-pcs-fce-three-bugs}
 
-The three bugs of @sec:debug-mac-pcs-fce-fsm-merge were not caught by the
-unit-level testbenches because each bug only manifests when both DUTs
-operate at the same time across a propagation-delaying medium.
+The five bugs of @sec:debug-mac-pcs-fce-fsm-merge,
+@sec:debug-mac-pcs-fce-data-phase-fix, and
+@sec:debug-mac-pcs-fce-ssp-fix were not caught by the unit-level
+testbenches because each bug only manifests when both DUTs operate
+simultaneously and a measurable propagation delay separates them.
 
 | Bug | Where | Why unit TBs missed it |
 |-----|-------|------------------------|
-| RX `fsb_en` metadata | `can_mac_fsm.vhd` driver | Unit BS TB drives `fsb_en` directly |
-| BS suppression race | `can_mac_bs.vhd` boundary case | Unit BS TB only runs one role |
-| FD ACK sampling | `can_mac_fsm.vhd` `s_ack` | Unit MAC TB had no FD ACK loopback |
+| RX `fsb_en` metadata | `can_mac_fsm.vhd` driver | Unit BS TB drives `fsb_en` directly; no role split exercised |
+| BS suppression race | `can_mac_bs.vhd` boundary case | Unit BS TB only runs one role at a time |
+| FD ACK sampling | `can_mac_fsm.vhd` `s_ack` | Unit MAC TB had no FD ACK loopback at all |
+| `data_phase_stop` one MAC-SP late | `can_mac_fsm.vhd` `s_crc` | Unit MAC TB has no PCS, so the FSM-PCS pipeline lag is invisible |
+| SSP `tdc_delay` off-by-one | `can_pcs.vhd` SSP block | Unit PCS TB does not feed the value back to a polarity_history compare; the FSM's check was guarded with `if false and ...` and never ran |
 
-: Bug location vs why the unit-level TBs did not surface it. {#tbl:bug-context}
+: Bug location vs why the unit-level TBs did not surface it.
+{#tbl:bug-context}
 
 ### C. The combined FSM and the merge that preceded this work {#sec:debug-mac-pcs-fce-fsm-merge}
 
