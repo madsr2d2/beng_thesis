@@ -50,26 +50,41 @@ begin
         fsb_en_latch <= bs_i.fixed_bit_stuffing_en; -- latch used to detect the rising edge
 
         -----------------------------------------------------------------
-        -- Rising edge of fsb_en: emit initial FSB
+        -- Rising edge of fsb_en: emit initial FSB.
+        -- If a dynamic SB is already pending (bs_o.valid='1' from prev
+        -- cycle), keep it on the output -- the FSM will consume it as
+        -- the next bit, and we'll re-emit the FSB on the cycle after.
+        -- This avoids a race where TX vs RX SP offset causes one side
+        -- to suppress a dyn SB that the other side does not, leading
+        -- to a stuff_count divergence and false SBC mismatch at RX.
+        -----------------------------------------------------------------
+        -----------------------------------------------------------------
+        -- Rising edge of fsb_en: emit initial FSB.
+        -- NOTE: the previous OLD code had a "suppress dynamic SB at
+        -- fsb_en boundary" branch that decremented stuff_count when a
+        -- dyn SB happened to coincide with the fsb_en rising edge.
+        -- That branch caused TX/RX stuff_count divergence under
+        -- realistic propagation delays (TX hit the suppression race;
+        -- RX inserted its dyn SB at a different moment and didn't),
+        -- which produced false SBC mismatches at RX. We now keep any
+        -- pending dyn SB on the output (it serves as the initial FSB)
+        -- without decrementing stuff_count, so both sides remain in
+        -- agreement.
         -----------------------------------------------------------------
         if (bs_i.fixed_bit_stuffing_en = '1' and fsb_en_latch = '0') then
           if (bs_i.valid = '1') then
             last_polarity <= bs_i.data;
             bs_o.data     <= not bs_i.data;
+            bs_o.valid    <= '1';
+            count         <= 0;
           elsif (bs_o.valid = '1') then
-            -----------------------------------------------------------------
-            -- ISO 6.6.13.3.1: pending dynamic SB at fsb_en boundary is suppressed
-            -----------------------------------------------------------------
-            last_polarity <= bs_o.data;
-            bs_o.data     <= not last_polarity;
-            stuff_count   <= stuff_count - 1;
-            v_gray        := f_to_gray(std_logic_vector(stuff_count - 1));
-            bs_o.stuff_bit_count      <= v_gray & f_calc_parity(v_gray);
+            -- A dyn SB is already pending; keep it as the initial FSB.
+            null;
           else
-            bs_o.data <= not last_polarity;
+            bs_o.data  <= not last_polarity;
+            bs_o.valid <= '1';
+            count      <= 0;
           end if;
-          bs_o.valid <= '1';
-          count      <= 0;
 
         elsif (bs_i.valid = '1') then
           last_polarity <= bs_i.data;

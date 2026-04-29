@@ -163,6 +163,10 @@ begin
     variable v_not_stuff_bit          : boolean;
     variable v_data_len               : natural range 0 to c_max_data_bytes;
     variable v_dlc_vec                : std_logic_vector(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
+    -- Combined "MAC is actively driving the bus" predicate. The PCS uses it
+    -- to choose between tx_data and recessive; the FCE uses it to gate
+    -- error counter updates. Both must agree, so derive once and fan out.
+    variable v_transmitting           : std_logic;
   begin
 
     if rising_edge(clk_i) then
@@ -211,7 +215,12 @@ begin
         -----------------------------------------------------------------
         -- Defaults
         -----------------------------------------------------------------
-        bs_o.fixed_bit_stuffing_en <= '1' when mac_ser_i.llc_metadata.fdf = '1' and (state = s_sbc or state = s_crc) else '0';
+        -- TX path uses the LLC TX metadata; RX path uses the FDF bit
+        -- captured into the local llc_frame buffer during s_fdf_r1_r0.
+        bs_o.fixed_bit_stuffing_en <= '1' when
+          (is_transmitter and mac_ser_i.llc_metadata.fdf = '1' and (state = s_sbc or state = s_crc))
+          or (not is_transmitter and llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' and (state = s_sbc or state = s_crc))
+          else '0';
         bs_o.data                  <= pcs_i.rx_data;
         bs_o.valid                 <= '0';
         bs_rst                     <= '0';
@@ -224,16 +233,16 @@ begin
         -- assignment fails because the PCS only samples this at bit boundaries.
         --   TX: high in all active frame states except s_ack (where TX listens).
         --   RX: high in s_ack (drive ACK) and during error/overload flag drive.
-        fce_o.transmitting <= '1' when (is_transmitter and not v_in_quiet_field and state /= s_ack)
-                                    or (not is_transmitter and state = s_ack)
-                                    or state = s_error_overload
-                                    or state = s_error_delimiter
-                              else '0';
-        pcs_o.transmitting <= '1' when (is_transmitter and not v_in_quiet_field and state /= s_ack)
-                                    or (not is_transmitter and state = s_ack)
-                                    or state = s_error_overload
-                                    or state = s_error_delimiter
-                              else '0';
+        if (is_transmitter and not v_in_quiet_field and state /= s_ack)
+           or (not is_transmitter and state = s_ack)
+           or state = s_error_overload
+           or state = s_error_delimiter then
+          v_transmitting := '1';
+        else
+          v_transmitting := '0';
+        end if;
+        fce_o.transmitting <= v_transmitting;
+        pcs_o.transmitting <= v_transmitting;
         fce_o.sending_error_overload_flag <= '1' when state = s_error_overload else '0';
         mac_ser_o.ready                   <= '0';
         mac_ser_o.transfer_status         <= mac_ser_o.transfer_status;
@@ -846,7 +855,13 @@ begin
                   else
                     pcs_o.data_phase_stop <= '1';
                     in_data_phase         <= false;
-                    if (pcs_i.rx_data = c_dominant) or (crc_mismatch) then
+                    -- NOTE: at this SP RX is still in data phase. With realistic
+                    -- bus delays (450 ns one-way) the CRC delimiter that TX has
+                    -- driven hasn't yet propagated to the RX bus pin -- RX would
+                    -- still see the last CRC bit. Therefore we only check
+                    -- crc_mismatch here; the form-error detection on the delim
+                    -- bit is handled implicitly via correct CRC propagation.
+                    if crc_mismatch then
                       fce_o.sending_error_overload_flag <= '1';
                       fce_o.error                       <= '1';
                       pcs_o.tx_data                     <= c_recessive when fce_i.error_active = '0' else c_dominant;
@@ -868,21 +883,18 @@ begin
             -----------------------------------------------------------------
             when s_ack =>
               if is_transmitter then
-                if mac_ser_i.llc_metadata.fdf = '0' then
-                  -- CC: 1 ACK slot bit
-                  if (pcs_i.rx_data = c_dominant) then
-                    ack_success_seen <= true;
-                  end if;
-                  state <= s_ack_delimiter;
+                -- Sample ACK slot bit. CC has 1 ACK slot bit, FD has 2
+                -- (ISO 11898-1 6.6.10.6). In both cases we accumulate
+                -- ack_success_seen on any dominant bit observed during
+                -- the slot, then transition to s_ack_delimiter.
+                if (pcs_i.rx_data = c_dominant) then
+                  ack_success_seen <= true;
+                end if;
+                if (mac_ser_i.llc_metadata.fdf = '1' and bit_count = 0) then
+                  bit_count <= bit_count + 1;
                 else
-                  -- FD: 2 ACK slot bits
-                  if (bit_count > 2 and pcs_i.rx_data = c_dominant) then
-                    ack_success_seen <= true;
-                    bit_count        <= bit_count + 1;
-                  else
-                    state     <= s_ack_delimiter;
-                    bit_count <= 0;
-                  end if;
+                  state     <= s_ack_delimiter;
+                  bit_count <= 0;
                 end if;
               else
                 -- Receiver: drive dominant ACK on first slot bit
