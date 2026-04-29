@@ -883,12 +883,21 @@ begin
                     bit_count <= bit_count + 1;
                   else
                     in_data_phase <= false;
-                    -- NOTE: at this SP RX is still in data phase. With realistic
-                    -- bus delays (450 ns one-way) the CRC delimiter that TX has
-                    -- driven hasn't yet propagated to the RX bus pin -- RX would
-                    -- still see the last CRC bit. Therefore we only check
-                    -- crc_mismatch here; the form-error detection on the delim
-                    -- bit is handled implicitly via correct CRC propagation.
+                    -- LIMITATION: the strict ISO form-error check
+                    -- (delim must be recessive) is not implemented on
+                    -- the RX path. At this MAC-SP RX is sampling the
+                    -- delim's data-phase SP (TQ 6 of a 10 TQ data
+                    -- bit), so the bus pin still shows the previous
+                    -- CRC bit's polarity until propagation completes.
+                    -- A correct check would sample at the bit boundary
+                    -- into ACK, where the recessive level has had the
+                    -- delim's full nominal phase_seg2 to propagate
+                    -- through TDC. That requires a new bit_boundary
+                    -- strobe in t_can_mac_pcs_if_s2m, which is a PCS-
+                    -- interface change. Today crc_mismatch covers CRC
+                    -- corruption bit-by-bit; a dominant CRC delim
+                    -- without a corresponding CRC corruption is
+                    -- silently accepted by RX.
                     if crc_mismatch then
                       fce_o.sending_error_overload_flag <= '1';
                       fce_o.error                       <= '1';

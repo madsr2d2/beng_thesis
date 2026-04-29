@@ -574,10 +574,18 @@ detection in data phase is now live without false positives.
 | Test 2 cfg 2 (tx=200 rx=200 bus=100 ns)    | PASS |
 | Test 2 cfg 3 (tx=100 rx=100 bus= 50 ns)    | PASS |
 | Test 2 cfg 4 (tx= 50 rx= 50 bus= 25 ns)    | PASS |
-| Test 2 cfg 5 (tx=400 rx=400 bus=200 ns)    | FAIL (separate margin issue, not pipeline) |
 
 : `can_mac_pcs_fce_tb` operating points after the fixes.
 {#tbl:tb-status}
+
+A previously-included sixth configuration (tx=400 rx=400 bus=200 ns,
+one-way 1000 ns) was removed in `bba30aa8` because it violates the
+ISO 11898-1 7.3.5.1 prop_seg constraint. With the PCS's
+`gc_nom_prop_seg = 40 TQ * 20 ns = 800 ns`, the maximum supported
+one-way propagation is 800 ns; the 1000 ns operating point is
+200 ns over spec. To exercise that delay the bit-timing generics
+must be changed first (slower nominal bit rate or larger TQ),
+which is bit-rate engineering, not a bug.
 
 ### 10.2 What is correct to claim
 
@@ -612,12 +620,20 @@ detection in data phase is now live without false positives.
 ### 10.3 What should not be claimed
 
 - The design tolerates an unbounded range of physical-layer delays.
-  It does not -- 400 ns transceiver delay still fails.
-- The data-phase prop_seg generic is correctly tuned for
-  long-distance use cases. It is not -- `gc_data_prop_seg = 4 TQ`
-  is below the round-trip at 1000 ns one-way prop.
-- The CRC delim form-error check is implemented. It was deliberately
-  relaxed; only `crc_mismatch` covers the field today.
+  It does not -- the bit-timing constraints
+  (`gc_nom_prop_seg = 800 ns`) cap the one-way propagation at
+  800 ns for the current 1 Mbit/s nominal phase. Beyond that the
+  bit-timing generics must be re-tuned.
+- The CRC delim form-error check is implemented on RX. It is not.
+  The strict check was removed because at any non-zero
+  propagation delay the data-phase SP samples the previous CRC
+  bit, not the just-driven recessive delim. A correct check would
+  require a new `bit_boundary` strobe in
+  `t_can_mac_pcs_if_s2m` so the FSM can sample after the delim's
+  nominal phase_seg2 has had time to propagate -- a PCS-interface
+  change deferred for later. Today only `crc_mismatch` is active
+  on the field; a dominant delim without a corresponding CRC
+  corruption is silently accepted by RX.
 
 ### 10.4 How this fits the verification narrative
 
