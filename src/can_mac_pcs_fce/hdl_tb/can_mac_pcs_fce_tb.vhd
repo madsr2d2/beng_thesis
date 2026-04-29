@@ -55,10 +55,35 @@ architecture tb of can_mac_pcs_fce_tb is
   constant c_avalon_eop_byte : std_logic_vector := "01";
   constant c_avalon_byte     : std_logic_vector := "00";
 
-  -- Bus/transceiver delays --------------------------------------------------
-  constant c_bus_delay_max        : time := 150 ns;
-  constant c_transceiver_tx_delay : time := 300 ns;
-  constant c_transceiver_rx_delay : time := 300 ns;
+  -- Bus/transceiver delays. Driven from signals so the test sequencer can
+  -- sweep across delay configurations and confirm the design is robust to a
+  -- range of physical timings (not tuned to one specific value).
+  signal s_bus_delay        : time := 150 ns;
+  signal s_transceiver_tx_d : time := 300 ns;
+  signal s_transceiver_rx_d : time := 300 ns;
+
+  -- Delay-sweep configuration table. Each entry is (transceiver_tx,
+  -- transceiver_rx, bus). Round-trip propagation = 2*(tx + rx) + 2*bus.
+  type t_delay_cfg is record
+    tx_d  : time;
+    rx_d  : time;
+    bus_d : time;
+  end record;
+  type t_delay_cfg_arr is array (natural range <>) of t_delay_cfg;
+  -- The sweep starts with the nominal (ISO-derived) configuration which is
+  -- known to pass, then increments toward higher delays first and lower
+  -- delays after. Currently only the nominal config passes -- see TODO in
+  -- can_mac_fsm.vhd / can_mac_bs.vhd for the design-tuning issue this
+  -- exposes. The sweep is included so any future timing-tolerance fixes
+  -- can be validated against multiple operating points.
+  constant c_delay_sweep : t_delay_cfg_arr := (
+    (tx_d => 300 ns, rx_d => 300 ns, bus_d => 150 ns),  -- nominal (passes today)
+    (tx_d => 400 ns, rx_d => 400 ns, bus_d => 200 ns),
+    (tx_d => 250 ns, rx_d => 250 ns, bus_d => 125 ns),
+    (tx_d => 200 ns, rx_d => 200 ns, bus_d => 100 ns),
+    (tx_d => 100 ns, rx_d => 100 ns, bus_d =>  50 ns),
+    (tx_d =>  50 ns, rx_d =>  50 ns, bus_d =>  25 ns)
+  );
   ----------------------------------------------------------------------------
   -- Signals
   ----------------------------------------------------------------------------
@@ -220,13 +245,13 @@ begin
   p_tx_onto_bus : process is
   begin
     wait on tx_from_tx_dut;
-    tx_on_bus_at_tx <= transport tx_from_tx_dut after c_transceiver_tx_delay;
+    tx_on_bus_at_tx <= transport tx_from_tx_dut after s_transceiver_tx_d;
   end process;
 
   p_tx_loopback : process is
   begin
     wait on bus_at_tx;
-    rx_at_tx_dut <= transport bus_at_tx after c_transceiver_rx_delay;
+    rx_at_tx_dut <= transport bus_at_tx after s_transceiver_rx_d;
   end process;
 
   -- Bus at RX DUT
@@ -235,26 +260,26 @@ begin
   p_rx_onto_wire : process is
   begin
     wait on tx_from_rx_dut;
-    rx_on_bus_at_rx <= transport tx_from_rx_dut after c_transceiver_tx_delay;
+    rx_on_bus_at_rx <= transport tx_from_rx_dut after s_transceiver_tx_d;
   end process;
 
   p_rx_sees_bus : process is
   begin
     wait on bus_at_rx;
-    rx_at_rx_dut <= transport bus_at_rx after c_transceiver_rx_delay;
+    rx_at_rx_dut <= transport bus_at_rx after s_transceiver_rx_d;
   end process;
 
   -- Cross-propagation between the two DUT ends
   p_tx_propagate : process is
   begin
     wait on tx_on_bus_at_tx;
-    tx_on_bus_at_rx <= transport tx_on_bus_at_tx after c_bus_delay_max;
+    tx_on_bus_at_rx <= transport tx_on_bus_at_tx after s_bus_delay;
   end process;
 
   p_rx_propagate : process is
   begin
     wait on rx_on_bus_at_rx;
-    rx_on_bus_at_tx <= transport rx_on_bus_at_rx after c_bus_delay_max;
+    rx_on_bus_at_tx <= transport rx_on_bus_at_rx after s_bus_delay;
   end process;
 
   ----------------------------------------------------------------------------
@@ -456,6 +481,50 @@ begin
     end procedure test_normal;
 
     --------------------------------------------------------------------------
+    -- Test 2: Delay sweep -- exercise the DUTs across a range of bus and
+    -- transceiver propagation delays. For each entry in c_delay_sweep we
+    -- update the bus model delay signals and submit a small batch of
+    -- random frames; any c_disturbed status or RX byte mismatch increments
+    -- the alert count for that delay configuration.
+    --------------------------------------------------------------------------
+    procedure test_delay_sweep(num_frames_per_cfg : natural := 20) is
+      variable v_frame       : t_llc_frame;
+      variable v_metadata    : t_llc_metadata;
+      variable v_last_byte   : natural;
+      variable v_frame_count : natural := 0;
+    begin
+      test_num <= 2;
+      Print("--------------------------------------------------------------------------");
+      Print("Test 2: Delay Sweep");
+      Print("--------------------------------------------------------------------------");
+
+      for i in c_delay_sweep'range loop
+        s_transceiver_tx_d <= c_delay_sweep(i).tx_d;
+        s_transceiver_rx_d <= c_delay_sweep(i).rx_d;
+        s_bus_delay        <= c_delay_sweep(i).bus_d;
+
+        -- Wait several bit times for any in-flight propagation events to
+        -- drain through the new delay values before launching the next
+        -- batch of frames.
+        WaitForClock(clk, 10 * c_bit_time);
+
+        Print("--- Delay config " & to_string(i)
+              & ": tx="    & to_string(c_delay_sweep(i).tx_d)
+              & " rx="     & to_string(c_delay_sweep(i).rx_d)
+              & " bus="    & to_string(c_delay_sweep(i).bus_d)
+              & " (rt="    & to_string(2 * (c_delay_sweep(i).tx_d
+                                          + c_delay_sweep(i).rx_d
+                                          + c_delay_sweep(i).bus_d)) & ")");
+
+        for j in 1 to num_frames_per_cfg loop
+          v_frame_count := v_frame_count + 1;
+          gen_frame(v_frame, v_metadata, v_last_byte);
+          submit_and_verify(v_frame, v_last_byte, v_metadata, v_frame_count);
+        end loop;
+      end loop;
+    end procedure test_delay_sweep;
+
+    --------------------------------------------------------------------------
     procedure report_results is
     begin
       AffirmIf(test_id, IsCovered(ide_cov), "IDE covered");
@@ -483,6 +552,7 @@ begin
     WaitForClock(clk, (c_bus_idle_condition_width + 2) * (c_bit_time + 1));
 
     test_normal;
+    test_delay_sweep(5);
 
     report_results;
     std.env.finish;
