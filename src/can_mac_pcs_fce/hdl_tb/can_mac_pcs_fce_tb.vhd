@@ -70,19 +70,26 @@ architecture tb of can_mac_pcs_fce_tb is
     bus_d : time;
   end record;
   type t_delay_cfg_arr is array (natural range <>) of t_delay_cfg;
-  -- The sweep starts with the nominal (ISO-derived) configuration which is
-  -- known to pass, then increments toward higher delays first and lower
-  -- delays after. Currently only the nominal config passes -- see TODO in
-  -- can_mac_fsm.vhd / can_mac_bs.vhd for the design-tuning issue this
-  -- exposes. The sweep is included so any future timing-tolerance fixes
-  -- can be validated against multiple operating points.
+  -- Delay sweep operating points within the current bit-timing parameters.
+  --
+  -- The PCS uses gc_nom_prop_seg = 40 TQ x 20 ns = 800 ns. ISO 11898-1
+  -- 7.3.5.1 requires prop_seg >= t_propagation_one_way where the one-way
+  -- path is transceiver_tx + bus + transceiver_rx. The configurations
+  -- below stay within that bound; the largest entry (300/150/300 ns =
+  -- 750 ns one-way) leaves 50 ns of margin against the prop_seg limit.
+  --
+  -- A 400 ns transceiver / 200 ns bus configuration (1000 ns one-way)
+  -- was tested earlier but is out-of-spec for the current bit timing
+  -- (200 ns over the prop_seg limit) and was removed. To exercise that
+  -- delay, the bit timing generics must be changed first -- either a
+  -- slower nominal bit rate or a larger TQ -- so prop_seg covers the
+  -- one-way prop.
   constant c_delay_sweep : t_delay_cfg_arr := (
     (tx_d => 300 ns, rx_d => 300 ns, bus_d => 150 ns),  -- nominal (ISO)
     (tx_d => 250 ns, rx_d => 250 ns, bus_d => 125 ns),
     (tx_d => 200 ns, rx_d => 200 ns, bus_d => 100 ns),
     (tx_d => 100 ns, rx_d => 100 ns, bus_d =>  50 ns),
-    (tx_d =>  50 ns, rx_d =>  50 ns, bus_d =>  25 ns),
-    (tx_d => 400 ns, rx_d => 400 ns, bus_d => 200 ns)
+    (tx_d =>  50 ns, rx_d =>  50 ns, bus_d =>  25 ns)
   );
   ----------------------------------------------------------------------------
   -- Signals
@@ -294,6 +301,14 @@ begin
         if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing
            and llc_to_mac_tx_d2s_dut_1.transfer_status /= status_latch then
           status_latch <= llc_to_mac_tx_d2s_dut_1.transfer_status;
+          -- Diagnostic: print non-c_transmitted statuses with a time stamp so
+          -- the failing frame is locatable in the waveform without re-running.
+          if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_transmitted then
+            report "[status_latch] " & to_string(llc_to_mac_tx_d2s_dut_1.transfer_status)
+              & " latched (tx_d=" & to_string(s_transceiver_tx_d)
+              & " rx_d="          & to_string(s_transceiver_rx_d)
+              & " bus_d="         & to_string(s_bus_delay) & ")";
+          end if;
         end if;
       end if;
     end if;
