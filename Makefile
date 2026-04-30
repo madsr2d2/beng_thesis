@@ -37,7 +37,8 @@ LAYERS = \
 	src/can_mac/hdl_src/can_mac.vhd \
 	src/can_pcs/hdl_src/can_pcs.vhd \
 	src/can_mac_pcs_fce/hdl_src/can_mac_pcs_fce.vhd \
-	src/can_llc_tx/hdl_src/can_llc_tx.vhd
+	src/can_llc_tx/hdl_src/can_llc_tx.vhd \
+	src/can_fd_controller/hdl_src/can_fd_controller.vhd
 
 SRCFILES = $(PACKAGES) $(COMPONENTS) $(LAYERS)
 VHDLEX = .vhd
