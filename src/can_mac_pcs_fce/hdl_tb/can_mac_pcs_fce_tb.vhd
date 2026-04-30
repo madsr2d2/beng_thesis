@@ -28,7 +28,7 @@ use work.pk_can_tb.all;
 
 entity can_mac_pcs_fce_tb is
   generic(
-    gc_TbTimeOut   : time := 500 ms;
+    gc_TbTimeOut   : time := 1 sec;
     gc_TbClkPeriod : time := 10 ns
   );
 end entity can_mac_pcs_fce_tb;
@@ -55,37 +55,21 @@ architecture tb of can_mac_pcs_fce_tb is
   constant c_avalon_eop_byte : std_logic_vector := "01";
   constant c_avalon_byte     : std_logic_vector := "00";
 
-  -- Bus/transceiver delays. Driven from signals so the test sequencer can
-  -- sweep across delay configurations and confirm the design is robust to a
-  -- range of physical timings (not tuned to one specific value).
+  -- Bus / transceiver delays (driven so test_delay_sweep can update them).
   signal s_bus_delay        : time := 150 ns;
   signal s_transceiver_tx_d : time := 300 ns;
   signal s_transceiver_rx_d : time := 300 ns;
 
-  -- Delay-sweep configuration table. Each entry is (transceiver_tx,
-  -- transceiver_rx, bus). Round-trip propagation = 2*(tx + rx) + 2*bus.
   type t_delay_cfg is record
     tx_d  : time;
     rx_d  : time;
     bus_d : time;
   end record;
   type t_delay_cfg_arr is array (natural range <>) of t_delay_cfg;
-  -- Delay sweep operating points within the current bit-timing parameters.
-  --
-  -- The PCS uses gc_nom_prop_seg = 40 TQ x 20 ns = 800 ns. ISO 11898-1
-  -- 7.3.5.1 requires prop_seg >= t_propagation_one_way where the one-way
-  -- path is transceiver_tx + bus + transceiver_rx. The configurations
-  -- below stay within that bound; the largest entry (300/150/300 ns =
-  -- 750 ns one-way) leaves 50 ns of margin against the prop_seg limit.
-  --
-  -- A 400 ns transceiver / 200 ns bus configuration (1000 ns one-way)
-  -- was tested earlier but is out-of-spec for the current bit timing
-  -- (200 ns over the prop_seg limit) and was removed. To exercise that
-  -- delay, the bit timing generics must be changed first -- either a
-  -- slower nominal bit rate or a larger TQ -- so prop_seg covers the
-  -- one-way prop.
+
+  -- Operating points within prop_seg = 800 ns (ISO 11898-1 7.3.5.1).
   constant c_delay_sweep : t_delay_cfg_arr := (
-    (tx_d => 300 ns, rx_d => 300 ns, bus_d => 150 ns),  -- nominal (ISO)
+    (tx_d => 300 ns, rx_d => 300 ns, bus_d => 150 ns),
     (tx_d => 250 ns, rx_d => 250 ns, bus_d => 125 ns),
     (tx_d => 200 ns, rx_d => 200 ns, bus_d => 100 ns),
     (tx_d => 100 ns, rx_d => 100 ns, bus_d =>  50 ns),
@@ -106,10 +90,20 @@ architecture tb of can_mac_pcs_fce_tb is
   signal bus_at_rx       : std_logic := c_recessive;
 
   -- DUT bus interfaces -----------------------------------------------------
-  signal tx_from_tx_dut : std_logic;
-  signal tx_from_rx_dut : std_logic;
-  signal rx_at_rx_dut   : std_logic := c_recessive;
-  signal rx_at_tx_dut   : std_logic := c_recessive;
+  signal tx_from_tx_dut       : std_logic;
+  signal tx_from_rx_dut       : std_logic;
+  signal rx_at_rx_dut         : std_logic := c_recessive;
+  signal rx_at_tx_dut         : std_logic := c_recessive;
+  signal bus_at_tx_observed   : std_logic;
+
+  -- Bus-off test override: forces DUT 1's RX recessive so SOF reads back as
+  -- a bit error (ISO 8.1.4.2.d, not subject to the ACK-error exemption).
+  signal s_dut_1_rx_recessive : boolean := false;
+
+  -- Sticky bus_off latch: captures the high pulse since the FCE may
+  -- complete recovery before the sequencer samples the live signal.
+  signal s_bus_off_seen       : boolean := false;
+  signal s_bus_off_clear      : boolean := false;
 
   -- DUT 1 interfaces
   signal llc_to_mac_tx_s2d_dut_1 : t_can_llc_mac_tx_if_s2d;
@@ -130,8 +124,9 @@ architecture tb of can_mac_pcs_fce_tb is
   signal llc_fce_o_dut_2 : t_can_fce_llc_if_s2m;
 
   -- Transfer status latch (TX DUT 1)
-  signal status_latch : std_logic_vector(2 downto 0) := c_ongoing;
-  signal clear_status : boolean                      := false;
+  signal status_latch       : std_logic_vector(2 downto 0) := c_ongoing;
+  signal clear_status       : boolean                      := false;
+  signal s_status_latch_rst : boolean                      := false;
 
   -- OSVVM signals
   shared variable RV           : RandomPType;
@@ -246,8 +241,9 @@ begin
   ----------------------------------------------------------------------------
   -- Bus model: dominant-wins wired-AND
   ----------------------------------------------------------------------------
-  -- Bus at TX DUT
-  bus_at_tx <= tx_on_bus_at_tx and rx_on_bus_at_tx;
+  bus_at_tx          <= tx_on_bus_at_tx and rx_on_bus_at_tx;
+  bus_at_tx_observed <= c_recessive when s_dut_1_rx_recessive else bus_at_tx;
+  bus_at_rx          <= tx_on_bus_at_rx and rx_on_bus_at_rx;
 
   p_tx_onto_bus : process is
   begin
@@ -257,12 +253,9 @@ begin
 
   p_tx_loopback : process is
   begin
-    wait on bus_at_tx;
-    rx_at_tx_dut <= transport bus_at_tx after s_transceiver_rx_d;
+    wait on bus_at_tx_observed;
+    rx_at_tx_dut <= transport bus_at_tx_observed after s_transceiver_rx_d;
   end process;
-
-  -- Bus at RX DUT
-  bus_at_rx <= tx_on_bus_at_rx and rx_on_bus_at_rx;
 
   p_rx_onto_wire : process is
   begin
@@ -290,19 +283,31 @@ begin
   end process;
 
   ----------------------------------------------------------------------------
+  -- Bus-off sticky latch (DUT 1)
+  ----------------------------------------------------------------------------
+  p_bus_off_latch : process(clk) is
+  begin
+    if rising_edge(clk) then
+      if reset = '1' or s_bus_off_clear then
+        s_bus_off_seen <= false;
+      elsif llc_fce_o_dut_1.bus_off = '1' then
+        s_bus_off_seen <= true;
+      end if;
+    end if;
+  end process p_bus_off_latch;
+
+  ----------------------------------------------------------------------------
   -- Transfer status latch (DUT 1 TX)
   ----------------------------------------------------------------------------
   p_status_latch : process(clk) is
   begin
     if rising_edge(clk) then
-      if reset = '1' or clear_status then
+      if reset = '1' or clear_status or s_status_latch_rst then
         status_latch <= c_ongoing;
       else
         if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing
            and llc_to_mac_tx_d2s_dut_1.transfer_status /= status_latch then
           status_latch <= llc_to_mac_tx_d2s_dut_1.transfer_status;
-          -- Diagnostic: print non-c_transmitted statuses with a time stamp so
-          -- the failing frame is locatable in the waveform without re-running.
           if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_transmitted then
             report "[status_latch] " & to_string(llc_to_mac_tx_d2s_dut_1.transfer_status)
               & " latched (tx_d=" & to_string(s_transceiver_tx_d)
@@ -344,8 +349,7 @@ begin
   end process p_tx_llc_vc;
 
   ----------------------------------------------------------------------------
-  -- RX LLC sink VC: collects bytes from DUT 2 RX output and services Check
-  -- transactions on llc_rec.
+  -- RX LLC sink VC (DUT 2)
   ----------------------------------------------------------------------------
   p_rx_llc_sink_vc : process is
     variable v_byte_idx  : natural := 0;
@@ -399,7 +403,7 @@ begin
   p_test_ctrl : process is
 
     --------------------------------------------------------------------------
-    -- gen_frame: random LLC frame
+    -- gen_frame: random LLC frame (data frame only, FTYP=0)
     --------------------------------------------------------------------------
     procedure gen_frame(tx_frame : out t_llc_frame; metadata : out t_llc_metadata; last_byte : out natural) is
       variable v_data_len : natural;
@@ -414,9 +418,7 @@ begin
       v_data_len                                                    := dlc_to_data_length(to_integer(unsigned(metadata.dlc)), metadata.fdf);
       last_byte                                                     := c_llc_frame_data_byte + v_data_len - 1;
 
-      -- Zero unused / non-transmitted bits so the expected frame matches what
-      -- the RX can actually reconstruct. Always force FTYP=0 (data frame) so
-      -- the test only generates data frames; RTR coverage is not in scope here.
+      -- Zero unused bits so the expected frame matches the RX reconstruction.
       tx_frame(0)(c_llc_frame_ftyp) := '0';
       tx_frame(0)(2 downto 0)       := "000";
       tx_frame(1)(3 downto 0)       := "0000";
@@ -430,26 +432,23 @@ begin
         tx_frame(3)(4 downto 0) := "00000";
         tx_frame(4)             := (others => '0');
         tx_frame(5)             := (others => '0');
-      end if;
-      for i in v_data_len to c_max_data_bytes - 1 loop
+      end if; for i in v_data_len to c_max_data_bytes - 1 loop
         tx_frame(c_data_offset + i) := (others => '0');
       end loop;
     end procedure gen_frame;
 
     --------------------------------------------------------------------------
-    -- submit_and_verify: send frame via TX, verify at RX
+    -- submit_and_verify: send frame via DUT 1, verify TX status and RX bytes
     --------------------------------------------------------------------------
     procedure submit_and_verify(v_tx_frame : in t_llc_frame; v_last_byte : in natural; v_metadata : in t_llc_metadata; v_frame_count : in natural) is
       variable v_exp_len : natural;
     begin
       v_exp_len := c_data_offset + dlc_to_data_length(to_integer(unsigned(v_metadata.dlc)), v_metadata.fdf);
 
-      -- Push expected RX bytes into LLC sink BurstFifo
       for i in 0 to v_exp_len - 1 loop
         Push(llc_rec.BurstFifo, std_logic_vector(resize(unsigned(v_tx_frame(i)), c_rec_width)));
       end loop;
 
-      -- Drive TX frame bytes through DUT 1
       for i in 0 to v_last_byte loop
         if (i = 0) then
           Send(tx_llc_rec, v_tx_frame(i), c_avalon_sop_byte);
@@ -460,17 +459,13 @@ begin
         end if;
       end loop;
 
-      -- Wait for TX to complete
       Check(tx_llc_rec, std_logic_vector(resize(unsigned(c_transmitted), c_rec_width)));
-
-      -- Verify DUT 2 RX received the correct frame
       Check(llc_rec,
-        std_logic_vector(to_unsigned(v_exp_len, c_rec_width)),
-        std_logic_vector(to_unsigned(v_frame_count, c_rec_width)));
+        std_logic_vector(to_unsigned(v_exp_len, c_rec_width)), std_logic_vector(to_unsigned(v_frame_count, c_rec_width)));
     end procedure submit_and_verify;
 
     --------------------------------------------------------------------------
-    -- Test 1: Normal usage - cover all frame format combinations
+    -- Test 1: Normal usage -- cover all IDE x FDF x DLC bins
     --------------------------------------------------------------------------
     procedure test_normal is
       variable v_frame       : t_llc_frame;
@@ -496,11 +491,8 @@ begin
     end procedure test_normal;
 
     --------------------------------------------------------------------------
-    -- Test 2: Delay sweep -- exercise the DUTs across a range of bus and
-    -- transceiver propagation delays. For each entry in c_delay_sweep we
-    -- update the bus model delay signals and submit a small batch of
-    -- random frames; any c_disturbed status or RX byte mismatch increments
-    -- the alert count for that delay configuration.
+    -- Test 2: Delay sweep -- send a batch of frames at each c_delay_sweep
+    -- operating point.
     --------------------------------------------------------------------------
     procedure test_delay_sweep(num_frames_per_cfg : natural := 20) is
       variable v_frame       : t_llc_frame;
@@ -518,9 +510,7 @@ begin
         s_transceiver_rx_d <= c_delay_sweep(i).rx_d;
         s_bus_delay        <= c_delay_sweep(i).bus_d;
 
-        -- Wait several bit times for any in-flight propagation events to
-        -- drain through the new delay values before launching the next
-        -- batch of frames.
+        -- Drain in-flight propagation events at the previous delays.
         WaitForClock(clk, 10 * c_bit_time);
 
         Print("--- Delay config " & to_string(i)
@@ -538,6 +528,66 @@ begin
         end loop;
       end loop;
     end procedure test_delay_sweep;
+
+    --------------------------------------------------------------------------
+    -- Test 3: Bus-off entry and recovery. Force DUT 1's RX recessive to
+    -- inject a bit error at every SOF (ISO 8.1.4.2.d). Each Send blocks
+    -- on mac_ser_tx ready so the loop runs at the protocol-minimum cadence.
+    -- After ~32 attempts TEC > c_bus_off_threshold, the FCE asserts
+    -- bus_off, the recovery sequence completes (ISO 8.1.4.5), and we
+    -- confirm that a fresh frame transmits successfully.
+    --------------------------------------------------------------------------
+    procedure test_bus_off is
+      variable v_frame      : t_llc_frame;
+      variable v_metadata   : t_llc_metadata;
+      variable v_last_byte  : natural;
+      variable v_send_count : natural := 0;
+    begin
+      test_num <= 3;
+      Print("--------------------------------------------------------------------------");
+      Print("Test 3: Bus-off Recovery");
+      Print("--------------------------------------------------------------------------");
+
+      s_bus_off_clear <= true;
+      WaitForClock(clk, 2);
+      s_bus_off_clear <= false;
+
+      -- Phase 1: engage RX override (bit error at every SOF).
+      s_dut_1_rx_recessive <= true;
+      WaitForClock(clk, 10);
+
+      -- Phase 2: submit frames until bus_off is latched.
+      gen_frame(v_frame, v_metadata, v_last_byte);
+      while not s_bus_off_seen loop
+        for i in 0 to v_last_byte loop
+          exit when s_bus_off_seen;
+          if (i = 0) then
+            Send(tx_llc_rec, v_frame(i), c_avalon_sop_byte);
+          elsif (i < v_last_byte) then
+            Send(tx_llc_rec, v_frame(i), c_avalon_byte);
+          else
+            Send(tx_llc_rec, v_frame(i), c_avalon_eop_byte);
+          end if;
+        end loop;
+        v_send_count := v_send_count + 1;
+      end loop;
+
+      AffirmIf(test_id, s_bus_off_seen,
+               "Bus-off entered after " & to_string(v_send_count) & " sends");
+
+      -- Phase 3: lift override, wait for recovery (128 x 11 recessive bits).
+      s_dut_1_rx_recessive <= false;
+      wait until llc_fce_o_dut_1.bus_off = '0' for 1 ms;
+      AffirmIf(test_id, llc_fce_o_dut_1.bus_off = '0', "Bus-off recovered");
+
+      -- Phase 4: confirm normal operation resumes (clear stale latch first).
+      WaitForClock(clk, 200);
+      s_status_latch_rst <= true;
+      WaitForClock(clk, 2);
+      s_status_latch_rst <= false;
+      gen_frame(v_frame, v_metadata, v_last_byte);
+      submit_and_verify(v_frame, v_last_byte, v_metadata, 0);
+    end procedure test_bus_off;
 
     --------------------------------------------------------------------------
     procedure report_results is
@@ -563,11 +613,12 @@ begin
     WaitForBarrier(init_barrier);
     wait until reset = '0';
 
-    -- Wait for both DUTs to complete bus reintegration (11+ bit times)
+    -- Allow both DUTs to complete bus reintegration.
     WaitForClock(clk, (c_bus_idle_condition_width + 2) * (c_bit_time + 1));
 
     test_normal;
     test_delay_sweep(5);
+    test_bus_off;
 
     report_results;
     std.env.finish;

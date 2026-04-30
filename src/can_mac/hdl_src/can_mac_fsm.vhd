@@ -87,7 +87,7 @@ architecture rtl of can_mac_fsm is
   -----------------------------------------------------------------
   -- TX-mode tracking
   -----------------------------------------------------------------
-  signal polarity_history                     : std_logic_vector(c_tdc_polarity_depth - 1 downto 0);
+  signal transmitted_bits_shift_reg           : std_logic_vector(c_tdc_polarity_depth - 1 downto 0);
   signal was_previous_frame_tx                : boolean;
   signal ack_success_seen                     : boolean;
   signal secondary_sample_point_error_pending : boolean;
@@ -184,7 +184,7 @@ begin
         bit_count                            <= 0;
         data_len                             <= 0;
         crc_length                           <= c_crc_15_length;
-        polarity_history                     <= (others => c_recessive);
+        transmitted_bits_shift_reg                     <= (others => c_recessive);
         was_previous_frame_tx                <= false;
         ack_success_seen                     <= false;
         secondary_sample_point_error_pending <= false;
@@ -257,7 +257,7 @@ begin
         -- the bus pin (via TDC) against the SSP-sampled rx_data, and defer
         -- the error to the next MAC-SP.
         if (pcs_i.secondary_sample_point = '1'
-            and polarity_history(to_integer(unsigned(pcs_i.tdc_delay))) /= pcs_i.rx_data) then
+            and transmitted_bits_shift_reg(to_integer(unsigned(pcs_i.tdc_delay))) /= pcs_i.rx_data) then
           secondary_sample_point_error_pending <= true;
         end if;
 
@@ -297,7 +297,7 @@ begin
         if pcs_i.sample_point = '1' then
 
           if is_transmitter and v_in_arbitration_field
-             and polarity_history(0) = c_recessive
+             and transmitted_bits_shift_reg(0) = c_recessive
              and pcs_i.rx_data = c_dominant then
             -- Lost arbitration: demote to receiver.
             mac_ser_o.transfer_status <= c_lost_arb;
@@ -314,7 +314,7 @@ begin
                 and state /= s_error_delimiter
                 and (secondary_sample_point_error_pending
                      or (not in_data_phase
-                         and polarity_history(0) /= pcs_i.rx_data
+                         and transmitted_bits_shift_reg(0) /= pcs_i.rx_data
                          and state /= s_ack_delimiter)) then
             -- TX bit error: drive first error-flag bit, end data phase,
             -- disable fixed stuffing, enter s_error_flag. The error-frame
@@ -420,7 +420,7 @@ begin
                   if mac_ser_i.valid = '1' and (fce_i.error_active = '1' or not was_previous_frame_tx) then
                     is_transmitter        <= true;
                     state                 <= s_sof;
-                    polarity_history      <= (0 => c_dominant, others => c_recessive);
+                    transmitted_bits_shift_reg      <= (0 => c_dominant, others => c_recessive);
                     v_data_len            := dlc_to_data_length(to_integer(unsigned(mac_ser_i.llc_metadata.dlc)), mac_ser_i.llc_metadata.fdf);
                     data_len              <= v_data_len;
                     crc_length            <= f_crc_length(v_data_len, mac_ser_i.llc_metadata.fdf);
@@ -488,7 +488,7 @@ begin
                   is_transmitter        <= true;
                   state                 <= s_sof;
                   pcs_o.tx_data         <= c_dominant;
-                  polarity_history      <= (0 => c_dominant, others => c_recessive);
+                  transmitted_bits_shift_reg      <= (0 => c_dominant, others => c_recessive);
                   v_data_len            := dlc_to_data_length(to_integer(unsigned(mac_ser_i.llc_metadata.dlc)), mac_ser_i.llc_metadata.fdf);
                   data_len              <= v_data_len;
                   crc_length            <= f_crc_length(v_data_len, mac_ser_i.llc_metadata.fdf);
@@ -847,10 +847,13 @@ begin
 
             -----------------------------------------------------------------
             -- s_ack: ACK slot (1 bit CC, 2 bits FD; ISO 6.6.10.6). TX
-            -- listens for any dominant bit. RX drove the dominant ACK
-            -- via s_crc_delimiter; here it just releases the PCS bus while
-            -- fce_o.transmitting stays '1' so the FCE treats ACK-slot
-            -- errors as TX-side per ISO 8.1.4.2,b.
+            -- listens for any dominant bit. RX drove the dominant ACK via
+            -- s_crc_delimiter and here releases the bus so the next bit
+            -- (delimiter for CC, second ACK slot then delimiter for FD) is
+            -- recessive. fce_o.transmitting stays '1' so the FCE treats
+            -- ACK-slot errors as TX-side per ISO 8.1.4.2,b. Both modes
+            -- exit to s_ack_delimiter for the recessive delimiter bit
+            -- (form-error check is performed there, not here).
             -----------------------------------------------------------------
             when s_ack =>
               if is_transmitter then
@@ -866,28 +869,27 @@ begin
               else
                 pcs_o.transmitting <= '0';
                 if (bit_count = 0) then
+                  -- End of first ACK slot bit (dominant ACK we drove).
+                  -- Release the bus so the next bit is recessive.
                   pcs_o.tx_data <= c_recessive;
-                  bit_count     <= 1;
-                elsif (bit_count = 1 and llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1') then
-                  bit_count <= 2;
-                else
-                  if (pcs_i.rx_data = c_dominant) then
-                    fce_o.sending_error_overload_flag <= '1';
-                    fce_o.error                       <= '1';
-                    pcs_o.tx_data                     <= not fce_i.error_active;
-                    state                             <= s_error_flag;
-                    bit_count                         <= 0;
+                  if (llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1') then
+                    bit_count <= 1;                     -- FD: enter second ACK slot bit
                   else
-                    state     <= s_eof;
+                    state     <= s_ack_delimiter;       -- CC: straight to delimiter
                     bit_count <= 0;
                   end if;
+                else
+                  -- FD only: end of second ACK slot bit.
+                  state     <= s_ack_delimiter;
+                  bit_count <= 0;
                 end if;
               end if;
 
             -----------------------------------------------------------------
             -- s_ack_delimiter: single recessive bit after the ACK slot. TX
             -- accepts a late dominant here (covers bus delays > ACK-slot/2)
-            -- or signals ACK error.
+            -- or signals ACK error. RX checks the delimiter bit is
+            -- recessive and raises a form error otherwise (ISO 6.6.21.3.2).
             -----------------------------------------------------------------
             when s_ack_delimiter =>
               if is_transmitter then
@@ -909,8 +911,16 @@ begin
                   overload                   <= false;
                 end if;
               else
-                state     <= s_eof;
-                bit_count <= 0;
+                if (pcs_i.rx_data = c_dominant) then
+                  fce_o.sending_error_overload_flag <= '1';
+                  fce_o.error                       <= '1';
+                  pcs_o.tx_data                     <= not fce_i.error_active;
+                  state                             <= s_error_flag;
+                  bit_count                         <= 0;
+                else
+                  state     <= s_eof;
+                  bit_count <= 0;
+                end if;
               end if;
 
             -----------------------------------------------------------------
@@ -1113,7 +1123,7 @@ begin
         if v_drive_bit then
           if is_transmitter then
             pcs_o.tx_data    <= v_tx_polarity;
-            polarity_history <= polarity_history(c_tdc_polarity_depth - 2 downto 0) & v_tx_polarity;
+            transmitted_bits_shift_reg <= transmitted_bits_shift_reg(c_tdc_polarity_depth - 2 downto 0) & v_tx_polarity;
             bs_o.valid       <= '1';
             bs_o.data        <= v_tx_polarity;
             -- FD CRC: every dynamic-stuff-field bit + non-stuff SBC bits.
