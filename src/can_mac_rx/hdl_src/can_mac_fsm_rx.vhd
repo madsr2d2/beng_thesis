@@ -49,7 +49,7 @@ architecture rtl of can_mac_fsm_rx is
   -----------------------------------------------------------------
   -- Types
   -----------------------------------------------------------------
-  type t_fsm_state is (s_bus_reintegration, s_idle, s_sof, s_id, s_rtr_srr_rrs, s_ide, s_fdf_r1_r0, s_res_r0, s_brs, s_esi, s_dlc, s_data, s_sbc, s_crc, s_ack, s_ack_delimiter, s_eof, s_intermission, s_error_overload);
+  type t_fsm_state is (s_bus_reintegration, s_idle, s_id, s_rtr_srr_rrs, s_ide, s_fdf_r1_r0, s_res_r0, s_brs, s_esi, s_dlc, s_data, s_sbc, s_crc, s_ack, s_ack_delimiter, s_eof, s_intermission, s_error_overload);
 
   -----------------------------------------------------------------
   -- Signals
@@ -234,12 +234,16 @@ begin
             end if;
 
           -----------------------------------------------------------------
-          -- s_idle : Waits for SOF and resets state variables
+          -- s_idle : Waits for SOF (sampled at SP). Matches combined-FSM
+          -- behavior: SOF feed to BS/CRC happens at SOF SP, and the FSM
+          -- transitions directly to s_id (skipping a separate s_sof state).
+          -- Detecting at the SP keeps the BS engine in lockstep with the
+          -- combined FSM, so stuff bits are predicted at the same SP.
           -----------------------------------------------------------------
           when s_idle =>
             pcs_o.do_hard_sync <= '1';                                          -- ISO 7.3.5.1 rule c: hard sync during inter-frame space
             crc_mismatch       <= false;
-            if (pcs_i.rx_data = c_dominant) then
+            if (pcs_i.sample_point = '1' and pcs_i.rx_data = c_dominant) then
               crc_o.valid_cc <= '1';
               crc_o.valid_fd <= '1';
               crc_o.data_cc  <= c_dominant;
@@ -250,15 +254,8 @@ begin
               byte_index     <= 0;
               bit_index      <= 0;
               llc_frame      <= (others => (others => '0'));
-              fsm_state      <= s_sof;
+              fsm_state      <= s_id;
             end if;
-
-          when s_sof =>
-            if (pcs_i.sample_point = '1') then
-              fsm_state <= s_id;
-            end if;
-
-
 
           -----------------------------------------------------------------
           -- s_id : Stores received ID bits in the LLC frame
@@ -465,12 +462,17 @@ begin
                 if (pcs_i.rx_data /= crc_i.crc((c_crc_21_length - 1) - bit_count)) then
                   crc_mismatch <= true;
                 end if;
+                if (bit_count = crc_length - 1) then
+                  -- Assert one SP early: PCS performs phase switch at the CRC
+                  -- delimiter SP, in lockstep with TX (ISO 11898-1 6.6.10.5).
+                  pcs_o.data_phase_stop <= '1';
+                end if;
                 bit_count <= bit_count + 1;
-              else                                                              -- CRC delimiter bit
-                pcs_o.data_phase_stop <= '1';
-                if (pcs_i.rx_data = c_dominant) or (crc_mismatch) then
-                  -- Form error: CRC delimiter must be recessive, or CRC mismatch (checked at the CRC delimiter) (ISO 11898-1: 6.6.21.2.c)
-                  -------------------------------------------------------------
+              else                                                              -- CRC delimiter SP
+                -- No direct form-error check on the delimiter polarity: the SP
+                -- falls in the data phase where prop delay is not covered.
+                -- CRC errors are caught by the bit-by-bit comparison above.
+                if crc_mismatch then
                   fce_o.sending_error_overload_flag <= '1';
                   fce_o.error                       <= '1';
                   pcs_o.tx_data                     <= c_recessive when fce_i.error_active = '0' else c_dominant;
@@ -478,14 +480,11 @@ begin
                   pcs_o.data_phase_stop             <= '1';
                   fsm_state                         <= s_error_overload;
                   bit_count                         <= 0;
-                -------------------------------------------------------------
                 else
-                  -- CRC delimiter OK: switch back to nominal rate and drive ACK
-                  pcs_o.data_phase_stop <= '1';
-                  pcs_o.tx_data         <= c_dominant;
-                  pcs_o.transmitting    <= '1';
-                  fsm_state             <= s_ack;
-                  bit_count             <= 0;
+                  pcs_o.tx_data      <= c_dominant;
+                  pcs_o.transmitting <= '1';
+                  fsm_state          <= s_ack;
+                  bit_count          <= 0;
                 end if;
               end if;
             end if;

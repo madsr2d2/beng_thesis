@@ -76,6 +76,10 @@ architecture rtl of can_mac_fsm_tx is
   signal ack_error_caused_flag                : boolean;
   signal saw_dominant_during_flag             : boolean;                        -- Tracks dominant bits seen during our passive error flag (ISO 8.1.4.2 c) Exc.1)
   signal dominant_run_count                   : natural range 0 to c_bus_off_threshold; -- Node will go bus off before this limit is reached
+  -- Local data-phase tracking: set at BRS SP when BRS=recessive, cleared at
+  -- last CRC bit SP. Suppresses the SP-based bit-error check in data phase,
+  -- where multi-bit propagation lag makes polarity_history(0) meaningless.
+  signal in_data_phase                        : boolean;
 
 
 begin
@@ -112,6 +116,7 @@ begin
         skip_sof                             <= false;
         ack_error_caused_flag                <= false;
         saw_dominant_during_flag             <= false;
+        in_data_phase                        <= false;
         mac_ser_o                            <= c_ser_fsm_if_d2s_reset;
         bs_o                                 <= c_mac_fsm_to_bs_fd_if_reset;
         pcs_o                                <= c_mac_to_pcs_if_reset;
@@ -128,8 +133,10 @@ begin
         v_in_dynamic_stuff_field := v_in_arbitration_field or state = s_fdf_r1_r0 or state = s_res_r0 or state = s_brs or state = s_esi or state = s_dlc or state = s_data;
         v_in_fixed_stuff_field   := state = s_sbc or state = s_crc;
         v_in_quiet_field         := state = s_bus_reintegration or state = s_intermission or state = s_suspend_transmission or state = s_bus_idle;
-        -- ACK slot is 1 bit for CC and 2 bits for FD (ISO : 6.6.11.6)
-        v_in_ack_slot            := state = s_ack;
+        -- Include s_ack_delimiter so a late-arriving ACK (when bus delay
+        -- pushes the dominant into the next bit time) is not flagged as a
+        -- bit error. ACK slot is 1 bit for CC and 2 bits for FD (ISO : 6.6.11.6).
+        v_in_ack_slot            := state = s_ack or state = s_ack_delimiter;
         -----------------------------------------------------------------
 
         -----------------------------------------------------------------
@@ -146,7 +153,12 @@ begin
         crc_rst                    <= '0';
         -----------------------------------------------------------------
         fce_o                      <= c_mac_to_fce_if_reset;
-        fce_o.transmitting         <= '1' when v_in_quiet_field = false and state /= s_ack else '0';
+        -- fce_o.transmitting stays '1' through s_ack so the split-path RX FSM
+        -- remains gated (via transmitting_i) and does not misinterpret the
+        -- dominant ACK bit as an interframe overload (Bug #9).
+        -- pcs_o.transmitting still drops to '0' during s_ack so the PCS
+        -- enables ACK-slot monitoring (TDC off, no bit-error accumulation).
+        fce_o.transmitting         <= '1' when v_in_quiet_field = false else '0';
         pcs_o.transmitting         <= '1' when v_in_quiet_field = false and state /= s_ack else '0';
 
         fce_o.sending_error_overload_flag <= '1' when state = s_error_overload else '0';
@@ -271,9 +283,24 @@ begin
             -----------------------------------------------------------------
             when s_bus_idle =>
               if (mac_ser_i.valid = '1') then
-                state     <= s_sof;
-                bit_count <= 0;
-                pcs_o.tx_data <= c_dominant;
+                -- Become transmitter: drive SOF dominant, feed BS/CRC for SOF
+                -- at this SP. The next bit time on the bus is SOF; the s_sof
+                -- SP (one bit time later) drives the FIRST ID bit, so SOF lasts
+                -- exactly one bit time on the bus. Matches combined-FSM timing.
+                -- Override the quiet-field bs_rst/crc_rst defaults so this
+                -- feed actually reaches the BS/CRC engines.
+                state            <= s_sof;
+                bit_count        <= 0;
+                pcs_o.tx_data    <= c_dominant;
+                bs_rst           <= '0';
+                crc_rst          <= '0';
+                bs_o.valid       <= '1';
+                bs_o.data        <= c_dominant;
+                crc_o.valid_cc   <= '1';
+                crc_o.valid_fd   <= '1';
+                crc_o.data_cc    <= c_dominant;
+                crc_o.data_fd    <= c_dominant;
+                polarity_history <= (0 => c_dominant, others => c_recessive);
 
                 -- Frame setup (runs every clock; values are constant from metadata)
                 data_len <= dlc_to_data_length(to_integer(unsigned(mac_ser_i.llc_metadata.dlc)), mac_ser_i.llc_metadata.fdf);
@@ -292,24 +319,23 @@ begin
               end if;
 
             -----------------------------------------------------------------
-            -- s_sof : Drive SOF bit and feed BS/CRC.
-            -- If SOF detected in 3rd intermission dominant (skip_sof),
-            -- drive first ID bit instead (ISO : 6.6.8).
+            -- s_sof : Drive the FIRST ID bit (mac_ser_i.data) so SOF lasts
+            -- only one bit time on the bus. SOF was already fed to BS/CRC in
+            -- s_bus_idle. The post-FSM block uses v_bit_driven to set
+            -- pcs_o.tx_data <= ID[0] and feed BS for ID[0]; CRC is fed
+            -- explicitly here since s_sof is not in v_in_dynamic_stuff_field.
             -----------------------------------------------------------------
             when s_sof =>
-
-
-              if (pcs_i.sample_point = '1') then
-                -- SOF sampled: feed BS/CRC and advance to s_id
-                bs_o.valid       <= '1';
-                bs_o.data        <= c_dominant;
-                crc_o.valid_cc   <= '1';
-                crc_o.valid_fd   <= '1';
-                crc_o.data_cc    <= c_dominant;
-                crc_o.data_fd    <= c_dominant;
-                polarity_history <= (0 => c_dominant, others => c_recessive);
-                bit_count        <= 0;
-                state            <= s_id;
+              if (pcs_i.sample_point = '1' and bs_i.valid = '0') then
+                mac_ser_o.ready <= '1';
+                v_tx_polarity   := mac_ser_i.data;
+                v_bit_driven    := true;
+                bit_count       <= 1;
+                state           <= s_id;
+                crc_o.valid_cc  <= '1';
+                crc_o.valid_fd  <= '1';
+                crc_o.data_cc   <= mac_ser_i.data;
+                crc_o.data_fd   <= mac_ser_i.data;
               end if;
 
             -----------------------------------------------------------------
@@ -367,10 +393,8 @@ begin
             -----------------------------------------------------------------
             when s_fdf_r1_r0 =>
               if (pcs_i.sample_point = '1' and bs_i.valid = '0') then
-                v_tx_polarity         := mac_ser_i.llc_metadata.fdf;
-                v_bit_driven          := true;
-                -- Signal PCS to start Transmitter Delay Compensation (ISO : 7.3.4)
-                pcs_o.next_bit_is_res <= '1' when mac_ser_i.llc_metadata.fdf = '1';
+                v_tx_polarity := mac_ser_i.llc_metadata.fdf;
+                v_bit_driven  := true;
                 if (mac_ser_i.llc_metadata.fdf = c_recessive or mac_ser_i.llc_metadata.ide = '1') then
                   state <= s_res_r0;
                 else
@@ -380,19 +404,21 @@ begin
               end if;
 
             -----------------------------------------------------------------
-            -- s_res_r0 : Reserved bit (dominant).
+            -- s_res_r0 : Reserved bit (dominant). Signals PCS to start TDC
+            -- here (ISO 7.3.4) — the NEXT bit driven will be the res=dominant
+            -- edge that TDC measures. Must match combined FSM timing so the
+            -- PCS starts tdc_count_active at the BRS bit boundary, not res.
             -----------------------------------------------------------------
             when s_res_r0 =>
               if (pcs_i.sample_point = '1' and bs_i.valid = '0') then
                 v_tx_polarity := c_dominant;
                 v_bit_driven  := true;
                 if (mac_ser_i.llc_metadata.fdf = '1') then
+                  pcs_o.next_bit_is_res <= '1';
                   state <= s_brs;
                 else
                   state     <= s_dlc;
-                  -- Drive first DLC bit
-                  bit_count <= bit_count + 1;
-                  v_tx_polarity := mac_ser_i.llc_metadata.dlc(c_dlc_field_width - 1 - bit_count);
+                  bit_count <= 0;
                 end if;
               end if;
 
@@ -404,6 +430,8 @@ begin
                 v_tx_polarity         := mac_ser_i.llc_metadata.brs;
                 pcs_o.next_bit_is_brs <= mac_ser_i.llc_metadata.brs;
                 v_bit_driven          := true;
+                -- Enter data phase when BRS=recessive (rate switch active)
+                in_data_phase         <= (mac_ser_i.llc_metadata.brs = c_recessive);
                 state                 <= s_esi;
               end if;
 
@@ -484,12 +512,24 @@ begin
 
                 if (bit_count < crc_length) then
                   v_tx_polarity := crc_i.crc((c_crc_21_length - 1) - bit_count);
-                  bit_count     <= bit_count + 1;
+                  if (bit_count = crc_length - 1) then
+                    -- Assert one SP early: PCS observes data_phase_stop='1' at
+                    -- the next SP (CRC delimiter SP) and performs the phase
+                    -- switch there, making the delimiter itself the mixed-timing
+                    -- bit. ACK is then fully nominal (ISO 11898-1 6.6.10.5).
+                    pcs_o.data_phase_stop <= '1';
+                  end if;
+                  bit_count <= bit_count + 1;
                 else
-                  -- CRC delimiter: pulse data_phase_stop to switch PCS back to nominal rate.
-                  pcs_o.data_phase_stop <= '1';
-                  state                 <= s_ack;
-                  bit_count             <= 0;
+                  -- CRC delimiter SP: phase switch already performed by PCS.
+                  -- Clear in_data_phase here so the SP-based bit-error check
+                  -- only goes active starting from the ACK bc=0 SP. The delim
+                  -- itself is mixed-timing (data-phase before SP, nominal after);
+                  -- a SP-based check at this MAC-SP would false-fire because
+                  -- the recessive delim level has not yet propagated through TDC.
+                  state         <= s_ack;
+                  bit_count     <= 0;
+                  in_data_phase <= false;
                 end if;
               end if;
 
@@ -498,32 +538,31 @@ begin
             -- FD ACK slot (2 bits) + delim (1 bit) = 3 bits (ISO 6.6.11.6).
             -----------------------------------------------------------------
             when s_ack =>
-              if mac_ser_i.llc_metadata.fdf = '0' then                          -- CC frame
+              if (pcs_i.sample_point = '1') then
                 if (pcs_i.rx_data = c_dominant) then
                   ack_success_seen <= true;
                 end if;
-                state <= s_ack_delimiter;
-              else                                                              -- FD frame
-                if (bit_count > 2 and pcs_i.rx_data = c_dominant) then
-                  ack_success_seen <= true;
-                  bit_count        <= bit_count + 1;
+                if (mac_ser_i.llc_metadata.fdf = '1' and bit_count = 0) then
+                  bit_count <= bit_count + 1;                                   -- Stay for FD second ACK slot bit
                 else
                   state     <= s_ack_delimiter;
                   bit_count <= 0;
                 end if;
               end if;
 
+            -- s_ack_delimiter: extended ACK window covers late-arriving ACKs
+            -- (bus delays > ACK-slot/2 push dominant into the delimiter SP).
             when s_ack_delimiter =>
               if (pcs_i.sample_point = '1') then
-                if ack_success_seen then
+                if (not ack_success_seen and pcs_i.rx_data = c_dominant) then
+                  ack_success_seen <= true;
+                end if;
+                if ack_success_seen or pcs_i.rx_data = c_dominant then
                   v_tx_polarity := c_recessive;
                   v_bit_driven  := true;
                   state         <= s_eof;
                 else
-                  state                 <= s_error_overload;
-                  ack_error_caused_flag <= true;
-
-
+                  ack_error_caused_flag     <= true;
                   pcs_o.tx_data             <= c_recessive when fce_i.error_active = '0' else c_dominant;
                   pcs_o.data_phase_stop     <= '1';
                   mac_ser_o.transfer_status <= c_disturbed;
@@ -532,7 +571,6 @@ begin
                   dominant_run_count        <= 0;
                   state                     <= s_error_overload;
                   overload                  <= false;
-
                   pcs_o.next_bit_is_brs     <= '0';
                   pcs_o.next_bit_is_res     <= '0';
                 end if;
@@ -642,8 +680,11 @@ begin
             secondary_sample_point_error_pending <= false;
           end if;
 
-          -- Only detect errors at the sample point if we are not using transmitter delay compensation (use_data_rate = '0').
-          if (pcs_o.next_bit_is_brs = '0' and polarity_history(0) /= pcs_i.rx_data) then
+          -- Bit error at SP is only meaningful in the nominal phase. In data
+          -- phase the bus carries multi-bit propagation lag, so the SP-sampled
+          -- bus value reflects a different TX drive than polarity_history(0).
+          -- SSP-based detection covers data-phase bit errors instead.
+          if (not in_data_phase and polarity_history(0) /= pcs_i.rx_data) then
             if (v_in_arbitration_field and pcs_i.rx_data = c_dominant) then
               v_lost_arb := true;                                               -- Recessive bit sent, dominant observed in arbitration field is lost arbitration
             elsif (not v_in_ack_slot) then
