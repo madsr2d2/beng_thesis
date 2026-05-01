@@ -419,10 +419,12 @@ begin
           end if;
 
           -----------------------------------------------------------------
-          -- Per-state FSM. In active-frame states, stuff-bit cycles are
-          -- handled by the centralized blocks above; the case body sees
-          -- only real bits. Outside active-frame states bs_i.valid is
-          -- not driven, so the case always runs.
+          -- Per-state FSM. Skipped only on stuff-bit BB cycles in
+          -- active-frame states (the centralized BB stuff drive above
+          -- already handled those). Non-active-frame states still run
+          -- even when bs_i.valid = '1', because the bit stuffer can
+          -- keep its valid asserted past the CRC field into
+          -- s_crc_delimiter and the case must still advance state there.
           -----------------------------------------------------------------
           if not v_in_active_frame or bs_i.valid = '0' then
           case state is
@@ -1096,7 +1098,7 @@ begin
               bit_count <= 0;
 
           end case;
-          end if;  -- bs_i.valid = '0'
+          end if;  -- skip stuff-bit BB cycle in active-frame
         end if;
 
         -- Clear stream_start once it has been picked up by the streamer
