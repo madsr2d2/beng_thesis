@@ -118,7 +118,6 @@ architecture rtl of can_mac_fsm is
   signal bit_index                            : natural range 0 to c_byte_width - 1;
   signal stream_index                         : natural range 0 to c_internal_llc_frame_len - 1;
   signal llc_frame                            : t_llc_frame;
-  signal crc_mismatch                         : boolean;
   signal llc_stream_start                     : boolean;
   signal llc_stream_done                      : boolean;
   signal llc_frame_len                        : natural range 0 to c_internal_llc_frame_len;
@@ -228,7 +227,6 @@ begin
         byte_index                           <= 0;
         bit_index                            <= 0;
         llc_frame                            <= (others => (others => '0'));
-        crc_mismatch                         <= false;
         llc_stream_start                     <= false;
         llc_frame_len                        <= 0;
         in_data_phase                        <= false;
@@ -525,9 +523,8 @@ begin
             -- entry triggers on dominant SOF at SP.
             -----------------------------------------------------------------
             when s_bus_idle =>
-              crc_mismatch <= false;
-              byte_index   <= 0;
-              bit_index    <= 0;
+              byte_index <= 0;
+              bit_index  <= 0;
               if pcs_i.bit_boundary = '1' then
                 if mac_ser_i.valid = '1'
                    and (fce_i.error_active = '1' or not was_previous_frame_tx) then
@@ -803,10 +800,20 @@ begin
                 v_drive_polarity := crc_i.crc((c_crc_21_length - 1) - bit_count);
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                if pcs_i.rx_data /= crc_i.crc((c_crc_21_length - 1) - bit_count) then
-                  crc_mismatch <= true;
-                end if;
-                if bit_count = crc_length - 1 then
+                if not is_transmitter
+                   and pcs_i.rx_data /= crc_i.crc((c_crc_21_length - 1) - bit_count) then
+                  -- CRC error: fire the error flag immediately. TX is
+                  -- excluded because its own delayed echo in the FD data
+                  -- phase can transiently mismatch crc_i.crc.
+                  fce_o.sending_error_overload_flag <= '1';
+                  fce_o.error                       <= '1';
+                  v_drive_polarity                  := not fce_i.error_active;
+                  v_drive_now                       := true;
+                  pcs_o.data_phase_stop             <= '1';
+                  bs_o.fixed_bit_stuffing_en        <= '0';
+                  state                             <= s_error_flag;
+                  bit_count                         <= 0;
+                elsif bit_count = crc_length - 1 then
                   pcs_o.data_phase_stop      <= '1';
                   bs_o.fixed_bit_stuffing_en <= '0';
                   state                      <= s_crc_delimiter;
@@ -819,8 +826,7 @@ begin
             -----------------------------------------------------------------
             -- s_crc_delimiter: single recessive bit between CRC and ACK.
             -- RX drives the dominant ACK at this SP (latched at next
-            -- bit_boundary_d); TX listens. RX CRC error enters the error
-            -- flag instead.
+            -- bit_boundary_d); TX listens.
             -----------------------------------------------------------------
             when s_crc_delimiter =>
               if pcs_i.bit_boundary = '1' and is_transmitter then
@@ -828,21 +834,12 @@ begin
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
                 in_data_phase <= false;
-                if not is_transmitter and crc_mismatch then
-                  fce_o.sending_error_overload_flag <= '1';
-                  fce_o.error                       <= '1';
-                  v_drive_polarity := not fce_i.error_active;
+                if not is_transmitter then
+                  v_drive_polarity := c_dominant;
                   v_drive_now      := true;
-                  state                             <= s_error_flag;
-                  bit_count                         <= 0;
-                else
-                  if not is_transmitter then
-                    v_drive_polarity := c_dominant;
-                    v_drive_now      := true;
-                  end if;
-                  state     <= s_ack;
-                  bit_count <= 0;
                 end if;
+                state     <= s_ack;
+                bit_count <= 0;
               end if;
 
             -----------------------------------------------------------------
