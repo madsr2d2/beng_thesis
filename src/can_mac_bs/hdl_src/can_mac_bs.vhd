@@ -47,7 +47,17 @@ begin
         fsb_en_latch  <= '0';
         bs_o          <= c_can_mac_fsm_bs_if_s2m_reset;
       else
-        fsb_en_latch <= bs_i.fixed_bit_stuffing_en; -- latch used to detect the rising edge
+        fsb_en_latch <= bs_i.fixed_bit_stuffing_en; -- latch used to detect rising/falling edges
+
+        -----------------------------------------------------------------
+        -- Falling edge of fsb_en: cancel any pending FSB. The MAC FSM
+        -- exits fixed-stuffing at the last CRC bit and never feeds a
+        -- stuff slot to consume a still-pending FSB; without this, BS
+        -- holds bs_o.valid='1' indefinitely into s_crc_delimiter.
+        -----------------------------------------------------------------
+        if fsb_en_latch = '1' and bs_i.fixed_bit_stuffing_en = '0' then
+          bs_o.valid <= '0';
+        end if;
 
         -----------------------------------------------------------------
         -- Rising edge of fsb_en: emit initial FSB.

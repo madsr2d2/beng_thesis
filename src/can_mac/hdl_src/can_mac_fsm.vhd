@@ -382,12 +382,9 @@ begin
           state                             <= s_error_flag;
           bit_count                         <= 0;
 
-        elsif pcs_i.sample_point = '1' and v_in_active_frame and bs_i.valid = '1' then
-          -- SP stuff-bit BS/CRC feed. Only fires in active-frame states;
-          -- BS may keep its valid asserted past s_crc into s_crc_delimiter,
-          -- which we do not want to feed (and which must still enter the
-          -- case below for state advance). CRC CC excludes stuff bits and
-          -- the s_sbc / s_crc fixed-stuff bits are excluded from CRC FD.
+        elsif pcs_i.sample_point = '1' and bs_i.valid = '1' then
+          -- SP stuff-bit BS/CRC feed. CRC CC excludes stuff bits and the
+          -- s_sbc / s_crc fixed-stuff bits are excluded from CRC FD.
           bs_o.valid <= '1';
           bs_o.data  <= v_bs_crc_data;
           if v_in_dynamic_stuff then
@@ -419,14 +416,11 @@ begin
           end if;
 
           -----------------------------------------------------------------
-          -- Per-state FSM. Skipped only on stuff-bit BB cycles in
-          -- active-frame states (the centralized BB stuff drive above
-          -- already handled those). Non-active-frame states still run
-          -- even when bs_i.valid = '1', because the bit stuffer can
-          -- keep its valid asserted past the CRC field into
-          -- s_crc_delimiter and the case must still advance state there.
+          -- Per-state FSM. Stuff-bit BB cycles are handled by the
+          -- centralized BB stuff drive above; skip the case there to
+          -- prevent the per-state real-bit drive from overriding it.
           -----------------------------------------------------------------
-          if not v_in_active_frame or bs_i.valid = '0' then
+          if bs_i.valid = '0' then
           case state is
 
             -----------------------------------------------------------------
@@ -1098,7 +1092,7 @@ begin
               bit_count <= 0;
 
           end case;
-          end if;  -- skip stuff-bit BB cycle in active-frame
+          end if;  -- bs_i.valid = '0'
         end if;
 
         -- Clear stream_start once it has been picked up by the streamer
