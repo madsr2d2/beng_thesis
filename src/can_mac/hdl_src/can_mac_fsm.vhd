@@ -310,6 +310,12 @@ begin
     variable v_data_len               : natural range 0 to c_max_data_bytes;
     -- RX-only DLC vector helper
     variable v_dlc_vec                : std_logic_vector(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
+    -- BS / CRC data source. TX feeds its own most-recently-driven bit so
+    -- BS stuff-count and CRC track the outgoing stream rather than the
+    -- (TDC-delayed) bus echo in FD data phase. RX and the arbitration
+    -- field still feed from the bus so a TX-loser converges with the
+    -- winner's BS/CRC state.
+    variable v_bs_crc_data            : std_logic;
 
     -- Drive a single bit on the bus. Asserts pcs_o.transmitting /
     -- fce_o.transmitting (PCS will latch tx_o at the next bit_boundary_d,
@@ -370,6 +376,16 @@ begin
         -----------------------------------------------------------------
         v_in_arbitration_field   := state = s_arbitration;
         v_in_quiet_field         := state = s_bus_reintegration or state = s_intermission or state = s_suspend_transmission or state = s_bus_idle;
+
+        -- BS/CRC data feed: TX uses its own drive (post-arbitration) so
+        -- stuff-count and CRC track the outgoing stream, even when the bus
+        -- echo lags by TDC in the FD data phase. RX and the arbitration
+        -- field always feed from the bus.
+        if is_transmitter and not v_in_arbitration_field then
+          v_bs_crc_data := transmitted_bits_shift_reg(0);
+        else
+          v_bs_crc_data := pcs_i.rx_data;
+        end if;
         -- TX bit-error monitoring (ISO 11898-1 6.5.4) is active in any
         -- state where the transmitter drives its own polarity and expects
         -- the bus to read back the same value. Excluded by construction:
@@ -390,7 +406,7 @@ begin
         -----------------------------------------------------------------
         -- bs_o.fixed_bit_stuffing_en is owned by the case branches: set
         -- on entry to s_sbc, cleared on every exit from s_sbc/s_crc.
-        bs_o.data                  <= pcs_i.rx_data;
+        bs_o.data                  <= v_bs_crc_data;
         bs_o.valid                 <= '0';
         bs_rst                     <= '0';
         crc_o                      <= c_mac_fsm_to_crc_if_reset;
@@ -658,11 +674,11 @@ begin
                 end if;
               elsif pcs_i.sample_point = '1' then
                 bs_o.valid <= '1';
-                bs_o.data  <= pcs_i.rx_data;
+                bs_o.data  <= v_bs_crc_data;
                 if bs_i.valid = '1' then
                   -- Stuff slot: feed CRC FD only (CC CRC excludes stuff).
                   crc_o.valid_fd <= '1';
-                  crc_o.data_fd  <= pcs_i.rx_data;
+                  crc_o.data_fd  <= v_bs_crc_data;
                   if not is_transmitter and bs_i.data /= pcs_i.rx_data then
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
@@ -675,8 +691,8 @@ begin
                   -- Real bit: feed CC and FD CRC, then capture / advance.
                   crc_o.valid_cc <= '1';
                   crc_o.valid_fd <= '1';
-                  crc_o.data_cc  <= pcs_i.rx_data;
-                  crc_o.data_fd  <= pcs_i.rx_data;
+                  crc_o.data_cc  <= v_bs_crc_data;
+                  crc_o.data_fd  <= v_bs_crc_data;
                   case bit_count is
                     when 0 to c_arb_id_a_last | c_arb_id_b_first to c_arb_id_b_last =>
                       llc_frame(c_id_offset + byte_index)((c_byte_width - 1) - bit_index) <= pcs_i.rx_data;
@@ -716,10 +732,10 @@ begin
                 end if;
               elsif pcs_i.sample_point = '1' then
                 bs_o.valid <= '1';
-                bs_o.data  <= pcs_i.rx_data;
+                bs_o.data  <= v_bs_crc_data;
                 if bs_i.valid = '1' then
                   crc_o.valid_fd <= '1';
-                  crc_o.data_fd  <= pcs_i.rx_data;
+                  crc_o.data_fd  <= v_bs_crc_data;
                   if not is_transmitter and bs_i.data /= pcs_i.rx_data then
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
@@ -729,10 +745,18 @@ begin
                     bit_count                         <= 0;
                   end if;
                 else
+                  -- TDC startup hint to PCS: SP of FDF, next bit is the FD
+                  -- `res` so PCS begins TDC measurement at that boundary.
+                  -- TX-only and only on FDF=recessive (FD frame). CC ext
+                  -- also enters s_res_r0 but the next bit is r0 and TDC
+                  -- is not used.
+                  if is_transmitter and pcs_i.rx_data = c_recessive then
+                    pcs_o.next_bit_is_res <= '1';
+                  end if;
                   crc_o.valid_cc <= '1';
                   crc_o.valid_fd <= '1';
-                  crc_o.data_cc  <= pcs_i.rx_data;
-                  crc_o.data_fd  <= pcs_i.rx_data;
+                  crc_o.data_cc  <= v_bs_crc_data;
+                  crc_o.data_fd  <= v_bs_crc_data;
                   llc_frame(c_conf_0_offset)(c_llc_frame_fdf) <= pcs_i.rx_data;
                   if pcs_i.rx_data = c_recessive or llc_frame(c_conf_0_offset)(c_llc_frame_ide) = '1' then
                     state <= s_res_r0;
@@ -759,10 +783,10 @@ begin
                 end if;
               elsif pcs_i.sample_point = '1' then
                 bs_o.valid <= '1';
-                bs_o.data  <= pcs_i.rx_data;
+                bs_o.data  <= v_bs_crc_data;
                 if bs_i.valid = '1' then
                   crc_o.valid_fd <= '1';
-                  crc_o.data_fd  <= pcs_i.rx_data;
+                  crc_o.data_fd  <= v_bs_crc_data;
                   if not is_transmitter and bs_i.data /= pcs_i.rx_data then
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
@@ -774,8 +798,8 @@ begin
                 else
                   crc_o.valid_cc <= '1';
                   crc_o.valid_fd <= '1';
-                  crc_o.data_cc  <= pcs_i.rx_data;
-                  crc_o.data_fd  <= pcs_i.rx_data;
+                  crc_o.data_cc  <= v_bs_crc_data;
+                  crc_o.data_fd  <= v_bs_crc_data;
                   if pcs_i.rx_data = c_recessive then
                     -- Form error. (TX winning has rx_data == drive == dom.)
                     fce_o.sending_error_overload_flag <= '1';
@@ -784,12 +808,10 @@ begin
                     bit_count                         <= 0;
                     state                             <= s_error_flag;
                   elsif llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' then
-                    if is_transmitter then
-                      pcs_o.next_bit_is_res <= '1';
-                    else
-                      pcs_o.next_bit_is_brs <= '1';
-                    end if;
-                    state <= s_brs;
+                    -- BRS hint: SP of res, next bit is BRS. Both roles
+                    -- need this so the PCS handles the bit-rate switch.
+                    pcs_o.next_bit_is_brs <= '1';
+                    state                 <= s_brs;
                   else
                     state     <= s_dlc;
                     bit_count <= 0;
@@ -805,15 +827,14 @@ begin
                 if bs_i.valid = '1' then
                   drive_bit(bs_i.data);
                 else
-                  pcs_o.next_bit_is_brs <= mac_ser_i.llc_metadata.brs;
                   drive_bit(mac_ser_i.llc_metadata.brs);
                 end if;
               elsif pcs_i.sample_point = '1' then
                 bs_o.valid <= '1';
-                bs_o.data  <= pcs_i.rx_data;
+                bs_o.data  <= v_bs_crc_data;
                 if bs_i.valid = '1' then
                   crc_o.valid_fd <= '1';
-                  crc_o.data_fd  <= pcs_i.rx_data;
+                  crc_o.data_fd  <= v_bs_crc_data;
                   if not is_transmitter and bs_i.data /= pcs_i.rx_data then
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
@@ -825,8 +846,8 @@ begin
                 else
                   crc_o.valid_cc <= '1';
                   crc_o.valid_fd <= '1';
-                  crc_o.data_cc  <= pcs_i.rx_data;
-                  crc_o.data_fd  <= pcs_i.rx_data;
+                  crc_o.data_cc  <= v_bs_crc_data;
+                  crc_o.data_fd  <= v_bs_crc_data;
                   llc_frame(c_conf_0_offset)(c_llc_frame_brs) <= pcs_i.rx_data;
                   in_data_phase                               <= (pcs_i.rx_data = c_recessive);
                   state                                       <= s_esi;
@@ -845,10 +866,10 @@ begin
                 end if;
               elsif pcs_i.sample_point = '1' then
                 bs_o.valid <= '1';
-                bs_o.data  <= pcs_i.rx_data;
+                bs_o.data  <= v_bs_crc_data;
                 if bs_i.valid = '1' then
                   crc_o.valid_fd <= '1';
-                  crc_o.data_fd  <= pcs_i.rx_data;
+                  crc_o.data_fd  <= v_bs_crc_data;
                   if not is_transmitter and bs_i.data /= pcs_i.rx_data then
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
@@ -860,8 +881,8 @@ begin
                 else
                   crc_o.valid_cc <= '1';
                   crc_o.valid_fd <= '1';
-                  crc_o.data_cc  <= pcs_i.rx_data;
-                  crc_o.data_fd  <= pcs_i.rx_data;
+                  crc_o.data_cc  <= v_bs_crc_data;
+                  crc_o.data_fd  <= v_bs_crc_data;
                   llc_frame(c_conf_0_offset)(c_llc_frame_esi) <= pcs_i.rx_data;
                   state                                       <= s_dlc;
                   bit_count                                   <= 0;
@@ -883,10 +904,10 @@ begin
                 end if;
               elsif pcs_i.sample_point = '1' then
                 bs_o.valid <= '1';
-                bs_o.data  <= pcs_i.rx_data;
+                bs_o.data  <= v_bs_crc_data;
                 if bs_i.valid = '1' then
                   crc_o.valid_fd <= '1';
-                  crc_o.data_fd  <= pcs_i.rx_data;
+                  crc_o.data_fd  <= v_bs_crc_data;
                   if not is_transmitter and bs_i.data /= pcs_i.rx_data then
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
@@ -898,8 +919,8 @@ begin
                 else
                   crc_o.valid_cc <= '1';
                   crc_o.valid_fd <= '1';
-                  crc_o.data_cc  <= pcs_i.rx_data;
-                  crc_o.data_fd  <= pcs_i.rx_data;
+                  crc_o.data_cc  <= v_bs_crc_data;
+                  crc_o.data_fd  <= v_bs_crc_data;
                   llc_frame(c_conf_1_offset)(c_llc_frame_dlc_start - bit_count) <= pcs_i.rx_data;
                   if bit_count = c_dlc_field_width - 1 then
                     v_dlc_vec                                    := llc_frame(c_conf_1_offset)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
@@ -938,10 +959,10 @@ begin
                 end if;
               elsif pcs_i.sample_point = '1' then
                 bs_o.valid <= '1';
-                bs_o.data  <= pcs_i.rx_data;
+                bs_o.data  <= v_bs_crc_data;
                 if bs_i.valid = '1' then
                   crc_o.valid_fd <= '1';
-                  crc_o.data_fd  <= pcs_i.rx_data;
+                  crc_o.data_fd  <= v_bs_crc_data;
                   if not is_transmitter and bs_i.data /= pcs_i.rx_data then
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
@@ -953,8 +974,8 @@ begin
                 else
                   crc_o.valid_cc <= '1';
                   crc_o.valid_fd <= '1';
-                  crc_o.data_cc  <= pcs_i.rx_data;
-                  crc_o.data_fd  <= pcs_i.rx_data;
+                  crc_o.data_cc  <= v_bs_crc_data;
+                  crc_o.data_fd  <= v_bs_crc_data;
                   llc_frame(c_data_offset + byte_index)((c_byte_width - 1) - bit_index) <= pcs_i.rx_data;
                   if byte_index = data_len - 1 and bit_index = c_byte_width - 1 then
                     if llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' then
@@ -990,7 +1011,7 @@ begin
                 end if;
               elsif pcs_i.sample_point = '1' then
                 bs_o.valid <= '1';
-                bs_o.data  <= pcs_i.rx_data;
+                bs_o.data  <= v_bs_crc_data;
                 if bs_i.valid = '1' then
                   if not is_transmitter and bs_i.data /= pcs_i.rx_data then
                     fce_o.sending_error_overload_flag <= '1';
@@ -1002,7 +1023,7 @@ begin
                   end if;
                 else
                   crc_o.valid_fd <= '1';
-                  crc_o.data_fd  <= pcs_i.rx_data;
+                  crc_o.data_fd  <= v_bs_crc_data;
                   if pcs_i.rx_data /= bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count) then
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
@@ -1035,7 +1056,7 @@ begin
                 end if;
               elsif pcs_i.sample_point = '1' then
                 bs_o.valid <= '1';
-                bs_o.data  <= pcs_i.rx_data;
+                bs_o.data  <= v_bs_crc_data;
                 if bs_i.valid = '1' then
                   if not is_transmitter and bs_i.data /= pcs_i.rx_data then
                     fce_o.sending_error_overload_flag <= '1';
