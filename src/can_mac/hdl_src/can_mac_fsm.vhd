@@ -392,10 +392,15 @@ begin
             crc_o.data_fd  <= v_bs_crc_data;
           end if;
 
+        elsif pcs_i.bit_boundary = '1' and is_transmitter and bs_i.valid = '1' then
+          -- BB stuff-bit TX drive (uniform across all active-frame states).
+          v_drive_polarity := bs_i.data;
+          v_drive_now      := true;
+
         else
           ---------------------------------------------------------------
-          -- BB cycle or SP real-bit cycle. SP real-bit BS/CRC feed,
-          -- BB stuff-bit TX drive, and the per-state case all live here.
+          -- Real-bit cycle (BB or SP) or quiet/error state. SP real-bit
+          -- BS/CRC feed and the per-state case both run here.
           ---------------------------------------------------------------
           if pcs_i.sample_point = '1' and v_in_active_frame then
             bs_o.valid <= '1';
@@ -410,17 +415,6 @@ begin
             end if;
           end if;
 
-          if pcs_i.bit_boundary = '1' and is_transmitter and bs_i.valid = '1' then
-            v_drive_polarity := bs_i.data;
-            v_drive_now      := true;
-          end if;
-
-          -----------------------------------------------------------------
-          -- Per-state FSM. Stuff-bit BB cycles are handled by the
-          -- centralized BB stuff drive above; skip the case there to
-          -- prevent the per-state real-bit drive from overriding it.
-          -----------------------------------------------------------------
-          if bs_i.valid = '0' then
           case state is
 
             -----------------------------------------------------------------
@@ -1092,7 +1086,6 @@ begin
               bit_count <= 0;
 
           end case;
-          end if;  -- bs_i.valid = '0'
         end if;
 
         -- Clear stream_start once it has been picked up by the streamer
