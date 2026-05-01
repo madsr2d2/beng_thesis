@@ -47,40 +47,19 @@ begin
         fsb_en_latch  <= '0';
         bs_o          <= c_can_mac_fsm_bs_if_s2m_reset;
       else
-        fsb_en_latch <= bs_i.fixed_bit_stuffing_en; -- latch used to detect rising/falling edges
+        fsb_en_latch <= bs_i.fixed_bit_stuffing_en;
 
-        -----------------------------------------------------------------
         -- Falling edge of fsb_en: cancel any pending FSB. The MAC FSM
-        -- exits fixed-stuffing at the last CRC bit and never feeds a
-        -- stuff slot to consume a still-pending FSB; without this, BS
-        -- holds bs_o.valid='1' indefinitely into s_crc_delimiter.
-        -----------------------------------------------------------------
+        -- exits fixed-stuffing at the last CRC bit without feeding a
+        -- stuff slot to consume a still-pending FSB.
         if fsb_en_latch = '1' and bs_i.fixed_bit_stuffing_en = '0' then
           bs_o.valid <= '0';
         end if;
 
-        -----------------------------------------------------------------
-        -- Rising edge of fsb_en: emit initial FSB.
-        -- If a dynamic SB is already pending (bs_o.valid='1' from prev
-        -- cycle), keep it on the output -- the FSM will consume it as
-        -- the next bit, and we'll re-emit the FSB on the cycle after.
-        -- This avoids a race where TX vs RX SP offset causes one side
-        -- to suppress a dyn SB that the other side does not, leading
-        -- to a stuff_count divergence and false SBC mismatch at RX.
-        -----------------------------------------------------------------
-        -----------------------------------------------------------------
-        -- Rising edge of fsb_en: emit initial FSB.
-        -- NOTE: the previous OLD code had a "suppress dynamic SB at
-        -- fsb_en boundary" branch that decremented stuff_count when a
-        -- dyn SB happened to coincide with the fsb_en rising edge.
-        -- That branch caused TX/RX stuff_count divergence under
-        -- realistic propagation delays (TX hit the suppression race;
-        -- RX inserted its dyn SB at a different moment and didn't),
-        -- which produced false SBC mismatches at RX. We now keep any
-        -- pending dyn SB on the output (it serves as the initial FSB)
-        -- without decrementing stuff_count, so both sides remain in
-        -- agreement.
-        -----------------------------------------------------------------
+        -- Rising edge of fsb_en: emit the initial FSB. If a dynamic SB
+        -- is already pending, keep it as the initial FSB (avoids a
+        -- TX/RX stuff_count divergence under realistic propagation
+        -- delays where one side would suppress and the other would not).
         if (bs_i.fixed_bit_stuffing_en = '1' and fsb_en_latch = '0') then
           if (bs_i.valid = '1') then
             last_polarity <= bs_i.data;
@@ -88,7 +67,6 @@ begin
             bs_o.valid    <= '1';
             count         <= 0;
           elsif (bs_o.valid = '1') then
-            -- A dyn SB is already pending; keep it as the initial FSB.
             null;
           else
             bs_o.data  <= not last_polarity;
@@ -101,26 +79,22 @@ begin
           bs_o.valid    <= '0';
 
           if (bs_i.fixed_bit_stuffing_en = '0') then
-            -----------------------------------------------------------------
-            -- Dynamic stuffing: stuff bit after 5 consecutive same-polarity
-            -----------------------------------------------------------------
+            -- Dynamic stuffing: SB after 5 consecutive same-polarity bits.
             if (bs_i.data /= last_polarity) then
               count <= 1;
             elsif (count = c_stuff_width - 1) then
-              count       <= 0;
-              bs_o.data   <= not last_polarity;
-              bs_o.valid  <= '1';
-              stuff_count <= stuff_count + 1;
-              v_gray      := f_to_gray(std_logic_vector(stuff_count + 1));
-              bs_o.stuff_bit_count    <= v_gray & f_calc_parity(v_gray);
+              count                <= 0;
+              bs_o.data            <= not last_polarity;
+              bs_o.valid           <= '1';
+              stuff_count          <= stuff_count + 1;
+              v_gray               := f_to_gray(std_logic_vector(stuff_count + 1));
+              bs_o.stuff_bit_count <= v_gray & f_calc_parity(v_gray);
             else
               count <= count + 1;
             end if;
 
           else
-            -----------------------------------------------------------------
-            -- Fixed stuffing: 1 FSB every 4 real bits (ISO 6.6.13.3.1)
-            -----------------------------------------------------------------
+            -- Fixed stuffing: one FSB every 4 real bits (ISO 6.6.13.3.1).
             if (bs_o.valid = '0') then
               if (count = c_stuff_width - 2) then
                 bs_o.data  <= not bs_i.data;
