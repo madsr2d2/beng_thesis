@@ -119,7 +119,8 @@ architecture rtl of can_pcs is
   signal ssp_active                   : std_logic;
   signal ssp_seen                     : std_logic;
   signal tdc_delay                    : natural range 0 to c_tdc_polarity_depth - 1;
-  signal bit_boundary                 : std_logic;                              -- Just for debugging in the waveforms
+  signal bit_boundary                 : std_logic;                              -- Pulses one cycle at end of phase_seg2 (forwarded to MAC)
+  signal bit_boundary_d               : std_logic;                              -- One-cycle-delayed bit_boundary, used to latch tx_o
   signal ssp_standoff_active          : std_logic;
   signal first_data_bit_boundary_seen : std_logic;
   signal data_phase_active            : std_logic;
@@ -158,13 +159,19 @@ begin
         data_phase_active            <= '0';
         first_data_bit_boundary_seen <= '0';
         bit_boundary                 <= '0';
+        bit_boundary_d               <= '0';
       else
 
         -- Clear strobe signals
         mac_o.sample_point           <= '0';
         mac_o.secondary_sample_point <= '0';
+        mac_o.bit_boundary           <= '0';
         fce_o.idle_condition         <= '0';
         bit_boundary                 <= '0';
+        -- Pipeline bit_boundary by one clock so the tx_o latch (below)
+        -- happens AFTER the MAC FSM has had a chance to update mac_i.tx_data
+        -- in response to bit_boundary on mac_o.
+        bit_boundary_d               <= bit_boundary;
         -- Latch bus on clock
         mac_o.rx_data                <= rx_i;
 
@@ -382,18 +389,16 @@ begin
 
                 -- Bit boundary -----------------------------------------------------------
                 elsif seg_count >= ((active_phase_seg2 - 1) - phase2_shortening) then
-                  bit_boundary      <= '1';
-                  segment           <= s_sync_seg;
-                  seg_count         <= 0;
-                  phase2_shortening <= 0;
+                  bit_boundary       <= '1';
+                  mac_o.bit_boundary <= '1';
+                  segment            <= s_sync_seg;
+                  seg_count          <= 0;
+                  phase2_shortening  <= 0;
                   -- Allow sync again now that we've reached the next bit boundary
-                  sync_applied      <= '0';
+                  sync_applied       <= '0';
 
                   if fce_i.bus_off = '0' then
                     if mac_i.transmitting = '1' then
-                      -- Latch MAC output data tx_o at the bit boundary if transmitting
-                      tx_o <= mac_i.tx_data;
-
                       -- Transmitter Delay Compensation (TDC) logic (ISO 7.3.4) ----------
                       if ssp_seen = '0' then
                         if data_phase_active = '1' then
@@ -412,21 +417,33 @@ begin
                       if mac_i.next_bit_is_res = '1' then
                         tdc_count_active <= '1';
                       end if;
-                    ---------------------------------------------------------------------------
-                    else
-                      -- Latch recessive to tx_o if receiving
-                      tx_o <= c_recessive;
                     end if;
-                  else
-                    -- Latch recessive bit to bus if bus_off
-                    tx_o <= c_recessive;
                   end if;
+                  ---------------------------------------------------------------------------
+                  -- tx_o latch is deferred to bit_boundary_d (one cycle later)
+                  -- so the MAC FSM has time to react to mac_o.bit_boundary
+                  -- and update mac_i.tx_data before we sample it.
+                  ---------------------------------------------------------------------------
                 end if;
                 ---------------------------------------------------------------------------
             end case;
           end if;
         else
           clk_count <= clk_count + 1;
+        end if;
+
+        -----------------------------------------------------------------------
+        -- Deferred tx_o latch: fires one clock after bit_boundary, by which
+        -- time the MAC FSM has had a cycle to update mac_i.tx_data in
+        -- response to mac_o.bit_boundary. Drives recessive when receiving
+        -- or in bus-off so the bus is released cleanly.
+        -----------------------------------------------------------------------
+        if bit_boundary_d = '1' then
+          if fce_i.bus_off = '0' and mac_i.transmitting = '1' then
+            tx_o <= mac_i.tx_data;
+          else
+            tx_o <= c_recessive;
+          end if;
         end if;
       end if;
     end if;

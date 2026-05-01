@@ -95,7 +95,7 @@ package pk_can_types is
   constant c_disturbed   : std_logic_vector(2 downto 0) := "110";
 
   -- TDC polarity history depth (ISO 7.3.4)
-  constant c_tdc_polarity_depth : natural := 32;
+  constant c_tdc_polarity_depth : natural := 8; -- TODO: Justify this (Dont think we more but calculate form relevant delays)
 
   -- Retransmission (ISO 6.5.3)
   constant c_retransmission_limit : natural := 6;
@@ -265,6 +265,10 @@ package pk_can_types is
     rx_data                : std_logic;                                         -- Bus polarity
     sample_point           : std_logic;                                         -- Sample point strobe
     secondary_sample_point : std_logic;                                         -- Secondary sample point strobe (used in FD frames only)
+    -- Bit-boundary strobe: pulses one cycle before tx_o is latched. Lets the
+    -- MAC FSM decide the next bit's drive at end-of-bit using BS/CRC state
+    -- that has already absorbed the bus value sampled at the preceding SP.
+    bit_boundary           : std_logic;
     -- Transmitter delay. This is the index used by the MAC TX FSM to fetch the correct bit from the polarity history shift register.
     -- Used FD frames to compensate for the transmitter delay when checking bit errors (ISO : 7.3.4)
     tdc_delay              : std_logic_vector(integer(ceil(log2(real(c_tdc_polarity_depth)))) - 1 downto 0);
@@ -275,6 +279,7 @@ package pk_can_types is
     rx_data                => c_recessive,
     sample_point           => '0',
     secondary_sample_point => '0',
+    bit_boundary           => '0',
     tdc_delay              => (others => '0')
   );
 
@@ -493,8 +498,7 @@ package body pk_can_types is
       when 9      => return 12;
       when 10     => return 16;
       when 11     => return 20;
-      when 12     => return 24;
-      when 13     => return 32;
+      when 12     => return 24; when 13     => return 32;
       when 14     => return 48;
       when 15     => return c_max_data_bytes;
       when others => return 0;
