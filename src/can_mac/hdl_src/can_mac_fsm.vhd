@@ -189,6 +189,10 @@ begin
     variable v_drive_now      : boolean;
     variable v_drive_polarity : std_logic;
 
+    -- Set by the SP-time error monitors when an error frame is entered;
+    -- gates the BS/CRC feed and the per-state case below.
+    variable v_skip_case        : boolean;
+
     -- Field guards used by the centralized BS/CRC feed below.
     --   v_in_active_frame   - any field where the bit stuffer is running
     --   v_in_dynamic_stuff  - dynamic-stuff fields (CC CRC fed on real
@@ -256,6 +260,7 @@ begin
                               or state = s_data;
         v_in_active_frame  := v_in_dynamic_stuff
                               or state = s_sbc or state = s_crc;
+        v_skip_case        := false;
 
         -----------------------------------------------------------------
         -- Per-cycle defaults (overridden by per-state case below).
@@ -316,63 +321,66 @@ begin
         end if;
 
         -----------------------------------------------------------------
-        -- Lost arbitration (ISO 11898-1 6.5.2). Always at SP. Flips
-        -- is_transmitter false in-place; the s_arbitration case branch
-        -- below then captures the winner's bits via the RX path.
+        -- SP-time TX-side checks. State sets are mutually exclusive
+        -- (s_arbitration vs the tx-drive set), so this is an if/elsif.
+        --
+        --   Lost arbitration (ISO 6.5.2): TX recessive vs bus dominant
+        --   in s_arbitration. Flips is_transmitter false in-place; the
+        --   s_arbitration case below still runs to capture the winner's
+        --   bit via the RX path (does not skip the case).
+        --
+        --   TX bit-error (ISO 6.5.4): in any state where TX drives its
+        --   own polarity and expects bus echo. Excluded by construction:
+        --     s_arbitration   - lost-arb handles drive/bus mismatch
+        --     s_ack           - drives recessive expecting receivers'
+        --                       ACK
+        --     s_ack_delimiter - preceding ACK leaks past the boundary;
+        --                       the SSP-deferred path is still allowed
+        --     s_error_*       - already in error frame
+        --     quiet states    - no drive
         -----------------------------------------------------------------
-        if pcs_i.sample_point = '1' and is_transmitter and state = s_arbitration
-           and transmitted_bits_shift_reg(0) = c_recessive
-           and pcs_i.rx_data = c_dominant then
-          mac_ser_o.transfer_status <= c_lost_arb;
-          was_previous_frame_tx     <= false;
-          is_transmitter            <= false;
+        if pcs_i.sample_point = '1' and is_transmitter then
+          if state = s_arbitration
+             and transmitted_bits_shift_reg(0) = c_recessive
+             and pcs_i.rx_data = c_dominant then
+            mac_ser_o.transfer_status <= c_lost_arb;
+            was_previous_frame_tx     <= false;
+            is_transmitter            <= false;
+          elsif (state = s_fdf_r1_r0 or state = s_res_r0
+                 or state = s_brs or state = s_esi
+                 or state = s_dlc or state = s_data
+                 or state = s_sbc or state = s_crc
+                 or state = s_crc_delimiter
+                 or state = s_ack_delimiter
+                 or state = s_eof)
+                and (secondary_sample_point_error_pending
+                     or (not in_data_phase
+                         and state /= s_ack_delimiter
+                         and transmitted_bits_shift_reg(0) /= pcs_i.rx_data)) then
+            if secondary_sample_point_error_pending then
+              secondary_sample_point_error_pending <= false;
+            end if;
+            fce_o.error                <= '1';
+            pcs_o.tx_data              <= not fce_i.error_active;
+            pcs_o.data_phase_stop      <= '1';
+            bs_o.fixed_bit_stuffing_en <= '0';
+            state                      <= s_error_flag;
+            bit_count                  <= 0;
+            overload                   <= false;
+            v_skip_case                := true;
+          end if;
         end if;
 
         -----------------------------------------------------------------
-        -- SP-time global error monitors. When either fires, enter the
-        -- error frame and skip the per-state case for this cycle.
-        --
-        -- TX bit-error (ISO 6.5.4): TX-only, in any state where TX drives
-        -- its own polarity and expects bus echo. Excluded:
-        --   s_arbitration   - lost-arb handles drive/bus mismatch
-        --   s_ack           - drives recessive expecting receivers' ACK
-        --   s_ack_delimiter - preceding ACK leaks past the boundary; the
-        --                     SSP-deferred path is still allowed here
-        --   s_error_*       - already in error frame
-        --   quiet states    - no drive
-        --
-        -- RX stuff-error (ISO 6.5.5): RX-only, at the SP of a stuff slot
-        -- (bs_i.valid = '1') the bus must match the polarity the bit
-        -- stuffer expected. TX winning has bs_i.data == drive == rx_data.
+        -- RX stuff-error (ISO 6.5.5): RX-only, at the SP of a stuff
+        -- slot the bus must match the polarity the bit stuffer
+        -- expected. TX winning has bs_i.data == drive == rx_data.
         -----------------------------------------------------------------
-        if pcs_i.sample_point = '1' and is_transmitter
-           and (state = s_fdf_r1_r0 or state = s_res_r0
-                or state = s_brs or state = s_esi
-                or state = s_dlc or state = s_data
-                or state = s_sbc or state = s_crc
-                or state = s_crc_delimiter
-                or state = s_ack_delimiter
-                or state = s_eof)
-           and (secondary_sample_point_error_pending
-                or (not in_data_phase
-                    and state /= s_ack_delimiter
-                    and transmitted_bits_shift_reg(0) /= pcs_i.rx_data)) then
-          if secondary_sample_point_error_pending then
-            secondary_sample_point_error_pending <= false;
-          end if;
-          fce_o.error                <= '1';
-          pcs_o.tx_data              <= not fce_i.error_active;
-          pcs_o.data_phase_stop      <= '1';
-          bs_o.fixed_bit_stuffing_en <= '0';
-          state                      <= s_error_flag;
-          bit_count                  <= 0;
-          overload                   <= false;
-
-        elsif pcs_i.sample_point = '1' and not is_transmitter
-              and bs_i.valid = '1' and bs_i.data /= pcs_i.rx_data
-              and (state = s_arbitration or state = s_fdf_r1_r0
-                   or state = s_res_r0 or state = s_brs or state = s_esi
-                   or state = s_dlc or state = s_data) then
+        if pcs_i.sample_point = '1' and not is_transmitter
+           and bs_i.valid = '1' and bs_i.data /= pcs_i.rx_data
+           and (state = s_arbitration or state = s_fdf_r1_r0
+                or state = s_res_r0 or state = s_brs or state = s_esi
+                or state = s_dlc or state = s_data) then
           fce_o.sending_error_overload_flag <= '1';
           fce_o.error                       <= '1';
           pcs_o.data_phase_stop             <= '1';
@@ -380,8 +388,10 @@ begin
           v_drive_now                       := true;
           state                             <= s_error_flag;
           bit_count                         <= 0;
+          v_skip_case                       := true;
+        end if;
 
-        else
+        if not v_skip_case then
           -----------------------------------------------------------------
           -- Centralized BS / CRC feed at SP for active-frame states.
           -- Field-type rules:
