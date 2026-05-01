@@ -186,7 +186,7 @@ begin
   begin
     wait for gc_TbTimeOut;
     assert false report "ERROR TEST FAILED, due to time out" severity error;
-    std.env.stop(1);
+    std.env.stop(5);
   end process p_timeout;
 
   p_init : process is
@@ -207,7 +207,7 @@ begin
     -- Temporarily restricted to CC-only (FD frames have an outstanding
     -- SSP-timing issue after the bit_boundary refactor). Restore to
     -- GenBin(0, 1) once SSP is fixed.
-    AddBins(v_fdf_cov, c_bin_at_least, GenBin(0, 0));
+    AddBins(v_fdf_cov, c_bin_at_least, GenBin(0, 1));
     AddBins(v_dlc_cov, c_bin_at_least, GenBin(0, c_dlc_max));
     tx_llc_rec.BurstFifo <= NewID("TX LLC Burst fifo");
     llc_rec.BurstFifo    <= NewID("RX LLC Burst fifo");

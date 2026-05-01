@@ -923,22 +923,36 @@ begin
                   crc_o.data_fd  <= v_bs_crc_data;
                   llc_frame(c_conf_1_offset)(c_llc_frame_dlc_start - bit_count) <= pcs_i.rx_data;
                   if bit_count = c_dlc_field_width - 1 then
-                    v_dlc_vec                                    := llc_frame(c_conf_1_offset)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
-                    v_dlc_vec(c_llc_frame_dlc_start - bit_count) := pcs_i.rx_data;
-                    v_data_len                                   := dlc_to_data_length(to_integer(unsigned(v_dlc_vec)), llc_frame(c_conf_0_offset)(c_llc_frame_fdf));
-                    data_len              <= v_data_len;
-                    crc_length            <= f_crc_length(v_data_len, llc_frame(c_conf_0_offset)(c_llc_frame_fdf));
-                    crc_o.crc_poly_select <= f_crc_poly_select(v_data_len, llc_frame(c_conf_0_offset)(c_llc_frame_fdf));
-                    bit_count             <= 0;
-                    bit_index             <= 0;
-                    byte_index            <= 0;
-                    if v_data_len > 0 and llc_frame(c_conf_0_offset)(c_llc_frame_ftyp) = '0' then
-                      state <= s_data;
-                    elsif llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' then
-                      state                      <= s_sbc;
-                      bs_o.fixed_bit_stuffing_en <= '1';
+                    bit_count  <= 0;
+                    bit_index  <= 0;
+                    byte_index <= 0;
+                    if is_transmitter then
+                      -- TX uses metadata-derived data_len/crc_length from SOF.
+                      -- In the FD data phase the TDC-delayed self-echo would
+                      -- corrupt these if re-derived from rx_data here.
+                      if data_len > 0 and mac_ser_i.llc_metadata.ftyp = '0' then
+                        state <= s_data;
+                      elsif mac_ser_i.llc_metadata.fdf = '1' then
+                        state                      <= s_sbc;
+                        bs_o.fixed_bit_stuffing_en <= '1';
+                      else
+                        state <= s_crc;
+                      end if;
                     else
-                      state <= s_crc;
+                      v_dlc_vec                                    := llc_frame(c_conf_1_offset)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
+                      v_dlc_vec(c_llc_frame_dlc_start - bit_count) := pcs_i.rx_data;
+                      v_data_len                                   := dlc_to_data_length(to_integer(unsigned(v_dlc_vec)), llc_frame(c_conf_0_offset)(c_llc_frame_fdf));
+                      data_len              <= v_data_len;
+                      crc_length            <= f_crc_length(v_data_len, llc_frame(c_conf_0_offset)(c_llc_frame_fdf));
+                      crc_o.crc_poly_select <= f_crc_poly_select(v_data_len, llc_frame(c_conf_0_offset)(c_llc_frame_fdf));
+                      if v_data_len > 0 and llc_frame(c_conf_0_offset)(c_llc_frame_ftyp) = '0' then
+                        state <= s_data;
+                      elsif llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' then
+                        state                      <= s_sbc;
+                        bs_o.fixed_bit_stuffing_en <= '1';
+                      else
+                        state <= s_crc;
+                      end if;
                     end if;
                   else
                     bit_count <= bit_count + 1;
@@ -1024,7 +1038,8 @@ begin
                 else
                   crc_o.valid_fd <= '1';
                   crc_o.data_fd  <= v_bs_crc_data;
-                  if pcs_i.rx_data /= bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count) then
+                  if not is_transmitter
+                     and pcs_i.rx_data /= bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count) then
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
                     drive_bit(not fce_i.error_active);
