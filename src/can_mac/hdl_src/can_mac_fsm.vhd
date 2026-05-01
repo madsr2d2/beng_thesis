@@ -317,23 +317,21 @@ begin
     -- winner's BS/CRC state.
     variable v_bs_crc_data            : std_logic;
 
-    -- Drive a single bit on the bus. Asserts pcs_o.transmitting /
-    -- fce_o.transmitting (PCS will latch tx_o at the next bit_boundary_d,
-    -- FCE counts errors as TX-side) and shifts polarity_history so the
-    -- TX bit-error monitor and SSP/TDC compare see this drive at the
-    -- next SP. Called from any case branch that drives a bit, whether at
-    -- bit_boundary (TX) or SP (RX-side ACK / error-flag drive).
-    procedure drive_bit(polarity : in std_logic) is
-    begin
-      pcs_o.tx_data              <= polarity;
-      pcs_o.transmitting         <= '1';
-      fce_o.transmitting         <= '1';
-      transmitted_bits_shift_reg <= transmitted_bits_shift_reg(c_tdc_polarity_depth - 2 downto 0) & polarity;
-    end procedure drive_bit;
+    -- Drive intent latched by per-state branches (and the central error
+    -- monitor) and committed once near the end of the process. v_drive_now
+    -- = true means: write v_drive_polarity to pcs_o.tx_data, assert
+    -- pcs_o.transmitting / fce_o.transmitting (PCS latches tx_o at the
+    -- next bit_boundary_d; FCE counts errors as TX-side) and shift the
+    -- polarity history so the TX bit-error monitor and SSP/TDC compare
+    -- see this drive at the next SP.
+    variable v_drive_now      : boolean;
+    variable v_drive_polarity : std_logic;
 
   begin
 
     if rising_edge(clk_i) then
+      v_drive_now      := false;
+      v_drive_polarity := c_recessive;
       if (rst_i = '1' or fce_i.bus_off = '1') then
         -- Bus-off recovery is handled by the FCE (counts 128 sequences of 11
         -- recessive bits per ISO 8.1.4.5). Park the FSM in s_bus_off while
@@ -551,7 +549,8 @@ begin
                   data_len              <= v_data_len;
                   crc_length            <= f_crc_length(v_data_len, mac_ser_i.llc_metadata.fdf);
                   crc_o.crc_poly_select <= f_crc_poly_select(v_data_len, mac_ser_i.llc_metadata.fdf);
-                  drive_bit(c_dominant);
+                  v_drive_polarity := c_dominant;
+                  v_drive_now      := true;
                 end if;
               elsif pcs_i.sample_point = '1' then
                 if pcs_i.rx_data = c_dominant then
@@ -624,7 +623,8 @@ begin
                   data_len              <= v_data_len;
                   crc_length            <= f_crc_length(v_data_len, mac_ser_i.llc_metadata.fdf);
                   crc_o.crc_poly_select <= f_crc_poly_select(v_data_len, mac_ser_i.llc_metadata.fdf);
-                  drive_bit(c_dominant);
+                  v_drive_polarity := c_dominant;
+                  v_drive_now      := true;
                 end if;
               elsif pcs_i.sample_point = '1' and pcs_i.rx_data = c_dominant then
                 bit_count      <= 0;
@@ -650,24 +650,29 @@ begin
             when s_arbitration =>
               if pcs_i.bit_boundary = '1' and is_transmitter then
                 if bs_i.valid = '1' then
-                  drive_bit(bs_i.data);
+                  v_drive_polarity := bs_i.data;
+                  v_drive_now      := true;
                 else
                   case bit_count is
                     when 0 to c_arb_id_a_last | c_arb_id_b_first to c_arb_id_b_last =>
                       mac_ser_o.ready <= '1';
-                      drive_bit(mac_ser_i.data);
+                      v_drive_polarity := mac_ser_i.data;
+                      v_drive_now      := true;
                     when c_arb_rtr_pos =>
+                      v_drive_now := true;
                       if mac_ser_i.llc_metadata.ide = c_recessive then
-                        drive_bit(c_recessive);                  -- SRR (extended)
+                        v_drive_polarity := c_recessive;                  -- SRR (extended)
                       elsif mac_ser_i.llc_metadata.fdf = c_recessive then
-                        drive_bit(mac_ser_i.llc_metadata.ftyp);  -- RTR (CC base)
+                        v_drive_polarity := mac_ser_i.llc_metadata.ftyp;  -- RTR (CC base)
                       else
-                        drive_bit(c_dominant);                   -- RRS (FD base)
+                        v_drive_polarity := c_dominant;                   -- RRS (FD base)
                       end if;
                     when c_arb_ide_pos =>
-                      drive_bit(mac_ser_i.llc_metadata.ide);
+                      v_drive_polarity := mac_ser_i.llc_metadata.ide;
+                      v_drive_now      := true;
                     when c_arb_rtr_ext_pos =>
-                      drive_bit(mac_ser_i.llc_metadata.ftyp);
+                      v_drive_polarity := mac_ser_i.llc_metadata.ftyp;
+                      v_drive_now      := true;
                     when others =>
                       null;
                   end case;
@@ -683,7 +688,8 @@ begin
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
                     pcs_o.data_phase_stop             <= '1';
-                    drive_bit(not fce_i.error_active);
+                    v_drive_polarity := not fce_i.error_active;
+                    v_drive_now      := true;
                     state                             <= s_error_flag;
                     bit_count                         <= 0;
                   end if;
@@ -726,9 +732,11 @@ begin
             when s_fdf_r1_r0 =>
               if pcs_i.bit_boundary = '1' and is_transmitter then
                 if bs_i.valid = '1' then
-                  drive_bit(bs_i.data);
+                  v_drive_polarity := bs_i.data;
+                  v_drive_now      := true;
                 else
-                  drive_bit(mac_ser_i.llc_metadata.fdf);
+                  v_drive_polarity := mac_ser_i.llc_metadata.fdf;
+                  v_drive_now      := true;
                 end if;
               elsif pcs_i.sample_point = '1' then
                 bs_o.valid <= '1';
@@ -740,7 +748,8 @@ begin
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
                     pcs_o.data_phase_stop             <= '1';
-                    drive_bit(not fce_i.error_active);
+                    v_drive_polarity := not fce_i.error_active;
+                    v_drive_now      := true;
                     state                             <= s_error_flag;
                     bit_count                         <= 0;
                   end if;
@@ -777,9 +786,11 @@ begin
               end if;
               if pcs_i.bit_boundary = '1' and is_transmitter then
                 if bs_i.valid = '1' then
-                  drive_bit(bs_i.data);
+                  v_drive_polarity := bs_i.data;
+                  v_drive_now      := true;
                 else
-                  drive_bit(c_dominant);
+                  v_drive_polarity := c_dominant;
+                  v_drive_now      := true;
                 end if;
               elsif pcs_i.sample_point = '1' then
                 bs_o.valid <= '1';
@@ -791,7 +802,8 @@ begin
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
                     pcs_o.data_phase_stop             <= '1';
-                    drive_bit(not fce_i.error_active);
+                    v_drive_polarity := not fce_i.error_active;
+                    v_drive_now      := true;
                     state                             <= s_error_flag;
                     bit_count                         <= 0;
                   end if;
@@ -804,7 +816,8 @@ begin
                     -- Form error. (TX winning has rx_data == drive == dom.)
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
-                    drive_bit(not fce_i.error_active);
+                    v_drive_polarity := not fce_i.error_active;
+                    v_drive_now      := true;
                     bit_count                         <= 0;
                     state                             <= s_error_flag;
                   elsif llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' then
@@ -825,9 +838,11 @@ begin
             when s_brs =>
               if pcs_i.bit_boundary = '1' and is_transmitter then
                 if bs_i.valid = '1' then
-                  drive_bit(bs_i.data);
+                  v_drive_polarity := bs_i.data;
+                  v_drive_now      := true;
                 else
-                  drive_bit(mac_ser_i.llc_metadata.brs);
+                  v_drive_polarity := mac_ser_i.llc_metadata.brs;
+                  v_drive_now      := true;
                 end if;
               elsif pcs_i.sample_point = '1' then
                 bs_o.valid <= '1';
@@ -839,7 +854,8 @@ begin
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
                     pcs_o.data_phase_stop             <= '1';
-                    drive_bit(not fce_i.error_active);
+                    v_drive_polarity := not fce_i.error_active;
+                    v_drive_now      := true;
                     state                             <= s_error_flag;
                     bit_count                         <= 0;
                   end if;
@@ -860,9 +876,11 @@ begin
             when s_esi =>
               if pcs_i.bit_boundary = '1' and is_transmitter then
                 if bs_i.valid = '1' then
-                  drive_bit(bs_i.data);
+                  v_drive_polarity := bs_i.data;
+                  v_drive_now      := true;
                 else
-                  drive_bit(mac_ser_i.llc_metadata.esi);
+                  v_drive_polarity := mac_ser_i.llc_metadata.esi;
+                  v_drive_now      := true;
                 end if;
               elsif pcs_i.sample_point = '1' then
                 bs_o.valid <= '1';
@@ -874,7 +892,8 @@ begin
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
                     pcs_o.data_phase_stop             <= '1';
-                    drive_bit(not fce_i.error_active);
+                    v_drive_polarity := not fce_i.error_active;
+                    v_drive_now      := true;
                     state                             <= s_error_flag;
                     bit_count                         <= 0;
                   end if;
@@ -898,9 +917,11 @@ begin
             when s_dlc =>
               if pcs_i.bit_boundary = '1' and is_transmitter then
                 if bs_i.valid = '1' then
-                  drive_bit(bs_i.data);
+                  v_drive_polarity := bs_i.data;
+                  v_drive_now      := true;
                 else
-                  drive_bit(mac_ser_i.llc_metadata.dlc(c_dlc_field_width - 1 - bit_count));
+                  v_drive_polarity := mac_ser_i.llc_metadata.dlc(c_dlc_field_width - 1 - bit_count);
+                  v_drive_now      := true;
                 end if;
               elsif pcs_i.sample_point = '1' then
                 bs_o.valid <= '1';
@@ -912,7 +933,8 @@ begin
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
                     pcs_o.data_phase_stop             <= '1';
-                    drive_bit(not fce_i.error_active);
+                    v_drive_polarity := not fce_i.error_active;
+                    v_drive_now      := true;
                     state                             <= s_error_flag;
                     bit_count                         <= 0;
                   end if;
@@ -966,10 +988,12 @@ begin
             when s_data =>
               if pcs_i.bit_boundary = '1' and is_transmitter then
                 if bs_i.valid = '1' then
-                  drive_bit(bs_i.data);
+                  v_drive_polarity := bs_i.data;
+                  v_drive_now      := true;
                 else
                   mac_ser_o.ready <= '1';
-                  drive_bit(mac_ser_i.data);
+                  v_drive_polarity := mac_ser_i.data;
+                  v_drive_now      := true;
                 end if;
               elsif pcs_i.sample_point = '1' then
                 bs_o.valid <= '1';
@@ -981,7 +1005,8 @@ begin
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
                     pcs_o.data_phase_stop             <= '1';
-                    drive_bit(not fce_i.error_active);
+                    v_drive_polarity := not fce_i.error_active;
+                    v_drive_now      := true;
                     state                             <= s_error_flag;
                     bit_count                         <= 0;
                   end if;
@@ -1019,9 +1044,11 @@ begin
             when s_sbc =>
               if pcs_i.bit_boundary = '1' and is_transmitter then
                 if bs_i.valid = '1' then
-                  drive_bit(bs_i.data);
+                  v_drive_polarity := bs_i.data;
+                  v_drive_now      := true;
                 else
-                  drive_bit(bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count));
+                  v_drive_polarity := bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count);
+                  v_drive_now      := true;
                 end if;
               elsif pcs_i.sample_point = '1' then
                 bs_o.valid <= '1';
@@ -1031,7 +1058,8 @@ begin
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
                     pcs_o.data_phase_stop             <= '1';
-                    drive_bit(not fce_i.error_active);
+                    v_drive_polarity := not fce_i.error_active;
+                    v_drive_now      := true;
                     state                             <= s_error_flag;
                     bit_count                         <= 0;
                   end if;
@@ -1042,7 +1070,8 @@ begin
                      and pcs_i.rx_data /= bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count) then
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
-                    drive_bit(not fce_i.error_active);
+                    v_drive_polarity := not fce_i.error_active;
+                    v_drive_now      := true;
                     pcs_o.data_phase_stop             <= '1';
                     bs_o.fixed_bit_stuffing_en        <= '0';
                     state                             <= s_error_flag;
@@ -1065,9 +1094,11 @@ begin
             when s_crc =>
               if pcs_i.bit_boundary = '1' and is_transmitter then
                 if bs_i.valid = '1' then
-                  drive_bit(bs_i.data);
+                  v_drive_polarity := bs_i.data;
+                  v_drive_now      := true;
                 else
-                  drive_bit(crc_i.crc((c_crc_21_length - 1) - bit_count));
+                  v_drive_polarity := crc_i.crc((c_crc_21_length - 1) - bit_count);
+                  v_drive_now      := true;
                 end if;
               elsif pcs_i.sample_point = '1' then
                 bs_o.valid <= '1';
@@ -1077,7 +1108,8 @@ begin
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
                     pcs_o.data_phase_stop             <= '1';
-                    drive_bit(not fce_i.error_active);
+                    v_drive_polarity := not fce_i.error_active;
+                    v_drive_now      := true;
                     state                             <= s_error_flag;
                     bit_count                         <= 0;
                   end if;
@@ -1104,18 +1136,21 @@ begin
             -----------------------------------------------------------------
             when s_crc_delimiter =>
               if pcs_i.bit_boundary = '1' and is_transmitter then
-                drive_bit(c_recessive);
+                v_drive_polarity := c_recessive;
+                v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
                 in_data_phase <= false;
                 if not is_transmitter and crc_mismatch then
                   fce_o.sending_error_overload_flag <= '1';
                   fce_o.error                       <= '1';
-                  drive_bit(not fce_i.error_active);
+                  v_drive_polarity := not fce_i.error_active;
+                  v_drive_now      := true;
                   state                             <= s_error_flag;
                   bit_count                         <= 0;
                 else
                   if not is_transmitter then
-                    drive_bit(c_dominant);
+                    v_drive_polarity := c_dominant;
+                    v_drive_now      := true;
                   end if;
                   state     <= s_ack;
                   bit_count <= 0;
@@ -1154,7 +1189,8 @@ begin
             -----------------------------------------------------------------
             when s_ack_delimiter =>
               if pcs_i.bit_boundary = '1' and is_transmitter then
-                drive_bit(c_recessive);
+                v_drive_polarity := c_recessive;
+                v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
                 if is_transmitter then
                   if not ack_success_seen and pcs_i.rx_data = c_dominant then
@@ -1193,7 +1229,8 @@ begin
             -----------------------------------------------------------------
             when s_eof =>
               if pcs_i.bit_boundary = '1' and is_transmitter then
-                drive_bit(c_recessive);
+                v_drive_polarity := c_recessive;
+                v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
                 if is_transmitter then
                   if bit_count = 0 and not ack_success_seen then
@@ -1226,11 +1263,13 @@ begin
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
                     if bit_count = c_eof_field_width - 1 then
-                      drive_bit(c_dominant);
+                      v_drive_polarity := c_dominant;
+                      v_drive_now      := true;
                       overload    <= true;
                       fce_o.error <= '0';
                     else
-                      drive_bit(not fce_i.error_active);
+                      v_drive_polarity := not fce_i.error_active;
+                      v_drive_now      := true;
                     end if;
                     state     <= s_error_flag;
                     bit_count <= 0;
@@ -1260,9 +1299,11 @@ begin
             when s_error_flag =>
               if pcs_i.bit_boundary = '1' then
                 if not overload then
-                  drive_bit(not fce_i.error_active);
+                  v_drive_polarity := not fce_i.error_active;
+                  v_drive_now      := true;
                 else
-                  drive_bit(c_dominant);
+                  v_drive_polarity := c_dominant;
+                  v_drive_now      := true;
                 end if;
               elsif pcs_i.sample_point = '1' then
                 if is_transmitter then
@@ -1303,7 +1344,8 @@ begin
 
             when s_error_flag_check =>
               if pcs_i.bit_boundary = '1' then
-                drive_bit(c_recessive);
+                v_drive_polarity := c_recessive;
+                v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
                 if pcs_i.rx_data = c_dominant then
                   state     <= s_error_dominant_delim;
@@ -1319,7 +1361,8 @@ begin
 
             when s_error_dominant_delim =>
               if pcs_i.bit_boundary = '1' then
-                drive_bit(c_recessive);
+                v_drive_polarity := c_recessive;
+                v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
                 if pcs_i.rx_data = c_dominant then
                   if bit_count = c_error_delimiter_width - 1 then
@@ -1336,11 +1379,13 @@ begin
 
             when s_error_delimiter =>
               if pcs_i.bit_boundary = '1' then
-                drive_bit(c_recessive);
+                v_drive_polarity := c_recessive;
+                v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
                 if pcs_i.rx_data = c_dominant then
                   -- Form error / overload (ISO 6.6.21.3.2): re-enter flag.
-                  drive_bit(not fce_i.error_active);
+                  v_drive_polarity := not fce_i.error_active;
+                  v_drive_now      := true;
                   fce_o.error <= '1';
                   state       <= s_error_flag;
                   bit_count   <= 0;
@@ -1370,6 +1415,18 @@ begin
 
         -- Clear stream_start once it has been picked up by the streamer
         llc_stream_start <= not llc_stream_done when llc_stream_done;
+
+        -----------------------------------------------------------------
+        -- Drive commit: any case branch that decided to drive a bit set
+        -- v_drive_now / v_drive_polarity. Single point of write to the
+        -- PCS tx_data, transmitting flags and polarity history.
+        -----------------------------------------------------------------
+        if v_drive_now then
+          pcs_o.tx_data              <= v_drive_polarity;
+          pcs_o.transmitting         <= '1';
+          fce_o.transmitting         <= '1';
+          transmitted_bits_shift_reg <= transmitted_bits_shift_reg(c_tdc_polarity_depth - 2 downto 0) & v_drive_polarity;
+        end if;
 
       end if;
     end if;
