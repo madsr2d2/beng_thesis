@@ -32,3 +32,5 @@
 | `can_mac_rx_tb` | 14,704 | Frame check (14,701), reset (3). Coverage: IDE, FDF, DLC | Passing |
 
 : Testbench execution status and affirmation counts. {#tbl:testbench-summary}
+
+:::

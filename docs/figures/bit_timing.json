@@ -1,0 +1,14 @@
+{ "signal": [
+    {                                                "node": ".A...C....." },
+  { "name": "CAN node A",  "wave": "x2.3.4.5.x", "data": ["Sync_Seg", "Prop_Seg", "Phase_Seg1", "Phase_Seg2"], "node": ".a...c", "phase": 0 },
+  {                                                "node": "........" },
+  { "name": "CAN node B",  "wave": "x2.3.4.5.x", "data": ["Sync_Seg", "Prop_Seg", "Phase_Seg1", "Phase_Seg2"], "node": ".b.....", "phase": -1 },
+
+],
+  "edge": [
+    "a~>b t_out(A) + t_bus + t_in(B)",
+    "b~>c t_out(B) + t_bus + t_in(A)",
+    'A+C t_prop',
+  ],
+  "config": { "hscale": 2 }
+}

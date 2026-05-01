@@ -1,7 +1,26 @@
 #!/usr/bin/env bash
+
+# This script is intended to be run with Bash.
+if [ -z "$BASH_VERSION" ]; then
+  echo "Error: This script must be run with bash. If you are using zsh, do not 'source' it; run it as an executable instead." >&2
+  return 1 2>/dev/null || exit 1
+fi
+
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Robustly get the root directory of the project
+if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
+  # Bash or sourced in bash
+  SCRIPT_PATH="${BASH_SOURCE[0]}"
+elif [[ -n "${ZSH_VERSION:-}" ]]; then
+  # Zsh (sourced or executed)
+  SCRIPT_PATH="${(%):-%x}"
+else
+  # Fallback
+  SCRIPT_PATH="$0"
+fi
+
+ROOT_DIR="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
 
 usage() {
   cat <<'EOF'
@@ -38,7 +57,9 @@ require_cmd() {
 }
 
 is_enabled() {
-  case "${1,,}" in
+  local val
+  val="$(echo "$1" | tr '[:upper:]' '[:lower:]')"
+  case "$val" in
   1 | true | yes | on) return 0 ;;
   *) return 1 ;;
   esac
@@ -197,7 +218,7 @@ main() {
   PDF_MAINFONT="${PDF_MAINFONT:-Libertinus Serif}"
   PDF_FIG_WIDTH="${PDF_FIG_WIDTH:-\linewidth}"
   PDF_FIG_MAX_HEIGHT="${PDF_FIG_MAX_HEIGHT:-0.9\textheight}"
-  PANDOC_TABLE_STYLE="${TABLE_STYLE_OVERRIDE:-${PANDOC_TABLE_STYLE:-clean}}"
+  PANDOC_TABLE_STYLE="$(echo "${TABLE_STYLE_OVERRIDE:-${PANDOC_TABLE_STYLE:-clean}}" | tr '[:upper:]' '[:lower:]')"
   PANDOC_TOC="${PANDOC_TOC:-1}"
   PANDOC_TOC_DEPTH="${TOC_DEPTH_OVERRIDE:-${PANDOC_TOC_DEPTH:-4}}"
   PANDOC_CROSSREF="${PANDOC_CROSSREF:-1}"
@@ -209,7 +230,7 @@ main() {
   PANDOC_SECTION_SELECT_FILTER="${PANDOC_SECTION_SELECT_FILTER:-$ROOT_DIR/scripts/filters/select_sections.lua}"
   PANDOC_MERMAID_WIDTH_FILTER="${PANDOC_MERMAID_WIDTH_FILTER:-$ROOT_DIR/scripts/filters/mermaid_width.lua}"
 
-  case "${PANDOC_TABLE_STYLE,,}" in
+  case "$PANDOC_TABLE_STYLE" in
   clean | enhanced) ;;
   *)
     die "invalid table style '$PANDOC_TABLE_STYLE' (expected: clean or enhanced)."
