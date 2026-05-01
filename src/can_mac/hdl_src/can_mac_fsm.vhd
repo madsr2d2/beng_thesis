@@ -189,6 +189,15 @@ begin
     variable v_drive_now      : boolean;
     variable v_drive_polarity : std_logic;
 
+    -- Field guards used by the centralized BS/CRC feed below.
+    --   v_in_active_frame   - any field where the bit stuffer is running
+    --   v_in_dynamic_stuff  - dynamic-stuff fields (CC CRC fed on real
+    --                         bits; FD CRC fed on every bit)
+    -- s_sbc / s_crc are fixed-stuff fields (FD CRC fed on real bits
+    -- only; CC CRC not fed at all).
+    variable v_in_active_frame  : boolean;
+    variable v_in_dynamic_stuff : boolean;
+
   begin
 
     if rising_edge(clk_i) then
@@ -240,6 +249,13 @@ begin
         else
           v_bs_crc_data := pcs_i.rx_data;
         end if;
+
+        v_in_dynamic_stuff := state = s_arbitration or state = s_fdf_r1_r0
+                              or state = s_res_r0   or state = s_brs
+                              or state = s_esi      or state = s_dlc
+                              or state = s_data;
+        v_in_active_frame  := v_in_dynamic_stuff
+                              or state = s_sbc or state = s_crc;
 
         -----------------------------------------------------------------
         -- Per-cycle defaults (overridden by per-state case below).
@@ -367,11 +383,49 @@ begin
 
         else
           -----------------------------------------------------------------
-          -- Per-state FSM. Each branch handles its own bit_boundary TX
-          -- drive AND sample-point capture / state-advance, plus any
-          -- BS / CRC feed local to the state. RX stuff-bit error is in
-          -- the global monitor above.
+          -- Centralized BS / CRC feed at SP for active-frame states.
+          -- Field-type rules:
+          --   BS:     fed every bit in active-frame states.
+          --   CRC FD: fed every bit in dynamic-stuff fields, plus real
+          --           bits in s_sbc (fixed-stuff bits in s_sbc/s_crc are
+          --           excluded from the FD CRC).
+          --   CRC CC: fed only on real bits in dynamic-stuff fields
+          --           (CC frames have no SBC/CRC fixed-stuff fields).
+          -- s_arbitration drives v_bs_crc_data from rx_data so a TX
+          -- loser converges with the winner; post-arbitration TX uses
+          -- its own drive instead so the FD data-phase TDC delay does
+          -- not corrupt the BS/CRC state.
           -----------------------------------------------------------------
+          if pcs_i.sample_point = '1' and v_in_active_frame then
+            bs_o.valid <= '1';
+            bs_o.data  <= v_bs_crc_data;
+            if v_in_dynamic_stuff or (state = s_sbc and bs_i.valid = '0') then
+              crc_o.valid_fd <= '1';
+              crc_o.data_fd  <= v_bs_crc_data;
+            end if;
+            if bs_i.valid = '0' and v_in_dynamic_stuff then
+              crc_o.valid_cc <= '1';
+              crc_o.data_cc  <= v_bs_crc_data;
+            end if;
+          end if;
+
+          -----------------------------------------------------------------
+          -- Centralized stuff-bit TX drive at bit_boundary. Uniform
+          -- across all active-frame states; the per-state case below
+          -- only handles real-bit drive.
+          -----------------------------------------------------------------
+          if pcs_i.bit_boundary = '1' and is_transmitter and bs_i.valid = '1' then
+            v_drive_polarity := bs_i.data;
+            v_drive_now      := true;
+          end if;
+
+          -----------------------------------------------------------------
+          -- Per-state FSM. In active-frame states, stuff-bit cycles are
+          -- handled by the centralized blocks above; the case body sees
+          -- only real bits. Outside active-frame states bs_i.valid is
+          -- not driven, so the case always runs.
+          -----------------------------------------------------------------
+          if not v_in_active_frame or bs_i.valid = '0' then
           case state is
 
             -----------------------------------------------------------------
@@ -507,72 +561,54 @@ begin
             -----------------------------------------------------------------
             when s_arbitration =>
               if pcs_i.bit_boundary = '1' and is_transmitter then
-                if bs_i.valid = '1' then
-                  v_drive_polarity := bs_i.data;
-                  v_drive_now      := true;
-                else
-                  case bit_count is
-                    when 0 to c_arb_id_a_last | c_arb_id_b_first to c_arb_id_b_last =>
-                      mac_ser_o.ready <= '1';
-                      v_drive_polarity := mac_ser_i.data;
-                      v_drive_now      := true;
-                    when c_arb_rtr_pos =>
-                      v_drive_now := true;
-                      if mac_ser_i.llc_metadata.ide = c_recessive then
-                        v_drive_polarity := c_recessive;                  -- SRR (extended)
-                      elsif mac_ser_i.llc_metadata.fdf = c_recessive then
-                        v_drive_polarity := mac_ser_i.llc_metadata.ftyp;  -- RTR (CC base)
-                      else
-                        v_drive_polarity := c_dominant;                   -- RRS (FD base)
-                      end if;
-                    when c_arb_ide_pos =>
-                      v_drive_polarity := mac_ser_i.llc_metadata.ide;
-                      v_drive_now      := true;
-                    when c_arb_rtr_ext_pos =>
-                      v_drive_polarity := mac_ser_i.llc_metadata.ftyp;
-                      v_drive_now      := true;
-                    when others =>
-                      null;
-                  end case;
-                end if;
+                case bit_count is
+                  when 0 to c_arb_id_a_last | c_arb_id_b_first to c_arb_id_b_last =>
+                    mac_ser_o.ready  <= '1';
+                    v_drive_polarity := mac_ser_i.data;
+                    v_drive_now      := true;
+                  when c_arb_rtr_pos =>
+                    v_drive_now := true;
+                    if mac_ser_i.llc_metadata.ide = c_recessive then
+                      v_drive_polarity := c_recessive;                  -- SRR (extended)
+                    elsif mac_ser_i.llc_metadata.fdf = c_recessive then
+                      v_drive_polarity := mac_ser_i.llc_metadata.ftyp;  -- RTR (CC base)
+                    else
+                      v_drive_polarity := c_dominant;                   -- RRS (FD base)
+                    end if;
+                  when c_arb_ide_pos =>
+                    v_drive_polarity := mac_ser_i.llc_metadata.ide;
+                    v_drive_now      := true;
+                  when c_arb_rtr_ext_pos =>
+                    v_drive_polarity := mac_ser_i.llc_metadata.ftyp;
+                    v_drive_now      := true;
+                  when others =>
+                    null;
+                end case;
               elsif pcs_i.sample_point = '1' then
-                bs_o.valid <= '1';
-                bs_o.data  <= v_bs_crc_data;
-                if bs_i.valid = '1' then
-                  -- Stuff slot: feed CRC FD only (CC CRC excludes stuff).
-                  crc_o.valid_fd <= '1';
-                  crc_o.data_fd  <= v_bs_crc_data;
-                else
-                  -- Real bit: feed CC and FD CRC, then capture / advance.
-                  crc_o.valid_cc <= '1';
-                  crc_o.valid_fd <= '1';
-                  crc_o.data_cc  <= v_bs_crc_data;
-                  crc_o.data_fd  <= v_bs_crc_data;
-                  case bit_count is
-                    when 0 to c_arb_id_a_last | c_arb_id_b_first to c_arb_id_b_last =>
-                      llc_frame(c_id_offset + byte_index)((c_byte_width - 1) - bit_index) <= pcs_i.rx_data;
-                      bit_index  <= 0 when bit_index = (c_byte_width - 1) else (bit_index + 1);
-                      byte_index <= (byte_index + 1) when bit_index = (c_byte_width - 1);
-                      bit_count  <= bit_count + 1;
-                    when c_arb_rtr_pos =>
-                      llc_frame(c_conf_0_offset)(c_llc_frame_ftyp) <= pcs_i.rx_data;
-                      bit_count <= bit_count + 1;
-                    when c_arb_ide_pos =>
-                      llc_frame(c_conf_0_offset)(c_llc_frame_ide) <= pcs_i.rx_data;
-                      if pcs_i.rx_data = c_dominant then
-                        state     <= s_fdf_r1_r0;
-                        bit_count <= 0;
-                      else
-                        bit_count <= bit_count + 1;
-                      end if;
-                    when c_arb_rtr_ext_pos =>
-                      llc_frame(c_conf_0_offset)(c_llc_frame_ftyp) <= pcs_i.rx_data;
+                case bit_count is
+                  when 0 to c_arb_id_a_last | c_arb_id_b_first to c_arb_id_b_last =>
+                    llc_frame(c_id_offset + byte_index)((c_byte_width - 1) - bit_index) <= pcs_i.rx_data;
+                    bit_index  <= 0 when bit_index = (c_byte_width - 1) else (bit_index + 1);
+                    byte_index <= (byte_index + 1) when bit_index = (c_byte_width - 1);
+                    bit_count  <= bit_count + 1;
+                  when c_arb_rtr_pos =>
+                    llc_frame(c_conf_0_offset)(c_llc_frame_ftyp) <= pcs_i.rx_data;
+                    bit_count <= bit_count + 1;
+                  when c_arb_ide_pos =>
+                    llc_frame(c_conf_0_offset)(c_llc_frame_ide) <= pcs_i.rx_data;
+                    if pcs_i.rx_data = c_dominant then
                       state     <= s_fdf_r1_r0;
                       bit_count <= 0;
-                    when others =>
+                    else
                       bit_count <= bit_count + 1;
-                  end case;
-                end if;
+                    end if;
+                  when c_arb_rtr_ext_pos =>
+                    llc_frame(c_conf_0_offset)(c_llc_frame_ftyp) <= pcs_i.rx_data;
+                    state     <= s_fdf_r1_r0;
+                    bit_count <= 0;
+                  when others =>
+                    bit_count <= bit_count + 1;
+                end case;
               end if;
 
             -----------------------------------------------------------------
@@ -580,39 +616,21 @@ begin
             -----------------------------------------------------------------
             when s_fdf_r1_r0 =>
               if pcs_i.bit_boundary = '1' and is_transmitter then
-                if bs_i.valid = '1' then
-                  v_drive_polarity := bs_i.data;
-                  v_drive_now      := true;
-                else
-                  v_drive_polarity := mac_ser_i.llc_metadata.fdf;
-                  v_drive_now      := true;
-                end if;
+                v_drive_polarity := mac_ser_i.llc_metadata.fdf;
+                v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                bs_o.valid <= '1';
-                bs_o.data  <= v_bs_crc_data;
-                if bs_i.valid = '1' then
-                  crc_o.valid_fd <= '1';
-                  crc_o.data_fd  <= v_bs_crc_data;
+                -- TDC startup hint: SP of FDF, next bit is the FD `res`
+                -- (PCS begins TDC measurement at that boundary). TX-only
+                -- and only on FDF=recessive (FD frame).
+                if is_transmitter and pcs_i.rx_data = c_recessive then
+                  pcs_o.next_bit_is_res <= '1';
+                end if;
+                llc_frame(c_conf_0_offset)(c_llc_frame_fdf) <= pcs_i.rx_data;
+                if pcs_i.rx_data = c_recessive or llc_frame(c_conf_0_offset)(c_llc_frame_ide) = '1' then
+                  state <= s_res_r0;
                 else
-                  -- TDC startup hint to PCS: SP of FDF, next bit is the FD
-                  -- `res` so PCS begins TDC measurement at that boundary.
-                  -- TX-only and only on FDF=recessive (FD frame). CC ext
-                  -- also enters s_res_r0 but the next bit is r0 and TDC
-                  -- is not used.
-                  if is_transmitter and pcs_i.rx_data = c_recessive then
-                    pcs_o.next_bit_is_res <= '1';
-                  end if;
-                  crc_o.valid_cc <= '1';
-                  crc_o.valid_fd <= '1';
-                  crc_o.data_cc  <= v_bs_crc_data;
-                  crc_o.data_fd  <= v_bs_crc_data;
-                  llc_frame(c_conf_0_offset)(c_llc_frame_fdf) <= pcs_i.rx_data;
-                  if pcs_i.rx_data = c_recessive or llc_frame(c_conf_0_offset)(c_llc_frame_ide) = '1' then
-                    state <= s_res_r0;
-                  else
-                    state     <= s_dlc;
-                    bit_count <= 0;
-                  end if;
+                  state     <= s_dlc;
+                  bit_count <= 0;
                 end if;
               end if;
 
@@ -625,41 +643,25 @@ begin
                 pcs_o.do_hard_sync <= '1';
               end if;
               if pcs_i.bit_boundary = '1' and is_transmitter then
-                if bs_i.valid = '1' then
-                  v_drive_polarity := bs_i.data;
-                  v_drive_now      := true;
-                else
-                  v_drive_polarity := c_dominant;
-                  v_drive_now      := true;
-                end if;
+                v_drive_polarity := c_dominant;
+                v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                bs_o.valid <= '1';
-                bs_o.data  <= v_bs_crc_data;
-                if bs_i.valid = '1' then
-                  crc_o.valid_fd <= '1';
-                  crc_o.data_fd  <= v_bs_crc_data;
+                if pcs_i.rx_data = c_recessive then
+                  -- Form error (res must be dominant; TX winning never trips).
+                  fce_o.sending_error_overload_flag <= '1';
+                  fce_o.error                       <= '1';
+                  v_drive_polarity := not fce_i.error_active;
+                  v_drive_now      := true;
+                  bit_count                         <= 0;
+                  state                             <= s_error_flag;
+                elsif llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' then
+                  -- BRS hint: SP of res, next bit is BRS. Both roles need
+                  -- this so the PCS handles the bit-rate switch.
+                  pcs_o.next_bit_is_brs <= '1';
+                  state                 <= s_brs;
                 else
-                  crc_o.valid_cc <= '1';
-                  crc_o.valid_fd <= '1';
-                  crc_o.data_cc  <= v_bs_crc_data;
-                  crc_o.data_fd  <= v_bs_crc_data;
-                  if pcs_i.rx_data = c_recessive then
-                    -- Form error. (TX winning has rx_data == drive == dom.)
-                    fce_o.sending_error_overload_flag <= '1';
-                    fce_o.error                       <= '1';
-                    v_drive_polarity := not fce_i.error_active;
-                    v_drive_now      := true;
-                    bit_count                         <= 0;
-                    state                             <= s_error_flag;
-                  elsif llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' then
-                    -- BRS hint: SP of res, next bit is BRS. Both roles
-                    -- need this so the PCS handles the bit-rate switch.
-                    pcs_o.next_bit_is_brs <= '1';
-                    state                 <= s_brs;
-                  else
-                    state     <= s_dlc;
-                    bit_count <= 0;
-                  end if;
+                  state     <= s_dlc;
+                  bit_count <= 0;
                 end if;
               end if;
 
@@ -668,28 +670,12 @@ begin
             -----------------------------------------------------------------
             when s_brs =>
               if pcs_i.bit_boundary = '1' and is_transmitter then
-                if bs_i.valid = '1' then
-                  v_drive_polarity := bs_i.data;
-                  v_drive_now      := true;
-                else
-                  v_drive_polarity := mac_ser_i.llc_metadata.brs;
-                  v_drive_now      := true;
-                end if;
+                v_drive_polarity := mac_ser_i.llc_metadata.brs;
+                v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                bs_o.valid <= '1';
-                bs_o.data  <= v_bs_crc_data;
-                if bs_i.valid = '1' then
-                  crc_o.valid_fd <= '1';
-                  crc_o.data_fd  <= v_bs_crc_data;
-                else
-                  crc_o.valid_cc <= '1';
-                  crc_o.valid_fd <= '1';
-                  crc_o.data_cc  <= v_bs_crc_data;
-                  crc_o.data_fd  <= v_bs_crc_data;
-                  llc_frame(c_conf_0_offset)(c_llc_frame_brs) <= pcs_i.rx_data;
-                  in_data_phase                               <= (pcs_i.rx_data = c_recessive);
-                  state                                       <= s_esi;
-                end if;
+                llc_frame(c_conf_0_offset)(c_llc_frame_brs) <= pcs_i.rx_data;
+                in_data_phase                               <= (pcs_i.rx_data = c_recessive);
+                state                                       <= s_esi;
               end if;
 
             -----------------------------------------------------------------
@@ -697,28 +683,12 @@ begin
             -----------------------------------------------------------------
             when s_esi =>
               if pcs_i.bit_boundary = '1' and is_transmitter then
-                if bs_i.valid = '1' then
-                  v_drive_polarity := bs_i.data;
-                  v_drive_now      := true;
-                else
-                  v_drive_polarity := mac_ser_i.llc_metadata.esi;
-                  v_drive_now      := true;
-                end if;
+                v_drive_polarity := mac_ser_i.llc_metadata.esi;
+                v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                bs_o.valid <= '1';
-                bs_o.data  <= v_bs_crc_data;
-                if bs_i.valid = '1' then
-                  crc_o.valid_fd <= '1';
-                  crc_o.data_fd  <= v_bs_crc_data;
-                else
-                  crc_o.valid_cc <= '1';
-                  crc_o.valid_fd <= '1';
-                  crc_o.data_cc  <= v_bs_crc_data;
-                  crc_o.data_fd  <= v_bs_crc_data;
-                  llc_frame(c_conf_0_offset)(c_llc_frame_esi) <= pcs_i.rx_data;
-                  state                                       <= s_dlc;
-                  bit_count                                   <= 0;
-                end if;
+                llc_frame(c_conf_0_offset)(c_llc_frame_esi) <= pcs_i.rx_data;
+                state                                       <= s_dlc;
+                bit_count                                   <= 0;
               end if;
 
             -----------------------------------------------------------------
@@ -729,60 +699,41 @@ begin
             -----------------------------------------------------------------
             when s_dlc =>
               if pcs_i.bit_boundary = '1' and is_transmitter then
-                if bs_i.valid = '1' then
-                  v_drive_polarity := bs_i.data;
-                  v_drive_now      := true;
-                else
-                  v_drive_polarity := mac_ser_i.llc_metadata.dlc(c_dlc_field_width - 1 - bit_count);
-                  v_drive_now      := true;
-                end if;
+                v_drive_polarity := mac_ser_i.llc_metadata.dlc(c_dlc_field_width - 1 - bit_count);
+                v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                bs_o.valid <= '1';
-                bs_o.data  <= v_bs_crc_data;
-                if bs_i.valid = '1' then
-                  crc_o.valid_fd <= '1';
-                  crc_o.data_fd  <= v_bs_crc_data;
-                else
-                  crc_o.valid_cc <= '1';
-                  crc_o.valid_fd <= '1';
-                  crc_o.data_cc  <= v_bs_crc_data;
-                  crc_o.data_fd  <= v_bs_crc_data;
-                  llc_frame(c_conf_1_offset)(c_llc_frame_dlc_start - bit_count) <= pcs_i.rx_data;
-                  if bit_count = c_dlc_field_width - 1 then
-                    bit_count  <= 0;
-                    bit_index  <= 0;
-                    byte_index <= 0;
-                    if is_transmitter then
-                      -- TX uses metadata-derived data_len/crc_length from SOF.
-                      -- In the FD data phase the TDC-delayed self-echo would
-                      -- corrupt these if re-derived from rx_data here.
-                      if data_len > 0 and mac_ser_i.llc_metadata.ftyp = '0' then
-                        state <= s_data;
-                      elsif mac_ser_i.llc_metadata.fdf = '1' then
-                        state                      <= s_sbc;
-                        bs_o.fixed_bit_stuffing_en <= '1';
-                      else
-                        state <= s_crc;
-                      end if;
+                llc_frame(c_conf_1_offset)(c_llc_frame_dlc_start - bit_count) <= pcs_i.rx_data;
+                if bit_count = c_dlc_field_width - 1 then
+                  bit_count  <= 0;
+                  bit_index  <= 0;
+                  byte_index <= 0;
+                  if is_transmitter then
+                    if data_len > 0 and mac_ser_i.llc_metadata.ftyp = '0' then
+                      state <= s_data;
+                    elsif mac_ser_i.llc_metadata.fdf = '1' then
+                      state                      <= s_sbc;
+                      bs_o.fixed_bit_stuffing_en <= '1';
                     else
-                      v_dlc_vec                                    := llc_frame(c_conf_1_offset)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
-                      v_dlc_vec(c_llc_frame_dlc_start - bit_count) := pcs_i.rx_data;
-                      v_data_len                                   := dlc_to_data_length(to_integer(unsigned(v_dlc_vec)), llc_frame(c_conf_0_offset)(c_llc_frame_fdf));
-                      data_len              <= v_data_len;
-                      crc_length            <= f_crc_length(v_data_len, llc_frame(c_conf_0_offset)(c_llc_frame_fdf));
-                      crc_o.crc_poly_select <= f_crc_poly_select(v_data_len, llc_frame(c_conf_0_offset)(c_llc_frame_fdf));
-                      if v_data_len > 0 and llc_frame(c_conf_0_offset)(c_llc_frame_ftyp) = '0' then
-                        state <= s_data;
-                      elsif llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' then
-                        state                      <= s_sbc;
-                        bs_o.fixed_bit_stuffing_en <= '1';
-                      else
-                        state <= s_crc;
-                      end if;
+                      state <= s_crc;
                     end if;
                   else
-                    bit_count <= bit_count + 1;
+                    v_dlc_vec                                    := llc_frame(c_conf_1_offset)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
+                    v_dlc_vec(c_llc_frame_dlc_start - bit_count) := pcs_i.rx_data;
+                    v_data_len                                   := dlc_to_data_length(to_integer(unsigned(v_dlc_vec)), llc_frame(c_conf_0_offset)(c_llc_frame_fdf));
+                    data_len              <= v_data_len;
+                    crc_length            <= f_crc_length(v_data_len, llc_frame(c_conf_0_offset)(c_llc_frame_fdf));
+                    crc_o.crc_poly_select <= f_crc_poly_select(v_data_len, llc_frame(c_conf_0_offset)(c_llc_frame_fdf));
+                    if v_data_len > 0 and llc_frame(c_conf_0_offset)(c_llc_frame_ftyp) = '0' then
+                      state <= s_data;
+                    elsif llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' then
+                      state                      <= s_sbc;
+                      bs_o.fixed_bit_stuffing_en <= '1';
+                    else
+                      state <= s_crc;
+                    end if;
                   end if;
+                else
+                  bit_count <= bit_count + 1;
                 end if;
               end if;
 
@@ -791,42 +742,26 @@ begin
             -----------------------------------------------------------------
             when s_data =>
               if pcs_i.bit_boundary = '1' and is_transmitter then
-                if bs_i.valid = '1' then
-                  v_drive_polarity := bs_i.data;
-                  v_drive_now      := true;
-                else
-                  mac_ser_o.ready <= '1';
-                  v_drive_polarity := mac_ser_i.data;
-                  v_drive_now      := true;
-                end if;
+                mac_ser_o.ready  <= '1';
+                v_drive_polarity := mac_ser_i.data;
+                v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                bs_o.valid <= '1';
-                bs_o.data  <= v_bs_crc_data;
-                if bs_i.valid = '1' then
-                  crc_o.valid_fd <= '1';
-                  crc_o.data_fd  <= v_bs_crc_data;
-                else
-                  crc_o.valid_cc <= '1';
-                  crc_o.valid_fd <= '1';
-                  crc_o.data_cc  <= v_bs_crc_data;
-                  crc_o.data_fd  <= v_bs_crc_data;
-                  llc_frame(c_data_offset + byte_index)((c_byte_width - 1) - bit_index) <= pcs_i.rx_data;
-                  if byte_index = data_len - 1 and bit_index = c_byte_width - 1 then
-                    if llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' then
-                      state                      <= s_sbc;
-                      bs_o.fixed_bit_stuffing_en <= '1';
-                    else
-                      state <= s_crc;
-                    end if;
-                    bit_count  <= 0;
-                    bit_index  <= 0;
-                    byte_index <= 0;
+                llc_frame(c_data_offset + byte_index)((c_byte_width - 1) - bit_index) <= pcs_i.rx_data;
+                if byte_index = data_len - 1 and bit_index = c_byte_width - 1 then
+                  if llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' then
+                    state                      <= s_sbc;
+                    bs_o.fixed_bit_stuffing_en <= '1';
                   else
-                    bit_index  <= 0 when bit_index = c_byte_width - 1 else bit_index + 1;
-                    byte_index <= byte_index + 1 when bit_index = c_byte_width - 1;
-                    if is_transmitter then
-                      bit_count <= bit_count + 1;
-                    end if;
+                    state <= s_crc;
+                  end if;
+                  bit_count  <= 0;
+                  bit_index  <= 0;
+                  byte_index <= 0;
+                else
+                  bit_index  <= 0 when bit_index = c_byte_width - 1 else bit_index + 1;
+                  byte_index <= byte_index + 1 when bit_index = c_byte_width - 1;
+                  if is_transmitter then
+                    bit_count <= bit_count + 1;
                   end if;
                 end if;
               end if;
@@ -838,35 +773,24 @@ begin
             -----------------------------------------------------------------
             when s_sbc =>
               if pcs_i.bit_boundary = '1' and is_transmitter then
-                if bs_i.valid = '1' then
-                  v_drive_polarity := bs_i.data;
-                  v_drive_now      := true;
-                else
-                  v_drive_polarity := bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count);
-                  v_drive_now      := true;
-                end if;
+                v_drive_polarity := bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count);
+                v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                bs_o.valid <= '1';
-                bs_o.data  <= v_bs_crc_data;
-                if bs_i.valid = '0' then
-                  crc_o.valid_fd <= '1';
-                  crc_o.data_fd  <= v_bs_crc_data;
-                  if not is_transmitter
-                     and pcs_i.rx_data /= bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count) then
-                    fce_o.sending_error_overload_flag <= '1';
-                    fce_o.error                       <= '1';
-                    v_drive_polarity := not fce_i.error_active;
-                    v_drive_now      := true;
-                    pcs_o.data_phase_stop             <= '1';
-                    bs_o.fixed_bit_stuffing_en        <= '0';
-                    state                             <= s_error_flag;
-                    bit_count                         <= 0;
-                  elsif bit_count = c_sbc_field_width - 1 then
-                    state     <= s_crc;
-                    bit_count <= 0;
-                  else
-                    bit_count <= bit_count + 1;
-                  end if;
+                if not is_transmitter
+                   and pcs_i.rx_data /= bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count) then
+                  fce_o.sending_error_overload_flag <= '1';
+                  fce_o.error                       <= '1';
+                  v_drive_polarity := not fce_i.error_active;
+                  v_drive_now      := true;
+                  pcs_o.data_phase_stop             <= '1';
+                  bs_o.fixed_bit_stuffing_en        <= '0';
+                  state                             <= s_error_flag;
+                  bit_count                         <= 0;
+                elsif bit_count = c_sbc_field_width - 1 then
+                  state     <= s_crc;
+                  bit_count <= 0;
+                else
+                  bit_count <= bit_count + 1;
                 end if;
               end if;
 
@@ -878,28 +802,19 @@ begin
             -----------------------------------------------------------------
             when s_crc =>
               if pcs_i.bit_boundary = '1' and is_transmitter then
-                if bs_i.valid = '1' then
-                  v_drive_polarity := bs_i.data;
-                  v_drive_now      := true;
-                else
-                  v_drive_polarity := crc_i.crc((c_crc_21_length - 1) - bit_count);
-                  v_drive_now      := true;
-                end if;
+                v_drive_polarity := crc_i.crc((c_crc_21_length - 1) - bit_count);
+                v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                bs_o.valid <= '1';
-                bs_o.data  <= v_bs_crc_data;
-                if bs_i.valid = '0' then
-                  if pcs_i.rx_data /= crc_i.crc((c_crc_21_length - 1) - bit_count) then
-                    crc_mismatch <= true;
-                  end if;
-                  if bit_count = crc_length - 1 then
-                    pcs_o.data_phase_stop      <= '1';
-                    bs_o.fixed_bit_stuffing_en <= '0';
-                    state                      <= s_crc_delimiter;
-                    bit_count                  <= 0;
-                  else
-                    bit_count <= bit_count + 1;
-                  end if;
+                if pcs_i.rx_data /= crc_i.crc((c_crc_21_length - 1) - bit_count) then
+                  crc_mismatch <= true;
+                end if;
+                if bit_count = crc_length - 1 then
+                  pcs_o.data_phase_stop      <= '1';
+                  bs_o.fixed_bit_stuffing_en <= '0';
+                  state                      <= s_crc_delimiter;
+                  bit_count                  <= 0;
+                else
+                  bit_count <= bit_count + 1;
                 end if;
               end if;
 
@@ -1186,6 +1101,7 @@ begin
               bit_count <= 0;
 
           end case;
+          end if;  -- bs_i.valid = '0'
         end if;
 
         -- Clear stream_start once it has been picked up by the streamer
