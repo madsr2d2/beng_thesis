@@ -189,9 +189,6 @@ begin
     variable v_drive_now      : boolean;
     variable v_drive_polarity : std_logic;
 
-    -- Set by the SP-time error monitors when an error frame is entered;
-    -- gates the BS/CRC feed and the per-state case below.
-    variable v_skip_case        : boolean;
 
     -- Field guards used by the centralized BS/CRC feed below.
     --   v_in_active_frame   - any field where the bit stuffer is running
@@ -260,7 +257,6 @@ begin
                               or state = s_data;
         v_in_active_frame  := v_in_dynamic_stuff
                               or state = s_sbc or state = s_crc;
-        v_skip_case        := false;
 
         -----------------------------------------------------------------
         -- Per-cycle defaults (overridden by per-state case below).
@@ -327,66 +323,59 @@ begin
         end if;
 
         -----------------------------------------------------------------
-        -- SP-time TX-side checks. State sets are mutually exclusive
-        -- (s_arbitration vs the tx-drive set), so this is an if/elsif.
-        --
-        --   Lost arbitration (ISO 6.5.2): TX recessive vs bus dominant
-        --   in s_arbitration. Flips is_transmitter false in-place; the
-        --   s_arbitration case below still runs to capture the winner's
-        --   bit via the RX path (does not skip the case).
-        --
-        --   TX bit-error (ISO 6.5.4): in any state where TX drives its
-        --   own polarity and expects bus echo. Excluded by construction:
-        --     s_arbitration   - lost-arb handles drive/bus mismatch
-        --     s_ack           - drives recessive expecting receivers'
-        --                       ACK
-        --     s_ack_delimiter - preceding ACK leaks past the boundary;
-        --                       the SSP-deferred path is still allowed
-        --     s_error_*       - already in error frame
-        --     quiet states    - no drive
+        -- Lost arbitration (ISO 6.5.2). TX recessive vs bus dominant in
+        -- s_arbitration. Flips is_transmitter in-place; the s_arbitration
+        -- case below still captures the winner's bit and advances
+        -- bit_count via the RX path, so this stays out of the chain.
         -----------------------------------------------------------------
-        if pcs_i.sample_point = '1' and is_transmitter then
-          if state = s_arbitration
-             and transmitted_bits_shift_reg(0) = c_recessive
-             and pcs_i.rx_data = c_dominant then
-            mac_ser_o.transfer_status <= c_lost_arb;
-            was_previous_frame_tx     <= false;
-            is_transmitter            <= false;
-          elsif (state = s_fdf_r1_r0 or state = s_res_r0
-                 or state = s_brs or state = s_esi
-                 or state = s_dlc or state = s_data
-                 or state = s_sbc or state = s_crc
-                 or state = s_crc_delimiter
-                 or state = s_ack_delimiter
-                 or state = s_eof)
-                and (secondary_sample_point_error_pending
-                     or (not in_data_phase
-                         and state /= s_ack_delimiter
-                         and transmitted_bits_shift_reg(0) /= pcs_i.rx_data)) then
-            if secondary_sample_point_error_pending then
-              secondary_sample_point_error_pending <= false;
-            end if;
-            fce_o.error                <= '1';
-            pcs_o.tx_data              <= not fce_i.error_active;
-            pcs_o.data_phase_stop      <= '1';
-            bs_o.fixed_bit_stuffing_en <= '0';
-            state                      <= s_error_flag;
-            bit_count                  <= 0;
-            overload                   <= false;
-            v_skip_case                := true;
-          end if;
+        if pcs_i.sample_point = '1' and is_transmitter and state = s_arbitration
+           and transmitted_bits_shift_reg(0) = c_recessive
+           and pcs_i.rx_data = c_dominant then
+          mac_ser_o.transfer_status <= c_lost_arb;
+          was_previous_frame_tx     <= false;
+          is_transmitter            <= false;
         end if;
 
         -----------------------------------------------------------------
-        -- RX stuff-error (ISO 6.5.5): RX-only, at the SP of a stuff
-        -- slot the bus must match the polarity the bit stuffer
-        -- expected. TX winning has bs_i.data == drive == rx_data.
+        -- SP-time chain.
+        --   1) TX bit-error (ISO 6.5.4): TX drives in non-arbitration /
+        --      non-ACK / non-error / non-quiet states and expects bus
+        --      echo to match.
+        --   2) RX stuff-error (ISO 6.5.5): RX at SP of stuff slot, bus
+        --      must match bit-stuffer expectation.
+        --   3) SP stuff-bit BS/CRC feed: case is real-bit-only.
+        --   4) else: BB cycle or SP real-bit cycle. Runs the per-state
+        --      case plus the SP real-bit BS/CRC feed and the BB stuff
+        --      drive.
         -----------------------------------------------------------------
-        if pcs_i.sample_point = '1' and not is_transmitter
-           and bs_i.valid = '1' and bs_i.data /= pcs_i.rx_data
-           and (state = s_arbitration or state = s_fdf_r1_r0
-                or state = s_res_r0 or state = s_brs or state = s_esi
-                or state = s_dlc or state = s_data) then
+        if pcs_i.sample_point = '1' and is_transmitter
+           and (state = s_fdf_r1_r0 or state = s_res_r0
+                or state = s_brs or state = s_esi
+                or state = s_dlc or state = s_data
+                or state = s_sbc or state = s_crc
+                or state = s_crc_delimiter
+                or state = s_ack_delimiter
+                or state = s_eof)
+           and (secondary_sample_point_error_pending
+                or (not in_data_phase
+                    and state /= s_ack_delimiter
+                    and transmitted_bits_shift_reg(0) /= pcs_i.rx_data)) then
+          if secondary_sample_point_error_pending then
+            secondary_sample_point_error_pending <= false;
+          end if;
+          fce_o.error                <= '1';
+          pcs_o.tx_data              <= not fce_i.error_active;
+          pcs_o.data_phase_stop      <= '1';
+          bs_o.fixed_bit_stuffing_en <= '0';
+          state                      <= s_error_flag;
+          bit_count                  <= 0;
+          overload                   <= false;
+
+        elsif pcs_i.sample_point = '1' and not is_transmitter
+              and bs_i.valid = '1' and bs_i.data /= pcs_i.rx_data
+              and (state = s_arbitration or state = s_fdf_r1_r0
+                   or state = s_res_r0 or state = s_brs or state = s_esi
+                   or state = s_dlc or state = s_data) then
           fce_o.sending_error_overload_flag <= '1';
           fce_o.error                       <= '1';
           pcs_o.data_phase_stop             <= '1';
@@ -394,42 +383,38 @@ begin
           v_drive_now                       := true;
           state                             <= s_error_flag;
           bit_count                         <= 0;
-          v_skip_case                       := true;
-        end if;
 
-        if not v_skip_case then
-          -----------------------------------------------------------------
-          -- Centralized BS / CRC feed at SP for active-frame states.
-          -- Field-type rules:
-          --   BS:     fed every bit in active-frame states.
-          --   CRC FD: fed every bit in dynamic-stuff fields, plus real
-          --           bits in s_sbc (fixed-stuff bits in s_sbc/s_crc are
-          --           excluded from the FD CRC).
-          --   CRC CC: fed only on real bits in dynamic-stuff fields
-          --           (CC frames have no SBC/CRC fixed-stuff fields).
-          -- s_arbitration drives v_bs_crc_data from rx_data so a TX
-          -- loser converges with the winner; post-arbitration TX uses
-          -- its own drive instead so the FD data-phase TDC delay does
-          -- not corrupt the BS/CRC state.
-          -----------------------------------------------------------------
+        elsif pcs_i.sample_point = '1' and v_in_active_frame and bs_i.valid = '1' then
+          -- SP stuff-bit BS/CRC feed. Only fires in active-frame states;
+          -- BS may keep its valid asserted past s_crc into s_crc_delimiter,
+          -- which we do not want to feed (and which must still enter the
+          -- case below for state advance). CRC CC excludes stuff bits and
+          -- the s_sbc / s_crc fixed-stuff bits are excluded from CRC FD.
+          bs_o.valid <= '1';
+          bs_o.data  <= v_bs_crc_data;
+          if v_in_dynamic_stuff then
+            crc_o.valid_fd <= '1';
+            crc_o.data_fd  <= v_bs_crc_data;
+          end if;
+
+        else
+          ---------------------------------------------------------------
+          -- BB cycle or SP real-bit cycle. SP real-bit BS/CRC feed,
+          -- BB stuff-bit TX drive, and the per-state case all live here.
+          ---------------------------------------------------------------
           if pcs_i.sample_point = '1' and v_in_active_frame then
             bs_o.valid <= '1';
             bs_o.data  <= v_bs_crc_data;
-            if v_in_dynamic_stuff or (state = s_sbc and bs_i.valid = '0') then
+            if v_in_dynamic_stuff or state = s_sbc then
               crc_o.valid_fd <= '1';
               crc_o.data_fd  <= v_bs_crc_data;
             end if;
-            if bs_i.valid = '0' and v_in_dynamic_stuff then
+            if v_in_dynamic_stuff then
               crc_o.valid_cc <= '1';
               crc_o.data_cc  <= v_bs_crc_data;
             end if;
           end if;
 
-          -----------------------------------------------------------------
-          -- Centralized stuff-bit TX drive at bit_boundary. Uniform
-          -- across all active-frame states; the per-state case below
-          -- only handles real-bit drive.
-          -----------------------------------------------------------------
           if pcs_i.bit_boundary = '1' and is_transmitter and bs_i.valid = '1' then
             v_drive_polarity := bs_i.data;
             v_drive_now      := true;
