@@ -314,14 +314,25 @@ begin
     variable v_in_fixed_stuff_field   : boolean;
     variable v_in_quiet_field         : boolean;
     variable v_in_tx_drive_field      : boolean;
-    -- TX bit-drive variables
-    variable v_tx_polarity            : std_logic;
-    variable v_drive_bit              : boolean;
-    variable v_is_stuff_bit           : boolean;
     -- Local data-length helper (used by TX frame setup and RX DLC decode)
     variable v_data_len               : natural range 0 to c_max_data_bytes;
     -- RX-only DLC vector helper
     variable v_dlc_vec                : std_logic_vector(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
+
+    -- Drive a single bit on the bus. Asserts pcs_o.transmitting /
+    -- fce_o.transmitting (PCS will latch tx_o at the next bit_boundary_d,
+    -- FCE counts errors as TX-side) and shifts polarity_history so the
+    -- TX bit-error monitor and SSP/TDC compare see this drive at the
+    -- next SP. Called from any case branch that drives a bit, whether at
+    -- bit_boundary (TX) or SP (RX-side ACK / error-flag drive).
+    procedure drive_bit(polarity : in std_logic) is
+    begin
+      pcs_o.tx_data              <= polarity;
+      pcs_o.transmitting         <= '1';
+      fce_o.transmitting         <= '1';
+      transmitted_bits_shift_reg <= transmitted_bits_shift_reg(c_tdc_polarity_depth - 2 downto 0) & polarity;
+    end procedure drive_bit;
+
   begin
 
     if rising_edge(clk_i) then
@@ -424,13 +435,6 @@ begin
             and transmitted_bits_shift_reg(to_integer(unsigned(pcs_i.tdc_delay))) /= pcs_i.rx_data) then
           secondary_sample_point_error_pending <= true;
         end if;
-
-        -----------------------------------------------------------------
-        -- Working variables
-        -----------------------------------------------------------------
-        v_drive_bit     := false;
-        v_is_stuff_bit  := false;
-        v_tx_polarity   := c_recessive;
 
         -----------------------------------------------------------------
         -- Quiet-state defaults: reset most outputs and BS/CRC.
@@ -743,8 +747,7 @@ begin
                 -- dominant, so this branch never fires.)
                 fce_o.sending_error_overload_flag <= '1';
                 fce_o.error                       <= '1';
-                v_tx_polarity                     := not fce_i.error_active;
-                v_drive_bit                       := true;
+                drive_bit(not fce_i.error_active);
                 bit_count                         <= 0;
                 state                             <= s_error_flag;
               elsif (llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1') then
@@ -845,8 +848,7 @@ begin
               if (pcs_i.rx_data /= bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count)) then
                 fce_o.sending_error_overload_flag <= '1';
                 fce_o.error                       <= '1';
-                v_tx_polarity                     := not fce_i.error_active;
-                v_drive_bit                       := true;
+                drive_bit(not fce_i.error_active);
                 pcs_o.data_phase_stop             <= '1';
                 bs_o.fixed_bit_stuffing_en        <= '0';
                 state                             <= s_error_flag;
@@ -893,8 +895,7 @@ begin
                 -- RX CRC error: enter error flag.
                 fce_o.sending_error_overload_flag <= '1';
                 fce_o.error                       <= '1';
-                v_tx_polarity                     := not fce_i.error_active;
-                v_drive_bit                       := true;
+                drive_bit(not fce_i.error_active);
                 state                             <= s_error_flag;
                 bit_count                         <= 0;
               else
@@ -902,8 +903,7 @@ begin
                 -- (latched into PCS at the next bit_boundary_d so tx_o is
                 -- dominant during the s_ack bit period); TX listens.
                 if not is_transmitter then
-                  v_tx_polarity := c_dominant;
-                  v_drive_bit   := true;
+                  drive_bit(c_dominant);
                 end if;
                 state     <= s_ack;
                 bit_count <= 0;
@@ -1020,13 +1020,12 @@ begin
                   fce_o.sending_error_overload_flag <= '1';
                   fce_o.error                       <= '1';
                   if bit_count = (c_eof_field_width - 1) then
-                    v_tx_polarity := c_dominant;
-                    overload      <= true;
-                    fce_o.error   <= '0';
+                    drive_bit(c_dominant);
+                    overload    <= true;
+                    fce_o.error <= '0';
                   else
-                    v_tx_polarity := not fce_i.error_active;
+                    drive_bit(not fce_i.error_active);
                   end if;
-                  v_drive_bit := true;
                   state        <= s_error_flag;
                   bit_count    <= 0;
                 else
@@ -1139,12 +1138,11 @@ begin
             -----------------------------------------------------------------
             when s_error_delimiter =>
               if pcs_i.rx_data = c_dominant then                            -- Form error and overload (6.6.21.3.2)
-                v_tx_polarity := not fce_i.error_active;
-                v_drive_bit   := true;
-                fce_o.error   <= '1';
-                state         <= s_error_flag;
-                bit_count     <= 0;
-                overload      <= false;
+                drive_bit(not fce_i.error_active);
+                fce_o.error <= '1';
+                state       <= s_error_flag;
+                bit_count   <= 0;
+                overload    <= false;
               else
                 if bit_count = c_error_delimiter_width - 1 then
                   state     <= s_intermission;
@@ -1184,19 +1182,14 @@ begin
           if is_transmitter and bs_i.valid = '1'
              and (v_in_dynamic_stuff_field or v_in_fixed_stuff_field) then
             -- BS predicts a stuff bit for the upcoming slot.
-            v_tx_polarity  := bs_i.data;
-            v_drive_bit    := true;
-            v_is_stuff_bit := true;
+            drive_bit(bs_i.data);
           else
             case state is
 
             -- s_bus_idle: TX entry happens here. When the LLC has a
             -- frame ready and we are eligible to start (error-active or
             -- not the previous TX), latch is_transmitter and drive SOF
-            -- on the SAME clock. Mirrors the legacy can_fsm s_idle
-            -- pattern (transmit_i drives SOF and sets is_transmitter
-            -- together). The SP block transitions to s_arbitration once
-            -- the SOF is observed on the bus.
+            -- on the SAME clock.
             when s_bus_idle =>
               if mac_ser_i.valid = '1'
                  and (fce_i.error_active = '1' or not was_previous_frame_tx) then
@@ -1205,27 +1198,20 @@ begin
                 data_len              <= v_data_len;
                 crc_length            <= f_crc_length(v_data_len, mac_ser_i.llc_metadata.fdf);
                 crc_o.crc_poly_select <= f_crc_poly_select(v_data_len, mac_ser_i.llc_metadata.fdf);
-                v_tx_polarity         := c_dominant;
-                v_drive_bit           := true;
+                drive_bit(c_dominant);
               end if;
 
             when s_intermission =>
-              -- Back-to-back TX entry. At the last IFS bit (bit 2) we may
-              -- drive SOF dominant. is_transmitter is sticky from the
-              -- previous frame; if it is true we latch the new frame's
-              -- metadata here (mirroring s_bus_idle above) so the SP block
-              -- in s_intermission can stay role-independent. Earlier
-              -- intermission bits stay recessive.
+              -- Back-to-back TX entry: drive SOF dominant at IFS bit 2 and
+              -- latch the new frame's metadata (mirrors s_bus_idle above).
               if is_transmitter
                  and bit_count = c_intermission_width - 1
                  and mac_ser_i.valid = '1' then
-                v_data_len                 := dlc_to_data_length(to_integer(unsigned(mac_ser_i.llc_metadata.dlc)), mac_ser_i.llc_metadata.fdf);
-                data_len                   <= v_data_len;
-                crc_length                 <= f_crc_length(v_data_len, mac_ser_i.llc_metadata.fdf);
-                crc_o.crc_poly_select      <= f_crc_poly_select(v_data_len, mac_ser_i.llc_metadata.fdf);
-                transmitted_bits_shift_reg <= (0 => c_dominant, others => c_recessive);
-                v_tx_polarity              := c_dominant;
-                v_drive_bit                := true;
+                v_data_len            := dlc_to_data_length(to_integer(unsigned(mac_ser_i.llc_metadata.dlc)), mac_ser_i.llc_metadata.fdf);
+                data_len              <= v_data_len;
+                crc_length            <= f_crc_length(v_data_len, mac_ser_i.llc_metadata.fdf);
+                crc_o.crc_poly_select <= f_crc_poly_select(v_data_len, mac_ser_i.llc_metadata.fdf);
+                drive_bit(c_dominant);
               end if;
 
             when s_arbitration =>
@@ -1235,28 +1221,24 @@ begin
                   when 0 to c_arb_id_a_last | c_arb_id_b_first to c_arb_id_b_last =>
                     -- ID-A / ID-B: stream from LLC byte serializer.
                     mac_ser_o.ready <= '1';
-                    v_tx_polarity   := mac_ser_i.data;
-                    v_drive_bit     := true;
+                    drive_bit(mac_ser_i.data);
 
                   when c_arb_rtr_pos =>
                     -- CC base RTR / extended SRR / FD base RRS.
                     if mac_ser_i.llc_metadata.ide = c_recessive then
-                      v_tx_polarity := c_recessive;                  -- SRR (extended)
+                      drive_bit(c_recessive);                  -- SRR (extended)
                     elsif mac_ser_i.llc_metadata.fdf = c_recessive then
-                      v_tx_polarity := mac_ser_i.llc_metadata.ftyp;  -- RTR (CC base)
+                      drive_bit(mac_ser_i.llc_metadata.ftyp);  -- RTR (CC base)
                     else
-                      v_tx_polarity := c_dominant;                   -- RRS (FD base)
+                      drive_bit(c_dominant);                   -- RRS (FD base)
                     end if;
-                    v_drive_bit := true;
 
                   when c_arb_ide_pos =>
-                    v_tx_polarity := mac_ser_i.llc_metadata.ide;
-                    v_drive_bit   := true;
+                    drive_bit(mac_ser_i.llc_metadata.ide);
 
                   when c_arb_rtr_ext_pos =>
                     -- RTR after ID-B (extended).
-                    v_tx_polarity := mac_ser_i.llc_metadata.ftyp;
-                    v_drive_bit   := true;
+                    drive_bit(mac_ser_i.llc_metadata.ftyp);
 
                   when others =>
                     null;
@@ -1266,103 +1248,69 @@ begin
 
             when s_fdf_r1_r0 =>
               if is_transmitter then
-                v_tx_polarity := mac_ser_i.llc_metadata.fdf;
-                v_drive_bit   := true;
+                drive_bit(mac_ser_i.llc_metadata.fdf);
               end if;
 
             when s_res_r0 =>
               if is_transmitter then
-                v_tx_polarity := c_dominant;
-                v_drive_bit   := true;
+                drive_bit(c_dominant);
               end if;
 
             when s_brs =>
               if is_transmitter then
-                v_tx_polarity         := mac_ser_i.llc_metadata.brs;
                 pcs_o.next_bit_is_brs <= mac_ser_i.llc_metadata.brs;
-                v_drive_bit           := true;
+                drive_bit(mac_ser_i.llc_metadata.brs);
               end if;
 
             when s_esi =>
               if is_transmitter then
-                v_tx_polarity := mac_ser_i.llc_metadata.esi;
-                v_drive_bit   := true;
+                drive_bit(mac_ser_i.llc_metadata.esi);
               end if;
 
             when s_dlc =>
               if is_transmitter then
-                v_tx_polarity := mac_ser_i.llc_metadata.dlc(c_dlc_field_width - 1 - bit_count);
-                v_drive_bit   := true;
+                drive_bit(mac_ser_i.llc_metadata.dlc(c_dlc_field_width - 1 - bit_count));
               end if;
 
             when s_data =>
               if is_transmitter then
                 mac_ser_o.ready <= '1';
-                v_tx_polarity   := mac_ser_i.data;
-                v_drive_bit     := true;
+                drive_bit(mac_ser_i.data);
               end if;
 
             when s_sbc =>
               if is_transmitter then
-                v_tx_polarity := bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count);
-                v_drive_bit   := true;
+                drive_bit(bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count));
               end if;
 
             when s_crc =>
               if is_transmitter then
-                v_tx_polarity := crc_i.crc((c_crc_21_length - 1) - bit_count);
-                v_drive_bit   := true;
+                drive_bit(crc_i.crc((c_crc_21_length - 1) - bit_count));
               end if;
 
             when s_crc_delimiter | s_ack_delimiter | s_eof =>
               if is_transmitter then
-                v_tx_polarity := c_recessive;
-                v_drive_bit   := true;
+                drive_bit(c_recessive);
               end if;
 
-            -- Error frame: both TX and RX drive 6 active-error bits
-            -- (dominant for active, recessive for passive). RX entry is
-            -- via the SP-time direct drives; subsequent bit_boundaries
-            -- come through here.
+            -- Error frame: both TX and RX drive (active=dominant, passive=recessive).
             when s_error_flag =>
               if not overload then
-                v_tx_polarity := not fce_i.error_active;
+                drive_bit(not fce_i.error_active);
               else
-                v_tx_polarity := c_dominant;
+                drive_bit(c_dominant);
               end if;
-              v_drive_bit := true;
 
             when s_error_flag_check
                | s_error_dominant_delim
                | s_error_delimiter =>
-              v_tx_polarity := c_recessive;
-              v_drive_bit   := true;
+              drive_bit(c_recessive);
 
             when others =>
               null;
 
             end case;
           end if;
-        end if;
-
-        -----------------------------------------------------------------
-        -- Drive block. Applies whenever v_drive_bit was set, whether by
-        -- the SP block (RX-side ACK / error-flag drive) or by the
-        -- bit_boundary block (TX drive). pcs_o.transmitting and
-        -- fce_o.transmitting are asserted here so the PCS latches tx_o
-        -- on the SAME clock as the drive, even if quiet-state defaults
-        -- earlier in the process tried to clear them. BS/CRC are NOT fed
-        -- here -- they are fed at SP from rx_data so the loser of
-        -- arbitration accumulates the same state as the winner.
-        -- polarity_history shifts unconditionally so SOF (driven from the
-        -- s_bus_idle case the same clock is_transmitter is latched) lands
-        -- in slot 0 in time for the lost-arb compare at the next SP.
-        -----------------------------------------------------------------
-        if v_drive_bit then
-          pcs_o.tx_data              <= v_tx_polarity;
-          transmitted_bits_shift_reg <= transmitted_bits_shift_reg(c_tdc_polarity_depth - 2 downto 0) & v_tx_polarity;
-          pcs_o.transmitting         <= '1';
-          fce_o.transmitting         <= '1';
         end if;
 
         -- Clear stream_start once it has been picked up by the streamer
