@@ -287,11 +287,17 @@ begin
           pcs_o.next_bit_is_brs <= '0';
           pcs_o.data_phase_stop <= '0';
         end if;
-        -- Hard-sync allowed only while waiting for SOF.
-        pcs_o.do_hard_sync                <= '1' when state = s_bus_reintegration
-                                                   or state = s_intermission
-                                                   or state = s_suspend_transmission
-                                                   or state = s_bus_idle else '0';
+        -- Hard-sync allowed while waiting for SOF (quiet states) and in
+        -- s_res_r0 of FD frames so the receiver can resync on the
+        -- dominant res edge that follows the recessive FDF bit. The PCS
+        -- gates the actual sync on mac_i.transmitting = '0'.
+        pcs_o.do_hard_sync <= '1' when state = s_bus_reintegration
+                                    or state = s_intermission
+                                    or state = s_suspend_transmission
+                                    or state = s_bus_idle
+                                    or (state = s_res_r0
+                                        and llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1')
+                                  else '0';
 
         -- SSP-deferred bit error (ISO 7.3.4). polarity_history(tdc_delay)
         -- is the bit the bus pin currently reflects, compared to rx_data
@@ -649,9 +655,6 @@ begin
             -- CC ext falls to s_dlc. Recessive on the bus is a form error.
             -----------------------------------------------------------------
             when s_res_r0 =>
-              if llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' then
-                pcs_o.do_hard_sync <= '1';
-              end if;
               if pcs_i.bit_boundary = '1' and is_transmitter then
                 v_drive_polarity := c_dominant;
                 v_drive_now      := true;
