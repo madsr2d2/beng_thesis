@@ -808,6 +808,12 @@ begin
                   bs_o.fixed_bit_stuffing_en <= '0';
                   state                      <= s_crc_delimiter;
                   bit_count                  <= 0;
+                  if is_transmitter then
+                    -- Drive crc_delim bit (recessive) ahead of the SP-only
+                    -- s_crc_delimiter migration below.
+                    v_drive_polarity := c_recessive;
+                    v_drive_now      := true;
+                  end if;
                 else
                   bit_count <= bit_count + 1;
                 end if;
@@ -819,17 +825,19 @@ begin
             -- bit_boundary_d); TX listens.
             -----------------------------------------------------------------
             when s_crc_delimiter =>
-              if pcs_i.bit_boundary = '1' and is_transmitter then
-                v_drive_polarity := c_recessive;
-                v_drive_now      := true;
-              elsif pcs_i.sample_point = '1' then
+              if pcs_i.sample_point = '1' then
                 in_data_phase <= false;
-                if not is_transmitter then
+                -- Next bit is the ACK slot. TX listens (drives recessive
+                -- so RX dominant overrides on the bus); RX overdrives
+                -- dominant.
+                if is_transmitter then
+                  v_drive_polarity := c_recessive;
+                else
                   v_drive_polarity := c_dominant;
-                  v_drive_now      := true;
                 end if;
-                state     <= s_ack;
-                bit_count <= 0;
+                v_drive_now := true;
+                state       <= s_ack;
+                bit_count   <= 0;
               end if;
 
             -----------------------------------------------------------------
