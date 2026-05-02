@@ -181,42 +181,72 @@ from the bus in nominal / from the drive in the FD data phase, mode
 flag latched at SOF) is the same. Most of the bugs above were the
 cost of rediscovering why the legacy code looked the way it did.
 
-## Why two strobes (SP and bit_boundary), not just SP
+## Single-strobe PCS-MAC interface
 
-A natural follow-up question once the FSM was stable: do we need
-`pcs_i.bit_boundary` at all, or could the MAC drive TX exclusively at
-`pcs_i.sample_point`? Several earlier CAN implementations (including
-an older `can_mac_fsm_tx.vhd` in this repo's history at commit
-`9ed88885`) drove TX from SP only.
+The original design carried `bit_boundary` as a second strobe on the
+`t_can_mac_pcs_if_s2m` record. PCS drove `bit_boundary` at the end of
+phase_seg2, then latched `tx_o <= mac_i.tx_data` one clock later via a
+`bit_boundary_d` register. This created a 3-clock pipeline from SP:
 
-We investigated and chose to **keep both strobes**. The reasoning:
+```
+SP(K) -> MAC drives pcs_o.tx_data (NBA) at K+1 -> bit_boundary fires at K+2
+      -> bit_boundary_d fires at K+3 -> tx_o latches = mac_i.tx_data
+```
 
-The legacy SP-only TX worked by adopting a one-bit naming offset
-between the FSM `state` and the bus. In that convention, "`state` at
-this SP" means "the field whose bit MAC is *driving* this cycle for
-the *next* bus bit", not "the field whose bit is on the bus right
-now". With this convention each state's body uses only its own
-`state` and `bit_count` to compute the drive -- no lookahead, no
-cross-state coupling at transitions.
+With FD data-phase minimum timing (phase_seg2 = 1 TQ = 2 system clocks,
+sync_seg = 1 TQ = 2 system clocks), `tx_o` was updating 1 clock into the
+new bit's sync_seg -- a marginal timing hazard that worsens as prescaler
+shrinks.
 
-The hidden cost is that this convention only fits a TX-only FSM. In
-our combined TX+RX FSM, RX captures bus bits in their natural,
-bus-bit-aligned timing. If TX drive logic uses the "next-bit" naming
-while RX capture uses the "current-bus-bit" naming, every per-state
-SP elsif has to mix two mental models.
+### Fix: drop bit_boundary, register SP in the MAC
 
-The two-strobe model side-steps this by having TX drive at
-`bit_boundary` (under the natural "state = current bus bit" reading)
-and RX capture at `sample_point` (also under the same reading). The
-extra wire is a cheap price for keeping TX and RX aligned to the same
-indexing of bus bits.
+`bit_boundary` was removed from `t_can_mac_pcs_if_s2m` entirely. The MAC
+FSM generates an internal `drive_bit` strobe by registering
+`pcs_i.sample_point` twice:
 
-A piecemeal SP-only migration was attempted in early 2026-05; the
-first three states (`s_eof`, `s_ack_delimiter`, `s_crc_delimiter`)
-migrated cleanly because they all drive `c_recessive`. Going further
-backward into the active-frame chain (`s_crc`, `s_sbc`, `s_data`,
-`s_dlc`, `s_arbitration`) required either a per-state lookahead at
-each transition boundary, or a centralised "next-state first-bit
-drive" lookup that essentially re-encodes the bus-bit-alignment of
-every drive site. Neither alternative was clearly better than the
-two-strobe baseline, so the migration was reverted and we kept BB.
+```vhdl
+drive_bit_d <= pcs_i.sample_point;   -- SP+1
+drive_bit   <= drive_bit_d;           -- SP+2
+```
+
+All TX drive branches that previously tested `pcs_i.bit_boundary = '1'`
+now test `drive_bit = '1'`. The conceptual model -- "drive at
+bit_boundary, capture at sample_point" -- is unchanged; the strobe is
+now generated inside the MAC rather than routed from the PCS.
+
+PCS latches `tx_o` unconditionally inside the bit_boundary branch itself
+(no `bit_boundary_d` register, no `transmitting` gate):
+
+```vhdl
+elsif seg_count >= ((active_phase_seg2 - 1) - phase2_shortening) then
+  tx_o              <= mac_i.tx_data;   -- latch at bit_boundary itself
+  bit_boundary      <= '1';
+  ...
+```
+
+The updated pipeline:
+
+```
+SP(K) -> drive_bit_d='1' at K+1 -> drive_bit='1' at K+2
+      -> MAC drives pcs_o.tx_data (NBA) at K+2
+      -> pcs_o.tx_data visible as mac_i.tx_data at K+3 (rising edge K+3 start)
+      -> bit_boundary fires at K+BB_offset
+      -> tx_o latches mac_i.tx_data at same clock
+```
+
+Because BB is further from SP than 2 clocks (phase_seg2 >= 2 system
+clocks), `mac_i.tx_data` is always stable when the latch fires. `tx_o`
+updates at the bit boundary itself, not one clock after it -- no timing
+hazard at any FD data-phase configuration.
+
+### Testbench note
+
+The 37-clock shift from BB to drive_bit (drive_bit fires earlier in the
+bit period) exposed a timing coincidence in `test_lost_arb`: with
+prescaler=2 (200 system clocks per nominal bit), the 3000-clock settle
+wait always ended at the same phase within a bit, and the interleaved
+Send loop of exactly 142 clocks put DUT1's serializer valid at the exact
+clock drive_bit fired. DUT1 would fire SOF alone, defeating the
+lost-arbitration scenario. Fix: a `WaitForClock(clk, 3 * c_bit_time)`
+guard before the Send loop shifts the send window so drive_bit fires
+before either serializer is valid.

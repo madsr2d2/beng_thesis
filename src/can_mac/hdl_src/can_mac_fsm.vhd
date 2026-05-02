@@ -127,6 +127,13 @@ architecture rtl of can_mac_fsm is
   -- SSP-based detection is the correct mechanism (ISO 7.3.4).
   signal in_data_phase                        : boolean;
 
+  -- TX drive strobe: sample_point registered by two clocks. One stage lets
+  -- state/bit_count NBAs settle; the second gives the BS module one clock to
+  -- compute bs_o.valid from the real bit fed at SP. MAC prepares pcs_o.tx_data
+  -- at drive_bit; PCS latches tx_o at its internal bit_boundary_d (unchanged).
+  signal drive_bit_d                          : std_logic;
+  signal drive_bit                            : std_logic;
+
 begin
 
   -----------------------------------------------------------------
@@ -230,6 +237,8 @@ begin
         llc_stream_start                     <= false;
         llc_frame_len                        <= 0;
         in_data_phase                        <= false;
+        drive_bit_d                          <= '0';
+        drive_bit                            <= '0';
         mac_ser_o                            <= c_ser_fsm_if_d2s_reset;
         bs_o                                 <= c_mac_fsm_to_bs_fd_if_reset;
         pcs_o                                <= c_mac_to_pcs_if_reset;
@@ -255,6 +264,9 @@ begin
                               or state = s_data;
         v_in_active_frame  := v_in_dynamic_stuff
                               or state = s_sbc or state = s_crc;
+
+        drive_bit_d <= pcs_i.sample_point;
+        drive_bit   <= drive_bit_d;
 
         -----------------------------------------------------------------
         -- Per-cycle defaults (overridden by per-state case below).
@@ -308,7 +320,6 @@ begin
         -- s_bus_idle.
         if state = s_bus_reintegration or state = s_intermission
            or state = s_suspend_transmission or state = s_bus_idle then
-          pcs_o.transmitting                   <= '0';
           fce_o                                <= c_mac_to_fce_if_reset;
           mac_ser_o                            <= c_ser_fsm_if_d2s_reset;
           bs_o                                 <= c_mac_fsm_to_bs_fd_if_reset;
@@ -392,7 +403,7 @@ begin
             crc_o.data_fd  <= v_bs_crc_data;
           end if;
 
-        elsif pcs_i.bit_boundary = '1' and is_transmitter and bs_i.valid = '1' then
+        elsif drive_bit = '1' and is_transmitter and bs_i.valid = '1' then
           -- BB stuff-bit TX drive (uniform across all active-frame states).
           v_drive_polarity := bs_i.data;
           v_drive_now      := true;
@@ -442,7 +453,7 @@ begin
             -- at the bit-2 bit_boundary.
             -----------------------------------------------------------------
             when s_intermission =>
-              if pcs_i.bit_boundary = '1' then
+              if drive_bit = '1' then
                 if is_transmitter
                    and bit_count = c_intermission_width - 1
                    and mac_ser_i.valid = '1' then
@@ -515,7 +526,7 @@ begin
             when s_bus_idle =>
               byte_index <= 0;
               bit_index  <= 0;
-              if pcs_i.bit_boundary = '1' then
+              if drive_bit = '1' then
                 if mac_ser_i.valid = '1'
                    and (fce_i.error_active = '1' or not was_previous_frame_tx) then
                   is_transmitter        <= true;
@@ -548,7 +559,7 @@ begin
             -- arbitration retains the winner's bits (ISO 6.5.2).
             -----------------------------------------------------------------
             when s_arbitration =>
-              if pcs_i.bit_boundary = '1' and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 case bit_count is
                   when 0 to c_arb_id_a_last | c_arb_id_b_first to c_arb_id_b_last =>
                     mac_ser_o.ready  <= '1';
@@ -603,7 +614,7 @@ begin
             -- s_fdf_r1_r0: FDF (FD) / r1 (CC ext) / r0 (CC base) bit.
             -----------------------------------------------------------------
             when s_fdf_r1_r0 =>
-              if pcs_i.bit_boundary = '1' and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := mac_ser_i.llc_metadata.fdf;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
@@ -627,7 +638,7 @@ begin
             -- CC ext falls to s_dlc. Recessive on the bus is a form error.
             -----------------------------------------------------------------
             when s_res_r0 =>
-              if pcs_i.bit_boundary = '1' and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := c_dominant;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
@@ -654,7 +665,7 @@ begin
             -- s_brs: BRS bit (FD only). Recessive switches to data phase.
             -----------------------------------------------------------------
             when s_brs =>
-              if pcs_i.bit_boundary = '1' and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := mac_ser_i.llc_metadata.brs;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
@@ -667,7 +678,7 @@ begin
             -- s_esi: ESI bit (FD only). Active=dominant, passive=recessive.
             -----------------------------------------------------------------
             when s_esi =>
-              if pcs_i.bit_boundary = '1' and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := mac_ser_i.llc_metadata.esi;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
@@ -683,7 +694,7 @@ begin
             -- from the just-captured DLC.
             -----------------------------------------------------------------
             when s_dlc =>
-              if pcs_i.bit_boundary = '1' and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := mac_ser_i.llc_metadata.dlc(c_dlc_field_width - 1 - bit_count);
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
@@ -726,7 +737,7 @@ begin
             -- s_data: data field. 0..8 bytes (CC) or 0..64 bytes (FD).
             -----------------------------------------------------------------
             when s_data =>
-              if pcs_i.bit_boundary = '1' and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 mac_ser_o.ready  <= '1';
                 v_drive_polarity := mac_ser_i.data;
                 v_drive_now      := true;
@@ -757,7 +768,7 @@ begin
             -- the SBC-mismatch compare; TX winning never trips it.
             -----------------------------------------------------------------
             when s_sbc =>
-              if pcs_i.bit_boundary = '1' and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count);
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
@@ -786,7 +797,7 @@ begin
             -- phase-switches at the delim SP (ISO 6.6.10.5).
             -----------------------------------------------------------------
             when s_crc =>
-              if pcs_i.bit_boundary = '1' and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := crc_i.crc((c_crc_21_length - 1) - bit_count);
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
@@ -819,12 +830,13 @@ begin
             -- bit_boundary_d); TX listens.
             -----------------------------------------------------------------
             when s_crc_delimiter =>
-              if pcs_i.bit_boundary = '1' and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := c_recessive;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
                 in_data_phase <= false;
                 if not is_transmitter then
+                  pcs_o.transmitting <= '1';
                   v_drive_polarity := c_dominant;
                   v_drive_now      := true;
                 end if;
@@ -863,7 +875,7 @@ begin
             -- check (ISO 6.6.21.3.2).
             -----------------------------------------------------------------
             when s_ack_delimiter =>
-              if pcs_i.bit_boundary = '1' and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := c_recessive;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
@@ -903,7 +915,7 @@ begin
             -- 6.6.15.2).
             -----------------------------------------------------------------
             when s_eof =>
-              if pcs_i.bit_boundary = '1' and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := c_recessive;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
@@ -972,7 +984,7 @@ begin
             -- passive = recessive).
             -----------------------------------------------------------------
             when s_error_flag =>
-              if pcs_i.bit_boundary = '1' then
+              if drive_bit = '1' then
                 if not overload then
                   v_drive_polarity := not fce_i.error_active;
                   v_drive_now      := true;
@@ -1018,7 +1030,7 @@ begin
               end if;
 
             when s_error_flag_check =>
-              if pcs_i.bit_boundary = '1' then
+              if drive_bit = '1' then
                 v_drive_polarity := c_recessive;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
@@ -1035,7 +1047,7 @@ begin
               end if;
 
             when s_error_dominant_delim =>
-              if pcs_i.bit_boundary = '1' then
+              if drive_bit = '1' then
                 v_drive_polarity := c_recessive;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
@@ -1053,7 +1065,7 @@ begin
               end if;
 
             when s_error_delimiter =>
-              if pcs_i.bit_boundary = '1' then
+              if drive_bit = '1' then
                 v_drive_polarity := c_recessive;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then

@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Fri May  1 17:24:51 2026
+[*] Sat May  2 21:23:29 2026
 [*]
 [dumpfile] "/home/madsr2d2/beng_thesis/sim/can_mac_pcs_fce_tb.ghw"
-[dumpfile_mtime] "Fri May  1 17:22:29 2026"
-[dumpfile_size] 6612613
+[dumpfile_mtime] "Sat May  2 21:22:42 2026"
+[dumpfile_size] 401206901
 [savefile] "/home/madsr2d2/beng_thesis/src/can_mac_pcs_fce/test_case/can_mac_pcs_fce_tb.gtkw"
-[timestart] 2676200000000
+[timestart] 550000000
 [size] 1920 1001
 [pos] -27 -24
-*-34.276558 2750670000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-33.176559 21740000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.can_mac_pcs_fce_tb.
 [treeopen] top.can_mac_pcs_fce_tb.u_dut_1.
@@ -89,7 +89,6 @@ top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame_len
 @420
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_stream_done
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_stream_start
-top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.crc_mismatch
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.stream_index
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.bit_index
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.byte_index
@@ -125,7 +124,6 @@ top.can_mac_pcs_fce_tb.u_dut_1.mac_to_pcs.tx_data
 top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.tx_o
 top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.rx_i
 top.can_mac_pcs_fce_tb.u_dut_1.pcs_to_mac.rx_data
-top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.mac_o.bit_boundary
 top.can_mac_pcs_fce_tb.u_dut_1.pcs_to_mac.sample_point
 top.can_mac_pcs_fce_tb.u_dut_1.pcs_to_mac.secondary_sample_point
 @24
@@ -180,7 +178,6 @@ top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.segment
 top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame_len
 top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_stream_done
 top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_stream_start
-top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.crc_mismatch
 top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.stream_index
 top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.bit_index
 top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.byte_index
@@ -341,6 +338,8 @@ top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_bs.bs_o.data
 -dut2_llc_frame
 @800200
 -dut_1_essentials
+@421
+top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.is_transmitter
 @28
 #{top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame[0][7:0]} top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame[0][7] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame[0][6] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame[0][5] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame[0][4] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame[0][3] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame[0][2] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame[0][1] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame[0][0]
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.mac_ser_i.llc_metadata.fdf
@@ -357,7 +356,6 @@ top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.mac_o.rx_data
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.state
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.bit_count
 @28
-top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.mac_o.bit_boundary
 top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.mac_o.sample_point
 top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.mac_o.secondary_sample_point
 @22
@@ -383,9 +381,8 @@ top.can_mac_pcs_fce_tb.u_dut_2.pcs_to_mac.rx_data
 @420
 top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.state
 top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.bit_count
-@29
-top.can_mac_pcs_fce_tb.u_dut_2.pcs_to_mac.sample_point
 @28
+top.can_mac_pcs_fce_tb.u_dut_2.pcs_to_mac.sample_point
 top.can_mac_pcs_fce_tb.u_dut_2.mac_to_pcs.transmitting
 top.can_mac_pcs_fce_tb.u_dut_2.mac_to_pcs.do_hard_sync
 top.can_mac_pcs_fce_tb.u_dut_2.mac_to_pcs.data_phase_stop

@@ -8,7 +8,7 @@
 --                Error state and bus-off recovery logic. (ISO : 8.1.4.2-4).
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-04-10  TMYAES:   [TRIT-4336] [FPGA] CAN FD extensions of TRIT-3880   
+--                2026-04-10  TMYAES:   [TRIT-4336] [FPGA] CAN FD extensions of TRIT-3880
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;

@@ -765,6 +765,12 @@ begin
           end loop;
         end if;
 
+        -- Align sends so drive_bit (SP+2 registered) fires before the
+        -- serializers become valid. Without this guard, drive_bit fires
+        -- at T0+141 (exactly when DUT1's ser_tx finishes loading), which
+        -- causes DUT1 to fire SOF alone before DUT2 is ready.
+        WaitForClock(clk, 3 * c_bit_time);
+
         -- Interleave Sends so both ser_tx ports reach s_shift_out_bits
         -- within one clock of each other.
         for i in 0 to v_last_dut_1 loop
