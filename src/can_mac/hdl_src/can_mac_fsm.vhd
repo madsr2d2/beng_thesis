@@ -863,16 +863,16 @@ begin
             -- check (ISO 6.6.21.3.2).
             -----------------------------------------------------------------
             when s_ack_delimiter =>
-              if pcs_i.sample_point = '1' then
+              if pcs_i.bit_boundary = '1' and is_transmitter then
+                v_drive_polarity := c_recessive;
+                v_drive_now      := true;
+              elsif pcs_i.sample_point = '1' then
                 if is_transmitter then
                   if not ack_success_seen and pcs_i.rx_data = c_dominant then
                     ack_success_seen <= true;
                   end if;
                   if ack_success_seen or pcs_i.rx_data = c_dominant then
-                    -- ACK acked. Drive eof[0] = c_recessive for next bit.
-                    v_drive_polarity := c_recessive;
-                    v_drive_now      := true;
-                    state            <= s_eof;
+                    state <= s_eof;
                   else
                     -- Missing ACK: enter error flag; defer fce_o.error to flag end.
                     ack_error_caused_flag      <= true;
