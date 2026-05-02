@@ -903,10 +903,7 @@ begin
             -- 6.6.15.2).
             -----------------------------------------------------------------
             when s_eof =>
-              if pcs_i.bit_boundary = '1' and is_transmitter then
-                v_drive_polarity := c_recessive;
-                v_drive_now      := true;
-              elsif pcs_i.sample_point = '1' then
+              if pcs_i.sample_point = '1' then
                 if is_transmitter then
                   if bit_count = 0 and not ack_success_seen then
                     -- Missing ACK
@@ -917,21 +914,27 @@ begin
                     state                      <= s_error_flag;
                     bit_count                  <= 0;
                     overload                   <= false;
-                  elsif bit_count = c_eof_field_width - 1 then
-                    mac_ser_o.transfer_status <= c_transmitted;
-                    was_previous_frame_tx     <= true;
-                    fce_o.successful_transfer <= '1';
-                    state                     <= s_intermission;
-                    bit_count                 <= 0;
-                  elsif bit_count = c_eof_field_width - 2 then
-                    -- Frame valid (TX self-reception so the LLC RX byte
-                    -- stream is populated on the transmitter too).
-                    llc_stream_start <= true;
-                    byte_index       <= 0;
-                    llc_frame_len    <= c_data_offset + data_len;
-                    bit_count        <= bit_count + 1;
                   else
-                    bit_count <= bit_count + 1;
+                    -- Drive next bit (eof or first intermission bit; both
+                    -- recessive). PCS latches at the next bit_boundary_d.
+                    v_drive_polarity := c_recessive;
+                    v_drive_now      := true;
+                    if bit_count = c_eof_field_width - 1 then
+                      mac_ser_o.transfer_status <= c_transmitted;
+                      was_previous_frame_tx     <= true;
+                      fce_o.successful_transfer <= '1';
+                      state                     <= s_intermission;
+                      bit_count                 <= 0;
+                    elsif bit_count = c_eof_field_width - 2 then
+                      -- Frame valid (TX self-reception so the LLC RX byte
+                      -- stream is populated on the transmitter too).
+                      llc_stream_start <= true;
+                      byte_index       <= 0;
+                      llc_frame_len    <= c_data_offset + data_len;
+                      bit_count        <= bit_count + 1;
+                    else
+                      bit_count <= bit_count + 1;
+                    end if;
                   end if;
                 else
                   if pcs_i.rx_data = c_dominant then
