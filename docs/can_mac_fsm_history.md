@@ -180,3 +180,43 @@ the FSM. The structure (TX-drive at `bit_boundary`, RX at SP, BS/CRC
 from the bus in nominal / from the drive in the FD data phase, mode
 flag latched at SOF) is the same. Most of the bugs above were the
 cost of rediscovering why the legacy code looked the way it did.
+
+## Why two strobes (SP and bit_boundary), not just SP
+
+A natural follow-up question once the FSM was stable: do we need
+`pcs_i.bit_boundary` at all, or could the MAC drive TX exclusively at
+`pcs_i.sample_point`? Several earlier CAN implementations (including
+an older `can_mac_fsm_tx.vhd` in this repo's history at commit
+`9ed88885`) drove TX from SP only.
+
+We investigated and chose to **keep both strobes**. The reasoning:
+
+The legacy SP-only TX worked by adopting a one-bit naming offset
+between the FSM `state` and the bus. In that convention, "`state` at
+this SP" means "the field whose bit MAC is *driving* this cycle for
+the *next* bus bit", not "the field whose bit is on the bus right
+now". With this convention each state's body uses only its own
+`state` and `bit_count` to compute the drive -- no lookahead, no
+cross-state coupling at transitions.
+
+The hidden cost is that this convention only fits a TX-only FSM. In
+our combined TX+RX FSM, RX captures bus bits in their natural,
+bus-bit-aligned timing. If TX drive logic uses the "next-bit" naming
+while RX capture uses the "current-bus-bit" naming, every per-state
+SP elsif has to mix two mental models.
+
+The two-strobe model side-steps this by having TX drive at
+`bit_boundary` (under the natural "state = current bus bit" reading)
+and RX capture at `sample_point` (also under the same reading). The
+extra wire is a cheap price for keeping TX and RX aligned to the same
+indexing of bus bits.
+
+A piecemeal SP-only migration was attempted in early 2026-05; the
+first three states (`s_eof`, `s_ack_delimiter`, `s_crc_delimiter`)
+migrated cleanly because they all drive `c_recessive`. Going further
+backward into the active-frame chain (`s_crc`, `s_sbc`, `s_data`,
+`s_dlc`, `s_arbitration`) required either a per-state lookahead at
+each transition boundary, or a centralised "next-state first-bit
+drive" lookup that essentially re-encodes the bus-bit-alignment of
+every drive site. Neither alternative was clearly better than the
+two-strobe baseline, so the migration was reverted and we kept BB.
