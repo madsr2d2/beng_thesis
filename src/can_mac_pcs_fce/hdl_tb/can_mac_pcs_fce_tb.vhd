@@ -660,20 +660,26 @@ begin
     --   3. DUT 2's RX byte stream (self-reception) matches frame_low.
     --------------------------------------------------------------------------
     procedure test_lost_arb is
-      constant c_id_low      : natural := 16#100#;
-      constant c_id_high     : natural := 16#500#;
-      constant c_lost_arb_dlc : natural := 1;
-      variable v_frame_low   : t_llc_frame;
-      variable v_frame_high  : t_llc_frame;
-      variable v_meta_low    : t_llc_metadata;
-      variable v_meta_high   : t_llc_metadata;
-      variable v_last_low    : natural;
-      variable v_last_high   : natural;
-      variable v_exp_len     : natural;
+      constant c_lost_arb_dlc  : natural := 1;
+      constant c_iterations    : natural := 10;
+      variable v_id_a          : natural;
+      variable v_id_b          : natural;
+      variable v_id_dut_1      : natural;
+      variable v_id_dut_2      : natural;
+      variable v_dut_1_wins    : boolean;
+      variable v_frame_dut_1   : t_llc_frame;
+      variable v_frame_dut_2   : t_llc_frame;
+      variable v_meta_dut_1    : t_llc_metadata;
+      variable v_meta_dut_2    : t_llc_metadata;
+      variable v_last_dut_1    : natural;
+      variable v_last_dut_2    : natural;
+      variable v_exp_len       : natural;
+      variable v_winner_status : std_logic_vector(2 downto 0);
+      variable v_loser_status  : std_logic_vector(2 downto 0);
     begin
       test_num <= 3;
       Print("--------------------------------------------------------------------------");
-      Print("Test 3: Lost Arbitration (DUT 1 0x500 vs DUT 2 0x100, DUT 2 wins)");
+      Print("Test 3: Lost Arbitration (random IDs, " & integer'image(c_iterations) & " iterations)");
       Print("--------------------------------------------------------------------------");
 
       -- Restore default delay (last test_delay_sweep config left small delays).
@@ -681,58 +687,128 @@ begin
       s_transceiver_rx_d <= 300 ns;
       s_bus_delay        <= 150 ns;
 
-      -- Clear both status latches; previous test left status_latch holding
-      -- c_transmitted briefly between Check and clear_status edges.
-      s_status_latch_rst       <= true;
-      s_status_latch_rst_dut_2 <= true;
-      WaitForClock(clk, 2);
-      s_status_latch_rst       <= false;
-      s_status_latch_rst_dut_2 <= false;
-
-      -- Wait long enough for both DUTs to settle into s_bus_idle after the
-      -- previous frame's intermission (3 bit times) plus a margin.
-      WaitForClock(clk, 6 * c_bit_time);
-
-      gen_frame_with_id(c_id_high, c_lost_arb_dlc, v_frame_high, v_meta_high, v_last_high);
-      gen_frame_with_id(c_id_low,  c_lost_arb_dlc, v_frame_low,  v_meta_low,  v_last_low);
       v_exp_len := c_data_offset + dlc_to_data_length(c_lost_arb_dlc, '0');
 
-      -- Push the WINNER's frame to the RX sink VC. DUT 2 self-receives via
-      -- its own ACK; the captured bytes must match v_frame_low.
-      for i in 0 to v_exp_len - 1 loop
-        Push(llc_rec.BurstFifo, std_logic_vector(resize(unsigned(v_frame_low(i)), c_rec_width)));
-      end loop;
-
-      -- Interleave Sends so both ser_tx ports reach s_shift_out_bits within
-      -- one clock of each other. The two VCs run concurrently; each Send
-      -- blocks for one clock on the ready handshake.
-      for i in 0 to v_last_low loop
-        if (i = 0) then
-          Send(tx_llc_rec,       v_frame_high(i), c_avalon_sop_byte);
-          Send(tx_llc_rec_dut_2, v_frame_low(i),  c_avalon_sop_byte);
-        elsif (i < v_last_low) then
-          Send(tx_llc_rec,       v_frame_high(i), c_avalon_byte);
-          Send(tx_llc_rec_dut_2, v_frame_low(i),  c_avalon_byte);
-        else
-          Send(tx_llc_rec,       v_frame_high(i), c_avalon_eop_byte);
-          Send(tx_llc_rec_dut_2, v_frame_low(i),  c_avalon_eop_byte);
+      for iter in 1 to c_iterations loop
+        -- Wait for both DUTs' transfer_status to return to c_ongoing
+        -- (previous frame fully done). Otherwise the latch reset below
+        -- would clear the latch and the latch process would immediately
+        -- re-latch the still-asserted previous lost-arb / transmitted
+        -- value before the latch process saw c_ongoing.
+        if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing then
+          wait until llc_to_mac_tx_d2s_dut_1.transfer_status = c_ongoing for 5 ms;
         end if;
+        if llc_to_mac_tx_d2s_dut_2.transfer_status /= c_ongoing then
+          wait until llc_to_mac_tx_d2s_dut_2.transfer_status = c_ongoing for 5 ms;
+        end if;
+
+        -- Clear both latches.
+        s_status_latch_rst       <= true;
+        s_status_latch_rst_dut_2 <= true;
+        WaitForClock(clk, 2);
+        s_status_latch_rst       <= false;
+        s_status_latch_rst_dut_2 <= false;
+
+        -- Wait for both DUTs to settle into s_bus_idle after the previous
+        -- frame. The TX-side DUT spends 8 bits in s_suspend_transmission
+        -- after its frame.
+        WaitForClock(clk, 30 * c_bit_time);
+
+        -- Pick two distinct random 11-bit IDs and randomly assign which
+        -- DUT gets the winner (lower ID).
+        v_id_a := RV.RandInt(0, 2 ** c_base_id_width - 1);
+        loop
+          v_id_b := RV.RandInt(0, 2 ** c_base_id_width - 1);
+          exit when v_id_b /= v_id_a;
+        end loop;
+        v_dut_1_wins := RV.DistBool((false => 50, true => 50));
+        if v_dut_1_wins then
+          -- Lower (winning) ID -> DUT 1; higher -> DUT 2.
+          if v_id_a < v_id_b then
+            v_id_dut_1 := v_id_a; v_id_dut_2 := v_id_b;
+          else
+            v_id_dut_1 := v_id_b; v_id_dut_2 := v_id_a;
+          end if;
+        else
+          if v_id_a < v_id_b then
+            v_id_dut_1 := v_id_b; v_id_dut_2 := v_id_a;
+          else
+            v_id_dut_1 := v_id_a; v_id_dut_2 := v_id_b;
+          end if;
+        end if;
+
+        if v_dut_1_wins then
+          Print("--- Iter " & integer'image(iter)
+                & ": DUT 1 ID=0x" & to_hstring(to_unsigned(v_id_dut_1, c_base_id_width))
+                & ", DUT 2 ID=0x" & to_hstring(to_unsigned(v_id_dut_2, c_base_id_width))
+                & " -> DUT 1 wins");
+        else
+          Print("--- Iter " & integer'image(iter)
+                & ": DUT 1 ID=0x" & to_hstring(to_unsigned(v_id_dut_1, c_base_id_width))
+                & ", DUT 2 ID=0x" & to_hstring(to_unsigned(v_id_dut_2, c_base_id_width))
+                & " -> DUT 2 wins");
+        end if;
+
+        gen_frame_with_id(v_id_dut_1, c_lost_arb_dlc, v_frame_dut_1, v_meta_dut_1, v_last_dut_1);
+        gen_frame_with_id(v_id_dut_2, c_lost_arb_dlc, v_frame_dut_2, v_meta_dut_2, v_last_dut_2);
+
+        -- Push the WINNER's frame bytes into the RX sink VC. The winner's
+        -- DUT self-receives via its own ACK and captures the bus into its
+        -- LLC RX byte stream.
+        if v_dut_1_wins then
+          for i in 0 to v_exp_len - 1 loop
+            Push(llc_rec.BurstFifo, std_logic_vector(resize(unsigned(v_frame_dut_1(i)), c_rec_width)));
+          end loop;
+        else
+          for i in 0 to v_exp_len - 1 loop
+            Push(llc_rec.BurstFifo, std_logic_vector(resize(unsigned(v_frame_dut_2(i)), c_rec_width)));
+          end loop;
+        end if;
+
+        -- Interleave Sends so both ser_tx ports reach s_shift_out_bits
+        -- within one clock of each other.
+        for i in 0 to v_last_dut_1 loop
+          if (i = 0) then
+            Send(tx_llc_rec,       v_frame_dut_1(i), c_avalon_sop_byte);
+            Send(tx_llc_rec_dut_2, v_frame_dut_2(i), c_avalon_sop_byte);
+          elsif (i < v_last_dut_1) then
+            Send(tx_llc_rec,       v_frame_dut_1(i), c_avalon_byte);
+            Send(tx_llc_rec_dut_2, v_frame_dut_2(i), c_avalon_byte);
+          else
+            Send(tx_llc_rec,       v_frame_dut_1(i), c_avalon_eop_byte);
+            Send(tx_llc_rec_dut_2, v_frame_dut_2(i), c_avalon_eop_byte);
+          end if;
+        end loop;
+
+        -- Block on the WINNER's status latch (the loser's c_lost_arb fires
+        -- earlier in the frame and is always latched by then).
+        if v_dut_1_wins then
+          if status_latch = c_ongoing then
+            wait until status_latch /= c_ongoing for 5 ms;
+          end if;
+        else
+          if status_latch_dut_2 = c_ongoing then
+            wait until status_latch_dut_2 /= c_ongoing for 5 ms;
+          end if;
+        end if;
+
+        if v_dut_1_wins then
+          v_winner_status := status_latch;
+          v_loser_status  := status_latch_dut_2;
+        else
+          v_winner_status := status_latch_dut_2;
+          v_loser_status  := status_latch;
+        end if;
+        AffirmIfEqual(check_id, v_winner_status, c_transmitted,
+                      "Winner (lower ID) transmitted (iter " & integer'image(iter) & ")");
+        AffirmIfEqual(check_id, v_loser_status,  c_lost_arb,
+                      "Loser (higher ID) lost arbitration (iter " & integer'image(iter) & ")");
+
+        -- Verify the winner's DUT self-received the winning frame's bytes.
+        Check(llc_rec,
+          std_logic_vector(to_unsigned(v_exp_len, c_rec_width)),
+          std_logic_vector(to_unsigned(0,         c_rec_width)));
       end loop;
-
-      -- DUT 2 finishes the frame -> c_transmitted. Block on its latch first
-      -- because DUT 1's c_lost_arb fires earlier in the same frame and is
-      -- always already latched by the time DUT 2 reaches s_eof.
-      if status_latch_dut_2 = c_ongoing then
-        wait until status_latch_dut_2 /= c_ongoing for 5 ms;
-      end if;
-
-      AffirmIfEqual(check_id, status_latch,       c_lost_arb,    "DUT 1 lost arbitration");
-      AffirmIfEqual(check_id, status_latch_dut_2, c_transmitted, "DUT 2 transmitted");
-
-      -- Verify DUT 2 self-received the winner's frame.
-      Check(llc_rec,
-        std_logic_vector(to_unsigned(v_exp_len, c_rec_width)),
-        std_logic_vector(to_unsigned(0,         c_rec_width)));
 
       -- Clear latches for downstream tests.
       s_status_latch_rst       <= true;
