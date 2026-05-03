@@ -31,11 +31,11 @@ entity can_mac is
     rx_llc_i : in  t_can_llc_mac_rx_if_d2s;
     rx_llc_o : out t_can_llc_mac_rx_if_s2d;
 
-    -- PCS interfaces
+    -- PCS interface
     pcs_i    : in  t_can_mac_pcs_if_s2m;
     pcs_o    : out t_can_mac_pcs_if_m2s;
 
-    -- FCE interface (exposed for top-level wiring)
+    -- FCE interface
     fce_i    : in  t_can_mac_fce_if_s2m;
     fce_o    : out t_can_mac_fce_if_m2s
   );
@@ -43,63 +43,83 @@ end entity can_mac;
 
 architecture rtl of can_mac is
 
-  signal tx_fce_o : t_can_mac_fce_if_m2s;
-  signal rx_fce_o : t_can_mac_fce_if_m2s;
+  ---------------------------------------------------------------------------
+  -- Internal signals
+  ---------------------------------------------------------------------------
+  -- Serializer <-> FSM
+  signal ser_to_fsm : t_can_mac_ser_fsm_if_s2d;
+  signal fsm_to_ser : t_can_mac_ser_fsm_if_d2s;
 
+  -- FSM <-> Bit stuffer
+  signal fsm_to_bs  : t_can_mac_fsm_bs_if_m2s;
+  signal bs_to_fsm  : t_can_mac_fsm_bs_if_s2m;
+  signal fsm_bs_rst : std_logic;
 
-  signal tx_pcs_o : t_can_mac_pcs_if_m2s;
-  signal rx_pcs_o : t_can_mac_pcs_if_m2s;
+  -- FSM <-> CRC
+  signal fsm_to_crc  : t_can_mac_fsm_crc_if_m2s;
+  signal crc_to_fsm  : t_can_mac_fsm_crc_if_s2m;
+  signal fsm_crc_rst : std_logic;
 
 begin
 
   ---------------------------------------------------------------------------
-  -- can_mac_tx
+  -- can_mac_ser_tx: LLC byte serializer (TX path)
   ---------------------------------------------------------------------------
-  u_mac_tx : entity work.can_mac_tx
+  u_can_mac_ser_tx : entity work.can_mac_ser_tx
     port map(
-      clk   => clk,
-      rst   => rst,
-      llc_i => tx_llc_i,
-      llc_o => tx_llc_o,
-      pcs_i => pcs_i,
-      pcs_o => tx_pcs_o,
-      fce_i => fce_i,
-      fce_o => tx_fce_o
+      clk_i        => clk,
+      rst_i        => rst,
+      llc_i        => tx_llc_i,
+      llc_o        => tx_llc_o,
+      tx_mac_fsm_i => fsm_to_ser,
+      tx_mac_fsm_o => ser_to_fsm
     );
 
   ---------------------------------------------------------------------------
-  -- can_mac_rx
+  -- can_mac_fsm: combined MAC FSM (handles both TX and RX)
   ---------------------------------------------------------------------------
-  u_mac_rx : entity work.can_mac_rx
+  u_can_mac_fsm : entity work.can_mac_fsm
     port map(
-      clk            => clk,
-      rst            => rst,
-      llc_i          => rx_llc_i,
-      llc_o          => rx_llc_o,
-      pcs_i          => pcs_i,
-      pcs_o          => rx_pcs_o,
-      fce_i          => fce_i,
-      fce_o          => rx_fce_o,
-      transmitting_i => tx_fce_o.transmitting                                   -- Transmitting signal from TX path
+      clk_i     => clk,
+      rst_i     => rst,
+      mac_ser_i => ser_to_fsm,
+      mac_ser_o => fsm_to_ser,
+      llc_i     => rx_llc_i,
+      llc_o     => rx_llc_o,
+      pcs_i     => pcs_i,
+      pcs_o     => pcs_o,
+      bs_i      => bs_to_fsm,
+      bs_o      => fsm_to_bs,
+      bs_rst    => fsm_bs_rst,
+      crc_i     => crc_to_fsm,
+      crc_o     => fsm_to_crc,
+      crc_rst   => fsm_crc_rst,
+      fce_i     => fce_i,
+      fce_o     => fce_o
     );
 
-  -- FCE interface ---------------------------------------------------------- 
-  fce_o.transmitting                  <= tx_fce_o.transmitting;                 -- Informs FCE which path is active 
-  fce_o.error                         <= tx_fce_o.error or rx_fce_o.error;      -- Set by either path
-  fce_o.primary_error                 <= tx_fce_o.primary_error or rx_fce_o.primary_error; -- Set by either path
-  fce_o.sending_error_overload_flag   <= tx_fce_o.sending_error_overload_flag or rx_fce_o.sending_error_overload_flag; -- Set by either path 
-  fce_o.passive_tx_ack_error_exempt_1 <= tx_fce_o.passive_tx_ack_error_exempt_1; -- Only relevant for TX path
-  fce_o.error_delimiter_too_late      <= tx_fce_o.error_delimiter_too_late or rx_fce_o.error_delimiter_too_late; -- Set by either path
-  fce_o.successful_transfer           <= tx_fce_o.successful_transfer;
   ---------------------------------------------------------------------------
+  -- can_mac_bs: shared bit stuffer (used by both TX and RX modes)
+  ---------------------------------------------------------------------------
+  u_can_mac_bs : entity work.can_mac_bs
+    port map(
+      clk_i => clk,
+      rst_i => rst or fsm_bs_rst,
+      bs_i  => fsm_to_bs,
+      bs_o  => bs_to_fsm
+    );
 
-  -- PCS interface ----------------------------------------------------------
-  pcs_o.transmitting    <= tx_pcs_o.transmitting or rx_pcs_o.transmitting;      -- Set by either path
-  pcs_o.tx_data         <= tx_pcs_o.tx_data and rx_pcs_o.tx_data;               -- Dominant ('0') if either is dominant
-  pcs_o.do_hard_sync    <= rx_pcs_o.do_hard_sync;                               -- Only the RX paths does hard sync
-  pcs_o.next_bit_is_brs <= tx_pcs_o.next_bit_is_brs or rx_pcs_o.next_bit_is_brs; -- Set by either path if next bit is BRS
-  pcs_o.next_bit_is_res <= tx_pcs_o.next_bit_is_res;                            -- Only set by the TX path
-  pcs_o.data_phase_stop <= tx_pcs_o.data_phase_stop or rx_pcs_o.data_phase_stop; -- Stop data phase if either path signals it
   ---------------------------------------------------------------------------
+  -- can_mac_crc: shared CRC engine (used by both TX and RX modes)
+  ---------------------------------------------------------------------------
+  u_can_mac_crc : entity work.can_mac_crc
+    port map(
+      clk_i => clk,
+      rst_i => rst or fsm_crc_rst,
+      crc_i => fsm_to_crc,
+      crc_o => crc_to_fsm
+    );
 
 end architecture rtl;
+
+-- eof
