@@ -259,8 +259,6 @@ begin
         crc_o.crc_poly_select             <= crc_o.crc_poly_select;
         crc_rst                           <= '0';
         fce_o                             <= c_mac_to_fce_if_reset;
-        -- Level signal: FCE must see is_transmitter=true on the same clock as
-        -- any error strobe so it routes the error to TEC, not REC.
         fce_o.transmitting                <= '1' when is_transmitter else '0';
         fce_o.sending_error_overload_flag <= '1' when state = s_error_flag else '0';
         mac_ser_o.ready                   <= '0';
@@ -882,14 +880,14 @@ begin
                     bit_count                  <= 0;
                     overload                   <= false;
                   -- Reached end of EOF without errors: Successful transfer/reception.
-                  -- Both roles stream llc_frame to the LLC (TX self-receives via loopback).
                   elsif bit_count = c_eof_field_width - 1 then
-                    llc_stream_start <= true;
-                    byte_index       <= 0;
-                    llc_frame_len    <= c_data_offset + data_len;
+                    byte_index    <= 0;
+                    llc_frame_len <= c_data_offset + data_len;
                     if is_transmitter then
                       mac_ser_o.transfer_status <= c_transmitted;
                       was_previous_frame_tx     <= true;
+                    else
+                      llc_stream_start <= true;  -- receivers deliver captured frame to LLC RX
                     end if;
                     bit_count <= 0;
                     fce_o.successful_transfer <= '1';

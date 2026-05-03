@@ -751,16 +751,14 @@ begin
         gen_frame_with_id(v_id_dut_1, c_lost_arb_dlc, v_frame_dut_1, v_meta_dut_1, v_last_dut_1);
         gen_frame_with_id(v_id_dut_2, c_lost_arb_dlc, v_frame_dut_2, v_meta_dut_2, v_last_dut_2);
 
-        -- Push the WINNER's frame bytes into the RX sink VC. The winner's
-        -- DUT self-receives via its own ACK and captures the bus into its
-        -- LLC RX byte stream.
+        -- llc_rec monitors DUT 2's LLC RX path. When DUT 1 wins, DUT 2 loses
+        -- arbitration and becomes a receiver; it streams the winning frame to
+        -- its LLC RX. When DUT 2 wins, DUT 2 is the transmitter and does not
+        -- stream; DUT 1's received frame goes to DUT 1's LLC RX which has no
+        -- sink VC in this testbench.
         if v_dut_1_wins then
           for i in 0 to v_exp_len - 1 loop
             Push(llc_rec.BurstFifo, std_logic_vector(resize(unsigned(v_frame_dut_1(i)), c_rec_width)));
-          end loop;
-        else
-          for i in 0 to v_exp_len - 1 loop
-            Push(llc_rec.BurstFifo, std_logic_vector(resize(unsigned(v_frame_dut_2(i)), c_rec_width)));
           end loop;
         end if;
 
@@ -809,10 +807,12 @@ begin
         AffirmIfEqual(check_id, v_loser_status,  c_lost_arb,
                       "Loser (higher ID) lost arbitration (iter " & integer'image(iter) & ")");
 
-        -- Verify the winner's DUT self-received the winning frame's bytes.
-        Check(llc_rec,
-          std_logic_vector(to_unsigned(v_exp_len, c_rec_width)),
-          std_logic_vector(to_unsigned(0,         c_rec_width)));
+        -- When DUT 1 won, verify DUT 2 (the receiver) delivered the frame to its LLC RX path.
+        if v_dut_1_wins then
+          Check(llc_rec,
+            std_logic_vector(to_unsigned(v_exp_len, c_rec_width)),
+            std_logic_vector(to_unsigned(0,         c_rec_width)));
+        end if;
       end loop;
 
       -- Clear latches for downstream tests.
