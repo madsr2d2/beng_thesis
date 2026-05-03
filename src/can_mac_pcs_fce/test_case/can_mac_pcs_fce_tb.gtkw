@@ -1,19 +1,19 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Sat May  2 21:23:29 2026
+[*] Sun May  3 14:43:03 2026
 [*]
 [dumpfile] "/home/madsr2d2/beng_thesis/sim/can_mac_pcs_fce_tb.ghw"
-[dumpfile_mtime] "Sat May  2 21:22:42 2026"
-[dumpfile_size] 401206901
+[dumpfile_mtime] "Sun May  3 14:15:31 2026"
+[dumpfile_size] 229940955
 [savefile] "/home/madsr2d2/beng_thesis/src/can_mac_pcs_fce/test_case/can_mac_pcs_fce_tb.gtkw"
-[timestart] 550000000
+[timestart] 16810000000000
 [size] 1920 1001
 [pos] -27 -24
-*-33.176559 21740000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-41.487637 28363740000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.can_mac_pcs_fce_tb.
 [treeopen] top.can_mac_pcs_fce_tb.u_dut_1.
-[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.tx_llc_o.
 [treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.fsm_to_ser.
 [treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.ser_to_fsm.
 [treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_bs.
@@ -94,7 +94,6 @@ top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.bit_index
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.byte_index
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.saw_dominant_during_flag
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.ack_error_caused_flag
-top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.secondary_sample_point_error_pending
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.ack_success_seen
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.was_previous_frame_tx
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.overload
@@ -117,7 +116,7 @@ top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_bs.bs_o.valid
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_bs.bs_o.data
 @1000200
 -dut1_sb
-@800200
+@c00200
 -dut1_pcs
 @28
 top.can_mac_pcs_fce_tb.u_dut_1.mac_to_pcs.tx_data
@@ -134,7 +133,7 @@ top.can_mac_pcs_fce_tb.u_dut_1.mac_to_pcs.do_hard_sync
 top.can_mac_pcs_fce_tb.u_dut_1.mac_to_pcs.next_bit_is_brs
 top.can_mac_pcs_fce_tb.u_dut_1.mac_to_pcs.next_bit_is_res
 top.can_mac_pcs_fce_tb.u_dut_1.mac_to_pcs.transmitting
-@1000200
+@1401200
 -dut1_pcs
 @c00200
 -dut1_pcs_internals
@@ -183,7 +182,6 @@ top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.bit_index
 top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.byte_index
 top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.saw_dominant_during_flag
 top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.ack_error_caused_flag
-top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.secondary_sample_point_error_pending
 top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.ack_success_seen
 top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.was_previous_frame_tx
 top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.overload
@@ -338,15 +336,16 @@ top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_bs.bs_o.data
 -dut2_llc_frame
 @800200
 -dut_1_essentials
-@421
+@29
+#{top.can_mac_pcs_fce_tb.u_dut_1.tx_llc_o.transfer_status[2:0]} top.can_mac_pcs_fce_tb.u_dut_1.tx_llc_o.transfer_status[2] top.can_mac_pcs_fce_tb.u_dut_1.tx_llc_o.transfer_status[1] top.can_mac_pcs_fce_tb.u_dut_1.tx_llc_o.transfer_status[0]
+@28
+top.can_mac_pcs_fce_tb.u_dut_1.fce_to_mac.bus_off
+@420
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.is_transmitter
 @28
 #{top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame[0][7:0]} top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame[0][7] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame[0][6] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame[0][5] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame[0][4] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame[0][3] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame[0][2] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame[0][1] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame[0][0]
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.mac_ser_i.llc_metadata.fdf
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.ser_to_fsm.llc_metadata.brs
-@420
-top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.secondary_sample_point_error_pending
-@28
 #{top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.transmitted_bits_shift_reg[7:0]} top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.transmitted_bits_shift_reg[7] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.transmitted_bits_shift_reg[6] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.transmitted_bits_shift_reg[5] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.transmitted_bits_shift_reg[4] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.transmitted_bits_shift_reg[3] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.transmitted_bits_shift_reg[2] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.transmitted_bits_shift_reg[1] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.transmitted_bits_shift_reg[0]
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.bs_i.valid
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.bs_i.data
@@ -372,9 +371,41 @@ top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.data_len
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.crc_length
 @1000200
 -dut_1_essentials
+@c00200
+-dut1_fce
+@28
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.mac_o.bus_off
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.mac_i.transmitting
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.clk_i
+@420
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.fce_state
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.idle_count
+@28
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.llc_i.normal_mode
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.llc_o.bus_off
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.mac_i.error
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.mac_i.error_delimiter_too_late
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.mac_i.passive_tx_ack_error_exempt_1
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.mac_i.primary_error
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.mac_i.sending_error_overload_flag
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.mac_i.successful_transfer
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.mac_i.transmitting
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.mac_o.bus_off
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.mac_o.error_active
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.pcs_i.idle_condition
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.pcs_o.bus_off
+@420
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.receiver_error_count
+@28
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.rst_i
+@420
+top.can_mac_pcs_fce_tb.u_dut_1.u_fce.transmitter_error_count
+@1401200
+-dut1_fce
 @800200
 -dut2_essentials
 @28
+top.can_mac_pcs_fce_tb.u_dut_2.rst
 #{top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame[0][7:0]} top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame[0][7] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame[0][6] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame[0][5] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame[0][4] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame[0][3] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame[0][2] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame[0][1] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame[0][0]
 top.can_mac_pcs_fce_tb.u_dut_2.mac_to_pcs.tx_data
 top.can_mac_pcs_fce_tb.u_dut_2.pcs_to_mac.rx_data

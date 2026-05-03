@@ -423,6 +423,7 @@ begin
         else
           clk_count <= clk_count + 1;
         end if;
+
       end if;
     end if;
   end process p_can_pcs;

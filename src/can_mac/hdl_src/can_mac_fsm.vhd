@@ -812,7 +812,7 @@ begin
             -- s_ack_delimiter: single recessive bit after ACK slot.
             -----------------------------------------------------------------
             when s_ack_delimiter =>
-              -- Transmitter drives recessive
+              -- Transmitting nodes drive recessive
               if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := c_recessive;
                 v_drive_now      := true;
@@ -851,29 +851,20 @@ begin
             -- 6.6.15.2).
             -----------------------------------------------------------------
             when s_eof =>
+              -- Transmitting nodes drive recessive
               if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := c_recessive;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
+                -- Transmitter 
                 if is_transmitter then
-                  if bit_count = 0 and (not ack_success_seen or crc_error_detected) then
-                    -- Missing ACK or CRC error 
-                    ack_error_caused_flag      <= true;
-                    pcs_o.tx_data              <= not fce_i.error_active;
-                    pcs_o.data_phase_stop      <= '1';
-                    bs_o.fixed_bit_stuffing_en <= '0';
-                    state                      <= s_error_flag;
-                    bit_count                  <= 0;
-                    overload                   <= false;
-                  elsif bit_count = c_eof_field_width - 1 then
+                  if bit_count = c_eof_field_width - 1 then
                     mac_ser_o.transfer_status <= c_transmitted;
                     was_previous_frame_tx     <= true;
                     fce_o.successful_transfer <= '1';
                     state                     <= s_intermission;
                     bit_count                 <= 0;
                   elsif bit_count = c_eof_field_width - 2 then
-                    -- Frame valid (TX self-reception so the LLC RX byte
-                    -- stream is populated on the transmitter too).
                     llc_stream_start <= true;
                     byte_index       <= 0;
                     llc_frame_len    <= c_data_offset + data_len;

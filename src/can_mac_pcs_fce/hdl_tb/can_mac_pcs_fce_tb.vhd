@@ -41,13 +41,7 @@ architecture tb of can_mac_pcs_fce_tb is
   -- Constants
   ----------------------------------------------------------------------------
   -- Nominal bit timing (ISO 7.3.2, midpoint of subtype ranges in pk_can_types)
-  constant c_sp       : natural := 80;
   constant c_bit_time : natural := 100;
-
-  -- Data phase bit timing
-  constant c_data_sp       : natural := 8;
-  constant c_data_ssp      : natural := 7;
-  constant c_data_bit_time : natural := 10;
 
   constant c_bin_at_least : natural := 5;
   constant c_rec_width    : natural := 16;
@@ -98,9 +92,16 @@ architecture tb of can_mac_pcs_fce_tb is
   signal rx_at_tx_dut         : std_logic := c_recessive;
   signal bus_at_tx_observed   : std_logic;
 
-  -- Bus-off test override: forces DUT 1's RX recessive so SOF reads back as
-  -- a bit error (ISO 8.1.4.2.d, not subject to the ACK-error exemption).
-  signal s_dut_1_rx_recessive : boolean := false;
+  -- Bus-off test controls:
+  --   s_dut_1_rx_recessive  forces DUT 1's loopback recessive so every dominant
+  --                         it drives in a v_tx_bit_error_state bit becomes a bit
+  --                         error (TEC += 8, no ISO 8.1.4.2.c exemption, works in
+  --                         error-passive).  ACK errors alone cannot reach bus_off
+  --                         because the passive-flag exemption caps TEC at 128.
+  --   s_dut_2_reset         holds DUT 2 in reset so its LLC RX state stays clean
+  --                         during the error injection phase.
+  signal s_dut_1_rx_recessive : boolean   := false;
+  signal s_dut_2_reset        : std_logic := '0';
 
   -- Sticky bus_off latch: captures the high pulse since the FCE may
   -- complete recovery before the sequencer samples the live signal.
@@ -248,7 +249,7 @@ begin
   u_dut_2 : entity work.can_mac_pcs_fce
     port map(
       clk      => clk,
-      rst      => reset,
+      rst      => reset or s_dut_2_reset,
       tx_llc_i  => llc_to_mac_tx_s2d_dut_2,
       tx_llc_o  => llc_to_mac_tx_d2s_dut_2,
       rx_llc_i  => mac_to_llc_tx_d2s_dut_2,
@@ -825,12 +826,20 @@ begin
     end procedure test_lost_arb;
 
     --------------------------------------------------------------------------
-    -- Test 4: Bus-off entry and recovery. Force DUT 1's RX recessive to
-    -- inject a bit error at every SOF (ISO 8.1.4.2.d). Each Send blocks
-    -- on mac_ser_tx ready so the loop runs at the protocol-minimum cadence.
-    -- After ~32 attempts TEC > c_bus_off_threshold, the FCE asserts
-    -- bus_off, the recovery sequence completes (ISO 8.1.4.5), and we
-    -- confirm that a fresh frame transmits successfully.
+    -- Test 4: Bus-off entry and recovery.
+    --
+    -- Phase 1-2: engage both overrides:
+    --   s_dut_1_rx_recessive  creates bit errors on every dominant drive in
+    --                         v_tx_bit_error_state states (TEC += 8, no ISO
+    --                         8.1.4.2.c exemption, works past error-passive).
+    --   s_dut_2_reset         keeps DUT 2's LLC RX state clean.
+    -- ACK errors alone are not sufficient: ISO 8.1.4.2.c Exception 1 exempts
+    -- error-passive nodes whose passive flag saw no dominant, capping TEC at 128.
+    --
+    -- Phase 3: lift both overrides; bus goes idle, FCE counts 128 x 11
+    -- recessive bits and exits bus_off (ISO 8.1.4.5, ~1.41 ms).
+    --
+    -- Phase 4: confirm normal TX/RX resumes.
     --------------------------------------------------------------------------
     procedure test_bus_off is
       variable v_frame      : t_llc_frame;
@@ -847,11 +856,15 @@ begin
       WaitForClock(clk, 2);
       s_bus_off_clear <= false;
 
-      -- Phase 1: engage RX override (bit error at every SOF).
+      -- Phase 1: engage error injection.  Hold DUT 2 in reset so it does not
+      -- accumulate REC from the ~32 error frames that follow; without this it
+      -- would become error-passive and fire an invisible passive error flag on
+      -- the first post-recovery frame, causing a spurious disturbed status.
       s_dut_1_rx_recessive <= true;
+      s_dut_2_reset        <= '1';
       WaitForClock(clk, 10);
 
-      -- Phase 2: submit frames until bus_off is latched.
+      -- Phase 2: submit frames until DUT 1 reaches bus_off.
       gen_frame(v_frame, v_metadata, v_last_byte);
       while not s_bus_off_seen loop
         for i in 0 to v_last_byte loop
@@ -867,16 +880,23 @@ begin
         v_send_count := v_send_count + 1;
       end loop;
 
-      AffirmIf(test_id, s_bus_off_seen,
-               "Bus-off entered after " & to_string(v_send_count) & " sends");
+      AffirmIf(test_id, s_bus_off_seen, "Bus-off entered after " & to_string(v_send_count) & " sends");
 
-      -- Phase 3: lift override, wait for recovery (128 x 11 recessive bits).
+      -- Phase 3: lift bit-error injection and release DUT 2 simultaneously.
+      -- The bus is completely idle for ~1.41 ms while the FCE counts 128 x 11
+      -- recessive sequences.  DUT 2 completes s_bus_reintegration (~3.3 us)
+      -- and reaches s_bus_idle long before DUT 1 exits bus_off.  If DUT 2
+      -- were released only after bus_off deasserts it would still be counting
+      -- recessive bits when DUT 1 drives SOF, trapping it in bus_reintegration.
       s_dut_1_rx_recessive <= false;
-      wait until llc_fce_o_dut_1.bus_off = '0' for 1 ms;
+      s_dut_2_reset        <= '0';
+      wait until llc_fce_o_dut_1.bus_off = '0';
       AffirmIf(test_id, llc_fce_o_dut_1.bus_off = '0', "Bus-off recovered");
 
-      -- Phase 4: confirm normal operation resumes (clear stale latch first).
-      WaitForClock(clk, 200);
+      -- Phase 4: DUT 2 is already in s_bus_idle; wait for DUT 1 to complete
+      -- its own s_bus_reintegration after bus_off, then confirm normal TX/RX.
+      WaitForClock(clk, (c_bus_idle_condition_width + 2) * (c_bit_time + 1));
+      WaitForClock(clk, (c_bus_idle_condition_width + 2) * (c_bit_time + 1));
       s_status_latch_rst <= true;
       WaitForClock(clk, 2);
       s_status_latch_rst <= false;
@@ -914,7 +934,7 @@ begin
     test_normal;
     test_delay_sweep(5);
     test_lost_arb;
-    -- test_bus_off;
+    test_bus_off;
 
     report_results;
     std.env.finish;

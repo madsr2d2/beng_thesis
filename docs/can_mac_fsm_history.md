@@ -239,6 +239,53 @@ clocks), `mac_i.tx_data` is always stable when the latch fires. `tx_o`
 updates at the bit boundary itself, not one clock after it -- no timing
 hazard at any FD data-phase configuration.
 
+### TX loopback independence for state transitions
+
+Three bugs were found when the `test_bus_off` testbench procedure forced
+DUT 1's loopback to always-recessive (`s_dut_1_rx_recessive`).  The MAC
+FSM used `pcs_i.rx_data` for several TX-side state-transition decisions,
+assuming loopback gives `rx_data == drive`.  That assumption is correct
+for normal operation and tests 1-3, but breaks when the testbench
+overrides the loopback.
+
+**1. `s_bus_idle` SOF transition**
+
+The SP branch that enters `s_arbitration` checked `pcs_i.rx_data =
+c_dominant` (SOF echo).  With forced-recessive loopback the echo never
+appeared, so the TX node could never leave `s_bus_idle`.
+
+Fix: the condition is now `is_transmitter or pcs_i.rx_data = c_dominant`.
+`is_transmitter` is false at `s_bus_idle` entry (cleared by both the
+`s_intermission → s_bus_idle` and `s_suspend_transmission → s_bus_idle`
+transitions) and becomes true only at the `drive_bit` SOF drive, so using
+it here cannot fire prematurely.
+
+**2. `s_arbitration` IDE detection**
+
+At `c_arb_ide_pos`, the transition to `s_fdf_r1_r0` checked
+`pcs_i.rx_data = c_dominant`.  With forced-recessive loopback the TX node
+stayed in `s_arbitration` forever (bit_count kept incrementing past the
+IDE position).
+
+Fix: for TX (`is_transmitter`), use `transmitted_bits_shift_reg(0)` (the
+bit that was actually driven) instead of `pcs_i.rx_data`.  In normal
+operation these are equal, so tests 1-3 are unaffected.
+
+**3. `s_suspend_transmission` did not clear `was_previous_frame_tx`**
+
+After an error-passive TX node completes its 8-bit suspend-transmission
+wait and re-enters `s_bus_idle`, the `s_bus_idle` TX gate checks
+`fce_i.error_active = '1' or not was_previous_frame_tx`.  The flag
+`was_previous_frame_tx` is set to `true` in `s_error_flag` (disturbed
+frame) and is only cleared at reset or on lost-arbitration.  After suspend
+the flag was still `true`, so the gate evaluated to `'0' or false = false`
+and the node could never retransmit: TEC stalled at 128.
+
+Fix: add `was_previous_frame_tx <= false` to the
+`s_suspend_transmission → s_bus_idle` transition.  Tests 1-3 never reach
+`s_suspend_transmission` (they are in error-active throughout), so this
+change is invisible to them.
+
 ### Testbench note
 
 The 37-clock shift from BB to drive_bit (drive_bit fires earlier in the
