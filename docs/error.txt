@@ -1,0 +1,47 @@
+# KERNEL: Time resolution set to 1ps.
+# ELAB2: Create instances complete.
+# SLP: Started
+# SLP: Elaboration phase ...
+# SLP: Elaboration phase ... skipped, nothing to simulate in SLP mode : 0.0 [s]
+# SLP: Finished : 0.0 [s]
+# ELAB2: Elaboration final pass complete - time: 0.0 [s].
+# ACDB: Code Coverage session started in hierarchical mode for all units.
+# KERNEL: Kernel process initialization done.
+# Allocation: Simulator allocated 10007 kB (elbread=427 elab2=9257 kernel=323 sdf=0)
+# KERNEL: ASDB file was created in location C:/git_folder/triton_func/modules/ip_lib/can_bus_controller_fd/can_mac_pcs_fce/tmp/config_sim_can_mac_pcs_fce/riviera_pro_1_0/dataset.asdb
+# VSIM: 316 object(s) traced.
+# VSIM: 71 object(s) omitted (unsupported types).
+# off
+# off
+# WAVEFORM: 16 object(s) inserted to virtual group '/can_mac_pcs_fce_tb/u_dut_1'.
+# VSIM: 16 object(s) traced.
+# WAVEFORM: 16 object(s) inserted to virtual group '/can_mac_pcs_fce_tb/u_dut_2'.
+# VSIM: 16 object(s) traced.
+# WAVEFORM: 0 object(s) inserted to virtual group '/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx'.
+# WAVEFORM: 0 object(s) inserted to virtual group '/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx'.
+# WAVEFORM: 16 object(s) inserted to virtual group '/can_mac_pcs_fce_tb/u_dut_2'.
+# VSIM: 0 object(s) traced.
+# WAVEFORM: 0 object(s) inserted to virtual group '/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx'.
+# WAVEFORM: 0 object(s) inserted to virtual group '/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx'.
+# WAVEFORM: Warning: Cursor 'Default cursor' already exists.
+# 0fs - 1472205022ps
+# off
+# KERNEL: --------------------------------------------------------------------------
+# KERNEL: Test 1: Normal Usage (DUT 1 TX -> DUT 2 RX)
+# KERNEL: --------------------------------------------------------------------------
+# KERNEL:     [sv] waiting for c_transmitted
+# KERNEL: %% Alert  ERROR     in can_mac_pcs_fce: Frame check,   Transfer status Received : 6 ?= Expected : 2 at 261740 ns
+# KERNEL: 
+# KERNEL: %% Alert Stop Count on ERROR   reached in Frame check at 261740 ns 
+# KERNEL: %% DONE   FAILED   AlertLogTop  Total Error(s) = 1  Failures: 0  Errors: 1  Warnings: 0  Passed: 0  Affirmations Checked: 1  at 261740 ns
+# KERNEL: %%    Default              Failures: 0  Errors: 0  Warnings: 0  Passed: 0
+# KERNEL: %%    OSVVM                Failures: 0  Errors: 0  Warnings: 0  Passed: 0
+# KERNEL: %%      TX LLC Burst fifo  Failures: 0  Errors: 0  Warnings: 0  Passed: 0
+# KERNEL: %%      RX LLC Burst fifo  Failures: 0  Errors: 0  Warnings: 0  Passed: 0
+# KERNEL: %%    can_mac_pcs_fce      Failures: 0  Errors: 1  Warnings: 0  Passed: 0
+# KERNEL: %%      Frame check        Failures: 0  Errors: 1  Warnings: 0  Passed: 0
+# KERNEL: %%      IDE Coverage       Failures: 0  Errors: 0  Warnings: 0  Passed: 0
+# KERNEL: %%      FDF Coverage       Failures: 0  Errors: 0  Warnings: 0  Passed: 0
+# KERNEL: %%      DLC Coverage       Failures: 0  Errors: 0  Warnings: 0  Passed: 0
+# RUNTIME: Info: RUNTIME_0141 AlertLogPkg.vhd (1170): stop called.
+# KERNEL: Stopped at time 261740 ns + 1.
