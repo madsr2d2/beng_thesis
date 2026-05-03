@@ -165,10 +165,6 @@ begin
         mac_o.secondary_sample_point <= '0';
         fce_o.idle_condition         <= '0';
         bit_boundary                 <= '0';
-        -- Pipeline bit_boundary by one clock so the tx_o latch (below)
-        -- happens after the MAC FSM has had time to update mac_i.tx_data
-        -- in response to drive_bit (= sample_point + 2 clocks in MAC).
-        -- Latch bus on clock
         mac_o.rx_data                <= rx_i;
 
         -- Time quantum (TQ) boundary -----------------------------------------------
