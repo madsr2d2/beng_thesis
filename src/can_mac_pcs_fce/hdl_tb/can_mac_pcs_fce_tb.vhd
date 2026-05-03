@@ -524,9 +524,12 @@ begin
         end if;
       end loop;
 
+      Print("    [sv] waiting for c_transmitted");
       Check(tx_llc_rec_dut_1, std_logic_vector(resize(unsigned(c_transmitted), c_rec_width)));
+      Print("    [sv] c_transmitted received; waiting for RX frame");
       Check(llc_rec,
         std_logic_vector(to_unsigned(v_exp_len, c_rec_width)), std_logic_vector(to_unsigned(v_frame_count, c_rec_width)));
+      Print("    [sv] RX frame verified");
     end procedure submit_and_verify;
 
     --------------------------------------------------------------------------
@@ -733,23 +736,29 @@ begin
         v_send_count := v_send_count + 1;
       end loop;
       AffirmIf(test_id, s_bus_off_seen, "Bus-off after " & to_string(v_send_count) & " sends");
+      Print("--- Phase 2 done: bus_off seen after " & to_string(v_send_count) & " sends");
 
       -- Phase 3: lift injection; wait for FCE bus-off recovery (~1.41 ms).
       s_dut_1_rx_recessive <= false;
+      Print("--- Phase 3: waiting for bus_off deassert");
       if llc_fce_o_dut_1.bus_off /= '0' then
         wait until llc_fce_o_dut_1.bus_off = '0';
       end if;
       AffirmIf(test_id, llc_fce_o_dut_1.bus_off = '0', "Bus-off recovered");
+      Print("--- Phase 3 done: bus_off deasserted");
 
-      -- Phase 4: confirm normal TX/RX.
-      if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing then
-        wait until llc_to_mac_tx_d2s_dut_1.transfer_status = c_ongoing for 5 ms;
-      end if;
+      -- Phase 4: DUT 1 completed bus_reintegration; allow intermission to
+      -- finish, clear stale status latches, then send the confirmation frame.
+      Print("--- Phase 4: WaitForClock");
+      WaitForClock(clk, (c_bus_idle_condition_width + 2) * (c_bit_time + 1));
+      Print("--- Phase 4: resetting status latch");
       s_status_latch_rst_dut_1 <= true;
       WaitForClock(clk, 2);
       s_status_latch_rst_dut_1 <= false;
+      Print("--- Phase 4: submit_and_verify");
       gen_frame(v_frame, v_metadata, v_last_byte);
       submit_and_verify(v_frame, v_last_byte, v_metadata, 0);
+      Print("--- Phase 4 done");
     end procedure test_bus_off;
 
     --------------------------------------------------------------------------
