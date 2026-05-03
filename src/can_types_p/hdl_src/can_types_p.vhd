@@ -95,7 +95,7 @@ package pk_can_types is
   constant c_disturbed   : std_logic_vector(2 downto 0) := "110";
 
   -- TDC polarity history depth (ISO 7.3.4)
-  constant c_tdc_polarity_depth : natural := 8; -- TODO: Justify this (Dont think we more but calculate form relevant delays)
+  constant c_tdc_polarity_depth : natural := 8; -- TODO: Justify this (Don't think we need more but calculate form relevant delays)
 
   -- Retransmission (ISO 6.5.3)
   constant c_retransmission_limit : natural := 6;

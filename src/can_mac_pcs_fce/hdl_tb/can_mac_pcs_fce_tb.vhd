@@ -98,10 +98,8 @@ architecture tb of can_mac_pcs_fce_tb is
   --                         error (TEC += 8, no ISO 8.1.4.2.c exemption, works in
   --                         error-passive).  ACK errors alone cannot reach bus_off
   --                         because the passive-flag exemption caps TEC at 128.
-  --   s_dut_2_reset         holds DUT 2 in reset so its LLC RX state stays clean
-  --                         during the error injection phase.
   signal s_dut_1_rx_recessive : boolean   := false;
-  signal s_dut_2_reset        : std_logic := '0';
+  signal s_dut_2_reset        : std_logic := '0'; -- unused; DUT 2 stays active throughout
 
   -- Sticky bus_off latch: captures the high pulse since the FCE may
   -- complete recovery before the sequencer samples the live signal.
@@ -828,11 +826,10 @@ begin
     --------------------------------------------------------------------------
     -- Test 4: Bus-off entry and recovery.
     --
-    -- Phase 1-2: engage both overrides:
-    --   s_dut_1_rx_recessive  creates bit errors on every dominant drive in
-    --                         v_tx_bit_error_state states (TEC += 8, no ISO
-    --                         8.1.4.2.c exemption, works past error-passive).
-    --   s_dut_2_reset         keeps DUT 2's LLC RX state clean.
+    -- Phase 1-2: engage error injection via s_dut_1_rx_recessive.
+    --   Creates bit errors on every dominant drive (TEC += 8, no ISO
+    --   8.1.4.2.c exemption, works past error-passive).  DUT 2 stays active
+    --   throughout so it is already in s_bus_idle when DUT 1 exits bus_off.
     -- ACK errors alone are not sufficient: ISO 8.1.4.2.c Exception 1 exempts
     -- error-passive nodes whose passive flag saw no dominant, capping TEC at 128.
     --
@@ -856,12 +853,12 @@ begin
       WaitForClock(clk, 2);
       s_bus_off_clear <= false;
 
-      -- Phase 1: engage error injection.  Hold DUT 2 in reset so it does not
-      -- accumulate REC from the ~32 error frames that follow; without this it
-      -- would become error-passive and fire an invisible passive error flag on
-      -- the first post-recovery frame, causing a spurious disturbed status.
+      -- Phase 1: engage error injection.  DUT 2 remains active; it will
+      -- accumulate REC and become error-passive, but that does not prevent it
+      -- from ACKing a correct Phase 4 frame.  Keeping DUT 2 active avoids
+      -- any s_bus_reintegration timing race when DUT 1 drives SOF after
+      -- bus_off recovery.
       s_dut_1_rx_recessive <= true;
-      s_dut_2_reset        <= '1';
       WaitForClock(clk, 10);
 
       -- Phase 2: submit frames until DUT 1 reaches bus_off.
@@ -882,20 +879,19 @@ begin
 
       AffirmIf(test_id, s_bus_off_seen, "Bus-off entered after " & to_string(v_send_count) & " sends");
 
-      -- Phase 3: lift bit-error injection and release DUT 2 simultaneously.
-      -- The bus is completely idle for ~1.41 ms while the FCE counts 128 x 11
-      -- recessive sequences.  DUT 2 completes s_bus_reintegration (~3.3 us)
-      -- and reaches s_bus_idle long before DUT 1 exits bus_off.  If DUT 2
-      -- were released only after bus_off deasserts it would still be counting
-      -- recessive bits when DUT 1 drives SOF, trapping it in bus_reintegration.
+      -- Phase 3: lift bit-error injection.
+      -- Note: p_test_ctrl is unblocked from Send only after the post-recovery
+      -- garbage frame completes (serializer transfer_status /= c_ongoing).
+      -- By that point bus_off may already have deasserted, so guard the wait.
       s_dut_1_rx_recessive <= false;
-      s_dut_2_reset        <= '0';
-      wait until llc_fce_o_dut_1.bus_off = '0';
+      if llc_fce_o_dut_1.bus_off /= '0' then
+        wait until llc_fce_o_dut_1.bus_off = '0';
+      end if;
       AffirmIf(test_id, llc_fce_o_dut_1.bus_off = '0', "Bus-off recovered");
 
-      -- Phase 4: DUT 2 is already in s_bus_idle; wait for DUT 1 to complete
-      -- its own s_bus_reintegration after bus_off, then confirm normal TX/RX.
-      WaitForClock(clk, (c_bus_idle_condition_width + 2) * (c_bit_time + 1));
+      -- Phase 4: DUT 1 completed bus_reintegration before the garbage frame
+      -- ran; DUT 2 never left s_bus_idle.  Allow s_intermission to finish,
+      -- clear stale status latches, then send the confirmation frame.
       WaitForClock(clk, (c_bus_idle_condition_width + 2) * (c_bit_time + 1));
       s_status_latch_rst <= true;
       WaitForClock(clk, 2);

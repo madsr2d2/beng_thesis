@@ -106,6 +106,7 @@ architecture rtl of can_mac_fsm is
 
   -- TX-mode ------------------------------------------------------
   signal transmitted_bits_shift_reg           : std_logic_vector(c_tdc_polarity_depth - 1 downto 0);
+  -- Used to gate entry to s_suspend_transmission state.
   signal was_previous_frame_tx                : boolean;
   signal ack_success_seen                     : boolean;
   -- High when bit error was detected at the secondary sample point in the data phase
@@ -215,6 +216,9 @@ begin
         drive_bit_d                          <= '0';
         drive_bit                            <= '0';
         mac_ser_o                            <= c_ser_fsm_if_d2s_reset;
+        if (fce_i.bus_off = '1') then
+          mac_ser_o.transfer_status          <= c_aborted;  -- abort any in-progress serializer transaction on bus-off
+        end if;
         bs_o                                 <= c_mac_fsm_to_bs_fd_if_reset;
         pcs_o                                <= c_mac_to_pcs_if_reset;
         bs_rst                               <= '0';
@@ -299,9 +303,7 @@ begin
         -- Lost arbitration (ISO 6.5.2): Become to receiver.
         -- Kept outside the chain so the s_arbitration case still runs.
         -----------------------------------------------------------------
-        if pcs_i.sample_point = '1' and is_transmitter and state = s_arbitration
-           and transmitted_bits_shift_reg(0) = c_recessive
-           and pcs_i.rx_data = c_dominant then
+        if pcs_i.sample_point = '1' and is_transmitter and state = s_arbitration and transmitted_bits_shift_reg(0) = c_recessive and pcs_i.rx_data = c_dominant then
           mac_ser_o.transfer_status <= c_lost_arb;
           was_previous_frame_tx     <= false;
           is_transmitter            <= false;
@@ -846,9 +848,7 @@ begin
               end if;
 
             -----------------------------------------------------------------
-            -- s_eof: 7 recessive bits. TX evaluates ACK error at bit 0;
-            -- both roles flag frame valid at the second-last bit (ISO
-            -- 6.6.15.2).
+            -- s_eof: 7 recessive bits.
             -----------------------------------------------------------------
             when s_eof =>
               -- Transmitting nodes drive recessive
@@ -856,40 +856,48 @@ begin
                 v_drive_polarity := c_recessive;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                  -- Check for form error (dominant bits during the EOF field)
-                  if pcs_i.rx_data = c_dominant then
-                    fce_o.sending_error_overload_flag <= '1';
-                    fce_o.error                       <= '1';
-                    if bit_count = c_eof_field_width - 1 then
-                      v_drive_polarity := c_dominant;
-                      v_drive_now      := true;
-                      overload    <= true;
-                      fce_o.error <= '0';
-                    else
-                      v_drive_polarity := not fce_i.error_active;
-                      v_drive_now      := true;
-                    end if;
-                    state     <= s_error_flag;
-                    bit_count <= 0;
+                -- Check for form error (dominant bits during the EOF field)
+                if pcs_i.rx_data = c_dominant then
+                  -- Dominant is last EOF bit is overload
+                  if bit_count = c_eof_field_width - 1 then
+                    v_drive_polarity := c_dominant;
+                    overload    <= true;
+                    fce_o.error <= '0';
                   else
-                    if bit_count = c_eof_field_width - 1 then
-                      state     <= s_intermission;
-                      bit_count <= 0;
-                      fce_o.successful_transfer <= '1';
-                      if is_transmitter then 
-                        mac_ser_o.transfer_status <= c_transmitted;
-                        was_previous_frame_tx     <= true;
-                      else
-                      llc_stream_start          <= true;
-                      byte_index                <= 0;
-                      llc_frame_len             <= c_data_offset + data_len;
-                      bit_count                 <= bit_count + 1;
-                    end if;
-                    else
-                      bit_count <= bit_count + 1;
-                    end if;
+                    v_drive_polarity := not fce_i.error_active;
+                    fce_o.error  <= '1';
                   end if;
-                -- end if;
+                  v_drive_now      := true;
+                  bit_count <= 0;
+                  fce_o.sending_error_overload_flag <= '1';
+                  state     <= s_error_flag;
+                else
+                  -- Receivers react to CRC errors at the first bit of the EOF field
+                  if bit_count = 0 and crc_error_detected then
+                    ack_error_caused_flag      <= true;
+                    pcs_o.tx_data              <= not fce_i.error_active;
+                    pcs_o.data_phase_stop      <= '1';
+                    bs_o.fixed_bit_stuffing_en <= '0';
+                    state                      <= s_error_flag;
+                    bit_count                  <= 0;
+                    overload                   <= false;
+                  -- Reached end of EOF without errors: Successful transfer/reception.
+                  -- Both roles stream llc_frame to the LLC (TX self-receives via loopback).
+                  elsif bit_count = c_eof_field_width - 1 then
+                    llc_stream_start <= true;
+                    byte_index       <= 0;
+                    llc_frame_len    <= c_data_offset + data_len;
+                    if is_transmitter then
+                      mac_ser_o.transfer_status <= c_transmitted;
+                      was_previous_frame_tx     <= true;
+                    end if;
+                    bit_count <= 0;
+                    fce_o.successful_transfer <= '1';
+                    state     <= s_intermission;
+                  else
+                    bit_count <= bit_count + 1;
+                  end if;
+                end if;
               end if;
 
             -----------------------------------------------------------------
