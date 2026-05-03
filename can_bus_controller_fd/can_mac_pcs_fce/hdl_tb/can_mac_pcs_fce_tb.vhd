@@ -523,9 +523,12 @@ begin
         end if;
       end loop;
 
+      Print("    [sv] waiting for c_transmitted");
       Check(tx_llc_rec_dut_1, std_logic_vector(resize(unsigned(c_transmitted), c_rec_width)));
+      Print("    [sv] c_transmitted received; waiting for RX frame");
       Check(llc_rec,
         std_logic_vector(to_unsigned(v_exp_len, c_rec_width)), std_logic_vector(to_unsigned(v_frame_count, c_rec_width)));
+      Print("    [sv] RX frame verified");
     end procedure submit_and_verify;
 
     --------------------------------------------------------------------------
@@ -538,6 +541,9 @@ begin
       variable v_frame_count : natural := 0;
     begin
       test_num <= 1;
+      Print("--------------------------------------------------------------------------");
+      Print("Test 1: Normal Usage (DUT 1 TX -> DUT 2 RX)");
+      Print("--------------------------------------------------------------------------");
       while not (IsCovered(ide_cov) and IsCovered(fdf_cov) and IsCovered(dlc_cov)) loop
         v_frame_count := v_frame_count + 1;
 
@@ -560,6 +566,9 @@ begin
       variable v_frame_count : natural := 0;
     begin
       test_num <= 2;
+      Print("--------------------------------------------------------------------------");
+      Print("Test 2: Delay Sweep");
+      Print("--------------------------------------------------------------------------");
       for i in c_delay_sweep'range loop
         s_transceiver_tx_d <= c_delay_sweep(i).tx_d;
         s_transceiver_rx_d <= c_delay_sweep(i).rx_d;
@@ -568,10 +577,10 @@ begin
         -- Drain in-flight propagation events at the previous delays.
         WaitForClock(clk, 10 * c_bit_time);
 
-        Log(test_id, "Delay cfg " & to_string(i)
-          & ": tx=" & to_string(c_delay_sweep(i).tx_d)
-          & " rx=" & to_string(c_delay_sweep(i).rx_d)
-          & " bus=" & to_string(c_delay_sweep(i).bus_d), DEBUG);
+        Print("--- Delay config " & to_string(i)
+              & ": tx="  & to_string(c_delay_sweep(i).tx_d)
+              & " rx="   & to_string(c_delay_sweep(i).rx_d)
+              & " bus="  & to_string(c_delay_sweep(i).bus_d));
 
         for j in 1 to num_frames_per_cfg loop
           v_frame_count := v_frame_count + 1;
@@ -582,124 +591,107 @@ begin
     end procedure test_delay_sweep;
 
     --------------------------------------------------------------------------
-    -- Test 3: Lost arbitration -- both DUTs transmit simultaneously with
-    -- distinct random IDs. Winner (lower ID) reports c_transmitted; loser
-    -- reports c_lost_arb and finishes the frame as receiver (ISO 11898-1 6.5.2).
+    -- Test 3: Lost arbitration -- both DUTs transmit CC base frames with
+    -- random distinct IDs. Winner (lower ID) reports c_transmitted; loser
+    -- reports c_lost_arb (ISO 11898-1 6.5.2).
     --------------------------------------------------------------------------
     procedure test_lost_arb is
-      constant c_lost_arb_dlc : natural := 1;
-      constant c_iterations   : natural := 10;
-      variable v_id_a         : natural;
-      variable v_id_b         : natural;
-      variable v_id_dut_1     : natural;
-      variable v_id_dut_2     : natural;
-      variable v_dut_1_wins   : boolean;
-      variable v_frame_dut_1  : t_llc_frame;
-      variable v_frame_dut_2  : t_llc_frame;
-      variable v_meta_dut_1   : t_llc_metadata;
-      variable v_meta_dut_2   : t_llc_metadata;
-      variable v_last_dut_1   : natural;
-      variable v_last_dut_2   : natural;
-      variable v_exp_len      : natural;
+      constant c_iterations : natural := 10;
+      constant c_dlc        : natural := 1;
+      variable v_id_1       : natural;
+      variable v_id_2       : natural;
+      variable v_frame_1    : t_llc_frame;
+      variable v_frame_2    : t_llc_frame;
+      variable v_meta_1     : t_llc_metadata;
+      variable v_meta_2     : t_llc_metadata;
+      variable v_last       : natural;
+      variable v_exp_len    : natural;
     begin
       test_num <= 3;
-      -- Restore default delay after delay sweep
+      Print("--------------------------------------------------------------------------");
+      Print("Test 3: Lost Arbitration (random IDs, " & integer'image(c_iterations) & " iterations)");
+      Print("--------------------------------------------------------------------------");
       s_transceiver_tx_d <= 300 ns;
       s_transceiver_rx_d <= 300 ns;
       s_bus_delay        <= 150 ns;
-
-      v_exp_len := c_data_offset + dlc_to_data_length(c_lost_arb_dlc, '0');
+      v_exp_len := c_data_offset + dlc_to_data_length(c_dlc, '0');
 
       for iter in 1 to c_iterations loop
-        -- Wait for both serializers to return to idle before resetting latches.
         if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing then
           wait until llc_to_mac_tx_d2s_dut_1.transfer_status = c_ongoing for 5 ms;
         end if;
         if llc_to_mac_tx_d2s_dut_2.transfer_status /= c_ongoing then
           wait until llc_to_mac_tx_d2s_dut_2.transfer_status = c_ongoing for 5 ms;
         end if;
-        s_status_latch_rst_dut_1       <= true;
+        s_status_latch_rst_dut_1 <= true;
         s_status_latch_rst_dut_2 <= true;
         WaitForClock(clk, 2);
-        s_status_latch_rst_dut_1       <= false;
+        s_status_latch_rst_dut_1 <= false;
         s_status_latch_rst_dut_2 <= false;
-
-        -- Allow s_suspend_transmission (error-passive TX node, 8 bits) to complete.
         WaitForClock(clk, 30 * c_bit_time);
 
-        -- Pick distinct random IDs; randomly assign winner.
-        v_id_a := RV.RandInt(0, 2 ** c_base_id_width - 1);
         loop
-          v_id_b := RV.RandInt(0, 2 ** c_base_id_width - 1);
-          exit when v_id_b /= v_id_a;
+          v_id_1 := RV.RandInt(0, 2 ** c_base_id_width - 1);
+          v_id_2 := RV.RandInt(0, 2 ** c_base_id_width - 1);
+          exit when v_id_1 /= v_id_2;
         end loop;
-        v_dut_1_wins := RV.DistBool((false => 50, true => 50));
-        if (v_id_a < v_id_b) = v_dut_1_wins then
-          v_id_dut_1 := v_id_a; v_id_dut_2 := v_id_b;
-        else
-          v_id_dut_1 := v_id_b; v_id_dut_2 := v_id_a;
-        end if;
+        gen_frame(v_frame_1, v_meta_1, v_last, v_id_1, c_dlc);
+        gen_frame(v_frame_2, v_meta_2, v_last, v_id_2, c_dlc);
 
-        if v_dut_1_wins then
-          Log(test_id, "Iter " & to_string(iter) & ": DUT 1 0x" & to_hstring(to_unsigned(v_id_dut_1, c_base_id_width))
-            & " DUT 2 0x" & to_hstring(to_unsigned(v_id_dut_2, c_base_id_width)) & ", DUT 1 wins", DEBUG);
-        else
-          Log(test_id, "Iter " & to_string(iter) & ": DUT 1 0x" & to_hstring(to_unsigned(v_id_dut_1, c_base_id_width))
-            & " DUT 2 0x" & to_hstring(to_unsigned(v_id_dut_2, c_base_id_width)) & ", DUT 2 wins", DEBUG);
-        end if;
-
-        gen_frame(v_frame_dut_1, v_meta_dut_1, v_last_dut_1, v_id_dut_1, c_lost_arb_dlc);
-        gen_frame(v_frame_dut_2, v_meta_dut_2, v_last_dut_2, v_id_dut_2, c_lost_arb_dlc);
-
-        -- llc_rec monitors DUT 2's LLC RX path. Only push when DUT 1 wins
-        -- (DUT 2 loses arb and becomes the receiver).
-        if v_dut_1_wins then
+        -- llc_rec monitors DUT 2's LLC RX.  The MAC only asserts llc_stream_start when
+        -- not is_transmitter, so the VC only gets a frame when DUT 2 is the receiver
+        -- (i.e. DUT 1 wins).  Pre-load the BurstFifo now so the VC can match bytes as
+        -- they arrive after EOF.
+        if v_id_1 < v_id_2 then
           for i in 0 to v_exp_len - 1 loop
-            Push(llc_rec.BurstFifo, std_logic_vector(resize(unsigned(v_frame_dut_1(i)), c_rec_width)));
+            Push(llc_rec.BurstFifo, std_logic_vector(resize(unsigned(v_frame_1(i)), c_rec_width)));
           end loop;
         end if;
 
-        -- Shift the send window so drive_bit fires before either serializer
-        -- is valid, preventing DUT 1 from firing SOF alone.
         WaitForClock(clk, 3 * c_bit_time);
 
-        -- Interleave sends so both ser_tx ports reach s_shift_out_bits together.
-        for i in 0 to v_last_dut_1 loop
+        for i in 0 to v_last loop
           if i = 0 then
-            Send(tx_llc_rec_dut_1,       v_frame_dut_1(i), c_avalon_sop_byte);
-            Send(tx_llc_rec_dut_2, v_frame_dut_2(i), c_avalon_sop_byte);
-          elsif i < v_last_dut_1 then
-            Send(tx_llc_rec_dut_1,       v_frame_dut_1(i), c_avalon_byte);
-            Send(tx_llc_rec_dut_2, v_frame_dut_2(i), c_avalon_byte);
+            Send(tx_llc_rec_dut_1, v_frame_1(i), c_avalon_sop_byte);
+            Send(tx_llc_rec_dut_2, v_frame_2(i), c_avalon_sop_byte);
+          elsif i < v_last then
+            Send(tx_llc_rec_dut_1, v_frame_1(i), c_avalon_byte);
+            Send(tx_llc_rec_dut_2, v_frame_2(i), c_avalon_byte);
           else
-            Send(tx_llc_rec_dut_1,       v_frame_dut_1(i), c_avalon_eop_byte);
-            Send(tx_llc_rec_dut_2, v_frame_dut_2(i), c_avalon_eop_byte);
+            Send(tx_llc_rec_dut_1, v_frame_1(i), c_avalon_eop_byte);
+            Send(tx_llc_rec_dut_2, v_frame_2(i), c_avalon_eop_byte);
           end if;
         end loop;
 
-        -- Block on the winner's latch (loser fires c_lost_arb earlier in the frame).
-        if v_dut_1_wins then
-          if status_latch = c_ongoing then
-            wait until status_latch /= c_ongoing for 5 ms;
-          end if;
+        if status_latch = c_ongoing then
+          wait until status_latch /= c_ongoing for 5 ms;
+        end if;
+        if status_latch_dut_2 = c_ongoing then
+          wait until status_latch_dut_2 /= c_ongoing for 5 ms;
+        end if;
+
+        -- Post-hoc: verify loser had the higher ID; check DUT 2's received frame when DUT 1 won.
+        if status_latch = c_lost_arb then
+          Print("iter " & to_string(iter) & ": DUT2 wins (0x" & to_hstring(to_unsigned(v_id_2, c_base_id_width))
+            & " < 0x" & to_hstring(to_unsigned(v_id_1, c_base_id_width)) & ")");
+          AffirmIfEqual(check_id, status_latch_dut_2, c_transmitted, "DUT 2 transmitted (iter " & to_string(iter) & ")");
+          AffirmIf(check_id, v_id_1 > v_id_2, "DUT 1 lost arb: higher ID (iter " & to_string(iter) & ")");
+        else
+          Print("iter " & to_string(iter) & ": DUT1 wins (0x" & to_hstring(to_unsigned(v_id_1, c_base_id_width))
+            & " < 0x" & to_hstring(to_unsigned(v_id_2, c_base_id_width)) & ")");
           AffirmIfEqual(check_id, status_latch,       c_transmitted, "DUT 1 transmitted (iter " & to_string(iter) & ")");
           AffirmIfEqual(check_id, status_latch_dut_2, c_lost_arb,   "DUT 2 lost arb (iter "    & to_string(iter) & ")");
+          AffirmIf(check_id, v_id_2 > v_id_1, "DUT 2 lost arb: higher ID (iter " & to_string(iter) & ")");
           Check(llc_rec,
             std_logic_vector(to_unsigned(v_exp_len, c_rec_width)),
-            std_logic_vector(to_unsigned(0,         c_rec_width)));
-        else
-          if status_latch_dut_2 = c_ongoing then
-            wait until status_latch_dut_2 /= c_ongoing for 5 ms;
-          end if;
-          AffirmIfEqual(check_id, status_latch_dut_2, c_transmitted, "DUT 2 transmitted (iter " & to_string(iter) & ")");
-          AffirmIfEqual(check_id, status_latch,        c_lost_arb,   "DUT 1 lost arb (iter "    & to_string(iter) & ")");
+            std_logic_vector(to_unsigned(iter,      c_rec_width)));
         end if;
       end loop;
 
-      s_status_latch_rst_dut_1       <= true;
+      s_status_latch_rst_dut_1 <= true;
       s_status_latch_rst_dut_2 <= true;
       WaitForClock(clk, 2);
-      s_status_latch_rst_dut_1       <= false;
+      s_status_latch_rst_dut_1 <= false;
       s_status_latch_rst_dut_2 <= false;
     end procedure test_lost_arb;
 
@@ -716,6 +708,9 @@ begin
       variable v_send_count : natural := 0;
     begin
       test_num <= 4;
+      Print("--------------------------------------------------------------------------");
+      Print("Test 4: Bus-off Recovery");
+      Print("--------------------------------------------------------------------------");
       s_bus_off_clear <= true;
       WaitForClock(clk, 2);
       s_bus_off_clear <= false;
@@ -740,23 +735,29 @@ begin
         v_send_count := v_send_count + 1;
       end loop;
       AffirmIf(test_id, s_bus_off_seen, "Bus-off after " & to_string(v_send_count) & " sends");
+      Print("--- Phase 2 done: bus_off seen after " & to_string(v_send_count) & " sends");
 
       -- Phase 3: lift injection; wait for FCE bus-off recovery (~1.41 ms).
       s_dut_1_rx_recessive <= false;
+      Print("--- Phase 3: waiting for bus_off deassert");
       if llc_fce_o_dut_1.bus_off /= '0' then
         wait until llc_fce_o_dut_1.bus_off = '0';
       end if;
       AffirmIf(test_id, llc_fce_o_dut_1.bus_off = '0', "Bus-off recovered");
+      Print("--- Phase 3 done: bus_off deasserted");
 
-      -- Phase 4: confirm normal TX/RX.
-      if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing then
-        wait until llc_to_mac_tx_d2s_dut_1.transfer_status = c_ongoing for 5 ms;
-      end if;
+      -- Phase 4: DUT 1 completed bus_reintegration; allow intermission to
+      -- finish, clear stale status latches, then send the confirmation frame.
+      Print("--- Phase 4: WaitForClock");
+      WaitForClock(clk, (c_bus_idle_condition_width + 2) * (c_bit_time + 1));
+      Print("--- Phase 4: resetting status latch");
       s_status_latch_rst_dut_1 <= true;
       WaitForClock(clk, 2);
       s_status_latch_rst_dut_1 <= false;
+      Print("--- Phase 4: submit_and_verify");
       gen_frame(v_frame, v_metadata, v_last_byte);
       submit_and_verify(v_frame, v_last_byte, v_metadata, 0);
+      Print("--- Phase 4 done");
     end procedure test_bus_off;
 
     --------------------------------------------------------------------------
@@ -768,8 +769,14 @@ begin
       WriteBin(ide_cov);
       WriteBin(fdf_cov);
       WriteBin(dlc_cov);
-      if (EndOfTestReports(ReportAll => true) /= 0) then
-        Alert(test_id, "Test Fail!", ERROR);
+      if (EndOfTestReports(ReportAll => true) = 0) then
+        Print("--------------------------------------------------------------------------");
+        Print("Test Pass!");
+        Print("--------------------------------------------------------------------------");
+      else
+        Print("--------------------------------------------------------------------------");
+        Print("Test Fail!");
+        Print("--------------------------------------------------------------------------");
       end if;
     end procedure report_results;
 
