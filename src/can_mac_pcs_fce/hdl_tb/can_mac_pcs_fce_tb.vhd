@@ -92,19 +92,15 @@ architecture tb of can_mac_pcs_fce_tb is
   signal rx_at_tx_dut         : std_logic := c_recessive;
   signal bus_at_tx_observed   : std_logic;
 
-  -- Bus-off test controls:
-  --   s_dut_1_rx_recessive  forces DUT 1's loopback recessive so every dominant
-  --                         it drives in a v_tx_bit_error_state bit becomes a bit
-  --                         error (TEC += 8, no ISO 8.1.4.2.c exemption, works in
-  --                         error-passive).  ACK errors alone cannot reach bus_off
-  --                         because the passive-flag exemption caps TEC at 128.
+  -- s_dut_1_rx_recessive forces DUT 1's loopback recessive so every dominant
+  -- it drives becomes a bit error (TEC += 8, bypasses error-passive exemption).
   signal s_dut_1_rx_recessive : boolean   := false;
-  signal s_dut_2_reset        : std_logic := '0'; -- unused; DUT 2 stays active throughout
+  signal s_dut_2_reset        : std_logic := '0';
 
-  -- Sticky bus_off latch: captures the high pulse since the FCE may
-  -- complete recovery before the sequencer samples the live signal.
-  signal s_bus_off_seen       : boolean := false;
-  signal s_bus_off_clear      : boolean := false;
+  -- Sticky bus_off latch (DUT 1): captures the pulse since FCE may recover
+  -- before the sequencer samples the live signal.
+  signal s_bus_off_seen  : boolean := false;
+  signal s_bus_off_clear : boolean := false;
 
   -- DUT 1 interfaces
   signal llc_to_mac_tx_s2d_dut_1 : t_can_llc_mac_tx_if_s2d;
@@ -112,8 +108,7 @@ architecture tb of can_mac_pcs_fce_tb is
   signal mac_to_llc_tx_s2d_dut_1 : t_can_llc_mac_rx_if_s2d;
   signal mac_to_llc_tx_d2s_dut_1 : t_can_llc_mac_rx_if_d2s;
 
-  -- DUT 2 interfaces. The LLC TX source signal is idle until
-  -- p_tx_llc_vc_dut_2 drives it during test_lost_arb.
+  -- DUT 2 interfaces. LLC TX source is idle until p_tx_llc_vc_dut_2 drives it.
   signal llc_to_mac_tx_s2d_dut_2 : t_can_llc_mac_tx_if_s2d := (
     avalon_st_source => (
       data          => (others => '0'),
@@ -132,13 +127,10 @@ architecture tb of can_mac_pcs_fce_tb is
   signal llc_fce_i_dut_2 : t_can_llc_fce_if_m2s := (normal_mode => '1');
   signal llc_fce_o_dut_2 : t_can_fce_llc_if_s2m;
 
-  -- Transfer status latch (TX DUT 1)
-  signal status_latch       : std_logic_vector(2 downto 0) := c_ongoing;
-  signal clear_status       : boolean                      := false;
-  signal s_status_latch_rst : boolean                      := false;
-
-  -- Transfer status latch (TX DUT 2). Used by test_lost_arb where both
-  -- DUTs transmit and we need to confirm DUT 2 won arbitration.
+  -- Transfer status latches
+  signal status_latch             : std_logic_vector(2 downto 0) := c_ongoing;
+  signal clear_status             : boolean                      := false;
+  signal s_status_latch_rst_dut_1       : boolean                      := false;
   signal status_latch_dut_2       : std_logic_vector(2 downto 0) := c_ongoing;
   signal clear_status_dut_2       : boolean                      := false;
   signal s_status_latch_rst_dut_2 : boolean                      := false;
@@ -154,7 +146,7 @@ architecture tb of can_mac_pcs_fce_tb is
   signal          test_num     : natural;
 
   -- Transaction interfaces
-  signal tx_llc_rec : StreamRecType(
+  signal tx_llc_rec_dut_1 : StreamRecType(
     DataToModel(c_rec_width - 1 downto 0),
     ParamToModel(c_rec_width - 1 downto 0),
     DataFromModel(c_rec_width - 1 downto 0),
@@ -196,6 +188,7 @@ begin
     variable v_dlc_cov  : CoverageIDType;
   begin
     SetAlertStopCount(ERROR, 1);
+    SetLogEnable(DEBUG, false);
     v_test_id            := NewID("can_mac_pcs_fce");
     v_check_id           := NewID("Frame check", v_test_id);
     v_ide_cov            := NewID("IDE Coverage", v_test_id, ReportMode => ENABLED);
@@ -203,12 +196,9 @@ begin
     v_dlc_cov            := NewID("DLC Coverage", v_test_id, ReportMode => ENABLED);
     RV.InitSeed(RV'instance_name & to_string(now));
     AddBins(v_ide_cov, c_bin_at_least, GenBin(0, 1));
-    -- Temporarily restricted to CC-only (FD frames have an outstanding
-    -- SSP-timing issue after the bit_boundary refactor). Restore to
-    -- GenBin(0, 1) once SSP is fixed.
     AddBins(v_fdf_cov, c_bin_at_least, GenBin(0, 1));
     AddBins(v_dlc_cov, c_bin_at_least, GenBin(0, c_dlc_max));
-    tx_llc_rec.BurstFifo <= NewID("TX LLC Burst fifo");
+    tx_llc_rec_dut_1.BurstFifo <= NewID("TX LLC Burst fifo");
     llc_rec.BurstFifo    <= NewID("RX LLC Burst fifo");
     test_id              <= v_test_id;
     check_id             <= v_check_id;
@@ -322,26 +312,19 @@ begin
   p_status_latch : process(clk) is
   begin
     if rising_edge(clk) then
-      if reset = '1' or clear_status or s_status_latch_rst then
+      if reset = '1' or clear_status or s_status_latch_rst_dut_1 then
         status_latch <= c_ongoing;
       else
         if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing
            and llc_to_mac_tx_d2s_dut_1.transfer_status /= status_latch then
           status_latch <= llc_to_mac_tx_d2s_dut_1.transfer_status;
-          if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_transmitted then
-            report "[status_latch] " & to_string(llc_to_mac_tx_d2s_dut_1.transfer_status)
-              & " latched (tx_d=" & to_string(s_transceiver_tx_d)
-              & " rx_d="          & to_string(s_transceiver_rx_d)
-              & " bus_d="         & to_string(s_bus_delay) & ")";
-          end if;
         end if;
       end if;
     end if;
   end process p_status_latch;
 
   ----------------------------------------------------------------------------
-  -- Transfer status latch (DUT 2 TX). Same shape as DUT 1; consumed by
-  -- test_lost_arb to verify DUT 2 wins arbitration.
+  -- Transfer status latch (DUT 2 TX)
   ----------------------------------------------------------------------------
   p_status_latch_dut_2 : process(clk) is
   begin
@@ -352,8 +335,6 @@ begin
         if llc_to_mac_tx_d2s_dut_2.transfer_status /= c_ongoing
            and llc_to_mac_tx_d2s_dut_2.transfer_status /= status_latch_dut_2 then
           status_latch_dut_2 <= llc_to_mac_tx_d2s_dut_2.transfer_status;
-          report "[status_latch_dut_2] " & to_string(llc_to_mac_tx_d2s_dut_2.transfer_status)
-            & " latched";
         end if;
       end if;
     end if;
@@ -366,20 +347,20 @@ begin
   begin
     WaitForBarrier(init_barrier);
     tx_llc_vc_loop : loop
-      WaitForTransaction(tx_llc_rec.Rdy, tx_llc_rec.Ack);
-      case tx_llc_rec.Operation is
+      WaitForTransaction(tx_llc_rec_dut_1.Rdy, tx_llc_rec_dut_1.Ack);
+      case tx_llc_rec_dut_1.Operation is
         when SEND =>
           llc_to_mac_tx_s2d_dut_1.avalon_st_source.valid         <= '1';
-          llc_to_mac_tx_s2d_dut_1.avalon_st_source.data          <= SafeResize(std_logic_vector(tx_llc_rec.DataToModel), c_byte_width);
-          llc_to_mac_tx_s2d_dut_1.avalon_st_source.startofpacket <= tx_llc_rec.ParamToModel(1);
-          llc_to_mac_tx_s2d_dut_1.avalon_st_source.endofpacket   <= tx_llc_rec.ParamToModel(0);
+          llc_to_mac_tx_s2d_dut_1.avalon_st_source.data          <= SafeResize(std_logic_vector(tx_llc_rec_dut_1.DataToModel), c_byte_width);
+          llc_to_mac_tx_s2d_dut_1.avalon_st_source.startofpacket <= tx_llc_rec_dut_1.ParamToModel(1);
+          llc_to_mac_tx_s2d_dut_1.avalon_st_source.endofpacket   <= tx_llc_rec_dut_1.ParamToModel(0);
           wait until rising_edge(clk) and llc_to_mac_tx_d2s_dut_1.avalon_st_sink.ready = '1';
           llc_to_mac_tx_s2d_dut_1.avalon_st_source.valid         <= '0';
         when CHECK =>
           if status_latch = c_ongoing then
             wait until status_latch /= c_ongoing;
           end if;
-          AffirmIfEqual(check_id, status_latch, std_logic_vector(tx_llc_rec.DataToModel(2 downto 0)), "Transfer status");
+          AffirmIfEqual(check_id, status_latch, std_logic_vector(tx_llc_rec_dut_1.DataToModel(2 downto 0)), "Transfer status");
           clear_status <= true;
           wait until rising_edge(clk);
           clear_status <= false;
@@ -389,8 +370,7 @@ begin
   end process p_tx_llc_vc;
 
   ----------------------------------------------------------------------------
-  -- TX LLC source VC (DUT 2). Mirrors p_tx_llc_vc; only used by test_lost_arb
-  -- where DUT 2 is the contending transmitter.
+  -- TX LLC source VC (DUT 2)
   ----------------------------------------------------------------------------
   p_tx_llc_vc_dut_2 : process is
   begin
@@ -473,37 +453,52 @@ begin
   p_test_ctrl : process is
 
     --------------------------------------------------------------------------
-    -- gen_frame: random LLC frame (data frame only, FTYP=0)
+    -- gen_frame: LLC data frame (FTYP=0).
+    -- v_id >= 0: fixed CC base frame with the given 11-bit ID and DLC=v_dlc.
+    -- v_id  < 0: samples IDE/FDF/DLC from coverage bins, randomises ID/data.
     --------------------------------------------------------------------------
-    procedure gen_frame(tx_frame : out t_llc_frame; metadata : out t_llc_metadata; last_byte : out natural) is
+    procedure gen_frame(tx_frame  : out t_llc_frame;
+                        metadata  : out t_llc_metadata;
+                        last_byte : out natural;
+                        v_id      : integer := -1;
+                        v_dlc     : integer := -1) is
       variable v_data_len : natural;
+      variable v_id_slv   : std_logic_vector(c_base_id_width - 1 downto 0);
     begin
       for i in tx_frame'range loop
-        tx_frame(i) := RV.RandSlv(8);
+        tx_frame(i) := (others => '0');
       end loop;
-      tx_frame(0)(c_llc_frame_ide)                                  := std_logic(to_unsigned(GetRandPoint(ide_cov), 1)(0));
-      tx_frame(0)(c_llc_frame_fdf)                                  := std_logic(to_unsigned(GetRandPoint(fdf_cov), 1)(0));
-      tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) := std_logic_vector(to_unsigned(GetRandPoint(dlc_cov), 4));
-      metadata                                                      := extract_metadata(tx_frame(0), tx_frame(1));
-      v_data_len                                                    := dlc_to_data_length(to_integer(unsigned(metadata.dlc)), metadata.fdf);
-      last_byte                                                     := c_llc_frame_data_byte + v_data_len - 1;
-
-      -- Zero unused bits so the expected frame matches the RX reconstruction.
-      tx_frame(0)(c_llc_frame_ftyp) := '0';
-      tx_frame(0)(2 downto 0)       := "000";
-      tx_frame(1)(3 downto 0)       := "0000";
-      if (metadata.fdf = '0') then
-        tx_frame(0)(c_llc_frame_esi) := '0';
-        tx_frame(0)(c_llc_frame_brs) := '0';
-      end if;
-      if (metadata.ide = '1') then
-        tx_frame(5)(2 downto 0) := "000";
+      if v_id >= 0 then
+        tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) :=
+          std_logic_vector(to_unsigned(v_dlc, c_dlc_field_width));
+        v_id_slv                := std_logic_vector(to_unsigned(v_id, c_base_id_width));
+        tx_frame(2)             := v_id_slv(c_base_id_width - 1 downto c_base_id_width - 8);
+        tx_frame(3)(7 downto 5) := v_id_slv(2 downto 0);
       else
-        tx_frame(3)(4 downto 0) := "00000";
-        tx_frame(4)             := (others => '0');
-        tx_frame(5)             := (others => '0');
-      end if; for i in v_data_len to c_max_data_bytes - 1 loop
-        tx_frame(c_data_offset + i) := (others => '0');
+        tx_frame(0)(c_llc_frame_ide) := std_logic(to_unsigned(GetRandPoint(ide_cov), 1)(0));
+        tx_frame(0)(c_llc_frame_fdf) := std_logic(to_unsigned(GetRandPoint(fdf_cov), 1)(0));
+        tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) :=
+          std_logic_vector(to_unsigned(GetRandPoint(dlc_cov), 4));
+        for i in 2 to 5 loop
+          tx_frame(i) := RV.RandSlv(8);
+        end loop;
+        if tx_frame(0)(c_llc_frame_ide) = '1' then
+          tx_frame(5)(2 downto 0) := "000";
+        else
+          tx_frame(3)(4 downto 0) := "00000";
+          tx_frame(4)             := (others => '0');
+          tx_frame(5)             := (others => '0');
+        end if;
+        if tx_frame(0)(c_llc_frame_fdf) = '1' then
+          tx_frame(0)(c_llc_frame_brs) := RV.RandSlv(1)(1);
+          tx_frame(0)(c_llc_frame_esi) := RV.RandSlv(1)(1);
+        end if;
+      end if;
+      metadata   := extract_metadata(tx_frame(0), tx_frame(1));
+      v_data_len := dlc_to_data_length(to_integer(unsigned(metadata.dlc)), metadata.fdf);
+      last_byte  := c_llc_frame_data_byte + v_data_len - 1;
+      for i in 0 to v_data_len - 1 loop
+        tx_frame(c_data_offset + i) := RV.RandSlv(8);
       end loop;
     end procedure gen_frame;
 
@@ -521,15 +516,15 @@ begin
 
       for i in 0 to v_last_byte loop
         if (i = 0) then
-          Send(tx_llc_rec, v_tx_frame(i), c_avalon_sop_byte);
+          Send(tx_llc_rec_dut_1, v_tx_frame(i), c_avalon_sop_byte);
         elsif (i < v_last_byte) then
-          Send(tx_llc_rec, v_tx_frame(i), c_avalon_byte);
+          Send(tx_llc_rec_dut_1, v_tx_frame(i), c_avalon_byte);
         else
-          Send(tx_llc_rec, v_tx_frame(i), c_avalon_eop_byte);
+          Send(tx_llc_rec_dut_1, v_tx_frame(i), c_avalon_eop_byte);
         end if;
       end loop;
 
-      Check(tx_llc_rec, std_logic_vector(resize(unsigned(c_transmitted), c_rec_width)));
+      Check(tx_llc_rec_dut_1, std_logic_vector(resize(unsigned(c_transmitted), c_rec_width)));
       Check(llc_rec,
         std_logic_vector(to_unsigned(v_exp_len, c_rec_width)), std_logic_vector(to_unsigned(v_frame_count, c_rec_width)));
     end procedure submit_and_verify;
@@ -544,10 +539,6 @@ begin
       variable v_frame_count : natural := 0;
     begin
       test_num <= 1;
-      Print("--------------------------------------------------------------------------");
-      Print("Test 1: Normal Usage (DUT 1 TX -> DUT 2 RX)");
-      Print("--------------------------------------------------------------------------");
-
       while not (IsCovered(ide_cov) and IsCovered(fdf_cov) and IsCovered(dlc_cov)) loop
         v_frame_count := v_frame_count + 1;
 
@@ -561,8 +552,7 @@ begin
     end procedure test_normal;
 
     --------------------------------------------------------------------------
-    -- Test 2: Delay sweep -- send a batch of frames at each c_delay_sweep
-    -- operating point.
+    -- Test 2: Delay sweep -- batch of frames at each c_delay_sweep operating point
     --------------------------------------------------------------------------
     procedure test_delay_sweep(num_frames_per_cfg : natural := 20) is
       variable v_frame       : t_llc_frame;
@@ -571,10 +561,6 @@ begin
       variable v_frame_count : natural := 0;
     begin
       test_num <= 2;
-      Print("--------------------------------------------------------------------------");
-      Print("Test 2: Delay Sweep");
-      Print("--------------------------------------------------------------------------");
-
       for i in c_delay_sweep'range loop
         s_transceiver_tx_d <= c_delay_sweep(i).tx_d;
         s_transceiver_rx_d <= c_delay_sweep(i).rx_d;
@@ -583,13 +569,10 @@ begin
         -- Drain in-flight propagation events at the previous delays.
         WaitForClock(clk, 10 * c_bit_time);
 
-        Print("--- Delay config " & to_string(i)
-              & ": tx="    & to_string(c_delay_sweep(i).tx_d)
-              & " rx="     & to_string(c_delay_sweep(i).rx_d)
-              & " bus="    & to_string(c_delay_sweep(i).bus_d)
-              & " (rt="    & to_string(2 * (c_delay_sweep(i).tx_d
-                                          + c_delay_sweep(i).rx_d
-                                          + c_delay_sweep(i).bus_d)) & ")");
+        Log(test_id, "Delay cfg " & to_string(i)
+          & ": tx=" & to_string(c_delay_sweep(i).tx_d)
+          & " rx=" & to_string(c_delay_sweep(i).rx_d)
+          & " bus=" & to_string(c_delay_sweep(i).bus_d), DEBUG);
 
         for j in 1 to num_frames_per_cfg loop
           v_frame_count := v_frame_count + 1;
@@ -600,88 +583,28 @@ begin
     end procedure test_delay_sweep;
 
     --------------------------------------------------------------------------
-    -- gen_frame_with_id: deterministic CC-base frame builder used by
-    -- test_lost_arb. Produces a frame with a specific 11-bit ID and DLC,
-    -- random data bytes, all reserved/padding bits zeroed so the captured
-    -- RX bytes compare cleanly.
-    --------------------------------------------------------------------------
-    procedure gen_frame_with_id(arg_id    : in  natural;
-                                arg_dlc   : in  natural;
-                                tx_frame  : out t_llc_frame;
-                                metadata  : out t_llc_metadata;
-                                last_byte : out natural) is
-      variable v_id_slv   : std_logic_vector(c_base_id_width - 1 downto 0);
-      variable v_data_len : natural;
-    begin
-      for i in tx_frame'range loop
-        tx_frame(i) := (others => '0');
-      end loop;
-
-      -- Config byte 0: IDE=0 (base), FDF=0 (CC), FTYP=0 (data), ESI=0, BRS=0.
-      tx_frame(0) := (others => '0');
-      -- Config byte 1: DLC in bits [7:4]; bits [3:0] zero.
-      tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end)
-                := std_logic_vector(to_unsigned(arg_dlc, c_dlc_field_width));
-
-      -- ID layout: 11-bit ID streamed MSB-first into byte 2[7:0] and
-      -- byte 3[7:5]; remaining bits in bytes 3..5 are padding (kept zero).
-      v_id_slv := std_logic_vector(to_unsigned(arg_id, c_base_id_width));
-      tx_frame(2) := v_id_slv(c_base_id_width - 1 downto c_base_id_width - 8);
-      tx_frame(3)(7 downto 5) := v_id_slv(2 downto 0);
-
-      metadata   := extract_metadata(tx_frame(0), tx_frame(1));
-      v_data_len := dlc_to_data_length(arg_dlc, '0');
-      last_byte  := c_llc_frame_data_byte + v_data_len - 1;
-
-      for i in 0 to v_data_len - 1 loop
-        tx_frame(c_data_offset + i) := RV.RandSlv(8);
-      end loop;
-    end procedure gen_frame_with_id;
-
-    --------------------------------------------------------------------------
-    -- Test 3: Lost arbitration. Both DUTs transmit simultaneously with the
-    -- same FDF/DLC but different IDs. DUT 2 carries the lower ID (0x100)
-    -- and wins arbitration; DUT 1 carries 0x500 and must observe the
-    -- recessive-vs-dominant mismatch on the first ID-A bit, report
-    -- c_lost_arb, demote to receiver, and stay synchronized for the rest
-    -- of the frame (ISO 11898-1 6.5.2).
-    --
-    -- Synchronisation strategy: after test_delay_sweep both DUTs are
-    -- error-active and end the previous frame in s_intermission, so neither
-    -- enters s_suspend_transmission. They reach s_bus_idle in the same SP
-    -- cycle. The test interleaves byte sends so both ser_tx ports raise
-    -- mac_ser_i.valid within one clock of each other, well before the next
-    -- SP fires.
-    --
-    -- Pass criteria:
-    --   1. status_latch becomes c_lost_arb (DUT 1 lost).
-    --   2. status_latch_dut_2 becomes c_transmitted (DUT 2 won).
-    --   3. DUT 2's RX byte stream (self-reception) matches frame_low.
+    -- Test 3: Lost arbitration -- both DUTs transmit simultaneously with
+    -- distinct random IDs. Winner (lower ID) reports c_transmitted; loser
+    -- reports c_lost_arb and finishes the frame as receiver (ISO 11898-1 6.5.2).
     --------------------------------------------------------------------------
     procedure test_lost_arb is
-      constant c_lost_arb_dlc  : natural := 1;
-      constant c_iterations    : natural := 10;
-      variable v_id_a          : natural;
-      variable v_id_b          : natural;
-      variable v_id_dut_1      : natural;
-      variable v_id_dut_2      : natural;
-      variable v_dut_1_wins    : boolean;
-      variable v_frame_dut_1   : t_llc_frame;
-      variable v_frame_dut_2   : t_llc_frame;
-      variable v_meta_dut_1    : t_llc_metadata;
-      variable v_meta_dut_2    : t_llc_metadata;
-      variable v_last_dut_1    : natural;
-      variable v_last_dut_2    : natural;
-      variable v_exp_len       : natural;
-      variable v_winner_status : std_logic_vector(2 downto 0);
-      variable v_loser_status  : std_logic_vector(2 downto 0);
+      constant c_lost_arb_dlc : natural := 1;
+      constant c_iterations   : natural := 10;
+      variable v_id_a         : natural;
+      variable v_id_b         : natural;
+      variable v_id_dut_1     : natural;
+      variable v_id_dut_2     : natural;
+      variable v_dut_1_wins   : boolean;
+      variable v_frame_dut_1  : t_llc_frame;
+      variable v_frame_dut_2  : t_llc_frame;
+      variable v_meta_dut_1   : t_llc_metadata;
+      variable v_meta_dut_2   : t_llc_metadata;
+      variable v_last_dut_1   : natural;
+      variable v_last_dut_2   : natural;
+      variable v_exp_len      : natural;
     begin
       test_num <= 3;
-      Print("--------------------------------------------------------------------------");
-      Print("Test 3: Lost Arbitration (random IDs, " & integer'image(c_iterations) & " iterations)");
-      Print("--------------------------------------------------------------------------");
-
-      -- Restore default delay (last test_delay_sweep config left small delays).
+      -- Restore default delay after delay sweep
       s_transceiver_tx_d <= 300 ns;
       s_transceiver_rx_d <= 300 ns;
       s_bus_delay        <= 150 ns;
@@ -689,153 +612,102 @@ begin
       v_exp_len := c_data_offset + dlc_to_data_length(c_lost_arb_dlc, '0');
 
       for iter in 1 to c_iterations loop
-        -- Wait for both DUTs' transfer_status to return to c_ongoing
-        -- (previous frame fully done). Otherwise the latch reset below
-        -- would clear the latch and the latch process would immediately
-        -- re-latch the still-asserted previous lost-arb / transmitted
-        -- value before the latch process saw c_ongoing.
+        -- Wait for both serializers to return to idle before resetting latches.
         if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing then
           wait until llc_to_mac_tx_d2s_dut_1.transfer_status = c_ongoing for 5 ms;
         end if;
         if llc_to_mac_tx_d2s_dut_2.transfer_status /= c_ongoing then
           wait until llc_to_mac_tx_d2s_dut_2.transfer_status = c_ongoing for 5 ms;
         end if;
-
-        -- Clear both latches.
-        s_status_latch_rst       <= true;
+        s_status_latch_rst_dut_1       <= true;
         s_status_latch_rst_dut_2 <= true;
         WaitForClock(clk, 2);
-        s_status_latch_rst       <= false;
+        s_status_latch_rst_dut_1       <= false;
         s_status_latch_rst_dut_2 <= false;
 
-        -- Wait for both DUTs to settle into s_bus_idle after the previous
-        -- frame. The TX-side DUT spends 8 bits in s_suspend_transmission
-        -- after its frame.
+        -- Allow s_suspend_transmission (error-passive TX node, 8 bits) to complete.
         WaitForClock(clk, 30 * c_bit_time);
 
-        -- Pick two distinct random 11-bit IDs and randomly assign which
-        -- DUT gets the winner (lower ID).
+        -- Pick distinct random IDs; randomly assign winner.
         v_id_a := RV.RandInt(0, 2 ** c_base_id_width - 1);
         loop
           v_id_b := RV.RandInt(0, 2 ** c_base_id_width - 1);
           exit when v_id_b /= v_id_a;
         end loop;
         v_dut_1_wins := RV.DistBool((false => 50, true => 50));
-        if v_dut_1_wins then
-          -- Lower (winning) ID -> DUT 1; higher -> DUT 2.
-          if v_id_a < v_id_b then
-            v_id_dut_1 := v_id_a; v_id_dut_2 := v_id_b;
-          else
-            v_id_dut_1 := v_id_b; v_id_dut_2 := v_id_a;
-          end if;
+        if (v_id_a < v_id_b) = v_dut_1_wins then
+          v_id_dut_1 := v_id_a; v_id_dut_2 := v_id_b;
         else
-          if v_id_a < v_id_b then
-            v_id_dut_1 := v_id_b; v_id_dut_2 := v_id_a;
-          else
-            v_id_dut_1 := v_id_a; v_id_dut_2 := v_id_b;
-          end if;
+          v_id_dut_1 := v_id_b; v_id_dut_2 := v_id_a;
         end if;
 
         if v_dut_1_wins then
-          Print("--- Iter " & integer'image(iter)
-                & ": DUT 1 ID=0x" & to_hstring(to_unsigned(v_id_dut_1, c_base_id_width))
-                & ", DUT 2 ID=0x" & to_hstring(to_unsigned(v_id_dut_2, c_base_id_width))
-                & " -> DUT 1 wins");
+          Log(test_id, "Iter " & to_string(iter) & ": DUT 1 0x" & to_hstring(to_unsigned(v_id_dut_1, c_base_id_width))
+            & " DUT 2 0x" & to_hstring(to_unsigned(v_id_dut_2, c_base_id_width)) & ", DUT 1 wins", DEBUG);
         else
-          Print("--- Iter " & integer'image(iter)
-                & ": DUT 1 ID=0x" & to_hstring(to_unsigned(v_id_dut_1, c_base_id_width))
-                & ", DUT 2 ID=0x" & to_hstring(to_unsigned(v_id_dut_2, c_base_id_width))
-                & " -> DUT 2 wins");
+          Log(test_id, "Iter " & to_string(iter) & ": DUT 1 0x" & to_hstring(to_unsigned(v_id_dut_1, c_base_id_width))
+            & " DUT 2 0x" & to_hstring(to_unsigned(v_id_dut_2, c_base_id_width)) & ", DUT 2 wins", DEBUG);
         end if;
 
-        gen_frame_with_id(v_id_dut_1, c_lost_arb_dlc, v_frame_dut_1, v_meta_dut_1, v_last_dut_1);
-        gen_frame_with_id(v_id_dut_2, c_lost_arb_dlc, v_frame_dut_2, v_meta_dut_2, v_last_dut_2);
+        gen_frame(v_frame_dut_1, v_meta_dut_1, v_last_dut_1, v_id_dut_1, c_lost_arb_dlc);
+        gen_frame(v_frame_dut_2, v_meta_dut_2, v_last_dut_2, v_id_dut_2, c_lost_arb_dlc);
 
-        -- llc_rec monitors DUT 2's LLC RX path. When DUT 1 wins, DUT 2 loses
-        -- arbitration and becomes a receiver; it streams the winning frame to
-        -- its LLC RX. When DUT 2 wins, DUT 2 is the transmitter and does not
-        -- stream; DUT 1's received frame goes to DUT 1's LLC RX which has no
-        -- sink VC in this testbench.
+        -- llc_rec monitors DUT 2's LLC RX path. Only push when DUT 1 wins
+        -- (DUT 2 loses arb and becomes the receiver).
         if v_dut_1_wins then
           for i in 0 to v_exp_len - 1 loop
             Push(llc_rec.BurstFifo, std_logic_vector(resize(unsigned(v_frame_dut_1(i)), c_rec_width)));
           end loop;
         end if;
 
-        -- Align sends so drive_bit (SP+2 registered) fires before the
-        -- serializers become valid. Without this guard, drive_bit fires
-        -- at T0+141 (exactly when DUT1's ser_tx finishes loading), which
-        -- causes DUT1 to fire SOF alone before DUT2 is ready.
+        -- Shift the send window so drive_bit fires before either serializer
+        -- is valid, preventing DUT 1 from firing SOF alone.
         WaitForClock(clk, 3 * c_bit_time);
 
-        -- Interleave Sends so both ser_tx ports reach s_shift_out_bits
-        -- within one clock of each other.
+        -- Interleave sends so both ser_tx ports reach s_shift_out_bits together.
         for i in 0 to v_last_dut_1 loop
-          if (i = 0) then
-            Send(tx_llc_rec,       v_frame_dut_1(i), c_avalon_sop_byte);
+          if i = 0 then
+            Send(tx_llc_rec_dut_1,       v_frame_dut_1(i), c_avalon_sop_byte);
             Send(tx_llc_rec_dut_2, v_frame_dut_2(i), c_avalon_sop_byte);
-          elsif (i < v_last_dut_1) then
-            Send(tx_llc_rec,       v_frame_dut_1(i), c_avalon_byte);
+          elsif i < v_last_dut_1 then
+            Send(tx_llc_rec_dut_1,       v_frame_dut_1(i), c_avalon_byte);
             Send(tx_llc_rec_dut_2, v_frame_dut_2(i), c_avalon_byte);
           else
-            Send(tx_llc_rec,       v_frame_dut_1(i), c_avalon_eop_byte);
+            Send(tx_llc_rec_dut_1,       v_frame_dut_1(i), c_avalon_eop_byte);
             Send(tx_llc_rec_dut_2, v_frame_dut_2(i), c_avalon_eop_byte);
           end if;
         end loop;
 
-        -- Block on the WINNER's status latch (the loser's c_lost_arb fires
-        -- earlier in the frame and is always latched by then).
+        -- Block on the winner's latch (loser fires c_lost_arb earlier in the frame).
         if v_dut_1_wins then
           if status_latch = c_ongoing then
             wait until status_latch /= c_ongoing for 5 ms;
           end if;
+          AffirmIfEqual(check_id, status_latch,       c_transmitted, "DUT 1 transmitted (iter " & to_string(iter) & ")");
+          AffirmIfEqual(check_id, status_latch_dut_2, c_lost_arb,   "DUT 2 lost arb (iter "    & to_string(iter) & ")");
+          Check(llc_rec,
+            std_logic_vector(to_unsigned(v_exp_len, c_rec_width)),
+            std_logic_vector(to_unsigned(0,         c_rec_width)));
         else
           if status_latch_dut_2 = c_ongoing then
             wait until status_latch_dut_2 /= c_ongoing for 5 ms;
           end if;
-        end if;
-
-        if v_dut_1_wins then
-          v_winner_status := status_latch;
-          v_loser_status  := status_latch_dut_2;
-        else
-          v_winner_status := status_latch_dut_2;
-          v_loser_status  := status_latch;
-        end if;
-        AffirmIfEqual(check_id, v_winner_status, c_transmitted,
-                      "Winner (lower ID) transmitted (iter " & integer'image(iter) & ")");
-        AffirmIfEqual(check_id, v_loser_status,  c_lost_arb,
-                      "Loser (higher ID) lost arbitration (iter " & integer'image(iter) & ")");
-
-        -- When DUT 1 won, verify DUT 2 (the receiver) delivered the frame to its LLC RX path.
-        if v_dut_1_wins then
-          Check(llc_rec,
-            std_logic_vector(to_unsigned(v_exp_len, c_rec_width)),
-            std_logic_vector(to_unsigned(0,         c_rec_width)));
+          AffirmIfEqual(check_id, status_latch_dut_2, c_transmitted, "DUT 2 transmitted (iter " & to_string(iter) & ")");
+          AffirmIfEqual(check_id, status_latch,        c_lost_arb,   "DUT 1 lost arb (iter "    & to_string(iter) & ")");
         end if;
       end loop;
 
-      -- Clear latches for downstream tests.
-      s_status_latch_rst       <= true;
+      s_status_latch_rst_dut_1       <= true;
       s_status_latch_rst_dut_2 <= true;
       WaitForClock(clk, 2);
-      s_status_latch_rst       <= false;
+      s_status_latch_rst_dut_1       <= false;
       s_status_latch_rst_dut_2 <= false;
     end procedure test_lost_arb;
 
     --------------------------------------------------------------------------
     -- Test 4: Bus-off entry and recovery.
-    --
-    -- Phase 1-2: engage error injection via s_dut_1_rx_recessive.
-    --   Creates bit errors on every dominant drive (TEC += 8, no ISO
-    --   8.1.4.2.c exemption, works past error-passive).  DUT 2 stays active
-    --   throughout so it is already in s_bus_idle when DUT 1 exits bus_off.
-    -- ACK errors alone are not sufficient: ISO 8.1.4.2.c Exception 1 exempts
-    -- error-passive nodes whose passive flag saw no dominant, capping TEC at 128.
-    --
-    -- Phase 3: lift both overrides; bus goes idle, FCE counts 128 x 11
-    -- recessive bits and exits bus_off (ISO 8.1.4.5, ~1.41 ms).
-    --
+    -- Phase 1-2: s_dut_1_rx_recessive forces bit errors on every dominant drive forcing DUT 1 dominant.
+    -- Phase 3: lift injection; FCE counts 128 x 11 recessive bits and recovers.
     -- Phase 4: confirm normal TX/RX resumes.
     --------------------------------------------------------------------------
     procedure test_bus_off is
@@ -845,57 +717,45 @@ begin
       variable v_send_count : natural := 0;
     begin
       test_num <= 4;
-      Print("--------------------------------------------------------------------------");
-      Print("Test 4: Bus-off Recovery");
-      Print("--------------------------------------------------------------------------");
-
       s_bus_off_clear <= true;
       WaitForClock(clk, 2);
       s_bus_off_clear <= false;
 
-      -- Phase 1: engage error injection.  DUT 2 remains active; it will
-      -- accumulate REC and become error-passive, but that does not prevent it
-      -- from ACKing a correct Phase 4 frame.  Keeping DUT 2 active avoids
-      -- any s_bus_reintegration timing race when DUT 1 drives SOF after
-      -- bus_off recovery.
+      -- Phase 1: engage bit-error injection.
       s_dut_1_rx_recessive <= true;
       WaitForClock(clk, 10);
 
-      -- Phase 2: submit frames until DUT 1 reaches bus_off.
+      -- Phase 2: drive DUT 1 to bus-off.
       gen_frame(v_frame, v_metadata, v_last_byte);
       while not s_bus_off_seen loop
         for i in 0 to v_last_byte loop
           exit when s_bus_off_seen;
-          if (i = 0) then
-            Send(tx_llc_rec, v_frame(i), c_avalon_sop_byte);
-          elsif (i < v_last_byte) then
-            Send(tx_llc_rec, v_frame(i), c_avalon_byte);
+          if i = 0 then
+            Send(tx_llc_rec_dut_1, v_frame(i), c_avalon_sop_byte);
+          elsif i < v_last_byte then
+            Send(tx_llc_rec_dut_1, v_frame(i), c_avalon_byte);
           else
-            Send(tx_llc_rec, v_frame(i), c_avalon_eop_byte);
+            Send(tx_llc_rec_dut_1, v_frame(i), c_avalon_eop_byte);
           end if;
         end loop;
         v_send_count := v_send_count + 1;
       end loop;
+      AffirmIf(test_id, s_bus_off_seen, "Bus-off after " & to_string(v_send_count) & " sends");
 
-      AffirmIf(test_id, s_bus_off_seen, "Bus-off entered after " & to_string(v_send_count) & " sends");
-
-      -- Phase 3: lift bit-error injection.
-      -- Note: p_test_ctrl is unblocked from Send only after the post-recovery
-      -- garbage frame completes (serializer transfer_status /= c_ongoing).
-      -- By that point bus_off may already have deasserted, so guard the wait.
+      -- Phase 3: lift injection; wait for FCE bus-off recovery (~1.41 ms).
       s_dut_1_rx_recessive <= false;
       if llc_fce_o_dut_1.bus_off /= '0' then
         wait until llc_fce_o_dut_1.bus_off = '0';
       end if;
       AffirmIf(test_id, llc_fce_o_dut_1.bus_off = '0', "Bus-off recovered");
 
-      -- Phase 4: DUT 1 completed bus_reintegration before the garbage frame
-      -- ran; DUT 2 never left s_bus_idle.  Allow s_intermission to finish,
-      -- clear stale status latches, then send the confirmation frame.
-      WaitForClock(clk, (c_bus_idle_condition_width + 2) * (c_bit_time + 1));
-      s_status_latch_rst <= true;
+      -- Phase 4: confirm normal TX/RX.
+      if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing then
+        wait until llc_to_mac_tx_d2s_dut_1.transfer_status = c_ongoing for 5 ms;
+      end if;
+      s_status_latch_rst_dut_1 <= true;
       WaitForClock(clk, 2);
-      s_status_latch_rst <= false;
+      s_status_latch_rst_dut_1 <= false;
       gen_frame(v_frame, v_metadata, v_last_byte);
       submit_and_verify(v_frame, v_last_byte, v_metadata, 0);
     end procedure test_bus_off;
@@ -909,14 +769,8 @@ begin
       WriteBin(ide_cov);
       WriteBin(fdf_cov);
       WriteBin(dlc_cov);
-      if (EndOfTestReports(ReportAll => true) = 0) then
-        Print("--------------------------------------------------------------------------");
-        Print("Test Pass!");
-        Print("--------------------------------------------------------------------------");
-      else
-        Print("--------------------------------------------------------------------------");
-        Print("Test Fail!");
-        Print("--------------------------------------------------------------------------");
+      if (EndOfTestReports(ReportAll => true) /= 0) then
+        Alert(test_id, "Test Fail!", ERROR);
       end if;
     end procedure report_results;
 

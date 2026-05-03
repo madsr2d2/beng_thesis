@@ -562,14 +562,13 @@ begin
             -- s_fdf_r1_r0: FDF (FD) / r1 (CC ext) / r0 (CC base) bit.
             -----------------------------------------------------------------
             when s_fdf_r1_r0 =>
+              -- Transmitter drives the FDF bit sourced from the llc_metadata
               if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := mac_ser_i.llc_metadata.fdf;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                -- TDC startup hint: SP of FDF, next bit is the FD `res`
-                -- (PCS begins TDC measurement at that boundary). TX-only
-                -- and only on FDF=recessive (FD frame).
-                if is_transmitter and pcs_i.rx_data = c_recessive then
+                -- Signal PCS to start the TDC measurement on the next dominant edge.
+                if is_transmitter then
                   pcs_o.next_bit_is_res <= '1';
                 end if;
                 llc_frame(c_conf_0_offset)(c_llc_frame_fdf) <= pcs_i.rx_data;
