@@ -856,23 +856,7 @@ begin
                 v_drive_polarity := c_recessive;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                -- Transmitter 
-                if is_transmitter then
-                  if bit_count = c_eof_field_width - 1 then
-                    mac_ser_o.transfer_status <= c_transmitted;
-                    was_previous_frame_tx     <= true;
-                    fce_o.successful_transfer <= '1';
-                    state                     <= s_intermission;
-                    bit_count                 <= 0;
-                  elsif bit_count = c_eof_field_width - 2 then
-                    llc_stream_start <= true;
-                    byte_index       <= 0;
-                    llc_frame_len    <= c_data_offset + data_len;
-                    bit_count        <= bit_count + 1;
-                  else
-                    bit_count <= bit_count + 1;
-                  end if;
-                else
+                  -- Check for form error (dominant bits during the EOF field)
                   if pcs_i.rx_data = c_dominant then
                     fce_o.sending_error_overload_flag <= '1';
                     fce_o.error                       <= '1';
@@ -891,17 +875,21 @@ begin
                     if bit_count = c_eof_field_width - 1 then
                       state     <= s_intermission;
                       bit_count <= 0;
-                    elsif bit_count = c_eof_field_width - 2 then
                       fce_o.successful_transfer <= '1';
+                      if is_transmitter then 
+                        mac_ser_o.transfer_status <= c_transmitted;
+                        was_previous_frame_tx     <= true;
+                      else
                       llc_stream_start          <= true;
                       byte_index                <= 0;
                       llc_frame_len             <= c_data_offset + data_len;
                       bit_count                 <= bit_count + 1;
+                    end if;
                     else
                       bit_count <= bit_count + 1;
                     end if;
                   end if;
-                end if;
+                -- end if;
               end if;
 
             -----------------------------------------------------------------
