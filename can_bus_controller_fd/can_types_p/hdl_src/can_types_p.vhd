@@ -29,6 +29,7 @@ use ieee.math_real.all;
 
 use work.pk_man_global.all;
 use work.pk_eth_st;
+
 package pk_can_types is
 
   ---------------------------------------------------------------------------
@@ -431,12 +432,12 @@ package pk_can_types is
 
   type t_legacy_frame is array (0 to c_legacy_frame_len - 1) of std_logic_vector(c_byte_width - 1 downto 0);
 
-  -- Config byte 0 bit positions: [7]=IDE, [6]=FDF, [5]=FTYP, [4]=ESI, [3]=BRS
+  -- Config byte 0 bit positions: [7]=IDE, [6]=FDF, [4]=FTYP, [3]=ESI, [2]=BRS
   constant c_llc_frame_ide  : natural := 7;
   constant c_llc_frame_fdf  : natural := 6;
   constant c_llc_frame_ftyp : natural := 5;
   constant c_llc_frame_esi  : natural := 4;
-  constant c_llc_frame_brs  : natural := 5;
+  constant c_llc_frame_brs  : natural := 3;
 
   -- Config byte 1 bit positions: [7:4]=DLC
   constant c_llc_frame_dlc_start : natural := 7;
@@ -453,6 +454,13 @@ package pk_can_types is
 
   -- Convert DLC to actual data length in bytes (ISO Table 5)
   function dlc_to_data_length(dlc : natural; fdf : std_logic) return natural;
+
+  -- CRC field length in bits (ISO 6.6.4.4 / 6.6.11.5).
+  -- CC frames: CRC15. FD with <= 16 data bytes: CRC17. FD > 16 bytes: CRC21.
+  function f_crc_length(data_len : natural; fdf : std_logic) return natural;
+
+  -- CRC polynomial selector matching f_crc_length.
+  function f_crc_poly_select(data_len : natural; fdf : std_logic) return std_logic_vector;
 
   -- Binary-to-Gray conversion (ISO 6.6.11.5: Stuff Bit Count encoding)
   function f_to_gray(v : std_logic_vector) return std_logic_vector;
@@ -483,6 +491,29 @@ package body pk_can_types is
       when others => return 0;
     end case;
   end function dlc_to_data_length;
+
+  function f_crc_length(data_len : natural; fdf : std_logic) return natural is
+  begin
+    -- ISO 6.6.4.4 / 6.6.11.5
+    if fdf = '0' then
+      return c_crc_15_length;
+    elsif data_len < c_crc_17_length then
+      return c_crc_17_length;
+    else
+      return c_crc_21_length;
+    end if;
+  end function f_crc_length;
+
+  function f_crc_poly_select(data_len : natural; fdf : std_logic) return std_logic_vector is
+  begin
+    if fdf = '0' then
+      return c_crc_poly_15_sel;
+    elsif data_len < c_crc_17_length then
+      return c_crc_poly_17_sel;
+    else
+      return c_crc_poly_21_sel;
+    end if;
+  end function f_crc_poly_select;
 
   function f_to_gray(v : std_logic_vector) return std_logic_vector is
     variable v_result : std_logic_vector(v'range);

@@ -77,9 +77,13 @@ begin
               end if;
             else                                                                -- Receiver errors
               if ((mac_i.error and mac_i.sending_error_overload_flag) or mac_i.primary_error or mac_i.error_delimiter_too_late) then
-                receiver_error_count <= receiver_error_count + 8;               -- ISO 8.1.4.2,b/e/f (REC += 8)
+                if (receiver_error_count <= c_bus_off_threshold) then
+                  receiver_error_count <= receiver_error_count + 8;             -- ISO 8.1.4.2,b/e/f (REC += 8); clamped at c_bus_off_threshold + 8 to stay in range
+                end if;
               elsif mac_i.error then
-                receiver_error_count <= receiver_error_count + 1;               -- ISO 8.1.4.2,a (REC += 1)
+                if (receiver_error_count <= (c_bus_off_threshold + 7)) then
+                  receiver_error_count <= receiver_error_count + 1;             -- ISO 8.1.4.2,a (REC += 1); clamped at c_bus_off_threshold + 8
+                end if;
               elsif (mac_i.successful_transfer) then
                 if (receiver_error_count > c_error_count_threshold) then        -- ISO 8.1.4.2,h (REC adjustment)
                   receiver_error_count <= c_error_count_threshold;
