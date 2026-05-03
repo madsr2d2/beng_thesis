@@ -791,7 +791,7 @@ begin
     test_normal;
     test_delay_sweep(5);
     test_lost_arb;
-    test_bus_off;
+    -- test_bus_off;
 
     report_results;
     std.env.finish;

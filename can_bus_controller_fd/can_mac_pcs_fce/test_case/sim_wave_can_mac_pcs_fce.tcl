@@ -36,137 +36,70 @@ add wave -vgroup /can_mac_pcs_fce_tb/u_dut_2 \
 	/can_mac_pcs_fce_tb/u_dut_2/fce_to_pcs \
 	/can_mac_pcs_fce_tb/u_dut_2/mac_to_pcs \
 	/can_mac_pcs_fce_tb/u_dut_2/pcs_to_mac
-add wave -vgroup /can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/clk_i \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/rst_i \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/mac_ser_i \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/mac_ser_o \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/pcs_i \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/pcs_o \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/bs_i \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/bs_o \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/bs_rst \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/crc_i \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/crc_o \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/crc_rst \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/fce_i \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/fce_o \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/state \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/overload \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/bit_count \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/polarity_history \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/data_len \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/crc_length \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/was_previous_frame_tx \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/ack_success_seen \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/secondary_sample_point_error_pending \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/skip_sof \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/ack_error_caused_flag \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/saw_dominant_during_flag \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_tx/u_can_mac_fsm_tx/dominant_run_count
-add wave -vgroup /can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/clk_i \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/rst_i \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/llc_i \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/llc_o \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/pcs_i \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/pcs_o \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/bs_i \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/bs_o \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/bs_rst \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/crc_i \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/crc_o \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/crc_rst \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/fce_i \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/fce_o \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/transmitting_i \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/fsm_state \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/bit_count \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/byte_index \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/stream_index \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/bit_index \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/data_len \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/crc_length \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/llc_frame_len \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/llc_frame \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/crc_mismatch \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/llc_stream_start \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/llc_stream_done \
-	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_mac_rx/u_can_mac_fsm_rx/overload
-add wave -vgroup /can_mac_pcs_fce_tb/u_dut_2 \
-	/can_mac_pcs_fce_tb/u_dut_2/clk \
-	/can_mac_pcs_fce_tb/u_dut_2/rst \
-	/can_mac_pcs_fce_tb/u_dut_2/tx_llc_i \
-	/can_mac_pcs_fce_tb/u_dut_2/tx_llc_o \
-	/can_mac_pcs_fce_tb/u_dut_2/rx_llc_i \
-	/can_mac_pcs_fce_tb/u_dut_2/rx_llc_o \
-	/can_mac_pcs_fce_tb/u_dut_2/llc_fce_i \
-	/can_mac_pcs_fce_tb/u_dut_2/llc_fce_o \
-	/can_mac_pcs_fce_tb/u_dut_2/tx_o \
-	/can_mac_pcs_fce_tb/u_dut_2/rx_i \
-	/can_mac_pcs_fce_tb/u_dut_2/mac_to_fce \
-	/can_mac_pcs_fce_tb/u_dut_2/fce_to_mac \
-	/can_mac_pcs_fce_tb/u_dut_2/pcs_to_fce \
-	/can_mac_pcs_fce_tb/u_dut_2/fce_to_pcs \
-	/can_mac_pcs_fce_tb/u_dut_2/mac_to_pcs \
-	/can_mac_pcs_fce_tb/u_dut_2/pcs_to_mac
-add wave -vgroup /can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/clk_i \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/rst_i \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/mac_ser_i \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/mac_ser_o \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/pcs_i \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/pcs_o \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/bs_i \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/bs_o \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/bs_rst \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/crc_i \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/crc_o \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/crc_rst \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/fce_i \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/fce_o \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/state \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/overload \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/bit_count \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/polarity_history \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/data_len \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/crc_length \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/was_previous_frame_tx \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/ack_success_seen \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/secondary_sample_point_error_pending \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/skip_sof \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/ack_error_caused_flag \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/saw_dominant_during_flag \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_tx/u_can_mac_fsm_tx/dominant_run_count
-add wave -expand -vgroup /can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/clk_i \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/rst_i \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/llc_i \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/llc_o \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/pcs_i \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/pcs_o \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/bs_i \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/bs_o \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/bs_rst \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/crc_i \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/crc_o \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/crc_rst \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/fce_i \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/fce_o \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/transmitting_i \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/fsm_state \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/bit_count \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/byte_index \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/stream_index \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/bit_index \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/data_len \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/crc_length \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/llc_frame_len \
-	( -bin /can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/llc_frame ) \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/crc_mismatch \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/llc_stream_start \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/llc_stream_done \
-	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_mac_rx/u_can_mac_fsm_rx/overload
+add wave -vgroup /can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/clk_i \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/rst_i \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/mac_ser_i \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/mac_ser_o \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/llc_i \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/llc_o \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/pcs_i \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/pcs_o \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/bs_i \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/bs_o \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/bs_rst \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/crc_i \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/crc_o \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/crc_rst \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/fce_i \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/fce_o \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/state \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/is_transmitter \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/bit_count \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/data_len \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/crc_length \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/overload \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/in_data_phase \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/drive_bit_d \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/drive_bit \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/transmitted_bits_shift_reg \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/was_previous_frame_tx \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/ack_success_seen \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/bit_error_at_ssp \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/ack_error_caused_flag \
+	/can_mac_pcs_fce_tb/u_dut_1/u_mac/u_can_mac_fsm/saw_dominant_during_flag
+add wave -expand -vgroup /can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/clk_i \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/rst_i \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/mac_ser_i \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/mac_ser_o \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/llc_i \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/llc_o \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/pcs_i \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/pcs_o \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/bs_i \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/bs_o \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/bs_rst \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/crc_i \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/crc_o \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/crc_rst \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/fce_i \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/fce_o \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/state \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/is_transmitter \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/bit_count \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/data_len \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/crc_length \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/overload \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/in_data_phase \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/drive_bit_d \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/drive_bit \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/transmitted_bits_shift_reg \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/was_previous_frame_tx \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/ack_success_seen \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/bit_error_at_ssp \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/ack_error_caused_flag \
+	/can_mac_pcs_fce_tb/u_dut_2/u_mac/u_can_mac_fsm/saw_dominant_during_flag
 wv.cursors.add -time 46460ns -name {Default cursor}
 wv.cursors.setactive -name {Default cursor}
 wv.zoom.range -from 0fs -to 1472205022ps

@@ -340,11 +340,7 @@ begin
                   mac_o.rx_data                <= rx_i;
                   ssp_seen                     <= '1';
 
-                  if tdc_delay > 0 then
-                    mac_o.tdc_delay <= std_logic_vector(to_unsigned(tdc_delay - 1, mac_o.tdc_delay'length));
-                  else
-                    mac_o.tdc_delay <= std_logic_vector(to_unsigned(tdc_delay, mac_o.tdc_delay'length));
-                  end if;
+                  mac_o.tdc_delay <= std_logic_vector(to_unsigned(tdc_delay, mac_o.tdc_delay'length));
                 end if;
               ---------------------------------------------------------------------------
 
