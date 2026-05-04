@@ -295,6 +295,7 @@ begin
           ack_success_seen                     <= false;
           ack_error_caused_flag                <= false;
           saw_dominant_during_flag             <= false;
+          crc_error_detected                   <= false;
         end if;
 
         -----------------------------------------------------------------

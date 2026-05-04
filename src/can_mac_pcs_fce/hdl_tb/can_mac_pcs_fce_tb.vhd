@@ -524,12 +524,12 @@ begin
         end if;
       end loop;
 
-      Print("    [sv] waiting for c_transmitted");
+      -- Print("    [sv] waiting for c_transmitted");
       Check(tx_llc_rec_dut_1, std_logic_vector(resize(unsigned(c_transmitted), c_rec_width)));
-      Print("    [sv] c_transmitted received; waiting for RX frame");
+      -- Print("    [sv] c_transmitted received; waiting for RX frame");
       Check(llc_rec,
         std_logic_vector(to_unsigned(v_exp_len, c_rec_width)), std_logic_vector(to_unsigned(v_frame_count, c_rec_width)));
-      Print("    [sv] RX frame verified");
+      -- Print("    [sv] RX frame verified");
     end procedure submit_and_verify;
 
     --------------------------------------------------------------------------
@@ -578,10 +578,10 @@ begin
         -- Drain in-flight propagation events at the previous delays.
         WaitForClock(clk, 10 * c_bit_time);
 
-        Print("--- Delay config " & to_string(i)
-              & ": tx="  & to_string(c_delay_sweep(i).tx_d)
-              & " rx="   & to_string(c_delay_sweep(i).rx_d)
-              & " bus="  & to_string(c_delay_sweep(i).bus_d));
+        -- Print("--- Delay config " & to_string(i)
+        --       & ": tx="  & to_string(c_delay_sweep(i).tx_d)
+        --       & " rx="   & to_string(c_delay_sweep(i).rx_d)
+        --       & " bus="  & to_string(c_delay_sweep(i).bus_d));
 
         for j in 1 to num_frames_per_cfg loop
           v_frame_count := v_frame_count + 1;
@@ -723,6 +723,7 @@ begin
       -- Phase 2: drive DUT 1 to bus-off.
       gen_frame(v_frame, v_metadata, v_last_byte);
       while not s_bus_off_seen loop
+        v_send_count := v_send_count + 1;
         for i in 0 to v_last_byte loop
           exit when s_bus_off_seen;
           if i = 0 then
@@ -733,32 +734,29 @@ begin
             Send(tx_llc_rec_dut_1, v_frame(i), c_avalon_eop_byte);
           end if;
         end loop;
-        v_send_count := v_send_count + 1;
+        -- Yield for at least one bit time so s_bus_off_seen can propagate.
+        WaitForClock(clk, c_bit_time);
       end loop;
       AffirmIf(test_id, s_bus_off_seen, "Bus-off after " & to_string(v_send_count) & " sends");
-      Print("--- Phase 2 done: bus_off seen after " & to_string(v_send_count) & " sends");
 
-      -- Phase 3: lift injection; wait for FCE bus-off recovery (~1.41 ms).
+      -- Phase 3: lift injection; wait for FCE bus-off recovery (128 x 11 bit times).
       s_dut_1_rx_recessive <= false;
-      Print("--- Phase 3: waiting for bus_off deassert");
       if llc_fce_o_dut_1.bus_off /= '0' then
-        wait until llc_fce_o_dut_1.bus_off = '0';
+        for t4_slice in 1 to 40 loop
+          wait until llc_fce_o_dut_1.bus_off = '0' for 100 us;
+          exit when llc_fce_o_dut_1.bus_off = '0';
+        end loop;
       end if;
       AffirmIf(test_id, llc_fce_o_dut_1.bus_off = '0', "Bus-off recovered");
-      Print("--- Phase 3 done: bus_off deasserted");
 
       -- Phase 4: DUT 1 completed bus_reintegration; allow intermission to
       -- finish, clear stale status latches, then send the confirmation frame.
-      Print("--- Phase 4: WaitForClock");
       WaitForClock(clk, (c_bus_idle_condition_width + 2) * (c_bit_time + 1));
-      Print("--- Phase 4: resetting status latch");
       s_status_latch_rst_dut_1 <= true;
       WaitForClock(clk, 2);
       s_status_latch_rst_dut_1 <= false;
-      Print("--- Phase 4: submit_and_verify");
       gen_frame(v_frame, v_metadata, v_last_byte);
       submit_and_verify(v_frame, v_last_byte, v_metadata, 0);
-      Print("--- Phase 4 done");
     end procedure test_bus_off;
 
     --------------------------------------------------------------------------
@@ -791,7 +789,7 @@ begin
     test_normal;
     test_delay_sweep(5);
     test_lost_arb;
-    -- test_bus_off;
+    test_bus_off;
 
     report_results;
     std.env.finish;
