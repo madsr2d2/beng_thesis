@@ -266,13 +266,11 @@ begin
         end if;
 
         -- pre-case -------------------------------------------------
-        if is_transmitter then
-
-          -- SSP bit-error (ISO 7.3.4): always fires before SP, SP branch consumes and clears it.
+        if is_transmitter then -- Transmitter branch
+          -- SSP bit-error (ISO 7.3.4): always fires before SP.
           if pcs_i.secondary_sample_point = '1' and transmitted_bits_shift_reg(to_integer(unsigned(pcs_i.tdc_delay))) /= pcs_i.rx_data then
             bit_error_at_ssp <= true;
           end if;
-
           if pcs_i.sample_point = '1' then
             -- Lost arbitration: Transmitter becomes receiver for the rest of the frame.
             if state = s_arbitration and transmitted_bits_shift_reg(0) = c_recessive and pcs_i.rx_data = c_dominant then
@@ -326,15 +324,14 @@ begin
             v_skip_case      := true;
           end if;
 
-        else  -- receiver
+        else  -- Receiver branch
 
-          -- Hard sync: receivers re-synchronise in quiet/waiting states and at the dominant
-          -- res bit edge. Transmitters never hard sync. They drive the bus.
+          -- Hard sync: receivers re-synchronise in quiet/waiting states and at the dominant res bit edge.
           pcs_o.do_hard_sync <= '1' when state = s_intermission or state = s_bus_idle or state = s_suspend_transmission or state = s_res_r0 else '0';
 
           if pcs_i.sample_point = '1' then
             if bs_i.valid = '1' and bs_i.data /= pcs_i.rx_data and v_in_dynamic_stuff then
-              -- RX stuff-error (ISO 6.5.5)
+              -- Receiver stuff-error (ISO 6.6.21.2.b)
               fce_o.sending_error_overload_flag <= '1';
               fce_o.error                       <= '1';
               pcs_o.data_phase_stop             <= '1';
@@ -346,7 +343,7 @@ begin
               v_skip_case                       := true;
 
             elsif bs_i.valid = '1' then
-              -- RX SP stuff-bit: feed BS/CRC from sampled bus
+              -- Receiver stuff-bit: feed BS/CRC from bus
               bs_o.valid <= '1';
               bs_o.data  <= pcs_i.rx_data;
               if v_in_dynamic_stuff then
@@ -356,7 +353,7 @@ begin
               v_skip_case := true;
 
             elsif state = s_eof and bit_count = 0 and crc_error_detected then
-              -- RX CRC error: fires at first EOF bit (ISO 10.4.2.1)
+              -- Receiver CRC error: fires at first EOF bit (ISO 6.6.21.3.1)
               ack_error_caused_flag      <= true;
               pcs_o.tx_data              <= not fce_i.error_active;
               pcs_o.data_phase_stop      <= '1';
@@ -367,7 +364,7 @@ begin
               v_skip_case                := true;
 
             elsif state = s_eof and pcs_i.rx_data = c_dominant then
-              -- EOF dominant: overload at last bit, form error elsewhere (ISO 10.4.2.1 / 6.6.21.3.2)
+              -- EOF dominant: overload at last bit, form error elsewhere (ISO 6.6.21.2.d / 6.6.21.3.2.b)
               if bit_count = c_eof_field_width - 1 then
                 v_drive_polarity := c_dominant;
                 overload         <= true;
@@ -383,7 +380,7 @@ begin
               v_skip_case                       := true;
 
             elsif state = s_intermission and bit_count < c_intermission_width - 1 and pcs_i.rx_data = c_dominant then
-              -- Intermission overload: dominant at bits 0 or 1 (ISO 6.6.21.3.2 b)
+              -- Intermission overload: dominant at bits 0 or 1 (ISO 6.6.21.3.2.b)
               fce_o.sending_error_overload_flag <= '1';
               pcs_o.tx_data                     <= c_dominant;
               state                             <= s_error_flag;
@@ -392,7 +389,7 @@ begin
               v_skip_case                       := true;
 
             elsif v_in_fixed_format_field and pcs_i.rx_data = c_dominant then
-              -- Form error: CRC delimiter or ACK delimiter must be recessive (ISO 10.4.2.1)
+              -- Form error: CRC delimiter or ACK delimiter must be recessive (ISO Figure 2)
               fce_o.sending_error_overload_flag <= '1';
               fce_o.error                       <= '1';
               pcs_o.data_phase_stop             <= '1';
@@ -404,7 +401,7 @@ begin
               v_skip_case                       := true;
 
             elsif state = s_res_r0 and pcs_i.rx_data = c_recessive then
-              -- Form error: reserved bit must be dominant (ISO 10.4.2.1)
+              -- Form error: reserved bit must be dominant (ISO Figure 2)
               fce_o.sending_error_overload_flag <= '1';
               fce_o.error                       <= '1';
               v_drive_polarity                  := not fce_i.error_active;
