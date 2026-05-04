@@ -11,16 +11,12 @@
 --              idle_condition strobes for bus-off recovery counting (ISO 8.1.4.4).
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-04-16  TMYAES:   [TRIT-4336] [FPGA] CAN FD extensions of TRIT-3880
---
+--                2026-04-16  [TRIT-4336] [FPGA] CAN FD extensions of TRIT-3880
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 library ieee;
-  use ieee.std_logic_1164.all;
-  use ieee.numeric_std.all;
-
-  use work.pk_man_global.all;
-  use work.pk_can_types.all;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.pk_can_types.all;
 
 entity can_pcs is
   ---------------------------------------------------------------------------
@@ -42,7 +38,7 @@ entity can_pcs is
   --
   -- Shared parameters for nominal and data phases:
   --  T_clk (System clock period)                                = 10 ns (System clock period)
-  --  Prescaler (Number of system clock cycles per time quantum) =  2
+  --  Prescaler (Number of system clock cycles per time quantum) =  2 
   --  TQ = Prescaler x T_clk                                     = 20 ns
   --  SP (as a fraction of the bit time)                         =  0.8
 
@@ -67,7 +63,7 @@ entity can_pcs is
   --   Phase_Seg1 (floor(Prop_Seg+Phase_Seg1/2))     =   3 TQ
   --   SJW (1 <= SJW <= min(Phase_Seg1, Phase_Seg2)) =   2 TQ
   ---------------------------------------------------------------------------
-  generic (
+  generic(
     gc_prescaler       : natural := 2;
     gc_nom_prop_seg    : natural := 40;
     gc_nom_phase_seg1  : natural := 39;
@@ -78,18 +74,18 @@ entity can_pcs is
     gc_nom_sjw         : natural := 4;
     gc_data_sjw        : natural := 2
   );
-  port (
-    clk_i : in    std_logic;
-    rst_i : in    std_logic;
+  port(
+    clk_i : in  std_logic;
+    rst_i : in  std_logic;
     ---
-    mac_i : in    t_can_mac_pcs_if_m2s;
-    mac_o : out   t_can_mac_pcs_if_s2m;
+    mac_i : in  t_can_mac_pcs_if_m2s;
+    mac_o : out t_can_mac_pcs_if_s2m;
     ---
-    fce_i : in    t_can_fce_pcs_if_m2s;
-    fce_o : out   t_can_pcs_fce_if_s2m;
+    fce_i : in  t_can_fce_pcs_if_m2s;
+    fce_o : out t_can_pcs_fce_if_s2m;
     ---
-    tx_o  : out   std_logic;
-    rx_i  : in    std_logic
+    tx_o  : out std_logic;
+    rx_i  : in  std_logic
   );
 end entity can_pcs;
 

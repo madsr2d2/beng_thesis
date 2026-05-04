@@ -12,19 +12,12 @@
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
-  use ieee.std_logic_1164.all;
-  use ieee.numeric_std.all;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.pk_can_types.all;
 
 library osvvm;
-  context osvvm.OsvvmContext;
-  use osvvm.ScoreboardPkg_slv.all;
-library osvvm_common;
-  context osvvm_common.OsvvmCommonContext;
-
-use work.pk_man_global.all;
-use work.common_register_interface_pkg.all;
-use work.common_tb_pkg.all;
-use work.pk_can_types.all;
+context osvvm.OsvvmContext;
 
 entity can_fce_tb is
   generic(
@@ -58,7 +51,7 @@ architecture tb of can_fce_tb is
   signal rule_f           : AlertLogIDType;
   signal rule_g           : AlertLogIDType;
   signal rule_h           : AlertLogIDType;
-  signal init_barrier     : integer_barrier            := 1;
+  signal init_barrier     : std_logic            := '0';
 
   ----------------------------------------------------------------------------
   -- Pulse procedures
@@ -169,7 +162,6 @@ begin
     variable v_bus_off          : AlertLogIDType;
     variable v_bus_off_recovery : AlertLogIDType;
   begin
-    RV.InitSeed(random_seed);
     SetAlertStopCount(ERROR, 1);
     v_test_id          := NewID("can_fce");
     v_bus_off          := NewID("can_bus_off");

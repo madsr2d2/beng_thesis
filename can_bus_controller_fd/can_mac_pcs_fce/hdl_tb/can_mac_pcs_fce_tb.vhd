@@ -2,37 +2,35 @@
 -- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
--- Requirements:
+-- Requirements:  
 --
--- Description:   Testbench for can_mac_pcs_fce.
---                  p_tx_llc_vc       - Avalon-ST source VC driving LLC TX frame bytes to DUT 1.
---                  p_tx_llc_vc_dut_2 - Avalon-ST source VC driving LLC TX frame bytes to DUT 2.
---                  p_status_latch       - Continuous monitor latching DUT 1 transfer status.
---                  p_status_latch_dut_2 - Continuous monitor latching DUT 2 transfer status.
---                  p_test_ctrl       - Coverage-driven test sequencer (IDE, FDF, DLC bins).
+-- Description: Test bench for CAN MAC, PCS and FCE integration.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-04-27  MRDSA:    Local port of company can_mac_pcs_fce_tb.
+--                2026-05-02  TMYAES:   [TRIT-4355] [FPGA] Controlling FSM form MAC layer in CAN-FD module
+--
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
-  use ieee.std_logic_1164.all;
-  use ieee.numeric_std.all;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 library osvvm;
-  context osvvm.OsvvmContext;
-  use osvvm.ScoreboardPkg_slv.all;
+context osvvm.OsvvmContext;
+use osvvm.ScoreboardPkg_slv.all;
 library osvvm_common;
-  context osvvm_common.OsvvmCommonContext;
+context osvvm_common.OsvvmCommonContext;
 
 use work.pk_man_global.all;
 use work.common_register_interface_pkg.all;
 use work.common_tb_pkg.all;
 use work.pk_can_types.all;
+use work.pk_can_tb.all;
+
 
 entity can_mac_pcs_fce_tb is
   generic(
-    gc_TbTimeOut   : time := 1 sec;
+    gc_TbTimeOut   : time := 500 ms;
     gc_TbClkPeriod : time := 10 ns
   );
 end entity can_mac_pcs_fce_tb;
@@ -189,7 +187,6 @@ begin
     variable v_fdf_cov  : CoverageIDType;
     variable v_dlc_cov  : CoverageIDType;
   begin
-    RV.InitSeed(random_seed);
     SetAlertStopCount(ERROR, 1);
     SetLogEnable(DEBUG, false);
     v_test_id            := NewID("can_mac_pcs_fce");
