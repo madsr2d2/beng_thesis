@@ -65,24 +65,7 @@ begin
     end if;
   end process p_crc;
 
-  -- Combinational output: present the updated CRC in the same cycle as
-  -- the data input, matching the zero-latency interface the wrapper expects.
-  p_crc_out : process (all) is
-    variable v_fb      : std_logic;
-    variable v_shifted : std_logic_vector(gc_crc_width - 1 downto 0);
-  begin
-    if (data_valid_i = '1') then
-      v_fb      := data_i(0) xor crc_reg(crc_reg'high);
-      v_shifted := crc_reg sll 1;
-      if (v_fb = '1') then
-        crc_o <= v_shifted xor gc_crc_poly(gc_crc_width - 1 downto 0);
-      else
-        crc_o <= v_shifted;
-      end if;
-    else
-      crc_o <= crc_reg;
-    end if;
-  end process p_crc_out;
+  crc_o <= crc_reg;
 
 end architecture rtl;
 
@@ -107,8 +90,6 @@ architecture rtl of can_mac_crc is
   signal crc15_out : std_logic_vector(c_crc_15_length - 1 downto 0);
   signal crc17_out : std_logic_vector(c_crc_17_length - 1 downto 0);
   signal crc21_out : std_logic_vector(c_crc_21_length - 1 downto 0);
-  signal crc_mux   : std_logic_vector(c_crc_21_length - 1 downto 0);
-
 begin
 
 
@@ -170,38 +151,24 @@ begin
     );
 
   -- Combinatorial width-select mux: zero-extends CRC15/17 to the 21-bit output width.
-  -- gen_crc (ip_lib) registers its accumulator on each rising edge (crc_r); this mux
-  -- sits between that register and p_output_reg so the register captures the correctly
-  -- selected and padded value one cycle after the last valid bit is accumulated, giving
-  -- the FSM the complete CRC when drive_bit fires for CRC[0].
+  -- gen_crc registers crc_r on each rising edge; using a combinatorial output here
+  -- ensures crc_o.crc settles at the same clock cycle as crc_r, giving the FSM the
+  -- complete CRC when drive_bit fires for CRC[0].
   p_crc_mux : process (all) is
   begin
 
     case crc_i.crc_poly_select is
       when c_crc_poly_15_sel =>
-        crc_mux <= crc15_out & (c_crc_21_length - 1 - c_crc_15_length downto 0 => '0');
+        crc_o.crc <= crc15_out & (c_crc_21_length - 1 - c_crc_15_length downto 0 => '0');
       when c_crc_poly_17_sel =>
-        crc_mux <= crc17_out & (c_crc_21_length - 1 - c_crc_17_length downto 0 => '0');
+        crc_o.crc <= crc17_out & (c_crc_21_length - 1 - c_crc_17_length downto 0 => '0');
       when c_crc_poly_21_sel =>
-        crc_mux <= crc21_out;
+        crc_o.crc <= crc21_out;
       when others =>
-        crc_mux <= (others => '0');
+        crc_o.crc <= (others => '0');
     end case;
 
   end process p_crc_mux;
-
-  p_output_reg : process (clk_i) is
-  begin
-
-    if rising_edge(clk_i) then
-      if rst_i = '1' then
-        crc_o.crc <= (others => '0');
-      else
-        crc_o.crc <= crc_mux;
-      end if;
-    end if;
-
-  end process p_output_reg;
 
 end architecture rtl;
 

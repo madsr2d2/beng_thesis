@@ -1,23 +1,25 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Sun May  3 14:43:03 2026
+[*] Mon May  4 09:29:51 2026
 [*]
 [dumpfile] "/home/madsr2d2/beng_thesis/sim/can_mac_pcs_fce_tb.ghw"
-[dumpfile_mtime] "Sun May  3 14:15:31 2026"
-[dumpfile_size] 229940955
+[dumpfile_mtime] "Mon May  4 09:14:38 2026"
+[dumpfile_size] 67158763
 [savefile] "/home/madsr2d2/beng_thesis/src/can_mac_pcs_fce/test_case/can_mac_pcs_fce_tb.gtkw"
-[timestart] 16810000000000
-[size] 1920 1001
+[timestart] 20922667000000
+[size] 1920 1121
 [pos] -27 -24
-*-41.487637 28363740000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-28.096994 20923520000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.can_mac_pcs_fce_tb.
 [treeopen] top.can_mac_pcs_fce_tb.u_dut_1.
-[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.tx_llc_o.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.
 [treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.fsm_to_ser.
 [treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.ser_to_fsm.
 [treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_bs.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.
 [treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.
 [treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.bs_i.
 [treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame.
 [treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.mac_ser_i.
@@ -27,9 +29,9 @@
 [treeopen] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_crc.crc_o.
 [treeopen] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame.
 [sst_width] 297
-[signals_width] 726
+[signals_width] 411
 [sst_expanded] 1
-[sst_vpaned_height] 381
+[sst_vpaned_height] 435
 @c00200
 -durt1_metadata
 @28
@@ -336,9 +338,14 @@ top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_bs.bs_o.data
 -dut2_llc_frame
 @800200
 -dut_1_essentials
-@29
-#{top.can_mac_pcs_fce_tb.u_dut_1.tx_llc_o.transfer_status[2:0]} top.can_mac_pcs_fce_tb.u_dut_1.tx_llc_o.transfer_status[2] top.can_mac_pcs_fce_tb.u_dut_1.tx_llc_o.transfer_status[1] top.can_mac_pcs_fce_tb.u_dut_1.tx_llc_o.transfer_status[0]
 @28
+top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.drive_bit
+@29
+top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.drive_bit_d
+@22
+#{top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[20:0]} top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[20] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[19] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[18] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[17] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[16] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[15] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[14] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[13] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[12] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[11] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[10] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[9] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[8] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[7] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[6] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[5] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[4] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[3] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[2] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[1] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.crc[0]
+@28
+#{top.can_mac_pcs_fce_tb.u_dut_1.tx_llc_o.transfer_status[2:0]} top.can_mac_pcs_fce_tb.u_dut_1.tx_llc_o.transfer_status[2] top.can_mac_pcs_fce_tb.u_dut_1.tx_llc_o.transfer_status[1] top.can_mac_pcs_fce_tb.u_dut_1.tx_llc_o.transfer_status[0]
 top.can_mac_pcs_fce_tb.u_dut_1.fce_to_mac.bus_off
 @420
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.is_transmitter
