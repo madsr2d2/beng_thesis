@@ -25,10 +25,9 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use ieee.math_real.all;
 
 use work.pk_man_global.all;
-use work.pk_eth_st;
+use ieee.math_real.all;
 
 package pk_can_types is
 
@@ -98,7 +97,7 @@ package pk_can_types is
   constant c_disturbed   : std_logic_vector(2 downto 0) := "110";
 
   -- TDC polarity history depth (ISO 7.3.4)
-  constant c_tdc_polarity_depth : natural := 32;
+  constant c_tdc_polarity_depth : natural := 8; -- TODO: Justify this (Don't think we need more but calculate form relevant delays)
 
   -- Retransmission (ISO 6.5.3)
   constant c_retransmission_limit : natural := 6;
@@ -154,6 +153,9 @@ package pk_can_types is
   -- 6. Interface Records
   -- Each record is followed by its reset constant.
   ---------------------------------------------------------------------------
+
+  -- Avalon-ST streaming interface (local mirror of company pk_eth_st types)
+
 
   -- Serializer -> FSM
   type t_can_mac_ser_fsm_if_s2d is record
@@ -402,7 +404,7 @@ package pk_can_types is
   ---------------------------------------------------------------------------
   -- 7. LLC Frame Format
   --
-  -- Internal format (variable length, streamed by can_llc_tx to can_mac_ser_tx):
+  -- Internal format (variable length, streamed by can_llc to can_mac_ser):
   --   Byte 0 (SOP): [7:5]=FMT, [4]=FTYP(RTR), [3]=ESI, [2]=BRS, [1:0]=00
   --   Byte 1:       [7:4]=DLC, [3:0]=0000
   --   Bytes 2-5:    ID (32-bit, MSB first, left-aligned; CB uses [31:21])
@@ -484,8 +486,7 @@ package body pk_can_types is
       when 9      => return 12;
       when 10     => return 16;
       when 11     => return 20;
-      when 12     => return 24;
-      when 13     => return 32;
+      when 12     => return 24; when 13     => return 32;
       when 14     => return 48;
       when 15     => return c_max_data_bytes;
       when others => return 0;

@@ -19,14 +19,14 @@ library ieee;
 library osvvm;
   context osvvm.OsvvmContext;
 
-entity can_mac_ser_tx_minimal_tb is
+entity can_mac_ser_minimal_tb is
   generic (
     gc_TbTimeOut   : time := 200 ms;
     gc_TbClkPeriod : time := 10 ns
   );
-end entity can_mac_ser_tx_minimal_tb;
+end entity can_mac_ser_minimal_tb;
 
-architecture tb of can_mac_ser_tx_minimal_tb is
+architecture tb of can_mac_ser_minimal_tb is
 
   constant c_clk_period : time := gc_TbClkPeriod;
 
@@ -63,7 +63,7 @@ begin
     std.env.stop(1);
   end process p_timeout;
 
-  u_dut : entity work.can_mac_ser_tx
+  u_dut : entity work.can_mac_ser
     port map (
       clk_i        => clk,
       rst_i        => reset,

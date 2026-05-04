@@ -24,7 +24,7 @@ library ieee;
   use ieee.numeric_std.all;
   use work.pk_can_types.all;
 
-entity can_llc_tx is
+entity can_llc is
   port (
     clk : in    std_logic;
     rst : in    std_logic;
@@ -41,9 +41,9 @@ entity can_llc_tx is
     fce_i : in    t_can_fce_llc_if_s2m;
     fce_o : out   t_can_llc_fce_if_m2s
   );
-end entity can_llc_tx;
+end entity can_llc;
 
-architecture rtl of can_llc_tx is
+architecture rtl of can_llc is
 
   ---------------------------------------------------------------------------
   -- States

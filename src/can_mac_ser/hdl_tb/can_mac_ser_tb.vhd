@@ -4,7 +4,7 @@
 --
 -- Requirements:
 --
--- Description:   Testbench for can_mac_ser_tx.
+-- Description:   Testbench for can_mac_ser.
 --                  p_llc_vc           - LLC Avalon-ST source VC.
 --                  p_mac_fsm_vc       - MAC FSM sink VC (bit-level self-checking and random back pressure).
 --                  p_status_checker   - Transfer status forwarding monitor.
@@ -29,14 +29,14 @@ library osvvm;
 library osvvm_common;
   context osvvm_common.OsvvmCommonContext;
 
-entity can_mac_ser_tx_tb is
+entity can_mac_ser_tb is
   generic (
     gc_TbTimeOut   : time := 500 ms;
     gc_TbClkPeriod : time := 10 ns
   );
-end entity can_mac_ser_tx_tb;
+end entity can_mac_ser_tb;
 
-architecture tb of can_mac_ser_tx_tb is
+architecture tb of can_mac_ser_tb is
 
   ----------------------------------------------------------------------------
   -- Constants
@@ -132,7 +132,7 @@ begin
   begin
     SetAlertStopCount(ERROR, 10);
     SetLogEnable(INFO, TRUE);
-    v_test_id := NewId("can_mac_ser_tx");
+    v_test_id := NewId("can_mac_ser");
     v_ide_cov := NewID("IDE Coverage", v_test_id);
     v_fdf_cov := NewID("FDF Coverage", v_test_id);
     v_dlc_cov := NewID("DLC Coverage", v_test_id);
@@ -155,7 +155,7 @@ begin
   ----------------------------------------------------------------------------
   -- DUT
   ----------------------------------------------------------------------------
-  u_dut : entity work.can_mac_ser_tx
+  u_dut : entity work.can_mac_ser
     port map (
       clk_i        => clk,
       rst_i        => reset,

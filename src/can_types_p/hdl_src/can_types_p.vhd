@@ -411,7 +411,7 @@ package pk_can_types is
   ---------------------------------------------------------------------------
   -- 7. LLC Frame Format
   --
-  -- Internal format (variable length, streamed by can_llc_tx to can_mac_ser_tx):
+  -- Internal format (variable length, streamed by can_llc to can_mac_ser):
   --   Byte 0 (SOP): [7:5]=FMT, [4]=FTYP(RTR), [3]=ESI, [2]=BRS, [1:0]=00
   --   Byte 1:       [7:4]=DLC, [3:0]=0000
   --   Bytes 2-5:    ID (32-bit, MSB first, left-aligned; CB uses [31:21])

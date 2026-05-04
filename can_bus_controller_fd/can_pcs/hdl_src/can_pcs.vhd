@@ -11,12 +11,16 @@
 --              idle_condition strobes for bus-off recovery counting (ISO 8.1.4.4).
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-04-16  [TRIT-4336] [FPGA] CAN FD extensions of TRIT-3880
+--                2026-04-16  TMYAES:   [TRIT-4336] [FPGA] CAN FD extensions of TRIT-3880
+--
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
-use work.pk_can_types.all;
+  use ieee.std_logic_1164.all;
+  use ieee.numeric_std.all;
+
+  use work.pk_man_global.all;
+  use work.pk_can_types.all;
 
 entity can_pcs is
   ---------------------------------------------------------------------------
@@ -38,7 +42,7 @@ entity can_pcs is
   --
   -- Shared parameters for nominal and data phases:
   --  T_clk (System clock period)                                = 10 ns (System clock period)
-  --  Prescaler (Number of system clock cycles per time quantum) =  2 
+  --  Prescaler (Number of system clock cycles per time quantum) =  2
   --  TQ = Prescaler x T_clk                                     = 20 ns
   --  SP (as a fraction of the bit time)                         =  0.8
 
@@ -63,7 +67,7 @@ entity can_pcs is
   --   Phase_Seg1 (floor(Prop_Seg+Phase_Seg1/2))     =   3 TQ
   --   SJW (1 <= SJW <= min(Phase_Seg1, Phase_Seg2)) =   2 TQ
   ---------------------------------------------------------------------------
-  generic(
+  generic (
     gc_prescaler       : natural := 2;
     gc_nom_prop_seg    : natural := 40;
     gc_nom_phase_seg1  : natural := 39;
@@ -74,18 +78,18 @@ entity can_pcs is
     gc_nom_sjw         : natural := 4;
     gc_data_sjw        : natural := 2
   );
-  port(
-    clk_i : in  std_logic;
-    rst_i : in  std_logic;
+  port (
+    clk_i : in    std_logic;
+    rst_i : in    std_logic;
     ---
-    mac_i : in  t_can_mac_pcs_if_m2s;
-    mac_o : out t_can_mac_pcs_if_s2m;
+    mac_i : in    t_can_mac_pcs_if_m2s;
+    mac_o : out   t_can_mac_pcs_if_s2m;
     ---
-    fce_i : in  t_can_fce_pcs_if_m2s;
-    fce_o : out t_can_pcs_fce_if_s2m;
+    fce_i : in    t_can_fce_pcs_if_m2s;
+    fce_o : out   t_can_pcs_fce_if_s2m;
     ---
-    tx_o  : out std_logic;
-    rx_i  : in  std_logic
+    tx_o  : out   std_logic;
+    rx_i  : in    std_logic
   );
 end entity can_pcs;
 
@@ -116,13 +120,13 @@ architecture rtl of can_pcs is
   signal ssp_active                   : std_logic;
   signal ssp_seen                     : std_logic;
   signal tdc_delay                    : natural range 0 to c_tdc_polarity_depth - 1;
-  signal bit_boundary                 : std_logic;                              -- Just for debugging in the waveforms
+  signal bit_boundary                 : std_logic;                              -- Pulses one cycle at end of phase_seg2 (forwarded to MAC)
   signal ssp_standoff_active          : std_logic;
   signal first_data_bit_boundary_seen : std_logic;
   signal data_phase_active            : std_logic;
 begin
 
-  p_can_pcs : process(clk_i) is
+  p_can_pcs : process (clk_i) is
     variable v_phase_error : natural range 0 to gc_nom_prop_seg + gc_nom_phase_seg1 + gc_nom_phase_seg2;
     variable v_do_sync     : boolean;
   begin
@@ -162,9 +166,7 @@ begin
         mac_o.secondary_sample_point <= '0';
         fce_o.idle_condition         <= '0';
         bit_boundary                 <= '0';
-        -- Latch bus on clock
         mac_o.rx_data                <= rx_i;
-        
 
         -- Time quantum (TQ) boundary -----------------------------------------------
         if clk_count = (gc_prescaler - 1) then
@@ -174,6 +176,7 @@ begin
           rx_bus_prev <= rx_i;
 
           -- Evaluate synchronization condition
+          -- v_do_sync := (rx_bus_prev = c_recessive) and (rx_i = c_dominant) and (sync_applied = '0') and (mac_i.transmitting = '0');
           v_do_sync := (rx_bus_prev = c_recessive) and (rx_i = c_dominant) and (sync_applied = '0') and (mac_i.transmitting = '0');
 
           -- Transmitter delay counter --------------------------------------------
@@ -220,7 +223,7 @@ begin
                 -- Increment segment counter
                 seg_count <= seg_count + 1;
 
-                -- Bit synchronization  --------------------------------------------------- 
+                -- Bit synchronization  ---------------------------------------------------
                 if v_do_sync then
                   sync_applied  <= '1';
                   -- Phase error relative to the sync_seg
@@ -230,7 +233,7 @@ begin
                     phase1_extension <= active_sjw;
                   -- Only 1 sync per bit time allowed, so inhibit further sync until next sample point (ISO : 7.3.5.1.a)
                   else
-                    -- If the magnitude of the phase error is smaller that the SJW we do a hard sync on the edge (ISO : 7.3.5.3) 
+                    -- If the magnitude of the phase error is smaller that the SJW we do a hard sync on the edge (ISO : 7.3.5.3)
                     -- This forces the synchronizing edge to lie within the sync_seg.
                     clk_count         <= 0;
                     seg_count         <= 0;
@@ -248,7 +251,7 @@ begin
                 -- Increment segment counter
                 seg_count <= seg_count + 1;
 
-                -- Bit synchronization  --------------------------------------------------- 
+                -- Bit synchronization  ---------------------------------------------------
                 if v_do_sync then
                   sync_applied  <= '1';
                   -- Phase error relative to the sync_seg
@@ -258,7 +261,7 @@ begin
                     phase1_extension <= active_sjw;
                   -- Only 1 sync per bit time allowed, so inhibit further sync until next sample point (ISO : 7.3.5.1.a)
                   else
-                    -- If the magnitude of the phase error is smaller that the SJW we do a hard sync on the edge (ISO : 7.3.5.3) 
+                    -- If the magnitude of the phase error is smaller that the SJW we do a hard sync on the edge (ISO : 7.3.5.3)
                     -- This forces the synchronizing edge to lie within the sync_seg.
                     clk_count         <= 0;
                     seg_count         <= 0;
@@ -268,7 +271,7 @@ begin
                   end if;
                 ---------------------------------------------------------------------------
 
-                -- Sample point (SP) ------------------------------------------------------ 
+                -- Sample point (SP) ------------------------------------------------------
                 elsif seg_count >= ((active_phase_seg1 - 1) + phase1_extension) then
                   segment          <= s_phase_seg2;
                   seg_count        <= 0;
@@ -339,7 +342,6 @@ begin
                   mac_o.secondary_sample_point <= '1';
                   mac_o.rx_data                <= rx_i;
                   ssp_seen                     <= '1';
-
                   mac_o.tdc_delay <= std_logic_vector(to_unsigned(tdc_delay, mac_o.tdc_delay'length));
                 end if;
               ---------------------------------------------------------------------------
@@ -348,7 +350,7 @@ begin
                 -- Increment segment counter
                 seg_count <= seg_count + 1;
 
-                -- Bit synchronization  --------------------------------------------------- 
+                -- Bit synchronization  ---------------------------------------------------
                 if v_do_sync then
                   sync_applied  <= '1';
                   v_phase_error := (active_phase_seg2 - 1) - seg_count;
@@ -357,7 +359,7 @@ begin
                     phase2_shortening <= gc_nom_sjw;
                   -- Only 1 sync per bit time allowed, so inhibit further sync until next sample point (ISO : 7.3.5.1.a)
                   else
-                    -- If the magnitude of the phase error is smaller that the SJW we do a hard sync on the edge (ISO : 7.3.5.3) 
+                    -- If the magnitude of the phase error is smaller that the SJW we do a hard sync on the edge (ISO : 7.3.5.3)
                     -- This forces the synchronizing edge to lie within the sync_seg.
                     clk_count         <= 0;
                     seg_count         <= 0;
@@ -369,18 +371,16 @@ begin
 
                 -- Bit boundary -----------------------------------------------------------
                 elsif seg_count >= ((active_phase_seg2 - 1) - phase2_shortening) then
-                  bit_boundary      <= '1';
-                  segment           <= s_sync_seg;
-                  seg_count         <= 0;
-                  phase2_shortening <= 0;
-                  -- Alow sync again now that we've reached the next bit boundary
-                  sync_applied      <= '0';
+                  tx_o <= mac_i.tx_data;
+                  bit_boundary       <= '1';
+                  segment            <= s_sync_seg;
+                  seg_count          <= 0;
+                  phase2_shortening  <= 0;
+                  -- Allow sync again now that we've reached the next bit boundary
+                  sync_applied       <= '0';
 
                   if fce_i.bus_off = '0' then
                     if mac_i.transmitting = '1' then
-                      -- Latch MAC output data tx_o at the bit boundary if transmitting 
-                      tx_o <= mac_i.tx_data;
-
                       -- Transmitter Delay Compensation (TDC) logic (ISO 7.3.4) ----------
                       if ssp_seen = '0' then
                         if data_phase_active = '1' then
@@ -399,14 +399,7 @@ begin
                       if mac_i.next_bit_is_res = '1' then
                         tdc_count_active <= '1';
                       end if;
-                    ---------------------------------------------------------------------------
-                    else
-                      -- Latch recessive to tx_o if receiving
-                      tx_o <= c_recessive;
                     end if;
-                  else
-                    -- Latch recessive bit to bus if bus_off 
-                    tx_o <= c_recessive;
                   end if;
                 end if;
                 ---------------------------------------------------------------------------
@@ -415,9 +408,9 @@ begin
         else
           clk_count <= clk_count + 1;
         end if;
+
       end if;
     end if;
   end process p_can_pcs;
-end architecture rtl;
 
--- eof
+end architecture rtl;

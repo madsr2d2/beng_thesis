@@ -1,18 +1,18 @@
---------------------------------------------------------------------------------------------------------------------------------------------------------------
--- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
---------------------------------------------------------------------------------------------------------------------------------------------------------------
---
--- Requirements:  
---
--- Description: Structural wrapper instantiating can_mac_tx and can_mac_rx.
---              TX and RX paths have separate PCS interfaces. The FCE interface
---              merges the TX and RX FCE outputs (OR of all fields) and fans 
---              the FCE response back to both paths. 
---
--- Revision log:  Date:       Initial:  JIRA:
---                2026-03-23  TMYAES:   [TRIT-4355] [FPGA] Controlling FSM form MAC layer in CAN-FD module
---
---------------------------------------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- Title      : MAC layer top-level for CAN/CAN-FD
+-- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
+--------------------------------------------------------------------------------
+-- File       : can_mac.vhd
+-- Author     : Mads Richardt
+-- Standard   : VHDL-2008
+--------------------------------------------------------------------------------
+-- Description: Top-level MAC wrapper that instantiates the unified MAC FSM
+--              (handles both TX and RX paths) together with the LLC TX byte
+--              serializer and the shared bit-stuffer and CRC engines. Replaces
+--              the previous split layout (can_mac_tx + can_mac_rx) since the
+--              combined FSM drives a single set of PCS and FCE outputs and no
+--              merging logic is required.
+--------------------------------------------------------------------------------
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -63,9 +63,9 @@ architecture rtl of can_mac is
 begin
 
   ---------------------------------------------------------------------------
-  -- can_mac_ser_tx: LLC byte serializer (TX path)
+  -- can_mac_ser: LLC byte serializer (TX path)
   ---------------------------------------------------------------------------
-  u_can_mac_ser_tx : entity work.can_mac_ser_tx
+  u_can_mac_ser_tx : entity work.can_mac_ser
     port map(
       clk_i        => clk,
       rst_i        => rst,

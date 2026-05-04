@@ -1,19 +1,41 @@
---------------------------------------------------------------------------------------------------------------------------------------------------------------
--- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
---------------------------------------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- Title      : Combined MAC FSM (TX + RX) for CAN/CAN-FD
+-- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
+--------------------------------------------------------------------------------
+-- File       : can_mac_fsm.vhd
+-- Author     : Mads Richardt
+-- Standard   : VHDL-2008
+--------------------------------------------------------------------------------
+-- Description: Single MAC FSM handling TX and RX in one synchronous process.
+--              is_transmitter is latched at SOF; each state's case branch
+--              contains both TX and RX behaviour gated on it. The bit stuffer,
+--              CRC and serializer submodules are shared between modes.
 --
--- Requirements:  
+--              Frame layouts (d = fixed dominant, r = fixed recessive):
 --
--- Description: FSM coordinating the MAC layer functions of the CAN-FD controller.
+--                CC Base
+--                  |SOF(d)|ID(11)|RTR|IDE(d)|r0(d)|DLC(4)|DATA(0..8B)|CRC(15)|delim(r)|ACK|delim(r)|EOF(7r)|
 --
--- Revision log:  Date:       Initial:  JIRA:
---                2026-05-01  TMYAES:   [TRIT-4355] [FPGA] Controlling FSM form MAC layer in CAN-FD module
+--                CC Extended
+--                  |SOF(d)|ID-A(11)|SRR(r)|IDE(r)|ID-B(18)|RTR|r1(d)|r0(d)|DLC(4)|DATA(0..8B)|CRC(15)|delim(r)|ACK|delim(r)|EOF(7r)|
 --
---------------------------------------------------------------------------------------------------------------------------------------------------------------
+--                FD Base
+--                  |SOF(d)|ID(11)|RRS(d)|IDE(d)|FDF(r)|res(d)|BRS|ESI|DLC(4)|DATA(0..64B)|SBC(4)|CRC(17/21)|delim(r)|ACK(2)|delim(r)|EOF(7r)|
+--
+--                FD Extended
+--                   |SOF(d)|ID-A(11)|SRR(r)|IDE(r)|ID-B(18)|RRS(d)|FDF(r)|res(d)|BRS|ESI|DLC(4)|DATA(0..64B)|SBC(4)|CRC(17/21)|delim(r)|ACK(2)|delim(r)|EOF(7r)|
+--
+--              Reference: ISO 11898-1:2024.
+--
+--              Refactor history and design rationale:
+--                docs/can_mac_fsm_history.md
+--------------------------------------------------------------------------------
 
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+
+use work.pk_man_global.all;
 
 use work.pk_can_types.all;
 
@@ -115,10 +137,10 @@ begin
   -- Streams the received frame to the LLC byte by byte during the
   -- quiet phase after EOF.
   -----------------------------------------------------------------
-  p_stream_to_llc : process(clk_i)
+  p_stream_to_LLC : process(clk_i)
   begin
     if rising_edge(clk_i) then
-      if (rst_i = '1') or (fce_i.bus_off = '1') then
+      if (rst_i = '1' or fce_i.bus_off = '1') then
         llc_o           <= c_mac_rx_to_llc_if_reset;
         stream_index    <= 0;
         llc_stream_done <= false;
@@ -132,12 +154,12 @@ begin
 
           if (stream_index = 0) then
             llc_o.avalon_st_source.startofpacket <= '1';
-          elsif stream_index = (llc_frame_len - 1) then
+          elsif (stream_index = llc_frame_len - 1) then
             llc_o.avalon_st_source.endofpacket <= '1';
             stream_index                       <= 0;
             llc_stream_done                    <= true;
           end if;
-          if (llc_i.avalon_st_sink.ready = '1') and (stream_index /= (llc_frame_len - 1)) then
+          if (llc_i.avalon_st_sink.ready = '1' and stream_index /= llc_frame_len - 1) then
             stream_index <= stream_index + 1;
           end if;
         end if;
@@ -169,7 +191,7 @@ begin
   begin
 
     if rising_edge(clk_i) then
-      if (rst_i = '1') or (fce_i.bus_off = '1') then
+      if (rst_i = '1' or fce_i.bus_off = '1') then
         -- Bus-off recovery is handled by the FCE (counts 128 sequences of 11 recessive bits per ISO 8.1.4.5)
         if (fce_i.bus_off = '1') then
           state <= s_bus_off;
@@ -208,17 +230,20 @@ begin
         crc_error_detected                    <= false;
       else
 
+
         -- TX post-arbitration feeds BS/CRC from its own drive to avoid TDC-delayed echo lag.
-        if is_transmitter and (state /= s_arbitration) then
+        if is_transmitter and state /= s_arbitration then
           v_bs_crc_data := transmitted_bits_shift_reg(0);
         else
           v_bs_crc_data := pcs_i.rx_data;
         end if;
 
-        v_in_dynamic_stuff   := (state = s_arbitration) or (state = s_fdf_r1_r0) or (state = s_res_r0) or (state = s_brs) or (state = s_esi) or (state = s_dlc) or (state = s_data);
-        v_tx_bit_error_state := (state = s_fdf_r1_r0) or (state = s_res_r0) or (state = s_brs) or (state = s_esi) or (state = s_dlc) or (state = s_data)
-                                or (state = s_sbc) or (state = s_crc) or (state = s_crc_delimiter) or (state = s_ack_delimiter) or (state = s_eof);
-        v_bit_error_at_sp      := not in_data_phase and (state /= s_ack_delimiter) and (transmitted_bits_shift_reg(0) /= pcs_i.rx_data);
+        v_in_dynamic_stuff   := state = s_arbitration or state = s_fdf_r1_r0 or state = s_res_r0 or state = s_brs or state = s_esi or state = s_dlc or state = s_data;
+        v_tx_bit_error_state := state = s_fdf_r1_r0 or state = s_res_r0
+                                or state = s_brs    or state = s_esi    or state = s_dlc or state = s_data
+                                or state = s_sbc    or state = s_crc    or state = s_crc_delimiter
+                                or state = s_ack_delimiter or state = s_eof;
+        v_bit_error_at_sp      := not in_data_phase and state /= s_ack_delimiter and transmitted_bits_shift_reg(0) /= pcs_i.rx_data;
 
 
         drive_bit_d <= pcs_i.sample_point;
@@ -250,15 +275,19 @@ begin
 
         -- Hard-sync allowed in quiet/waiting states and at the FDF→res edge in FD frames.
         -- PCS gates the actual sync on mac_i.transmitting = '0'.
-        pcs_o.do_hard_sync <= '1' when  (state = s_intermission) or (state = s_bus_idle) or (state = s_suspend_transmission) or ((state = s_res_r0) and (llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1')) else '0';
+        pcs_o.do_hard_sync <= '1' when  state = s_intermission
+                                    or state = s_bus_idle
+                                    or state = s_suspend_transmission
+                                    or (state = s_res_r0 and llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1')
+                                  else '0';
 
         -- SSP bit-error (ISO 7.3.4): flag mismatch between delayed echo and bus at secondary SP.
-        if (pcs_i.secondary_sample_point = '1') and (transmitted_bits_shift_reg(to_integer(unsigned(pcs_i.tdc_delay))) /= pcs_i.rx_data) then
+        if pcs_i.secondary_sample_point = '1' and transmitted_bits_shift_reg(to_integer(unsigned(pcs_i.tdc_delay))) /= pcs_i.rx_data then
           bit_error_at_ssp <= true;
         end if;
 
         -- Quiet states: reset active-frame signals on every cycle.
-        if (state = s_bus_reintegration) or (state = s_intermission) or (state = s_suspend_transmission) or (state = s_bus_idle) then
+        if state = s_bus_reintegration or state = s_intermission or state = s_suspend_transmission or state = s_bus_idle then
           fce_o                                <= c_mac_to_fce_if_reset;
           mac_ser_o                            <= c_ser_fsm_if_d2s_reset;
           bs_o                                 <= c_mac_fsm_to_bs_fd_if_reset;
@@ -274,21 +303,22 @@ begin
         -- Lost arbitration (ISO 6.5.2): Become to receiver.
         -- Kept outside the chain so the s_arbitration case still runs.
         -----------------------------------------------------------------
-        if (pcs_i.sample_point = '1') and is_transmitter and (state = s_arbitration) and (transmitted_bits_shift_reg(0) = c_recessive) and (pcs_i.rx_data = c_dominant) then
+        if pcs_i.sample_point = '1' and is_transmitter and state = s_arbitration and transmitted_bits_shift_reg(0) = c_recessive and pcs_i.rx_data = c_dominant then
           mac_ser_o.transfer_status <= c_lost_arb;
           was_previous_frame_tx     <= false;
           is_transmitter            <= false;
         end if;
 
         -----------------------------------------------------------------
-        -- Runs before the FSM state case.
-        --   1. TX bit-error
-        --   2. RX stuff-error
-        --   3. Feed BS and CRC modules 
-        --   4. Drive stuff-bit
-        --   5. Real-bit everything else: BS/CRC feed + per-state case
+        -- SP / drive_bit chain. Runs before the per-state case so error
+        -- detection and stuff-bit handling intercept before state advance.
+        --   1. TX bit-error   SP, TX, active-frame state, echo mismatch
+        --   2. RX stuff-error SP, RX, stuff slot, polarity mismatch
+        --   3. SP stuff-bit   SP, stuff slot (no error): feed BS/CRC only
+        --   4. BB stuff-bit   drive_bit, TX, stuff slot: drive the bit
+        --   5. Real-bit       everything else: BS/CRC feed + per-state case
         -----------------------------------------------------------------
-        if (pcs_i.sample_point = '1') and is_transmitter and v_tx_bit_error_state and (bit_error_at_ssp or v_bit_error_at_sp) then
+        if pcs_i.sample_point = '1' and is_transmitter and v_tx_bit_error_state and (bit_error_at_ssp or v_bit_error_at_sp) then
           -- 1. TX bit-error (ISO 6.5.4)
           if bit_error_at_ssp then
             bit_error_at_ssp <= false;
@@ -302,7 +332,9 @@ begin
           bit_count                  <= 0;
           overload                   <= false;
 
-        elsif (pcs_i.sample_point = '1') and not is_transmitter and (bs_i.valid = '1') and (bs_i.data /= pcs_i.rx_data) and v_in_dynamic_stuff then
+        elsif pcs_i.sample_point = '1' and not is_transmitter
+              and bs_i.valid = '1' and bs_i.data /= pcs_i.rx_data
+              and v_in_dynamic_stuff then
           -- 2. RX stuff-error (ISO 6.5.5)
           fce_o.sending_error_overload_flag <= '1';
           fce_o.error                       <= '1';
@@ -313,7 +345,7 @@ begin
           state                             <= s_error_flag;
           bit_count                         <= 0;
 
-        elsif (pcs_i.sample_point = '1') and (bs_i.valid = '1') then
+        elsif pcs_i.sample_point = '1' and bs_i.valid = '1' then
           -- 3. SP stuff-bit: feed BS/CRC (CC excludes stuff bits; FD s_sbc/s_crc excluded)
           bs_o.valid <= '1';
           bs_o.data  <= v_bs_crc_data;
@@ -322,17 +354,17 @@ begin
             crc_o.data_fd  <= v_bs_crc_data;
           end if;
 
-        elsif (drive_bit = '1') and is_transmitter and (bs_i.valid = '1') then
-          -- 4. stuff-bit: drive the stuffed polarity onto the bus
+        elsif drive_bit = '1' and is_transmitter and bs_i.valid = '1' then
+          -- 4. BB stuff-bit: drive the stuffed polarity onto the bus
           v_drive_polarity := bs_i.data;
           v_drive_now      := true;
 
         else
           -- 5. Real-bit cycle (SP or drive_bit) or quiet/error state
-          if (pcs_i.sample_point = '1') and (v_in_dynamic_stuff or (state = s_sbc) or (state = s_crc)) then
+          if pcs_i.sample_point = '1' and (v_in_dynamic_stuff or state = s_sbc or state = s_crc) then
             bs_o.valid <= '1';
             bs_o.data  <= v_bs_crc_data;
-            if v_in_dynamic_stuff or (state = s_sbc) then
+            if v_in_dynamic_stuff or state = s_sbc then
               crc_o.valid_fd <= '1';
               crc_o.data_fd  <= v_bs_crc_data;
             end if;
@@ -351,7 +383,7 @@ begin
             when s_bus_reintegration =>
               if pcs_i.sample_point = '1' then
                 if pcs_i.rx_data = c_recessive then
-                  if bit_count = (c_bus_idle_condition_width - 1) then
+                  if bit_count = c_bus_idle_condition_width - 1 then
                     state     <= s_bus_idle;
                     bit_count <= 0;
                   else
@@ -364,11 +396,13 @@ begin
 
             -----------------------------------------------------------------
             -- s_intermission: 3-bit IFS (ISO 6.6.7.2). Dominant in bits
-            -- 0..1 is overload. dominant at bit 2 is SOF.
+            -- 0..1 is overload; dominant at bit 2 is SOF (back-to-back).
+            -- Back-to-back TX latches new-frame metadata and drives SOF
+            -- at the bit-2 bit_boundary.
             -----------------------------------------------------------------
             when s_intermission =>
               if drive_bit = '1' then
-                if is_transmitter and (bit_count = (c_intermission_width - 1)) and (mac_ser_i.valid = '1') then
+                if is_transmitter and bit_count = c_intermission_width - 1 and mac_ser_i.valid = '1' then
                   v_data_len            := dlc_to_data_length(to_integer(unsigned(mac_ser_i.llc_metadata.dlc)), mac_ser_i.llc_metadata.fdf);
                   data_len              <= v_data_len;
                   crc_length            <= f_crc_length(v_data_len, mac_ser_i.llc_metadata.fdf);
@@ -378,7 +412,7 @@ begin
                 end if;
               elsif pcs_i.sample_point = '1' then
                 if pcs_i.rx_data = c_dominant then
-                  if bit_count < (c_intermission_width - 1) then
+                  if bit_count < c_intermission_width - 1 then
                     -- Overload (ISO 6.6.21.3.2 b)
                     state         <= s_error_flag;
                     bit_count     <= 0;
@@ -401,11 +435,11 @@ begin
                     state          <= s_arbitration;
                   end if;
                 else
-                  if bit_count < (c_intermission_width - 1) then
+                  if bit_count < c_intermission_width - 1 then
                     bit_count <= bit_count + 1;
                   else
                     bit_count <= 0;
-                    if (fce_i.error_active = '0') and was_previous_frame_tx then
+                    if fce_i.error_active = '0' and was_previous_frame_tx then
                       state <= s_suspend_transmission;
                     else
                       state          <= s_bus_idle;
@@ -420,8 +454,8 @@ begin
             -- passive TX frame (ISO 6.6.7.4). TX-only entry.
             -----------------------------------------------------------------
             when s_suspend_transmission =>
-              if (pcs_i.sample_point = '1') and (pcs_i.rx_data = c_recessive) then
-                if bit_count = (c_suspend_transmission_width - 1) then
+              if pcs_i.sample_point = '1' and pcs_i.rx_data = c_recessive then
+                if bit_count = c_suspend_transmission_width - 1 then
                   state                 <= s_bus_idle;
                   is_transmitter        <= false;
                   was_previous_frame_tx <= false;
@@ -432,13 +466,15 @@ begin
               end if;
 
             -----------------------------------------------------------------
-            -- s_bus_idle: ready for a new frame (ISO 6.6.7.3)
+            -- s_bus_idle: ready for a new frame (ISO 6.6.7.3). TX entry
+            -- latches is_transmitter and drives SOF at bit_boundary; RX
+            -- entry triggers on dominant SOF at SP.
             -----------------------------------------------------------------
             when s_bus_idle =>
               byte_index <= 0;
               bit_index  <= 0;
               if drive_bit = '1' then
-                if (mac_ser_i.valid = '1') and ((fce_i.error_active = '1') or not was_previous_frame_tx) then
+                if mac_ser_i.valid = '1' and (fce_i.error_active = '1' or not was_previous_frame_tx) then
                   is_transmitter        <= true;
                   v_data_len            := dlc_to_data_length(to_integer(unsigned(mac_ser_i.llc_metadata.dlc)), mac_ser_i.llc_metadata.fdf);
                   data_len              <= v_data_len;
@@ -447,8 +483,8 @@ begin
                   v_drive_polarity := c_dominant;
                   v_drive_now      := true;
                 end if;
-              elsif (pcs_i.sample_point = '1') and (is_transmitter or (pcs_i.rx_data = c_dominant)) then
-                -- TX: is_transmitter drove SOF so transition regardless
+              elsif pcs_i.sample_point = '1' and (is_transmitter or pcs_i.rx_data = c_dominant) then
+                -- TX: is_transmitter drove SOF so transition regardless of loopback.
                 -- RX: detect dominant SOF on the bus.
                 bit_count      <= 0;
                 bs_rst         <= '0';
@@ -466,12 +502,12 @@ begin
               end if;
 
             -----------------------------------------------------------------
-            -- s_arbitration: ID-base, RTR/SRR/RRS, IDE, ID-ext, RTR-ext.
+            -- s_arbitration: ID-A, RTR/SRR/RRS, IDE, ID-B, RTR-ext.
             -- Both roles capture rx_data into llc_frame so the loser of
             -- arbitration retains the winner's bits (ISO 6.5.2).
             -----------------------------------------------------------------
             when s_arbitration =>
-              if (drive_bit = '1') and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 case bit_count is
                   when 0 to c_arb_id_base_last | c_arb_id_ext_first to c_arb_id_ext_last =>
                     mac_ser_o.ready  <= '1';
@@ -507,9 +543,9 @@ begin
                     bit_count <= bit_count + 1;
                   when c_arb_ide_pos =>
                     llc_frame(c_conf_0_offset)(c_llc_frame_ide) <= pcs_i.rx_data;
-                    -- TX: use the driven bit to decide base vs extended
-                    if (is_transmitter and (transmitted_bits_shift_reg(0) = c_dominant)) or
-                       (not is_transmitter and (pcs_i.rx_data = c_dominant)) then
+                    -- TX: use the driven bit to decide base vs extended; loopback may be overridden.
+                    if (is_transmitter and transmitted_bits_shift_reg(0) = c_dominant) or
+                       (not is_transmitter and pcs_i.rx_data = c_dominant) then
                       state     <= s_fdf_r1_r0;
                       bit_count <= 0;
                     else
@@ -529,7 +565,7 @@ begin
             -----------------------------------------------------------------
             when s_fdf_r1_r0 =>
               -- Transmitter drives the FDF bit sourced from the llc_metadata
-              if (drive_bit = '1') and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := mac_ser_i.llc_metadata.fdf;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
@@ -538,7 +574,7 @@ begin
                   pcs_o.next_bit_is_res <= '1';
                 end if;
                 llc_frame(c_conf_0_offset)(c_llc_frame_fdf) <= pcs_i.rx_data;
-                if (pcs_i.rx_data = c_recessive) or (llc_frame(c_conf_0_offset)(c_llc_frame_ide) = '1') then
+                if pcs_i.rx_data = c_recessive or llc_frame(c_conf_0_offset)(c_llc_frame_ide) = '1' then
                   state <= s_res_r0;
                 else
                   state     <= s_dlc;
@@ -551,7 +587,7 @@ begin
             -- CC ext falls to s_dlc. Recessive on the bus is a form error.
             -----------------------------------------------------------------
             when s_res_r0 =>
-              if (drive_bit = '1') and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := c_dominant;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
@@ -578,7 +614,7 @@ begin
             -- s_brs: BRS bit (FD only). BRS=recessive: all nodes enter data phase.
             -----------------------------------------------------------------
             when s_brs =>
-              if (drive_bit = '1') and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := mac_ser_i.llc_metadata.brs;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
@@ -591,7 +627,7 @@ begin
             -- s_esi: ESI bit (FD only). Active=dominant, passive=recessive.
             -----------------------------------------------------------------
             when s_esi =>
-              if (drive_bit = '1') and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := mac_ser_i.llc_metadata.esi;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
@@ -605,18 +641,18 @@ begin
             -- data_len / crc_length / poly from the captured DLC bits.
             -----------------------------------------------------------------
             when s_dlc =>
-              if (drive_bit = '1') and is_transmitter then
-                v_drive_polarity := mac_ser_i.llc_metadata.dlc((c_dlc_field_width - 1) - bit_count);
+              if drive_bit = '1' and is_transmitter then
+                v_drive_polarity := mac_ser_i.llc_metadata.dlc(c_dlc_field_width - 1 - bit_count);
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
                 llc_frame(c_conf_1_offset)(c_llc_frame_dlc_start - bit_count) <= pcs_i.rx_data;
-                if bit_count = (c_dlc_field_width - 1) then
+                if bit_count = c_dlc_field_width - 1 then
                   bit_count  <= 0;
                   bit_index  <= 0;
                   byte_index <= 0;
                   if is_transmitter then
                     -- TX uses metadata directly.
-                    if (data_len > 0) and (mac_ser_i.llc_metadata.ftyp = '0') then
+                    if data_len > 0 and mac_ser_i.llc_metadata.ftyp = '0' then
                       state <= s_data;
                     elsif mac_ser_i.llc_metadata.fdf = '1' then
                       state                      <= s_sbc;
@@ -634,7 +670,7 @@ begin
                     data_len              <= v_data_len;
                     crc_length            <= f_crc_length(v_data_len, v_fdf);
                     crc_o.crc_poly_select <= f_crc_poly_select(v_data_len, v_fdf);
-                    if (v_data_len > 0) and (v_ftyp = '0') then
+                    if v_data_len > 0 and v_ftyp = '0' then
                       state <= s_data;
                     elsif v_fdf = '1' then
                       state                      <= s_sbc;
@@ -653,14 +689,14 @@ begin
             -----------------------------------------------------------------
             when s_data =>
               -- Transmitter nodes drive bits sourced from the serializer module
-              if (drive_bit = '1') and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 mac_ser_o.ready  <= '1';
                 v_drive_polarity := mac_ser_i.data;
                 v_drive_now      := true;
               -- Both roles capture from bus. TX self-receives, only RX streams to LLC.
               elsif pcs_i.sample_point = '1' then
                 llc_frame(c_data_offset + byte_index)((c_byte_width - 1) - bit_index) <= pcs_i.rx_data;
-                if (byte_index = (data_len - 1)) and (bit_index = (c_byte_width - 1)) then
+                if byte_index = data_len - 1 and bit_index = c_byte_width - 1 then
                   if llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' then
                     state                      <= s_sbc;
                     bs_o.fixed_bit_stuffing_en <= '1';
@@ -671,8 +707,8 @@ begin
                   bit_index  <= 0;
                   byte_index <= 0;
                 else
-                  bit_index  <= 0 when bit_index = (c_byte_width - 1) else bit_index + 1;
-                  byte_index <= byte_index + 1 when bit_index = (c_byte_width - 1);
+                  bit_index  <= 0 when bit_index = c_byte_width - 1 else bit_index + 1;
+                  byte_index <= byte_index + 1 when bit_index = c_byte_width - 1;
                   bit_count  <= bit_count + 1;
                 end if;
               end if;
@@ -682,14 +718,14 @@ begin
             -----------------------------------------------------------------
             when s_sbc =>
               -- Transmitter nodes drive SBC bits sourced from the BS module
-              if (drive_bit = '1') and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count);
                 v_drive_now      := true;
               -- Receiver nodes check for SBC mismatch
               elsif pcs_i.sample_point = '1' then
-                if not is_transmitter and (pcs_i.rx_data /= bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count)) then
+                if not is_transmitter and pcs_i.rx_data /= bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count) then
                   crc_error_detected <= true;
-                elsif bit_count = (c_sbc_field_width - 1) then
+                elsif bit_count = c_sbc_field_width - 1 then
                   state     <= s_crc;
                   bit_count <= 0;
                 else
@@ -702,14 +738,14 @@ begin
             -----------------------------------------------------------------
             when s_crc =>
               -- Transmitter nodes drive SBC bits sourced from the CRC module
-              if (drive_bit = '1') and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := crc_i.crc((c_crc_21_length - 1) - bit_count);
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
                 -- Receiver nodes check for CRC mismatch
-                if not is_transmitter and (pcs_i.rx_data /= crc_i.crc((c_crc_21_length - 1) - bit_count)) then
+                if not is_transmitter and pcs_i.rx_data /= crc_i.crc((c_crc_21_length - 1) - bit_count) then
                   crc_error_detected <= true;
-                elsif bit_count = (crc_length - 1) then
+                elsif bit_count = crc_length - 1 then
                   -- Assert data_phase_stop so the PCS switch to nominal bit timing at the CRC delimiter SP (ISO 6.6.10.5)
                   pcs_o.data_phase_stop      <= '1';
                   bs_o.fixed_bit_stuffing_en <= '0';
@@ -725,7 +761,7 @@ begin
             -- TX drives recessive; RX listens and transitions to s_ack.
             -----------------------------------------------------------------
             when s_crc_delimiter =>
-              if (drive_bit = '1') and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := c_recessive;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
@@ -733,7 +769,7 @@ begin
                 state     <= s_ack;
                 bit_count <= 0;
                 -- Receiver nodes check form error
-                if not is_transmitter and (pcs_i.rx_data /= c_recessive) then
+                if not is_transmitter and pcs_i.rx_data /= c_recessive then
                   fce_o.sending_error_overload_flag <= '1';
                   fce_o.error                       <= '1';
                   v_drive_polarity                  := not fce_i.error_active;
@@ -750,11 +786,11 @@ begin
             -- FD bit 1 is not driven recessive by receivers.
             -----------------------------------------------------------------
             when s_ack =>
-              if (drive_bit = '1') and not is_transmitter and (bit_count = 0) then
+              if drive_bit = '1' and not is_transmitter and bit_count = 0 then
                 v_drive_polarity := c_dominant;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                if is_transmitter and (pcs_i.rx_data = c_dominant) then
+                if is_transmitter and pcs_i.rx_data = c_dominant then
                   ack_success_seen <= true;
                 end if;
 
@@ -765,7 +801,7 @@ begin
                   end if;
                 end if;
 
-                if (llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1') and (bit_count = 0) then
+                if llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' and bit_count = 0 then
                   bit_count <= bit_count + 1;
                 else
                   state     <= s_ack_delimiter;
@@ -778,12 +814,12 @@ begin
             -----------------------------------------------------------------
             when s_ack_delimiter =>
               -- Transmitting nodes drive recessive
-              if (drive_bit = '1') and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := c_recessive;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
                 if is_transmitter then
-                  if ack_success_seen or (pcs_i.rx_data = c_dominant) then
+                  if ack_success_seen or pcs_i.rx_data = c_dominant then
                     state <= s_eof;
                   else
                     -- Transmitter reacts to ACK error at the ACK delimiter
@@ -815,14 +851,14 @@ begin
             -----------------------------------------------------------------
             when s_eof =>
               -- Transmitting nodes drive recessive
-              if (drive_bit = '1') and is_transmitter then
+              if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := c_recessive;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
                 -- Check for form error (dominant bits during the EOF field)
                 if pcs_i.rx_data = c_dominant then
                   -- Dominant is last EOF bit is overload
-                  if bit_count = (c_eof_field_width - 1) then
+                  if bit_count = c_eof_field_width - 1 then
                     v_drive_polarity := c_dominant;
                     overload    <= true;
                     fce_o.error <= '0';
@@ -836,7 +872,7 @@ begin
                   state     <= s_error_flag;
                 else
                   -- Receivers react to CRC errors at the first bit of the EOF field
-                  if (bit_count = 0) and crc_error_detected then
+                  if bit_count = 0 and crc_error_detected then
                     ack_error_caused_flag      <= true;
                     pcs_o.tx_data              <= not fce_i.error_active;
                     pcs_o.data_phase_stop      <= '1';
@@ -845,7 +881,7 @@ begin
                     bit_count                  <= 0;
                     overload                   <= false;
                   -- Reached end of EOF without errors: Successful transfer/reception.
-                  elsif bit_count = (c_eof_field_width - 1) then
+                  elsif bit_count = c_eof_field_width - 1 then
                     byte_index    <= 0;
                     llc_frame_len <= c_data_offset + data_len;
                     if is_transmitter then
@@ -877,8 +913,8 @@ begin
                     mac_ser_o.transfer_status <= c_disturbed;
                     was_previous_frame_tx     <= true;
                   end if;
-                  if bit_count < (c_error_flag_width - 1) then
-                    if not overload and (fce_i.error_active = '0') and (pcs_i.rx_data = c_dominant) then
+                  if bit_count < c_error_flag_width - 1 then
+                    if not overload and fce_i.error_active = '0' and pcs_i.rx_data = c_dominant then
                       -- Passive flag: dominant from another node restarts
                       -- the equal-bit counter (ISO 8.1.4.2.c.ex1).
                       saw_dominant_during_flag <= true;
@@ -892,13 +928,13 @@ begin
                     state     <= s_error_flag_check;
                     if ack_error_caused_flag then
                       fce_o.error <= '1';
-                      if (fce_i.error_active = '0') and not saw_dominant_during_flag then
+                      if fce_i.error_active = '0' and not saw_dominant_during_flag then
                         fce_o.passive_tx_ack_error_exempt_1 <= '1';
                       end if;
                     end if;
                   end if;
                 else
-                  if bit_count < (c_error_flag_width - 1) then
+                  if bit_count < c_error_flag_width - 1 then
                     bit_count <= bit_count + 1;
                   else
                     bit_count <= 0;
@@ -939,7 +975,7 @@ begin
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
                 if pcs_i.rx_data = c_dominant then
-                  if bit_count = (c_error_delimiter_width - 1) then
+                  if bit_count = c_error_delimiter_width - 1 then
                     fce_o.error_delimiter_too_late <= '1';
                     bit_count                      <= 1;
                   else
@@ -968,7 +1004,7 @@ begin
                   bit_count   <= 0;
                   overload    <= false;
                 else
-                  if bit_count = (c_error_delimiter_width - 1) then
+                  if bit_count = c_error_delimiter_width - 1 then
                     state     <= s_intermission;
                     bit_count <= 0;
                   else

@@ -2,32 +2,37 @@
 -- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
--- Requirements:  
+-- Requirements:
 --
 -- Description:   Test bench for the can_pcs module. Instantiates two can_pcs
 --                units (TX and RX) with independent out-of-sync clocks to
 --                exercise resynchronization. A physical bus model with separate
 --                transceiver TX/RX delays and wire propagation delay is used to
---                exercise TDC. Three test sequences are run:
+--                exercise TDC. Three test sequences are run.
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-04-16  TMYAES:   [TRIT-4336] [FPGA] CAN FD extensions of TRIT-3880
+--                2026-04-27  MRDSA:    Local mirror of company can_pcs_tb.
 --
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
-use work.pk_can_types.all;
+  use ieee.std_logic_1164.all;
+  use ieee.numeric_std.all;
 
 library osvvm;
-context osvvm.OsvvmContext;
-use osvvm.ScoreboardPkg_slv.all;
+  context osvvm.OsvvmContext;
+  use osvvm.ScoreboardPkg_slv.all;
 library osvvm_common;
-context osvvm_common.OsvvmCommonContext;
+  context osvvm_common.OsvvmCommonContext;
+
+use work.pk_man_global.all;
+use work.common_register_interface_pkg.all;
+use work.common_tb_pkg.all;
+use work.pk_can_types.all;
 
 entity can_pcs_tb is
-  generic(
+  generic (
     gc_TbClkPeriod : time := 10 ns;
     gc_TbTimeOut   : time := 500 ms
   );
@@ -82,11 +87,11 @@ architecture tb of can_pcs_tb is
   signal rx_fce_o : t_can_pcs_fce_if_s2m;
 
   -- TB infrastructure -------------------------------------------------------
-  shared variable RV               : RandomPType;
-  signal          test_id          : AlertLogIDType;
-  signal          check_id         : AlertLogIDType;
-  signal          init_barrier     : std_logic                        := '0';
-  signal          polarity_history : std_logic_vector(8 - 1 downto 0) := (others => c_recessive); -- Holds the bits transmitted by the TX PCS
+  shared variable RV : RandomPType;
+  signal test_id          : AlertLogIDType;
+  signal check_id         : AlertLogIDType;
+  signal init_barrier     : integer_barrier                        := 1;
+  signal polarity_history : std_logic_vector(8 - 1 downto 0) := (others => c_recessive); -- Holds the bits transmitted by the TX PCS
 
   -- Bus signals ------------------------------------------------------------
   signal tx_on_bus_at_tx : std_logic := c_recessive;
@@ -120,6 +125,7 @@ begin
     variable v_test_id  : AlertLogIDType;
     variable v_check_id : AlertLogIDType;
   begin
+    RV.InitSeed(random_seed);
     SetAlertStopCount(ERROR, 5);
     v_test_id            := NewID("can_pcs");
     v_check_id           := NewID("Bit check", v_test_id);
@@ -133,10 +139,10 @@ begin
   end process p_init;
 
   ----------------------------------------------------------------------------
-  -- DUT: TX PCS 
+  -- DUT: TX PCS
   ----------------------------------------------------------------------------
   u_pcs_tx : entity work.can_pcs
-    port map(
+    port map (
       clk_i => clk_tx,
       rst_i => reset,
       mac_i => tx_mac_i,
@@ -146,11 +152,12 @@ begin
       tx_o  => tx_from_tx_dut,
       rx_i  => rx_at_tx_dut
     );
+
   ----------------------------------------------------------------------------
   -- DUT: RX PCS
   ----------------------------------------------------------------------------
   u_pcs_rx : entity work.can_pcs
-    port map(
+    port map (
       clk_i => clk_rx,
       rst_i => reset,
       mac_i => rx_mac_i,
@@ -162,7 +169,7 @@ begin
     );
 
   ----------------------------------------------------------------------------
-  -- Bus model 
+  -- Bus model
   ----------------------------------------------------------------------------
   -- Bus at TX DUT -----------------------------------------------------------
   bus_at_tx <= tx_on_bus_at_tx and rx_on_bus_at_tx;                             -- Bus value at TX-DUT
@@ -209,7 +216,7 @@ begin
   ----------------------------------------------------------------------------
 
   ----------------------------------------------------------------------------
-  -- Track transmitted bits for Transmitter Delay Compensation (TDC) verification (IOS : 7.3.4)
+  -- Track transmitted bits for Transmitter Delay Compensation (TDC) verification (ISO : 7.3.4)
   ----------------------------------------------------------------------------
   p_polarity_history : process is
   begin
@@ -255,10 +262,9 @@ begin
     rx_mac_loop : loop
       wait until rising_edge(rx_mac_o.sample_point);
 
-      -- Start collecting bit stream from RX after the SOF bit has been detected 
+      -- Start collecting bit stream from RX after the SOF bit has been detected
       if v_sof_detected then
         v_bit_index := v_bit_index + 1;
-        -- rx_bit_index <= v_wire_idx;
         Push(rx_mac_rec.BurstFifo, "" & rx_mac_o.rx_data);
       end if;
 
@@ -276,14 +282,14 @@ begin
       if v_bit_index = res_bit_index - 1 then                                   -- FDF SP: arm hard sync for res edge
         rx_mac_i.do_hard_sync <= '1' after 2 * gc_TbClkPeriod;
       elsif v_bit_index = res_bit_index then                                    -- res SP: drop hard sync, switch to data rate at BRS SP
-        rx_mac_i.do_hard_sync       <= '0' after 2 * gc_TbClkPeriod;
+        rx_mac_i.do_hard_sync    <= '0' after 2 * gc_TbClkPeriod;
         rx_mac_i.next_bit_is_brs <= '1' after 2 * gc_TbClkPeriod;
       elsif v_bit_index = res_bit_index + 1 then                                -- res SP: drop hard sync, switch to data rate at BRS SP
         rx_mac_i.next_bit_is_brs <= '0' after 2 * gc_TbClkPeriod;
       elsif v_bit_index = crc_delimiter_index - 1 then                          -- last-data sp: switch back to nominal at crc-delim sp
-        rx_mac_i.data_phase_stop <= '1' after 2 * gc_tbclkperiod;
+        rx_mac_i.data_phase_stop <= '1' after 2 * gc_TbClkPeriod;
       elsif v_bit_index = crc_delimiter_index then                              -- last-data sp: switch back to nominal at crc-delim sp
-        rx_mac_i.data_phase_stop <= '0' after 2 * gc_tbclkperiod;
+        rx_mac_i.data_phase_stop <= '0' after 2 * gc_TbClkPeriod;
       end if;
       ----------------------------------------------------------------------------
 
@@ -322,6 +328,7 @@ begin
   -- p_test_ctrl
   ----------------------------------------------------------------------------
   p_test_ctrl : process is
+
     procedure test_reset is
     begin
       Print("--------------------------------------------------------------------------");
@@ -343,7 +350,7 @@ begin
 
       for frame_iter in 1 to frames_to_send loop
         -- Alternate which clock leads
-        tx_clock_is_leading         <= not tx_clock_is_leading;
+        tx_clock_is_leading      <= not tx_clock_is_leading;
         tx_mac_i.next_bit_is_res <= '0';
         tx_mac_i.next_bit_is_brs <= '0';
 
@@ -357,24 +364,24 @@ begin
             tx_mac_i.tx_data <= c_recessive after 2 * gc_TbClkPeriod;
           elsif i = res_bit_index then                                          -- Drive dominant res bit
             Push(tx_mac_rec.BurstFifo, "" & c_dominant);
-            tx_mac_i.tx_data            <= c_dominant after 2 * gc_TbClkPeriod;
+            tx_mac_i.tx_data         <= c_dominant after 2 * gc_TbClkPeriod;
             tx_mac_i.next_bit_is_res <= '1' after 2 * gc_TbClkPeriod;
           elsif i = res_bit_index + 1 then                                      -- Drive BRS bit
-            v_pol                       := RV.RandSlv(1)(1);
+            v_pol                    := RV.RandSlv(1)(1);
             Push(tx_mac_rec.BurstFifo, "" & v_pol);
-            tx_mac_i.tx_data            <= v_pol after 2 * gc_TbClkPeriod;
+            tx_mac_i.tx_data         <= v_pol after 2 * gc_TbClkPeriod;
             tx_mac_i.next_bit_is_res <= '0' after 2 * gc_TbClkPeriod;
             tx_mac_i.next_bit_is_brs <= '1' after 2 * gc_TbClkPeriod;
           elsif i = crc_delimiter_index then                                    -- Drive data phase stop bit
             Push(tx_mac_rec.BurstFifo, "" & c_recessive);
             tx_mac_i.tx_data         <= c_recessive after 2 * gc_TbClkPeriod;
             tx_mac_i.data_phase_stop <= '1' after 2 * gc_TbClkPeriod;
-          else                                                                  --other bits
-            v_pol                       := RV.RandSlv(1)(1);
+          else                                                                  -- other bits
+            v_pol                    := RV.RandSlv(1)(1);
             Push(tx_mac_rec.BurstFifo, "" & v_pol);
-            tx_mac_i.tx_data            <= v_pol after 2 * gc_TbClkPeriod;
+            tx_mac_i.tx_data         <= v_pol after 2 * gc_TbClkPeriod;
             tx_mac_i.next_bit_is_brs <= '0' after 2 * gc_TbClkPeriod;
-            tx_mac_i.data_phase_stop    <= '0' after 2 * gc_TbClkPeriod;
+            tx_mac_i.data_phase_stop <= '0' after 2 * gc_TbClkPeriod;
           end if;
         end loop;
 
@@ -442,4 +449,5 @@ begin
     std.env.finish;
     wait;
   end process p_test_ctrl;
+
 end architecture tb;

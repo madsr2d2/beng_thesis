@@ -7,7 +7,7 @@
 -- Description:   MAC serializer for CAN/CAN-FD TX path. Serializes LLC frame
 --                bytes into a bit stream for the MAC FSM.
 --                Internal LLC frame format (variable length, streamed by
---                can_llc_tx to can_mac_ser_tx):
+--                can_llc to can_mac_ser):
 --                Byte 0:    [7:5]=FORMAT, [4]=FTYP(RTR), [3]=ESI, [2]=BRS
 --                Byte 1:    [7:4]=DLC, [3:0]=0000
 --                Bytes 2-5: ID (32-bit, MSB first, left-aligned)
@@ -29,7 +29,7 @@ library ieee;
   use ieee.numeric_std.all;
   use work.pk_can_types.all;
 
-entity can_mac_ser_tx is
+entity can_mac_ser is
   port (
     clk_i : in    std_logic;
     rst_i : in    std_logic;
@@ -42,9 +42,9 @@ entity can_mac_ser_tx is
     tx_mac_fsm_i : in    t_can_mac_ser_fsm_if_d2s;
     tx_mac_fsm_o : out   t_can_mac_ser_fsm_if_s2d
   );
-end entity can_mac_ser_tx;
+end entity can_mac_ser;
 
-architecture rtl of can_mac_ser_tx is
+architecture rtl of can_mac_ser is
 
   ------------------------------------------------------------------------
   -- Types

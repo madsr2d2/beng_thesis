@@ -49,44 +49,28 @@ src/                                  # Per-module folders (mirrors company layo
 │   └── hdl_tb/can_types_pkg_tb.vhd   # Package unit tests
 ├── can_timing_pkg/
 │   └── hdl_src/can_timing_pkg.vhd    # Bit timing utilities, TDC calculation
-├── can_mac_ser_tx/
-│   ├── hdl_src/can_mac_ser_tx.vhd    # MAC serializer: LLC bytes -> serial bit stream
-│   ├── hdl_tb/can_mac_ser_tx_tb.vhd  # Serializer testbench
+├── can_mac_ser/
+│   ├── hdl_src/can_mac_ser.vhd       # MAC serializer: LLC bytes -> serial bit stream
+│   ├── hdl_tb/can_mac_ser_tb.vhd     # Serializer testbench
 │   └── test_case/                    # GTKWave .gtkw save files (per-module)
 ├── can_mac_crc/
 │   └── hdl_src/can_mac_crc.vhd       # CRC engine for CAN-FD (shared TX/RX, includes gen_crc)
 ├── can_mac_bs/
 │   ├── hdl_src/can_mac_bs.vhd        # Bit stuffer with SBC generation (shared TX/RX)
 │   └── hdl_tb/can_mac_bs_tb.vhd      # Bit stuffer testbench
-├── can_mac_tx/
-│   ├── hdl_src/can_mac_tx.vhd        # MAC TX sub-layer wrapper
-│   ├── hdl_src/can_mac_fsm_tx.vhd    # Frame transmission FSM (coordinator)
-│   └── hdl_tb/can_mac_tx_tb.vhd      # MAC TX testbench (~209k affirmations)
-├── can_pcs_tx/
-│   ├── hdl_src/can_pcs_tx.vhd        # PCS sub-layer (bit timing, TDC, bus interface)
-│   └── hdl_tb/can_pcs_tx_tb.vhd
-├── can_llc_tx/
-│   └── hdl_src/can_llc_tx.vhd        # LLC sub-layer (frame buffering, retransmission)
-├── can_tx/
-│   ├── hdl_src/can_tx.vhd            # Top-level TX (LLC + MAC + PCS)
-│   └── hdl_tb/can_tx_tb.vhd          # Top-level TX testbench
+├── can_llc/
+│   └── hdl_src/can_llc.vhd           # LLC sub-layer (frame buffering, retransmission)
 ├── can_fce/
 │   ├── hdl_src/can_fce.vhd           # Fault Confinement Entity
 │   └── hdl_tb/can_fce_tb.vhd
-├── can_mac_deser_rx/
-│   └── hdl_src/can_mac_deser_rx.vhd  # Serial-to-byte deserializer (stub)
-└── can_mac_rx/
-    ├── hdl_src/can_mac_rx.vhd        # MAC RX sub-layer wrapper (stub)
-    └── hdl_src/can_mac_fsm_rx.vhd    # Frame reception FSM (stub)
 
 can_bus_controller_fd/                # Company-format mirror (synced via scripts/sync_to_company.py)
 ├── can_types_p/                      # Same per-module layout with hdl_src/, hdl_tb/, test_case/
 ├── can_tb_p/                         # Testbench utility package
-├── can_mac_bs/                       # Shared modules (no _tx suffix)
+├── can_mac_bs/                       # Shared modules
 ├── can_mac_crc/                      # gen_crc stripped (company has it at ip_lib/gen_crc/)
-├── can_mac_ser_tx/
-├── can_mac_tx/                       # Includes can_mac_fsm_tx (FSM + wrapper together)
-└── can_mac_rx/                       # Includes can_mac_fsm_rx (FSM + wrapper together)
+├── can_mac_ser/
+└── can_mac/                          # Unified MAC: can_mac_fsm.vhd + can_mac.vhd wrapper
 
 scripts/                # Build and sync scripts
 ├── sync_to_company.py  # Local -> company format conversion
@@ -120,17 +104,18 @@ The full RTL chain must be compiled in dependency order. Packages first, then le
 ```bash
 ghdl -a --std=08 -fpsl --warn-no-vital-generic --warn-no-hide \
   -P./OsvvmLibraries/osvvm/VHDL_LIBS/GHDL-6.0.0-dev -P. \
-  src/can_types_p/hdl_src/can_types_pkg.vhd \
-  src/can_timing_pkg/hdl_src/can_timing_pkg.vhd \
-  src/can_mac_ser_tx/hdl_src/can_mac_ser_tx.vhd \
-  src/can_mac_crc/hdl_src/can_mac_crc.vhd \
+  src/can_types_p/hdl_src/can_types_p.vhd \
+  src/can_tb_p/hdl_src/can_tb_p.vhd \
   src/can_mac_bs/hdl_src/can_mac_bs.vhd \
-  src/can_mac_tx/hdl_src/can_mac_fsm_tx.vhd \
-  src/can_mac_tx/hdl_src/can_mac_tx.vhd \
-  src/can_pcs_tx/hdl_src/can_pcs_tx.vhd \
-  src/can_llc_tx/hdl_src/can_llc_tx.vhd \
-  src/can_tx/hdl_src/can_tx.vhd \
+  src/can_mac_crc/hdl_src/can_mac_crc.vhd \
+  src/can_mac_ser/hdl_src/can_mac_ser.vhd \
+  src/can_mac/hdl_src/can_mac_fsm.vhd \
   src/can_fce/hdl_src/can_fce.vhd \
+  src/can_mac/hdl_src/can_mac.vhd \
+  src/can_pcs/hdl_src/can_pcs.vhd \
+  src/can_mac_pcs_fce/hdl_src/can_mac_pcs_fce.vhd \
+  src/can_llc/hdl_src/can_llc.vhd \
+  src/can_fd_controller/hdl_src/can_fd_controller.vhd \
   src/<module>/hdl_tb/<testbench>.vhd
 ```
 
@@ -157,7 +142,7 @@ make clean                                                    # Remove artifacts
 ### Waveform Viewing
 
 ```bash
-gtkwave sim/can_tx_tb.ghw src/can_tx/test_case/can_tx_tb.gtkw
+gtkwave sim/can_mac_pcs_fce_tb.ghw src/can_mac_pcs_fce/test_case/can_mac_pcs_fce_tb.gtkw
 ```
 
 GHW format preserves record types and enum names for symbolic display.
@@ -294,7 +279,7 @@ vsg -c vsg_config.yaml -f src/can_types_p/hdl_src/can_types_pkg.vhd
 
 ## Testbench Structure
 
-All testbenches follow a standard OSVVM-based structure. Use `can_mac_ser_tx_tb.vhd` as the golden reference template.
+All testbenches follow a standard OSVVM-based structure. Use `can_mac_ser_tb.vhd` as the golden reference template.
 
 ### Infrastructure
 
@@ -356,7 +341,7 @@ rnd.DistBool((false => 25, true => 75))  -- 75% true
 
 ### LLC Legacy Frame Format for Testbenches
 
-The `can_llc_tx(legacy_rtl)` architecture accepts a **71-byte legacy frame format** on the Avalon-ST user interface. All testbenches that drive `can_tx` must use this format:
+The `can_llc` entity accepts a **71-byte legacy frame format** on the Avalon-ST user interface. All testbenches driving the top-level system must use this format:
 
 - **Bytes 0-3**: ID bytes (right-aligned for 11-bit, full for 29-bit)
 - **Byte 4**: `[6:4]` = FMT, `[3:0]` = DLC
@@ -364,7 +349,7 @@ The `can_llc_tx(legacy_rtl)` architecture accepts a **71-byte legacy frame forma
 - **Byte 69**: `[0]` = IDE
 - **Byte 70**: `[2]` = BRS, `[1]` = ESI, `[0]` = RTR
 
-Byte 0 has `sop = '1'`, byte 70 has `eop = '1'`. See `submit_frame` in `can_tx_tb.vhd` for the reference implementation.
+Byte 0 has `sop = '1'`, byte 70 has `eop = '1'`. See `submit_and_verify` in `can_mac_pcs_fce_tb.vhd` for the reference implementation.
 
 ### ACK Injection Pattern
 
@@ -409,27 +394,19 @@ Required patterns from this guide:
 
 ## Architecture & Interfaces
 
-### TX Pipeline Architecture
+### Pipeline Architecture
 
 ```
-User -> can_llc_tx(legacy_rtl) -> can_mac_tx -> can_pcs_tx -> tx_bus_o
-                                      |
-                               can_mac_ser_tx
-                               can_mac_fsm_tx
-                               can_mac_bs
-                               can_mac_crc
+User -> can_llc -> can_mac -> can_pcs -> bus
+                      |
+               can_mac_ser   (LLC bytes -> serial bit stream)
+               can_mac_fsm   (unified TX/RX FSM)
+               can_mac_bs    (bit stuffer/destuffer)
+               can_mac_crc   (CRC engine)
 ```
 
-### RX Pipeline Architecture
-
-```
-rx_bus_i -> can_pcs_rx -> can_mac_rx -> can_llc_rx -> User
-                               |
-                         can_mac_deser_rx  (stub)
-                         can_mac_fsm_rx    (stub)
-                         can_mac_bs
-                         can_mac_crc
-```
+The `can_mac_pcs_fce` wrapper integrates `can_mac`, `can_pcs`, and `can_fce`.
+The `can_fd_controller` top-level adds `can_llc` above that.
 
 All inter-module interfaces use `std_logic`/`std_logic_vector` record types defined in `pk_can_types`.
 
@@ -443,7 +420,7 @@ Control/status interfaces (e.g., FCE) use **m2s/s2m** (master/slave) naming. Dat
 
 ### Key Interface Records
 
-All defined in `pk_can_types` (`src/can_types_p/hdl_src/can_types_pkg.vhd`):
+All defined in `pk_can_types` (`src/can_types_p/hdl_src/can_types_p.vhd`):
 
 **MAC to PCS (`t_can_mac_pcs_if_m2s`):**
 - `polarity: std_logic` - Bit polarity (c_dominant/c_recessive)
@@ -562,13 +539,9 @@ Bit timing utilities.
 | `"110"` | passive_error_flag | 6 recessive + 8 recessive delimiter |
 | `"111"` | overload_flag | Overload handling |
 
-### can_llc_tx.vhd (LLC Sub-layer)
+### can_llc.vhd (LLC Sub-layer)
 
-Has two architectures:
-- `rtl` - Accepts 6-byte header + data format (config_0, config_1, 4 ID bytes, data)
-- `legacy_rtl` - Accepts 71-byte legacy format (used by `can_tx`)
-
-The `can_tx` top-level uses `legacy_rtl`. All testbenches driving `can_tx` must use the 71-byte format.
+Accepts the 71-byte legacy frame format from the user, converts it to the internal format, buffers it, and drives the MAC TX byte stream. Handles automatic retransmission on `c_lost_arb` / `c_disturbed` and hold-and-resume across bus-off recovery windows.
 
 ---
 
@@ -577,16 +550,10 @@ The `can_tx` top-level uses `legacy_rtl`. All testbenches driving `can_tx` must 
 | Testbench | Tests | Description |
 |-----------|-------|-------------|
 | `can_types_pkg_tb` | 127 | Package utilities, frame structures, all 4 formats |
-| `can_mac_ser_tx_tb` | 5 | Serializer with ready/valid handshaking |
+| `can_mac_ser_tb` | 5 | Serializer with ready/valid handshaking |
 | `can_mac_bs_tb` | - | Bit stuffer with PSL assertions |
-| `can_pcs_tx_tb` | - | PCS bit timing and TDC |
 | `can_fce_tb` | - | Fault confinement entity |
-| `can_mac_tx_tb` (v1) | - | MAC TX wrapper: ~40k affirmations |
-| `can_mac_tx_tb` (v2) | - | MAC TX wrapper extended: ~203k affirmations |
-| `can_mac_tx_tb` (v3) | - | MAC TX wrapper full: ~209k affirmations |
-| `can_tx_tb` | 35 | Top-level TX: happy path, abort, error recovery, all formats |
-| `can_tx_protocol_tb` | 27 | Protocol conformance: frame structure, EOF, ACK |
-| `can_mac_fsm_tx_err_tb` | 8 | Error detection: ACK, bit error, BRS, TDC, random |
+| `can_mac_pcs_fce_tb` | 4 | Integrated MAC+PCS+FCE: normal TX/RX, delay sweep, lost arb, bus-off recovery |
 
 ---
 

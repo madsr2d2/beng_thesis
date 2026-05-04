@@ -8,7 +8,7 @@
 --                Error state and bus-off recovery logic. (ISO : 8.1.4.2-4).
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-04-10  TMYAES:   [TRIT-4336] [FPGA] CAN FD extensions of TRIT-3880   
+--                2026-04-10  TMYAES:   [TRIT-4336] [FPGA] CAN FD extensions of TRIT-3880
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
@@ -16,6 +16,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 use work.pk_man_global.all;
+
 use work.pk_can_types.all;
 
 entity can_fce is
@@ -81,7 +82,7 @@ begin
                   receiver_error_count <= receiver_error_count + 8;             -- ISO 8.1.4.2,b/e/f (REC += 8); clamped at c_bus_off_threshold + 8 to stay in range
                 end if;
               elsif mac_i.error then
-                if (receiver_error_count <= (c_bus_off_threshold + 7)) then
+                if (receiver_error_count <= c_bus_off_threshold + 7) then
                   receiver_error_count <= receiver_error_count + 1;             -- ISO 8.1.4.2,a (REC += 1); clamped at c_bus_off_threshold + 8
                 end if;
               elsif (mac_i.successful_transfer) then

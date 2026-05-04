@@ -1,23 +1,23 @@
---------------------------------------------------------------------------------------------------------------------------------------------------------------
--- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
---------------------------------------------------------------------------------------------------------------------------------------------------------------
---
--- Requirements:  
---
--- Description:
---
--- Revision log:  Date:       Initial:  JIRA:
---                2026-04-27
---
---------------------------------------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- Title      : MAC + PCS + FCE structural wrapper
+-- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
+--------------------------------------------------------------------------------
+-- File       : can_mac_pcs_fce.vhd
+-- Author     : Mads Richardt
+-- Standard   : VHDL-2008
+--------------------------------------------------------------------------------
+-- Description: Structural wrapper that instantiates can_mac, can_fce, and
+--              can_pcs and wires them together. Exposes LLC TX/RX interfaces,
+--              the LLC-FCE interface (bus-off status and normal_mode handshake),
+--              and a physical bus interface (tx_o / rx_i) to the top level.
+--------------------------------------------------------------------------------
 
 library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
-use work.pk_man_global.all;
-library ieee;
-use ieee.std_logic_1164.all;
-use work.pk_can_types.all;
+  use ieee.std_logic_1164.all;
+  use ieee.numeric_std.all;
+
+  use work.pk_man_global.all;
+  use work.pk_can_types.all;
 
 entity can_mac_pcs_fce is
   port(
@@ -46,6 +46,7 @@ architecture rtl of can_mac_pcs_fce is
   -- FCE <-> PCS interface --------------------------------------------------
   signal pcs_to_fce : t_can_pcs_fce_if_s2m;
   signal fce_to_pcs : t_can_fce_pcs_if_m2s;
+  -- (LLC-FCE signals are routed through the wrapper ports llc_fce_i / llc_fce_o)
   -- PCS <-> MAC interface --------------------------------------------------
   signal mac_to_pcs : t_can_mac_pcs_if_m2s;
   signal pcs_to_mac : t_can_mac_pcs_if_s2m;

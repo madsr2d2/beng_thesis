@@ -5,11 +5,12 @@
 -- Requirements:
 --
 -- Description:   CRC engine wrapper for CAN/CAN-FD TX path. Instantiates
---                dedicated engines for CRC15, CRC17, and CRC21 and selects
---                the appropriate output based on frame configuration.
+--                dedicated serial CRC engines for CRC-15, CRC-17, and CRC-21
+--                and selects the appropriate output based on frame configuration.
+--                Implements the algorithm from ISO 11898-1: Sec. 6.6.4.4.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-15  TMYAES    [TRIT-4346] [FPGA] CRC module for the CAN-FD module
+--                2026-03-15  TMYAES    Initial implementation
 --
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -106,9 +107,9 @@ begin
       else
         case crc_i.crc_poly_select is
           when c_crc_poly_15_sel =>
-            crc_o.crc <= crc15_out & ((c_crc_21_length - 1) - c_crc_15_length downto 0 => '0');
+            crc_o.crc <= crc15_out & (c_crc_21_length - 1 - c_crc_15_length downto 0 => '0');
           when c_crc_poly_17_sel =>
-            crc_o.crc <= crc17_out & ((c_crc_21_length - 1) - c_crc_17_length downto 0 => '0');
+            crc_o.crc <= crc17_out & (c_crc_21_length - 1 - c_crc_17_length downto 0 => '0');
           when c_crc_poly_21_sel =>
             crc_o.crc <= crc21_out;
           when others =>

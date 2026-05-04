@@ -210,17 +210,33 @@ begin
   end process;
   ----------------------------------------------------------------------------
 
+  -- bus_level: physical bus level used by test_bus_off
+  bus_level <= bus_at_tx;
+
   ----------------------------------------------------------------------------
   -- Track transmitted bits for Transmitter Delay Compensation (TDC) verification (ISO : 7.3.4)
+  -- Only shifts during data phase (BRS SP to data_phase_stop SP) so that
+  -- polarity_history(N) aligns with tdc_delay=N (data-phase boundary count only).
   ----------------------------------------------------------------------------
   p_polarity_history : process is
+    variable v_in_data_phase : boolean := false;
   begin
     WaitForBarrier(init_barrier);
     wait until reset = '0';
 
     polarity_history_loop : loop
       wait until rising_edge(tx_mac_o.sample_point);
-      polarity_history <= polarity_history(polarity_history'high - 1 downto 0) & tx_mac_i.tx_data;
+      if tx_mac_i.next_bit_is_brs = '1' then
+        -- First data-phase SP: reset history and record the first data bit at index 0
+        polarity_history <= (0 => tx_mac_i.tx_data, others => c_recessive);
+        v_in_data_phase  := true;
+      elsif v_in_data_phase then
+        if tx_mac_i.data_phase_stop = '1' then
+          v_in_data_phase := false;
+        else
+          polarity_history <= polarity_history(polarity_history'high - 1 downto 0) & tx_mac_i.tx_data;
+        end if;
+      end if;
     end loop polarity_history_loop;
   end process p_polarity_history;
 

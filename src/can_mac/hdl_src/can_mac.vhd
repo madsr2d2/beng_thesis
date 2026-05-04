@@ -63,9 +63,9 @@ architecture rtl of can_mac is
 begin
 
   ---------------------------------------------------------------------------
-  -- can_mac_ser_tx: LLC byte serializer (TX path)
+  -- can_mac_ser: LLC byte serializer (TX path)
   ---------------------------------------------------------------------------
-  u_can_mac_ser_tx : entity work.can_mac_ser_tx
+  u_can_mac_ser_tx : entity work.can_mac_ser
     port map(
       clk_i        => clk,
       rst_i        => rst,

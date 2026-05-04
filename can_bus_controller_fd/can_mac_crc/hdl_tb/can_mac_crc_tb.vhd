@@ -2,18 +2,18 @@
 -- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
--- Requirements:  
+-- Requirements:
 --
 -- Description:   Testbench for can_mac_crc.
---                p_input_vc          - Feeds random bit streams to DUT.
---                p_output_vc         - Checks CRC output against reference model.
---                p_reset_checker     - Verifies reset zeroes CRC output.
---                p_output_stable_checker - Verifies CRC holds when valid deasserted.
---                p_test_ctrl         - Coverage-driven test sequencer.
+--                  p_input_vc          - Feeds random bit streams to DUT.
+--                  p_output_vc         - Checks CRC output against reference model.
+--                  p_reset_checker     - Verifies reset zeroes CRC output.
+--                  p_output_stable_checker - Verifies CRC holds when valid deasserted.
+--                  p_test_ctrl         - Coverage-driven test sequencer.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-15  TMYAES:   [TRIT-4346] [FPGA] CRC module for the CAN-FD module
---
+--                2026-03-15  TMYAES    [TRIT-4341] Initial implementation
+--                2026-03-31  MRDSA     [TRIT-4346] Adapted for local GHDL/OSVVM flow
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
@@ -30,7 +30,6 @@ use work.pk_man_global.all;
 use work.common_register_interface_pkg.all;
 use work.common_tb_pkg.all;
 use work.pk_can_types.all;
-use work.pk_can_tb.all;
 
 entity can_mac_crc_tb is
   generic (
