@@ -460,7 +460,7 @@ begin
 
             -----------------------------------------------------------------
             -- s_suspend_transmission: 8-bit recessive wait after an error
-            -- passive TX frame (ISO 6.6.7.4). TX only entry.
+            -- passive TX frame (ISO 6.6.7.4).
             -----------------------------------------------------------------
             when s_suspend_transmission =>
               if pcs_i.sample_point = '1' and pcs_i.rx_data = c_recessive then
@@ -492,7 +492,6 @@ begin
                   v_drive_now      := true;
                 end if;
               elsif pcs_i.sample_point = '1' and (is_transmitter or pcs_i.rx_data = c_dominant) then
-                -- RX: detect dominant SOF on the bus.
                 bit_count      <= 0;
                 bs_rst         <= '0';
                 crc_rst        <= '0';
