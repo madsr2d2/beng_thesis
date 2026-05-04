@@ -174,8 +174,6 @@ begin
     variable v_dlc_vec                : std_logic_vector(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
     variable v_fdf                    : std_logic;
     variable v_ftyp                   : std_logic;
-    -- TX post-arb feeds own drive; RX and arb feed rx_data (avoids TDC echo lag).
-    variable v_bs_crc_data         : std_logic;
     -- Drive intent committed at end of process; see drive-commit block.
     variable v_drive_now           : boolean;
     variable v_drive_polarity      : std_logic;
@@ -185,6 +183,10 @@ begin
     variable v_tx_bit_error_state  : boolean;
     -- True when TX SP echo differs from driven polarity (SP-based check only; SSP handles data phase).
     variable v_bit_error_at_sp       : boolean;
+    -- Set by TX/RX intercept branches; suppresses per-state case statement.
+    variable v_skip_case             : boolean;
+    -- True in fixed-format recessive fields where dominant is a form error (receiver only).
+    variable v_in_fixed_format_field : boolean;
 
   begin
 
@@ -229,19 +231,13 @@ begin
       else
 
 
-        -- TX post-arbitration feeds BS/CRC from its own drive to avoid TDC-delayed echo lag.
-        if is_transmitter and state /= s_arbitration then
-          v_bs_crc_data := transmitted_bits_shift_reg(0);
-        else
-          v_bs_crc_data := pcs_i.rx_data;
-        end if;
-
         v_in_dynamic_stuff   := state = s_arbitration or state = s_fdf_r1_r0 or state = s_res_r0 or state = s_brs or state = s_esi or state = s_dlc or state = s_data;
         v_tx_bit_error_state := state = s_fdf_r1_r0 or state = s_res_r0
                                 or state = s_brs    or state = s_esi    or state = s_dlc or state = s_data
                                 or state = s_sbc    or state = s_crc    or state = s_crc_delimiter
                                 or state = s_ack_delimiter or state = s_eof;
-        v_bit_error_at_sp      := not in_data_phase and state /= s_ack_delimiter and transmitted_bits_shift_reg(0) /= pcs_i.rx_data;
+        v_bit_error_at_sp        := not in_data_phase and state /= s_ack_delimiter and transmitted_bits_shift_reg(0) /= pcs_i.rx_data;
+        v_in_fixed_format_field  := state = s_crc_delimiter or state = s_ack_delimiter;
 
 
         drive_bit_d <= pcs_i.sample_point;
@@ -250,9 +246,14 @@ begin
         -----------------------------------------------------------------
         -- Defaults
         -----------------------------------------------------------------
+        v_skip_case      := false;
         v_drive_now      := false;
         v_drive_polarity := c_recessive;
-        bs_o.data                         <= v_bs_crc_data;
+        if is_transmitter and state /= s_arbitration then
+          bs_o.data <= transmitted_bits_shift_reg(0);
+        else
+          bs_o.data <= pcs_i.rx_data;
+        end if;
         bs_o.valid                        <= '0';
         bs_rst                            <= '0';
         crc_o                             <= c_mac_fsm_to_crc_if_reset;
@@ -299,77 +300,179 @@ begin
         end if;
 
         -----------------------------------------------------------------
-        -- Lost arbitration (ISO 6.5.2): Become to receiver.
-        -- Kept outside the chain so the s_arbitration case still runs.
-        -----------------------------------------------------------------
-        if pcs_i.sample_point = '1' and is_transmitter and state = s_arbitration and transmitted_bits_shift_reg(0) = c_recessive and pcs_i.rx_data = c_dominant then
-          mac_ser_o.transfer_status <= c_lost_arb;
-          was_previous_frame_tx     <= false;
-          is_transmitter            <= false;
-        end if;
-
-        -----------------------------------------------------------------
         -- SP / drive_bit chain. Runs before the per-state case so error
         -- detection and stuff-bit handling intercept before state advance.
-        --   1. TX bit-error   SP, TX, active-frame state, echo mismatch
-        --   2. RX stuff-error SP, RX, stuff slot, polarity mismatch
-        --   3. SP stuff-bit   SP, stuff slot (no error): feed BS/CRC only
-        --   4. BB stuff-bit   drive_bit, TX, stuff slot: drive the bit
-        --   5. Real-bit       everything else: BS/CRC feed + per-state case
+        -- TX branch: lost-arb; bit-error at SP; SP stuff-bit feed; BB stuff-bit.
+        -- RX branch: stuff-error at SP; SP stuff-bit feed.
+        -- v_skip_case suppresses the case statement for all intercepts.
+        -- Lost arbitration does not set v_skip_case: s_arbitration case still runs.
         -----------------------------------------------------------------
-        if pcs_i.sample_point = '1' and is_transmitter and v_tx_bit_error_state and (bit_error_at_ssp or v_bit_error_at_sp) then
-          -- 1. TX bit-error (ISO 6.5.4)
-          if bit_error_at_ssp then
-            bit_error_at_ssp <= false;
+        if is_transmitter then
+
+          if pcs_i.sample_point = '1' then
+            -- Lost arbitration (ISO 6.5.2): demote to receiver; case still runs.
+            if state = s_arbitration and transmitted_bits_shift_reg(0) = c_recessive and pcs_i.rx_data = c_dominant then
+              mac_ser_o.transfer_status <= c_lost_arb;
+              was_previous_frame_tx     <= false;
+              is_transmitter            <= false;
+            end if;
+
+            if v_tx_bit_error_state and (bit_error_at_ssp or v_bit_error_at_sp) then
+              -- TX bit-error (ISO 6.5.4)
+              if bit_error_at_ssp then
+                bit_error_at_ssp <= false;
+              end if;
+              fce_o.error                <= '1';
+              pcs_o.tx_data              <= not fce_i.error_active;
+              pcs_o.data_phase_stop      <= '1';
+              in_data_phase              <= false;
+              bs_o.fixed_bit_stuffing_en <= '0';
+              state                      <= s_error_flag;
+              bit_count                  <= 0;
+              overload                   <= false;
+              v_skip_case                := true;
+
+            elsif bs_i.valid = '1' then
+              -- TX SP stuff-bit: feed BS/CRC from TX drive register
+              bs_o.valid <= '1';
+              bs_o.data  <= transmitted_bits_shift_reg(0);
+              if v_in_dynamic_stuff then
+                crc_o.valid_fd <= '1';
+                crc_o.data_fd  <= transmitted_bits_shift_reg(0);
+              end if;
+              v_skip_case := true;
+
+            elsif state = s_ack_delimiter and not (ack_success_seen or pcs_i.rx_data = c_dominant) then
+              -- TX ACK error (ISO 6.5.3)
+              ack_error_caused_flag      <= true;
+              pcs_o.tx_data              <= not fce_i.error_active;
+              pcs_o.data_phase_stop      <= '1';
+              bs_o.fixed_bit_stuffing_en <= '0';
+              state                      <= s_error_flag;
+              bit_count                  <= 0;
+              overload                   <= false;
+              v_skip_case                := true;
+            end if;
+
+          elsif drive_bit = '1' and bs_i.valid = '1' then
+            -- TX BB stuff-bit: drive the stuffed polarity onto the bus
+            v_drive_polarity := bs_i.data;
+            v_drive_now      := true;
+            v_skip_case      := true;
           end if;
-          fce_o.error                <= '1';
-          pcs_o.tx_data              <= not fce_i.error_active;
-          pcs_o.data_phase_stop      <= '1';
-          in_data_phase              <= false;
-          bs_o.fixed_bit_stuffing_en <= '0';
-          state                      <= s_error_flag;
-          bit_count                  <= 0;
-          overload                   <= false;
 
-        elsif pcs_i.sample_point = '1' and not is_transmitter
-              and bs_i.valid = '1' and bs_i.data /= pcs_i.rx_data
-              and v_in_dynamic_stuff then
-          -- 2. RX stuff-error (ISO 6.5.5)
-          fce_o.sending_error_overload_flag <= '1';
-          fce_o.error                       <= '1';
-          pcs_o.data_phase_stop             <= '1';
-          in_data_phase                     <= false;
-          v_drive_polarity                  := not fce_i.error_active;
-          v_drive_now                       := true;
-          state                             <= s_error_flag;
-          bit_count                         <= 0;
+        else  -- receiver
 
-        elsif pcs_i.sample_point = '1' and bs_i.valid = '1' then
-          -- 3. SP stuff-bit: feed BS/CRC (CC excludes stuff bits; FD s_sbc/s_crc excluded)
-          bs_o.valid <= '1';
-          bs_o.data  <= v_bs_crc_data;
-          if v_in_dynamic_stuff then
-            crc_o.valid_fd <= '1';
-            crc_o.data_fd  <= v_bs_crc_data;
+          if pcs_i.sample_point = '1' then
+            if bs_i.valid = '1' and bs_i.data /= pcs_i.rx_data and v_in_dynamic_stuff then
+              -- RX stuff-error (ISO 6.5.5)
+              fce_o.sending_error_overload_flag <= '1';
+              fce_o.error                       <= '1';
+              pcs_o.data_phase_stop             <= '1';
+              in_data_phase                     <= false;
+              v_drive_polarity                  := not fce_i.error_active;
+              v_drive_now                       := true;
+              state                             <= s_error_flag;
+              bit_count                         <= 0;
+              v_skip_case                       := true;
+
+            elsif bs_i.valid = '1' then
+              -- RX SP stuff-bit: feed BS/CRC from sampled bus
+              bs_o.valid <= '1';
+              bs_o.data  <= pcs_i.rx_data;
+              if v_in_dynamic_stuff then
+                crc_o.valid_fd <= '1';
+                crc_o.data_fd  <= pcs_i.rx_data;
+              end if;
+              v_skip_case := true;
+
+            elsif state = s_eof and bit_count = 0 and crc_error_detected then
+              -- RX CRC error: fires at first EOF bit (ISO 10.4.2.1)
+              ack_error_caused_flag      <= true;
+              pcs_o.tx_data              <= not fce_i.error_active;
+              pcs_o.data_phase_stop      <= '1';
+              bs_o.fixed_bit_stuffing_en <= '0';
+              state                      <= s_error_flag;
+              bit_count                  <= 0;
+              overload                   <= false;
+              v_skip_case                := true;
+
+            elsif state = s_eof and pcs_i.rx_data = c_dominant then
+              -- EOF dominant: overload at last bit, form error elsewhere (ISO 10.4.2.1 / 6.6.21.3.2)
+              if bit_count = c_eof_field_width - 1 then
+                v_drive_polarity := c_dominant;
+                overload         <= true;
+                fce_o.error      <= '0';
+              else
+                v_drive_polarity := not fce_i.error_active;
+                fce_o.error      <= '1';
+              end if;
+              v_drive_now                       := true;
+              fce_o.sending_error_overload_flag <= '1';
+              state                             <= s_error_flag;
+              bit_count                         <= 0;
+              v_skip_case                       := true;
+
+            elsif state = s_intermission and bit_count < c_intermission_width - 1 and pcs_i.rx_data = c_dominant then
+              -- Intermission overload: dominant at bits 0 or 1 (ISO 6.6.21.3.2 b)
+              fce_o.sending_error_overload_flag <= '1';
+              pcs_o.tx_data                     <= c_dominant;
+              state                             <= s_error_flag;
+              bit_count                         <= 0;
+              overload                          <= true;
+              v_skip_case                       := true;
+
+            elsif v_in_fixed_format_field and pcs_i.rx_data = c_dominant then
+              -- Form error: CRC delimiter or ACK delimiter must be recessive (ISO 10.4.2.1)
+              fce_o.sending_error_overload_flag <= '1';
+              fce_o.error                       <= '1';
+              pcs_o.data_phase_stop             <= '1';
+              bs_o.fixed_bit_stuffing_en        <= '0';
+              v_drive_polarity                  := not fce_i.error_active;
+              v_drive_now                       := true;
+              state                             <= s_error_flag;
+              bit_count                         <= 0;
+              v_skip_case                       := true;
+
+            elsif state = s_res_r0 and pcs_i.rx_data = c_recessive then
+              -- Form error: reserved bit must be dominant (ISO 10.4.2.1)
+              fce_o.sending_error_overload_flag <= '1';
+              fce_o.error                       <= '1';
+              v_drive_polarity                  := not fce_i.error_active;
+              v_drive_now                       := true;
+              state                             <= s_error_flag;
+              bit_count                         <= 0;
+              v_skip_case                       := true;
+            end if;
+
           end if;
 
-        elsif drive_bit = '1' and is_transmitter and bs_i.valid = '1' then
-          -- 4. BB stuff-bit: drive the stuffed polarity onto the bus
-          v_drive_polarity := bs_i.data;
-          v_drive_now      := true;
+        end if;
 
-        else
-          -- 5. Real-bit cycle (SP or drive_bit) or quiet/error state
+        if not v_skip_case then
+
           if pcs_i.sample_point = '1' and (v_in_dynamic_stuff or state = s_sbc or state = s_crc) then
             bs_o.valid <= '1';
-            bs_o.data  <= v_bs_crc_data;
-            if v_in_dynamic_stuff or state = s_sbc then
-              crc_o.valid_fd <= '1';
-              crc_o.data_fd  <= v_bs_crc_data;
-            end if;
-            if v_in_dynamic_stuff then
-              crc_o.valid_cc <= '1';
-              crc_o.data_cc  <= v_bs_crc_data;
+            if is_transmitter and state /= s_arbitration then
+              bs_o.data <= transmitted_bits_shift_reg(0);
+              if v_in_dynamic_stuff or state = s_sbc then
+                crc_o.valid_fd <= '1';
+                crc_o.data_fd  <= transmitted_bits_shift_reg(0);
+              end if;
+              if v_in_dynamic_stuff then
+                crc_o.valid_cc <= '1';
+                crc_o.data_cc  <= transmitted_bits_shift_reg(0);
+              end if;
+            else
+              bs_o.data <= pcs_i.rx_data;
+              if v_in_dynamic_stuff or state = s_sbc then
+                crc_o.valid_fd <= '1';
+                crc_o.data_fd  <= pcs_i.rx_data;
+              end if;
+              if v_in_dynamic_stuff then
+                crc_o.valid_cc <= '1';
+                crc_o.data_cc  <= pcs_i.rx_data;
+              end if;
             end if;
           end if;
 
@@ -400,39 +503,23 @@ begin
             -- at the bit-2 bit_boundary.
             -----------------------------------------------------------------
             when s_intermission =>
-              if drive_bit = '1' then
-                if is_transmitter and bit_count = c_intermission_width - 1 and mac_ser_i.valid = '1' then
-                  v_data_len            := dlc_to_data_length(to_integer(unsigned(mac_ser_i.llc_metadata.dlc)), mac_ser_i.llc_metadata.fdf);
-                  data_len              <= v_data_len;
-                  crc_length            <= f_crc_length(v_data_len, mac_ser_i.llc_metadata.fdf);
-                  crc_o.crc_poly_select <= f_crc_poly_select(v_data_len, mac_ser_i.llc_metadata.fdf);
-                  v_drive_polarity := c_dominant;
-                  v_drive_now      := true;
-                end if;
-              elsif pcs_i.sample_point = '1' then
+              -- drive_bit block removed: back-to-back TX now starts from s_bus_idle.
+              if pcs_i.sample_point = '1' then
                 if pcs_i.rx_data = c_dominant then
-                  if bit_count < c_intermission_width - 1 then
-                    -- Overload (ISO 6.6.21.3.2 b)
-                    state         <= s_error_flag;
-                    bit_count     <= 0;
-                    overload      <= true;
-                    pcs_o.tx_data <= c_dominant;
-                  else
-                    -- SOF: feed BS/CRC the SOF dominant, advance.
-                    bit_count      <= 0;
-                    byte_index     <= 0;
-                    bit_index      <= 0;
-                    llc_frame      <= (others => (others => '0'));
-                    bs_rst         <= '0';
-                    crc_rst        <= '0';
-                    bs_o.valid     <= '1';
-                    bs_o.data      <= c_dominant;
-                    crc_o.valid_cc <= '1';
-                    crc_o.valid_fd <= '1';
-                    crc_o.data_cc  <= c_dominant;
-                    crc_o.data_fd  <= c_dominant;
-                    state          <= s_arbitration;
-                  end if;
+                  -- Overload at bits 0-1 caught in RX pre-case; dominant here means bit 2 = SOF.
+                  bit_count      <= 0;
+                  byte_index     <= 0;
+                  bit_index      <= 0;
+                  llc_frame      <= (others => (others => '0'));
+                  bs_rst         <= '0';
+                  crc_rst        <= '0';
+                  bs_o.valid     <= '1';
+                  bs_o.data      <= c_dominant;
+                  crc_o.valid_cc <= '1';
+                  crc_o.valid_fd <= '1';
+                  crc_o.data_cc  <= c_dominant;
+                  crc_o.data_fd  <= c_dominant;
+                  state          <= s_arbitration;
                 else
                   if bit_count < c_intermission_width - 1 then
                     bit_count <= bit_count + 1;
@@ -441,8 +528,7 @@ begin
                     if fce_i.error_active = '0' and was_previous_frame_tx then
                       state <= s_suspend_transmission;
                     else
-                      state          <= s_bus_idle;
-                      is_transmitter <= false;
+                      state <= s_bus_idle;
                     end if;
                   end if;
                 end if;
@@ -583,24 +669,15 @@ begin
 
             -----------------------------------------------------------------
             -- s_res_r0: reserved bit, fixed dominant. FD continues to s_brs;
-            -- CC ext falls to s_dlc. Recessive on the bus is a form error.
+            -- CC ext falls to s_dlc. Form error (recessive) caught in RX pre-case.
             -----------------------------------------------------------------
             when s_res_r0 =>
               if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := c_dominant;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                if pcs_i.rx_data = c_recessive then
-                  -- Form error (res must be dominant; TX winning never trips).
-                  fce_o.sending_error_overload_flag <= '1';
-                  fce_o.error                       <= '1';
-                  v_drive_polarity := not fce_i.error_active;
-                  v_drive_now      := true;
-                  bit_count                         <= 0;
-                  state                             <= s_error_flag;
-                elsif llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' then
-                  -- BRS hint: SP of res, next bit is BRS. Both roles need
-                  -- this so the PCS handles the bit-rate switch.
+                -- Form error caught in RX pre-case; only reach here for dominant (correct).
+                if llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' then
                   pcs_o.next_bit_is_brs <= '1';
                   state                 <= s_brs;
                 else
@@ -757,26 +834,17 @@ begin
 
             -----------------------------------------------------------------
             -- s_crc_delimiter: single recessive bit between CRC and ACK.
-            -- TX drives recessive; RX listens and transitions to s_ack.
+            -- TX drives recessive; RX listens. Form error caught in RX pre-case.
             -----------------------------------------------------------------
             when s_crc_delimiter =>
               if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := c_recessive;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                in_data_phase                     <= false;
-                state     <= s_ack;
-                bit_count <= 0;
-                -- Receiver nodes check form error
-                if not is_transmitter and pcs_i.rx_data /= c_recessive then
-                  fce_o.sending_error_overload_flag <= '1';
-                  fce_o.error                       <= '1';
-                  v_drive_polarity                  := not fce_i.error_active;
-                  v_drive_now                       := true;
-                  pcs_o.data_phase_stop             <= '1';
-                  bs_o.fixed_bit_stuffing_en        <= '0';
-                  state                             <= s_error_flag;
-                end if;
+                -- Form error (dominant) caught in RX pre-case; only reach here for recessive.
+                in_data_phase <= false;
+                state         <= s_ack;
+                bit_count     <= 0;
               end if;
 
             -----------------------------------------------------------------
@@ -810,91 +878,44 @@ begin
 
             -----------------------------------------------------------------
             -- s_ack_delimiter: single recessive bit after ACK slot.
+            -- TX ACK error caught in TX pre-case; RX form error caught in RX pre-case.
             -----------------------------------------------------------------
             when s_ack_delimiter =>
-              -- Transmitting nodes drive recessive
               if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := c_recessive;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                if is_transmitter then
-                  if ack_success_seen or pcs_i.rx_data = c_dominant then
-                    state <= s_eof;
-                  else
-                    -- Transmitter reacts to ACK error at the ACK delimiter
-                    ack_error_caused_flag      <= true;
-                    pcs_o.tx_data              <= not fce_i.error_active;
-                    pcs_o.data_phase_stop      <= '1';
-                    bs_o.fixed_bit_stuffing_en <= '0';
-                    state                      <= s_error_flag;
-                    bit_count                  <= 0;
-                    overload                   <= false;
-                  end if;
-                else
-                  -- Receiver checks for form error
-                  if pcs_i.rx_data = c_dominant then
-                    fce_o.sending_error_overload_flag <= '1';
-                    fce_o.error                       <= '1';
-                    pcs_o.tx_data                     <= not fce_i.error_active;
-                    state                             <= s_error_flag;
-                    bit_count                         <= 0;
-                  else
-                    state     <= s_eof;
-                    bit_count <= 0;
-                  end if;
-                end if;
+                -- Both errors caught in pre-case; only reach here on clean path.
+                state     <= s_eof;
+                bit_count <= 0;
               end if;
 
             -----------------------------------------------------------------
             -- s_eof: 7 recessive bits.
             -----------------------------------------------------------------
             when s_eof =>
-              -- Transmitting nodes drive recessive
+              -- Dominant (form error / overload) and CRC error caught in RX pre-case.
+              -- TX dominant caught as bit error in TX pre-case (ISO note: invalid for TX).
               if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := c_recessive;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                -- Check for form error (dominant bits during the EOF field)
-                if pcs_i.rx_data = c_dominant then
-                  -- Dominant is last EOF bit is overload
-                  if bit_count = c_eof_field_width - 1 then
-                    v_drive_polarity := c_dominant;
-                    overload    <= true;
-                    fce_o.error <= '0';
+                -- Only reach here for recessive bits without CRC error.
+                if bit_count = c_eof_field_width - 1 then
+                  byte_index    <= 0;
+                  llc_frame_len <= c_data_offset + data_len;
+                  if is_transmitter then
+                    mac_ser_o.transfer_status <= c_transmitted;
+                    was_previous_frame_tx     <= true;
+                    is_transmitter            <= false;
                   else
-                    v_drive_polarity := not fce_i.error_active;
-                    fce_o.error  <= '1';
+                    llc_stream_start <= true;
                   end if;
-                  v_drive_now      := true;
                   bit_count <= 0;
-                  fce_o.sending_error_overload_flag <= '1';
-                  state     <= s_error_flag;
+                  fce_o.successful_transfer <= '1';
+                  state     <= s_intermission;
                 else
-                  -- Receivers react to CRC errors at the first bit of the EOF field
-                  if bit_count = 0 and crc_error_detected then
-                    ack_error_caused_flag      <= true;
-                    pcs_o.tx_data              <= not fce_i.error_active;
-                    pcs_o.data_phase_stop      <= '1';
-                    bs_o.fixed_bit_stuffing_en <= '0';
-                    state                      <= s_error_flag;
-                    bit_count                  <= 0;
-                    overload                   <= false;
-                  -- Reached end of EOF without errors: Successful transfer/reception.
-                  elsif bit_count = c_eof_field_width - 1 then
-                    byte_index    <= 0;
-                    llc_frame_len <= c_data_offset + data_len;
-                    if is_transmitter then
-                      mac_ser_o.transfer_status <= c_transmitted;
-                      was_previous_frame_tx     <= true;
-                    else
-                      llc_stream_start <= true;  -- receivers deliver captured frame to LLC RX
-                    end if;
-                    bit_count <= 0;
-                    fce_o.successful_transfer <= '1';
-                    state     <= s_intermission;
-                  else
-                    bit_count <= bit_count + 1;
-                  end if;
+                  bit_count <= bit_count + 1;
                 end if;
               end if;
 
