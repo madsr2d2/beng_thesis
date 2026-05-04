@@ -6,29 +6,20 @@
 -- Author     : Mads Richardt
 -- Standard   : VHDL-2008
 --------------------------------------------------------------------------------
--- Description: Single MAC FSM handling TX and RX in one synchronous process.
---              is_transmitter is latched at SOF; each state's case branch
---              contains both TX and RX behaviour gated on it. The bit stuffer,
---              CRC and serializer submodules are shared between modes.
+-- Description: FSM orchestrating the MAC layer. Supports CAN/CAN-FD frame formats.
 --
---              Frame layouts (d = fixed dominant, r = fixed recessive):
+--              Key architecture elements:
+--                Pre-case      TX: lost-arb, bit-error, stuff-bit.
+--                              RX: stuff-error, stuff-bit, CRC/form/overload errors.
+--                              Sets v_skip_case to bypass the case block.
+--                Case          frame-structure state transitions (only error-free paths).
+--                Post-case     BS/CRC feed at SP and PCS drive commit.
 --
---                CC Base
---                  |SOF(d)|ID(11)|RTR|IDE(d)|r0(d)|DLC(4)|DATA(0..8B)|CRC(15)|delim(r)|ACK|delim(r)|EOF(7r)|
---
---                CC Extended
---                  |SOF(d)|ID-A(11)|SRR(r)|IDE(r)|ID-B(18)|RTR|r1(d)|r0(d)|DLC(4)|DATA(0..8B)|CRC(15)|delim(r)|ACK|delim(r)|EOF(7r)|
---
---                FD Base
---                  |SOF(d)|ID(11)|RRS(d)|IDE(d)|FDF(r)|res(d)|BRS|ESI|DLC(4)|DATA(0..64B)|SBC(4)|CRC(17/21)|delim(r)|ACK(2)|delim(r)|EOF(7r)|
---
---                FD Extended
---                   |SOF(d)|ID-A(11)|SRR(r)|IDE(r)|ID-B(18)|RRS(d)|FDF(r)|res(d)|BRS|ESI|DLC(4)|DATA(0..64B)|SBC(4)|CRC(17/21)|delim(r)|ACK(2)|delim(r)|EOF(7r)|
+--                drive_bit pipeline: drive_bit_delay = SP delayed one cycle (state/bit_count
+--                settle). drive_bit = SP delayed two cycles (BS registers new values and
+--                presents correct bs_i.valid to TX branches).
 --
 --              Reference: ISO 11898-1:2024.
---
---              Refactor history and design rationale:
---                docs/can_mac_fsm_history.md
 --------------------------------------------------------------------------------
 
 library ieee;
@@ -496,7 +487,7 @@ begin
               byte_index <= 0;
               bit_index  <= 0;
               if drive_bit = '1' then
-                if mac_ser_i.valid = '1' and (fce_i.error_active = '1' or not was_previous_frame_tx) then
+                if mac_ser_i.valid = '1' then
                   is_transmitter        <= true;
                   v_data_len            := dlc_to_data_length(to_integer(unsigned(mac_ser_i.llc_metadata.dlc)), mac_ser_i.llc_metadata.fdf);
                   data_len              <= v_data_len;
