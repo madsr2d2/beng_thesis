@@ -1,0 +1,38 @@
+
+
+
+# ---------------------------------------------------------------------------- #
+# Sim Library
+# ---------------------------------------------------------------------------- #
+set_global_assignment -name SOURCE_TCL_SCRIPT_FILE [file join $abs_path "modules/common_tb_pkgs.manip"]
+
+# ---------------------------------------------------------------------------- #
+# Packages
+# ---------------------------------------------------------------------------- #
+
+
+# ---------------------------------------------------------------------------- #
+# register
+# ---------------------------------------------------------------------------- #
+
+
+# ---------------------------------------------------------------------------- #
+# Sub Modules
+# ---------------------------------------------------------------------------- #
+
+
+# ---------------------------------------------------------------------------- #
+# Module Files
+# ---------------------------------------------------------------------------- #
+set_global_assignment -name SOURCE_TCL_SCRIPT_FILE [file join $abs_path "modules/ip_lib/gen_crc/hdl_src/gen_crc.manip"]
+
+# ---------------------------------------------------------------------------- #
+# TB
+# ---------------------------------------------------------------------------- #
+set_global_assignment -name VHDL_FILE              [file join $abs_path "modules/ip_lib/gen_crc/hdl_tb/gen_crc_model.vhd"]
+set_global_assignment -name VHDL_FILE              [file join $abs_path "modules/ip_lib/gen_crc/hdl_tb/gen_crc_model_tb.vhd"]
+set_global_assignment -name VHDL_FILE              [file join $abs_path "modules/ip_lib/gen_crc/hdl_tb/gen_crc_tb_p.vhd"]
+
+
+# eof
+
