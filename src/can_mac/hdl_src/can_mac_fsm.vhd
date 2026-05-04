@@ -401,15 +401,11 @@ begin
               bit_count                         <= 0;
               v_skip_case                       := true;
             end if;
-
           end if;
-
         end if;
 
         if not v_skip_case then
-
           case state is
-
             -----------------------------------------------------------------
             -- s_bus_reintegration: wait for c_bus_idle_condition_width consecutive recessive bits (ISO 6.6.7.5).
             -----------------------------------------------------------------
@@ -479,14 +475,13 @@ begin
               end if;
 
             -----------------------------------------------------------------
-            -- s_bus_idle: ready for a new frame (ISO 6.6.7.3). TX entry
-            -- latches is_transmitter and drives SOF at bit_boundary; RX
-            -- entry triggers on dominant SOF at SP.
+            -- s_bus_idle: ready for a new frame (ISO 6.6.7.3).
             -----------------------------------------------------------------
             when s_bus_idle =>
               byte_index <= 0;
               bit_index  <= 0;
               if drive_bit = '1' then
+                -- Latch is_transmitter when mac_ser has a pending frame
                 if mac_ser_i.valid = '1' then
                   is_transmitter        <= true;
                   v_data_len            := dlc_to_data_length(to_integer(unsigned(mac_ser_i.llc_metadata.dlc)), mac_ser_i.llc_metadata.fdf);
@@ -497,7 +492,6 @@ begin
                   v_drive_now      := true;
                 end if;
               elsif pcs_i.sample_point = '1' and (is_transmitter or pcs_i.rx_data = c_dominant) then
-                -- TX: is_transmitter drove SOF so transition regardless of loopback.
                 -- RX: detect dominant SOF on the bus.
                 bit_count      <= 0;
                 bs_rst         <= '0';
