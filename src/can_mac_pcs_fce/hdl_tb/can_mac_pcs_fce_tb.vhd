@@ -111,23 +111,16 @@ architecture tb of can_mac_pcs_fce_tb is
   signal s_rx_sink_flush : boolean := false;
 
   -- DUT 1 interfaces
-  signal llc_to_mac_tx_s2d_dut_1 : t_can_llc_mac_tx_if_s2d;
+  signal llc_to_mac_tx_s2d_dut_1 : t_can_llc_mac_tx_if_s2d := c_llc_to_mac_tx_if_reset;
   signal llc_to_mac_tx_d2s_dut_1 : t_can_llc_mac_tx_if_d2s;
   signal mac_to_llc_tx_s2d_dut_1 : t_can_llc_mac_rx_if_s2d;
-  signal mac_to_llc_tx_d2s_dut_1 : t_can_llc_mac_rx_if_d2s;
+  signal mac_to_llc_tx_d2s_dut_1 : t_can_llc_mac_rx_if_d2s := c_llc_to_mac_rx_if_reset;
 
   -- DUT 2 interfaces. LLC TX source is idle until p_tx_llc_vc_dut_2 drives it.
-  signal llc_to_mac_tx_s2d_dut_2 : t_can_llc_mac_tx_if_s2d := (
-    avalon_st_source => (
-      data          => (others => '0'),
-      valid         => '0',
-      startofpacket => '0',
-      endofpacket   => '0'
-    )
-  );
+  signal llc_to_mac_tx_s2d_dut_2 : t_can_llc_mac_tx_if_s2d := c_llc_to_mac_tx_if_reset;
   signal llc_to_mac_tx_d2s_dut_2 : t_can_llc_mac_tx_if_d2s;
   signal mac_to_llc_tx_s2d_dut_2 : t_can_llc_mac_rx_if_s2d;
-  signal mac_to_llc_tx_d2s_dut_2 : t_can_llc_mac_rx_if_d2s;
+  signal mac_to_llc_tx_d2s_dut_2 : t_can_llc_mac_rx_if_d2s := c_llc_to_mac_rx_if_reset;
 
   -- LLC-FCE interfaces (both DUTs always in normal mode for simulation)
   signal llc_fce_i_dut_1 : t_can_llc_fce_if_m2s := (normal_mode => '1');

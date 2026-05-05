@@ -215,6 +215,11 @@ package pk_can_types is
     avalon_st_source : t_eth_st_s2d;
   end record t_can_llc_mac_tx_if_s2d;
 
+  constant c_llc_to_mac_tx_if_reset : t_can_llc_mac_tx_if_s2d :=
+  (
+    avalon_st_source => (data => (others => '0'), valid => '0', startofpacket => '0', endofpacket => '0')
+  );
+
   -- MAC -> LLC
   type t_can_llc_mac_tx_if_d2s is record
     avalon_st_sink  : t_eth_st_d2s;
