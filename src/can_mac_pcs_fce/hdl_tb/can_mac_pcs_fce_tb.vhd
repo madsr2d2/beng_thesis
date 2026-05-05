@@ -501,26 +501,35 @@ begin
     --            FTYP=1 (remote/RTR) is only sampled for CC frames; FD has no RTR.
     --------------------------------------------------------------------------
     procedure gen_frame(tx_frame : out t_llc_frame; last_byte : out natural; v_id : integer := -1) is
-      variable v_meta     : t_llc_metadata;
       variable v_data_len : natural;
       variable v_id_slv   : std_logic_vector(c_base_id_width - 1 downto 0);
     begin
       for i in tx_frame'range loop
         tx_frame(i) := (others => '0');
       end loop;
-      if v_id >= 0 then
-        -- Fixed CC base frame: DLC=1, 11-bit ID packed into bytes 2-3 ([10:3] in byte 2, [2:0] in byte 3 [7:5]).
-        tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) :=
-          std_logic_vector(to_unsigned(1, c_dlc_field_width));
-        v_id_slv                := std_logic_vector(to_unsigned(v_id, c_base_id_width));
-        tx_frame(2)             := v_id_slv(c_base_id_width - 1 downto c_base_id_width - 8);
-        tx_frame(3)(7 downto 5) := v_id_slv(2 downto 0);
-      else
-        -- Random frame: sample format from coverage bins.
+      -- Format: random from coverage bins, or fixed CC base data with DLC=1.
+      if v_id < 0 then
         tx_frame(0)(c_llc_frame_ide) := std_logic(to_unsigned(GetRandPoint(ide_cov), 1)(0));
         tx_frame(0)(c_llc_frame_fdf) := std_logic(to_unsigned(GetRandPoint(fdf_cov), 1)(0));
         tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) :=
           std_logic_vector(to_unsigned(GetRandPoint(dlc_cov), 4));
+        if tx_frame(0)(c_llc_frame_fdf) = '1' then
+          tx_frame(0)(c_llc_frame_brs) := RV.RandSlv(1)(1);
+          tx_frame(0)(c_llc_frame_esi) := RV.RandSlv(1)(1);
+        else
+          -- RTR only applies to CC frames (ISO 7.3.1.1); sample FTYP from coverage.
+          tx_frame(0)(c_llc_frame_ftyp) := std_logic(to_unsigned(GetRandPoint(ftyp_cov), 1)(0));
+        end if;
+      else
+        tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) :=
+          std_logic_vector(to_unsigned(1, c_dlc_field_width));
+      end if;
+      -- ID: fixed if v_id >= 0, else random random.
+      if v_id >= 0 then
+        v_id_slv                := std_logic_vector(to_unsigned(v_id, c_base_id_width));
+        tx_frame(2)             := v_id_slv(c_base_id_width - 1 downto c_base_id_width - 8);
+        tx_frame(3)(7 downto 5) := v_id_slv(2 downto 0);
+      else
         for i in 2 to 5 loop
           tx_frame(i) := RV.RandSlv(8);
         end loop;
@@ -532,24 +541,13 @@ begin
           tx_frame(4)             := (others => '0');
           tx_frame(5)             := (others => '0');
         end if;
-        if tx_frame(0)(c_llc_frame_fdf) = '1' then
-          tx_frame(0)(c_llc_frame_brs) := RV.RandSlv(1)(1);
-          tx_frame(0)(c_llc_frame_esi) := RV.RandSlv(1)(1);
-        else
-          -- RTR only applies to CC frames (ISO 7.3.1.1); sample FTYP from coverage.
-          tx_frame(0)(c_llc_frame_ftyp) := std_logic(to_unsigned(GetRandPoint(ftyp_cov), 1)(0));
-        end if;
       end if;
-      v_meta := extract_metadata(tx_frame(0), tx_frame(1));
-      if v_meta.ftyp = '1' then
-        -- RTR: no data bytes in the LLC frame; the FSM skips s_data and the
-        -- MAC RX outputs only the 6-byte header (config + ID).
-        v_data_len := 0;
+      -- Data bytes: RTR carries none; all others fill v_data_len bytes.
+      if tx_frame(0)(c_llc_frame_ftyp) = '1' then
+        last_byte := c_data_offset - 1;
       else
-        v_data_len := dlc_to_data_length(to_integer(unsigned(v_meta.dlc)), v_meta.fdf);
-      end if;
-      last_byte := c_data_offset - 1 + v_data_len;
-      if v_data_len > 0 then
+        v_data_len := dlc_to_data_length( to_integer(unsigned(tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end))), tx_frame(0)(c_llc_frame_fdf));
+        last_byte := c_data_offset - 1 + v_data_len;
         for i in 0 to v_data_len - 1 loop
           tx_frame(c_data_offset + i) := RV.RandSlv(8);
         end loop;
@@ -577,8 +575,7 @@ begin
       end loop;
 
       Check(tx_llc_rec_dut_1, std_logic_vector(resize(unsigned(c_transmitted), c_rec_width)));
-      Check(rx_llc_rec_dut_2,
-        std_logic_vector(to_unsigned(v_last_byte + 1, c_rec_width)), std_logic_vector(to_unsigned(v_frame_count, c_rec_width)));
+      Check(rx_llc_rec_dut_2, std_logic_vector(to_unsigned(v_last_byte + 1, c_rec_width)), std_logic_vector(to_unsigned(v_frame_count, c_rec_width)));
     end procedure submit_and_verify;
 
     --------------------------------------------------------------------------
