@@ -11,7 +11,7 @@
 --                evaluation, and bus reads execute at the sample point (and secondary sample point
 --                for FD frames in the data phase).
 --                Pre-case:  TX: lost-arb, bit-error, stuff-bit (SP); drive stuffed polarity (drive_bit).
---                           RX: stuff-error, stuff-bit, CRC/form/overload errors.
+--                           RX: stuff-error, stuff-bit, SBC/CRC mismatch (deferred), form/overload errors.
 --                           Sets v_skip_case to bypass the case block.
 --                Case:      frame-structure state transitions (only error-free paths).
 --                Post-case: BS/CRC feed at SP and PCS drive commit.
@@ -402,6 +402,16 @@ begin
               state                             <= s_error_flag;
               bit_count                         <= 0;
               v_skip_case                       := true;
+
+            elsif state = s_sbc and
+              -- SBC mismatch: flag deferred to EOF (ISO 6.6.21.3.1), case block still advances.
+              pcs_i.rx_data /= bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count) then
+              crc_error_detected <= true;
+
+            elsif state = s_crc and
+              -- CRC mismatch: flag deferred to EOF (ISO 6.6.21.3.1), case block still advances.
+              pcs_i.rx_data /= crc_i.crc((c_crc_21_length - 1) - bit_count) then
+              crc_error_detected <= true;
             end if;
           end if;
         end if;
@@ -716,9 +726,7 @@ begin
                 v_drive_polarity := bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count);
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                if not is_transmitter and pcs_i.rx_data /= bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count) then
-                  crc_error_detected <= true;
-                elsif bit_count = c_sbc_field_width - 1 then
+                if bit_count = c_sbc_field_width - 1 then
                   state     <= s_crc;
                   bit_count <= 0;
                 else
@@ -734,11 +742,7 @@ begin
                 v_drive_polarity := crc_i.crc((c_crc_21_length - 1) - bit_count);
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                -- Receiver nodes check for CRC mismatch
-                if not is_transmitter and pcs_i.rx_data /= crc_i.crc((c_crc_21_length - 1) - bit_count) then
-                  crc_error_detected <= true;
-                elsif bit_count = crc_length - 1 then
-                  -- Assert data_phase_stop so the PCS switch to nominal bit timing at the CRC delimiter SP (ISO 6.6.10.5)
+                if bit_count = crc_length - 1 then
                   pcs_o.data_phase_stop      <= '1';
                   bs_o.fixed_bit_stuffing_en <= '0';
                   state                      <= s_crc_delimiter;
@@ -750,14 +754,13 @@ begin
 
             -----------------------------------------------------------------
             -- s_crc_delimiter: single recessive bit between CRC and ACK.
-            -- TX drives recessive; RX listens. Form error caught in RX pre-case.
+            -- TX drives recessive, RX listens.
             -----------------------------------------------------------------
             when s_crc_delimiter =>
               if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := c_recessive;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                -- Form error (dominant) caught in RX pre-case; only reach here for recessive.
                 in_data_phase <= false;
                 state         <= s_ack;
                 bit_count     <= 0;
@@ -766,7 +769,6 @@ begin
             -----------------------------------------------------------------
             -- s_ack: ACK slot (1 bit in CC frames, 2 bits in FD frames, ISO 6.6.10.6).
             -- Transmitter listens. Receiver drives dominant at bit_count=0 only.
-            -- FD bit 1 is not driven recessive by receivers.
             -----------------------------------------------------------------
             when s_ack =>
               if drive_bit = '1' and not is_transmitter and bit_count = 0 then
