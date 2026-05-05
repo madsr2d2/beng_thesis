@@ -219,13 +219,13 @@ begin
     fdf_cov              <= v_fdf_cov;
     dlc_cov              <= v_dlc_cov;
     ftyp_cov             <= v_ftyp_cov;
+    -- DUT RX LLC sink always ready
+    mac_to_llc_tx_d2s_dut_1.avalon_st_sink.ready <= '1';
+    mac_to_llc_tx_d2s_dut_2.avalon_st_sink.ready <= '1';
     WaitForBarrier(init_barrier);
     wait;
   end process p_init;
 
-  -- DUT RX LLC sink always ready
-  mac_to_llc_tx_d2s_dut_1.avalon_st_sink.ready <= '1';
-  mac_to_llc_tx_d2s_dut_2.avalon_st_sink.ready <= '1';
 
   ----------------------------------------------------------------------------
   -- DUT 1 (Transmitter)
@@ -262,7 +262,7 @@ begin
     );
 
   ----------------------------------------------------------------------------
-  -- Bus model: dominant-wins wired-AND with transceiver and propagation delays.
+  -- Bus model: dominant-wins with transceiver and propagation delays.
   --
   --  s_dut1_tx -[tx_d]-> s_dut1_wire -[bus_d]-> s_dut1_wire_far
   --  s_dut2_tx -[tx_d]-> s_dut2_wire -[bus_d]-> s_dut2_wire_far
@@ -692,17 +692,16 @@ begin
         end if;
       end loop;
 
-      -- Reset latches, then wait for the iter-10 loser's retransmission result
-      -- before flushing (one latch captures c_transmitted, the other stays c_ongoing).
+      -- Wait for the iter-10 loser's retransmission to be fully received by DUT 2
+      -- before flushing (a CC-base 1-byte frame takes ~55 bit times).
+      WaitForClock(clk, 200 * c_bit_time);
       s_status_latch_rst_dut_1 <= true;
       s_status_latch_rst_dut_2 <= true;
+      s_rx_sink_flush          <= true;
       WaitForClock(clk, 2);
       s_status_latch_rst_dut_1 <= false;
       s_status_latch_rst_dut_2 <= false;
-      wait until status_latch_dut_1 /= c_ongoing or status_latch_dut_2 /= c_ongoing for 5 ms;
-      s_rx_sink_flush <= true;
-      WaitForClock(clk, 2);
-      s_rx_sink_flush <= false;
+      s_rx_sink_flush          <= false;
     end procedure test_lost_arb;
 
     --------------------------------------------------------------------------
