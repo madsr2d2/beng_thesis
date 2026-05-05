@@ -8,7 +8,7 @@
 --                  p_tx_llc_vc          - Avalon-ST source VC: drives LLC TX bytes to DUT 1.
 --                  p_tx_llc_vc_dut_2    - Avalon-ST source VC: drives LLC TX bytes to DUT 2.
 --                  p_rx_llc_sink_vc     - Avalon-ST sink VC: collects and checks DUT 2 RX frames.
---                  p_status_latch       - Continuous monitor: latches DUT 1 transfer status.
+--                  p_status_latch_dut_1      - Continuous monitor: latches DUT 1 transfer status.
 --                  p_status_latch_dut_2 - Continuous monitor: latches DUT 2 transfer status.
 --                  p_bus_off_latch      - Continuous monitor: sticky latch for DUT 1 bus-off.
 --                  p_test_ctrl          - Coverage-driven test sequencer (IDE, FDF, DLC bins).
@@ -44,8 +44,9 @@ architecture tb of can_mac_pcs_fce_tb is
   -- Nominal bit timing (ISO 7.3.2, midpoint of subtype ranges in pk_can_types)
   constant c_bit_time : natural := 100;
 
-  constant c_bin_at_least : natural := 5;
-  constant c_rec_width    : natural := 16;
+  constant c_bin_at_least          : natural := 5;
+  constant c_rec_width             : natural := 16;
+  constant c_delay_frames_per_cfg  : natural := 5;
 
   -- Avalon-ST byte encoding [1] = startofpacket, [0] = endofpacket
   constant c_avalon_sop_byte : std_logic_vector := "10";
@@ -136,8 +137,8 @@ architecture tb of can_mac_pcs_fce_tb is
   signal llc_fce_o_dut_2 : t_can_fce_llc_if_s2m;
 
   -- Transfer status latches
-  signal status_latch             : std_logic_vector(2 downto 0) := c_ongoing;
-  signal clear_status             : boolean                      := false;
+  signal status_latch_dut_1            : std_logic_vector(2 downto 0) := c_ongoing;
+  signal clear_status_dut_1            : boolean                      := false;
   signal s_status_latch_rst_dut_1       : boolean                      := false;
   signal status_latch_dut_2       : std_logic_vector(2 downto 0) := c_ongoing;
   signal clear_status_dut_2       : boolean                      := false;
@@ -345,19 +346,19 @@ begin
   ----------------------------------------------------------------------------
   -- Transfer status latch (DUT 1 TX)
   ----------------------------------------------------------------------------
-  p_status_latch : process(clk) is
+  p_status_latch_dut_1: process(clk) is
   begin
     if rising_edge(clk) then
-      if reset = '1' or clear_status or s_status_latch_rst_dut_1 then
-        status_latch <= c_ongoing;
+      if reset = '1' or clear_status_dut_1 or s_status_latch_rst_dut_1 then
+        status_latch_dut_1 <= c_ongoing;
       else
         if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing
-           and llc_to_mac_tx_d2s_dut_1.transfer_status /= status_latch then
-          status_latch <= llc_to_mac_tx_d2s_dut_1.transfer_status;
+           and llc_to_mac_tx_d2s_dut_1.transfer_status /= status_latch_dut_1 then
+          status_latch_dut_1 <= llc_to_mac_tx_d2s_dut_1.transfer_status;
         end if;
       end if;
     end if;
-  end process p_status_latch;
+  end process p_status_latch_dut_1;
 
   ----------------------------------------------------------------------------
   -- Transfer status latch (DUT 2 TX)
@@ -393,14 +394,14 @@ begin
           wait until rising_edge(clk) and llc_to_mac_tx_d2s_dut_1.avalon_st_sink.ready = '1';
           llc_to_mac_tx_s2d_dut_1.avalon_st_source.valid         <= '0';
         when CHECK =>
-          -- status_latch holds the first non-ongoing status; wait for it then clear.
-          if status_latch = c_ongoing then
-            wait until status_latch /= c_ongoing;
+          -- status_latch_dut_1holds the first non-ongoing status; wait for it then clear.
+          if status_latch_dut_1 = c_ongoing then
+            wait until status_latch_dut_1 /= c_ongoing;
           end if;
-          AffirmIfEqual(check_id, status_latch, std_logic_vector(tx_llc_rec_dut_1.DataToModel(2 downto 0)), "Transfer status");
-          clear_status <= true;
+          AffirmIfEqual(check_id, status_latch_dut_1, std_logic_vector(tx_llc_rec_dut_1.DataToModel(2 downto 0)), "Transfer status");
+          clear_status_dut_1 <= true;
           wait until rising_edge(clk);
-          clear_status <= false;
+          clear_status_dut_1 <= false;
         when others => null;
       end case;
     end loop tx_llc_vc_loop;
@@ -496,9 +497,6 @@ begin
 
     --------------------------------------------------------------------------
     -- gen_frame: builds an LLC frame.
-    -- v_id >= 0: fixed CC base data frame with the given 11-bit ID and DLC=1.
-    -- v_id  < 0: samples IDE/FDF/DLC/FTYP from coverage bins, randomises ID/data.
-    --            FTYP=1 (remote/RTR) is only sampled for CC frames; FD has no RTR.
     --------------------------------------------------------------------------
     procedure gen_frame(tx_frame : out t_llc_frame; last_byte : out natural; v_id : integer := -1) is
       variable v_data_len : natural;
@@ -609,7 +607,7 @@ begin
     --------------------------------------------------------------------------
     -- Test 2: Delay sweep -- batch of frames at each c_delay_sweep operating point
     --------------------------------------------------------------------------
-    procedure test_delay_sweep(num_frames_per_cfg : natural := 20) is
+    procedure test_delay_sweep is
       variable v_frame       : t_llc_frame;
       variable v_last_byte   : natural;
       variable v_frame_count : natural := 0;
@@ -626,7 +624,7 @@ begin
         -- Drain in-flight propagation events at the previous delays.
         WaitForClock(clk, 10 * c_bit_time);
 
-        for j in 1 to num_frames_per_cfg loop
+        for j in 1 to c_delay_frames_per_cfg loop
           v_frame_count := v_frame_count + 1;
           gen_frame(v_frame, v_last_byte);
           submit_and_verify(v_frame, v_last_byte, v_frame_count);
@@ -656,9 +654,7 @@ begin
       s_transceiver_rx_d <= 300 ns;
       s_bus_delay        <= 150 ns;
       for iter in 1 to c_iterations loop
-        -- The loser's LLC auto-retransmits after c_lost_arb. Wait for both
-        -- LLCs to go idle before resetting the latches, otherwise the
-        -- retransmission's c_transmitted gets captured instead of c_lost_arb.
+        -- Wait for both DUTs idle before clearing latches.
         if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing then
           wait until llc_to_mac_tx_d2s_dut_1.transfer_status = c_ongoing for 5 ms;
         end if;
@@ -670,8 +666,6 @@ begin
         WaitForClock(clk, 2);
         s_status_latch_rst_dut_1 <= false;
         s_status_latch_rst_dut_2 <= false;
-        -- Longer than bus-idle condition (11 bits) so both DUTs see a clean bus before contending.
-        WaitForClock(clk, 30 * c_bit_time);
 
         loop
           v_id_1 := RV.RandInt(0, 2 ** c_base_id_width - 1);
@@ -682,7 +676,7 @@ begin
         gen_frame(v_frame_2, v_last, v_id_2);
         v_dut1_wins := v_id_1 < v_id_2;
 
-        -- Interleave sends to both VCs so the LLCs contend on the bus at the same SOF (ISO 6.5.2).
+        -- Both DUTs start sending frames at the same time
         for i in 0 to v_last loop
           if i = 0 then
             Send(tx_llc_rec_dut_1, v_frame_1(i), c_avalon_sop_byte);
@@ -696,21 +690,21 @@ begin
           end if;
         end loop;
 
-        if status_latch = c_ongoing then
-          wait until status_latch /= c_ongoing for 5 ms;
+        if status_latch_dut_1= c_ongoing then
+          wait until status_latch_dut_1/= c_ongoing for 5 ms;
         end if;
         if status_latch_dut_2 = c_ongoing then
           wait until status_latch_dut_2 /= c_ongoing for 5 ms;
         end if;
 
         if v_dut1_wins then
-          AffirmIfEqual(check_id, status_latch,       c_transmitted, "DUT 1 transmitted (iter " & to_string(iter) & ")");
-          AffirmIfEqual(check_id, status_latch_dut_2, c_lost_arb,   "DUT 2 lost arb (iter "    & to_string(iter) & ")");
-          AffirmIf(check_id, v_id_1 < v_id_2, "DUT 1 won: lower ID (iter " & to_string(iter) & ")");
+          AffirmIfEqual(check_id, status_latch_dut_1, c_transmitted, "DUT 1 transmitted");
+          AffirmIfEqual(check_id, status_latch_dut_2, c_lost_arb,   "DUT 2 lost arb");
+          AffirmIf(check_id, v_id_1 < v_id_2, "DUT 1 won: lower ID");
         else
-          AffirmIfEqual(check_id, status_latch,       c_lost_arb,   "DUT 1 lost arb (iter "    & to_string(iter) & ")");
-          AffirmIfEqual(check_id, status_latch_dut_2, c_transmitted, "DUT 2 transmitted (iter " & to_string(iter) & ")");
-          AffirmIf(check_id, v_id_2 < v_id_1, "DUT 2 won: lower ID (iter " & to_string(iter) & ")");
+          AffirmIfEqual(check_id, status_latch_dut_1, c_lost_arb,   "DUT 1 lost arb");
+          AffirmIfEqual(check_id, status_latch_dut_2, c_transmitted, "DUT 2 transmitted");
+          AffirmIf(check_id, v_id_2 < v_id_1, "DUT 2 won: lower ID");
         end if;
       end loop;
 
@@ -822,7 +816,7 @@ begin
     WaitForClock(clk, (c_bus_idle_condition_width + 2) * (c_bit_time + 1));
 
     test_normal;
-    test_delay_sweep(5);
+    test_delay_sweep;
     test_lost_arb;
     test_bus_off;
 
