@@ -175,21 +175,6 @@ architecture tb of can_mac_pcs_fce_tb is
     ParamFromModel(c_rec_width - 1 downto 0)
   );
 
-  ----------------------------------------------------------------------------
-  -- Functions
-  ----------------------------------------------------------------------------
-  -- Unpacks LLC frame config bytes into t_llc_metadata per the legacy frame format.
-  function extract_metadata (config_byte_0 : std_logic_vector; config_byte_1 : std_logic_vector) return t_llc_metadata is
-    variable v_result : t_llc_metadata;
-  begin
-    v_result.ide  := config_byte_0(c_llc_frame_ide);
-    v_result.fdf  := config_byte_0(c_llc_frame_fdf);
-    v_result.ftyp := config_byte_0(c_llc_frame_ftyp);
-    v_result.esi  := config_byte_0(c_llc_frame_esi);
-    v_result.brs  := config_byte_0(c_llc_frame_brs);
-    v_result.dlc  := config_byte_1(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
-    return v_result;
-  end function extract_metadata;
 
 begin
 
@@ -214,7 +199,7 @@ begin
     variable v_dlc_cov   : CoverageIDType;
     variable v_ftyp_cov  : CoverageIDType;
   begin
-    SetAlertStopCount(ERROR, 1);    -- stop on first error; cascades would mask the root cause
+    SetAlertStopCount(ERROR, 1);
     SetLogEnable(DEBUG, false);
     v_test_id            := NewID("can_mac_pcs_fce");
     v_check_id           := NewID("Frame check", v_test_id);
@@ -226,7 +211,7 @@ begin
     AddBins(v_ide_cov,  c_bin_at_least, GenBin(0, 1));
     AddBins(v_fdf_cov,  c_bin_at_least, GenBin(0, 1));
     AddBins(v_dlc_cov,  c_bin_at_least, GenBin(0, c_dlc_max));
-    AddBins(v_ftyp_cov, c_bin_at_least, GenBin(0, 1));  -- 0=data, 1=remote (CC only)
+    AddBins(v_ftyp_cov, c_bin_at_least, GenBin(0, 1));
     tx_llc_rec_dut_1.BurstFifo <= NewID("TX LLC Burst fifo DUT 1");
     rx_llc_rec_dut_2.BurstFifo <= NewID("RX LLC Burst fifo DUT 2");
     test_id              <= v_test_id;
@@ -330,7 +315,7 @@ begin
   end process;
 
   ----------------------------------------------------------------------------
-  -- Bus-off sticky latch (DUT 1)
+  -- Bus-off latch (DUT 1)
   ----------------------------------------------------------------------------
   p_bus_off_latch : process(clk) is
   begin
