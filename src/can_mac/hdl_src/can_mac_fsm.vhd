@@ -950,15 +950,11 @@ begin
         end if;
 
         -----------------------------------------------------------------
-        -- Post-case: BS/CRC feed (sample point, not skipped) and drive
-        -- commit (drive_bit intent). Mutually exclusive: SP fires when
-        -- receiving; v_drive_now fires at drive_bit (TX timing).
+        -- Post-case: BS/CRC feed (sample point, not skipped), commit
+        -- drive_polarity to bus.
         -----------------------------------------------------------------
         if pcs_i.sample_point = '1' and not v_skip_case then
-          -- TX (non-arbitration): use the driven bit from the shift register, not the bus sample.
-          -- In the FD data phase the nominal SP may fire before the bus has settled (propagation
-          -- delay); the shift register echo is the reliable source. In arbitration multiple nodes
-          -- drive simultaneously (wired-AND), so the actual bus value is the ground truth.
+          -- Transmitter uses the transmitted_bits_shift_reg and the receiver samples the bus
           v_bs_crc_src := transmitted_bits_shift_reg(0) when (is_transmitter and state /= s_arbitration) else pcs_i.rx_data;
           if v_in_dynamic_stuff or state = s_sbc or state = s_crc then
             bs_o.valid <= '1';
