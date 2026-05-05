@@ -53,25 +53,32 @@ architecture tb of can_mac_pcs_fce_tb is
   constant c_avalon_eop_byte : std_logic_vector := "01";
   constant c_avalon_byte     : std_logic_vector := "00";
 
-  -- Bus / transceiver delays (driven so test_delay_sweep can update them).
-  signal s_bus_delay        : time := 150 ns;
-  signal s_transceiver_tx_d : time := 300 ns;
-  signal s_transceiver_rx_d : time := 300 ns;
+  -- ISO 11898-1:2015 Sec. 7.3.2 Formula (2): t_prop_seg >= 4*transceiver_d + 2*bus_d
+  -- (symmetric 2-node network, equal TX/RX transceiver delay).
+  -- DUT prop_seg = gc_nom_prop_seg x gc_prescaler x clk = 40 x 2 x 10 ns = 800 ns.
+  -- Budget: transceiver_d = 50 ns (ISO 11898-2 max per direction), bus_d = 300 ns (60 m at 5 ns/m). Sum = 800 ns.
+  constant c_nom_prop_seg_time : time := 800 ns;
+  constant c_transceiver_d     : time := 50 ns;
+  constant c_bus_delay_max     : time := (c_nom_prop_seg_time - 4 * c_transceiver_d) / 2;
+
+  -- Bus/transceiver delays (driven so test_delay_sweep can update them).
+  -- Default: worst-case ISO-compliant operating point (100% of budget).
+  signal s_bus_delay      : time := c_bus_delay_max;
+  signal s_transceiver_d  : time := c_transceiver_d;
 
   type t_delay_cfg is record
-    tx_d  : time;
-    rx_d  : time;
-    bus_d : time;
+    transceiver_d : time;
+    bus_d         : time;
   end record;
   type t_delay_cfg_arr is array (natural range <>) of t_delay_cfg;
 
-  -- Operating points within prop_seg = 800 ns (ISO 11898-1 7.3.5.1).
+  -- Sweep from 100 % down to 20 % of the ISO propagation budget.
   constant c_delay_sweep : t_delay_cfg_arr := (
-    (tx_d => 300 ns, rx_d => 300 ns, bus_d => 150 ns),
-    (tx_d => 250 ns, rx_d => 250 ns, bus_d => 125 ns),
-    (tx_d => 200 ns, rx_d => 200 ns, bus_d => 100 ns),
-    (tx_d => 100 ns, rx_d => 100 ns, bus_d =>  50 ns),
-    (tx_d =>  50 ns, rx_d =>  50 ns, bus_d =>  25 ns)
+    (transceiver_d => 50 ns, bus_d => 300 ns),
+    (transceiver_d => 40 ns, bus_d => 240 ns),
+    (transceiver_d => 30 ns, bus_d => 180 ns),
+    (transceiver_d => 20 ns, bus_d => 120 ns),
+    (transceiver_d => 10 ns, bus_d =>  60 ns)
   );
   ----------------------------------------------------------------------------
   -- Signals
@@ -257,14 +264,14 @@ begin
   ----------------------------------------------------------------------------
   -- Bus model: dominant-wins with transceiver and propagation delays.
   --
-  --  s_dut1_tx -[tx_d]-> s_dut1_wire -[bus_d]-> s_dut1_wire_far
-  --  s_dut2_tx -[tx_d]-> s_dut2_wire -[bus_d]-> s_dut2_wire_far
+  --  s_dut1_tx -[transceiver_d]-> s_dut1_wire -[bus_d]-> s_dut1_wire_far
+  --  s_dut2_tx -[transceiver_d]-> s_dut2_wire -[bus_d]-> s_dut2_wire_far
   --
   --  s_bus_dut1 = s_dut1_wire AND s_dut2_wire_far  (bus as seen at DUT 1's end)
   --  s_bus_dut2 = s_dut1_wire_far AND s_dut2_wire  (bus as seen at DUT 2's end)
   --
-  --  s_dut1_rx <-[rx_d]- s_bus_dut1_obs  (s_bus_dut1 forced recessive in bus-off test)
-  --  s_dut2_rx <-[rx_d]- s_bus_dut2
+  --  s_dut1_rx <-[transceiver_d]- s_bus_dut1_obs  (s_bus_dut1 forced recessive in bus-off test)
+  --  s_dut2_rx <-[transceiver_d]- s_bus_dut2
   ----------------------------------------------------------------------------
   s_bus_dut1     <= s_dut1_wire     and s_dut2_wire_far;
   s_bus_dut1_obs <= c_recessive when s_dut_1_rx_recessive else s_bus_dut1;
@@ -273,25 +280,25 @@ begin
   p_dut1_tx_to_wire : process is
   begin
     wait on s_dut1_tx;
-    s_dut1_wire <= transport s_dut1_tx after s_transceiver_tx_d;
+    s_dut1_wire <= transport s_dut1_tx after s_transceiver_d;
   end process;
 
   p_dut1_rx_from_bus : process is
   begin
     wait on s_bus_dut1_obs;
-    s_dut1_rx <= transport s_bus_dut1_obs after s_transceiver_rx_d;
+    s_dut1_rx <= transport s_bus_dut1_obs after s_transceiver_d;
   end process;
 
   p_dut2_tx_to_wire : process is
   begin
     wait on s_dut2_tx;
-    s_dut2_wire <= transport s_dut2_tx after s_transceiver_tx_d;
+    s_dut2_wire <= transport s_dut2_tx after s_transceiver_d;
   end process;
 
   p_dut2_rx_from_bus : process is
   begin
     wait on s_bus_dut2;
-    s_dut2_rx <= transport s_bus_dut2 after s_transceiver_rx_d;
+    s_dut2_rx <= transport s_bus_dut2 after s_transceiver_d;
   end process;
 
   p_propagate_dut1_to_dut2 : process is
@@ -594,9 +601,8 @@ begin
       Print("Test 2: Delay Sweep");
       Print("--------------------------------------------------------------------------");
       for i in c_delay_sweep'range loop
-        s_transceiver_tx_d <= c_delay_sweep(i).tx_d;
-        s_transceiver_rx_d <= c_delay_sweep(i).rx_d;
-        s_bus_delay        <= c_delay_sweep(i).bus_d;
+        s_transceiver_d <= c_delay_sweep(i).transceiver_d;
+        s_bus_delay     <= c_delay_sweep(i).bus_d;
 
         -- Drain in-flight propagation events at the previous delays.
         WaitForClock(clk, 10 * c_bit_time);
@@ -627,9 +633,8 @@ begin
       Print("--------------------------------------------------------------------------");
       Print("Test 3: Lost Arbitration (random IDs, " & integer'image(c_iterations) & " iterations)");
       Print("--------------------------------------------------------------------------");
-      s_transceiver_tx_d <= 300 ns;
-      s_transceiver_rx_d <= 300 ns;
-      s_bus_delay        <= 150 ns;
+      s_transceiver_d <= c_transceiver_d;
+      s_bus_delay     <= c_bus_delay_max;
       for iter in 1 to c_iterations loop
         -- Wait for both DUTs idle before clearing latches.
         if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing then
