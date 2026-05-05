@@ -65,7 +65,7 @@ architecture rtl of can_mac_fsm is
     s_bus_reintegration, s_intermission, s_suspend_transmission, s_bus_idle,
     s_arbitration, s_fdf_r1_r0, s_res_r0, s_brs, s_esi,
     s_dlc, s_data, s_sbc, s_crc, s_crc_delimiter, s_ack, s_ack_delimiter, s_eof,
-    s_error_flag, s_error_flag_check, s_error_dominant_delim, s_error_delimiter,
+    s_error_flag, s_error_delimiter,
     s_bus_off
   );
 
@@ -109,6 +109,7 @@ architecture rtl of can_mac_fsm is
   signal llc_stream_start                     : boolean;
   signal llc_stream_active                    : boolean;
   signal crc_error_detected                   : boolean;
+  signal delim_found_first_recessive          : boolean;                            -- phase gate inside s_error_delimiter
   signal llc_frame_len                        : natural range 0 to c_internal_llc_frame_len;
   -----------------------------------------------------------------
 
@@ -142,6 +143,7 @@ begin
             stream_index      <= 0;
             llc_stream_active <= false;
           end if;
+
           if llc_i.avalon_st_sink.ready = '1' and stream_index /= llc_frame_len - 1 then
             stream_index <= stream_index + 1;
           end if;
@@ -195,6 +197,7 @@ begin
         llc_stream_start                     <= false;
         llc_frame_len                        <= 0;
         crc_error_detected                   <= false;
+        delim_found_first_recessive          <= false;
         -- Interfaces
         mac_ser_o                            <= c_ser_fsm_if_d2s_reset;
         bs_o                                 <= c_mac_fsm_to_bs_fd_if_reset;
@@ -244,7 +247,7 @@ begin
         end if;
 
         -- Quiet states: reset active-frame signals on every cycle.
-        if state = s_bus_reintegration or state = s_intermission or state = s_suspend_transmission or state = s_bus_idle then
+        if state = s_bus_reintegration or state = s_intermission or state = s_suspend_transmission or state = s_bus_idle or state = s_bus_off then
           fce_o                                <= c_mac_to_fce_if_reset;
           mac_ser_o                            <= c_ser_fsm_if_d2s_reset;
           bs_o                                 <= c_mac_fsm_to_bs_fd_if_reset;
@@ -255,6 +258,7 @@ begin
           ack_error_caused_flag                <= false;
           saw_dominant_during_flag             <= false;
           crc_error_detected                   <= false;
+          delim_found_first_recessive          <= false;
         end if;
 
         -- pre-case -------------------------------------------------
@@ -805,7 +809,8 @@ begin
               end if;
 
             -----------------------------------------------------------------
-            -- s_eof: 7 recessive bits.
+            -- s_eof: 7 recessive bits. When the end of the EOF is reached
+            -- the current frame was successfully transmitted/received. 
             -----------------------------------------------------------------
             when s_eof =>
               if drive_bit = '1' and is_transmitter then
@@ -832,7 +837,7 @@ begin
 
             -----------------------------------------------------------------
             -- s_error_flag: 6-bit flag (active=dominant, passive=recessive, overload=dominant).
-            -- Followed by check, optional dominant-wait, then 8-bit recessive delimiter.
+            -- Followed by s_error_delimiter.
             -----------------------------------------------------------------
             when s_error_flag =>
               if drive_bit = '1' then
@@ -846,8 +851,6 @@ begin
                   end if;
                   if bit_count < c_error_flag_width - 1 then
                     if not overload and fce_i.error_active = '0' and pcs_i.rx_data = c_dominant then
-                      -- Passive flag: dominant from another node restarts
-                      -- the equal-bit counter (ISO 8.1.4.2.c.ex1).
                       saw_dominant_during_flag <= true;
                       bit_count                <= 0;
                     else
@@ -856,10 +859,11 @@ begin
                   else
                     bit_count <= 0;
                     overload  <= false;
-                    state     <= s_error_flag_check;
+                    state     <= s_error_delimiter;
                     if ack_error_caused_flag then
                       fce_o.error <= '1';
                       if fce_i.error_active = '0' and not saw_dominant_during_flag then
+                        -- Passive flag: dominant from another node restarts the bit counter (ISO 8.1.4.2.c.ex1).
                         fce_o.passive_tx_ack_error_exempt_1 <= '1';
                       end if;
                     end if;
@@ -870,76 +874,63 @@ begin
                   else
                     bit_count <= 0;
                     overload  <= false;
-                    state     <= s_error_flag_check;
+                    state     <= s_error_delimiter;
                   end if;
                 end if;
               end if;
 
             -----------------------------------------------------------------
-            -- s_error_flag_check: one recessive bit after the flag; dominant
-            -- means another node is still flagging, start dominant-wait.
-            -----------------------------------------------------------------
-            when s_error_flag_check =>
-              if drive_bit = '1' then
-                v_drive_polarity := c_recessive;
-                v_drive_now      := true;
-              elsif pcs_i.sample_point = '1' then
-                if pcs_i.rx_data = c_dominant then
-                  state     <= s_error_dominant_delim;
-                  bit_count <= 1;
-                  if not is_transmitter then
-                    fce_o.primary_error <= '1';
-                  end if;
-                else
-                  state     <= s_error_delimiter;
-                  bit_count <= 1;
-                end if;
-              end if;
-
-            -----------------------------------------------------------------
-            -- s_error_dominant_delim: wait for bus to go recessive before
-            -- starting the 8-bit delimiter (ISO 6.6.13).
-            -----------------------------------------------------------------
-            when s_error_dominant_delim =>
-              if drive_bit = '1' then
-                v_drive_polarity := c_recessive;
-                v_drive_now      := true;
-              elsif pcs_i.sample_point = '1' then
-                if pcs_i.rx_data = c_dominant then
-                  if bit_count = c_error_delimiter_width - 1 then
-                    fce_o.error_delimiter_too_late <= '1';
-                    bit_count                      <= 1;
-                  else
-                    bit_count <= bit_count + 1;
-                  end if;
-                else
-                  state     <= s_error_delimiter;
-                  bit_count <= 1;
-                end if;
-              end if;
-
-            -----------------------------------------------------------------
-            -- s_error_delimiter: 8 recessive bits. Dominant re-enters flag.
+            -- s_error_delimiter: 8 recessive bits (ISO 6.6.5.3).
+            -- Phase 1 (delim_found_first_recessive = false): monitor until the
+            --   first recessive bit. Other nodes may still be sending their flags,
+            --   so the bus can remain dominant.
+            -- Phase 2 (delim_found_first_recessive = true): send the remaining
+            --   7 recessive bits to complete the 8-bit delimiter.
             -----------------------------------------------------------------
             when s_error_delimiter =>
               if drive_bit = '1' then
                 v_drive_polarity := c_recessive;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                if pcs_i.rx_data = c_dominant then
-                  -- Form error / overload (ISO 6.6.21.3.2): re-enter flag.
-                  v_drive_polarity := not fce_i.error_active;
-                  v_drive_now      := true;
-                  fce_o.error <= '1';
-                  state       <= s_error_flag;
-                  bit_count   <= 0;
-                  overload    <= false;
-                else
-                  if bit_count = c_error_delimiter_width - 1 then
-                    state     <= s_intermission;
-                    bit_count <= 0;
+                if not delim_found_first_recessive then
+                  if pcs_i.rx_data = c_dominant then
+                    if bit_count = 0 then
+                      fce_o.primary_error <= '1';
+                    elsif bit_count = c_error_delimiter_width - 1 then
+                      -- Signal late error delimiter to FCE (ISO: 8.1.3.3 Table 16)
+                      fce_o.error_delimiter_too_late <= '1';
+                      bit_count                      <= 0;
+                    else
+                      bit_count <= bit_count + 1;
+                    end if;
                   else
-                    bit_count <= bit_count + 1;
+                    delim_found_first_recessive <= true;
+                    bit_count                   <= 1;
+                  end if;
+                else
+                  if pcs_i.rx_data = c_dominant then
+                    -- Dominant last bit of delimiter is overload (ISO 6.6.21.3.2.b).
+                    if bit_count = c_error_delimiter_width - 1 then
+                      v_drive_polarity            := c_dominant;
+                      overload                    <= true;
+                      fce_o.error                 <= '0';
+                    else
+                      fce_o.error                 <= '1';
+                      overload                    <= false;
+                      v_drive_polarity            := not fce_i.error_active;
+                    end if;
+                    bit_count                   <= 0;
+                    v_drive_now                 := true;
+                    delim_found_first_recessive <= false;
+                    state                       <= s_error_flag;
+                  else
+                    if bit_count = c_error_delimiter_width - 1 then
+                      state                       <= s_intermission;
+                      bit_count                   <= 0;
+                      delim_found_first_recessive <= false;
+                    else
+                      bit_count <= bit_count + 1;
+                    end if;
                   end if;
                 end if;
               end if;
@@ -948,18 +939,8 @@ begin
             -- s_bus_off: one-cycle cleanup after bus_off deasserts (ISO 8.1.4.5).
             -----------------------------------------------------------------
             when s_bus_off =>
-              mac_ser_o                  <= c_ser_fsm_if_d2s_reset;
-              mac_ser_o.transfer_status  <= c_disturbed;
-              bs_o                       <= c_mac_fsm_to_bs_fd_if_reset;
-              pcs_o                      <= c_mac_to_pcs_if_reset;
-              fce_o                      <= c_mac_to_fce_if_reset;
-              crc_o                      <= c_mac_fsm_to_crc_if_reset;
-              bs_rst                     <= '0';
-              crc_rst                    <= '0';
-              bit_count                  <= 0;
-              byte_index                 <= 0;
-              bit_index                  <= 0;
-              state                      <= s_bus_reintegration;
+              mac_ser_o.transfer_status <= c_disturbed;
+              state                     <= s_bus_reintegration;
 
             when others =>
               state     <= s_bus_reintegration;
