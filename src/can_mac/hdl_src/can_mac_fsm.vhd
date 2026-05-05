@@ -1,25 +1,26 @@
 --------------------------------------------------------------------------------
--- Title      : Combined MAC FSM (TX + RX) for CAN/CAN-FD
--- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
---------------------------------------------------------------------------------
--- File       : can_mac_fsm.vhd
--- Author     : Mads Richardt
--- Standard   : VHDL-2008
---------------------------------------------------------------------------------
--- Description: FSM orchestrating the MAC layer. Supports CAN/CAN-FD frame formats.
+-- Description: FSM orchestrating the MAC layer. Supports CAN-CC/CAN-FD frame formats.
+--              Frame formats:
+--                CC Base:     |SOF(d)|ID(11)|RTR|IDE(d)|r0(d)|DLC(4)|DATA(0..8B)|CRC(15)|delim(r)|ACK|delim(r)|EOF(7r)|
+--                CC Extended: |SOF(d)|ID-A(11)|SRR(r)|IDE(r)|ID-B(18)|RTR|r1(d)|r0(d)|DLC(4)|DATA(0..8B)|CRC(15)|delim(r)|ACK|delim(r)|EOF(7r)|
+--                FD Base:     |SOF(d)|ID(11)|RRS(d)|IDE(d)|FDF(r)|res(d)|BRS|ESI|DLC(4)|DATA(0..64B)|SBC(4)|CRC(17/21)|delim(r)|ACK(2)|delim(r)|EOF(7r)|
+--                FD Extended: |SOF(d)|ID-A(11)|SRR(r)|IDE(r)|ID-B(18)|RRS(d)|FDF(r)|res(d)|BRS|ESI|DLC(4)|DATA(0..64B)|SBC(4)|CRC(17/21)|delim(r)|ACK(2)|delim(r)|EOF(7r)|
 --
 --              Key architecture elements:
---                Pre-case      TX: lost-arb, bit-error, stuff-bit.
---                              RX: stuff-error, stuff-bit, CRC/form/overload errors.
---                              Sets v_skip_case to bypass the case block.
---                Case          frame-structure state transitions (only error-free paths).
---                Post-case     BS/CRC feed at SP and PCS drive commit.
+--                Each cycle runs as pre-case -> case -> post-case. State transitions, stuff bit
+--                evaluation, and bus reads execute at the sample point (and secondary sample point
+--                for FD frames in the data phase).
+--                Pre-case:  TX: lost-arb, bit-error, stuff-bit (SP); drive stuffed polarity (drive_bit).
+--                           RX: stuff-error, stuff-bit, CRC/form/overload errors.
+--                           Sets v_skip_case to bypass the case block.
+--                Case:      frame-structure state transitions (only error-free paths).
+--                Post-case: BS/CRC feed at SP and PCS drive commit.
 --
 --                drive_bit pipeline: drive_bit_delay = SP delayed one cycle (state/bit_count
 --                settle). drive_bit = SP delayed two cycles (BS registers new values and
 --                presents correct bs_i.valid to TX branches).
 --
---              Reference: ISO 11898-1:2024.
+--              Reference: ISO 11898-1:2015.
 --------------------------------------------------------------------------------
 
 library ieee;
@@ -262,6 +263,7 @@ begin
           if pcs_i.secondary_sample_point = '1' and transmitted_bits_shift_reg(to_integer(unsigned(pcs_i.tdc_delay))) /= pcs_i.rx_data then
             bit_error_at_ssp <= true;
           end if;
+
           if pcs_i.sample_point = '1' then
             -- Lost arbitration: Transmitter becomes receiver for the rest of the frame.
             if state = s_arbitration and transmitted_bits_shift_reg(0) = c_recessive and pcs_i.rx_data = c_dominant then
@@ -508,9 +510,9 @@ begin
               end if;
 
             -----------------------------------------------------------------
-            -- s_arbitration: ID-A, RTR/SRR/RRS, IDE, ID-B, RTR-ext.
-            -- Both roles capture rx_data into llc_frame so the loser of
-            -- arbitration retains the winner's bits (ISO 6.5.2).
+            -- s_arbitration: ID-base, RTR/SRR/RRS, IDE, ID-ext, RTR-ext.
+            -- Both transmitter and receiver capture rx_data into llc_frame 
+            -- so the loser of arbitration retains the winner's bits (ISO 6.5.2).
             -----------------------------------------------------------------
             when s_arbitration =>
               if drive_bit = '1' and is_transmitter then
@@ -549,9 +551,7 @@ begin
                     bit_count <= bit_count + 1;
                   when c_arb_ide_pos =>
                     llc_frame(c_conf_0_offset)(c_llc_frame_ide) <= pcs_i.rx_data;
-                    -- TX: use the driven bit to decide base vs extended. Loopback may be overridden.
-                    if (is_transmitter and transmitted_bits_shift_reg(0) = c_dominant) or
-                       (not is_transmitter and pcs_i.rx_data = c_dominant) then
+                    if pcs_i.rx_data = c_dominant then
                       state     <= s_fdf_r1_r0;
                       bit_count <= 0;
                     else
@@ -588,21 +588,20 @@ begin
               end if;
 
             -----------------------------------------------------------------
-            -- s_res_r0: reserved bit, fixed dominant. FD continues to s_brs;
-            -- CC ext falls to s_dlc. Form error (recessive) caught in RX pre-case.
+            -- s_res_r0: reserved bit, fixed dominant. FD continues to s_brs,
+            -- CC ext goes to s_dlc.
             -----------------------------------------------------------------
             when s_res_r0 =>
               if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := c_dominant;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                -- Form error caught in RX pre-case; only reach here for dominant (correct).
+                bit_count <= 0;
                 if llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' then
                   pcs_o.next_bit_is_brs <= '1';
                   state                 <= s_brs;
                 else
                   state     <= s_dlc;
-                  bit_count <= 0;
                 end if;
               end if;
 
@@ -620,11 +619,12 @@ begin
               end if;
 
             -----------------------------------------------------------------
-            -- s_esi: ESI bit (FD only). Active=dominant, passive=recessive.
+            -- s_esi: ESI bit (FD only). Transmitted recessive if LLC ESI flag 
+            -- set or node is error-passive, else dominant (ISO 6.6.11.3).
             -----------------------------------------------------------------
             when s_esi =>
               if drive_bit = '1' and is_transmitter then
-                v_drive_polarity := mac_ser_i.llc_metadata.esi;
+                v_drive_polarity := c_recessive when (mac_ser_i.llc_metadata.esi = c_recessive or fce_i.error_active = '0') else c_dominant;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
                 llc_frame(c_conf_0_offset)(c_llc_frame_esi) <= pcs_i.rx_data;
@@ -647,7 +647,8 @@ begin
                   bit_index  <= 0;
                   byte_index <= 0;
                   if is_transmitter then
-                    -- TX uses metadata directly.
+                    -- the DLC field is in the data phase for FD frames so transmitters must use the metadata for state transition.
+                    -- Using the bus value at the sample point is unreliable if the bit time is shorter than the transceiver loop-back delay. 
                     if data_len > 0 and mac_ser_i.llc_metadata.ftyp = '0' then
                       state <= s_data;
                     elsif mac_ser_i.llc_metadata.fdf = '1' then
@@ -657,8 +658,7 @@ begin
                       state <= s_crc;
                     end if;
                   else
-                    -- RX derives frame params from the captured DLC.
-                    -- llc_frame signal update is not visible yet in this delta; patch the last bit from pcs_i.rx_data.
+                    -- Receivers derives frame params from the captured DLC.
                     v_dlc_vec                                    := llc_frame(c_conf_1_offset)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
                     v_dlc_vec(c_llc_frame_dlc_start - bit_count) := pcs_i.rx_data;
                     v_fdf                                        := llc_frame(c_conf_0_offset)(c_llc_frame_fdf);
@@ -689,7 +689,6 @@ begin
                 mac_ser_o.ready  <= '1';
                 v_drive_polarity := mac_ser_i.data;
                 v_drive_now      := true;
-              -- Both roles capture from bus. TX self-receives, only RX streams to LLC.
               elsif pcs_i.sample_point = '1' then
                 llc_frame(c_data_offset + byte_index)((c_byte_width - 1) - bit_index) <= pcs_i.rx_data;
                 if byte_index = data_len - 1 and bit_index = c_byte_width - 1 then
@@ -716,7 +715,6 @@ begin
               if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count);
                 v_drive_now      := true;
-              -- Receiver nodes check for SBC mismatch
               elsif pcs_i.sample_point = '1' then
                 if not is_transmitter and pcs_i.rx_data /= bs_i.stuff_bit_count((c_sbc_field_width - 1) - bit_count) then
                   crc_error_detected <= true;
@@ -985,8 +983,7 @@ begin
           -- In the FD data phase the nominal SP may fire before the bus has settled (propagation
           -- delay); the shift register echo is the reliable source. In arbitration multiple nodes
           -- drive simultaneously (wired-AND), so the actual bus value is the ground truth.
-          v_bs_crc_src := transmitted_bits_shift_reg(0) when (is_transmitter and state /= s_arbitration)
-                                                         else pcs_i.rx_data;
+          v_bs_crc_src := transmitted_bits_shift_reg(0) when (is_transmitter and state /= s_arbitration) else pcs_i.rx_data;
           if v_in_dynamic_stuff or state = s_sbc or state = s_crc then
             bs_o.valid <= '1';
             bs_o.data  <= v_bs_crc_src;
