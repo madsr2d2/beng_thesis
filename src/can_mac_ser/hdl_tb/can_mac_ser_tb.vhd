@@ -193,10 +193,7 @@ begin
 
       case llc_rec.Operation is
         when SEND =>
-          avalon_st_send(llc_o.avalon_st_sink, llc_i.avalon_st_source,
-                        std_logic_vector(llc_rec.DataToModel),
-                        llc_rec.ParamToModel(1), llc_rec.ParamToModel(0));
-
+          avalon_st_send(llc_o.avalon_st_sink, llc_i.avalon_st_source, std_logic_vector(llc_rec.DataToModel), llc_rec.ParamToModel(1), llc_rec.ParamToModel(0));
         when others => Null;
       end case;
     end loop;
