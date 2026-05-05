@@ -21,7 +21,6 @@ library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
   use work.pk_can_types.all;
-  use work.pk_can_tb.all;
 
 library osvvm;
   context osvvm.OsvvmContext;
@@ -80,8 +79,20 @@ architecture tb of can_mac_ser_tb is
   );
 
   ----------------------------------------------------------------------------
-  -- Functions and procedures 
+  -- Functions and procedures
   ----------------------------------------------------------------------------
+  function extract_metadata (config_byte_0 : std_logic_vector; config_byte_1 : std_logic_vector) return t_llc_metadata is
+    variable v_result : t_llc_metadata;
+  begin
+    v_result.ide  := config_byte_0(c_llc_frame_ide);
+    v_result.fdf  := config_byte_0(c_llc_frame_fdf);
+    v_result.ftyp := config_byte_0(c_llc_frame_ftyp);
+    v_result.esi  := config_byte_0(c_llc_frame_esi);
+    v_result.brs  := config_byte_0(c_llc_frame_brs);
+    v_result.dlc  := config_byte_1(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
+    return v_result;
+  end function extract_metadata;
+
   function to_slv (b : std_logic) return std_logic_vector is
   begin
     return (0 downto 0 => b);

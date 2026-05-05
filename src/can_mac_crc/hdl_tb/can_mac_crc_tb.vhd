@@ -21,7 +21,6 @@ library ieee;
   use ieee.numeric_std.all;
 
   use work.pk_can_types.all;
-  use work.pk_can_tb.all;
 
 library osvvm;
 context osvvm.OsvvmContext;
@@ -81,6 +80,21 @@ architecture tb of can_mac_crc_tb is
   ----------------------------------------------------------------------------
   -- Functions
   ----------------------------------------------------------------------------
+  function f_calc_can_crc (data : std_logic_vector; init_vec : std_logic_vector; poly : std_logic_vector) return std_logic_vector is
+    variable v_crc      : std_logic_vector(init_vec'length - 1 downto 0);
+    variable v_crc_next : std_logic;
+  begin
+    v_crc := init_vec;
+    for i in data'range loop
+      v_crc_next := data(i) xor v_crc(v_crc'high);
+      v_crc      := v_crc sll 1;
+      if (v_crc_next) then
+        v_crc := v_crc xor poly;
+      end if;
+    end loop;
+    return v_crc;
+  end function f_calc_can_crc;
+
   -- Left-justifies the CRC output for comparison with DUT.
   function f_calc_can_crc_aligned (
     dat        : std_logic_vector;

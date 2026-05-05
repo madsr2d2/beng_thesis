@@ -19,8 +19,7 @@
 # Project source files in strict dependency order
 # 1. Packages
 PACKAGES = \
-	src/can_types_p/hdl_src/can_types_p.vhd \
-	src/can_tb_p/hdl_src/can_tb_p.vhd
+	src/can_types_p/hdl_src/can_types_p.vhd
 
 # 2. Components and Sub-modules
 COMPONENTS = \
@@ -35,8 +34,7 @@ LAYERS = \
 	src/can_mac/hdl_src/can_mac.vhd \
 	src/can_pcs/hdl_src/can_pcs.vhd \
 	src/can_mac_pcs_fce/hdl_src/can_mac_pcs_fce.vhd \
-	src/can_llc/hdl_src/can_llc.vhd \
-	src/can_fd_controller/hdl_src/can_fd_controller.vhd
+	src/can_llc/hdl_src/can_llc.vhd
 
 SRCFILES = $(PACKAGES) $(COMPONENTS) $(LAYERS)
 VHDLEX = .vhd

@@ -540,9 +540,9 @@ begin
                     if mac_ser_i.llc_metadata.ide = c_recessive then
                       v_drive_polarity := c_recessive;                  -- SRR (extended)
                     elsif mac_ser_i.llc_metadata.fdf = c_recessive then
-                      v_drive_polarity := mac_ser_i.llc_metadata.ftyp;  -- RTR (CC base)
+                      v_drive_polarity := c_dominant;                   -- RRS (FD base, always dominant)
                     else
-                      v_drive_polarity := c_dominant;                   -- RRS (FD base)
+                      v_drive_polarity := mac_ser_i.llc_metadata.ftyp;  -- RTR (CC base)
                     end if;
                   when c_arb_ide_pos =>
                     v_drive_polarity := mac_ser_i.llc_metadata.ide;
@@ -827,7 +827,12 @@ begin
                   end if;
                   byte_index    <= 0;
                   bit_count <= 0;
-                  llc_frame_len <= c_data_offset + data_len;
+                  -- RTR frames carry no data bytes; the LLC reads DLC from config byte 1.
+                  if not is_transmitter and llc_frame(c_conf_0_offset)(c_llc_frame_ftyp) = '1' then
+                    llc_frame_len <= c_data_offset;
+                  else
+                    llc_frame_len <= c_data_offset + data_len;
+                  end if;
                   fce_o.successful_transfer <= '1';
                   state     <= s_intermission;
                 else

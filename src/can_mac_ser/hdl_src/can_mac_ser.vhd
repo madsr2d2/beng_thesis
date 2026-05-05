@@ -49,12 +49,7 @@ architecture rtl of can_mac_ser is
   ------------------------------------------------------------------------
   -- Types
   ------------------------------------------------------------------------
-  type t_state is (
-    s_load_config_byte_0,
-    s_load_config_byte_1,
-    s_load_llc_frame_byte,
-    s_shift_out_bits
-  );
+  type t_state is ( s_load_config_byte_0, s_load_config_byte_1, s_load_llc_frame_byte, s_shift_out_bits);
 
   ------------------------------------------------------------------------
   -- Signals

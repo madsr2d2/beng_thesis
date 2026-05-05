@@ -35,7 +35,6 @@ echo
 
 echo "--- Packages ---"
 compile src/can_types_p/hdl_src/can_types_p.vhd
-compile src/can_tb_p/hdl_src/can_tb_p.vhd
 
 echo "--- Shared submodules ---"
 compile src/can_mac_bs/hdl_src/can_mac_bs.vhd
