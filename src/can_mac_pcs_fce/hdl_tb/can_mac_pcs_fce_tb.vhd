@@ -41,7 +41,7 @@ architecture tb of can_mac_pcs_fce_tb is
   ----------------------------------------------------------------------------
   -- Constants
   ----------------------------------------------------------------------------
-  -- PCS generics (can_pcs defaults)
+  -- Same values as the PCS generics
   constant c_pcs_prescaler      : natural := 2;
   constant c_pcs_nom_prop_seg   : natural := 40;
   constant c_pcs_nom_phase_seg1 : natural := 39;
