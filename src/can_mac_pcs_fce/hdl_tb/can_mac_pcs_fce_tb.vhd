@@ -41,8 +41,12 @@ architecture tb of can_mac_pcs_fce_tb is
   ----------------------------------------------------------------------------
   -- Constants
   ----------------------------------------------------------------------------
-  -- Nominal bit timing (ISO 7.3.2, midpoint of subtype ranges in pk_can_types)
-  constant c_bit_time : natural := 100;
+  -- PCS generics (can_pcs defaults)
+  constant c_pcs_prescaler      : natural := 2;
+  constant c_pcs_nom_prop_seg   : natural := 40;
+  constant c_pcs_nom_phase_seg1 : natural := 39;
+  constant c_pcs_nom_phase_seg2 : natural := 20;
+  constant c_bit_time : natural := (1 + c_pcs_nom_prop_seg + c_pcs_nom_phase_seg1 + c_pcs_nom_phase_seg2) * c_pcs_prescaler;
 
   constant c_bin_at_least          : natural := 5;
   constant c_rec_width             : natural := 16;
@@ -55,7 +59,7 @@ architecture tb of can_mac_pcs_fce_tb is
 
   -- ISO 11898-1:2015 Sec. 7.3.2 Formula (2): t_prop_seg >= 4*transceiver_d + 2*bus_d
   -- (symmetric 2-node network, equal TX/RX transceiver delay).
-  -- DUT prop_seg = gc_nom_prop_seg x gc_prescaler x clk = 40 x 2 x 10 ns = 800 ns.
+  -- DUT prop_seg = c_pcs_nom_prop_seg x c_pcs_prescaler x gc_TbClkPeriod = 40 x 2 x 10 ns = 800 ns.
   -- Budget: transceiver_d = 50 ns (ISO 11898-2 max per direction), bus_d = 300 ns (60 m at 5 ns/m). Sum = 800 ns.
   constant c_nom_prop_seg_time : time := 800 ns;
   constant c_transceiver_d     : time := 50 ns;
