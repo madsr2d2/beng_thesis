@@ -10,7 +10,7 @@
 --                Each cycle runs as pre-case -> case -> post-case. State transitions, stuff bit
 --                evaluation, and bus reads execute at the sample point (and secondary sample point
 --                for FD frames in the data phase).
---                Pre-case:  TX: lost-arb, bit-error, stuff-bit (SP); drive stuffed polarity (drive_bit).
+--                Pre-case:  TX: lost-arb, bit-error, stuff-bit (SP), drive stuffed polarity (drive_bit).
 --                           RX: stuff-error, stuff-bit, SBC/CRC mismatch (deferred), form/overload errors.
 --                           Sets v_skip_case to bypass the case block.
 --                Case:      frame-structure state transitions (only error-free paths).
@@ -781,9 +781,7 @@ begin
 
                 if not is_transmitter then
                   pcs_o.transmitting <= '0';
-                  if bit_count = 0 then
-                    pcs_o.tx_data <= c_recessive;
-                  end if;
+                  pcs_o.tx_data      <= c_recessive;
                 end if;
 
                 if llc_frame(c_conf_0_offset)(c_llc_frame_fdf) = '1' and bit_count = 0 then
@@ -796,14 +794,12 @@ begin
 
             -----------------------------------------------------------------
             -- s_ack_delimiter: single recessive bit after ACK slot.
-            -- TX ACK error caught in TX pre-case; RX form error caught in RX pre-case.
             -----------------------------------------------------------------
             when s_ack_delimiter =>
               if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := c_recessive;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                -- Both errors caught in pre-case; only reach here on clean path.
                 state     <= s_eof;
                 bit_count <= 0;
               end if;
@@ -812,16 +808,11 @@ begin
             -- s_eof: 7 recessive bits.
             -----------------------------------------------------------------
             when s_eof =>
-              -- Dominant (form error / overload) and CRC error caught in RX pre-case.
-              -- TX dominant caught as bit error in TX pre-case (ISO note: invalid for TX).
               if drive_bit = '1' and is_transmitter then
                 v_drive_polarity := c_recessive;
                 v_drive_now      := true;
               elsif pcs_i.sample_point = '1' then
-                -- Only reach here for recessive bits without CRC error.
                 if bit_count = c_eof_field_width - 1 then
-                  byte_index    <= 0;
-                  llc_frame_len <= c_data_offset + data_len;
                   if is_transmitter then
                     mac_ser_o.transfer_status <= c_transmitted;
                     was_previous_frame_tx     <= true;
@@ -829,7 +820,9 @@ begin
                   else
                     llc_stream_start <= true;
                   end if;
+                  byte_index    <= 0;
                   bit_count <= 0;
+                  llc_frame_len <= c_data_offset + data_len;
                   fce_o.successful_transfer <= '1';
                   state     <= s_intermission;
                 else
