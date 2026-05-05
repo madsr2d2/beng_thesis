@@ -526,7 +526,7 @@ begin
             -----------------------------------------------------------------
             -- s_arbitration: ID-base, RTR/SRR/RRS, IDE, ID-ext, RTR-ext.
             -- Both transmitter and receiver capture rx_data into llc_frame 
-            -- so the loser of arbitration retains the winner's bits (ISO 6.5.2).
+            -- so the loser of arbitration retains the winner's bits.
             -----------------------------------------------------------------
             when s_arbitration =>
               if drive_bit = '1' and is_transmitter then

@@ -565,7 +565,7 @@ begin
     end procedure submit_and_verify;
 
     --------------------------------------------------------------------------
-    -- Test 1: Normal usage -- cover all IDE x FDF x DLC bins
+    -- Test 1: Normal usage
     --------------------------------------------------------------------------
     procedure test_normal is
       variable v_frame       : t_llc_frame;
@@ -695,8 +695,8 @@ begin
       end loop;
 
       -- Wait for the iter-10 loser's retransmission to be fully received by DUT 2
-      -- before flushing (a CC-base 1-byte frame takes ~55 bit times).
-      WaitForClock(clk, 200 * c_bit_time);
+      -- before flushing (a CC-base 1-byte frame takes ~55 bit times, 100 gives margin).
+      WaitForClock(clk, 100 * c_bit_time);
       s_status_latch_rst_dut_1 <= true;
       s_status_latch_rst_dut_2 <= true;
       s_rx_sink_flush          <= true;
@@ -758,9 +758,17 @@ begin
       end if;
       AffirmIf(test_id, llc_fce_o_dut_1.bus_off = '0', "Bus-off recovered");
 
-      -- Phase 4: DUT 1 completed bus_reintegration; allow intermission to
-      -- finish, clear stale status latches, then send the confirmation frame.
-      WaitForClock(clk, (c_bus_idle_condition_width + 2) * (c_bit_time + 1));
+      -- Phase 4: DUT 2 may still be retrying its test_lost_arb frame (got ACK
+      -- errors while DUT 1 was bus-off). DUT 1 can now ACK, so one more retry
+      -- cycle (~80 bit times) is all that remains. Wait for DUT 2's transfer
+      -- status to go non-ongoing, with a 200-bit-time timeout for the case
+      -- where DUT 2 is already idle and will not signal again.
+      if llc_to_mac_tx_d2s_dut_2.transfer_status = c_ongoing then
+        wait until llc_to_mac_tx_d2s_dut_2.transfer_status /= c_ongoing
+          for (100 * c_bit_time) * gc_TbClkPeriod;
+      end if;
+      -- Settle: intermission (3) + bus_idle margin.
+      WaitForClock(clk, (c_bus_idle_condition_width + 3) * c_bit_time);
       s_status_latch_rst_dut_1 <= true;
       WaitForClock(clk, 2);
       s_status_latch_rst_dut_1 <= false;
