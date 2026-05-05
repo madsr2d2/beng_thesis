@@ -708,17 +708,14 @@ begin
         end if;
       end loop;
 
-      -- The iter-10 loser auto-retransmits after c_lost_arb; if DUT 1 lost,
-      -- DUT 2 receives that retransmission and buffers it in p_rx_llc_sink_vc.
-      -- Wait for the retransmission to complete before flushing.
-      WaitForClock(clk, 200 * c_bit_time);
+      -- Reset latches, then wait for the iter-10 loser's retransmission result
+      -- before flushing (one latch captures c_transmitted, the other stays c_ongoing).
       s_status_latch_rst_dut_1 <= true;
       s_status_latch_rst_dut_2 <= true;
       WaitForClock(clk, 2);
       s_status_latch_rst_dut_1 <= false;
       s_status_latch_rst_dut_2 <= false;
-      -- Discard frames DUT 2 received when DUT 1 won arbitration.
-      -- These were never consumed by a Check call.
+      wait until status_latch_dut_1 /= c_ongoing or status_latch_dut_2 /= c_ongoing for 5 ms;
       s_rx_sink_flush <= true;
       WaitForClock(clk, 2);
       s_rx_sink_flush <= false;
