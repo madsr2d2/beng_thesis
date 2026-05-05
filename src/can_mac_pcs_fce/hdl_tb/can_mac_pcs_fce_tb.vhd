@@ -94,13 +94,12 @@ architecture tb of can_mac_pcs_fce_tb is
   -- Wired-AND bus as seen at each node's end
   signal s_bus_dut1     : std_logic := c_recessive;
   signal s_bus_dut2     : std_logic := c_recessive;
-  -- DUT 1 RX input with error-injection override (forces recessive for bit-error test)
+  -- DUT 1 RX input with error-injection override (forces recessive for bus-off test)
   signal s_bus_dut1_obs : std_logic;
 
   -- s_dut_1_rx_recessive forces DUT 1's loopback recessive so every dominant
   -- it drives becomes a bit error (TEC += 8, bypasses error-passive exemption).
   signal s_dut_1_rx_recessive : boolean   := false;
-  signal s_dut_2_reset        : std_logic := '0';
 
   -- Sticky bus_off latch (DUT 1): captures the pulse since FCE may recover
   -- before the sequencer samples the live signal.
@@ -151,7 +150,7 @@ architecture tb of can_mac_pcs_fce_tb is
   signal          ide_cov      : CoverageIDType;
   signal          fdf_cov      : CoverageIDType;
   signal          dlc_cov      : CoverageIDType;
-  signal          ftyp_cov     : CoverageIDType;  -- CC data (0) vs CC remote/RTR (1); not sampled for FD frames
+  signal          ftyp_cov     : CoverageIDType;
   signal          init_barrier : integer_barrier := 1;
   signal          test_num     : natural;
 
@@ -251,7 +250,7 @@ begin
   u_dut_2 : entity work.can_mac_pcs_fce
     port map(
       clk      => clk,
-      rst      => reset or s_dut_2_reset,
+      rst      => reset,
       tx_llc_i  => llc_to_mac_tx_s2d_dut_2,
       tx_llc_o  => llc_to_mac_tx_d2s_dut_2,
       rx_llc_i  => mac_to_llc_tx_d2s_dut_2,
