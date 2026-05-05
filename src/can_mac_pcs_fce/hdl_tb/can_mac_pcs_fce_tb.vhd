@@ -117,10 +117,6 @@ architecture tb of can_mac_pcs_fce_tb is
   signal s_bus_off_seen  : boolean := false;
   signal s_bus_off_clear : boolean := false;
 
-  -- Flush p_rx_llc_sink_vc between tests: discards any frame buffered by DUT 2
-  -- that was received during test_lost_arb iterations where DUT 1 won.
-  signal s_rx_sink_flush : boolean := false;
-
   -- DUT 1 interfaces
   signal llc_to_mac_tx_s2d_dut_1 : t_can_llc_mac_tx_if_s2d := c_llc_to_mac_tx_if_reset;
   signal llc_to_mac_tx_d2s_dut_1 : t_can_llc_mac_tx_if_d2s;
@@ -141,11 +137,9 @@ architecture tb of can_mac_pcs_fce_tb is
 
   -- Transfer status latches
   signal status_latch_dut_1            : std_logic_vector(2 downto 0) := c_ongoing;
-  signal clear_status_dut_1            : boolean                      := false;
-  signal s_status_latch_rst_dut_1       : boolean                      := false;
-  signal status_latch_dut_2       : std_logic_vector(2 downto 0) := c_ongoing;
-  signal clear_status_dut_2       : boolean                      := false;
-  signal s_status_latch_rst_dut_2 : boolean                      := false;
+  signal clear_status_dut_1 : boolean                      := false;
+  signal status_latch_dut_2 : std_logic_vector(2 downto 0) := c_ongoing;
+  signal clear_status_dut_2 : boolean                      := false;
 
   -- OSVVM signals
   shared variable RV           : RandomPType;
@@ -276,10 +270,16 @@ begin
   --
   --  s_dut1_rx <-[transceiver_d]- s_bus_dut1_obs  (s_bus_dut1 forced recessive in bus-off test)
   --  s_dut2_rx <-[transceiver_d]- s_bus_dut2
+  --
+  --  s_dut_1_rx_recessive simulates DUT 1's transceiver being open-circuit:
+  --  DUT 1's wire is removed from the bus at both ends so DUT 2 also sees only
+  --  its own (recessive) signal and does not start receiving a phantom frame.
   ----------------------------------------------------------------------------
   s_bus_dut1     <= s_dut1_wire     and s_dut2_wire_far;
-  s_bus_dut1_obs <= c_recessive when s_dut_1_rx_recessive else s_bus_dut1;
-  s_bus_dut2     <= s_dut1_wire_far and s_dut2_wire;
+  -- Gate injection with s_bus_off_seen so it drops the cycle bus_off fires,
+  -- without waiting for p_test_ctrl to reach the s_dut_1_rx_recessive clear.
+  s_bus_dut1_obs <= c_recessive when (s_dut_1_rx_recessive and not s_bus_off_seen) else s_bus_dut1;
+  s_bus_dut2     <= s_dut2_wire when (s_dut_1_rx_recessive and not s_bus_off_seen) else s_dut1_wire_far and s_dut2_wire;
 
   p_dut1_tx_to_wire : process is
   begin
@@ -337,7 +337,7 @@ begin
   p_status_latch_dut_1: process(clk) is
   begin
     if rising_edge(clk) then
-      if reset = '1' or clear_status_dut_1 or s_status_latch_rst_dut_1 then
+      if reset = '1' or clear_status_dut_1 then
         status_latch_dut_1 <= c_ongoing;
       else
         if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing
@@ -354,7 +354,7 @@ begin
   p_status_latch_dut_2 : process(clk) is
   begin
     if rising_edge(clk) then
-      if reset = '1' or clear_status_dut_2 or s_status_latch_rst_dut_2 then
+      if reset = '1' or clear_status_dut_2 then
         status_latch_dut_2 <= c_ongoing;
       else
         if llc_to_mac_tx_d2s_dut_2.transfer_status /= c_ongoing
@@ -382,14 +382,10 @@ begin
           wait until rising_edge(clk) and llc_to_mac_tx_d2s_dut_1.avalon_st_sink.ready = '1';
           llc_to_mac_tx_s2d_dut_1.avalon_st_source.valid         <= '0';
         when CHECK =>
-          -- status_latch_dut_1holds the first non-ongoing status; wait for it then clear.
           if status_latch_dut_1 = c_ongoing then
             wait until status_latch_dut_1 /= c_ongoing;
           end if;
           AffirmIfEqual(check_id, status_latch_dut_1, std_logic_vector(tx_llc_rec_dut_1.DataToModel(2 downto 0)), "Transfer status");
-          clear_status_dut_1 <= true;
-          wait until rising_edge(clk);
-          clear_status_dut_1 <= false;
         when others => null;
       end case;
     end loop tx_llc_vc_loop;
@@ -416,9 +412,6 @@ begin
             wait until status_latch_dut_2 /= c_ongoing;
           end if;
           AffirmIfEqual(check_id, status_latch_dut_2, std_logic_vector(tx_llc_rec_dut_2.DataToModel(2 downto 0)), "DUT 2 transfer status");
-          clear_status_dut_2 <= true;
-          wait until rising_edge(clk);
-          clear_status_dut_2 <= false;
         when others => null;
       end case;
     end loop tx_llc_vc_dut_2_loop;
@@ -428,60 +421,55 @@ begin
   -- RX LLC sink VC (DUT 2)
   ----------------------------------------------------------------------------
   p_rx_llc_sink_vc : process is
-    variable v_byte_idx  : natural := 0;
     variable v_frame     : t_llc_frame;
-    variable v_frame_len : natural := 0;
-    variable v_got_frame : boolean := false;
+    variable v_frame_len : natural;
     variable v_exp_len   : natural;
     variable v_exp_byte  : std_logic_vector(c_rec_width - 1 downto 0);
-    variable v_count     : natural;
   begin
     WaitForBarrier(init_barrier);
-    wait until reset = '0';
-    rx_llc_rec_dut_2.Ack <= rx_llc_rec_dut_2.Ack + 1;  -- initial handshake: mark VC ready
-    wait for 0 ns;
-
-    rx_sink_loop : loop
-      wait until rising_edge(clk);
-
-      if s_rx_sink_flush then
-        v_got_frame := false;
-        v_byte_idx  := 0;
-      end if;
-
-      if (not v_got_frame and mac_to_llc_tx_s2d_dut_2.avalon_st_source.valid = '1') then
-        v_frame(v_byte_idx) := mac_to_llc_tx_s2d_dut_2.avalon_st_source.data;
-        if (mac_to_llc_tx_s2d_dut_2.avalon_st_source.endofpacket = '1') then
-          v_frame_len := v_byte_idx + 1;
-          v_got_frame := true;
-        else
-          v_byte_idx := v_byte_idx + 1;
-        end if;
-      end if;
-
-      if v_got_frame and TransactionPending(rx_llc_rec_dut_2.Rdy, rx_llc_rec_dut_2.Ack) then
-        case rx_llc_rec_dut_2.Operation is
-          when CHECK =>
-            v_exp_len := to_integer(unsigned(rx_llc_rec_dut_2.DataToModel(7 downto 0)));
-            v_count   := to_integer(unsigned(rx_llc_rec_dut_2.ParamToModel(15 downto 0)));
-            AffirmIfEqual(check_id, v_frame_len, v_exp_len, "Frame " & to_string(v_count) & " length");
-            for i in 0 to v_exp_len - 1 loop
-              v_exp_byte := Pop(rx_llc_rec_dut_2.BurstFifo);
-              AffirmIfEqual(check_id, v_frame(i), v_exp_byte(7 downto 0), "Frame " & to_string(v_count) & " byte " & to_string(i));
-            end loop;
-            v_byte_idx  := 0;
-            v_got_frame := false;
-          when others => null;
-        end case;
-        FinishTransaction(rx_llc_rec_dut_2.Ack);
-      end if;
-    end loop rx_sink_loop;
+    loop
+      WaitForTransaction(clk, rx_llc_rec_dut_2.Rdy, rx_llc_rec_dut_2.Ack);
+      case rx_llc_rec_dut_2.Operation is
+        when CHECK =>
+          -- Collect bytes from DUT 2's MAC-to-LLC output until EOP.
+          -- Check() is issued before the frame has fully arrived, so the VC
+          -- and the ongoing transmission run concurrently.
+          v_frame_len := 0;
+          collect_loop : loop
+            wait until rising_edge(clk);
+            if mac_to_llc_tx_s2d_dut_2.avalon_st_source.valid = '1' then
+              v_frame(v_frame_len) := mac_to_llc_tx_s2d_dut_2.avalon_st_source.data;
+              v_frame_len          := v_frame_len + 1;
+              exit collect_loop when mac_to_llc_tx_s2d_dut_2.avalon_st_source.endofpacket = '1';
+            end if;
+          end loop collect_loop;
+          v_exp_len := to_integer(unsigned(rx_llc_rec_dut_2.DataToModel(7 downto 0)));
+          AffirmIfEqual(check_id, v_frame_len, v_exp_len, "RX frame length");
+          for i in 0 to v_exp_len - 1 loop
+            v_exp_byte := Pop(rx_llc_rec_dut_2.BurstFifo);
+            AffirmIfEqual(check_id, v_frame(i), v_exp_byte(7 downto 0), "RX byte " & to_string(i));
+          end loop;
+        when others => null;
+      end case;
+    end loop;
   end process p_rx_llc_sink_vc;
 
   ----------------------------------------------------------------------------
   -- p_test_ctrl
   ----------------------------------------------------------------------------
   p_test_ctrl : process is
+
+    --------------------------------------------------------------------------
+    -- clear_latches: pulse both transfer-status latches back to c_ongoing.
+    --------------------------------------------------------------------------
+    procedure clear_latches is
+    begin
+      clear_status_dut_1 <= true;
+      clear_status_dut_2 <= true;
+      WaitForClock(clk, 1);
+      clear_status_dut_1 <= false;
+      clear_status_dut_2 <= false;
+    end procedure clear_latches;
 
     --------------------------------------------------------------------------
     -- gen_frame: builds an LLC frame.
@@ -543,7 +531,7 @@ begin
     --------------------------------------------------------------------------
     -- submit_and_verify: send frame via DUT 1, verify TX status and RX bytes
     --------------------------------------------------------------------------
-    procedure submit_and_verify(v_tx_frame : in t_llc_frame; v_last_byte : in natural; v_frame_count : in natural) is
+    procedure submit_and_verify(v_tx_frame : in t_llc_frame; v_last_byte : in natural) is
     begin
       -- Pre-load expected bytes before sending: p_rx_llc_sink_vc processes them when the frame arrives.
       for i in 0 to v_last_byte loop
@@ -560,27 +548,28 @@ begin
         end if;
       end loop;
 
+      -- Issue the RX check while the frame is still in transit: the VC collects
+      -- bytes from DUT 2 as they arrive, concurrently with p_tx_llc_vc driving DUT 1.
+      Check(rx_llc_rec_dut_2, std_logic_vector(to_unsigned(v_last_byte + 1, c_rec_width)));
+      -- RX verification is now complete; confirm TX outcome and reset the latches.
       Check(tx_llc_rec_dut_1, std_logic_vector(resize(unsigned(c_transmitted), c_rec_width)));
-      Check(rx_llc_rec_dut_2, std_logic_vector(to_unsigned(v_last_byte + 1, c_rec_width)), std_logic_vector(to_unsigned(v_frame_count, c_rec_width)));
+      clear_latches;
     end procedure submit_and_verify;
 
     --------------------------------------------------------------------------
     -- Test 1: Normal usage
     --------------------------------------------------------------------------
     procedure test_normal is
-      variable v_frame       : t_llc_frame;
-      variable v_last_byte   : natural;
-      variable v_frame_count : natural := 0;
+      variable v_frame     : t_llc_frame;
+      variable v_last_byte : natural;
     begin
       test_num <= 1;
       Print("--------------------------------------------------------------------------");
       Print("Test 1: Normal Usage (DUT 1 TX -> DUT 2 RX)");
       Print("--------------------------------------------------------------------------");
       while not (IsCovered(ide_cov) and IsCovered(fdf_cov) and IsCovered(dlc_cov) and IsCovered(ftyp_cov)) loop
-        v_frame_count := v_frame_count + 1;
-
         gen_frame(v_frame, v_last_byte);
-        submit_and_verify(v_frame, v_last_byte, v_frame_count);
+        submit_and_verify(v_frame, v_last_byte);
 
         ICover(ide_cov,  to_integer(unsigned'("" & v_frame(0)(c_llc_frame_ide))));
         ICover(fdf_cov,  to_integer(unsigned'("" & v_frame(0)(c_llc_frame_fdf))));
@@ -596,9 +585,8 @@ begin
     -- Test 2: Delay sweep -- batch of frames at each c_delay_sweep operating point
     --------------------------------------------------------------------------
     procedure test_delay_sweep is
-      variable v_frame       : t_llc_frame;
-      variable v_last_byte   : natural;
-      variable v_frame_count : natural := 0;
+      variable v_frame     : t_llc_frame;
+      variable v_last_byte : natural;
     begin
       test_num <= 2;
       Print("--------------------------------------------------------------------------");
@@ -612,9 +600,8 @@ begin
         WaitForClock(clk, 10 * c_bit_time);
 
         for j in 1 to c_delay_frames_per_cfg loop
-          v_frame_count := v_frame_count + 1;
           gen_frame(v_frame, v_last_byte);
-          submit_and_verify(v_frame, v_last_byte, v_frame_count);
+          submit_and_verify(v_frame, v_last_byte);
         end loop;
       end loop;
     end procedure test_delay_sweep;
@@ -640,20 +627,16 @@ begin
       s_transceiver_d <= c_transceiver_d;
       s_bus_delay     <= c_bus_delay_max;
       for iter in 1 to c_iterations loop
-        -- Wait for both DUTs idle before clearing latches.
+        -- Wait until both DUT's are idel
         if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing then
           wait until llc_to_mac_tx_d2s_dut_1.transfer_status = c_ongoing for 5 ms;
         end if;
         if llc_to_mac_tx_d2s_dut_2.transfer_status /= c_ongoing then
           wait until llc_to_mac_tx_d2s_dut_2.transfer_status = c_ongoing for 5 ms;
         end if;
-        s_status_latch_rst_dut_1 <= true;
-        s_status_latch_rst_dut_2 <= true;
-        WaitForClock(clk, 2);
-        s_status_latch_rst_dut_1 <= false;
-        s_status_latch_rst_dut_2 <= false;
+        clear_latches;
 
-        loop
+        loop  -- Generate distinct IDs
           v_id_1 := RV.RandInt(0, 2 ** c_base_id_width - 1);
           v_id_2 := RV.RandInt(0, 2 ** c_base_id_width - 1);
           exit when v_id_1 /= v_id_2;
@@ -662,7 +645,7 @@ begin
         gen_frame(v_frame_2, v_last, v_id_2);
         v_dut1_wins := v_id_1 < v_id_2;
 
-        -- Both DUTs start sending frames at the same time
+        -- Transmit from both DUT's at the same time to ensure arbitration is triggered 
         for i in 0 to v_last loop
           if i = 0 then
             Send(tx_llc_rec_dut_1, v_frame_1(i), c_avalon_sop_byte);
@@ -676,8 +659,9 @@ begin
           end if;
         end loop;
 
-        if status_latch_dut_1= c_ongoing then
-          wait until status_latch_dut_1/= c_ongoing for 5 ms;
+        -- Wait for DUT's to either lose arbitration or transmit successfully
+        if status_latch_dut_1 = c_ongoing then
+          wait until status_latch_dut_1 /= c_ongoing for 5 ms;
         end if;
         if status_latch_dut_2 = c_ongoing then
           wait until status_latch_dut_2 /= c_ongoing for 5 ms;
@@ -694,16 +678,9 @@ begin
         end if;
       end loop;
 
-      -- Wait for the iter-10 loser's retransmission to be fully received by DUT 2
-      -- before flushing (a CC-base 1-byte frame takes ~55 bit times, 100 gives margin).
+      -- Let the last iteration's loser retransmit and settle before clearing.
       WaitForClock(clk, 100 * c_bit_time);
-      s_status_latch_rst_dut_1 <= true;
-      s_status_latch_rst_dut_2 <= true;
-      s_rx_sink_flush          <= true;
-      WaitForClock(clk, 2);
-      s_status_latch_rst_dut_1 <= false;
-      s_status_latch_rst_dut_2 <= false;
-      s_rx_sink_flush          <= false;
+      clear_latches;
     end procedure test_lost_arb;
 
     --------------------------------------------------------------------------
@@ -743,37 +720,28 @@ begin
             Send(tx_llc_rec_dut_1, v_frame(i), c_avalon_eop_byte);
           end if;
         end loop;
-        -- Yield for at least one bit time so s_bus_off_seen can propagate.
-        WaitForClock(clk, c_bit_time);
       end loop;
+      s_dut_1_rx_recessive <= false;
       AffirmIf(test_id, s_bus_off_seen, "Bus-off after " & to_string(v_send_count) & " sends");
 
-      -- Phase 3: lift injection; wait for FCE bus-off recovery (128 x 11 bit times).
-      s_dut_1_rx_recessive <= false;
+      -- Phase 3: wait for FCE bus-off recovery (128 x 11 bit times).
       if llc_fce_o_dut_1.bus_off /= '0' then
-        for t4_slice in 1 to 40 loop
-          wait until llc_fce_o_dut_1.bus_off = '0' for 100 us;
-          exit when llc_fce_o_dut_1.bus_off = '0';
-        end loop;
+        wait until llc_fce_o_dut_1.bus_off = '0' for 5 ms;
       end if;
       AffirmIf(test_id, llc_fce_o_dut_1.bus_off = '0', "Bus-off recovered");
 
-      -- Phase 4: DUT 2 may still be retrying its test_lost_arb frame (got ACK
-      -- errors while DUT 1 was bus-off). DUT 1 can now ACK, so one more retry
-      -- cycle (~80 bit times) is all that remains. Wait for DUT 2's transfer
-      -- status to go non-ongoing, with a 200-bit-time timeout for the case
-      -- where DUT 2 is already idle and will not signal again.
-      if llc_to_mac_tx_d2s_dut_2.transfer_status = c_ongoing then
-        wait until llc_to_mac_tx_d2s_dut_2.transfer_status /= c_ongoing
-          for (100 * c_bit_time) * gc_TbClkPeriod;
-      end if;
-      -- Settle: intermission (3) + bus_idle margin.
+      -- Phase 4: confirm normal TX/RX resumes after recovery.
+      -- The TX VC may have one pending Phase-2 byte queued; after recovery that
+      -- frame completes transmission. Wait for it to finish, then reset latches
+      -- before the verification frame so the TX check sees only the new outcome.
+      clear_latches;
+      wait until status_latch_dut_1 /= c_ongoing for 50 ms;
+      -- Settle: ensure the Phase-2 frame's bytes have fully streamed through
+      -- DUT 2's MAC-to-LLC interface before the verification frame arrives.
       WaitForClock(clk, (c_bus_idle_condition_width + 3) * c_bit_time);
-      s_status_latch_rst_dut_1 <= true;
-      WaitForClock(clk, 2);
-      s_status_latch_rst_dut_1 <= false;
+      clear_latches;
       gen_frame(v_frame, v_last_byte);
-      submit_and_verify(v_frame, v_last_byte, 0);
+      submit_and_verify(v_frame, v_last_byte);
     end procedure test_bus_off;
 
     --------------------------------------------------------------------------

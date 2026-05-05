@@ -10,9 +10,7 @@
 --                Section map:
 --                1. Protocol Constants   -- polarity, field widths, CRC, status
 --                2. Bit Timing           -- ISO Table 12 subtypes and limits
---                3. Enumerations         -- bit names, monitor events
 --                4. Composite Types      -- mac_frame_bit, frame_params, metadata
---                5. Frame Bit Positions  -- CB/CE/FB/FE on-wire field chains
 --                6. Interface Records    -- inter-layer records with reset constants
 --                7. LLC Frame Format     -- config bytes, legacy layout
 --                8. Protocol Functions   -- frame params, bitstream, DLC, ID packing
@@ -96,9 +94,6 @@ package pk_can_types is
 
   -- TDC polarity history depth (ISO 7.3.4)
   constant c_tdc_polarity_depth : natural := 8; -- TODO: Justify this (Don't think we need more but calculate form relevant delays)
-
-  -- Retransmission (ISO 6.5.3)
-  constant c_retransmission_limit : natural := 6;
 
   ---------------------------------------------------------------------------
   -- 2. Bit Timing (ISO 7.3.2, Table 13)

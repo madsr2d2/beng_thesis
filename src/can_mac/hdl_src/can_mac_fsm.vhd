@@ -65,8 +65,7 @@ architecture rtl of can_mac_fsm is
     s_bus_reintegration, s_intermission, s_suspend_transmission, s_bus_idle,
     s_arbitration, s_fdf_r1_r0, s_res_r0, s_brs, s_esi,
     s_dlc, s_data, s_sbc, s_crc, s_crc_delimiter, s_ack, s_ack_delimiter, s_eof,
-    s_error_flag, s_error_delimiter,
-    s_bus_off
+    s_error_flag, s_error_delimiter
   );
 
   -----------------------------------------------------------------
@@ -172,7 +171,7 @@ begin
   begin
 
     if rising_edge(clk_i) then
-      if rst_i = '1' then
+      if rst_i = '1' or fce_i.bus_off = '1' then
         -- Frame state
         state                                <= s_bus_reintegration;
         bit_count                            <= 0;
@@ -206,19 +205,22 @@ begin
         crc_o                                <= c_mac_fsm_to_crc_if_reset;
         bs_rst                               <= '0';
         crc_rst                              <= '0';
-      elsif fce_i.bus_off = '1' then
-        state <= s_bus_off;
       else
 
         -----------------------------------------------------------------
         -- Defaults
         -----------------------------------------------------------------
         v_in_dynamic_stuff   := state = s_arbitration or state = s_fdf_r1_r0 or state = s_res_r0 or state = s_brs or state = s_esi or state = s_dlc or state = s_data;
-        v_tx_bit_error_state := state = s_fdf_r1_r0 or state = s_res_r0
+        v_tx_bit_error_state := state = s_bus_idle   or state = s_arbitration
+                                or state = s_fdf_r1_r0 or state = s_res_r0
                                 or state = s_brs    or state = s_esi    or state = s_dlc or state = s_data
                                 or state = s_sbc    or state = s_crc    or state = s_crc_delimiter
                                 or state = s_ack_delimiter or state = s_eof;
-        v_bit_error_at_sp        := not in_data_phase and state /= s_ack_delimiter and transmitted_bits_shift_reg(0) /= pcs_i.rx_data;
+        -- Lost arbitration (TX recessive, RX dominant in arbitration) is handled separately;
+        -- exclude it so it is not also flagged as a bit error.
+        v_bit_error_at_sp        := not in_data_phase and state /= s_ack_delimiter
+                                    and transmitted_bits_shift_reg(0) /= pcs_i.rx_data
+                                    and not (state = s_arbitration and transmitted_bits_shift_reg(0) = c_recessive and pcs_i.rx_data = c_dominant);
         v_in_fixed_format_field  := state = s_crc_delimiter or state = s_ack_delimiter;
         v_skip_case      := false;
         v_drive_now      := false;
@@ -247,7 +249,7 @@ begin
         end if;
 
         -- Quiet states: reset active-frame signals on every cycle.
-        if state = s_bus_reintegration or state = s_intermission or state = s_suspend_transmission or state = s_bus_idle or state = s_bus_off then
+        if state = s_bus_reintegration or state = s_intermission or state = s_suspend_transmission or state = s_bus_idle then
           fce_o                                <= c_mac_to_fce_if_reset;
           mac_ser_o                            <= c_ser_fsm_if_d2s_reset;
           bs_o                                 <= c_mac_fsm_to_bs_fd_if_reset;
@@ -282,6 +284,7 @@ begin
                 bit_error_at_ssp <= false;
               end if;
               fce_o.error                <= '1';
+              fce_o.transmitting         <= '1';  -- quiet-state block may have cleared this
               pcs_o.tx_data              <= not fce_i.error_active;
               pcs_o.data_phase_stop      <= '1';
               in_data_phase              <= false;
@@ -939,13 +942,6 @@ begin
                   end if;
                 end if;
               end if;
-
-            -----------------------------------------------------------------
-            -- s_bus_off: one-cycle cleanup after bus_off deasserts (ISO 8.1.4.5).
-            -----------------------------------------------------------------
-            when s_bus_off =>
-              mac_ser_o.transfer_status <= c_disturbed;
-              state                     <= s_bus_reintegration;
 
             when others =>
               state     <= s_bus_reintegration;

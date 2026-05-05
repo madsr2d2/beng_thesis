@@ -1,19 +1,19 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Tue May  5 11:54:01 2026
+[*] Tue May  5 17:58:06 2026
 [*]
 [dumpfile] "/home/madsr2d2/beng_thesis/sim/can_mac_pcs_fce_tb.ghw"
-[dumpfile_mtime] "Tue May  5 11:50:32 2026"
-[dumpfile_size] 83148125
+[dumpfile_mtime] "Tue May  5 17:51:22 2026"
+[dumpfile_size] 231453021
 [savefile] "/home/madsr2d2/beng_thesis/src/can_mac_pcs_fce/test_case/can_mac_pcs_fce_tb.gtkw"
-[timestart] 34439300000000
+[timestart] 24334000000000
 [size] 3072 1681
 [pos] -27 -24
-*-35.445915 34976920000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-38.861027 26783740000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.can_mac_pcs_fce_tb.
 [treeopen] top.can_mac_pcs_fce_tb.u_dut_1.
-[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.pcs_to_mac.
 [treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.fsm_to_ser.
 [treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.ser_to_fsm.
 [treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_bs.
@@ -334,8 +334,10 @@ top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_bs.bs_o.data
 #{top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame[69][7:0]} top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame[69][7] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame[69][6] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame[69][5] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame[69][4] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame[69][3] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame[69][2] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame[69][1] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame[69][0]
 @1401200
 -dut2_llc_frame
-@c00200
+@800200
 -dut_1_essentials
+@29
+top.can_mac_pcs_fce_tb.u_dut_1.fce_to_mac.bus_off
 @28
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.drive_bit
 @22
@@ -372,7 +374,7 @@ top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.mac_i.next_bit_is_res
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.ack_success_seen
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.data_len
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.crc_length
-@1401200
+@1000200
 -dut_1_essentials
 @c00200
 -dut1_fce
@@ -424,9 +426,9 @@ top.can_mac_pcs_fce_tb.u_dut_2.mac_to_pcs.next_bit_is_brs
 top.can_mac_pcs_fce_tb.u_dut_2.mac_to_pcs.next_bit_is_res
 @1401200
 -dut2_essentials
-@800201
+@c00200
 -tb
-@421
+@420
 top.can_mac_pcs_fce_tb.test_num
 top.can_mac_pcs_fce_tb.init_barrier
 top.can_mac_pcs_fce_tb.check_id
@@ -434,32 +436,17 @@ top.can_mac_pcs_fce_tb.test_id
 top.can_mac_pcs_fce_tb.s_status_latch_rst_dut_2
 top.can_mac_pcs_fce_tb.clear_status_dut_2
 top.can_mac_pcs_fce_tb.s_status_latch_rst_dut_1
-top.can_mac_pcs_fce_tb.clear_status
 top.can_mac_pcs_fce_tb.s_bus_off_clear
 top.can_mac_pcs_fce_tb.s_bus_off_seen
-@29
-top.can_mac_pcs_fce_tb.s_dut_2_reset
-@421
 top.can_mac_pcs_fce_tb.s_dut_1_rx_recessive
-@29
-top.can_mac_pcs_fce_tb.bus_at_tx_observed
-top.can_mac_pcs_fce_tb.rx_at_tx_dut
-top.can_mac_pcs_fce_tb.rx_at_rx_dut
-top.can_mac_pcs_fce_tb.tx_from_rx_dut
-top.can_mac_pcs_fce_tb.tx_from_tx_dut
-top.can_mac_pcs_fce_tb.bus_at_rx
-top.can_mac_pcs_fce_tb.bus_at_tx
-top.can_mac_pcs_fce_tb.rx_on_bus_at_tx
-top.can_mac_pcs_fce_tb.rx_on_bus_at_rx
-top.can_mac_pcs_fce_tb.tx_on_bus_at_rx
-top.can_mac_pcs_fce_tb.tx_on_bus_at_tx
+@28
 top.can_mac_pcs_fce_tb.reset
 top.can_mac_pcs_fce_tb.clk
-@421
-top.can_mac_pcs_fce_tb.s_transceiver_rx_d
-top.can_mac_pcs_fce_tb.s_transceiver_tx_d
+@420
 top.can_mac_pcs_fce_tb.s_bus_delay
-@1000201
+@1401200
 -tb
+@420
+top.can_mac_pcs_fce_tb.test_num
 [pattern_trace] 1
 [pattern_trace] 0
