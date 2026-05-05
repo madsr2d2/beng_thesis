@@ -472,6 +472,21 @@ begin
     end procedure clear_latches;
 
     --------------------------------------------------------------------------
+    -- wait_idle_and_clear: block until both DUT TX paths return to c_ongoing,
+    -- then pulse the latches clear.
+    --------------------------------------------------------------------------
+    procedure wait_idle_and_clear is
+    begin
+      if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing then
+        wait until llc_to_mac_tx_d2s_dut_1.transfer_status = c_ongoing for 5 ms;
+      end if;
+      if llc_to_mac_tx_d2s_dut_2.transfer_status /= c_ongoing then
+        wait until llc_to_mac_tx_d2s_dut_2.transfer_status = c_ongoing for 5 ms;
+      end if;
+      clear_latches;
+    end procedure wait_idle_and_clear;
+
+    --------------------------------------------------------------------------
     -- gen_frame: builds an LLC frame.
     --------------------------------------------------------------------------
     procedure gen_frame(tx_frame : out t_llc_frame; last_byte : out natural; v_id : integer := -1) is
@@ -627,14 +642,9 @@ begin
       s_transceiver_d <= c_transceiver_d;
       s_bus_delay     <= c_bus_delay_max;
       for iter in 1 to c_iterations loop
-        -- Wait until both DUT's are idel
-        if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing then
-          wait until llc_to_mac_tx_d2s_dut_1.transfer_status = c_ongoing for 5 ms;
-        end if;
-        if llc_to_mac_tx_d2s_dut_2.transfer_status /= c_ongoing then
-          wait until llc_to_mac_tx_d2s_dut_2.transfer_status = c_ongoing for 5 ms;
-        end if;
-        clear_latches;
+        -- Latch captures only the first non-ongoing status; wait for idle so
+        -- a tail retransmission from the previous iteration does not pollute it.
+        wait_idle_and_clear;
 
         loop  -- Generate distinct IDs
           v_id_1 := RV.RandInt(0, 2 ** c_base_id_width - 1);
@@ -738,7 +748,7 @@ begin
       wait until status_latch_dut_1 /= c_ongoing for 50 ms;
       -- Settle: ensure the Phase-2 frame's bytes have fully streamed through
       -- DUT 2's MAC-to-LLC interface before the verification frame arrives.
-      WaitForClock(clk, (c_bus_idle_condition_width + 3) * c_bit_time);
+      -- WaitForClock(clk, (c_bus_idle_condition_width + 3) * c_bit_time);
       clear_latches;
       gen_frame(v_frame, v_last_byte);
       submit_and_verify(v_frame, v_last_byte);
