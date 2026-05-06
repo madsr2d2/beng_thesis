@@ -7,11 +7,11 @@
 -- Description:   Testbench for can_pcs. Instantiates two can_pcs units (TX and RX) with
 --                independent out-of-sync clocks to exercise resynchronization. A physical
 --                bus model with separate transceiver TX/RX delays and wire propagation delay
---                sized using ISO 11898-1 sec. 7.3.2 constraints is used to exercise TDC.
+--                using ISO 11898-1 sec. 7.3.2 constraints is used to exercise TDC.
 --                Three test sequences are run.
 --
 --                  p_polarity_history  - TX shift register shadow: tracks bits committed to
---                                        the bus at drive_bit time (SP + 2 clk) for TDC checking.
+--                                        the bus at drive_bit time for TDC checking.
 --                  p_check_tdc_delay   - SSP monitor: at each Secondary Sample Point verifies
 --                                        polarity_history(tdc_delay) = rx_data (ISO 7.3.4).
 --                  p_rx_mac_vc         - Bit-level RX sink VC: detects SOF, collects bus bits
@@ -238,15 +238,6 @@ begin
 
   ----------------------------------------------------------------------------
   -- Track transmitted bits for Transmitter Delay Compensation (TDC) verification (ISO 7.3.4).
-  -- The MAC FSM shifts transmitted_bits_shift_reg at drive_bit = SP + 2 clk cycles, after
-  -- the bit stuffer has committed the next polarity. Sampling tx_mac_i.tx_data at SP+2 clk
-  -- matches this drive_bit window exactly: the test controller sets tx_data at SP with a
-  -- 2-cycle after-delay, so the value is stable and correct at SP+2.
-  -- polarity_history(N) therefore holds the bit driven N data-phase boundaries ago, which
-  -- is what transmitted_bits_shift_reg(tdc_delay) holds when the SSP fires.
-  -- Note: we always shift on data_phase_stop too. The PCS only sees data_phase_stop at the
-  -- next SP, so one extra SSP fires in the following bit (the CRC-delimiter bit). That check
-  -- needs polarity_history(0) to hold the CRC-delimiter value (recessive), not the last data bit.
   ----------------------------------------------------------------------------
   p_polarity_history : process is
     variable v_in_data_phase : boolean := false;
@@ -256,7 +247,7 @@ begin
 
     polarity_history_loop : loop
       wait until rising_edge(tx_mac_o.sample_point);
-      WaitForClock(clk_tx, 2);                          -- align with drive_bit (SP + 2 clk)
+      WaitForClock(clk_tx, 2);                          -- align with drive_bit (SP + 2 clk) from the MAC FSM
       if tx_mac_i.next_bit_is_brs = '1' then
         polarity_history <= (0 => tx_mac_i.tx_data, others => c_recessive);
         v_in_data_phase  := true;
@@ -374,7 +365,7 @@ begin
       Print("--------------------------------------------------------------------------");
       Print("Test 1: Reset defaults");
       Print("--------------------------------------------------------------------------");
-      AffirmIf(check_id, tx_dut_tx = c_recessive,       "TX PCS -> bus");
+      AffirmIf(check_id, tx_dut_tx = c_recessive, "TX PCS -> bus");
       AffirmIf(check_id, rx_mac_o = c_pcs_to_mac_if_reset, "RX PCS -> MAC");
     end procedure test_reset;
 
