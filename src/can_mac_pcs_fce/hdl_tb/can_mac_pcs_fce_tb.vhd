@@ -58,21 +58,22 @@ architecture tb of can_mac_pcs_fce_tb is
   constant c_avalon_byte     : std_logic_vector := "00";
 
   -- Delay configuration ----------------------------------------------
-  -- Two ISO constraints jointly bound the delays in this 2-node symmetric testbench.
+  -- Two ISO constraints jointly bound the delays in the test bench.
   --
-  -- (1) Arbitration condition, ISO 11898-1:2015 sec. 7.3.2 Formula (2):
+  -- (1) Arbitration condition, ISO sec. 7.3.2 Formula (2):
   --        t_prop_seg >= t_node_A + t_node_B + 2 x t_busline
   --                   >= 4 x transceiver_d + 2 x bus_d          (symmetric: t_node = 2 x transceiver_d)
   --     DUT prop_seg = c_pcs_nom_prop_seg x c_pcs_prescaler x gc_TbClkPeriod = 40 x 2 x 10 ns = 800 ns.
   --     Budget fully consumed: 4 x 50 ns + 2 x 300 ns = 800 ns.
   --
-  -- (2) TDC compensation range, ISO 11898-1:2015 sec. 7.3.4:
+  -- (2) TDC compensation range, ISO sec. 7.3.4:
   --        transmitter_delay <= 95 x t_q.min
-  --     transmitter_delay = 2 x transceiver_d (round-trip at the transmitting node's own end).
+  --     transmitter_delay = 2 x transceiver_d.
   --     With t_q.min = gc_TbClkPeriod = 10 ns: limit = 95 x 10 ns = 950 ns.
   --     Check: 2 x 50 ns = 100 ns <= 950 ns. (1) is the binding constraint.
+
   constant c_nom_prop_seg_time : time := 800 ns;
-  constant c_transceiver_d     : time := 50 ns;   -- ISO 11898-2 max per direction; binding via (1)
+  constant c_transceiver_d     : time := 50 ns;   -- 100 ns round-trip matches then TCAN1042 CAN transceiver (~110 ns TXD-to-RXD)
   constant c_bus_delay_max     : time := (c_nom_prop_seg_time - 4 * c_transceiver_d) / 2;
 
   -- Bus/transceiver delays (driven so test_delay_sweep can update them).
