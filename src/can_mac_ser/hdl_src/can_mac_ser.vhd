@@ -4,21 +4,20 @@
 --
 -- Requirements:
 --
--- Description:   MAC serializer for CAN/CAN-FD TX path. Serializes LLC frame
---                bytes into a bit stream for the MAC FSM.
---                Internal LLC frame format (variable length, streamed by
---                can_llc to can_mac_ser):
---                Byte 0:    [7:5]=FORMAT, [4]=FTYP(RTR), [3]=ESI, [2]=BRS
---                Byte 1:    [7:4]=DLC, [3:0]=0000
---                Bytes 2-5: ID (32-bit, MSB first, left-aligned)
---                Bytes 6+:  Data (DLC count, no padding)
---                Responsibilities:
---                1) Extract LLC metadata from config bytes and register at
---                the MAC FSM interface.
---                2) Serialize LLC frame ID and data bytes and present as
---                individual bits to the MAC FSM.
---                3) Skip padding bits in the 32-bit ID stream.
---                4) Forward transfer status from MAC FSM back to LLC.
+-- Description:   MAC serializer for the CAN/CAN-FD TX path. Accepts the
+--                internal LLC frame format over Avalon-ST and presents a
+--                serial bit stream to the MAC FSM.
+--
+--                Internal frame format (streamed byte-by-byte, SOP on byte 0):
+--                  Byte 0:    [7:5]=FORMAT, [4]=FTYP(RTR), [3]=ESI, [2]=BRS
+--                  Byte 1:    [7:4]=DLC, [3:0]=0000
+--                  Bytes 2-5: ID (32-bit, MSB-first, left-aligned)
+--                  Bytes 6+:  Data (DLC bytes, no padding)
+--
+--                Extracts frame metadata from the two config bytes and
+--                registers it at the MAC FSM interface. Serializes ID and
+--                data bytes bit-by-bit, skipping padding bits in the 32-bit
+--                ID field. Forwards MAC FSM transfer status back to the LLC.
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-03-31  MRDSA     Converted to company header format
