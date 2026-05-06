@@ -52,12 +52,6 @@ package pk_can_types is
   constant c_stuff_width     : natural := 5;
   constant c_sbc_field_width : natural := 4;                                    -- ISO 6.6.11.5, Table 8
 
-  -- Post-CRC field offsets (used by TB stream model).
-  -- CC: CRC_delim(1) + ACK_slot(1) + ACK_delim(1) = 3 before EOF.
-  -- FD: CRC_delim(1) + ACK_slot(2) + ACK_delim(1) = 4 before EOF (ISO 6.6.11.6).
-  constant c_ack_slot_offset     : natural := 1;
-  constant c_cc_eof_start_offset : natural := 3;
-  constant c_fd_eof_start_offset : natural := 4;
 
   -- Error signalling (ISO 6.6.5.2, 6.6.5.3)
   constant c_error_flag_width      : natural := 6;
