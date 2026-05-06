@@ -10,7 +10,9 @@
 --                Section map:
 --                1. Protocol Constants   -- polarity, field widths, CRC, status
 --                2. Bit Timing           -- ISO Table 12 subtypes and limits
+--                3. Enumerations         -- bit names, monitor events
 --                4. Composite Types      -- mac_frame_bit, frame_params, metadata
+--                5. Frame Bit Positions  -- CB/CE/FB/FE on-wire field chains
 --                6. Interface Records    -- inter-layer records with reset constants
 --                7. LLC Frame Format     -- config bytes, legacy layout
 --                8. Protocol Functions   -- frame params, bitstream, DLC, ID packing
@@ -96,8 +98,7 @@ package pk_can_types is
   constant c_disturbed   : std_logic_vector(2 downto 0) := "110";
 
   -- TDC polarity history depth (ISO 7.3.4)
-  constant c_tdc_polarity_depth : natural := 32;
-
+  constant c_tdc_polarity_depth : natural := 8; -- TODO: Justify this (Don't think we need more but calculate form relevant delays)
 
   ---------------------------------------------------------------------------
   -- 2. Bit Timing (ISO 7.3.2, Table 13)
@@ -201,6 +202,11 @@ package pk_can_types is
   type t_can_llc_mac_tx_if_s2d is record
     avalon_st_source : pk_eth_st.t_eth_st_s2d;
   end record t_can_llc_mac_tx_if_s2d;
+
+  constant c_llc_to_mac_tx_if_reset : t_can_llc_mac_tx_if_s2d :=
+  (
+    avalon_st_source => (data => (others => '0'), valid => '0', startofpacket => '0', endofpacket => '0')
+  );
 
   -- MAC -> LLC
   type t_can_llc_mac_tx_if_d2s is record
@@ -398,7 +404,7 @@ package pk_can_types is
   ---------------------------------------------------------------------------
   -- 7. LLC Frame Format
   --
-  -- Internal format (variable length, streamed by can_llc_tx to can_mac_ser_tx):
+  -- Internal format (variable length, streamed by can_llc to can_mac_ser):
   --   Byte 0 (SOP): [7:5]=FMT, [4]=FTYP(RTR), [3]=ESI, [2]=BRS, [1:0]=00
   --   Byte 1:       [7:4]=DLC, [3:0]=0000
   --   Bytes 2-5:    ID (32-bit, MSB first, left-aligned; CB uses [31:21])

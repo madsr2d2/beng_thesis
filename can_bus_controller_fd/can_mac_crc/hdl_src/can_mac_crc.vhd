@@ -105,9 +105,9 @@ begin
 
     case crc_i.crc_poly_select is
       when c_crc_poly_15_sel =>
-        crc_o.crc <= crc15_out & ((c_crc_21_length - 1) - c_crc_15_length downto 0 => '0');
+        crc_o.crc <= crc15_out & (c_crc_21_length - 1 - c_crc_15_length downto 0 => '0');
       when c_crc_poly_17_sel =>
-        crc_o.crc <= crc17_out & ((c_crc_21_length - 1) - c_crc_17_length downto 0 => '0');
+        crc_o.crc <= crc17_out & (c_crc_21_length - 1 - c_crc_17_length downto 0 => '0');
       when c_crc_poly_21_sel =>
         crc_o.crc <= crc21_out;
       when others =>
