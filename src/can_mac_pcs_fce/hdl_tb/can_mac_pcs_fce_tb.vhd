@@ -48,7 +48,7 @@ architecture tb of can_mac_pcs_fce_tb is
   -- Constants
   ----------------------------------------------------------------------------
   -- TB Infrastructure
-  constant c_bin_at_least          : natural := 5;
+  constant c_bin_at_least          : natural := 10;
   constant c_rec_width             : natural := 16;
   constant c_frame_count           : natural := 100;
   constant c_avalon_sop_byte : std_logic_vector := "10";
