@@ -98,10 +98,10 @@ package pk_can_types is
   constant c_lost_arb    : std_logic_vector(2 downto 0) := "100";
   constant c_disturbed   : std_logic_vector(2 downto 0) := "110";
 
-  -- TDC polarity history depth (ISO 7.3.4).
-  -- 8 entries covers the worst-case round-trip transceiver delay at the maximum
-  -- supported data rate; increase if a deeper TDC FIFO is required.
-  constant c_tdc_polarity_depth : natural := 8;
+  -- TDC polarity history depth (ISO 7.3.4): ceil(2 x transceiver_d / data_bit_time).
+  -- The CAN-FD transceiver TCAN1042 (~100 ns loop-delay) + default PCS (200 ns data-rate bit time): ceil(100/200) = 1 -> depth 1 suffices.
+  -- ISO 7.3.4 ceiling (95 x t_q = 1900 ns): ceil(1900/200) = 10 -> depth 10 needed.
+  constant c_tdc_polarity_depth : natural := 8; -- Just a number between 1 and 10
 
   ---------------------------------------------------------------------------
   -- 2. Bit Timing (ISO 7.3.2, Table 13)
@@ -109,7 +109,7 @@ package pk_can_types is
   -- Range guards for can_pcs signal declarations. All values are in Time Quanta (TQ).
   ---------------------------------------------------------------------------
 
-  constant c_max_transmitter_delay : natural := 255;                            -- ISO 7.3.4
+  constant c_max_transmitter_delay : natural := 255;
   constant c_prescaler_min         : natural := 1;
   constant c_prescaler_max         : natural := 32;
   constant c_nom_prop_seg_min      : natural := 0;
