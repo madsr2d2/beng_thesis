@@ -8,10 +8,10 @@
 --------------------------------------------------------------------------------
 -- Description: Unified bit stuffer for CAN/CAN-FD TX and RX paths.
 --
---              Dynamic mode (fsb_en='0'): inserts an inverse stuff bit after
+--              Dynamic mode (fsb_en='0'): inserts an inverse Stuff Bit (SB) after
 --              c_stuff_width (5) consecutive identical bits.
 --
---              Fixed mode (fsb_en='1'): inserts one FSB on the rising edge of
+--              Fixed mode (fsb_en='1'): inserts one Fixed SB (FSB) on the rising edge of
 --              fsb_en, then one FSB every 4 real bits. Maintains Gray-coded
 --              SBC with parity. ISO 11898-1 Sec. 8.5.
 --------------------------------------------------------------------------------
@@ -31,11 +31,17 @@ entity can_mac_bs is
 end entity can_mac_bs;
 
 architecture rtl of can_mac_bs is
+
+  -----------------------------------------------------------------
+  -- Signals
+  -----------------------------------------------------------------
   signal count         : natural range 0 to c_stuff_width;
   signal last_polarity : std_logic;
   signal stuff_count   : unsigned(2 downto 0);
   signal fsb_en_latch  : std_logic;
+
 begin
+
   p_bit_stuffing : process (clk_i) is
     variable v_gray : std_logic_vector(2 downto 0);
   begin
@@ -49,27 +55,19 @@ begin
       else
         fsb_en_latch <= bs_i.fixed_bit_stuffing_en;
 
-        -- Falling edge of fsb_en: cancel any pending FSB. The MAC FSM
-        -- exits fixed-stuffing at the last CRC bit without feeding a
-        -- stuff slot to consume a still-pending FSB.
+        -- Falling edge of fsb_en: cancel any pending FSB (ISO 6.6.13.3.1).
         if fsb_en_latch = '1' and bs_i.fixed_bit_stuffing_en = '0' then
           bs_o.valid <= '0';
         end if;
 
-        -- Rising edge of fsb_en: emit the initial FSB. If a dynamic SB
-        -- is already pending, keep it as the initial FSB (avoids a
-        -- TX/RX stuff_count divergence under realistic propagation
-        -- delays where one side would suppress and the other would not).
+        -- Rising edge of fsb_en: emit the initial FSB; reuse a pending dynamic SB
+        -- to keep TX/RX stuff_count aligned (ISO 6.6.13.3.1).
         if (bs_i.fixed_bit_stuffing_en = '1' and fsb_en_latch = '0') then
-          if (bs_i.valid = '1') then
+          if bs_i.valid = '1' then
             last_polarity <= bs_i.data;
-            bs_o.data     <= not bs_i.data;
-            bs_o.valid    <= '1';
-            count         <= 0;
-          elsif (bs_o.valid = '1') then
-            null;
-          else
-            bs_o.data  <= not last_polarity;
+          end if;
+          if bs_i.valid = '1' or bs_o.valid = '0' then
+            bs_o.data  <= not bs_i.data when bs_i.valid = '1' else not last_polarity;
             bs_o.valid <= '1';
             count      <= 0;
           end if;
@@ -79,7 +77,7 @@ begin
           bs_o.valid    <= '0';
 
           if (bs_i.fixed_bit_stuffing_en = '0') then
-            -- Dynamic stuffing: SB after 5 consecutive same-polarity bits.
+            -- Dynamic stuffing: inverse SB after c_stuff_width identical bits (ISO 8.5).
             if (bs_i.data /= last_polarity) then
               count <= 1;
             elsif (count = c_stuff_width - 1) then
@@ -110,6 +108,7 @@ begin
     end if;
 
   end process p_bit_stuffing;
+
 end architecture rtl;
 
 -- eof
