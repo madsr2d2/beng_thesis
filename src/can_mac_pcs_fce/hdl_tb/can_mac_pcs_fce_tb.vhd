@@ -473,7 +473,7 @@ begin
         tx_frame(i) := (others => '0');
       end loop;
       if v_id >= 0 then
-        -- Fixed: CC base frame, DLC=1, caller-supplied 11-bit ID.
+        -- Fixed: CC base frame, DLC=1, 11-bit ID from caller.
         tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) :=
           std_logic_vector(to_unsigned(1, c_dlc_field_width));
         v_id_slv                := std_logic_vector(to_unsigned(v_id, c_base_id_width));
@@ -504,7 +504,7 @@ begin
           tx_frame(5)             := (others => '0');
         end if;
       end if;
-      -- Data bytes: RTR carries none; all other frame types fill v_data_len bytes.
+      -- Data bytes: RTR has none, all other frame types fill v_data_len bytes.
       if tx_frame(0)(c_llc_frame_ftyp) = '1' then
         last_byte := c_data_offset - 1;
       else
@@ -519,15 +519,15 @@ begin
     end procedure gen_frame;
 
     --------------------------------------------------------------------------
-    -- submit_and_verify: send frame via DUT 1, verify TX status and RX bytes
+    -- submit_and_verify: send frame via DUT 1, verify DUT 1 TX status and received bytes at DUT 2
     --------------------------------------------------------------------------
     procedure submit_and_verify(v_tx_frame : in t_llc_frame; v_last_byte : in natural) is
     begin
-      -- Pre-load expected bytes before sending: p_rx_llc_sink_vc processes them when the frame arrives.
+      -- Push the frame to DUT 2 FIFO so we can compare with received bytes
       for i in 0 to v_last_byte loop
         Push(rx_llc_rec_dut_2.BurstFifo, SafeResize(v_tx_frame(i), c_rec_width));
       end loop;
-
+      -- Drive frame through DUT 1
       for i in 0 to v_last_byte loop
         if (i = 0) then
           Send(tx_llc_rec_dut_1, v_tx_frame(i), c_avalon_sop_byte);
@@ -537,12 +537,11 @@ begin
           Send(tx_llc_rec_dut_1, v_tx_frame(i), c_avalon_eop_byte);
         end if;
       end loop;
-
-      -- Issue the RX check while the frame is still in transit: the VC collects
-      -- bytes from DUT 2 as they arrive, concurrently with p_tx_llc_vc driving DUT 1.
+      -- Check received bytes at DUT 2
       Check(rx_llc_rec_dut_2, std_logic_vector(to_unsigned(v_last_byte + 1, c_rec_width)));
-      -- RX verification is now complete; confirm TX outcome and reset the latches.
+      -- Check transfer status at DUT 1
       Check(tx_llc_rec_dut_1, std_logic_vector(resize(unsigned(c_transmitted), c_rec_width)));
+      -- Clear status latches for next test
       clear_latches;
     end procedure submit_and_verify;
 
