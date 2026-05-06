@@ -158,7 +158,7 @@ begin
   u_pcs_tx : entity work.can_pcs
     port map (
       clk_i => clk_tx,
-      rst_i => reset,
+      reset_i => reset,
       mac_i => tx_mac_i,
       mac_o => tx_mac_o,
       fce_i => tx_fce_i,
@@ -173,7 +173,7 @@ begin
   u_pcs_rx : entity work.can_pcs
     port map (
       clk_i => clk_rx,
-      rst_i => reset,
+      reset_i => reset,
       mac_i => rx_mac_i,
       mac_o => rx_mac_o,
       fce_i => rx_fce_i,

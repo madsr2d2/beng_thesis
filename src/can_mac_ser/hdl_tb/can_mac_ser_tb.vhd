@@ -169,7 +169,7 @@ begin
   u_dut : entity work.can_mac_ser
     port map (
       clk_i        => clk,
-      rst_i        => reset,
+      reset_i        => reset,
       llc_i        => llc_i,
       llc_o        => llc_o,
       tx_mac_fsm_i => tx_mac_fsm_i,

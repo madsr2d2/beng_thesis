@@ -56,7 +56,7 @@ begin
   u_dut : entity work.can_mac_bs
     port map (
       clk_i => clk_i,
-      rst_i => rst_i or frame_rst,
+      reset_i => rst_i or frame_rst,
       bs_i  => bs_i,
       bs_o  => bs_o
     );

@@ -19,8 +19,8 @@ library ieee;
 
 entity can_mac_pcs_fce is
   port(
-    clk      : in  std_logic;
-    rst      : in  std_logic;
+    clk_i      : in  std_logic;
+    reset_i      : in  std_logic;
     -- TX LLC interface
     tx_llc_i : in  t_can_llc_mac_tx_if_s2d;
     tx_llc_o : out t_can_llc_mac_tx_if_d2s;
@@ -54,8 +54,8 @@ begin
   -- MAC layer entity -------------------------------------------------------
   u_mac : entity work.can_mac
     port map(
-      clk      => clk,
-      rst      => rst,
+      clk_i      => clk_i,
+      reset_i      => reset_i,
       -- LLC interfaces
       rx_llc_i => rx_llc_i,
       rx_llc_o => rx_llc_o,
@@ -73,8 +73,8 @@ begin
   -- FCE entity -------------------------------------------------------------
   u_fce : entity work.can_fce
     port map(
-      clk_i => clk,
-      rst_i => rst,
+      clk_i => clk_i,
+      reset_i => reset_i,
       llc_i => llc_fce_i,
       llc_o => llc_fce_o,
       mac_i => mac_to_fce,
@@ -87,8 +87,8 @@ begin
   -- PCS entity -------------------------------------------------------------
   u_pcs : entity work.can_pcs
     port map(
-      clk_i => clk,
-      rst_i => rst,
+      clk_i => clk_i,
+      reset_i => reset_i,
       mac_i => mac_to_pcs,
       mac_o => pcs_to_mac,
       fce_i => fce_to_pcs,

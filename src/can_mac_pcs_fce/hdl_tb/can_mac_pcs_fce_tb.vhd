@@ -229,8 +229,8 @@ begin
   ----------------------------------------------------------------------------
   u_dut_1 : entity work.can_mac_pcs_fce
     port map(
-      clk      => clk,
-      rst      => reset or test_rst,
+      clk_i      => clk,
+      reset_i      => reset or test_rst,
       tx_llc_i  => llc_to_mac_tx_s2d_dut_1,
       tx_llc_o  => llc_to_mac_tx_d2s_dut_1,
       rx_llc_i  => mac_to_llc_tx_d2s_dut_1,
@@ -246,8 +246,8 @@ begin
   ----------------------------------------------------------------------------
   u_dut_2 : entity work.can_mac_pcs_fce
     port map(
-      clk      => clk,
-      rst      => reset or test_rst,
+      clk_i      => clk,
+      reset_i      => reset or test_rst,
       tx_llc_i  => llc_to_mac_tx_s2d_dut_2,
       tx_llc_o  => llc_to_mac_tx_d2s_dut_2,
       rx_llc_i  => mac_to_llc_tx_d2s_dut_2,

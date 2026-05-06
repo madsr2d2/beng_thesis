@@ -32,7 +32,7 @@ use work.pk_can_types.all;
 entity can_mac_fsm is
   port(
     clk_i     : in  std_logic;
-    rst_i     : in  std_logic;
+    reset_i     : in  std_logic;
     -- LLC TX byte serializer interface (TX-side input, FSM consumes bits)
     mac_ser_i : in  t_can_mac_ser_fsm_if_s2d;
     mac_ser_o : out t_can_mac_ser_fsm_if_d2s;
@@ -120,7 +120,7 @@ begin
   p_stream_to_LLC : process(clk_i)
   begin
     if rising_edge(clk_i) then
-      if (rst_i = '1' or fce_i.bus_off = '1') then
+      if (reset_i = '1' or fce_i.bus_off = '1') then
         llc_o              <= c_mac_rx_to_llc_if_reset;
         stream_index       <= 0;
         llc_stream_active  <= false;
@@ -171,7 +171,7 @@ begin
   begin
 
     if rising_edge(clk_i) then
-      if rst_i = '1' or fce_i.bus_off = '1' then
+      if reset_i = '1' or fce_i.bus_off = '1' then
         -- Frame state
         state                                <= s_bus_reintegration;
         bit_count                            <= 0;
@@ -235,7 +235,6 @@ begin
         bs_o.valid                        <= '0';
         bs_rst                            <= '0';
         crc_o                             <= c_mac_fsm_to_crc_if_reset;
-        crc_o.crc_poly_select             <= crc_o.crc_poly_select;
         crc_rst                           <= '0';
         fce_o                             <= c_mac_to_fce_if_reset;
         fce_o.transmitting                <= '1' when is_transmitter else '0';

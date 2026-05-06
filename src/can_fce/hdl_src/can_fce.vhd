@@ -23,7 +23,7 @@ use work.pk_can_types.all;
 entity can_fce is
   port(
     clk_i : in  std_logic;
-    rst_i : in  std_logic;
+    reset_i : in  std_logic;
     -- LLC interface
     llc_i : in  t_can_llc_fce_if_m2s;
     llc_o : out t_can_fce_llc_if_s2m;
@@ -63,7 +63,7 @@ begin
     variable v_go_active  : std_logic;
   begin
     if rising_edge(clk_i) then
-      if rst_i = '1' then
+      if reset_i = '1' then
         transmitter_error_count <= 0;
         receiver_error_count    <= 0;
         fce_state               <= s_error_active;

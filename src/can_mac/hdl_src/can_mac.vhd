@@ -20,8 +20,8 @@ use work.pk_can_types.all;
 
 entity can_mac is
   port(
-    clk      : in  std_logic;
-    rst      : in  std_logic;
+    clk_i      : in  std_logic;
+    reset_i      : in  std_logic;
 
     -- TX LLC interface
     tx_llc_i : in  t_can_llc_mac_tx_if_s2d;
@@ -67,8 +67,8 @@ begin
   ---------------------------------------------------------------------------
   u_can_mac_ser_tx : entity work.can_mac_ser
     port map(
-      clk_i        => clk,
-      rst_i        => rst,
+      clk_i        => clk_i,
+      reset_i        => reset_i,
       llc_i        => tx_llc_i,
       llc_o        => tx_llc_o,
       tx_mac_fsm_i => fsm_to_ser,
@@ -80,8 +80,8 @@ begin
   ---------------------------------------------------------------------------
   u_can_mac_fsm : entity work.can_mac_fsm
     port map(
-      clk_i     => clk,
-      rst_i     => rst,
+      clk_i     => clk_i,
+      reset_i     => reset_i,
       mac_ser_i => ser_to_fsm,
       mac_ser_o => fsm_to_ser,
       llc_i     => rx_llc_i,
@@ -103,8 +103,8 @@ begin
   ---------------------------------------------------------------------------
   u_can_mac_bs : entity work.can_mac_bs
     port map(
-      clk_i => clk,
-      rst_i => rst or fsm_bs_rst,
+      clk_i => clk_i,
+      reset_i => reset_i or fsm_bs_rst,
       bs_i  => fsm_to_bs,
       bs_o  => bs_to_fsm
     );
@@ -114,8 +114,8 @@ begin
   ---------------------------------------------------------------------------
   u_can_mac_crc : entity work.can_mac_crc
     port map(
-      clk_i => clk,
-      rst_i => rst or fsm_crc_rst,
+      clk_i => clk_i,
+      reset_i => reset_i or fsm_crc_rst,
       crc_i => fsm_to_crc,
       crc_o => crc_to_fsm
     );

@@ -78,7 +78,7 @@ entity can_pcs is
   );
   port (
     clk_i : in    std_logic;
-    rst_i : in    std_logic;
+    reset_i : in    std_logic;
     ---
     mac_i : in    t_can_mac_pcs_if_m2s;
     mac_o : out   t_can_mac_pcs_if_s2m;
@@ -129,7 +129,7 @@ begin
     variable v_do_sync     : boolean;
   begin
     if rising_edge(clk_i) then
-      if rst_i = '1' then
+      if reset_i = '1' then
         mac_o                        <= c_pcs_to_mac_if_reset;
         fce_o                        <= c_pcs_to_fce_if_reset;
         tx_o                         <= c_recessive;
@@ -174,7 +174,6 @@ begin
           rx_bus_prev <= rx_i;
 
           -- Evaluate synchronization condition
-          -- v_do_sync := (rx_bus_prev = c_recessive) and (rx_i = c_dominant) and (sync_applied = '0') and (mac_i.transmitting = '0');
           v_do_sync := (rx_bus_prev = c_recessive) and (rx_i = c_dominant) and (sync_applied = '0') and (mac_i.transmitting = '0');
 
           -- Transmitter delay counter --------------------------------------------

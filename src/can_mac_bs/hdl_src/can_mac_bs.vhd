@@ -24,7 +24,7 @@ library ieee;
 entity can_mac_bs is
   port (
     clk_i : in    std_logic;
-    rst_i : in    std_logic;
+    reset_i : in    std_logic;
     bs_i  : in    t_can_mac_fsm_bs_if_m2s;
     bs_o  : out   t_can_mac_fsm_bs_if_s2m
   );
@@ -46,7 +46,7 @@ begin
     variable v_gray : std_logic_vector(2 downto 0);
   begin
     if rising_edge(clk_i) then
-      if (rst_i = '1') then
+      if (reset_i = '1') then
         count         <= 0;
         last_polarity <= c_recessive;
         stuff_count   <= (others => '0');

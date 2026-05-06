@@ -31,7 +31,7 @@ library ieee;
 entity can_mac_ser is
   port (
     clk_i : in    std_logic;
-    rst_i : in    std_logic;
+    reset_i : in    std_logic;
 
     -- LLC interface
     llc_i : in    t_can_llc_mac_tx_if_s2d;
@@ -65,7 +65,7 @@ begin
   begin
 
     if rising_edge(clk_i) then
-      if (rst_i = '1') then
+      if (reset_i = '1') then
         state                  <= s_load_config_byte_0;
         count                  <= 0;
         llc_frame_buffer       <= (others => '0');
@@ -163,7 +163,7 @@ begin
                     tx_mac_fsm_o.data <= llc_frame_buffer(c_byte_width - 2);
                     count             <= count + 1;
                     if ((id_bits_remaining = 1) and (padding_bits_remaining > 0)) then
-                      -- Nest bit is start of padding region
+                      -- Next bit is start of padding region
                       tx_mac_fsm_o.valid <= '0';
                     end if;
                   end if;

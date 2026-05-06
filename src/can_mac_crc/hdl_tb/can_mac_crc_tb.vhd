@@ -166,7 +166,7 @@ begin
   u_dut : entity work.can_mac_crc
     port map (
       clk_i => clk,
-      rst_i => dut_rst,
+      reset_i => dut_rst,
       crc_i => crc_i,
       crc_o => crc_o
     );

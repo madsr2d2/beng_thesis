@@ -78,7 +78,7 @@ library ieee;
 entity can_mac_crc is
   port (
     clk_i : in    std_logic;
-    rst_i : in    std_logic;
+    reset_i : in    std_logic;
     crc_i : in    t_can_mac_fsm_crc_if_m2s;
     crc_o : out   t_can_mac_fsm_crc_if_s2m
   );
@@ -104,7 +104,7 @@ begin
     )
     port map (
       clk_i        => clk_i,
-      reset_i      => rst_i,
+      reset_i      => reset_i,
       start_crc_i  => '0',
       data_i(0)    => crc_i.data_cc,
       data_valid_i => crc_i.valid_cc,
@@ -123,7 +123,7 @@ begin
     )
     port map (
       clk_i        => clk_i,
-      reset_i      => rst_i,
+      reset_i      => reset_i,
       start_crc_i  => '0',
       data_i(0)    => crc_i.data_fd,
       data_valid_i => crc_i.valid_fd,
@@ -142,7 +142,7 @@ begin
     )
     port map (
       clk_i        => clk_i,
-      reset_i      => rst_i,
+      reset_i      => reset_i,
       start_crc_i  => '0',
       data_i(0)    => crc_i.data_fd,
       data_valid_i => crc_i.valid_fd,
