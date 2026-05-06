@@ -1,23 +1,17 @@
---------------------------------------------------------------------------------------------------------------------------------------------------------------
--- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
---------------------------------------------------------------------------------------------------------------------------------------------------------------
---
--- Requirements:
---
--- Description:   Logical Link Control (LLC) sub-layer for CAN transmission.
---                Accepts the legacy 71-byte frame format from the user, converts
---                it to the internal frame format, buffers it, and drives the
---                MAC TX byte stream. Handles automatic retransmission on
---                c_lost_arb / c_disturbed (no retransmission count limit) and
---                holds-and-resumes the frame across bus-off recovery windows.
---                Protocol references: ISO 11898-1:2015 sections 6.4 and 8.1.4.
---
--- Revision log:  Date:       Initial:  JIRA:
---                2026-03-31  MRDSA     Converted to company header format
---                2026-04-30  MRDSA     Single legacy-only architecture; drop
---                                      retransmission limit; add bus-off
---                                      hold-and-resume + FCE-LLC ports
---------------------------------------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- Title      : Logical Link Control (LLC) sub-layer
+-- Project    : Implementation and Verification of a CAN-FD Bus Transceiver in VHDL
+--------------------------------------------------------------------------------
+-- File       : can_llc.vhd
+-- Author     : Mads Richardt
+-- Standard   : VHDL-2008
+--------------------------------------------------------------------------------
+-- Description: LLC sub-layer for CAN TX. Accepts the 71-byte legacy frame
+--              format from the user, converts it to the internal format,
+--              buffers it, and drives the MAC TX byte stream. Retransmits
+--              automatically on c_lost_arb / c_disturbed and holds-and-resumes
+--              the frame buffer across bus-off recovery windows.
+--------------------------------------------------------------------------------
 
 library ieee;
   use ieee.std_logic_1164.all;
@@ -26,16 +20,16 @@ library ieee;
 
 entity can_llc is
   port (
-    clk : in    std_logic;
-    rst : in    std_logic;
+    clk_i   : in    std_logic;
+    reset_i : in    std_logic;
 
     -- LLC user interface (Avalon-ST source, legacy 71-byte frame)
     llc_user_i : in    t_can_user_llc_tx_if_s2d;
     llc_user_o : out   t_can_user_llc_tx_if_d2s;
 
     -- MAC TX interface (Avalon-ST source, internal frame format)
-    mac_i : in    t_can_llc_mac_tx_if_d2s;
-    mac_o : out   t_can_llc_mac_tx_if_s2d;
+    tx_mac_i : in    t_can_llc_mac_tx_if_d2s;
+    tx_mac_o : out   t_can_llc_mac_tx_if_s2d;
 
     -- FCE interface (bus-off status in, normal_mode out)
     fce_i : in    t_can_fce_llc_if_s2m;
@@ -71,14 +65,21 @@ architecture rtl of can_llc is
   signal tx_index         : natural range 0 to c_max_llc_frame_bytes - 1;
   signal mac_status_armed : boolean;
 
+  -- Guard: FCE signals bus_off while the FSM is mid-transmission.
+  signal bus_off_interrupt : boolean;
+
 begin
 
-  -- ISO 8.1.4.5: bus-off recovery is gated by normal_mode = '1'. We always
-  -- request normal operation; user-initiated abort (abort_request) is
-  -- handled inside the FSM rather than via normal_mode.
+  -- Bus-off recovery is gated by normal_mode = '1'. We always request normal
+  -- operation; user-initiated abort (abort_request) is handled inside the FSM.
   fce_o.normal_mode <= '1';
 
-  p_llc_fsm : process (clk) is
+  bus_off_interrupt <= fce_i.bus_off = '1' and
+                       (state = c_st_send or
+                        state = c_st_wait_result or
+                        state = c_st_wait_idle);
+
+  p_llc_fsm : process (clk_i) is
 
     variable ide_v      : std_logic;
     variable fdf_v      : std_logic;
@@ -134,8 +135,8 @@ begin
 
   begin
 
-    if rising_edge(clk) then
-      if (rst = '1') then
+    if rising_edge(clk_i) then
+      if (reset_i = '1') then
         state            <= c_st_idle;
         frame_len_bytes  <= 0;
         capture_index    <= 0;
@@ -145,21 +146,21 @@ begin
 
         llc_user_o.avalon_st_sink.ready      <= '1';
         llc_user_o.transfer_status           <= c_ongoing;
-        mac_o.avalon_st_source.data          <= (others => '0');
-        mac_o.avalon_st_source.valid         <= '0';
-        mac_o.avalon_st_source.startofpacket <= '0';
-        mac_o.avalon_st_source.endofpacket   <= '0';
+        tx_mac_o.avalon_st_source.data          <= (others => '0');
+        tx_mac_o.avalon_st_source.valid         <= '0';
+        tx_mac_o.avalon_st_source.startofpacket <= '0';
+        tx_mac_o.avalon_st_source.endofpacket   <= '0';
       else
         -- Defaults
-        llc_user_o.avalon_st_sink.ready      <= '0';
-        mac_o.avalon_st_source.valid         <= '0';
-        mac_o.avalon_st_source.startofpacket <= '0';
-        mac_o.avalon_st_source.endofpacket   <= '0';
+        llc_user_o.avalon_st_sink.ready         <= '0';
+        tx_mac_o.avalon_st_source.valid         <= '0';
+        tx_mac_o.avalon_st_source.startofpacket <= '0';
+        tx_mac_o.avalon_st_source.endofpacket   <= '0';
 
         -- Bus-off has priority over the active TX states. Idle/capture stay
         -- functional so the user can still submit a frame; it will sit in
         -- the buffer until bus-off recovery completes.
-        if (fce_i.bus_off = '1') and (state = c_st_send or state = c_st_wait_result or state = c_st_wait_idle) then
+        if bus_off_interrupt then
           state            <= c_st_bus_off_hold;
           mac_status_armed <= false;
         else
@@ -211,11 +212,11 @@ begin
                       -- cfg0 needs byte 70 (current input) and byte 4 (already buffered).
                       cfg0_v(c_llc_frame_ide)  := ide_v;
                       cfg0_v(c_llc_frame_fdf)  := fdf_v;
-                      cfg0_v(5)                := '0';
+                      cfg0_v(5)                := '0';  -- FMT[0]: reserved, always 0
                       cfg0_v(c_llc_frame_ftyp) := llc_user_i.avalon_st_source.data(0);  -- RTR
                       cfg0_v(c_llc_frame_esi)  := llc_user_i.avalon_st_source.data(1);  -- ESI
                       cfg0_v(c_llc_frame_brs)  := llc_user_i.avalon_st_source.data(2);  -- BRS
-                      cfg0_v(1 downto 0)       := "00";
+                      cfg0_v(2 downto 0)       := "000";
 
                       build_config_byte_1(frame_buf, cfg1_v);
                       repack_id(frame_buf, is_ext_v, id0_v, id1_v, id2_v, id3_v);
@@ -261,33 +262,33 @@ begin
             -- Stream the converted frame to the MAC.
             -----------------------------------------------------------------
             when c_st_send =>
-              if (mac_i.transfer_status = c_ongoing) then
+              if (tx_mac_i.transfer_status = c_ongoing) then
                 mac_status_armed <= true;
               end if;
 
               -- Terminal status during streaming (e.g. bit error before
               -- the frame is fully written) is handled inline.
-              if (mac_status_armed and mac_i.transfer_status /= c_ongoing) then
-                case mac_i.transfer_status is
+              if (mac_status_armed and tx_mac_i.transfer_status /= c_ongoing) then
+                case tx_mac_i.transfer_status is
                   when c_lost_arb | c_disturbed =>
                     tx_index         <= 0;
                     mac_status_armed <= false;
                     state            <= c_st_wait_idle;
                   when others =>
-                    llc_user_o.transfer_status <= mac_i.transfer_status;
+                    llc_user_o.transfer_status <= tx_mac_i.transfer_status;
                     state                      <= c_st_idle;
                 end case;
               elsif (tx_index < frame_len_bytes) then
-                mac_o.avalon_st_source.data  <= frame_buf(tx_index);
-                mac_o.avalon_st_source.valid <= '1';
+                tx_mac_o.avalon_st_source.data  <= frame_buf(tx_index);
+                tx_mac_o.avalon_st_source.valid <= '1';
                 if (tx_index = 0) then
-                  mac_o.avalon_st_source.startofpacket <= '1';
+                  tx_mac_o.avalon_st_source.startofpacket <= '1';
                 end if;
                 if (tx_index = frame_len_bytes - 1) then
-                  mac_o.avalon_st_source.endofpacket <= '1';
+                  tx_mac_o.avalon_st_source.endofpacket <= '1';
                 end if;
 
-                if (mac_i.avalon_st_sink.ready = '1') then
+                if (tx_mac_i.avalon_st_sink.ready = '1') then
                   if (tx_index = frame_len_bytes - 1) then
                     state <= c_st_wait_result;
                   else
@@ -303,11 +304,11 @@ begin
             -----------------------------------------------------------------
             when c_st_wait_result =>
               if (not mac_status_armed) then
-                if (mac_i.transfer_status = c_ongoing) then
+                if (tx_mac_i.transfer_status = c_ongoing) then
                   mac_status_armed <= true;
                 end if;
               else
-                case mac_i.transfer_status is
+                case tx_mac_i.transfer_status is
                   when c_transmitted =>
                     llc_user_o.transfer_status <= c_transmitted;
                     state                      <= c_st_idle;
@@ -331,7 +332,7 @@ begin
               if (llc_user_i.abort_request = '1') then
                 llc_user_o.transfer_status <= c_aborted;
                 state                      <= c_st_idle;
-              elsif (mac_i.avalon_st_sink.ready = '1') then
+              elsif (tx_mac_i.avalon_st_sink.ready = '1') then
                 tx_index <= 0;
                 state    <= c_st_send;
               end if;
