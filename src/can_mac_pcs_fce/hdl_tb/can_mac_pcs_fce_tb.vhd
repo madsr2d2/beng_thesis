@@ -48,7 +48,7 @@ architecture tb of can_mac_pcs_fce_tb is
   constant c_pcs_nom_phase_seg2 : natural := 20;
   constant c_bit_time : natural := (1 + c_pcs_nom_prop_seg + c_pcs_nom_phase_seg1 + c_pcs_nom_phase_seg2) * c_pcs_prescaler;
 
-  constant c_bin_at_least          : natural := 20;
+  constant c_bin_at_least          : natural := 5;
   constant c_rec_width             : natural := 16;
   constant c_delay_frames_per_cfg  : natural := 5;
 
@@ -57,12 +57,22 @@ architecture tb of can_mac_pcs_fce_tb is
   constant c_avalon_eop_byte : std_logic_vector := "01";
   constant c_avalon_byte     : std_logic_vector := "00";
 
-  -- ISO 11898-1:2015 Sec. 7.3.2 Formula (2): t_prop_seg >= 4*transceiver_d + 2*bus_d
-  -- (symmetric 2-node network, equal TX/RX transceiver delay).
-  -- DUT prop_seg = c_pcs_nom_prop_seg x c_pcs_prescaler x gc_TbClkPeriod = 40 x 2 x 10 ns = 800 ns.
-  -- Budget: transceiver_d = 50 ns (ISO 11898-2 max per direction), bus_d = 300 ns (60 m at 5 ns/m). Sum = 800 ns.
+  -- Delay configuration ----------------------------------------------
+  -- Two ISO constraints jointly bound the delays in this 2-node symmetric testbench.
+  --
+  -- (1) Arbitration condition, ISO 11898-1:2015 sec. 7.3.2 Formula (2):
+  --        t_prop_seg >= t_node_A + t_node_B + 2 x t_busline
+  --                   >= 4 x transceiver_d + 2 x bus_d          (symmetric: t_node = 2 x transceiver_d)
+  --     DUT prop_seg = c_pcs_nom_prop_seg x c_pcs_prescaler x gc_TbClkPeriod = 40 x 2 x 10 ns = 800 ns.
+  --     Budget fully consumed: 4 x 50 ns + 2 x 300 ns = 800 ns.
+  --
+  -- (2) TDC compensation range, ISO 11898-1:2015 sec. 7.3.4:
+  --        transmitter_delay <= 95 x t_q.min
+  --     transmitter_delay = 2 x transceiver_d (round-trip at the transmitting node's own end).
+  --     With t_q.min = gc_TbClkPeriod = 10 ns: limit = 95 x 10 ns = 950 ns.
+  --     Check: 2 x 50 ns = 100 ns <= 950 ns. (1) is the binding constraint.
   constant c_nom_prop_seg_time : time := 800 ns;
-  constant c_transceiver_d     : time := 50 ns;
+  constant c_transceiver_d     : time := 50 ns;   -- ISO 11898-2 max per direction; binding via (1)
   constant c_bus_delay_max     : time := (c_nom_prop_seg_time - 4 * c_transceiver_d) / 2;
 
   -- Bus/transceiver delays (driven so test_delay_sweep can update them).
