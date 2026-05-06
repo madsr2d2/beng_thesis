@@ -4,14 +4,20 @@
 --
 -- Requirements:
 --
--- Description:   Testbench for can_mac_pcs_fce (MAC + PCS + FCE integrated system).
---                  p_tx_llc_vc          - Avalon-ST source VC: drives LLC TX bytes to DUT 1.
---                  p_tx_llc_vc_dut_2    - Avalon-ST source VC: drives LLC TX bytes to DUT 2.
---                  p_rx_llc_sink_vc     - Avalon-ST sink VC: collects and checks DUT 2 RX frames.
---                  p_status_latch_dut_1      - Continuous monitor: latches DUT 1 transfer status.
---                  p_status_latch_dut_2 - Continuous monitor: latches DUT 2 transfer status.
---                  p_bus_off_latch      - Continuous monitor: sticky latch for DUT 1 bus-off.
---                  p_test_ctrl          - Coverage-driven test sequencer (IDE, FDF, DLC bins).
+-- Description:   Testbench for can_mac_pcs_fce. Two DUT instances share a bus model with
+--                configurable transceiver and propagation delays sized using ISO 11898-1
+--                sec. 7.3.2 / 7.3.4 constraints. DUT 1 transmits, DUT 2 receives and ACKs.
+--
+--                  p_tx_llc_vc          - Avalon-ST source VC: drives TX frame bytes to DUT 1.
+--                  p_tx_llc_vc_dut_2    - Avalon-ST source VC: drives TX frame bytes to DUT 2.
+--                  p_rx_llc_sink_vc     - Avalon-ST sink VC: collects DUT 2 RX bytes and compares
+--                                         them byte-for-byte against the expected FIFO.
+--                  p_status_latch_dut_1 - Clocked monitor: captures first non-ongoing TX status for DUT 1.
+--                  p_status_latch_dut_2 - Clocked monitor: captures first non-ongoing TX status for DUT 2.
+--                  p_bus_off_latch      - Clocked monitor: sticky latch for DUT 1 bus-off event.
+--                  p_test_ctrl          - Coverage-driven sequencer: runs four tests (normal TX/RX,
+--                                         delay sweep, lost arbitration, bus-off recovery) until
+--                                         IDE, FDF, DLC, and FTYP bins are all covered.
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-04-27  MRDSA:    Local port of company can_mac_pcs_fce_tb.
