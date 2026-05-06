@@ -472,8 +472,15 @@ begin
       for i in tx_frame'range loop
         tx_frame(i) := (others => '0');
       end loop;
-      -- Format: random from coverage bins, or fixed CC base data with DLC=1.
-      if v_id < 0 then
+      if v_id >= 0 then
+        -- Fixed: CC base frame, DLC=1, caller-supplied 11-bit ID.
+        tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) :=
+          std_logic_vector(to_unsigned(1, c_dlc_field_width));
+        v_id_slv                := std_logic_vector(to_unsigned(v_id, c_base_id_width));
+        tx_frame(2)             := v_id_slv(c_base_id_width - 1 downto c_base_id_width - 8);
+        tx_frame(3)(7 downto 5) := v_id_slv(2 downto 0);
+      else
+        -- Random: format flags, DLC, and ID all drawn from coverage bins.
         tx_frame(0)(c_llc_frame_ide) := std_logic(to_unsigned(GetRandPoint(ide_cov), 1)(0));
         tx_frame(0)(c_llc_frame_fdf) := std_logic(to_unsigned(GetRandPoint(fdf_cov), 1)(0));
         tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) :=
@@ -485,20 +492,10 @@ begin
           -- RTR only applies to CC frames (ISO 7.3.1.1); sample FTYP from coverage.
           tx_frame(0)(c_llc_frame_ftyp) := std_logic(to_unsigned(GetRandPoint(ftyp_cov), 1)(0));
         end if;
-      else
-        tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) :=
-          std_logic_vector(to_unsigned(1, c_dlc_field_width));
-      end if;
-      -- ID: fixed if v_id >= 0, else random random.
-      if v_id >= 0 then
-        v_id_slv                := std_logic_vector(to_unsigned(v_id, c_base_id_width));
-        tx_frame(2)             := v_id_slv(c_base_id_width - 1 downto c_base_id_width - 8);
-        tx_frame(3)(7 downto 5) := v_id_slv(2 downto 0);
-      else
         for i in 2 to 5 loop
           tx_frame(i) := RV.RandSlv(8);
         end loop;
-        -- Zero unused ID bits: extended uses bytes 2..5 (29-bit), base uses bytes 2..3 (11-bit).
+        -- Zero unused ID bits: extended (29-bit) uses bytes 2..5; base (11-bit) uses bytes 2..3.
         if tx_frame(0)(c_llc_frame_ide) = '1' then
           tx_frame(5)(2 downto 0) := "000";
         else
@@ -507,11 +504,13 @@ begin
           tx_frame(5)             := (others => '0');
         end if;
       end if;
-      -- Data bytes: RTR carries none; all others fill v_data_len bytes.
+      -- Data bytes: RTR carries none; all other frame types fill v_data_len bytes.
       if tx_frame(0)(c_llc_frame_ftyp) = '1' then
         last_byte := c_data_offset - 1;
       else
-        v_data_len := dlc_to_data_length( to_integer(unsigned(tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end))), tx_frame(0)(c_llc_frame_fdf));
+        v_data_len := dlc_to_data_length(
+          to_integer(unsigned(tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end))),
+          tx_frame(0)(c_llc_frame_fdf));
         last_byte := c_data_offset - 1 + v_data_len;
         for i in 0 to v_data_len - 1 loop
           tx_frame(c_data_offset + i) := RV.RandSlv(8);
