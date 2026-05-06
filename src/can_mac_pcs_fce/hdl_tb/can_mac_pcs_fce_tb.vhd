@@ -48,7 +48,7 @@ architecture tb of can_mac_pcs_fce_tb is
   constant c_pcs_nom_phase_seg2 : natural := 20;
   constant c_bit_time : natural := (1 + c_pcs_nom_prop_seg + c_pcs_nom_phase_seg1 + c_pcs_nom_phase_seg2) * c_pcs_prescaler;
 
-  constant c_bin_at_least          : natural := 5;
+  constant c_bin_at_least          : natural := 20;
   constant c_rec_width             : natural := 16;
   constant c_delay_frames_per_cfg  : natural := 5;
 
@@ -102,11 +102,9 @@ architecture tb of can_mac_pcs_fce_tb is
   -- Propagated to the far end after bus delay
   signal s_dut1_wire_far : std_logic := c_recessive;
   signal s_dut2_wire_far : std_logic := c_recessive;
-  -- Wired-AND bus as seen at each node's end
+  -- Wired-AND bus as seen at each node's end (forced recessive on DUT 1 when injection active)
   signal s_bus_dut1     : std_logic := c_recessive;
   signal s_bus_dut2     : std_logic := c_recessive;
-  -- DUT 1 RX input with error-injection override (forces recessive for bus-off test)
-  signal s_bus_dut1_obs : std_logic;
 
   -- s_dut_1_rx_recessive forces DUT 1's loopback recessive so every dominant
   -- it drives becomes a bit error (TEC += 8, bypasses error-passive exemption).
@@ -265,21 +263,20 @@ begin
   --  s_dut1_tx -[transceiver_d]-> s_dut1_wire -[bus_d]-> s_dut1_wire_far
   --  s_dut2_tx -[transceiver_d]-> s_dut2_wire -[bus_d]-> s_dut2_wire_far
   --
-  --  s_bus_dut1 = s_dut1_wire AND s_dut2_wire_far  (bus as seen at DUT 1's end)
-  --  s_bus_dut2 = s_dut1_wire_far AND s_dut2_wire  (bus as seen at DUT 2's end)
+  --  s_bus_dut1 = s_dut1_wire AND s_dut2_wire_far  (forced recessive when injection active)
+  --  s_bus_dut2 = s_dut1_wire_far AND s_dut2_wire  (forced to s_dut2_wire when injection active)
   --
-  --  s_dut1_rx <-[transceiver_d]- s_bus_dut1_obs  (s_bus_dut1 forced recessive in bus-off test)
+  --  s_dut1_rx <-[transceiver_d]- s_bus_dut1
   --  s_dut2_rx <-[transceiver_d]- s_bus_dut2
   --
   --  s_dut_1_rx_recessive simulates DUT 1's transceiver being open-circuit:
   --  DUT 1's wire is removed from the bus at both ends so DUT 2 also sees only
   --  its own (recessive) signal and does not start receiving a phantom frame.
   ----------------------------------------------------------------------------
-  s_bus_dut1     <= s_dut1_wire     and s_dut2_wire_far;
   -- Gate injection with s_bus_off_seen so it drops the cycle bus_off fires,
   -- without waiting for p_test_ctrl to reach the s_dut_1_rx_recessive clear.
-  s_bus_dut1_obs <= c_recessive when (s_dut_1_rx_recessive and not s_bus_off_seen) else s_bus_dut1;
-  s_bus_dut2     <= s_dut2_wire when (s_dut_1_rx_recessive and not s_bus_off_seen) else s_dut1_wire_far and s_dut2_wire;
+  s_bus_dut1 <= c_recessive when (s_dut_1_rx_recessive and not s_bus_off_seen) else s_dut1_wire and s_dut2_wire_far;
+  s_bus_dut2 <= s_dut2_wire when (s_dut_1_rx_recessive and not s_bus_off_seen) else s_dut1_wire_far and s_dut2_wire;
 
   p_dut1_tx_to_wire : process is
   begin
@@ -289,8 +286,8 @@ begin
 
   p_dut1_rx_from_bus : process is
   begin
-    wait on s_bus_dut1_obs;
-    s_dut1_rx <= transport s_bus_dut1_obs after s_transceiver_d;
+    wait on s_bus_dut1;
+    s_dut1_rx <= transport s_bus_dut1 after s_transceiver_d;
   end process;
 
   p_dut2_tx_to_wire : process is
@@ -340,8 +337,7 @@ begin
       if reset = '1' or clear_status_dut_1 then
         status_latch_dut_1 <= c_ongoing;
       else
-        if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing
-           and llc_to_mac_tx_d2s_dut_1.transfer_status /= status_latch_dut_1 then
+        if llc_to_mac_tx_d2s_dut_1.transfer_status /= c_ongoing and llc_to_mac_tx_d2s_dut_1.transfer_status /= status_latch_dut_1 then
           status_latch_dut_1 <= llc_to_mac_tx_d2s_dut_1.transfer_status;
         end if;
       end if;
@@ -611,10 +607,7 @@ begin
         s_transceiver_d <= c_delay_sweep(i).transceiver_d;
         s_bus_delay     <= c_delay_sweep(i).bus_d;
 
-        -- Drain in-flight propagation events at the previous delays.
-        WaitForClock(clk, 10 * c_bit_time);
-
-        for j in 1 to c_delay_frames_per_cfg loop
+        for i in 1 to c_delay_frames_per_cfg loop
           gen_frame(v_frame, v_last_byte);
           submit_and_verify(v_frame, v_last_byte);
         end loop;
@@ -695,9 +688,9 @@ begin
 
     --------------------------------------------------------------------------
     -- Test 4: Bus-off entry and recovery.
-    -- Phase 1-2: s_dut_1_rx_recessive forces bit errors on every dominant drive forcing DUT 1 dominant.
-    -- Phase 3: lift injection; FCE counts 128 x 11 recessive bits and recovers.
-    -- Phase 4: confirm normal TX/RX resumes.
+    -- Phase 1-2: s_dut_1_rx_recessive forces bit errors on every dominant drive at DUT 1.
+    -- Phase 3: lift injection, FCE counts 128 x 11 recessive bits and recovers.
+    -- Phase 4: confirm normal TX/RX resumes by sending.
     --------------------------------------------------------------------------
     procedure test_bus_off is
       variable v_frame      : t_llc_frame;
@@ -741,17 +734,16 @@ begin
       AffirmIf(test_id, llc_fce_o_dut_1.bus_off = '0', "Bus-off recovered");
 
       -- Phase 4: confirm normal TX/RX resumes after recovery.
-      -- The TX VC may have one pending Phase-2 byte queued; after recovery that
-      -- frame completes transmission. Wait for it to finish, then reset latches
-      -- before the verification frame so the TX check sees only the new outcome.
       clear_latches;
-      wait until status_latch_dut_1 /= c_ongoing for 50 ms;
+      wait until status_latch_dut_1 /= c_ongoing for 5 ms;
       -- Settle: ensure the Phase-2 frame's bytes have fully streamed through
       -- DUT 2's MAC-to-LLC interface before the verification frame arrives.
       -- WaitForClock(clk, (c_bus_idle_condition_width + 3) * c_bit_time);
       clear_latches;
-      gen_frame(v_frame, v_last_byte);
-      submit_and_verify(v_frame, v_last_byte);
+      for i in 1 to 10 loop
+        gen_frame(v_frame, v_last_byte);
+        submit_and_verify(v_frame, v_last_byte);
+      end loop;
     end procedure test_bus_off;
 
     --------------------------------------------------------------------------
