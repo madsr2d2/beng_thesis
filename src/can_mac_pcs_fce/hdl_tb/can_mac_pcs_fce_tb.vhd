@@ -75,7 +75,7 @@ architecture tb of can_mac_pcs_fce_tb is
     bus_d         : time;
   end record;
   type t_delay_cfg_arr is array (natural range <>) of t_delay_cfg;
-  -- Sweep from 100 % down to 20 % of the ISO propagation budget.
+  -- Sweep from 100 % down to 20 % of the propagation budget.
   constant c_delay_sweep : t_delay_cfg_arr := (
     (transceiver_d => 50 ns, bus_d => 300 ns),
     (transceiver_d => 40 ns, bus_d => 240 ns),
@@ -442,12 +442,12 @@ begin
   end process p_rx_llc_vc_dut_2;
 
   ----------------------------------------------------------------------------
-  -- p_test_ctrl
+  -- p_test_ctrl.
   ----------------------------------------------------------------------------
   p_test_ctrl : process is
 
     --------------------------------------------------------------------------
-    -- clear_latches: pulse both transfer-status latches back to c_ongoing.
+    -- clear_latches.
     --------------------------------------------------------------------------
     procedure clear_latches is
     begin
@@ -459,8 +459,7 @@ begin
     end procedure clear_latches;
 
     --------------------------------------------------------------------------
-    -- wait_idle_and_clear: block until both DUT TX paths return to c_ongoing,
-    -- then pulse the latches clear.
+    -- wait_idle_and_clear: block until both DUT TX paths return to c_ongoing, then clear latches.
     --------------------------------------------------------------------------
     procedure wait_idle_and_clear is
     begin
@@ -536,7 +535,7 @@ begin
     end procedure gen_frame;
 
     --------------------------------------------------------------------------
-    -- submit_and_verify: send frame via DUT 1, verify DUT 1 TX status and received bytes at DUT 2
+    -- submit_and_verify: send frame via DUT 1, verify DUT 1 TX status and received bytes at DUT 2.
     --------------------------------------------------------------------------
     procedure submit_and_verify(v_tx_frame : in t_llc_frame; v_last_byte : in natural) is
     begin
@@ -563,7 +562,7 @@ begin
     end procedure submit_and_verify;
 
     --------------------------------------------------------------------------
-    -- Test 1: Reset. Assert reset mid-frame and verify the DUT recovers cleanly:
+    -- Test 1: Reset. Assert reset mid-frame and verify the DUT recovers cleanly.
     --------------------------------------------------------------------------
     procedure test_reset is
       variable v_frame     : t_llc_frame;
@@ -587,7 +586,7 @@ begin
     end procedure test_reset;
 
     --------------------------------------------------------------------------
-    -- Test 2: Normal usage
+    -- Test 2: Normal usage.
     --------------------------------------------------------------------------
     procedure test_normal is
       variable v_frame     : t_llc_frame;
@@ -616,7 +615,7 @@ begin
     end procedure test_normal;
 
     --------------------------------------------------------------------------
-    -- Test 2: Delay sweep (batch of frames at each c_delay_sweep configuration)
+    -- Test 2: Delay sweep (batch of frames at each c_delay_sweep configuration).
     --------------------------------------------------------------------------
     procedure test_delay_sweep is
       variable v_frame     : t_llc_frame;
@@ -791,15 +790,16 @@ begin
     WaitForBarrier(init_barrier);
     wait until reset = '0';
     wait_idle_and_clear;
+    -- Run tests
     test_reset;
     test_normal;
     test_delay_sweep;
     test_lost_arb;
     test_bus_off;
-
+    -- Print results
     report_results;
+    -- Done
     std.env.finish;
-    wait;
   end process p_test_ctrl;
 
 end architecture tb;
