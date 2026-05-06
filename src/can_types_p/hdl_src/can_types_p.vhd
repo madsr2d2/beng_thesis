@@ -56,7 +56,6 @@ package pk_can_types is
   -- Error signalling (ISO 6.6.5.2, 6.6.5.3)
   constant c_error_flag_width      : natural := 6;
   constant c_error_delimiter_width : natural := 8;
-  constant c_error_sequence_width  : natural := c_error_flag_width + c_error_delimiter_width;
 
   -- Inter-frame spacing (ISO 6.6.7)
   constant c_intermission_width         : natural := 3;                         -- ISO 6.6.7.2
@@ -99,7 +98,6 @@ package pk_can_types is
 
   ---------------------------------------------------------------------------
   -- 2. Bit Timing (ISO 7.3.2, Table 13)
-  --
   -- Range guards for can_pcs signal declarations. All values are in Time Quanta (TQ).
   ---------------------------------------------------------------------------
 
