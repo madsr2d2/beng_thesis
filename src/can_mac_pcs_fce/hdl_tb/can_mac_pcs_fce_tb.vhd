@@ -416,8 +416,7 @@ begin
           collect_loop : loop
             wait until rising_edge(clk);
             if mac_to_llc_tx_s2d_dut_2.avalon_st_source.valid = '1' then
-              Push(tx_llc_rec_dut_1.BurstFifo,
-                   std_logic_vector(resize(unsigned(mac_to_llc_tx_s2d_dut_2.avalon_st_source.data), c_rec_width)));
+              Push(tx_llc_rec_dut_1.BurstFifo, SafeResize(mac_to_llc_tx_s2d_dut_2.avalon_st_source.data, c_rec_width));
               exit collect_loop when mac_to_llc_tx_s2d_dut_2.avalon_st_source.endofpacket = '1';
             end if;
           end loop collect_loop;
@@ -528,7 +527,7 @@ begin
     begin
       -- Pre-load expected bytes before sending: p_rx_llc_sink_vc processes them when the frame arrives.
       for i in 0 to v_last_byte loop
-        Push(rx_llc_rec_dut_2.BurstFifo, std_logic_vector(resize(unsigned(v_tx_frame(i)), c_rec_width)));
+        Push(rx_llc_rec_dut_2.BurstFifo, SafeResize(v_tx_frame(i), c_rec_width));
       end loop;
 
       for i in 0 to v_last_byte loop
