@@ -412,7 +412,7 @@ begin
       WaitForTransaction(clk, rx_llc_rec_dut_2.Rdy, rx_llc_rec_dut_2.Ack);
       case rx_llc_rec_dut_2.Operation is
         when CHECK =>
-          -- Collect received bytes into the scratch FIFO until EOP.
+          -- Collect received bytes into the FIFO until EOP.
           collect_loop : loop
             wait until rising_edge(clk);
             if mac_to_llc_tx_s2d_dut_2.avalon_st_source.valid = '1' then
@@ -420,10 +420,9 @@ begin
               exit collect_loop when mac_to_llc_tx_s2d_dut_2.avalon_st_source.endofpacket = '1';
             end if;
           end loop collect_loop;
-          -- Drain received vs expected FIFOs in parallel.
+          -- Drain FIFOs and check bytes match.
           while not IsEmpty(tx_llc_rec_dut_1.BurstFifo) loop
-            AffirmIfEqual(check_id, Pop(tx_llc_rec_dut_1.BurstFifo)(7 downto 0),
-                                    Pop(rx_llc_rec_dut_2.BurstFifo)(7 downto 0), "RX byte");
+            AffirmIfEqual(check_id, Pop(tx_llc_rec_dut_1.BurstFifo)(7 downto 0), Pop(rx_llc_rec_dut_2.BurstFifo)(7 downto 0), "RX byte");
           end loop;
           AffirmIf(check_id, IsEmpty(rx_llc_rec_dut_2.BurstFifo), "RX frame length matches expected");
         when others => null;
