@@ -51,6 +51,7 @@ architecture tb of can_mac_pcs_fce_tb is
   constant c_bin_at_least          : natural := 5;
   constant c_rec_width             : natural := 16;
   constant c_delay_frames_per_cfg  : natural := 5;
+  constant c_frame_count           : natural := 100;
   constant c_avalon_sop_byte : std_logic_vector := "10";
   constant c_avalon_eop_byte : std_logic_vector := "01";
   constant c_avalon_byte     : std_logic_vector := "00";
@@ -462,48 +463,55 @@ begin
     end procedure wait_idle_and_clear;
 
     --------------------------------------------------------------------------
-    -- gen_frame: builds an LLC frame.
+    -- gen_frame: (overloaded)
+    --    Version 1: builds a CC base LLC frame with a fixed 11-bit ID (DLC=1).
+    --    Version 2: builds a random LLC frame drawn from coverage bins.
     --------------------------------------------------------------------------
-    procedure gen_frame(tx_frame : out t_llc_frame; last_byte : out natural; v_id : integer := -1) is
+    procedure gen_frame( tx_frame : out t_llc_frame; last_byte : out natural; v_id : in  std_logic_vector(c_base_id_width - 1 downto 0)) is
       variable v_data_len : natural;
-      variable v_id_slv   : std_logic_vector(c_base_id_width - 1 downto 0);
     begin
       for i in tx_frame'range loop
         tx_frame(i) := (others => '0');
       end loop;
-      if v_id >= 0 then
-        -- Fixed: CC base frame, DLC=1, 11-bit ID from caller.
-        tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) :=
-          std_logic_vector(to_unsigned(1, c_dlc_field_width));
-        v_id_slv                := std_logic_vector(to_unsigned(v_id, c_base_id_width));
-        tx_frame(2)             := v_id_slv(c_base_id_width - 1 downto c_base_id_width - 8);
-        tx_frame(3)(7 downto 5) := v_id_slv(2 downto 0);
+      tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) :=
+        std_logic_vector(to_unsigned(1, c_dlc_field_width));
+      tx_frame(2)             := v_id(c_base_id_width - 1 downto c_base_id_width - 8);
+      tx_frame(3)(7 downto 5) := v_id(2 downto 0);
+      v_data_len  := 1;
+      last_byte   := c_data_offset - 1 + v_data_len;
+      tx_frame(c_data_offset) := RV.RandSlv(8);
+    end procedure gen_frame;
+
+    procedure gen_frame(tx_frame : out t_llc_frame; last_byte : out natural) is
+      variable v_data_len : natural;
+    begin
+      for i in tx_frame'range loop
+        tx_frame(i) := (others => '0');
+      end loop;
+      -- Format flags, DLC, and ID all drawn from coverage bins.
+      tx_frame(0)(c_llc_frame_ide) := std_logic(to_unsigned(GetRandPoint(ide_cov), 1)(0));
+      tx_frame(0)(c_llc_frame_fdf) := std_logic(to_unsigned(GetRandPoint(fdf_cov), 1)(0));
+      tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) :=
+        std_logic_vector(to_unsigned(GetRandPoint(dlc_cov), 4));
+      if tx_frame(0)(c_llc_frame_fdf) = '1' then
+        tx_frame(0)(c_llc_frame_brs) := RV.RandSlv(1)(1);
+        tx_frame(0)(c_llc_frame_esi) := RV.RandSlv(1)(1);
       else
-        -- Random: format flags, DLC, and ID all drawn from coverage bins.
-        tx_frame(0)(c_llc_frame_ide) := std_logic(to_unsigned(GetRandPoint(ide_cov), 1)(0));
-        tx_frame(0)(c_llc_frame_fdf) := std_logic(to_unsigned(GetRandPoint(fdf_cov), 1)(0));
-        tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) :=
-          std_logic_vector(to_unsigned(GetRandPoint(dlc_cov), 4));
-        if tx_frame(0)(c_llc_frame_fdf) = '1' then
-          tx_frame(0)(c_llc_frame_brs) := RV.RandSlv(1)(1);
-          tx_frame(0)(c_llc_frame_esi) := RV.RandSlv(1)(1);
-        else
-          -- RTR only applies to CC frames (ISO 7.3.1.1); sample FTYP from coverage.
-          tx_frame(0)(c_llc_frame_ftyp) := std_logic(to_unsigned(GetRandPoint(ftyp_cov), 1)(0));
-        end if;
-        for i in 2 to 5 loop
-          tx_frame(i) := RV.RandSlv(8);
-        end loop;
-        -- Zero unused ID bits: extended (29-bit) uses bytes 2..5; base (11-bit) uses bytes 2..3.
-        if tx_frame(0)(c_llc_frame_ide) = '1' then
-          tx_frame(5)(2 downto 0) := "000";
-        else
-          tx_frame(3)(4 downto 0) := "00000";
-          tx_frame(4)             := (others => '0');
-          tx_frame(5)             := (others => '0');
-        end if;
+        -- RTR only applies to CC frames (ISO 7.3.1.1); sample FTYP from coverage.
+        tx_frame(0)(c_llc_frame_ftyp) := std_logic(to_unsigned(GetRandPoint(ftyp_cov), 1)(0));
       end if;
-      -- Data bytes: RTR has none, all other frame types fill v_data_len bytes.
+      for i in 2 to 5 loop
+        tx_frame(i) := RV.RandSlv(8);
+      end loop;
+      -- Zero unused ID bits: extended (29-bit) uses bytes 2..5; base (11-bit) uses bytes 2..3.
+      if tx_frame(0)(c_llc_frame_ide) = '1' then
+        tx_frame(5)(2 downto 0) := "000";
+      else
+        tx_frame(3)(4 downto 0) := "00000";
+        tx_frame(4)             := (others => '0');
+        tx_frame(5)             := (others => '0');
+      end if;
+      -- Data bytes: RTR has none; all other frame types fill v_data_len bytes.
       if tx_frame(0)(c_llc_frame_ftyp) = '1' then
         last_byte := c_data_offset - 1;
       else
@@ -597,9 +605,8 @@ begin
     -- reports c_lost_arb.
     --------------------------------------------------------------------------
     procedure test_lost_arb is
-      constant c_iterations : natural := 10;
-      variable v_id_1       : natural;
-      variable v_id_2       : natural;
+      variable v_id_1       : std_logic_vector(c_base_id_width - 1 downto 0);
+      variable v_id_2       : std_logic_vector(c_base_id_width - 1 downto 0);
       variable v_frame_1    : t_llc_frame;
       variable v_frame_2    : t_llc_frame;
       variable v_last       : natural;
@@ -611,19 +618,18 @@ begin
       Print("--------------------------------------------------------------------------");
       transceiver_d <= c_transceiver_d;
       bus_delay     <= c_bus_delay_max;
-      for iter in 1 to c_iterations loop
-        -- Latch captures only the first non-ongoing status; wait for idle so
-        -- a tail retransmission from the previous iteration does not pollute it.
-        -- wait_idle_and_clear;
+      for iter in 1 to c_frame_count loop
+        -- Clear latches so we can collect fresh transmission status
+        wait_idle_and_clear;
 
         loop  -- Generate distinct IDs
-          v_id_1 := RV.RandInt(0, 2 ** c_base_id_width - 1);
-          v_id_2 := RV.RandInt(0, 2 ** c_base_id_width - 1);
+          v_id_1 := RV.RandSlv(c_base_id_width);
+          v_id_2 := RV.RandSlv(c_base_id_width);
           exit when v_id_1 /= v_id_2;
         end loop;
         gen_frame(v_frame_1, v_last, v_id_1);
         gen_frame(v_frame_2, v_last, v_id_2);
-        v_dut1_wins := v_id_1 < v_id_2;
+        v_dut1_wins := unsigned(v_id_1) < unsigned(v_id_2);
 
         -- Transmit from both DUT's at the same time to ensure arbitration is triggered 
         for i in 0 to v_last loop
@@ -647,20 +653,17 @@ begin
           wait until status_latch_dut_2 /= c_ongoing for 5 ms;
         end if;
 
+        -- Check that we got the correct arbitration winner
         if v_dut1_wins then
           AffirmIfEqual(check_id, status_latch_dut_1, c_transmitted, "DUT 1 transmitted");
           AffirmIfEqual(check_id, status_latch_dut_2, c_lost_arb,   "DUT 2 lost arb");
-          AffirmIf(check_id, v_id_1 < v_id_2, "DUT 1 won: lower ID");
+          AffirmIf(check_id, unsigned(v_id_1) < unsigned(v_id_2), "DUT 1 won: lower ID");
         else
           AffirmIfEqual(check_id, status_latch_dut_1, c_lost_arb,   "DUT 1 lost arb");
           AffirmIfEqual(check_id, status_latch_dut_2, c_transmitted, "DUT 2 transmitted");
-          AffirmIf(check_id, v_id_2 < v_id_1, "DUT 2 won: lower ID");
+          AffirmIf(check_id, unsigned(v_id_2) < unsigned(v_id_1), "DUT 2 won: lower ID");
         end if;
       end loop;
-
-      -- Let the last iteration's loser retransmit and settle before clearing.
-      WaitForClock(clk, 100 * c_bit_time);
-      clear_latches;
     end procedure test_lost_arb;
 
     --------------------------------------------------------------------------
@@ -678,13 +681,10 @@ begin
       Print("--------------------------------------------------------------------------");
       Print("Test 4: Bus-off Recovery");
       Print("--------------------------------------------------------------------------");
-      bus_off_clear <= true;
-      WaitForClock(clk, 2);
-      bus_off_clear <= false;
 
       -- Phase 1: engage bit-error injection.
       dut_1_rx_recessive <= true;
-      WaitForClock(clk, 10);
+      wait_idle_and_clear;
 
       -- Phase 2: drive DUT 1 to bus-off.
       gen_frame(v_frame, v_last_byte);
@@ -712,12 +712,12 @@ begin
 
       -- Phase 4: confirm normal TX/RX resumes after recovery.
       clear_latches;
+      -- Wait until the frame that got interrupted by the bus-off retransmits
       wait until status_latch_dut_1 /= c_ongoing for 5 ms;
-      -- Settle: ensure the Phase-2 frame's bytes have fully streamed through
-      -- DUT 2's MAC-to-LLC interface before the verification frame arrives.
-      -- WaitForClock(clk, (c_bus_idle_condition_width + 3) * c_bit_time);
-      clear_latches;
-      for i in 1 to 10 loop
+
+      -- Resume normal transmission
+      wait_idle_and_clear;
+      for i in 1 to c_frame_count loop
         gen_frame(v_frame, v_last_byte);
         submit_and_verify(v_frame, v_last_byte);
       end loop;
