@@ -52,7 +52,6 @@ package pk_can_types is
   constant c_stuff_width     : natural := 5;
   constant c_sbc_field_width : natural := 4;                                    -- ISO 6.6.11.5, Table 8
 
-
   -- Error signalling (ISO 6.6.5.2, 6.6.5.3)
   constant c_error_flag_width      : natural := 6;
   constant c_error_delimiter_width : natural := 8;
@@ -100,7 +99,6 @@ package pk_can_types is
   -- 2. Bit Timing (ISO 7.3.2, Table 13)
   -- Range guards for can_pcs signal declarations. All values are in Time Quanta (TQ).
   ---------------------------------------------------------------------------
-
   constant c_max_transmitter_delay : natural := 255;
   constant c_prescaler_min         : natural := 1;
   constant c_prescaler_max         : natural := 32;
@@ -122,7 +120,6 @@ package pk_can_types is
   ---------------------------------------------------------------------------
   -- 3. Composite Types
   ---------------------------------------------------------------------------
-
   -- LLC frame metadata latched at SOF and carried through the MAC pipeline.
   -- Fields mirror the frame configuration bits defined in Section 5 (ISO 6.4.3, Table 4).
   type t_llc_metadata is record
@@ -174,14 +171,14 @@ package pk_can_types is
 
   constant c_ser_fsm_if_s2d_reset : t_can_mac_ser_fsm_if_s2d :=
   (
-    data         => 'U',
+    data         => c_recessive,
     valid        => '0',
     llc_metadata => c_llc_metadata_reset
   );
 
   -- FSM -> Serializer: feedback path carrying flow control and frame outcome.
   type t_can_mac_ser_fsm_if_d2s is record
-    transfer_status : std_logic_vector(2 downto 0);                             -- c_ongoing / c_transmitted / c_disturbed / c_lost_arb
+    transfer_status : std_logic_vector(2 downto 0);                             -- c_ongoing / c_transmitted / c_aborted / c_disturbed / c_lost_arb
     ready           : std_logic;
   end record t_can_mac_ser_fsm_if_d2s;
 
