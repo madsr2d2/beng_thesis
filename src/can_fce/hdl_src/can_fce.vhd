@@ -4,16 +4,19 @@
 --
 -- Requirements:
 --
--- Description:   Fault Confinement Entity (FCE). Implements Transmitter error counter (TEC) and Receiver error counter (REC).
---                Error state and bus-off recovery logic. (ISO : 8.1.4.2-4).
+-- Description:   Fault Confinement Entity (FCE). Maintains the Transmit Error
+--                Counter (TEC) and Receive Error Counter (REC), manages the
+--                error-active/error-passive/bus-off state machine, and drives
+--                bus-off recovery after 128 x 11 recessive bits
+--                (ISO 11898-1 sec. 8.1.4.2-8.1.4.4).
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-04-10  TMYAES:   [TRIT-4336] [FPGA] CAN FD extensions of TRIT-3880
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
+  use ieee.std_logic_1164.all;
+  use ieee.numeric_std.all;
 
 use work.pk_can_types.all;
 
@@ -52,10 +55,15 @@ begin
   -- State machine
   ---------------------------------------------------------------------------
   p_fsm : process(clk_i) is
+    -- Named guard predicates (combinational, recomputed every cycle).
+    variable v_tec_fault  : std_logic; -- error that increments TEC by 8
+    variable v_rec_fault8 : std_logic; -- error that increments REC by 8
+    variable v_go_bus_off : std_logic;
+    variable v_go_passive : std_logic;
+    variable v_go_active  : std_logic;
   begin
-
     if rising_edge(clk_i) then
-      if (rst_i = '1') then
+      if rst_i = '1' then
         transmitter_error_count <= 0;
         receiver_error_count    <= 0;
         fce_state               <= s_error_active;
@@ -64,46 +72,51 @@ begin
         llc_o                   <= c_fce_to_llc_if_reset;
         pcs_o                   <= c_fce_to_pcs_if_reset;
       else
+        v_tec_fault  := (mac_i.error and not mac_i.passive_tx_ack_error_exempt_1) or mac_i.error_delimiter_too_late;
+        v_rec_fault8 := (mac_i.error and mac_i.sending_error_overload_flag) or mac_i.primary_error or mac_i.error_delimiter_too_late;
+        v_go_bus_off := '1' when transmitter_error_count > c_bus_off_threshold else '0';
+        v_go_passive := '1' when fce_state = s_error_active and (transmitter_error_count > c_error_count_threshold or receiver_error_count > c_error_count_threshold) else '0';
+        v_go_active  := '1' when fce_state = s_error_passive and transmitter_error_count <= c_error_count_threshold and receiver_error_count <= c_error_count_threshold else '0';
 
         case fce_state is
           when s_error_active | s_error_passive =>
-            -- Error count logic ------------------------------------------------------
+            -- Error count logic (ISO 11898-1 sec. 8.1.4.2) ---------------------------
             if mac_i.transmitting then                                          -- Transmitter errors
-              if ((mac_i.error and not mac_i.passive_tx_ack_error_exempt_1) or mac_i.error_delimiter_too_late) then
+              if v_tec_fault = '1' then
                 transmitter_error_count <= transmitter_error_count + 8;         -- ISO 8.1.4.2,c/d/f (TEC += 8)
-              elsif (mac_i.successful_transfer) then
-                transmitter_error_count <= 0 when transmitter_error_count = 0 else transmitter_error_count - 1; -- ISO 8.1.4.2,g (TEC -= 1)
+              elsif mac_i.successful_transfer then
+                transmitter_error_count <= 0 when transmitter_error_count = 0 else transmitter_error_count - 1; -- ISO 8.1.4.2,g (TEC -= 1, min 0)
               end if;
             else                                                                -- Receiver errors
-              if ((mac_i.error and mac_i.sending_error_overload_flag) or mac_i.primary_error or mac_i.error_delimiter_too_late) then
-                if (receiver_error_count <= c_bus_off_threshold) then
-                  receiver_error_count <= receiver_error_count + 8;             -- ISO 8.1.4.2,b/e/f (REC += 8); clamped at c_bus_off_threshold + 8 to stay in range
+              if v_rec_fault8 = '1' then
+                if receiver_error_count <= c_bus_off_threshold then
+                  receiver_error_count <= receiver_error_count + 8;             -- ISO 8.1.4.2,b/e/f (REC += 8, clamped)
                 end if;
               elsif mac_i.error then
-                if (receiver_error_count <= c_bus_off_threshold + 7) then
-                  receiver_error_count <= receiver_error_count + 1;             -- ISO 8.1.4.2,a (REC += 1); clamped at c_bus_off_threshold + 8
+                if receiver_error_count <= c_bus_off_threshold + 7 then
+                  receiver_error_count <= receiver_error_count + 1;             -- ISO 8.1.4.2,a (REC += 1, clamped)
                 end if;
-              elsif (mac_i.successful_transfer) then
-                if (receiver_error_count > c_error_count_threshold) then        -- ISO 8.1.4.2,h (REC adjustment)
+              elsif mac_i.successful_transfer then
+                if receiver_error_count > c_error_count_threshold then          -- ISO 8.1.4.2,h (REC adjustment)
                   receiver_error_count <= c_error_count_threshold;
-                elsif (receiver_error_count > 0) then
+                elsif receiver_error_count > 0 then
                   receiver_error_count <= receiver_error_count - 1;
                 end if;
               end if;
             end if;
 
-            -- State transition logic (ISO : 8.1.4.4 Figure 43) -----------------------
-            if (transmitter_error_count > c_bus_off_threshold) then
+            -- State transition logic (ISO 11898-1 sec. 8.1.4.4 Figure 43) ------------
+            if v_go_bus_off = '1' then
               fce_state          <= s_bus_off;
               idle_count         <= 0;
               pcs_o.bus_off      <= '1';
               mac_o.error_active <= '0';
               mac_o.bus_off      <= '1';
               llc_o.bus_off      <= '1';
-            elsif ((fce_state = s_error_active) and ((transmitter_error_count > c_error_count_threshold) or (receiver_error_count > c_error_count_threshold))) then
+            elsif v_go_passive = '1' then
               fce_state          <= s_error_passive;
               mac_o.error_active <= '0';
-            elsif ((fce_state = s_error_passive) and (transmitter_error_count <= c_error_count_threshold) and (receiver_error_count <= c_error_count_threshold)) then
+            elsif v_go_active = '1' then
               fce_state          <= s_error_active;
               mac_o.error_active <= '1';
             end if;
@@ -131,5 +144,3 @@ begin
     end if;
   end process p_fsm;
 end architecture rtl;
-
--- eof

@@ -50,9 +50,13 @@ architecture tb of can_pcs_tb is
   constant c_slow_half_period : time    := (gc_TbClkPeriod / 2) * (1.0 + 2.0 * c_clock_tolerance);
 
   -- Bus/transceiver delays --------------------------------------------------
-  constant c_bus_delay_max        : time := 150 ns;
-  constant c_transceiver_tx_delay : time := 300 ns;
-  constant c_transceiver_rx_delay : time := 300 ns;
+  -- ISO 7.3.2 arbitration constraint:
+  --   t_prop_seg >= 4 x transceiver_d + 2 x bus_d
+  -- c_nom_prop_seg x prescaler x gc_TbClkPeriod = 40 x 2 x 10 ns = 800 ns.
+  -- Budget fully consumed: 4 x 50 ns + 2 x 300 ns = 800 ns.
+  constant c_nom_prop_seg_time : time := 800 ns;
+  constant c_transceiver_d     : time := 50 ns;
+  constant c_bus_delay_max     : time := (c_nom_prop_seg_time - 4 * c_transceiver_d) / 2;
 
   ----------------------------------------------------------------------------
   -- Signals
@@ -67,10 +71,10 @@ architecture tb of can_pcs_tb is
   signal reset  : std_logic;
 
   -- DUT bus interfaces ------------------------------------------------------
-  signal tx_from_tx_dut : std_logic;                                            -- TX PCX tx to bus
-  signal tx_from_rx_dut : std_logic;                                            -- RX PCS tx to bus
-  signal rx_at_rx_dut   : std_logic := c_recessive;                             -- bus seen by RX (delayed)
-  signal rx_at_tx_dut   : std_logic := c_recessive;                             -- bus seen by TX (delayed)
+  signal tx_dut_tx : std_logic;                                                 -- TX PCS output to bus
+  signal rx_dut_tx : std_logic;                                                 -- RX PCS output to bus
+  signal tx_dut_rx : std_logic := c_recessive;                                  -- bus seen by TX DUT (after delays)
+  signal rx_dut_rx : std_logic := c_recessive;                                  -- bus seen by RX DUT (after delays)
 
   -- DUT interfaces ----------------------------------------------------------
   signal tx_mac_i : t_can_mac_pcs_if_m2s := c_mac_to_pcs_if_reset;
@@ -90,12 +94,12 @@ architecture tb of can_pcs_tb is
   signal polarity_history : std_logic_vector(8 - 1 downto 0) := (others => c_recessive); -- Holds the bits transmitted by the TX PCS
 
   -- Bus signals ------------------------------------------------------------
-  signal tx_on_bus_at_tx : std_logic := c_recessive;
-  signal tx_on_bus_at_rx : std_logic := c_recessive;
-  signal rx_on_bus_at_rx : std_logic := c_recessive;
-  signal rx_on_bus_at_tx : std_logic := c_recessive;
-  signal bus_at_tx       : std_logic := c_recessive;
-  signal bus_at_rx       : std_logic := c_recessive;
+  signal tx_dut_wire     : std_logic := c_recessive;                            -- TX DUT TX after transceiver delay
+  signal rx_dut_wire     : std_logic := c_recessive;                            -- RX DUT TX after transceiver delay
+  signal tx_dut_wire_far : std_logic := c_recessive;                            -- TX DUT wire propagated to RX end
+  signal rx_dut_wire_far : std_logic := c_recessive;                            -- RX DUT wire propagated to TX end
+  signal bus_tx_dut      : std_logic := c_recessive;                            -- wired-AND at TX DUT
+  signal bus_rx_dut      : std_logic := c_recessive;                            -- wired-AND at RX DUT
   signal bus_level       : std_logic;
 
   -- Transaction records -----------------------------------------------------
@@ -144,8 +148,8 @@ begin
       mac_o => tx_mac_o,
       fce_i => tx_fce_i,
       fce_o => tx_fce_o,
-      tx_o  => tx_from_tx_dut,
-      rx_i  => rx_at_tx_dut
+      tx_o  => tx_dut_tx,
+      rx_i  => tx_dut_rx
     );
 
   ----------------------------------------------------------------------------
@@ -159,64 +163,72 @@ begin
       mac_o => rx_mac_o,
       fce_i => rx_fce_i,
       fce_o => rx_fce_o,
-      tx_o  => tx_from_rx_dut,
-      rx_i  => rx_at_rx_dut
+      tx_o  => rx_dut_tx,
+      rx_i  => rx_dut_rx
     );
 
   ----------------------------------------------------------------------------
-  -- Bus model
+  -- Bus model: dominant-wins wired-AND with transceiver and propagation delays.
+  --
+  --  tx_dut_tx -[c_transceiver_d]-> tx_dut_wire -[c_bus_delay_max]-> tx_dut_wire_far
+  --  rx_dut_tx -[c_transceiver_d]-> rx_dut_wire -[c_bus_delay_max]-> rx_dut_wire_far
+  --
+  --  bus_tx_dut = tx_dut_wire AND rx_dut_wire_far
+  --  bus_rx_dut = tx_dut_wire_far AND rx_dut_wire
+  --
+  --  tx_dut_rx <-[c_transceiver_d]- bus_tx_dut
+  --  rx_dut_rx <-[c_transceiver_d]- bus_rx_dut
   ----------------------------------------------------------------------------
-  -- Bus at TX DUT -----------------------------------------------------------
-  bus_at_tx <= tx_on_bus_at_tx and rx_on_bus_at_tx;                             -- Bus value at TX-DUT
+  bus_tx_dut <= tx_dut_wire and rx_dut_wire_far;
+  bus_rx_dut <= tx_dut_wire_far and rx_dut_wire;
 
-  p_tx_onto_bus : process is                                                    -- TX -> bus (at the TX-DUT end of the bus)
+  p_tx_dut_tx_to_wire : process is
   begin
-    wait on tx_from_tx_dut;
-    tx_on_bus_at_tx <= transport tx_from_tx_dut after c_transceiver_tx_delay;
-  end process;
-
-  p_tx_loopback : process is                                                    -- bus -> RX (at TX-DUT end of the bus)
-  begin
-    wait on bus_at_tx;
-    rx_at_tx_dut <= transport bus_at_tx after c_transceiver_rx_delay;
-  end process;
-  ----------------------------------------------------------------------------
-  -- Bus at RX DUT -----------------------------------------------------------
-  bus_at_rx <= tx_on_bus_at_rx and rx_on_bus_at_rx;
-
-  p_rx_onto_wire : process is                                                   -- TX -> bus (at the RX-DUT end of the bus)
-  begin
-    wait on tx_from_rx_dut;
-    rx_on_bus_at_rx <= transport tx_from_rx_dut after c_transceiver_tx_delay;
+    wait on tx_dut_tx;
+    tx_dut_wire <= transport tx_dut_tx after c_transceiver_d;
   end process;
 
-  p_rx_sees_bus : process is                                                    -- bus -> RX (at RX-DUT end of the bus)
+  p_tx_dut_rx_from_bus : process is
   begin
-    wait on bus_at_rx;
-    rx_at_rx_dut <= transport bus_at_rx after c_transceiver_rx_delay;
-  end process;
-  ----------------------------------------------------------------------------
-  -- Bus propagation delay ---------------------------------------------------
-  p_tx_propagate : process is                                                   -- TX-DUT -> RX-DUT propagation
-  begin
-    wait on tx_on_bus_at_tx;
-    tx_on_bus_at_rx <= transport tx_on_bus_at_tx after c_bus_delay_max;
+    wait on bus_tx_dut;
+    tx_dut_rx <= transport bus_tx_dut after c_transceiver_d;
   end process;
 
-  p_rx_propagate : process is                                                   -- RX-DUT -> TX-DUT propagation
+  p_rx_dut_tx_to_wire : process is
   begin
-    wait on rx_on_bus_at_rx;
-    rx_on_bus_at_tx <= transport rx_on_bus_at_rx after c_bus_delay_max;
+    wait on rx_dut_tx;
+    rx_dut_wire <= transport rx_dut_tx after c_transceiver_d;
   end process;
-  ----------------------------------------------------------------------------
+
+  p_rx_dut_rx_from_bus : process is
+  begin
+    wait on bus_rx_dut;
+    rx_dut_rx <= transport bus_rx_dut after c_transceiver_d;
+  end process;
+
+  p_propagate_tx_to_rx : process is
+  begin
+    wait on tx_dut_wire;
+    tx_dut_wire_far <= transport tx_dut_wire after c_bus_delay_max;
+  end process;
+
+  p_propagate_rx_to_tx : process is
+  begin
+    wait on rx_dut_wire;
+    rx_dut_wire_far <= transport rx_dut_wire after c_bus_delay_max;
+  end process;
 
   -- bus_level: physical bus level used by test_bus_off
-  bus_level <= bus_at_tx;
+  bus_level <= bus_tx_dut;
 
   ----------------------------------------------------------------------------
   -- Track transmitted bits for Transmitter Delay Compensation (TDC) verification (ISO : 7.3.4)
-  -- Only shifts during data phase (BRS SP to data_phase_stop SP) so that
-  -- polarity_history(N) aligns with tdc_delay=N (data-phase boundary count only).
+  -- The MAC FSM shifts transmitted_bits_shift_reg at drive_bit = SP + 2 clk cycles, after
+  -- the bit stuffer has committed the next polarity. Sampling tx_mac_i.tx_data at SP+2 clk
+  -- matches this drive_bit window exactly: the test controller sets tx_data at SP with a
+  -- 2-cycle after-delay, so the value is stable and correct at SP+2.
+  -- polarity_history(N) therefore holds the bit driven N data-phase boundaries ago, which
+  -- is what transmitted_bits_shift_reg(tdc_delay) holds when the SSP fires.
   ----------------------------------------------------------------------------
   p_polarity_history : process is
     variable v_in_data_phase : boolean := false;
@@ -226,8 +238,8 @@ begin
 
     polarity_history_loop : loop
       wait until rising_edge(tx_mac_o.sample_point);
+      WaitForClock(clk_tx, 2);                                                   -- align with drive_bit (SP + 2 clk)
       if tx_mac_i.next_bit_is_brs = '1' then
-        -- First data-phase SP: reset history and record the first data bit at index 0
         polarity_history <= (0 => tx_mac_i.tx_data, others => c_recessive);
         v_in_data_phase  := true;
       elsif v_in_data_phase then
@@ -346,7 +358,7 @@ begin
       Print("Test 1: Reset defaults");
       Print("--------------------------------------------------------------------------");
 
-      AffirmIf(check_id, tx_from_tx_dut = c_recessive, "TX PCS -> MAC");
+      AffirmIf(check_id, tx_dut_tx = c_recessive, "TX PCS -> MAC");
       AffirmIf(check_id, rx_mac_o = c_pcs_to_mac_if_reset, "RX PCS -> MAC");
     end procedure test_reset;
 

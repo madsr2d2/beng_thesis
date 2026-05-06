@@ -216,8 +216,8 @@ begin
                                 or state = s_brs    or state = s_esi    or state = s_dlc or state = s_data
                                 or state = s_sbc    or state = s_crc    or state = s_crc_delimiter
                                 or state = s_ack_delimiter or state = s_eof;
-        -- Lost arbitration (TX recessive, RX dominant in arbitration) is handled separately;
-        -- exclude it so it is not also flagged as a bit error.
+        -- Lost arbitration (TX recessive, RX dominant in arbitration) is handled separately.
+        -- Exclude it so it is not also flagged as a bit error.
         v_bit_error_at_sp        := not in_data_phase and state /= s_ack_delimiter
                                     and transmitted_bits_shift_reg(0) /= pcs_i.rx_data
                                     and not (state = s_arbitration and transmitted_bits_shift_reg(0) = c_recessive and pcs_i.rx_data = c_dominant);
