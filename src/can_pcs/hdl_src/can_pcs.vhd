@@ -109,10 +109,10 @@ architecture rtl of can_pcs is
   signal phase1_extension             : natural range 0 to gc_nom_sjw;
   signal phase2_shortening            : natural range 0 to gc_nom_sjw;
   signal recessive_counter            : natural range 0 to c_bus_idle_condition_width - 1;
-  signal active_prop_seg              : natural range nom_prop_seg_min to nom_prop_seg_max;
-  signal active_phase_seg1            : natural range nom_phase_seg1_min to nom_phase_seg1_max;
-  signal active_phase_seg2            : natural range nom_phase_seg2_min to nom_phase_seg2_max;
-  signal active_sjw                   : natural range sjw_min to sjw_max;
+  signal active_prop_seg              : natural range c_nom_prop_seg_min to c_nom_prop_seg_max;
+  signal active_phase_seg1            : natural range c_nom_phase_seg1_min to c_nom_phase_seg1_max;
+  signal active_phase_seg2            : natural range c_nom_phase_seg2_min to c_nom_phase_seg2_max;
+  signal active_sjw                   : natural range c_sjw_min to c_sjw_max;
   signal tdc_count_active             : std_logic;
   signal delay_count_tq               : natural range 0 to c_max_transmitter_delay;
   signal ssp_active                   : std_logic;

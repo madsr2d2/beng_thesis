@@ -341,10 +341,7 @@ begin
             while not Empty(tx_mac_rec.BurstFifo) and not Empty(rx_mac_rec.BurstFifo) loop
               v_rx_bit    := Pop(rx_mac_rec.BurstFifo)(0);
               v_tx_bit    := Pop(tx_mac_rec.BurstFifo)(0);
-              AffirmIf(check_id, v_rx_bit = v_tx_bit,
-                       "bit " & to_string(v_bit_index) &
-                       " RX: " & to_string(v_rx_bit) &
-                       " TX: " & to_string(v_tx_bit));
+              AffirmIf(check_id, v_rx_bit = v_tx_bit, "bit " & to_string(v_bit_index) & " RX: " & to_string(v_rx_bit) & " TX: " & to_string(v_tx_bit));
               v_bit_index := v_bit_index + 1;
             end loop;
             while not Empty(rx_mac_rec.BurstFifo) loop
