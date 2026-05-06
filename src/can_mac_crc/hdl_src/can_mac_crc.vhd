@@ -7,7 +7,6 @@
 -- Description:   CRC engine wrapper for CAN/CAN-FD TX path. Instantiates
 --                dedicated serial CRC engines for CRC-15, CRC-17, and CRC-21
 --                and selects the appropriate output based on frame configuration.
---                Implements the algorithm from ISO 11898-1: Sec. 6.6.4.4.
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-03-15  TMYAES    Initial implementation
@@ -151,12 +150,11 @@ begin
     );
 
   -- Combinatorial width-select mux: zero-extends CRC15/17 to the 21-bit output width.
-  -- gen_crc registers crc_r on each rising edge; using a combinatorial output here
-  -- ensures crc_o.crc settles at the same clock cycle as crc_r, giving the FSM the
-  -- complete CRC when drive_bit fires for CRC[0].
+  -- Must be combinatorial: the last CRC input is fed at SP, gen_crc registers it so
+  -- crc_r is final at SP+1. drive_bit reads crc_o.crc at SP+2. A registered mux
+  -- would only settle at SP+3, one cycle too late. So this keeps the latency to a minimum.
   p_crc_mux : process (all) is
   begin
-
     case crc_i.crc_poly_select is
       when c_crc_poly_15_sel =>
         crc_o.crc <= crc15_out & (c_crc_21_length - 1 - c_crc_15_length downto 0 => '0');
@@ -167,9 +165,7 @@ begin
       when others =>
         crc_o.crc <= (others => '0');
     end case;
-
   end process p_crc_mux;
-
 end architecture rtl;
 
 -- eof
