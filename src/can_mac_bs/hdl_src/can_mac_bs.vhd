@@ -55,7 +55,7 @@ begin
       else
         fsb_en_latch <= bs_i.fixed_bit_stuffing_en;
 
-        -- Falling edge of fsb_en: cancel any pending FSB (ISO 6.6.13.3.1).
+        -- Falling edge of fsb_en: cancel any pending FSB
         if fsb_en_latch = '1' and bs_i.fixed_bit_stuffing_en = '0' then
           bs_o.valid <= '0';
         end if;
