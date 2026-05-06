@@ -41,16 +41,9 @@ architecture tb of can_mac_pcs_fce_tb is
   ----------------------------------------------------------------------------
   -- Constants
   ----------------------------------------------------------------------------
-  -- Same values as the PCS generics
-  constant c_pcs_prescaler      : natural := 2;
-  constant c_pcs_nom_prop_seg   : natural := 40;
-  constant c_pcs_nom_phase_seg1 : natural := 39;
-  constant c_pcs_nom_phase_seg2 : natural := 20;
-  constant c_bit_time : natural := (1 + c_pcs_nom_prop_seg + c_pcs_nom_phase_seg1 + c_pcs_nom_phase_seg2) * c_pcs_prescaler;
   -- TB Infrastructure
   constant c_bin_at_least          : natural := 5;
   constant c_rec_width             : natural := 16;
-  constant c_delay_frames_per_cfg  : natural := 5;
   constant c_frame_count           : natural := 100;
   constant c_avalon_sop_byte : std_logic_vector := "10";
   constant c_avalon_eop_byte : std_logic_vector := "01";
@@ -592,7 +585,7 @@ begin
         transceiver_d <= c_delay_sweep(i).transceiver_d;
         bus_delay     <= c_delay_sweep(i).bus_d;
 
-        for i in 1 to c_delay_frames_per_cfg loop
+        for i in 1 to c_frame_count loop
           gen_frame(v_frame, v_last_byte);
           submit_and_verify(v_frame, v_last_byte);
         end loop;
@@ -748,10 +741,7 @@ begin
   begin
     WaitForBarrier(init_barrier);
     wait until reset = '0';
-
-    -- Allow both DUTs to complete bus reintegration.
-    WaitForClock(clk, (c_bus_idle_condition_width + 2) * (c_bit_time + 1));
-
+    wait_idle_and_clear;
     test_normal;
     test_delay_sweep;
     test_lost_arb;
