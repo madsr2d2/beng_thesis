@@ -159,8 +159,7 @@ begin
         -- Bus-off has priority over the active TX states. Idle/capture stay
         -- functional so the user can still submit a frame; it will sit in
         -- the buffer until bus-off recovery completes.
-        if (fce_i.bus_off = '1') and
-           (state = c_st_send or state = c_st_wait_result or state = c_st_wait_idle) then
+        if (fce_i.bus_off = '1') and (state = c_st_send or state = c_st_wait_result or state = c_st_wait_idle) then
           state            <= c_st_bus_off_hold;
           mac_status_armed <= false;
         else
