@@ -79,10 +79,10 @@ architecture rtl of can_mac_fsm is
   -- Constants
   -----------------------------------------------------------------
   -- s_arbitration field positions (indexed by bit_count) ---------
-  constant c_arb_id_base_last : natural := c_base_id_width - 1;                 -- 10
-  constant c_arb_rtr_pos      : natural := c_base_id_width;                     -- 11
-  constant c_arb_ide_pos      : natural := c_base_id_width + 1;                 -- 12
-  constant c_arb_id_ext_first : natural := c_base_id_width + 2;                 -- 13
+  constant c_arb_id_base_last : natural := c_base_id_width - 1;                       -- 10
+  constant c_arb_rtr_pos      : natural := c_base_id_width;                           -- 11
+  constant c_arb_ide_pos      : natural := c_base_id_width + 1;                       -- 12
+  constant c_arb_id_ext_first : natural := c_base_id_width + 2;                       -- 13
   constant c_arb_id_ext_last  : natural := c_base_id_width + 1 + c_extended_id_width; -- 30
   constant c_arb_rtr_ext_pos  : natural := c_base_id_width + 2 + c_extended_id_width; -- 31
   -----------------------------------------------------------------
@@ -91,32 +91,32 @@ architecture rtl of can_mac_fsm is
   -- Signals
   -----------------------------------------------------------------
   -- Shared --------------------------------------------------------
-  signal state                       : t_fsm_state;
-  signal is_transmitter              : boolean;
-  signal bit_count                   : natural range 0 to c_max_mac_frame_length;
-  signal data_len                    : natural range 0 to c_max_data_bytes;
-  signal crc_length                  : natural range 0 to c_crc_21_length;
-  signal overload                    : boolean;
-  signal in_data_phase               : boolean;                                 -- BRS=recessive: SSP used instead of SP (ISO 7.3.4)
+  signal state                                : t_fsm_state;
+  signal is_transmitter                       : boolean;
+  signal bit_count                            : natural range 0 to c_max_mac_frame_length;
+  signal data_len                             : natural range 0 to c_max_data_bytes;
+  signal crc_length                           : natural range 0 to c_crc_21_length;
+  signal overload                             : boolean;
+  signal in_data_phase                        : boolean;                            -- BRS=recessive: SSP used instead of SP (ISO 7.3.4)
   -- Transmitter stuff --------------------------------------------
-  signal transmitted_bits_shift_reg  : std_logic_vector(c_tdc_polarity_depth - 1 downto 0);
-  signal was_previous_frame_tx       : boolean;                                 -- gates entry to s_suspend_transmission
-  signal ack_success_seen            : boolean;
-  signal bit_error_at_ssp            : boolean;
-  signal ack_error_caused_flag       : boolean;
-  signal saw_dominant_during_flag    : boolean;
-  signal drive_bit_delay             : std_logic;                               -- SP delayed one cycle
-  signal drive_bit                   : std_logic;                               -- SP delayed two cycles
+  signal transmitted_bits_shift_reg           : std_logic_vector(c_tdc_polarity_depth - 1 downto 0);
+  signal was_previous_frame_tx                : boolean;                            -- gates entry to s_suspend_transmission
+  signal ack_success_seen                     : boolean;
+  signal bit_error_at_ssp                     : boolean;
+  signal ack_error_caused_flag                : boolean;
+  signal saw_dominant_during_flag             : boolean;
+  signal drive_bit_delay                          : std_logic;                          -- SP delayed one cycle
+  signal drive_bit                            : std_logic;                          -- SP delayed two cycles
   -- Receiver stuff -----------------------------------------------
-  signal byte_index                  : natural range 0 to c_internal_llc_frame_len - 1;
-  signal bit_index                   : natural range 0 to c_byte_width - 1;
-  signal stream_index                : natural range 0 to c_internal_llc_frame_len - 1;
-  signal llc_frame                   : t_llc_frame;
-  signal llc_stream_start            : boolean;
-  signal llc_stream_active           : boolean;
-  signal crc_error_detected          : boolean;
-  signal delim_found_first_recessive : boolean;                                 -- phase gate inside s_error_delimiter
-  signal llc_frame_len               : natural range 0 to c_internal_llc_frame_len;
+  signal byte_index                           : natural range 0 to c_internal_llc_frame_len - 1;
+  signal bit_index                            : natural range 0 to c_byte_width - 1;
+  signal stream_index                         : natural range 0 to c_internal_llc_frame_len - 1;
+  signal llc_frame                            : t_llc_frame;
+  signal llc_stream_start                     : boolean;
+  signal llc_stream_active                    : boolean;
+  signal crc_error_detected                   : boolean;
+  signal delim_found_first_recessive          : boolean;                            -- phase gate inside s_error_delimiter
+  signal llc_frame_len                        : natural range 0 to c_internal_llc_frame_len;
   -----------------------------------------------------------------
 
 begin
@@ -128,9 +128,9 @@ begin
   begin
     if rising_edge(clk_i) then
       if (rst_i = '1' or fce_i.bus_off = '1') then
-        llc_o             <= c_mac_rx_to_llc_if_reset;
-        stream_index      <= 0;
-        llc_stream_active <= false;
+        llc_o              <= c_mac_rx_to_llc_if_reset;
+        stream_index       <= 0;
+        llc_stream_active  <= false;
       else
         llc_o <= c_mac_rx_to_llc_if_reset;
 
@@ -146,8 +146,8 @@ begin
             llc_o.avalon_st_source.startofpacket <= '1';
           elsif stream_index = llc_frame_len - 1 then
             llc_o.avalon_st_source.endofpacket <= '1';
-            stream_index                       <= 0;
-            llc_stream_active                  <= false;
+            stream_index      <= 0;
+            llc_stream_active <= false;
           end if;
 
           if llc_i.avalon_st_sink.ready = '1' and stream_index /= llc_frame_len - 1 then
@@ -162,79 +162,79 @@ begin
   -- FSM coordinating the MAC layer 
   -----------------------------------------------------------------
   p_fsm : process(clk_i) is
-    variable v_data_len              : natural range 0 to c_max_data_bytes;
-    variable v_dlc_vec               : std_logic_vector(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
-    variable v_fdf                   : std_logic;
-    variable v_ftyp                  : std_logic;
-    variable v_drive_now             : boolean;                                 -- commit drive to PCS at end of process
-    variable v_drive_polarity        : std_logic;
-    variable v_in_dynamic_stuff      : boolean;                                 -- s_arbitration..s_data (dynamic stuff region)
-    variable v_tx_bit_error_state    : boolean;                                 -- states where TX SP bit-error monitor is active
-    variable v_bit_error_at_sp       : boolean;
-    variable v_skip_case             : boolean;                                 -- set in pre-case block when the case block should be skipped
-    variable v_in_fixed_format_field : boolean;                                 -- s_crc_delimiter or s_ack_delimiter
-    variable v_bs_crc_src            : std_logic;                               -- just a convenience variable 
+    variable v_data_len               : natural range 0 to c_max_data_bytes;
+    variable v_dlc_vec                : std_logic_vector(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
+    variable v_fdf                    : std_logic;
+    variable v_ftyp                   : std_logic;
+    variable v_drive_now              : boolean;                                    -- commit drive to PCS at end of process
+    variable v_drive_polarity         : std_logic;
+    variable v_in_dynamic_stuff       : boolean;                                    -- s_arbitration..s_data (dynamic stuff region)
+    variable v_tx_bit_error_state     : boolean;                                    -- states where TX SP bit-error monitor is active
+    variable v_bit_error_at_sp        : boolean;
+    variable v_skip_case              : boolean;                                    -- set in pre-case block when the case block should be skipped
+    variable v_in_fixed_format_field  : boolean;                                    -- s_crc_delimiter or s_ack_delimiter
+    variable v_bs_crc_src             : std_logic;                                  -- just a convenience variable 
 
   begin
 
     if rising_edge(clk_i) then
       if rst_i = '1' or fce_i.bus_off = '1' then
         -- Frame state
-        state                       <= s_bus_reintegration;
-        bit_count                   <= 0;
-        is_transmitter              <= false;
-        overload                    <= false;
-        in_data_phase               <= false;
-        data_len                    <= 0;
-        crc_length                  <= c_crc_15_length;
+        state                                <= s_bus_reintegration;
+        bit_count                            <= 0;
+        is_transmitter                       <= false;
+        overload                             <= false;
+        in_data_phase                        <= false;
+        data_len                             <= 0;
+        crc_length                           <= c_crc_15_length;
         -- Transmitter stuff
-        was_previous_frame_tx       <= false;
-        transmitted_bits_shift_reg  <= (others => c_recessive);
-        drive_bit_delay             <= '0';
-        drive_bit                   <= '0';
-        ack_success_seen            <= false;
-        bit_error_at_ssp            <= false;
-        ack_error_caused_flag       <= false;
-        saw_dominant_during_flag    <= false;
+        was_previous_frame_tx                <= false;
+        transmitted_bits_shift_reg           <= (others => c_recessive);
+        drive_bit_delay                          <= '0';
+        drive_bit                            <= '0';
+        ack_success_seen                     <= false;
+        bit_error_at_ssp                     <= false;
+        ack_error_caused_flag                <= false;
+        saw_dominant_during_flag             <= false;
         -- Receiver stuff
-        byte_index                  <= 0;
-        bit_index                   <= 0;
-        llc_frame                   <= (others => (others => '0'));
-        llc_stream_start            <= false;
-        llc_frame_len               <= 0;
-        crc_error_detected          <= false;
-        delim_found_first_recessive <= false;
+        byte_index                           <= 0;
+        bit_index                            <= 0;
+        llc_frame                            <= (others => (others => '0'));
+        llc_stream_start                     <= false;
+        llc_frame_len                        <= 0;
+        crc_error_detected                   <= false;
+        delim_found_first_recessive          <= false;
         -- Interfaces
-        mac_ser_o                   <= c_ser_fsm_if_d2s_reset;
-        bs_o                        <= c_mac_fsm_to_bs_fd_if_reset;
-        pcs_o                       <= c_mac_to_pcs_if_reset;
-        fce_o                       <= c_mac_to_fce_if_reset;
-        crc_o                       <= c_mac_fsm_to_crc_if_reset;
-        bs_rst                      <= '0';
-        crc_rst                     <= '0';
+        mac_ser_o                            <= c_ser_fsm_if_d2s_reset;
+        bs_o                                 <= c_mac_fsm_to_bs_fd_if_reset;
+        pcs_o                                <= c_mac_to_pcs_if_reset;
+        fce_o                                <= c_mac_to_fce_if_reset;
+        crc_o                                <= c_mac_fsm_to_crc_if_reset;
+        bs_rst                               <= '0';
+        crc_rst                              <= '0';
       else
 
         -----------------------------------------------------------------
         -- Defaults
         -----------------------------------------------------------------
-        v_in_dynamic_stuff                := state = s_arbitration or state = s_fdf_r1_r0 or state = s_res_r0 or state = s_brs or state = s_esi or state = s_dlc or state = s_data;
-        v_tx_bit_error_state              := state = s_bus_idle or state = s_arbitration
+        v_in_dynamic_stuff   := state = s_arbitration or state = s_fdf_r1_r0 or state = s_res_r0 or state = s_brs or state = s_esi or state = s_dlc or state = s_data;
+        v_tx_bit_error_state := state = s_bus_idle   or state = s_arbitration
                                 or state = s_fdf_r1_r0 or state = s_res_r0
-                                or state = s_brs or state = s_esi or state = s_dlc or state = s_data
-                                or state = s_sbc or state = s_crc or state = s_crc_delimiter
+                                or state = s_brs    or state = s_esi    or state = s_dlc or state = s_data
+                                or state = s_sbc    or state = s_crc    or state = s_crc_delimiter
                                 or state = s_ack_delimiter or state = s_eof;
         -- Lost arbitration (TX recessive, RX dominant in arbitration) is handled separately.
         -- Exclude it so it is not also flagged as a bit error.
-        v_bit_error_at_sp                 := not in_data_phase and state /= s_ack_delimiter
+        v_bit_error_at_sp        := not in_data_phase and state /= s_ack_delimiter
                                     and transmitted_bits_shift_reg(0) /= pcs_i.rx_data
                                     and not (state = s_arbitration and transmitted_bits_shift_reg(0) = c_recessive and pcs_i.rx_data = c_dominant);
-        v_in_fixed_format_field           := state = s_crc_delimiter or state = s_ack_delimiter;
-        v_skip_case                       := false;
-        v_drive_now                       := false;
-        v_drive_polarity                  := c_recessive;
+        v_in_fixed_format_field  := state = s_crc_delimiter or state = s_ack_delimiter;
+        v_skip_case      := false;
+        v_drive_now      := false;
+        v_drive_polarity := c_recessive;
         -- drive_bit pipeline (SP+1 lets state/bit_count settle, SP+2 lets BS present bs_i.valid)
-        drive_bit_delay                   <= pcs_i.sample_point;
-        drive_bit                         <= drive_bit_delay;
+        drive_bit_delay <= pcs_i.sample_point;
+        drive_bit   <= drive_bit_delay;
         -- interfaces
         bs_o.valid                        <= '0';
         bs_rst                            <= '0';
@@ -257,21 +257,21 @@ begin
 
         -- Quiet states: reset active-frame signals on every cycle.
         if state = s_bus_reintegration or state = s_intermission or state = s_suspend_transmission or state = s_bus_idle then
-          fce_o                       <= c_mac_to_fce_if_reset;
-          mac_ser_o                   <= c_ser_fsm_if_d2s_reset;
-          bs_o                        <= c_mac_fsm_to_bs_fd_if_reset;
-          bit_error_at_ssp            <= false;
-          bs_rst                      <= '1';
-          crc_rst                     <= '1';
-          ack_success_seen            <= false;
-          ack_error_caused_flag       <= false;
-          saw_dominant_during_flag    <= false;
-          crc_error_detected          <= false;
-          delim_found_first_recessive <= false;
+          fce_o                                <= c_mac_to_fce_if_reset;
+          mac_ser_o                            <= c_ser_fsm_if_d2s_reset;
+          bs_o                                 <= c_mac_fsm_to_bs_fd_if_reset;
+          bit_error_at_ssp <= false;
+          bs_rst                               <= '1';
+          crc_rst                              <= '1';
+          ack_success_seen                     <= false;
+          ack_error_caused_flag                <= false;
+          saw_dominant_during_flag             <= false;
+          crc_error_detected                   <= false;
+          delim_found_first_recessive          <= false;
         end if;
 
         -- pre-case -------------------------------------------------
-        if is_transmitter then                                                  -- Transmitter branch
+        if is_transmitter then -- Transmitter branch
           -- SSP bit-error (ISO 7.3.4): always fires before SP.
           if pcs_i.secondary_sample_point = '1' and transmitted_bits_shift_reg(to_integer(unsigned(pcs_i.tdc_delay))) /= pcs_i.rx_data then
             bit_error_at_ssp <= true;
@@ -291,7 +291,7 @@ begin
                 bit_error_at_ssp <= false;
               end if;
               fce_o.error                <= '1';
-              fce_o.transmitting         <= '1';                                -- quiet-state block may have cleared this
+              fce_o.transmitting         <= '1';  -- quiet-state block may have cleared this
               pcs_o.tx_data              <= not fce_i.error_active;
               pcs_o.data_phase_stop      <= '1';
               in_data_phase              <= false;
@@ -331,7 +331,7 @@ begin
             v_skip_case      := true;
           end if;
 
-        else                                                                    -- Receiver branch
+        else  -- Receiver branch
 
           -- Hard sync: receivers re-synchronise in quiet/waiting states and at the dominant res bit edge.
           pcs_o.do_hard_sync <= '1' when state = s_intermission or state = s_bus_idle or state = s_suspend_transmission or state = s_res_r0 else '0';
@@ -351,8 +351,8 @@ begin
 
             elsif bs_i.valid = '1' then
               -- Receiver stuff-bit: feed BS/CRC from bus
-              bs_o.valid  <= '1';
-              bs_o.data   <= pcs_i.rx_data;
+              bs_o.valid <= '1';
+              bs_o.data  <= pcs_i.rx_data;
               if v_in_dynamic_stuff then
                 crc_o.valid_fd <= '1';
                 crc_o.data_fd  <= pcs_i.rx_data;
@@ -514,8 +514,8 @@ begin
                   data_len              <= v_data_len;
                   crc_length            <= f_crc_length(v_data_len, mac_ser_i.llc_metadata.fdf);
                   crc_o.crc_poly_select <= f_crc_poly_select(v_data_len, mac_ser_i.llc_metadata.fdf);
-                  v_drive_polarity      := c_dominant;
-                  v_drive_now           := true;
+                  v_drive_polarity := c_dominant;
+                  v_drive_now      := true;
                 end if;
               elsif pcs_i.sample_point = '1' and (is_transmitter or pcs_i.rx_data = c_dominant) then
                 bit_count      <= 0;
@@ -548,11 +548,11 @@ begin
                   when c_arb_rtr_pos =>
                     v_drive_now := true;
                     if mac_ser_i.llc_metadata.ide = c_recessive then
-                      v_drive_polarity := c_recessive;                          -- SRR (extended)
+                      v_drive_polarity := c_recessive;                  -- SRR (extended)
                     elsif mac_ser_i.llc_metadata.fdf = c_recessive then
-                      v_drive_polarity := c_dominant;                           -- RRS (FD base, always dominant)
+                      v_drive_polarity := c_dominant;                   -- RRS (FD base, always dominant)
                     else
-                      v_drive_polarity := mac_ser_i.llc_metadata.ftyp;          -- RTR (CC base)
+                      v_drive_polarity := mac_ser_i.llc_metadata.ftyp;  -- RTR (CC base)
                     end if;
                   when c_arb_ide_pos =>
                     v_drive_polarity := mac_ser_i.llc_metadata.ide;
@@ -567,12 +567,12 @@ begin
                 case bit_count is
                   when 0 to c_arb_id_base_last | c_arb_id_ext_first to c_arb_id_ext_last =>
                     llc_frame(c_id_offset + byte_index)((c_byte_width - 1) - bit_index) <= pcs_i.rx_data;
-                    bit_index                                                           <= 0 when bit_index = (c_byte_width - 1) else (bit_index + 1);
-                    byte_index                                                          <= (byte_index + 1) when bit_index = (c_byte_width - 1);
-                    bit_count                                                           <= bit_count + 1;
+                    bit_index  <= 0 when bit_index = (c_byte_width - 1) else (bit_index + 1);
+                    byte_index <= (byte_index + 1) when bit_index = (c_byte_width - 1);
+                    bit_count  <= bit_count + 1;
                   when c_arb_rtr_pos =>
                     llc_frame(c_conf_0_offset)(c_llc_frame_ftyp) <= pcs_i.rx_data;
-                    bit_count                                    <= bit_count + 1;
+                    bit_count <= bit_count + 1;
                   when c_arb_ide_pos =>
                     llc_frame(c_conf_0_offset)(c_llc_frame_ide) <= pcs_i.rx_data;
                     if pcs_i.rx_data = c_dominant then
@@ -583,8 +583,8 @@ begin
                     end if;
                   when c_arb_rtr_ext_pos =>
                     llc_frame(c_conf_0_offset)(c_llc_frame_ftyp) <= pcs_i.rx_data;
-                    state                                        <= s_fdf_r1_r0;
-                    bit_count                                    <= 0;
+                    state     <= s_fdf_r1_r0;
+                    bit_count <= 0;
                   when others =>
                     bit_count <= bit_count + 1;
                 end case;
@@ -625,7 +625,7 @@ begin
                   pcs_o.next_bit_is_brs <= '1';
                   state                 <= s_brs;
                 else
-                  state <= s_dlc;
+                  state     <= s_dlc;
                 end if;
               end if;
 
@@ -688,9 +688,9 @@ begin
                     v_fdf                                        := llc_frame(c_conf_0_offset)(c_llc_frame_fdf);
                     v_ftyp                                       := llc_frame(c_conf_0_offset)(c_llc_frame_ftyp);
                     v_data_len                                   := dlc_to_data_length(to_integer(unsigned(v_dlc_vec)), v_fdf);
-                    data_len                                     <= v_data_len;
-                    crc_length                                   <= f_crc_length(v_data_len, v_fdf);
-                    crc_o.crc_poly_select                        <= f_crc_poly_select(v_data_len, v_fdf);
+                    data_len              <= v_data_len;
+                    crc_length            <= f_crc_length(v_data_len, v_fdf);
+                    crc_o.crc_poly_select <= f_crc_poly_select(v_data_len, v_fdf);
                     if v_data_len > 0 and v_ftyp = '0' then
                       state <= s_data;
                     elsif v_fdf = '1' then
@@ -835,8 +835,8 @@ begin
                   else
                     llc_stream_start <= true;
                   end if;
-                  byte_index                <= 0;
-                  bit_count                 <= 0;
+                  byte_index    <= 0;
+                  bit_count <= 0;
                   -- RTR frames carry no data bytes; the LLC reads DLC from config byte 1.
                   if not is_transmitter and llc_frame(c_conf_0_offset)(c_llc_frame_ftyp) = '1' then
                     llc_frame_len <= c_data_offset;
@@ -844,7 +844,7 @@ begin
                     llc_frame_len <= c_data_offset + data_len;
                   end if;
                   fce_o.successful_transfer <= '1';
-                  state                     <= s_intermission;
+                  state     <= s_intermission;
                 else
                   bit_count <= bit_count + 1;
                 end if;
@@ -926,13 +926,13 @@ begin
                   if pcs_i.rx_data = c_dominant then
                     -- Dominant last bit of delimiter is overload (ISO 6.6.21.3.2.b).
                     if bit_count = c_error_delimiter_width - 1 then
-                      v_drive_polarity := c_dominant;
-                      overload         <= true;
-                      fce_o.error      <= '0';
+                      v_drive_polarity            := c_dominant;
+                      overload                    <= true;
+                      fce_o.error                 <= '0';
                     else
-                      fce_o.error      <= '1';
-                      overload         <= false;
-                      v_drive_polarity := not fce_i.error_active;
+                      fce_o.error                 <= '1';
+                      overload                    <= false;
+                      v_drive_polarity            := not fce_i.error_active;
                     end if;
                     bit_count                   <= 0;
                     v_drive_now                 := true;
