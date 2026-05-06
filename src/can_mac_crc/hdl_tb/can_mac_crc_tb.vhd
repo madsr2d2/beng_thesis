@@ -43,7 +43,6 @@ architecture tb of can_mac_crc_tb is
   constant c_bin_crc_17_sel : natural := 1;
   constant c_bin_crc_21_sel : natural := 2;
   constant c_num_frames     : natural := 1000;
-  constant c_crc_reset_value : std_logic_vector(c_crc_21_length - 1 downto 0) := (others => '0');
 
   ----------------------------------------------------------------------------
   -- Signals
@@ -260,12 +259,23 @@ begin
   ---------------------------------------------------------------------------
   -- Checker: Check reset
   ---------------------------------------------------------------------------
-  p_reset_checker : process
+  p_reset_checker : process is
+    variable v_expected : std_logic_vector(c_crc_21_length - 1 downto 0);
   begin
     loop
       wait until rising_edge(clk) and dut_rst = '1';
       WaitForClock(clk);
-      AffirmIf(reset_id, crc_o.crc = c_crc_reset_value, "CRC output not reset to zero");
+      case crc_i.crc_poly_select is
+        when c_crc_poly_15_sel =>
+          v_expected := c_crc_init_15_vec & (c_crc_21_length - 1 - c_crc_15_length downto 0 => '0');
+        when c_crc_poly_17_sel =>
+          v_expected := c_crc_init_17_vec & (c_crc_21_length - 1 - c_crc_17_length downto 0 => '0');
+        when c_crc_poly_21_sel =>
+          v_expected := c_crc_init_21_vec;
+        when others =>
+          v_expected := (others => '0');
+      end case;
+      AffirmIf(reset_id, crc_o.crc = v_expected, "CRC output not reset to init value");
     end loop;
   end process p_reset_checker;
 
