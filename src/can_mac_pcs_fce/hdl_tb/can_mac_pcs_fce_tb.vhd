@@ -88,8 +88,7 @@ architecture tb of can_mac_pcs_fce_tb is
   ----------------------------------------------------------------------------
   -- Signals
   ----------------------------------------------------------------------------
-  signal clk   : std_logic;
-  signal reset : std_logic := '1';
+  signal clk   : std_logic; signal reset : std_logic := '1';
   -- Bus model and delay signals
   signal bus_delay      : time := c_bus_delay_max;
   signal transceiver_d  : time := c_transceiver_d;
@@ -563,7 +562,7 @@ begin
         ICover(ide_cov,  to_integer(unsigned'("" & v_frame(0)(c_llc_frame_ide))));
         ICover(fdf_cov,  to_integer(unsigned'("" & v_frame(0)(c_llc_frame_fdf))));
         ICover(dlc_cov,  to_integer(unsigned(v_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end))));
-        -- FTYP is only meaningful for CC frames; RTR is illegal in FD (ISO 7.3.1.1).
+        -- FTYP is only use for CC frames (FD frames are always data frames, ISO Figure 2.
         if v_frame(0)(c_llc_frame_fdf) = '0' then
           ICover(ftyp_cov, to_integer(unsigned'("" & v_frame(0)(c_llc_frame_ftyp))));
         end if;
@@ -571,7 +570,7 @@ begin
     end procedure test_normal;
 
     --------------------------------------------------------------------------
-    -- Test 2: Delay sweep -- batch of frames at each c_delay_sweep operating point
+    -- Test 2: Delay sweep (batch of frames at each c_delay_sweep configuration)
     --------------------------------------------------------------------------
     procedure test_delay_sweep is
       variable v_frame     : t_llc_frame;
@@ -593,9 +592,9 @@ begin
     end procedure test_delay_sweep;
 
     --------------------------------------------------------------------------
-    -- Test 3: Lost arbitration -- both DUTs transmit CC base frames with
-    -- random distinct IDs. Winner (lower ID) reports c_transmitted; loser
-    -- reports c_lost_arb (ISO 11898-1 6.5.2).
+    -- Test 3: Lost arbitration. Both DUTs transmit CC base frames with
+    -- random distinct IDs. Winner (lower ID) reports c_transmitted, loser
+    -- reports c_lost_arb.
     --------------------------------------------------------------------------
     procedure test_lost_arb is
       constant c_iterations : natural := 10;
@@ -608,7 +607,7 @@ begin
     begin
       test_num <= 3;
       Print("--------------------------------------------------------------------------");
-      Print("Test 3: Lost Arbitration (random IDs, " & integer'image(c_iterations) & " iterations)");
+      Print("Test 3: Lost Arbitration");
       Print("--------------------------------------------------------------------------");
       transceiver_d <= c_transceiver_d;
       bus_delay     <= c_bus_delay_max;
