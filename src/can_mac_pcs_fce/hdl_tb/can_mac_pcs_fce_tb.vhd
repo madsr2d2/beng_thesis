@@ -47,46 +47,34 @@ architecture tb of can_mac_pcs_fce_tb is
   constant c_pcs_nom_phase_seg1 : natural := 39;
   constant c_pcs_nom_phase_seg2 : natural := 20;
   constant c_bit_time : natural := (1 + c_pcs_nom_prop_seg + c_pcs_nom_phase_seg1 + c_pcs_nom_phase_seg2) * c_pcs_prescaler;
-
+  -- TB Infrastructure
   constant c_bin_at_least          : natural := 5;
   constant c_rec_width             : natural := 16;
   constant c_delay_frames_per_cfg  : natural := 5;
-
-  -- Avalon-ST byte encoding [1] = startofpacket, [0] = endofpacket
   constant c_avalon_sop_byte : std_logic_vector := "10";
   constant c_avalon_eop_byte : std_logic_vector := "01";
   constant c_avalon_byte     : std_logic_vector := "00";
 
-  -- Delay configuration ----------------------------------------------
+  -- Delay configuration -----------------------------------------------------
   -- Two ISO constraints jointly bound the delays in the test bench.
   --
   -- (1) Arbitration condition, ISO sec. 7.3.2 Formula (2):
   --        t_prop_seg >= t_node_A + t_node_B + 2 x t_busline
-  --                   >= 4 x transceiver_d + 2 x bus_d          (symmetric: t_node = 2 x transceiver_d)
+  --                   >= 4 x transceiver_d + 2 x bus_d
   --     DUT prop_seg = c_pcs_nom_prop_seg x c_pcs_prescaler x gc_TbClkPeriod = 40 x 2 x 10 ns = 800 ns.
   --     Budget fully consumed: 4 x 50 ns + 2 x 300 ns = 800 ns.
   --
   -- (2) TDC compensation range, ISO sec. 7.3.4:
-  --        transmitter_delay <= 95 x t_q.min
-  --     transmitter_delay = 2 x transceiver_d.
-  --     With t_q.min = gc_TbClkPeriod = 10 ns: limit = 95 x 10 ns = 950 ns.
-  --     Check: 2 x 50 ns = 100 ns <= 950 ns. (1) is the binding constraint.
-
+  --        transmitter_delay = 2 x transceiver_d <= 95 x t_q.min
+  --     With t_q.min = gc_TbClkPeriod = 10 ns: limit = 95 x 10 ns = 950 ns -> (1) is the binding constraint
   constant c_nom_prop_seg_time : time := 800 ns;
   constant c_transceiver_d     : time := 50 ns;   -- 100 ns round-trip matches then TCAN1042 CAN transceiver (~110 ns TXD-to-RXD)
   constant c_bus_delay_max     : time := (c_nom_prop_seg_time - 4 * c_transceiver_d) / 2;
-
-  -- Bus/transceiver delays (driven so test_delay_sweep can update them).
-  -- Default: worst-case ISO-compliant operating point (100% of budget).
-  signal s_bus_delay      : time := c_bus_delay_max;
-  signal s_transceiver_d  : time := c_transceiver_d;
-
   type t_delay_cfg is record
     transceiver_d : time;
     bus_d         : time;
   end record;
   type t_delay_cfg_arr is array (natural range <>) of t_delay_cfg;
-
   -- Sweep from 100 % down to 20 % of the ISO propagation budget.
   constant c_delay_sweep : t_delay_cfg_arr := (
     (transceiver_d => 50 ns, bus_d => 300 ns),
@@ -96,61 +84,55 @@ architecture tb of can_mac_pcs_fce_tb is
     (transceiver_d => 10 ns, bus_d =>  60 ns)
   );
   ----------------------------------------------------------------------------
+
+  ----------------------------------------------------------------------------
   -- Signals
   ----------------------------------------------------------------------------
   signal clk   : std_logic;
   signal reset : std_logic := '1';
-
-  -- Bus model signals -------------------------------------------------------
+  -- Bus model and delay signals
+  signal bus_delay      : time := c_bus_delay_max;
+  signal transceiver_d  : time := c_transceiver_d;
   -- DUT port connections
-  signal s_dut1_tx      : std_logic;
-  signal s_dut2_tx      : std_logic;
-  signal s_dut1_rx      : std_logic := c_recessive;
-  signal s_dut2_rx      : std_logic := c_recessive;
-  -- Wire signals: DUT's TX after transceiver TX delay, at each node's physical end
-  signal s_dut1_wire    : std_logic := c_recessive;
-  signal s_dut2_wire    : std_logic := c_recessive;
+  signal dut1_tx      : std_logic;
+  signal dut2_tx      : std_logic;
+  signal dut1_rx      : std_logic := c_recessive;
+  signal dut2_rx      : std_logic := c_recessive;
+  -- Wire signals: DUT's TX after transceiver TX delay
+  signal dut1_wire    : std_logic := c_recessive;
+  signal dut2_wire    : std_logic := c_recessive;
   -- Propagated to the far end after bus delay
-  signal s_dut1_wire_far : std_logic := c_recessive;
-  signal s_dut2_wire_far : std_logic := c_recessive;
+  signal dut1_wire_far : std_logic := c_recessive;
+  signal dut2_wire_far : std_logic := c_recessive;
   -- Wired-AND bus as seen at each node's end (forced recessive on DUT 1 when injection active)
-  signal s_bus_dut1     : std_logic := c_recessive;
-  signal s_bus_dut2     : std_logic := c_recessive;
-
-  -- s_dut_1_rx_recessive forces DUT 1's loopback recessive so every dominant
-  -- it drives becomes a bit error (TEC += 8, bypasses error-passive exemption).
-  signal s_dut_1_rx_recessive : boolean   := false;
-
-  -- Sticky bus_off latch (DUT 1): captures the pulse since FCE may recover
-  -- before the sequencer samples the live signal.
-  signal s_bus_off_seen  : boolean := false;
-  signal s_bus_off_clear : boolean := false;
-
+  signal bus_dut1     : std_logic := c_recessive;
+  signal bus_dut2     : std_logic := c_recessive;
+  -- s_dut_1_rx_recessive forces DUT 1's loopback recessive
+  signal dut_1_rx_recessive : boolean   := false;
+  -- bus_off latch (DUT 1)
+  signal bus_off_seen  : boolean := false;
+  signal bus_off_clear : boolean := false;
   -- DUT 1 interfaces
   signal llc_to_mac_tx_s2d_dut_1 : t_can_llc_mac_tx_if_s2d := c_llc_to_mac_tx_if_reset;
   signal llc_to_mac_tx_d2s_dut_1 : t_can_llc_mac_tx_if_d2s;
   signal mac_to_llc_tx_s2d_dut_1 : t_can_llc_mac_rx_if_s2d;
   signal mac_to_llc_tx_d2s_dut_1 : t_can_llc_mac_rx_if_d2s := c_llc_to_mac_rx_if_reset;
-
-  -- DUT 2 interfaces. LLC TX source is idle until p_tx_llc_vc_dut_2 drives it.
+  -- DUT 2 interfaces
   signal llc_to_mac_tx_s2d_dut_2 : t_can_llc_mac_tx_if_s2d := c_llc_to_mac_tx_if_reset;
   signal llc_to_mac_tx_d2s_dut_2 : t_can_llc_mac_tx_if_d2s;
   signal mac_to_llc_tx_s2d_dut_2 : t_can_llc_mac_rx_if_s2d;
   signal mac_to_llc_tx_d2s_dut_2 : t_can_llc_mac_rx_if_d2s := c_llc_to_mac_rx_if_reset;
-
-  -- LLC-FCE interfaces (both DUTs always in normal mode for simulation)
+  -- LLC-FCE interfaces
   signal llc_fce_i_dut_1 : t_can_llc_fce_if_m2s := (normal_mode => '1');
   signal llc_fce_o_dut_1 : t_can_fce_llc_if_s2m;
   signal llc_fce_i_dut_2 : t_can_llc_fce_if_m2s := (normal_mode => '1');
   signal llc_fce_o_dut_2 : t_can_fce_llc_if_s2m;
-
   -- Transfer status latches
   signal status_latch_dut_1            : std_logic_vector(2 downto 0) := c_ongoing;
   signal clear_status_dut_1 : boolean                      := false;
   signal status_latch_dut_2 : std_logic_vector(2 downto 0) := c_ongoing;
   signal clear_status_dut_2 : boolean                      := false;
-
-  -- OSVVM signals
+  -- OSVVM stuff
   shared variable RV           : RandomPType;
   signal          test_id      : AlertLogIDType;
   signal          check_id     : AlertLogIDType;
@@ -160,7 +142,6 @@ architecture tb of can_mac_pcs_fce_tb is
   signal          ftyp_cov     : CoverageIDType;
   signal          init_barrier : integer_barrier := 1;
   signal          test_num     : natural;
-
   -- Transaction interfaces
   signal tx_llc_rec_dut_1 : StreamRecType(
     DataToModel(c_rec_width - 1 downto 0),
@@ -180,7 +161,6 @@ architecture tb of can_mac_pcs_fce_tb is
     DataFromModel(c_rec_width - 1 downto 0),
     ParamFromModel(c_rec_width - 1 downto 0)
   );
-
 
 begin
 
@@ -233,9 +213,8 @@ begin
     wait;
   end process p_init;
 
-
   ----------------------------------------------------------------------------
-  -- DUT 1 (Transmitter)
+  -- DUT 1
   ----------------------------------------------------------------------------
   u_dut_1 : entity work.can_mac_pcs_fce
     port map(
@@ -247,12 +226,12 @@ begin
       rx_llc_o  => mac_to_llc_tx_s2d_dut_1,
       llc_fce_i => llc_fce_i_dut_1,
       llc_fce_o => llc_fce_o_dut_1,
-      tx_o      => s_dut1_tx,
-      rx_i      => s_dut1_rx
+      tx_o      => dut1_tx,
+      rx_i      => dut1_rx
     );
 
   ----------------------------------------------------------------------------
-  -- DUT 2 (Receiver)
+  -- DUT 2
   ----------------------------------------------------------------------------
   u_dut_2 : entity work.can_mac_pcs_fce
     port map(
@@ -264,8 +243,8 @@ begin
       rx_llc_o  => mac_to_llc_tx_s2d_dut_2,
       llc_fce_i => llc_fce_i_dut_2,
       llc_fce_o => llc_fce_o_dut_2,
-      tx_o      => s_dut2_tx,
-      rx_i      => s_dut2_rx
+      tx_o      => dut2_tx,
+      rx_i      => dut2_rx
     );
 
   ----------------------------------------------------------------------------
@@ -284,45 +263,45 @@ begin
   --  DUT 1's wire is removed from the bus at both ends so DUT 2 also sees only
   --  its own (recessive) signal and does not start receiving a phantom frame.
   ----------------------------------------------------------------------------
-  -- Gate injection with s_bus_off_seen so it drops the cycle bus_off fires,
-  -- without waiting for p_test_ctrl to reach the s_dut_1_rx_recessive clear.
-  s_bus_dut1 <= c_recessive when (s_dut_1_rx_recessive and not s_bus_off_seen) else s_dut1_wire and s_dut2_wire_far;
-  s_bus_dut2 <= s_dut2_wire when (s_dut_1_rx_recessive and not s_bus_off_seen) else s_dut1_wire_far and s_dut2_wire;
+  -- bus_off_seen drops the recessive override when bus enters bus-off state.
+  -- This is helpful in the bus-off test (the retransmission of the frame that got "bus-off'ed" is not corrupted again)
+  bus_dut1 <= c_recessive when (dut_1_rx_recessive and not bus_off_seen) else dut1_wire and dut2_wire_far;
+  bus_dut2 <= dut2_wire when (dut_1_rx_recessive and not bus_off_seen) else dut1_wire_far and dut2_wire;
 
   p_dut1_tx_to_wire : process is
   begin
-    wait on s_dut1_tx;
-    s_dut1_wire <= transport s_dut1_tx after s_transceiver_d;
+    wait on dut1_tx;
+    dut1_wire <= transport dut1_tx after transceiver_d;
   end process;
 
   p_dut1_rx_from_bus : process is
   begin
-    wait on s_bus_dut1;
-    s_dut1_rx <= transport s_bus_dut1 after s_transceiver_d;
+    wait on bus_dut1;
+    dut1_rx <= transport bus_dut1 after transceiver_d;
   end process;
 
   p_dut2_tx_to_wire : process is
   begin
-    wait on s_dut2_tx;
-    s_dut2_wire <= transport s_dut2_tx after s_transceiver_d;
+    wait on dut2_tx;
+    dut2_wire <= transport dut2_tx after transceiver_d;
   end process;
 
   p_dut2_rx_from_bus : process is
   begin
-    wait on s_bus_dut2;
-    s_dut2_rx <= transport s_bus_dut2 after s_transceiver_d;
+    wait on bus_dut2;
+    dut2_rx <= transport bus_dut2 after transceiver_d;
   end process;
 
   p_propagate_dut1_to_dut2 : process is
   begin
-    wait on s_dut1_wire;
-    s_dut1_wire_far <= transport s_dut1_wire after s_bus_delay;
+    wait on dut1_wire;
+    dut1_wire_far <= transport dut1_wire after bus_delay;
   end process;
 
   p_propagate_dut2_to_dut1 : process is
   begin
-    wait on s_dut2_wire;
-    s_dut2_wire_far <= transport s_dut2_wire after s_bus_delay;
+    wait on dut2_wire;
+    dut2_wire_far <= transport dut2_wire after bus_delay;
   end process;
 
   ----------------------------------------------------------------------------
@@ -331,10 +310,10 @@ begin
   p_bus_off_latch : process(clk) is
   begin
     if rising_edge(clk) then
-      if reset = '1' or s_bus_off_clear then
-        s_bus_off_seen <= false;
+      if reset = '1' or bus_off_clear then
+        bus_off_seen <= false;
       elsif llc_fce_o_dut_1.bus_off = '1' then
-        s_bus_off_seen <= true;
+        bus_off_seen <= true;
       end if;
     end if;
   end process p_bus_off_latch;
@@ -364,8 +343,7 @@ begin
       if reset = '1' or clear_status_dut_2 then
         status_latch_dut_2 <= c_ongoing;
       else
-        if llc_to_mac_tx_d2s_dut_2.transfer_status /= c_ongoing
-           and llc_to_mac_tx_d2s_dut_2.transfer_status /= status_latch_dut_2 then
+        if llc_to_mac_tx_d2s_dut_2.transfer_status /= c_ongoing and llc_to_mac_tx_d2s_dut_2.transfer_status /= status_latch_dut_2 then
           status_latch_dut_2 <= llc_to_mac_tx_d2s_dut_2.transfer_status;
         end if;
       end if;
@@ -428,34 +406,27 @@ begin
   -- RX LLC sink VC (DUT 2)
   ----------------------------------------------------------------------------
   p_rx_llc_sink_vc : process is
-    variable v_frame     : t_llc_frame;
-    variable v_frame_len : natural;
-    variable v_exp_len   : natural;
-    variable v_exp_byte  : std_logic_vector(c_rec_width - 1 downto 0);
   begin
     WaitForBarrier(init_barrier);
     loop
       WaitForTransaction(clk, rx_llc_rec_dut_2.Rdy, rx_llc_rec_dut_2.Ack);
       case rx_llc_rec_dut_2.Operation is
         when CHECK =>
-          -- Collect bytes from DUT 2's MAC-to-LLC output until EOP.
-          -- Check() is issued before the frame has fully arrived, so the VC
-          -- and the ongoing transmission run concurrently.
-          v_frame_len := 0;
+          -- Collect received bytes into the scratch FIFO until EOP.
           collect_loop : loop
             wait until rising_edge(clk);
             if mac_to_llc_tx_s2d_dut_2.avalon_st_source.valid = '1' then
-              v_frame(v_frame_len) := mac_to_llc_tx_s2d_dut_2.avalon_st_source.data;
-              v_frame_len          := v_frame_len + 1;
+              Push(tx_llc_rec_dut_1.BurstFifo,
+                   std_logic_vector(resize(unsigned(mac_to_llc_tx_s2d_dut_2.avalon_st_source.data), c_rec_width)));
               exit collect_loop when mac_to_llc_tx_s2d_dut_2.avalon_st_source.endofpacket = '1';
             end if;
           end loop collect_loop;
-          v_exp_len := to_integer(unsigned(rx_llc_rec_dut_2.DataToModel(7 downto 0)));
-          AffirmIfEqual(check_id, v_frame_len, v_exp_len, "RX frame length");
-          for i in 0 to v_exp_len - 1 loop
-            v_exp_byte := Pop(rx_llc_rec_dut_2.BurstFifo);
-            AffirmIfEqual(check_id, v_frame(i), v_exp_byte(7 downto 0), "RX byte " & to_string(i));
+          -- Drain received vs expected FIFOs in parallel.
+          while not IsEmpty(tx_llc_rec_dut_1.BurstFifo) loop
+            AffirmIfEqual(check_id, Pop(tx_llc_rec_dut_1.BurstFifo)(7 downto 0),
+                                    Pop(rx_llc_rec_dut_2.BurstFifo)(7 downto 0), "RX byte");
           end loop;
+          AffirmIf(check_id, IsEmpty(rx_llc_rec_dut_2.BurstFifo), "RX frame length matches expected");
         when others => null;
       end case;
     end loop;
@@ -615,8 +586,8 @@ begin
       Print("Test 2: Delay Sweep");
       Print("--------------------------------------------------------------------------");
       for i in c_delay_sweep'range loop
-        s_transceiver_d <= c_delay_sweep(i).transceiver_d;
-        s_bus_delay     <= c_delay_sweep(i).bus_d;
+        transceiver_d <= c_delay_sweep(i).transceiver_d;
+        bus_delay     <= c_delay_sweep(i).bus_d;
 
         for i in 1 to c_delay_frames_per_cfg loop
           gen_frame(v_frame, v_last_byte);
@@ -643,8 +614,8 @@ begin
       Print("--------------------------------------------------------------------------");
       Print("Test 3: Lost Arbitration (random IDs, " & integer'image(c_iterations) & " iterations)");
       Print("--------------------------------------------------------------------------");
-      s_transceiver_d <= c_transceiver_d;
-      s_bus_delay     <= c_bus_delay_max;
+      transceiver_d <= c_transceiver_d;
+      bus_delay     <= c_bus_delay_max;
       for iter in 1 to c_iterations loop
         -- Latch captures only the first non-ongoing status; wait for idle so
         -- a tail retransmission from the previous iteration does not pollute it.
@@ -712,20 +683,20 @@ begin
       Print("--------------------------------------------------------------------------");
       Print("Test 4: Bus-off Recovery");
       Print("--------------------------------------------------------------------------");
-      s_bus_off_clear <= true;
+      bus_off_clear <= true;
       WaitForClock(clk, 2);
-      s_bus_off_clear <= false;
+      bus_off_clear <= false;
 
       -- Phase 1: engage bit-error injection.
-      s_dut_1_rx_recessive <= true;
+      dut_1_rx_recessive <= true;
       WaitForClock(clk, 10);
 
       -- Phase 2: drive DUT 1 to bus-off.
       gen_frame(v_frame, v_last_byte);
-      while not s_bus_off_seen loop
+      while not bus_off_seen loop
         v_send_count := v_send_count + 1;
         for i in 0 to v_last_byte loop
-          exit when s_bus_off_seen;
+          exit when bus_off_seen;
           if i = 0 then
             Send(tx_llc_rec_dut_1, v_frame(i), c_avalon_sop_byte);
           elsif i < v_last_byte then
@@ -735,8 +706,8 @@ begin
           end if;
         end loop;
       end loop;
-      s_dut_1_rx_recessive <= false;
-      AffirmIf(test_id, s_bus_off_seen, "Bus-off after " & to_string(v_send_count) & " sends");
+      dut_1_rx_recessive <= false;
+      AffirmIf(test_id, bus_off_seen, "Bus-off after " & to_string(v_send_count) & " sends");
 
       -- Phase 3: wait for FCE bus-off recovery (128 x 11 bit times).
       if llc_fce_o_dut_1.bus_off /= '0' then
