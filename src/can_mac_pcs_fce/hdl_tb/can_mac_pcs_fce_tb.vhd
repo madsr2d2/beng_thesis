@@ -8,16 +8,16 @@
 --                configurable transceiver and propagation delays sized using ISO 11898-1
 --                sec. 7.3.2 / 7.3.4 constraints. DUT 1 transmits, DUT 2 receives and ACKs.
 --
---                  p_tx_llc_vc          - Avalon-ST source VC: drives TX frame bytes to DUT 1.
+--                  p_tx_llc_vc_dut_1    - Avalon-ST source VC: drives TX frame bytes to DUT 1.
 --                  p_tx_llc_vc_dut_2    - Avalon-ST source VC: drives TX frame bytes to DUT 2.
---                  p_rx_llc_sink_vc     - Avalon-ST sink VC: collects DUT 2 RX bytes and compares
+--                  p_rx_llc_vc_dut_2    - Avalon-ST sink VC: collects DUT 2 RX bytes and compares
 --                                         them byte-for-byte against the expected FIFO.
---                  p_status_latch_dut_1 - Clocked monitor: captures first non-ongoing TX status for DUT 1.
---                  p_status_latch_dut_2 - Clocked monitor: captures first non-ongoing TX status for DUT 2.
---                  p_bus_off_latch      - Clocked monitor: sticky latch for DUT 1 bus-off event.
---                  p_test_ctrl          - Coverage-driven sequencer: runs four tests (normal TX/RX,
---                                         delay sweep, lost arbitration, bus-off recovery) until
---                                         IDE, FDF, DLC, and FTYP bins are all covered.
+--                  p_status_latch_dut_1 - Monitor: captures first non-ongoing TX status for DUT 1.
+--                  p_status_latch_dut_2 - Monitor: captures first non-ongoing TX status for DUT 2.
+--                  p_bus_off_latch      - Monitor: sticky latch for DUT 1 bus-off event.
+--                  p_test_ctrl          - Coverage-driven sequencer: runs five tests (reset,
+--                                         normal TX/RX, delay sweep, lost arbitration, bus-off
+--                                         recovery) until IDE, FDF, BRS, ESI, DLC, and FTYP bins are all covered.
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-04-27  MRDSA:    Local port of company can_mac_pcs_fce_tb.
@@ -88,7 +88,9 @@ architecture tb of can_mac_pcs_fce_tb is
   ----------------------------------------------------------------------------
   -- Signals
   ----------------------------------------------------------------------------
-  signal clk   : std_logic; signal reset : std_logic := '1';
+  signal clk      : std_logic;
+  signal reset    : std_logic := '1';
+  signal test_rst : std_logic := '0';  -- mid-test reset injection (OR'd with reset)
   -- Bus model and delay signals
   signal bus_delay      : time := c_bus_delay_max;
   signal transceiver_d  : time := c_transceiver_d;
@@ -139,6 +141,8 @@ architecture tb of can_mac_pcs_fce_tb is
   signal          fdf_cov      : CoverageIDType;
   signal          dlc_cov      : CoverageIDType;
   signal          ftyp_cov     : CoverageIDType;
+  signal          brs_cov      : CoverageIDType;
+  signal          esi_cov      : CoverageIDType;
   signal          init_barrier : integer_barrier := 1;
   signal          test_num     : natural;
   -- Transaction interfaces
@@ -183,6 +187,8 @@ begin
     variable v_fdf_cov   : CoverageIDType;
     variable v_dlc_cov   : CoverageIDType;
     variable v_ftyp_cov  : CoverageIDType;
+    variable v_brs_cov   : CoverageIDType;
+    variable v_esi_cov   : CoverageIDType;
   begin
     SetAlertStopCount(ERROR, 1);
     SetLogEnable(DEBUG, false);
@@ -192,11 +198,15 @@ begin
     v_fdf_cov            := NewID("FDF Coverage",  v_test_id, ReportMode => ENABLED);
     v_dlc_cov            := NewID("DLC Coverage",  v_test_id, ReportMode => ENABLED);
     v_ftyp_cov           := NewID("FTYP Coverage", v_test_id, ReportMode => ENABLED);
+    v_brs_cov            := NewID("BRS Coverage",  v_test_id, ReportMode => ENABLED);
+    v_esi_cov            := NewID("ESI Coverage",  v_test_id, ReportMode => ENABLED);
     RV.InitSeed(RV'instance_name & to_string(now));
     AddBins(v_ide_cov,  c_bin_at_least, GenBin(0, 1));
     AddBins(v_fdf_cov,  c_bin_at_least, GenBin(0, 1));
     AddBins(v_dlc_cov,  c_bin_at_least, GenBin(0, c_dlc_max));
     AddBins(v_ftyp_cov, c_bin_at_least, GenBin(0, 1));
+    AddBins(v_brs_cov,  c_bin_at_least, GenBin(0, 1));
+    AddBins(v_esi_cov,  c_bin_at_least, GenBin(0, 1));
     tx_llc_rec_dut_1.BurstFifo <= NewID("TX LLC Burst fifo DUT 1");
     rx_llc_rec_dut_2.BurstFifo <= NewID("RX LLC Burst fifo DUT 2");
     test_id              <= v_test_id;
@@ -205,6 +215,8 @@ begin
     fdf_cov              <= v_fdf_cov;
     dlc_cov              <= v_dlc_cov;
     ftyp_cov             <= v_ftyp_cov;
+    brs_cov              <= v_brs_cov;
+    esi_cov              <= v_esi_cov;
     -- DUT RX LLC sink always ready
     mac_to_llc_tx_d2s_dut_1.avalon_st_sink.ready <= '1';
     mac_to_llc_tx_d2s_dut_2.avalon_st_sink.ready <= '1';
@@ -218,7 +230,7 @@ begin
   u_dut_1 : entity work.can_mac_pcs_fce
     port map(
       clk      => clk,
-      rst      => reset,
+      rst      => reset or test_rst,
       tx_llc_i  => llc_to_mac_tx_s2d_dut_1,
       tx_llc_o  => llc_to_mac_tx_d2s_dut_1,
       rx_llc_i  => mac_to_llc_tx_d2s_dut_1,
@@ -235,7 +247,7 @@ begin
   u_dut_2 : entity work.can_mac_pcs_fce
     port map(
       clk      => clk,
-      rst      => reset,
+      rst      => reset or test_rst,
       tx_llc_i  => llc_to_mac_tx_s2d_dut_2,
       tx_llc_o  => llc_to_mac_tx_d2s_dut_2,
       rx_llc_i  => mac_to_llc_tx_d2s_dut_2,
@@ -352,10 +364,10 @@ begin
   ----------------------------------------------------------------------------
   -- TX LLC source VC (DUT 1)
   ----------------------------------------------------------------------------
-  p_tx_llc_vc : process is
+  p_tx_llc_vc_dut_1 : process is
   begin
     WaitForBarrier(init_barrier);
-    tx_llc_vc_loop : loop
+    tx_llc_vc_dut_1_loop : loop
       WaitForTransaction(tx_llc_rec_dut_1.Rdy, tx_llc_rec_dut_1.Ack);
       case tx_llc_rec_dut_1.Operation is
         when SEND =>
@@ -372,8 +384,8 @@ begin
           AffirmIfEqual(check_id, status_latch_dut_1, std_logic_vector(tx_llc_rec_dut_1.DataToModel(2 downto 0)), "Transfer status");
         when others => null;
       end case;
-    end loop tx_llc_vc_loop;
-  end process p_tx_llc_vc;
+    end loop tx_llc_vc_dut_1_loop;
+  end process p_tx_llc_vc_dut_1;
 
   ----------------------------------------------------------------------------
   -- TX LLC source VC (DUT 2)
@@ -404,7 +416,7 @@ begin
   ----------------------------------------------------------------------------
   -- RX LLC sink VC (DUT 2)
   ----------------------------------------------------------------------------
-  p_rx_llc_sink_vc : process is
+  p_rx_llc_vc_dut_2 : process is
   begin
     WaitForBarrier(init_barrier);
     loop
@@ -427,7 +439,7 @@ begin
         when others => null;
       end case;
     end loop;
-  end process p_rx_llc_sink_vc;
+  end process p_rx_llc_vc_dut_2;
 
   ----------------------------------------------------------------------------
   -- p_test_ctrl
@@ -490,8 +502,7 @@ begin
       -- Format flags, DLC, and ID all drawn from coverage bins.
       tx_frame(0)(c_llc_frame_ide) := std_logic(to_unsigned(GetRandPoint(ide_cov), 1)(0));
       tx_frame(0)(c_llc_frame_fdf) := std_logic(to_unsigned(GetRandPoint(fdf_cov), 1)(0));
-      tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) :=
-        std_logic_vector(to_unsigned(GetRandPoint(dlc_cov), 4));
+      tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) := std_logic_vector(to_unsigned(GetRandPoint(dlc_cov), 4));
       if tx_frame(0)(c_llc_frame_fdf) = '1' then
         tx_frame(0)(c_llc_frame_brs) := RV.RandSlv(1)(1);
         tx_frame(0)(c_llc_frame_esi) := RV.RandSlv(1)(1);
@@ -552,25 +563,53 @@ begin
     end procedure submit_and_verify;
 
     --------------------------------------------------------------------------
-    -- Test 1: Normal usage
+    -- Test 1: Reset. Assert reset mid-frame and verify the DUT recovers cleanly:
     --------------------------------------------------------------------------
-    procedure test_normal is
+    procedure test_reset is
       variable v_frame     : t_llc_frame;
       variable v_last_byte : natural;
     begin
       test_num <= 1;
       Print("--------------------------------------------------------------------------");
-      Print("Test 1: Normal Usage (DUT 1 TX -> DUT 2 RX)");
+      Print("Test 1: Reset");
       Print("--------------------------------------------------------------------------");
-      while not (IsCovered(ide_cov) and IsCovered(fdf_cov) and IsCovered(dlc_cov) and IsCovered(ftyp_cov)) loop
+      -- Start sending the SOP byte to get the DUT mid-frame, then cut power.
+      gen_frame(v_frame, v_last_byte);
+      Send(tx_llc_rec_dut_1, v_frame(0), c_avalon_sop_byte);
+      WaitForClock(clk, 5);
+      test_rst <= '1';
+      WaitForClock(clk, 10);
+      test_rst <= '0';
+      -- Wait for both DUTs to settle back to bus-idle after reset.
+      wait_idle_and_clear;
+      gen_frame(v_frame, v_last_byte);
+      submit_and_verify(v_frame, v_last_byte);
+    end procedure test_reset;
+
+    --------------------------------------------------------------------------
+    -- Test 2: Normal usage
+    --------------------------------------------------------------------------
+    procedure test_normal is
+      variable v_frame     : t_llc_frame;
+      variable v_last_byte : natural;
+    begin
+      test_num <= 2;
+      Print("--------------------------------------------------------------------------");
+      Print("Test 2: Normal Usage (DUT 1 TX -> DUT 2 RX)");
+      Print("--------------------------------------------------------------------------");
+      while not (IsCovered(ide_cov)  and IsCovered(fdf_cov) and IsCovered(dlc_cov)  and IsCovered(ftyp_cov) and IsCovered(brs_cov)  and IsCovered(esi_cov)) loop
         gen_frame(v_frame, v_last_byte);
         submit_and_verify(v_frame, v_last_byte);
 
-        ICover(ide_cov,  to_integer(unsigned'("" & v_frame(0)(c_llc_frame_ide))));
-        ICover(fdf_cov,  to_integer(unsigned'("" & v_frame(0)(c_llc_frame_fdf))));
-        ICover(dlc_cov,  to_integer(unsigned(v_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end))));
-        -- FTYP is only use for CC frames (FD frames are always data frames, ISO Figure 2.
-        if v_frame(0)(c_llc_frame_fdf) = '0' then
+        ICover(ide_cov, to_integer(unsigned'("" & v_frame(0)(c_llc_frame_ide))));
+        ICover(fdf_cov, to_integer(unsigned'("" & v_frame(0)(c_llc_frame_fdf))));
+        ICover(dlc_cov, to_integer(unsigned(v_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end))));
+        if v_frame(0)(c_llc_frame_fdf) = '1' then
+          -- BRS and ESI are only valid for FD frames.
+          ICover(brs_cov, to_integer(unsigned'("" & v_frame(0)(c_llc_frame_brs))));
+          ICover(esi_cov, to_integer(unsigned'("" & v_frame(0)(c_llc_frame_esi))));
+        else
+          -- FTYP (RTR) only applies to CC frames.
           ICover(ftyp_cov, to_integer(unsigned'("" & v_frame(0)(c_llc_frame_ftyp))));
         end if;
       end loop;
@@ -583,9 +622,9 @@ begin
       variable v_frame     : t_llc_frame;
       variable v_last_byte : natural;
     begin
-      test_num <= 2;
+      test_num <= 3;
       Print("--------------------------------------------------------------------------");
-      Print("Test 2: Delay Sweep");
+      Print("Test 3: Delay Sweep");
       Print("--------------------------------------------------------------------------");
       for i in c_delay_sweep'range loop
         transceiver_d <= c_delay_sweep(i).transceiver_d;
@@ -611,9 +650,9 @@ begin
       variable v_last       : natural;
       variable v_dut1_wins  : boolean;
     begin
-      test_num <= 3;
+      test_num <= 4;
       Print("--------------------------------------------------------------------------");
-      Print("Test 3: Lost Arbitration");
+      Print("Test 4: Lost Arbitration");
       Print("--------------------------------------------------------------------------");
       transceiver_d <= c_transceiver_d;
       bus_delay     <= c_bus_delay_max;
@@ -676,9 +715,9 @@ begin
       variable v_last_byte  : natural;
       variable v_send_count : natural := 0;
     begin
-      test_num <= 4;
+      test_num <= 5;
       Print("--------------------------------------------------------------------------");
-      Print("Test 4: Bus-off Recovery");
+      Print("Test 5: Bus-off Recovery");
       Print("--------------------------------------------------------------------------");
 
       -- Phase 1: engage bit-error injection.
@@ -729,10 +768,14 @@ begin
       AffirmIf(test_id, IsCovered(fdf_cov),  "FDF covered");
       AffirmIf(test_id, IsCovered(dlc_cov),  "DLC covered");
       AffirmIf(test_id, IsCovered(ftyp_cov), "FTYP covered");
+      AffirmIf(test_id, IsCovered(brs_cov),  "BRS covered");
+      AffirmIf(test_id, IsCovered(esi_cov),  "ESI covered");
       WriteBin(ide_cov);
       WriteBin(fdf_cov);
       WriteBin(dlc_cov);
       WriteBin(ftyp_cov);
+      WriteBin(brs_cov);
+      WriteBin(esi_cov);
       if (EndOfTestReports(ReportAll => true) = 0) then
         Print("--------------------------------------------------------------------------");
         Print("Test Pass!");
@@ -748,6 +791,7 @@ begin
     WaitForBarrier(init_barrier);
     wait until reset = '0';
     wait_idle_and_clear;
+    test_reset;
     test_normal;
     test_delay_sweep;
     test_lost_arb;
