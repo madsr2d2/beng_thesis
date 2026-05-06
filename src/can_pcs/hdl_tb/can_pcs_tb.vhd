@@ -281,10 +281,7 @@ begin
     tdc_delay_check_loop : loop
       wait until rising_edge(tx_mac_o.secondary_sample_point);
       v_index := to_integer(unsigned(tx_mac_o.tdc_delay));
-      AffirmIf(check_id, polarity_history(v_index) = tx_mac_o.rx_data,
-               "index: " & to_string(v_index) &
-               " pol_hist: " & to_string(polarity_history(v_index)) &
-               " rx_data: " & to_string(tx_mac_o.rx_data));
+      AffirmIf(check_id, polarity_history(v_index) = tx_mac_o.rx_data,"pol_hist: " & to_string(polarity_history(v_index)) & " rx_data: " & to_string(tx_mac_o.rx_data));
     end loop tdc_delay_check_loop;
   end process p_check_tdc_delay;
 

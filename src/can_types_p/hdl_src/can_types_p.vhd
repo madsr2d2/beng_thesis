@@ -408,6 +408,7 @@ package pk_can_types is
     idle_condition => '0'
   );
 
+  -- TODO: This is wrong. Look at the constants below, tehy are right
   ---------------------------------------------------------------------------
   -- 7. LLC Frame Format
   --
@@ -493,7 +494,8 @@ package body pk_can_types is
       when 9      => return 12;
       when 10     => return 16;
       when 11     => return 20;
-      when 12     => return 24; when 13     => return 32;
+      when 12     => return 24; 
+      when 13     => return 32;
       when 14     => return 48;
       when 15     => return c_max_data_bytes;
       when others => return 0;

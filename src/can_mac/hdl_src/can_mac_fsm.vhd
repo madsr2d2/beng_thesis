@@ -199,9 +199,6 @@ begin
         delim_found_first_recessive          <= false;
         -- Interfaces
         mac_ser_o                            <= c_ser_fsm_if_d2s_reset;
-        -- Signal c_disturbed so the serializer resets to s_load_config_byte_0.
-        -- c_ser_fsm_if_d2s_reset carries c_ongoing which would leave the
-        -- serializer stuck mid-frame across a bus-off recovery window.
         if fce_i.bus_off = '1' then
           mac_ser_o.transfer_status          <= c_disturbed;
         end if;
