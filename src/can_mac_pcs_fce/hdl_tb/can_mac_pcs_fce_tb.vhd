@@ -614,7 +614,7 @@ begin
       for iter in 1 to c_iterations loop
         -- Latch captures only the first non-ongoing status; wait for idle so
         -- a tail retransmission from the previous iteration does not pollute it.
-        wait_idle_and_clear;
+        -- wait_idle_and_clear;
 
         loop  -- Generate distinct IDs
           v_id_1 := RV.RandInt(0, 2 ** c_base_id_width - 1);
