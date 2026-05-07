@@ -460,3 +460,15 @@ Current regression status for key benches:
 1. Stream payload/content contract should be fully specified in one normative table (including ID carriage policy).
 2. `tx_can_protocol_tb` can be extended from structure checks to strict per-field bit-value scoreboarding.
 3. If ID carriage is moved into the canonical LLC stream, update serializer/model docs and diagrams accordingly.
+
+### 8.1 Protocol Exception Handling - Out of Scope
+
+Protocol exception handling (ISO 11898-1:2015 §6.6.17) is **not implemented** in this design. The ISO standard defines a protocol exception event as the mechanism by which FD-tolerant CC nodes gracefully handle unexpected FD frame markers (e.g., a recessive r0 bit in a CBFF, or a recessive res bit in an FD frame). Upon detecting such an event, a compliant node is required to suppress error counter changes, enable hard synchronisation, transmit recessive bits, and enter the bus re-integration state.
+
+This implementation instead treats all such conditions as **form errors**, which triggers the normal error flag and error counter increment path. This is the permitted behaviour for nodes with protocol exception handling disabled (ISO §6.6.11.3: "when protocol exception handling is disabled, it shall treat this as a form error").
+
+Consequences for verification:
+
+- Requirements derived from §6.6.17.2 (protocol exception reaction) are excluded from the verification plan.
+- The bus re-integration requirement (§6.6.7.5) covers only startup and bus-off recovery triggers; the protocol exception trigger is excluded.
+- The res bit rule (§6.6.11.3) is verified for the form error path only.
