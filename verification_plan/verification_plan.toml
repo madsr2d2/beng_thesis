@@ -258,10 +258,10 @@ original_wording = "The CRC delimiter shall follow the FCRC sequence. In FD fram
 side = "transmitter"
 layer = "MAC"
 format_applicability = "FB, FE"
-notes = "Two sub-claims: the transmitter sends one recessive CRC delimiter bit, but also accepts two recessive bits before the ACK edge to compensate for phase differences between TX and RX bit timing. Only FB and FE apply."
+notes = "Verified via reference model or internal signal visibility in the testbench. Two sub-claims: the transmitter sends one recessive CRC delimiter bit, and accepts a second recessive bit before the ACK edge to compensate for phase differences between TX and RX bit timing. Verifying both sub-claims requires knowing which bit in the frame is the CRC delimiter, which is internal FSM bit-position state not derivable from bus observation alone - the same argument that makes REQ-018 and REQ-030 white_box. Only FB and FE apply."
 label = ""
 file = ""
-observability = "black_box"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-023"
