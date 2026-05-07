@@ -154,116 +154,63 @@ The role of modern VHDL standards and verification frameworks in digital design.
 
 # Verification Planning {#sec:verification-planning}
 
-## Overview and Scope {#sec:overview-scope}
-
-Protocol compliance is the central objective of this project. The CAN and CAN-FD standards [@iso11898_1] specify hundreds of normative requirements governing frame structure, bit timing, error handling, and fault confinement. To verify the transmitter against these requirements systematically, a structured **Verification Plan** was developed as the first major deliverable of the project - before any RTL implementation began.
-
-The plan covers the four in-scope frame formats: Classic Basic (CB), Classic Extended (CE), FD Basic (FB), and FD Extended (FE). CAN XL frames are excluded. In total, the plan contains 168 requirements extracted from the standard, organized by architectural layer (LLC, MAC, PCS, FCE) and spanning the major functional areas:
-
-- **Frame structure**: Field ordering, bit-level encoding, and format-specific control bits.
-- **CRC generation**: CRC-15 (Classic), CRC-17, and CRC-21 (FD) polynomials.
-- **Bit stuffing**: Dynamic stuffing during arbitration/data and fixed stuffing in the FD CRC region.
-- **Error handling**: Bit error, ACK error, Form error, and Stuff error detection.
-- **Fault confinement**: TEC/REC counter management and Error Active/Passive/Bus Off state transitions.
-
-## Requirement Taxonomy {#sec:requirement-taxonomy}
-
-A key design decision was the development of a two-axis taxonomy to classify each requirement by its **shape** and **scope**. This taxonomy determines both *how* a requirement is verified and *what environment* is needed.
-
-**Shape** classifies the verification primitive. These categories draw on established concepts from formal verification theory:
-
-- **Triggered**: A precondition/event/postcondition triplet that translates directly into a directed test procedure - establish the precondition, apply the event, assert the postcondition. This structure follows the Hoare triple formalism {P} S {Q} [@hoare1969].
-- **Invariant**: A property that must hold at all times (e.g., "the SOF bit shall always be dominant"), mapping to concurrent assertions or monitors.
-- **Liveness**: A property asserting that something eventually happens (e.g., "after detecting an error, the node shall eventually transmit an error flag"), requiring temporal reasoning [@alpern1985].
-- **Reachability**: A property asserting that a state or condition *can* be reached (e.g., "the node shall be capable of entering Bus Off"), mapping to coverage points.
-
-**Scope** defines the required verification environment:
-
-- **Frame**: Verified by inspecting a single transmitted bit-stream in isolation.
-- **Node**: Requires visibility into internal state such as error counters or FSM transitions.
-- **Bus**: Requires a multi-node simulation with arbitration and acknowledge behavior.
-
-Together, these two axes allow each requirement to be mapped to the appropriate testbench level and verification technique without ambiguity.
+Protocol compliance is the central objective of this project. The CAN and CAN-FD standards [@iso11898_1] specify normative requirements governing frame structure, bit timing, error handling, and fault confinement. A structured **Verification Plan** links these requirements to testbench evidence, covering the four in-scope frame formats - Classic Basic (CB), Classic Extended (CE), FD Basic (FB), and FD Extended (FE) - across all four architectural layers (LLC, MAC, PCS, FCE). CAN XL is excluded from scope. After curation the plan contains 118 requirements.
 
 ## Observability Classification {#sec:observability-classification}
 
-The shape and scope taxonomy determines *how* and *where* a requirement is tested, but it does not answer a more fundamental question: *can* the requirement be tested at all from outside the design under test? Not every normative requirement produces a visible effect at the module's ports. Some requirements constrain internal counter thresholds, define structural concepts, or restrict valid configurations - none of which produce a unique, externally distinguishable output. To distinguish these cases systematically, a third classification axis - **observability** - was introduced.
+The verification methodology is **black-box**: only behaviour observable at a module's canonical service boundary counts as a verification target. Each requirement is classified by its observability relative to the layer under test, anchored in the service primitives defined by ISO 11898-1 [@iso11898_1]:
 
-Observability is assessed **per layer**, not per top-level CAN node. The design under test for a PCS requirement is the PCS module in isolation; for a MAC requirement it is the MAC module. This layer-relative framing is essential because a signal that is internal within a full node may be perfectly visible at a sub-layer boundary. For example, the sample point strobe is internal to the CAN node as a whole, but it is the defining output of the PCS module - it determines *when* `PCS_Data.Indicate` fires at the MAC↔PCS boundary and is therefore directly observable in a PCS-level testbench.
+- **External**: the postcondition maps directly onto a service-primitive parameter or its timing, and the testbench can derive the expected value from configuration generics and driven stimulus alone. For example, the bit-level encoding of the SOF field is directly observable at the MAC↔PCS boundary as the first `Output_Unit` value.
+- **Derived**: the postcondition manifests at the layer boundary but requires a non-trivial reference computation. CRC correctness falls here: the CRC bits appear in the transmitted bit-stream, but a polynomial reference model is needed to verify their value.
 
-### Canonical Layer Interfaces {#sec:canonical-layer-interfaces}
-
-To make observability judgments repeatable and independent of VHDL implementation choices, the classification is anchored in the **canonical service primitives** defined by ISO 11898-1 [@iso11898_1]. The standard specifies inter-layer boundaries as abstract service access points with named primitives and parameters:
-
-- **LLC ↔ User**: `L_Data.Request`, `L_Data.Confirm`, `L_Data.Indication` - carrying frame content, transfer status, and timestamps (§6.4.5).
-- **MAC ↔ PCS**: `PCS_Data.Request(Output_Unit)`, `PCS_Data.Indicate(Input_Unit)` - the bit-level transmission and reception interface; `PCS_Status.Transmitter(D_Transmit)` and `PCS_Status.Receiver(D_Receive)` - signalling the FD data phase (§7.2).
-- **MAC ↔ FCE**: Error notifications (`Error(type)`, `Successful_transfer`), state transition requests (`Error_passive_request`, `Error_active_request`), and responses (`Error_passive_response`, `Error_active_response`) (§8.1.3, Tables 16-17).
-- **PCS ↔ FCE**: `Bus_off_request`, `Bus_off_release_request` and their responses (§8.1.3, Tables 18-19).
-
-These canonical interfaces serve as the reference frame for observability: a requirement is classified based on whether its postcondition manifests at the relevant layer's canonical boundary, regardless of how the VHDL implementation names its ports or structures its handshaking.
-
-In addition to the interface primitives, each layer has a set of **configurable values** that the testbench knows at instantiation time - entity generics, constants, or driven stimulus. For the PCS, these include the nominal and FD data bit timing parameters from ISO Table 12 (prescaler, propagation segment, phase segments, SJW) and TDC settings (enable flag, SSP offset). For the MAC, the relevant configurations are error signalling enable and protocol exception enable. For the FCE, there are no user-configurable parameters; its behaviour is entirely determined by fixed counting rules and thresholds defined in §8.1.4.
-
-The combination of canonical interfaces and known configurables provides a complete decision framework: if a postcondition is fully determined by boundary primitives, configuration generics, and driven stimulus, it is externally verifiable; if it additionally requires knowledge of an internal algorithm, it is derived; if it has no boundary manifestation at all, it is internal.
-
-### Classification Rules {#sec:classification-rules}
-
-From this framework, three classification rules were defined:
-
-**Rule 1 - External.** A requirement is `external` if its postcondition is fully observable at the layer's own canonical boundary, in one of two forms. *Rule 1a*: the postcondition maps directly onto a named parameter of a canonical service primitive (e.g., "MAC shall present `dominant` Output_Unit when transmitting SOF" - `Output_Unit` is a parameter of `PCS_Data.Request`). *Rule 1b*: the postcondition manifests as the *timing* of a primitive call, and that timing is completely determined by configuration generics and stimulus inputs known to the testbench (e.g., the sample point position equals `brp × (sync_seg + prop_seg + phase_seg1)`, all configuration generics, so the testbench can predict and verify exactly when `PCS_Data.Indicate` fires).
-
-**Rule 2 - Derived.** A requirement is `derived` if its effect manifests at the layer boundary, but verifying correctness requires knowledge of a **non-trivial internal algorithm** beyond reading configuration generics and measuring timing. The distinction between trivial and non-trivial is important: counting stimulus bits or applying fixed positional offsets is trivial (Rule 1b), while polynomial computation (CRC), state-dependent counter arithmetic (FCE error counters), or multi-step protocol state tracking is non-trivial (Rule 2). For example, CRC bits appear in `Output_Unit` calls at the MAC↔PCS boundary, but verifying their correctness requires applying the CRC-15, CRC-17, or CRC-21 polynomial to the preceding data - a non-trivial computation that goes beyond what is directly visible at the interface.
-
-**Rule 3 - Internal.** A requirement is `internal` if its postcondition is a structural definition with no behavioural output (e.g., "the bit time consists of four segments"), a constraint on valid configuration inputs rather than on observable output behaviour (e.g., "Phase_Seg2 shall be ≥ IPT + SJW"), or has no manifestation at any layer boundary even indirectly (e.g., oscillator tolerance specifications that are physical constraints not testable in digital simulation).
-
-Applying these rules to the 168 requirements yielded the following distribution: 106 external (63%), 40 derived (24%), and 22 internal (13%). The high proportion of externally observable requirements reflects the standard's emphasis on bit-level protocol behaviour, which by definition crosses layer boundaries. The internal requirements are concentrated in the PCS layer (configuration constraints and oscillator tolerances) and the FCE (structural definitions of counting concepts). Each requirement's rationale field records which rule was applied and which canonical interface primitive or configurable value justifies the classification, providing a fully auditable trail from ISO clause to testability assessment.
+Requirements with no boundary manifestation - structural definitions, configuration-space constraints, and oscillator tolerances - were removed during curation. The 118 surviving requirements are all external (83) or derived (35).
 
 ## Verification Plan Construction {#sec:verification-plan-construction}
 
-With the taxonomy and observability framework defined, the next step was to extract and classify the normative requirements from the ISO standard text. This was a two-stage process combining AI-assisted extraction with manual engineering review.
+The plan was bootstrapped by feeding the ISO 11898-1 markdown to an LLM, which extracted normative clauses and formatted them as TOML entries. The technique accelerated the first draft but the net value was modest: the manual review, pruning, and re-classification that followed absorbed most of the time saved, and a bulk extraction inevitably produces many entries that describe internal mechanics rather than boundary-observable behaviour. The experience informed both the observability taxonomy above and the subsequent curation effort, which reduced 168 initial entries to 118. A wider retrospective on AI-assisted workflow in this project is in @sec:design-space-exploration.
 
-### AI-Assisted Extraction {#sec:ai-assisted-extraction}
-
-The initial extraction of normative "shall" and "should" statements was performed using a **Large Language Model (LLM)**. The ISO standard was provided as a searchable markdown document, and the LLM was prompted to identify normative clauses, extract their wording verbatim, assign a shape and scope classification, and format the result as TOML entries. This task is well-suited for LLMs because it involves processing large volumes of technical text, identifying structural patterns (normative vs. informative language), and reformatting unstructured prose into a consistent structured format. The use of AI significantly accelerated the initial drafting phase and reduced the risk of human oversight during the translation from standard text to a machine-readable plan.
-
-### Human-in-the-Loop Validation {#sec:human-in-the-loop-validation}
-
-The AI-generated extraction served only as a first draft. Every requirement - its wording, assigned shape, scope, layer, and flags - underwent a comprehensive **manual review**. This step was critical to:
-
-- Verify the technical accuracy of the AI's interpretation of protocol nuances (e.g., distinguishing between transmitter-side and receiver-side obligations).
-- Refine the shape/scope classification where the standard's wording was ambiguous or where a single clause contained multiple independent requirements (flagged as `COMPOUND`).
-- Identify requirements that depend on components outside the TX pipeline (flagged as `EXTERNAL_DEP`) or that are advisory rather than mandatory (flagged as `SHOULD`).
-- Ensure that the resulting plan provides a reliable and authoritative basis for the subsequent VHDL implementation and testbench development.
+All 12 LLC requirements are retained despite LLC implementation being deferred, to document original scope intent.
 
 ## Storage Format and Tooling {#sec:storage-format-tooling}
 
-The Verification Plan is stored as a single TOML file (`verification_plan/verification_plan.toml`). TOML was selected for two practical reasons: (1) it is easy to read and edit by hand - each requirement is a self-contained `[[requirement]]` block with one key per line, making version-control diffs clean and merge conflicts rare; and (2) it can be parsed and manipulated programmatically by Python tools (specifically `tomlkit`, which preserves comments and formatting on round-trip). This second property was essential for building the automated tooling described below.
-
-Each requirement entry carries metadata fields designed to drive the verification workflow:
+The plan is stored as `verification_plan/verification_plan.toml`. Each entry is a self-contained `[[requirement]]` block with one key per line, making version-control diffs clean and merge conflicts rare. @tbl:vplan-metadata-fields lists the fields carried by each entry.
 
 | Field | Purpose |
 | :--- | :--- |
-| `shape` | Classification axis described in @sec:requirement-taxonomy - determines the verification primitive. |
-| `scope` | Classification axis described in @sec:requirement-taxonomy - determines the test environment. |
-| `layer` | Architectural sub-layer (LLC, MAC, PCS, or FCE), enabling a divide-and-conquer approach where each testbench targets one layer. |
-| `precondition` / `event` / `postcondition` | For *triggered*-shape requirements, these three fields form a testable triplet that translates directly into a test procedure. |
-| `coverage_target` | Describes how to verify the requirement (e.g., "assert CRC field matches polynomial output", "cover all four frame formats"). |
-| `observability` | Layer-relative testability classification (`external`, `derived`, `internal`) as defined in @sec:observability-classification. |
-| `observability_rationale` | Auditable justification citing the specific classification rule and canonical interface primitive. |
-| `flags` | Marks special properties: `COMPOUND`, `AMBIGUOUS`, `EXTERNAL_DEP`, `SHOULD`, or `DOC_ONLY`. These flags inform review priority and test generation strategy. |
-| `label` / `file` | Link the requirement to its implementing assertion label or testbench procedure, providing full traceability from standard clause to RTL. |
+| `id` | Sequential identifier REQ-NNN. |
+| `source_clause` | ISO 11898-1:2015 section reference. |
+| `original_wording` | Verbatim normative text from the standard. |
+| `layer` | Architectural sub-layer: LLC, MAC, PCS, or FCE. |
+| `side` | Obligation direction: transmitter, receiver, or both. |
+| `format_applicability` | Applicable frame formats: CB, CE, FB, FE. |
+| `flags` | `COMPOUND`, `AMBIGUOUS`, `EXTERNAL_DEP`, `SHOULD`. |
+| `observability` | `external` or `derived` (see @sec:observability-classification). |
+| `notes` | Engineering notes and caveats. |
+| `label` | Assertion label in the implementing testbench. |
+| `file` | Testbench file where the requirement is verified. |
 
-: Verification-plan metadata fields and their intended use in workflow automation. {#tbl:vplan-metadata-fields}
+: Verification-plan metadata fields. {#tbl:vplan-metadata-fields}
 
-To maintain the integrity of the plan as it evolves, a **Model Context Protocol (MCP) server** (`mcp_tools/verification_plan_manager.py`) was developed. The server exposes query, update, insert, delete, and statistics operations as tool calls that the AI coding agent can invoke directly within the development environment. Each write operation creates an automatic backup and validates field values against the schema before committing changes. This design serves two purposes: first, the agent receives summarized query results rather than the entire raw file, avoiding context window bloat; and second, constraining the agent to narrow, validated operations minimizes the risk of data corruption and hallucination - rather than asking the LLM to rewrite a large structured file (where it may silently drop entries, fabricate field values, or break TOML syntax), each MCP call targets a single atomic change with schema-level validation, making such errors structurally impossible.
+A **Model Context Protocol (MCP) server** (`mcp_tools/verification_plan_manager.py`) provides query, update, insert, delete, and statistics operations as validated tool calls. Constraining writes to atomic, schema-validated operations avoids the data-corruption risks of asking an LLM to rewrite a large structured file directly.
 
 ## Verification Strategy {#sec:verification-strategy}
 
-The verification plan drives a layered testing strategy, where each level targets a different scope of requirements. The observability classification directly informs this strategy: *external* requirements can be verified through port-level stimulus and observation alone, *derived* requirements additionally need a reference model (e.g., a software CRC or error counter model) to compute the expected result, and *internal* requirements are verified through design review or configuration validation rather than simulation.
+The plan drives a two-tier testbench structure. *External* requirements are verified by port-level stimulus and observation alone; *derived* requirements additionally use a software reference model.
 
-- **Unit Testing**: Individual modules (Serializer, CRC, Bit Stuffer) are verified in isolation against *frame*-scope requirements. External requirements at this level are verified by driving stimulus and checking output bits; derived requirements (e.g., CRC correctness) use a software reference model for comparison.
-- **Protocol Testing**: `tx_can_protocol_tb` verifies frame structure and field timing, covering *node*-scope requirements that involve FSM state and internal counters. Derived FCE requirements (error counter thresholds) are tested by injecting controlled error sequences and observing the resulting state transitions at the MAC↔FCE boundary.
-- **Integrated Testing**: `tx_can_tb` verifies end-to-end transmission, retries, and abort scenarios, targeting *bus*-scope requirements that involve multi-node arbitration and acknowledgment.
+**Sub-module testbenches** target individual components in isolation:
+
+- `can_mac_ser_tb` - MAC serializer: LLC byte stream to serial bit-stream.
+- `can_mac_bs_tb` - Bit stuffer and de-stuffer, including fixed stuff bits and SBC generation.
+- `can_mac_crc_tb` - CRC engine verified against a software reference model (CRC-15, CRC-17, CRC-21).
+- `can_fce_tb` - Fault Confinement Entity: TEC/REC counters, state transitions, bus-off recovery.
+- `can_pcs_tb` - PCS bit timing, sample point position, and TDC.
+
+**Integration testbenches** verify full-stack frame exchange between two simulated nodes:
+
+- `can_mac_pcs_fce_tb` - Covers nominal TX/RX, lost arbitration, bit-timing delay sweep, and bus-off recovery.
+- `can_llc_mac_pcs_fce_tb` - Full stack including LLC frame submission and retransmission (deferred with LLC implementation).
+
+Coverage is driven by OSVVM coverage bins spanning frame format (IDE × FDF), BRS, ESI, and DLC.
 
 ---
 

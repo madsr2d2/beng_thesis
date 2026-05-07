@@ -42,9 +42,6 @@ flags = ["COMPOUND"]
 notes = "COMPOUND: (1) LLC shall be limited to DFs within restricted data byte range; (2) excess bytes shall be padded with 0xCC. The padding behavior is independently assertable. All four formats may carry data payloads subject to this rule."
 label = ""
 file = ""
-
-# ── §6.4.5.1 Service access points — no normative requirements ──
-# ── §6.4.5.2 Types of connectionless-mode transmission services ──
 observability = "external"
 
 [[requirement]]
@@ -58,12 +55,6 @@ flags = ["EXTERNAL_DEP"]
 notes = "The event (successful completion) originates from the MAC sub-layer. EXTERNAL_DEP because the trigger depends on MAC transfer status. All four in-scope formats require this notification. RF applies only to CB and CE, but DF notification applies to all four."
 label = ""
 file = ""
-
-# ── §6.4.5.3 — Format description: no normative requirements (definitional) ──
-# ── §6.4.5.4 — Types of services: no normative requirements (definitional) ──
-# ── §6.4.5.5.1 — General: no normative requirements (cross-reference to Tables 6, 7) ──
-
-# ── §6.4.5.5.2 L_Data.Request ──
 observability = "external"
 
 [[requirement]]
@@ -90,8 +81,6 @@ flags = []
 notes = "Liveness with a practical bound: 'not later than the second SOF'. This is not a fixed cycle count — the SOF timing depends on bus activity. Testbench can impose a timeout based on worst-case inter-frame spacing. All four formats share the same timing obligation."
 label = ""
 file = ""
-
-# ── §6.4.5.5.3 L_Data.AbortRequest ──
 observability = "derived"
 
 [[requirement]]
@@ -131,8 +120,6 @@ flags = ["COMPOUND"]
 notes = "COMPOUND: two distinct timing bounds depending on whether error frames are present. Liveness with SOF-based practical bounds. Testbench imposes timeout based on worst-case inter-frame spacing. All four formats share the same timing obligation."
 label = ""
 file = ""
-
-# ── §6.4.5.5.4 L_Data.Confirm ──
 observability = "derived"
 
 [[requirement]]
@@ -146,8 +133,6 @@ flags = ["EXTERNAL_DEP"]
 notes = "EXTERNAL_DEP: the arbitration loss event originates from the MAC sub-layer. The restart is called 're-arbitration'. All four formats participate in bus arbitration and are subject to this rule."
 label = ""
 file = ""
-
-# ── §6.5.3 Flow control on retransmission ──
 observability = "external"
 
 [[requirement]]
@@ -161,61 +146,7 @@ flags = ["COMPOUND"]
 notes = "COMPOUND: (1) retransmission attempted for configured number of times; (2) attempts counted in retransmission counter. The configured range is 0 (no retransmission) to at least 6, with optional unlimited. All four formats share the same retransmission logic."
 label = ""
 file = ""
-# ── §6.5.4 Frame acceptance filtering ──
 observability = "derived"
-
-# NOTE: The following tree requirements relate to XL frames and are thus out of scope
-#
-# [[requirement]]
-# id = "REQ-LLC-021"
-# source_clause = "§6.5.3"
-# original_wording = "The node's retransmission counter shall be incremented by one at each retransmission when the node's preceding transmission attempt for the same frame was not successful for any reason except lost bus arbitration."
-# shape = "triggered"
-# scope = "node"
-# side = "transmitter"
-# layer = "LLC"
-# format_applicability = "CB, CE, FB, FE"
-# precondition = "A transmission attempt for a frame has failed for a reason other than lost bus arbitration"
-# event = "A retransmission of the same frame is initiated"
-# postcondition = "The retransmission counter is incremented by one"
-# flags = []
-# notes = "Distinguishes retransmission (error-caused) from re-arbitration (arbitration loss). The counter only increments on non-arbitration failures. All four formats share the same counter logic."
-# label = ""
-# file = ""
-#
-# [[requirement]]
-# id = "REQ-LLC-022"
-# source_clause = "§6.5.3"
-# original_wording = "The node's retransmission counter shall be reset to zero when a transmission is successful or when the LLC user requests a new transmission."
-# shape = "triggered"
-# scope = "node"
-# side = "transmitter"
-# layer = "LLC"
-# format_applicability = "CB, CE, FB, FE"
-# precondition = "The retransmission counter is non-zero"
-# event = "A transmission completes successfully OR the LLC user issues a new L_Data.Request"
-# postcondition = "The retransmission counter is reset to zero"
-# flags = []
-# notes = "Two distinct reset triggers — either successful completion or a new request. All four formats share the same counter reset logic."
-# label = ""
-# file = ""
-#
-# [[requirement]]
-# id = "REQ-LLC-023"
-# source_clause = "§6.5.3"
-# original_wording = "Nodes that do not support the XL frame format are not required to implement the retransmission counter, but they shall support unlimited retransmissions."
-# shape = "invariant"
-# scope = "node"
-# side = "transmitter"
-# layer = "LLC"
-# format_applicability = "CB, CE, FB, FE"
-# precondition = "The CAN node does not support XL frame format"
-# postcondition = "The node supports unlimited retransmissions (no retransmission limit is enforced)"
-# flags = []
-# notes = "This project does not implement XL frames, so this requirement applies directly: the node shall support unlimited retransmissions. All four in-scope formats are non-XL."
-# label = ""
-# file = ""
-
 
 [[requirement]]
 id = "REQ-011"
@@ -228,8 +159,6 @@ flags = ["SHOULD"]
 notes = "SHOULD: wording uses 'should' (recommendation) not 'shall' (mandatory). Frame acceptance filtering is recommended but not strictly required. All four formats may be subject to filtering."
 label = ""
 file = ""
-
-# ── §6.5.5 Overload notification ──
 observability = "derived"
 
 [[requirement]]
@@ -243,8 +172,6 @@ flags = ["COMPOUND", "EXTERNAL_DEP"]
 notes = "COMPOUND: five distinct sub-claims, one per Transfer_Status value: (1) Ongoing when MAC starts; (2) Transmitted on success; (3) Lost_Arbitration on arbitration loss; (4) Disturbed on error/no-ACK; (5) Aborted when not retransmitted. Each sub-claim is independently assertable. EXTERNAL_DEP: all trigger conditions originate from the MAC sub-layer. All four formats share the same Transfer_Status reporting."
 label = ""
 file = ""
-
-# ── §6.6.2 Services of the MAC sub-layer ──
 observability = "external"
 
 # ── §6.5.7 Time stamping ──
