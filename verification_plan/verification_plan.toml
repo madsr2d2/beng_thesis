@@ -222,10 +222,10 @@ original_wording = "The SRR bit shall be transmitted recessive, but receivers sh
 side = "both"
 layer = "MAC"
 format_applicability = "CE, FE"
-notes = "Two sub-claims: the transmitter sends a recessive SRR bit, and receivers accept both recessive and dominant values. Only CE (CEFF) has the SRR bit. The NOTE clarifies that a dominant SRR is not a form error."
+notes = "Verified by code inspection of the RTL constant. TX sub-claim: SRR polarity is hardcoded recessive in the frame encoder. RX sub-claim: the FSM has no check on the SRR bit position, so both values are implicitly accepted without a form error. Only CE and FE apply."
 label = ""
 file = ""
-observability = "black_box"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-020"
@@ -270,10 +270,10 @@ original_wording = "The RRS bit shall be transmitted dominant, but receivers sha
 side = "both"
 layer = "MAC"
 format_applicability = "FB, FE"
-notes = "Two sub-claims: the transmitter sends a dominant RRS bit, and receivers accept both recessive and dominant values. The NOTE clarifies that a recessive RRS is not a form error. Only FB and FE apply."
+notes = "Verified by code inspection of the RTL constant. TX sub-claim: RRS polarity is hardcoded dominant in the frame encoder. RX sub-claim: the FSM has no check on the RRS bit position, so both values are implicitly accepted without a form error. Only FB and FE apply."
 label = ""
 file = ""
-observability = "black_box"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-024"
