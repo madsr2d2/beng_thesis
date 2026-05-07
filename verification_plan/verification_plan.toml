@@ -87,10 +87,10 @@ original_wording = "After sending an error flag, each node shall monitor the bus
 side = "both"
 layer = "system"
 format_applicability = "CB, CE, FB, FE"
-notes = "Bus-scope synchronisation behaviour shared by the error delimiter and the overload delimiter. The structural lengths (8 recessive delimiter bits, 6-bit flags) are hardcoded constants implicitly verified by any test that completes an error or overload sequence. The monitoring and re-synchronisation sub-claim requires multi-node bus interaction and is verified at system level. All four formats share this behaviour."
+notes = "Bus-scope synchronisation behaviour shared by the error delimiter and the overload delimiter. The bus output (flag followed by delimiter) is observable, but verifying the mechanism - each node monitors the bus until it detects a recessive bit and then independently starts its 7-bit delimiter - requires internal FSM state visibility to distinguish correct behaviour from coincidental correctness. Verified at system level with multi-node bus interaction. All four formats share this behaviour."
 label = ""
 file = ""
-observability = "black_box"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-009"
@@ -99,10 +99,10 @@ original_wording = "The intermission field shall consist of three recessive bits
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-notes = "Three sub-claims from §6.6.7.2: intermission is exactly three recessive bits; a dominant bit at the third position is interpreted as SOF (receiver-side rule); and no new DF or RF transmission may be started during intermission (transmitter-side rule, OFs are still permitted). All four formats share this rule."
+notes = "Verified via reference model or internal signal visibility in the testbench. Three sub-claims from §6.6.7.2: intermission is exactly three recessive bits; a dominant bit at the third position is interpreted as SOF (requires FSM state visibility to confirm the node was in intermission and correctly transitions); and no new DF or RF transmission may be started during intermission (requires knowing the node is in intermission state, not derivable from bus observation alone). All four formats share this rule."
 label = ""
 file = ""
-observability = "black_box"
+observability = "white_box"
 [[requirement]]
 id = "REQ-010"
 source_clause = "§6.6.7.3"
@@ -122,10 +122,10 @@ original_wording = "An error-passive node, which has been transmitter of the pre
 side = "transmitter"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-notes = "Two sub-claims: an error-passive transmitter must suspend for 8 bit times after intermission, and if another node starts during that suspend window the node becomes a receiver. Error-passive state is determined by the FCE (§8). All four formats share the same suspend rules."
+notes = "Verified via reference model or internal signal visibility in the testbench. Two sub-claims: an error-passive transmitter must suspend for 8 bit times after intermission, and if another node starts during that suspend window the node becomes a receiver. Both sub-claims require internal state visibility - error-passive status is determined by the FCE (§8), and whether the node was transmitter of the previous frame is internal FSM context not derivable from bus observation alone. All four formats share the same suspend rules."
 label = ""
 file = ""
-observability = "black_box"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-012"
@@ -134,10 +134,10 @@ original_wording = "CAN nodes shall start the bus re-integration after starting 
 side = "both"
 layer = "system"
 format_applicability = "CB, CE, FB, FE"
-notes = "Two sub-claims: nodes initiate re-integration on startup or bus-off recovery, and complete re-integration when the idle condition is detected. The ISO clause also lists protocol exception event as a third trigger, but protocol exception handling is not implemented - see architecture_and_design.md §8. All four formats share this behaviour."
+notes = "Verified via reference model or internal signal visibility in the testbench. Two sub-claims: nodes initiate re-integration on startup or bus-off recovery, and complete re-integration when the idle condition is detected. Both triggers (startup, bus-off recovery) and the bus-integrating state itself are internal FSM/FCE states not observable from the bus alone. The ISO clause also lists protocol exception event as a third trigger, but protocol exception handling is not implemented - see architecture_and_design.md §8. All four formats share this behaviour."
 label = ""
 file = ""
-observability = "black_box"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-013"
@@ -205,10 +205,10 @@ original_wording = "In FD frames, the FDF bit shall be followed by the dominant 
 side = "both"
 layer = "MAC"
 format_applicability = "FB, FE"
-notes = "Two sub-claims: the res bit is transmitted dominant, and a recessive res bit is treated as a form error. Protocol exception handling is not implemented in this design - the form error path is always taken. See architecture_and_design.md §8. Only FB and FE apply."
+notes = "Verified via reference model or internal signal visibility in the testbench. Two sub-claims: the res bit is transmitted dominant (observable on bus), and a recessive res bit is treated as a form error (requires FSM context to verify the error fires at the correct bit position - the res bit immediately following FDF - rather than at an arbitrary point). Protocol exception handling is not implemented in this design - the form error path is always taken. See architecture_and_design.md §8. Only FB and FE apply."
 label = ""
 file = ""
-observability = "black_box"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-019"
