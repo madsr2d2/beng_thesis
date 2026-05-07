@@ -13,7 +13,6 @@ Format structure:
   side = "transmitter" | "receiver" | "both"
   layer = "LLC" | "MAC" | "PCS" | "FCE"
   format_applicability = "CB, CE, FB, FE"
-  flags = ["EXTERNAL_DEP", "SHOULD"]
   observability = "black_box" | "white_box"
   notes = ""
   label = ""  # PSL assertion label or testbench procedure name
@@ -53,12 +52,10 @@ class RequirementsManager:
     """Manager for ISO-aligned CAN requirements using tomlkit."""
 
     VALID_LAYERS = {"LLC", "MAC", "PCS", "FCE", "system"}
-    VALID_FLAGS = {"EXTERNAL_DEP", "SHOULD"}
     VALID_OBSERVABILITIES = {"black_box", "white_box"}
     VALID_FIELD_UPDATES = {
         "layer",
         "side",
-        "flags",
         "notes",
         "label",
         "file",
@@ -96,12 +93,11 @@ class RequirementsManager:
         self,
         layer: Optional[str] = None,
         side: Optional[str] = None,
-        has_flags: Optional[str] = None,
         observability: Optional[str] = None,
         is_blank_label: Optional[bool] = None,
         is_blank_file: Optional[bool] = None,
     ) -> list[dict]:
-        """Query requirements by layer, side, flags, and observability."""
+        """Query requirements by layer, side, and observability."""
         data = self._load()
         requirements = data.get("requirement", [])
 
@@ -117,12 +113,6 @@ class RequirementsManager:
         for req in requirements:
             if not all(req.get(k) == v for k, v in filters.items()):
                 continue
-
-            if has_flags:
-                required_flags = set(f.strip() for f in has_flags.split(","))
-                req_flags = set(req.get("flags", []))
-                if not req_flags & required_flags:
-                    continue
 
             if is_blank_label is not None:
                 if (req.get("label", "") == "") != is_blank_label:
@@ -208,7 +198,7 @@ class RequirementsManager:
         return {"count": len(updated_ids), "updated_ids": updated_ids}
 
     def get_statistics(self) -> dict:
-        """Get requirement counts by shape, scope, layer, flags."""
+        """Get requirement counts by layer, observability, and side."""
         data = self._load()
         requirements = data.get("requirement", [])
 
@@ -218,7 +208,7 @@ class RequirementsManager:
                 "by_layer": {},
                 "by_observability": {},
                 "by_side": {},
-                "flags_present": {},
+                
                 "blank_label_count": 0,
                 "blank_file_count": 0,
             }
@@ -230,9 +220,7 @@ class RequirementsManager:
                 Counter(r.get("observability", "") or "unset" for r in requirements)
             ),
             "by_side": dict(Counter(r.get("side", "unknown") for r in requirements)),
-            "flags_present": dict(
-                Counter(flag for r in requirements for flag in r.get("flags", []))
-            ),
+            
             "blank_label_count": sum(
                 1 for r in requirements if r.get("label", "") == ""
             ),
@@ -309,7 +297,6 @@ class RequirementsManager:
             "layer": layer,
             "side": "",
             "format_applicability": "",
-            "flags": [],
             "observability": "",
             "notes": "",
             "label": "",
@@ -347,7 +334,6 @@ def get_manager(toml_path: Optional[Path] = None):
 def query_requirements(
     layer: Optional[str] = None,
     side: Optional[str] = None,
-    has_flags: Optional[str] = None,
     observability: Optional[str] = None,
     is_blank_label: Optional[bool] = None,
     is_blank_file: Optional[bool] = None,
@@ -358,7 +344,6 @@ def query_requirements(
     Args:
         layer: LLC, MAC, PCS, FCE, or system
         side: transmitter, receiver, or both
-        has_flags: Comma-separated flags (EXTERNAL_DEP, SHOULD)
         observability: black_box or white_box
         is_blank_label: if true, return only requirements with label=""
         is_blank_file: if true, return only requirements with file=""
@@ -368,7 +353,6 @@ def query_requirements(
     results = manager.query(
         layer=layer,
         side=side,
-        has_flags=has_flags,
         observability=observability,
         is_blank_label=is_blank_label,
         is_blank_file=is_blank_file,
@@ -379,8 +363,6 @@ def query_requirements(
         line = f"{req.get('id', 'UNKNOWN')}: [{req.get('layer', '?')}]"
         if req.get("observability"):
             line += f" obs={req['observability']}"
-        if req.get("flags"):
-            line += f" {req['flags']}"
         lines.append(line)
         lines.append(f"    {req.get('original_wording', '')[:80]}...")
 
@@ -407,7 +389,6 @@ def get_requirement(req_id: str, toml_path: Optional[str] = None) -> str:
     lines.append(f"Layer: {req.get('layer')}")
     lines.append(f"Side: {req.get('side', 'N/A')}")
     lines.append(f"Format: {req.get('format_applicability')}")
-    lines.append(f"Flags: {req.get('flags', [])}")
     lines.append(f"Observability: {req.get('observability', '[UNSET]')}")
     lines.append(f"Label: {req.get('label', '[BLANK]')}")
     lines.append(f"File: {req.get('file', '[BLANK]')}")
@@ -442,7 +423,6 @@ def bulk_update(
     field: str,
     value: str,
     layer: Optional[str] = None,
-    has_flags: Optional[str] = None,
     observability: Optional[str] = None,
     is_blank_label: Optional[bool] = None,
     is_blank_file: Optional[bool] = None,
@@ -453,8 +433,7 @@ def bulk_update(
     Args:
         field: Field to update
         value: New value
-        layer: Filter by layer (LLC, MAC, PCS, FCE)
-        has_flags: Filter by flags (CSV)
+        layer: Filter by layer (LLC, MAC, PCS, FCE, system)
         observability: Filter by observability (black_box, white_box)
         is_blank_label: Filter by blank label
         is_blank_file: Filter by blank file
@@ -465,7 +444,6 @@ def bulk_update(
         field,
         value,
         layer=layer,
-        has_flags=has_flags,
         observability=observability,
         is_blank_label=is_blank_label,
         is_blank_file=is_blank_file,
@@ -543,7 +521,7 @@ def insert_requirement(
 
 @mcp.tool()
 def get_statistics(toml_path: Optional[str] = None) -> str:
-    """Get statistics on requirements by shape, scope, layer, and flags.
+    """Get statistics on requirements by layer, observability, and side.
 
     Args:
         toml_path: Path to requirements file (auto-detected if not provided)
@@ -556,7 +534,6 @@ def get_statistics(toml_path: Optional[str] = None) -> str:
         f"By layer: {stats['by_layer']}",
         f"By observability: {stats['by_observability']}",
         f"By side: {stats['by_side']}",
-        f"Flags present: {stats['flags_present']}",
         f"Blank label: {stats['blank_label_count']}",
         f"Blank file: {stats['blank_file_count']}",
         f"",

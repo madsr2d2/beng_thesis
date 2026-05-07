@@ -183,7 +183,6 @@ The plan is stored as `verification_plan/verification_plan.toml`. Each entry is 
 | `layer` | Sub-layer: LLC, MAC, PCS, FCE, or system (see below). |
 | `side` | Obligation direction: transmitter, receiver, or both. |
 | `format_applicability` | Applicable frame formats: CB, CE, FB, FE. |
-| `flags` | `EXTERNAL_DEP` (needs another layer active to test), `SHOULD` (advisory). |
 | `observability` | `black_box` or `white_box` (see @sec:observability-classification). |
 | `notes` | Engineering notes and caveats. |
 | `label` | Assertion label in the implementing testbench. |
@@ -191,7 +190,7 @@ The plan is stored as `verification_plan/verification_plan.toml`. Each entry is 
 
 : Verification-plan metadata fields. {#tbl:vplan-metadata-fields}
 
-The `system` layer is used for requirements whose behaviour is jointly owned by multiple sub-layers, or that inherently require two nodes on the bus - ACK overwrite, error flag coordination, bus re-integration, and the PCS↔FCE bus-off handshake. These 12 requirements have no home in a single sub-layer TB and are verified exclusively by the integration testbenches. Requirements flagged `EXTERNAL_DEP` (21 entries) belong to one layer but can only be fully exercised when another layer is active (e.g. a MAC requirement that depends on the FCE being in error-passive state); they also target the integration TBs.
+The `system` layer is used for requirements whose behaviour is jointly owned by multiple sub-layers, or that inherently require two nodes on the bus - ACK overwrite, error flag coordination, bus re-integration, and the PCS↔FCE bus-off handshake. These 12 requirements have no home in a single sub-layer TB and are verified exclusively by the integration testbenches.
 
 A **Model Context Protocol (MCP) server** (`mcp_tools/verification_plan_manager.py`) provides query, update, insert, delete, and statistics operations as validated tool calls. Constraining writes to atomic, schema-validated operations avoids the data-corruption risks of asking an LLM to rewrite a large structured file directly.
 

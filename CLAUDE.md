@@ -169,7 +169,6 @@ Each entry has exactly these fields:
 | `layer` | `LLC`, `MAC`, `PCS`, `FCE`, `system` |
 | `side` | `transmitter`, `receiver`, `both` |
 | `format_applicability` | `CB`, `CE`, `FB`, `FE` (comma-separated subset) |
-| `flags` | `EXTERNAL_DEP`, `SHOULD` |
 | `observability` | `black_box`, `white_box` |
 | `notes` | How it is verified; relevant caveats |
 | `label` | PSL assertion label or TB procedure name (blank until linked) |
@@ -181,7 +180,6 @@ Each entry has exactly these fields:
 
 **Layer `system`**: used for requirements whose behaviour is jointly owned by multiple sub-layers, or that inherently require two nodes on the shared bus (ACK overwrite, passive error flag coordination, bus re-integration). These are verified by the integration testbenches (`can_mac_pcs_fce_tb`, `can_llc_mac_pcs_fce_tb`).
 
-**Flag `EXTERNAL_DEP`**: the requirement belongs to one layer but can only be fully exercised when another layer is also active (e.g. a MAC requirement that depends on the FCE being in error-passive state). These still need the integration testbench even though they are not `system`-layer.
 
 ### Verification Plan Management via MCP Server (Recommended)
 
