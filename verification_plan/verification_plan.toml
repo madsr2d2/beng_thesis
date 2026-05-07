@@ -422,7 +422,7 @@ observability = "white_box"
 [[requirement]]
 id = "REQ-036"
 source_clause = "§7.3.2"
-original_wording = "CAN nodes shall support three different bit rates, the nominal bit rate and the FD data bit rate. There shall be separate configuration register sets for the definition of these bit rates. ; The time quantum (t_q) shall be a fixed unit of time derived from the node clock period. There shall exist a programmable prescaler, with integer values. The minimum time quantum (t_q,min) shall be one node clock period long. The length of t_q shall be an integer multiple m of the minimum time quantum t_q,min with m as the value of the prescaler."
+original_wording = "CAN nodes shall support three different bit rates, the nominal bit rate, the FD data bit rate and the XL data bit rate. There shall be separate configuration register sets for the definition of these bit rates. ; The time quantum (t_q) shall be a fixed unit of time derived from the node clock period. There shall exist a programmable prescaler, with integer values. The minimum time quantum (t_q,min) shall be one node clock period long. The length of t_q shall be an integer multiple m of the minimum time quantum t_q,min with m as the value of the prescaler."
 layer = "PCS"
 format_applicability = "CB, CE, FB, FE"
 notes = "Two sub-claims: nodes shall support separate nominal and FD data bit rate configurations (XL data bit rate is out of scope for this implementation), each based on a programmable integer prescaler that derives the time quantum from the node clock period. All four formats share the time quantum definition."
