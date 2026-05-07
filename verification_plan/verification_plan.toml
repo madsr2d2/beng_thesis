@@ -29,7 +29,7 @@ flags = []
 notes = "Assertable at the LLC acceptance filter boundary. If the node only supports 11-bit IDs, frames with IDE=1 shall not pass. All four formats may be affected depending on the restriction."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-002"
@@ -38,11 +38,11 @@ original_wording = "If an LLC sub-layer is restricted to the use of less than th
 side = "both"
 layer = "LLC"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) LLC shall be limited to DFs within restricted data byte range; (2) excess bytes shall be padded with 0xCC. The padding behavior is independently assertable. All four formats may carry data payloads subject to this rule."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-003"
@@ -55,7 +55,7 @@ flags = ["EXTERNAL_DEP"]
 notes = "The event (successful completion) originates from the MAC sub-layer. EXTERNAL_DEP because the trigger depends on MAC transfer status. All four in-scope formats require this notification. RF applies only to CB and CE, but DF notification applies to all four."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-004"
@@ -68,7 +68,7 @@ flags = ["EXTERNAL_DEP"]
 notes = "EXTERNAL_DEP: postcondition involves invoking the MAC sub-layer service (§6.6). The initiation of transfer is assertable as a handshake to the MAC layer. All four formats use the same initiation path."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-005"
@@ -81,7 +81,7 @@ flags = []
 notes = "Liveness with a practical bound: 'not later than the second SOF'. This is not a fixed cycle count — the SOF timing depends on bus activity. Testbench can impose a timeout based on worst-case inter-frame spacing. All four formats share the same timing obligation."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-006"
@@ -94,7 +94,7 @@ flags = []
 notes = "The actual abortion may be deferred per REQ-LLC-009; this requirement covers the immediate effect of receiving the abort primitive. All four formats use the same abort mechanism."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-007"
@@ -103,11 +103,11 @@ original_wording = "Pending transmissions, which are already passed to the MAC s
 side = "transmitter"
 layer = "LLC"
 format_applicability = "CB, CE, FB, FE"
-flags = ["EXTERNAL_DEP", "COMPOUND"]
+flags = ["EXTERNAL_DEP"]
 notes = "COMPOUND: (1) abort only on MAC error or arbitration loss; (2) abort request kept pending until condition met. EXTERNAL_DEP: depends on MAC sub-layer error/arbitration status. All four formats share the same abort deferral logic."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-008"
@@ -116,11 +116,11 @@ original_wording = "Any L_Data.AbortRequest shall be processed prior to the seco
 side = "transmitter"
 layer = "LLC"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: two distinct timing bounds depending on whether error frames are present. Liveness with SOF-based practical bounds. Testbench imposes timeout based on worst-case inter-frame spacing. All four formats share the same timing obligation."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-009"
@@ -133,7 +133,7 @@ flags = ["EXTERNAL_DEP"]
 notes = "EXTERNAL_DEP: the arbitration loss event originates from the MAC sub-layer. The restart is called 're-arbitration'. All four formats participate in bus arbitration and are subject to this rule."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-010"
@@ -142,11 +142,11 @@ original_wording = "The retransmission of frames that are not aborted by the LLC
 side = "transmitter"
 layer = "LLC"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) retransmission attempted for configured number of times; (2) attempts counted in retransmission counter. The configured range is 0 (no retransmission) to at least 6, with optional unlimited. All four formats share the same retransmission logic."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-011"
@@ -159,7 +159,7 @@ flags = ["SHOULD"]
 notes = "SHOULD: wording uses 'should' (recommendation) not 'shall' (mandatory). Frame acceptance filtering is recommended but not strictly required. All four formats may be subject to filtering."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-012"
@@ -168,11 +168,11 @@ original_wording = "The LLC sub-layer's transmission service shall report the Tr
 side = "transmitter"
 layer = "LLC"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND", "EXTERNAL_DEP"]
+flags = ["EXTERNAL_DEP"]
 notes = "COMPOUND: five distinct sub-claims, one per Transfer_Status value: (1) Ongoing when MAC starts; (2) Transmitted on success; (3) Lost_Arbitration on arbitration loss; (4) Disturbed on error/no-ACK; (5) Aborted when not retransmitted. Each sub-claim is independently assertable. EXTERNAL_DEP: all trigger conditions originate from the MAC sub-layer. All four formats share the same Transfer_Status reporting."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 # ── §6.5.7 Time stamping ──
 # NOTE: The rest of the LLC requirements are related to time stamping. Not supported in this implementation
@@ -327,7 +327,7 @@ flags = []
 notes = "CRC polynomial selection for Classic CAN. Only CB and CE apply."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-014"
@@ -340,7 +340,7 @@ flags = []
 notes = "CRC polynomial selection for short FD frames. Only FB and FE apply."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-015"
@@ -353,7 +353,7 @@ flags = []
 notes = "CRC polynomial selection for long FD frames. Only FB and FE apply."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-016"
@@ -366,7 +366,7 @@ flags = []
 notes = "Selection is determined by format (CC→CRC_15) and for FD by DLC (≤16 bytes→CRC_17, >16→CRC_21). All four in-scope formats are covered."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-017"
@@ -379,7 +379,7 @@ flags = []
 notes = "Init vector for Classic CAN CRC. Only CB and CE use CRC_15."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-018"
@@ -392,7 +392,7 @@ flags = []
 notes = "Init vector for FD CRC. Only FB and FE use CRC_17/CRC_21."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-019"
@@ -405,20 +405,20 @@ flags = []
 notes = "Structural definition of active error flag. All four formats share the same error flag structure."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-020"
 source_clause = "§6.6.5.2"
 original_wording = "The passive error flag shall consist of six consecutive recessive bits unless it is overwritten by dominant bits from other nodes."
 side = "both"
-layer = "MAC"
+layer = "system"
 format_applicability = "CB, CE, FB, FE"
 flags = []
 notes = "The 'unless overwritten' clause means the transmitted value is always six recessive bits, but the observed bus value may be dominant. All four formats share the same error flag structure."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-021"
@@ -431,7 +431,7 @@ flags = ["EXTERNAL_DEP"]
 notes = "EXTERNAL_DEP: Error Active state is owned by the FCE (§8). The error flag itself is a MAC-layer output. All four formats share the same error signalling mechanism."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-022"
@@ -440,11 +440,11 @@ original_wording = "The error delimiter shall consist of eight recessive bits. ;
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) error delimiter = 8 recessive bits; (2) monitor for recessive after error flag; (3) complete with 7 more recessive bits. All four formats share the same error delimiter structure."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-023"
@@ -457,7 +457,7 @@ flags = []
 notes = "LLC-requested and reactive OFs share the same format. All four in-scope formats may be preceded by an OF."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-024"
@@ -470,20 +470,20 @@ flags = []
 notes = "The specific trigger conditions are detailed in §6.6.21.3.2. All four formats may precede an OF."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-025"
 source_clause = "§6.6.6.2"
 original_wording = "The overload flag shall consist of six dominant bits. ; Consequently, all other nodes also detect an overload condition and shall start sending an overload flag."
 side = "both"
-layer = "MAC"
+layer = "system"
 format_applicability = "CB, CE, FB, FE"
 flags = []
 notes = "Structural definition. The second sentence about other nodes detecting the overload is a bus-scope consequence but the structural claim is frame-scope. All four formats share the same OF structure."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-026"
@@ -492,11 +492,11 @@ original_wording = "The overload delimiter shall consist of eight recessive bits
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) overload delimiter = 8 recessive bits; (2) monitor for recessive; (3) complete with 7 more. Structurally identical to error delimiter (REQ-MAC-013). All four formats share this structure."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-027"
@@ -505,11 +505,11 @@ original_wording = "DFs and RFs shall be separated from preceding frames, whatev
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) DFs/RFs separated by IFS; (2) EFs/OFs not preceded by IFS; (3) multiple OFs not separated. All four in-scope formats are subject to IFS rules."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-028"
@@ -522,7 +522,7 @@ flags = ["EXTERNAL_DEP"]
 notes = "EXTERNAL_DEP: error-passive state is owned by the FCE (§8). All four formats share the same IFS structure."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-029"
@@ -535,7 +535,7 @@ flags = []
 notes = "Structural constraint on intermission. All four formats share the same intermission structure."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-030"
@@ -548,7 +548,7 @@ flags = []
 notes = "An OF may still be transmitted during intermission (per same paragraph). All four formats are subject to this rule."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-031"
@@ -561,7 +561,7 @@ flags = []
 notes = "This links to the SOF specification in §6.6.8. All four formats use the same SOF detection mechanism."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-032"
@@ -574,7 +574,7 @@ flags = ["EXTERNAL_DEP"]
 notes = "EXTERNAL_DEP: Error Active/Passive state is owned by FCE (§8). All four formats share the same bus idle recognition."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-033"
@@ -587,7 +587,7 @@ flags = []
 notes = "Any dominant bit during bus idle starts a new frame. All four formats use the same SOF detection."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-034"
@@ -596,37 +596,37 @@ original_wording = "An error-passive node, which has been transmitter of the pre
 side = "transmitter"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND", "EXTERNAL_DEP"]
+flags = ["EXTERNAL_DEP"]
 notes = "COMPOUND: (1) suspend for 8 bit times; (2) become receiver if another node starts. EXTERNAL_DEP: error-passive state is owned by FCE (§8). All four formats share the same suspend rules."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-035"
 source_clause = "§6.6.7.5"
 original_wording = "CAN nodes shall start the bus re-integration after starting the protocol operation, during bus-off recovery, or (for nodes that are FD tolerant, FD enabled, or XL enabled) after detecting a protocol exception event."
 side = "both"
-layer = "MAC"
+layer = "system"
 format_applicability = "CB, CE, FB, FE"
-flags = ["EXTERNAL_DEP"]
+flags = []
 notes = "EXTERNAL_DEP: bus-off state is owned by FCE (§8). FD-tolerant/enabled nodes enter re-integration on protocol exception. All four formats share the same re-integration trigger."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-036"
 source_clause = "§6.6.7.5"
 original_wording = "CAN nodes that are not in bus-off state shall finish the bus re-integration when the idle condition (see 3.34) is detected."
 side = "both"
-layer = "MAC"
+layer = "system"
 format_applicability = "CB, CE, FB, FE"
-flags = ["EXTERNAL_DEP"]
+flags = []
 notes = "EXTERNAL_DEP: bus-off state is owned by FCE (§8). All four formats share the same re-integration completion."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-037"
@@ -639,7 +639,7 @@ flags = []
 notes = "Structural definition of SOF. All four in-scope formats begin with SOF. RF applies only to CB and CE."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-038"
@@ -652,7 +652,7 @@ flags = []
 notes = "Links to bus idle recognition in §6.6.7.3. All four formats share the same SOF initiation rule."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-039"
@@ -665,7 +665,7 @@ flags = ["EXTERNAL_DEP"]
 notes = "EXTERNAL_DEP: error-active state is owned by FCE (§8). This is the 'hard synchronization at third intermission bit' rule. All four formats share this behavior."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-040"
@@ -674,11 +674,11 @@ original_wording = "The SRR bit shall be transmitted recessive, but receivers sh
 side = "both"
 layer = "MAC"
 format_applicability = "CE, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) TX sends recessive SRR; (2) RX accepts both values. Only CE (CEFF) has the SRR bit. The NOTE clarifies that dominant SRR is not a form error."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-041"
@@ -691,7 +691,7 @@ notes = "In CBFF, the first bit is IDE (dominant); in CEFF, the first bit is r1 
 label = ""
 file = ""
 side = "both"
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-042"
@@ -704,7 +704,7 @@ flags = []
 notes = "This is how an FD-tolerant node recognizes that what it expected to be a CC frame is actually an FD frame. Only applies to CBFF (r0 position). A similar rule exists for CEFF at the r1 position."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-043"
@@ -717,7 +717,7 @@ flags = []
 notes = "In CEFF, r0 does not trigger protocol exception — both values are accepted. Only CE applies."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-044"
@@ -730,7 +730,7 @@ flags = []
 notes = "CC CRC field structure: 15-bit FCRC + 1-bit recessive delimiter. Only CB and CE apply."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-045"
@@ -743,7 +743,7 @@ flags = []
 notes = "The relevant bit stream is SOF + arbitration + control + data (if present), with stuff bits removed. Only CB and CE apply."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-046"
@@ -756,33 +756,33 @@ flags = []
 notes = "The transmitter's recessive ACK slot is overwritten by receivers sending dominant (see REQ-MAC-046). Only CB and CE apply."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-047"
 source_clause = "§6.6.10.6"
 original_wording = "All receivers check the consistency of the received DF or RF and shall acknowledge a consistent frame and shall flag an inconsistent frame by means of an EF (see 6.6.2). A DF or RF that is not acknowledged shall be regarded as corrupted and shall be flagged by the transmitting node with an EF."
 side = "both"
-layer = "MAC"
+layer = "system"
 format_applicability = "CB, CE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) receivers ACK consistent frames; (2) receivers flag inconsistent with EF; (3) non-ACK'd frame → corrupted → TX EF. Only CB and CE apply here; FD ACK is in §6.6.11.6."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-048"
 source_clause = "§6.6.10.6"
 original_wording = "All nodes that receive the matching FCRC sequence shall send an ACK within the ACK slot by overwriting the recessive bit of the transmitter with a dominant bit (they send ACK)."
 side = "receiver"
-layer = "MAC"
+layer = "system"
 format_applicability = "CB, CE"
 flags = []
 notes = "Bus-scope because the receiver's dominant bit overwrites the transmitter's recessive bit on the shared bus. Only CB and CE apply."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-049"
@@ -795,7 +795,7 @@ flags = []
 notes = "The ACK slot is surrounded by recessive bits (CRC delimiter and ACK delimiter). Only CB and CE apply."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-050"
@@ -808,7 +808,7 @@ flags = []
 notes = "CC EOF structure. Only CB and CE apply; FD EOF is specified in §6.6.11.7."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-051"
@@ -817,11 +817,11 @@ original_wording = "The RRS bit shall be transmitted dominant, but receivers sha
 side = "both"
 layer = "MAC"
 format_applicability = "FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) TX sends dominant; (2) RX accepts both. The NOTE clarifies recessive RRS is not a form error. Only FB and FE apply."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-052"
@@ -830,11 +830,11 @@ original_wording = "In FD frames, the FDF bit shall be followed by the dominant 
 side = "both"
 layer = "MAC"
 format_applicability = "FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) res bit is dominant; (2) recessive res → protocol exception or form error depending on configuration. Only FB and FE apply."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-053"
@@ -847,7 +847,7 @@ flags = []
 notes = "BRS=recessive triggers the bit rate switch. BRS=dominant means no switch. Only FB and FE apply."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-054"
@@ -856,11 +856,11 @@ original_wording = "When the ESI bit of the LLC frame is set, then this flag sha
 side = "transmitter"
 layer = "MAC"
 format_applicability = "FB, FE"
-flags = ["COMPOUND", "EXTERNAL_DEP"]
+flags = ["EXTERNAL_DEP"]
 notes = "COMPOUND: three sub-claims depending on LLC ESI value and FCE error state. EXTERNAL_DEP: Error Active/Passive state is owned by FCE (§8). Only FB and FE apply."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-055"
@@ -873,7 +873,7 @@ flags = []
 notes = "FD CRC field structure differs from CC by including the stuff count (SBC) before the FCRC. Only FB and FE apply."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-056"
@@ -886,7 +886,7 @@ flags = []
 notes = "The Gray coding and parity are specified in Table 8. Only FB and FE apply."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-057"
@@ -895,11 +895,11 @@ original_wording = "Both transmitter and receivers of a frame shall count the nu
 side = "both"
 layer = "MAC"
 format_applicability = "FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) both TX/RX count stuff bits; (2) TX transmits SBC; (3) RX checks SBC match. Only FB and FE apply."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-058"
@@ -912,7 +912,7 @@ flags = []
 notes = "Key difference from CC CRC (REQ-MAC-043): FD CRC includes dynamic stuff bits and stuff count. Only FB and FE apply."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-059"
@@ -921,37 +921,37 @@ original_wording = "The CRC delimiter shall follow the FCRC sequence. In FD fram
 side = "transmitter"
 layer = "MAC"
 format_applicability = "FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) TX sends 1 recessive; (2) accepts 2 recessive before ACK edge. This allows phase compensation between TX and RX bit timing. Only FB and FE apply."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-060"
 source_clause = "§6.6.11.6"
 original_wording = "The ACK field shall contain the ACK slot and the ACK delimiter. ; In the ACK field, the transmitter node shall send recessive bits. All receivers check the consistency of the received DF and shall acknowledge a consistent frame and shall flag an inconsistent frame by means of an EF. A DF that is not acknowledged shall be regarded as corrupted and shall be flagged by the transmitting node with an EF."
 side = "both"
-layer = "MAC"
+layer = "system"
 format_applicability = "FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: multiple sub-claims. Substantively similar to REQ-MAC-044/051 for CC but applies only to DFs (no FD remote frames). Only FB and FE apply."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-061"
 source_clause = "§6.6.11.6"
 original_wording = "Nodes that receive the matching FCRC sequence and the matching stuff count shall send an ACK within the ACK slot by overwriting the recessive bit of the transmitter with a dominant bit (they send ACK). ; In FD frames, all nodes shall accept an up to two bit long dominant phase of overlapping ACK slot bits as a valid ACK, to compensate for phase shifts between the receivers."
 side = "receiver"
-layer = "MAC"
+layer = "system"
 format_applicability = "FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) receivers with matching FCRC+SBC send dominant ACK; (2) all nodes accept up to 2-bit dominant as valid ACK. The 2-bit tolerance compensates for phase shifts. Bus-scope because the receiver's dominant overwrites the TX's recessive. Only FB and FE apply."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-062"
@@ -964,7 +964,7 @@ flags = []
 notes = "The dynamic stuffing range differs between CC and FD. In FD frames, the CRC field uses fixed stuffing instead. All four in-scope formats use dynamic stuffing."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-063"
@@ -977,7 +977,7 @@ flags = []
 notes = "The stuff bit is the inverse of the preceding five bits. All four in-scope formats use this rule in their dynamic stuffing regions."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-064"
@@ -990,7 +990,7 @@ flags = []
 notes = "Mirror of REQ-MAC-064 for the receiver side. All four in-scope formats use this rule."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-065"
@@ -1003,7 +1003,7 @@ flags = []
 notes = "This is the start of fixed stuffing in FD CRC. Only FB and FE apply."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-066"
@@ -1016,7 +1016,7 @@ flags = []
 notes = "Prevents double-stuffing at the dynamic-to-fixed stuffing boundary. Only FB and FE apply."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-067"
@@ -1029,7 +1029,7 @@ flags = []
 notes = "The fixed stuffing period is 4 data bits per stuff bit in the FD CRC field. Only FB and FE apply."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-068"
@@ -1042,7 +1042,7 @@ flags = []
 notes = "Unlike dynamic stuffing (triggered by 5 identical bits), fixed stuff bits always alternate from the preceding bit. Only FB and FE apply."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-069"
@@ -1051,24 +1051,24 @@ original_wording = "A receiver shall discard the fixed stuff bits from the bit s
 side = "receiver"
 layer = "MAC"
 format_applicability = "FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) discard fixed stuff bits for CRC; (2) form error on wrong value. Only FB and FE apply."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-070"
 source_clause = "§6.6.14"
 original_wording = "All receivers shall check the consistency of all received DFs and RFs and they shall acknowledge all consistent DFs and RFs."
 side = "receiver"
-layer = "MAC"
+layer = "system"
 format_applicability = "CB, CE, FB, FE"
 flags = []
 notes = "General acknowledgement obligation for all frame types. RF applies only to CB and CE. All four in-scope formats share this rule."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-071"
@@ -1077,11 +1077,11 @@ original_wording = "The frame shall be valid for receivers if there is no error 
 side = "receiver"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) valid if no error through 6th EOF bit; (2) 7th EOF bit does not inhibit validation; (3) dominant at 7th EOF → OF. All four formats share this validation rule."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-072"
@@ -1094,7 +1094,7 @@ flags = []
 notes = "TX validation is stricter than RX: TX must see all 7 EOF bits without error. All four formats share this rule."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-073"
@@ -1107,20 +1107,20 @@ notes = "Defines the bit ordering for all frame fields. All four in-scope format
 label = ""
 file = ""
 side = "both"
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-074"
 source_clause = "§6.6.17.2"
 original_wording = "As a reaction to the protocol exception event, the error counters shall not be changed, the hard synchronization shall be enabled, the node shall send recessive bits and shall enter the bus re-integration state (see 6.6.7.5)."
-layer = "MAC"
+layer = "system"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND", "EXTERNAL_DEP"]
+flags = []
 notes = "COMPOUND: four distinct sub-claims. EXTERNAL_DEP: error counters are owned by FCE (§8). All four formats share the same protocol exception response."
 label = ""
 file = ""
 side = "both"
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-075"
@@ -1133,7 +1133,7 @@ flags = []
 notes = "General arbitration rule applicable to all formats. The specific arbitration range depends on format (see REQ-MAC-041 for CC, REQ-MAC-056 for FD). All four in-scope formats share this fundamental arbitration behavior."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-076"
@@ -1146,7 +1146,7 @@ flags = []
 notes = "Dominant-sent-recessive-monitored during arbitration is always a bit error (the bus should be at least as dominant as what the node sent). All four formats share this rule."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-077"
@@ -1159,7 +1159,7 @@ flags = []
 notes = "Defines format-specific arbitration endpoints. All four in-scope formats are covered."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-078"
@@ -1168,11 +1168,11 @@ original_wording = "A node sending a bit on the bus shall also monitor the bus. 
 side = "transmitter"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) bit error on mismatch; (2) exception for arbitration/ACK; (3) exception for passive error flag. All four formats share the same bit error detection rules."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-079"
@@ -1185,7 +1185,7 @@ flags = []
 notes = "Stuff errors apply only in dynamically-stuffed regions (SOF through FCRC for CC, SOF through data for FD). All four formats have dynamically-stuffed regions."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-080"
@@ -1194,11 +1194,11 @@ original_wording = "The receivers shall calculate the CRC in the same way as the
 side = "receiver"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: three FCRC error conditions. SBC-related conditions apply only to FD frames (FB, FE). CRC calculation method is specified in §6.6.4.4. All four formats have FCRC checking."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-081"
@@ -1207,11 +1207,11 @@ original_wording = "A form error shall be detected in the following cases: when 
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) form error on unexpected fixed-form value; (2) form error on wrong fixed stuff bit (FD); (3) exception for last EOF bit (RX); (4) exception for last delimiter bit. All four formats have fixed-form fields."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-082"
@@ -1224,7 +1224,7 @@ flags = []
 notes = "ACK error means no receiver acknowledged the frame. All four formats have an ACK slot and share this detection rule."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-083"
@@ -1237,7 +1237,7 @@ flags = []
 notes = "This is the primary error response rule. The error flag type (active or passive) depends on FCE state. All four formats share this error handling rule."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-084"
@@ -1250,7 +1250,7 @@ flags = []
 notes = "The receiver withholds ACK on CRC error, then sends an EF (see REQ-MAC-091/105). All four formats share this rule."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-085"
@@ -1263,7 +1263,7 @@ flags = []
 notes = "CC-specific FCRC error response timing. Only CB and CE apply."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-086"
@@ -1276,7 +1276,7 @@ flags = []
 notes = "FD-specific FCRC error response timing — delayed by 3 bit-times after CRC delimiter (covering ACK slot and ACK delimiter). Only FB and FE apply."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-087"
@@ -1284,12 +1284,12 @@ source_clause = "§6.6.21.3.1"
 original_wording = "When error signalling is enabled and a node detects an error during the arbitration phase, the node shall send an EF. ; When a node detects an error while the data phase bit rate is used, the node shall switch from the data bit time back into the nominal bit time of the arbitration phase before it starts the error flag."
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) EF on arbitration phase error; (2) bit rate switch before EF on data phase error. The bit rate switch applies only to FD frames with BRS=recessive. All four formats share the arbitration-phase rule; data-phase rule applies to FB and FE with BRS."
 label = ""
 file = ""
 side = "transmitter"
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-088"
@@ -1297,12 +1297,12 @@ source_clause = "§6.6.21.3.2"
 original_wording = "The following conditions shall lead to the transmission of an OF. a) LLC-requested OF: An LLC may cause an OF transmission, when internal conditions of the receiver need a delay of the next MAC DF or MAC RF. b) Reactive OF: Detection of a dominant bit during either of the first two bits of intermission, detection of one dominant bit at the last bit of EOF by a receiver, or detection of one dominant bit by any node at the last bit of error delimiter or overload delimiter shall cause an OF transmission."
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (a) LLC-requested OF trigger; (b) four reactive OF trigger conditions. All four formats share the same OF trigger conditions."
 label = ""
 file = ""
 side = "both"
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-089"
@@ -1315,7 +1315,7 @@ notes = "Reactive OFs start one bit after detection (§6.6.21.3.2), but LLC-requ
 label = ""
 file = ""
 side = "both"
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-090"
@@ -1328,7 +1328,7 @@ notes = "XL data bit rate excluded (out of scope). Non-FD-capable nodes need onl
 label = ""
 file = ""
 side = "both"
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-091"
@@ -1336,12 +1336,12 @@ source_clause = "§7.3.2"
 original_wording = "The time quantum (t_q) shall be a fixed unit of time derived from the node clock period. There shall exist a programmable prescaler, with integer values. The minimum time quantum (t_q,min) shall be one node clock period long. The length of t_q shall be an integer multiple m of the minimum time quantum t_q,min with m as the value of the prescaler."
 layer = "PCS"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) t_q is fixed unit from clock; (2) programmable prescaler exists; (3) t_q,min = one clock period; (4) t_q = m × t_q,min. Fundamental to all bit timing. All four formats share the same time quantum definition."
 label = ""
 file = ""
 side = "both"
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-092"
@@ -1354,7 +1354,7 @@ notes = "Mandatory for FD-capable nodes. Only FB and FE benefit from TDC (during
 label = ""
 file = ""
 side = "transmitter"
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-093"
@@ -1363,11 +1363,11 @@ original_wording = "Transmitters shall only use this mechanism in the FD data ph
 side = "transmitter"
 layer = "PCS"
 format_applicability = "FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) TDC scope limited to FD data phase with BRS recessive; (2) programmable enable; (3) prescaler m = 1 or 2. XL data phase usage excluded (out of scope). Only FB and FE apply."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-094"
@@ -1376,11 +1376,11 @@ original_wording = "The position of the SSP is specified by its distance from th
 side = "transmitter"
 layer = "PCS"
 format_applicability = "FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) SSP position from measurement; (2) measurement at FDF-to-res edge; (3) counter mechanism; (4) SSP = measured + offset. This is the TDC measurement procedure. Only FB and FE apply."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-095"
@@ -1388,12 +1388,12 @@ source_clause = "§7.3.5.1"
 original_wording = "Only one synchronization within one bit time (between two sample points) shall be allowed. After an edge is detected, synchronizations shall be disabled until the next time the bus state detected at the sample point is recessive."
 layer = "PCS"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) one sync per bit time; (2) sync disabled after edge until recessive SP. Rule (a) of synchronization rules. All four formats share this rule."
 label = ""
 file = ""
 side = "both"
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-096"
@@ -1401,12 +1401,12 @@ source_clause = "§7.3.5.1"
 original_wording = "An edge shall cause synchronization only if the bus state detected at the previous sample point (previous read bus state) was recessive. ; An edge with a positive phase error shall not cause synchronization in a node sending a dominant bit."
 layer = "PCS"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) previous SP must be recessive; (2) positive phase error edges suppressed when sending dominant. Rule (b) of synchronization rules. All four formats share this rule."
 label = ""
 file = ""
 side = "both"
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-097"
@@ -1414,12 +1414,12 @@ source_clause = "§7.3.5.1"
 original_wording = "Hard synchronization shall be performed: on edges during inter-frame space (with the exception of the first bit of intermission); when a node is in bus-integration state; at the edge between the FDF bit and the following dominant res bit inside an FD frame."
 layer = "PCS"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: three trigger conditions for hard sync. XL-specific conditions (XLF-to-resXL, DH-to-DL, DAH-to-AL edges) excluded. Rule (c) of synchronization rules. The FDF-to-res edge applies only to FB and FE; the IFS and bus-integration conditions apply to all four formats."
 label = ""
 file = ""
 side = "both"
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-098"
@@ -1432,7 +1432,7 @@ notes = "Rule (d) of synchronization rules. The FD data phase exception prevents
 label = ""
 file = ""
 side = "both"
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-099"
@@ -1440,12 +1440,12 @@ source_clause = "§7.3.5.3"
 original_wording = "After a hard synchronization, the bit time shall be restarted by each bit-timing logic unit with Sync_Seg completed. Thus, hard synchronization shall force the edge which has caused the hard synchronization to lie within the synchronization segment of the restarted bit time. The function of hard synchronization shall not be limited by the synchronization jump width."
 layer = "PCS"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: (1) bit time restart with Sync_Seg completed; (2) edge within Sync_Seg; (3) not limited by SJW. All four formats share the same hard sync behavior."
 label = ""
 file = ""
 side = "both"
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-100"
@@ -1458,7 +1458,7 @@ notes = "Small phase errors are fully corrected, same as hard sync. All four for
 label = ""
 file = ""
 side = "both"
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-101"
@@ -1466,34 +1466,36 @@ source_clause = "§7.3.5.4"
 original_wording = "When the magnitude of the phase error is larger than the programmed value of the synchronization jump width, and if the phase error e is positive, Phase_Seg1 shall be lengthened by an amount equal to the synchronization jump width; and if the phase error e is negative, then Phase_Seg2 shall be shortened by an amount equal to the synchronization jump width."
 layer = "PCS"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: two sub-claims for positive and negative phase errors. Large phase errors are only partially corrected (by SJW). All four formats share this behavior."
 label = ""
 file = ""
 side = "both"
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-102"
 source_clause = "§7.4.2.2"
 original_wording = "The PCS shall send a bus_off symbol to the PMA sub-layer, when it receives a bus_off_request from the supervisor (see 8.1.3.4)."
-layer = "PCS"
+layer = "system"
 format_applicability = "CB, CE, FB, FE"
-flags = ["EXTERNAL_DEP"]
-notes = "EXTERNAL_DEP: the bus_off_request originates from the FCE supervisor (§8.1.3.4). All four formats share the same bus-off signalling path."
+flags = []
+notes = "PCS+FCE interaction: bus_off_request originates from the FCE supervisor (§8.1.3.4). All four formats share the same bus-off signalling path."
 label = ""
 file = ""
 side = "both"
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-103"
 source_clause = "§7.4.2.3"
 original_wording = "The PCS shall send a bus_off_release symbol to the PMA sub-layer when it receives a bus_off_release_request from the supervisor (see 8.1.3.4)."
-layer = "PCS"
+layer = "system"
+side = "both"
 format_applicability = "CB, CE, FB, FE"
-flags = ["EXTERNAL_DEP"]
-notes = "EXTERNAL_DEP: the bus_off_release_request originates from the FCE supervisor (§8.1.3.4). All four formats share the same bus-off release path."
+flags = []
+observability = "black_box"
+notes = "PCS+FCE interaction: bus_off_release_request originates from the FCE supervisor (§8.1.3.4). All four formats share the same bus-off release path."
 label = ""
 file = ""
 
@@ -1549,11 +1551,11 @@ original_wording = "When frames are sent or received correctly, the counters sha
 side = "both"
 layer = "FCE"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND"]
+flags = []
 notes = "COMPOUND: two sub-claims: (1) successful frames decrement counters, (2) error frames cause net increment. Specific increment/decrement values are defined in §8.1.4.2. All four formats share the same counting strategy."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-105"
@@ -1566,7 +1568,7 @@ flags = ["EXTERNAL_DEP"]
 notes = "EXTERNAL_DEP: the Normal_mode_request originates from the LLC sub-layer. All four formats share the same reset mechanism."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-106"
@@ -1579,7 +1581,7 @@ flags = ["EXTERNAL_DEP"]
 notes = "EXTERNAL_DEP: error detection signal originates from MAC sub-layer. The exception (bit error during active error flag/overload flag) is covered by rule e). All four formats share the same rule."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-107"
@@ -1592,7 +1594,7 @@ flags = ["EXTERNAL_DEP"]
 notes = "EXTERNAL_DEP: bit detection and error flag completion signals originate from MAC sub-layer. All four formats share the same rule."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-108"
@@ -1601,11 +1603,11 @@ original_wording = "When a transmitter sends an error flag, the transmit error c
 side = "transmitter"
 layer = "FCE"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND", "EXTERNAL_DEP"]
+flags = ["EXTERNAL_DEP"]
 notes = "COMPOUND: three sub-claims: (1) base rule TEC += 8, (2) exception 1 for error-passive ACK error, (3) exception 2 for stuff error during arbitration. EXTERNAL_DEP: error flag sending and error detection signals originate from MAC sub-layer. All four formats share the same rule."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-109"
@@ -1618,7 +1620,7 @@ flags = ["EXTERNAL_DEP"]
 notes = "EXTERNAL_DEP: bit error detection during error/overload flag originates from MAC sub-layer. All four formats share the same rule."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-110"
@@ -1631,7 +1633,7 @@ flags = ["EXTERNAL_DEP"]
 notes = "EXTERNAL_DEP: bit error detection during error/overload flag originates from MAC sub-layer. All four formats share the same rule."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-111"
@@ -1640,11 +1642,11 @@ original_wording = "Any node shall tolerate up to 7 consecutive dominant bits af
 side = "both"
 layer = "FCE"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND", "EXTERNAL_DEP"]
+flags = ["EXTERNAL_DEP"]
 notes = "COMPOUND: three sub-claims: (1) tolerate up to 7 dominant bits, (2) after 14/8 threshold crossed increment by 8, (3) each additional 8-bit sequence increments by 8. EXTERNAL_DEP: dominant bit detection originates from MAC sub-layer. All four formats share the same rule."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-112"
@@ -1657,7 +1659,7 @@ flags = ["EXTERNAL_DEP"]
 notes = "EXTERNAL_DEP: successful_transfer signal originates from MAC sub-layer. All four formats share the same decrement rule."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-113"
@@ -1666,11 +1668,11 @@ original_wording = "After the successful reception of a frame (reception without
 side = "receiver"
 layer = "FCE"
 format_applicability = "CB, CE, FB, FE"
-flags = ["COMPOUND", "EXTERNAL_DEP"]
+flags = ["EXTERNAL_DEP"]
 notes = "COMPOUND: three sub-claims depending on REC range: (1) REC in [1,127] → decrement by 1, (2) REC = 0 → stays 0, (3) REC > 127 → set to [119,127]. EXTERNAL_DEP: successful_transfer signal originates from MAC sub-layer. All four formats share the same rule."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-114"
@@ -1683,7 +1685,7 @@ flags = []
 notes = "The carry condition note applies to implementations using a 7-bit receive error counter. All four formats share the same threshold and transition."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-115"
@@ -1696,7 +1698,7 @@ flags = []
 notes = "Recovery from error-passive requires both counters below threshold simultaneously. All four formats share the same rule."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-116"
@@ -1709,7 +1711,7 @@ flags = []
 notes = "The carry condition note applies to implementations using an 8-bit TEC. All four formats share the same bus-off threshold."
 label = ""
 file = ""
-observability = "derived"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-117"
@@ -1722,7 +1724,7 @@ flags = []
 notes = "Fundamental bus-off isolation rule. All four formats share the same bus-off behaviour."
 label = ""
 file = ""
-observability = "external"
+observability = "black_box"
 
 [[requirement]]
 id = "REQ-118"
@@ -1737,5 +1739,5 @@ label = ""
 file = ""
 
 # ── §8.1.5 Node start-up ──
-observability = "derived"
+observability = "white_box"
 

@@ -13,8 +13,8 @@ Format structure:
   side = "transmitter" | "receiver" | "both"
   layer = "LLC" | "MAC" | "PCS" | "FCE"
   format_applicability = "CB, CE, FB, FE"
-  flags = ["COMPOUND", "EXTERNAL_DEP", "SHOULD", "AMBIGUOUS"]
-  observability = "external" | "derived"
+  flags = ["EXTERNAL_DEP", "SHOULD"]
+  observability = "black_box" | "white_box"
   notes = ""
   label = ""  # PSL assertion label or testbench procedure name
   file = ""   # Target VHDL source file
@@ -47,16 +47,14 @@ _VPLAN_DIR = _PROJECT_ROOT / "verification_plan"
 # ── FastMCP Server ────────────────────────────────────────────────────────────
 mcp = FastMCP("verification_plan")
 
-
 # ── Requirements Manager ─────────────────────────────────────────────────────
-
 
 class RequirementsManager:
     """Manager for ISO-aligned CAN requirements using tomlkit."""
 
-    VALID_LAYERS = {"LLC", "MAC", "PCS", "FCE"}
-    VALID_FLAGS = {"COMPOUND", "AMBIGUOUS", "EXTERNAL_DEP", "SHOULD"}
-    VALID_OBSERVABILITIES = {"external", "derived"}
+    VALID_LAYERS = {"LLC", "MAC", "PCS", "FCE", "system"}
+    VALID_FLAGS = {"EXTERNAL_DEP", "SHOULD"}
+    VALID_OBSERVABILITIES = {"black_box", "white_box"}
     VALID_FIELD_UPDATES = {
         "layer",
         "side",
@@ -325,7 +323,6 @@ class RequirementsManager:
         logger.info(f"Inserted {new_id}")
         return {"id": new_id, "total": len(requirements)}
 
-
 # ── Singleton ─────────────────────────────────────────────────────────────────
 def get_manager(toml_path: Optional[Path] = None):
     """Get or create a manager for the given TOML file."""
@@ -344,9 +341,7 @@ def get_manager(toml_path: Optional[Path] = None):
 
     return RequirementsManager(toml_path)
 
-
 # ── MCP Tools ─────────────────────────────────────────────────────────────────
-
 
 @mcp.tool()
 def query_requirements(
@@ -361,10 +356,10 @@ def query_requirements(
     """Query requirements with optional filters.
 
     Args:
-        layer: LLC, MAC, PCS, or FCE
+        layer: LLC, MAC, PCS, FCE, or system
         side: transmitter, receiver, or both
-        has_flags: Comma-separated flags (COMPOUND, EXTERNAL_DEP, SHOULD, AMBIGUOUS)
-        observability: external or derived
+        has_flags: Comma-separated flags (EXTERNAL_DEP, SHOULD)
+        observability: black_box or white_box
         is_blank_label: if true, return only requirements with label=""
         is_blank_file: if true, return only requirements with file=""
         toml_path: Path to requirements file (auto-detected if not provided)
@@ -392,7 +387,6 @@ def query_requirements(
     if not results:
         return "No requirements matched the query."
     return f"{len(results)} requirements found:\n\n" + "\n".join(lines)
-
 
 @mcp.tool()
 def get_requirement(req_id: str, toml_path: Optional[str] = None) -> str:
@@ -424,7 +418,6 @@ def get_requirement(req_id: str, toml_path: Optional[str] = None) -> str:
 
     return "\n".join(lines)
 
-
 @mcp.tool()
 def update_requirement(
     req_id: str,
@@ -444,7 +437,6 @@ def update_requirement(
     manager.update_requirement(req_id, field, value)
     return f"Updated {req_id}.{field} = {value!r}"
 
-
 @mcp.tool()
 def bulk_update(
     field: str,
@@ -463,7 +455,7 @@ def bulk_update(
         value: New value
         layer: Filter by layer (LLC, MAC, PCS, FCE)
         has_flags: Filter by flags (CSV)
-        observability: Filter by observability (external, derived)
+        observability: Filter by observability (black_box, white_box)
         is_blank_label: Filter by blank label
         is_blank_file: Filter by blank file
         toml_path: Path to requirements file (auto-detected if not provided)
@@ -482,7 +474,6 @@ def bulk_update(
         f"Updated {result['count']} requirements:\n{', '.join(result['updated_ids'])}"
     )
 
-
 @mcp.tool()
 def delete_requirement(
     req_id: str,
@@ -497,7 +488,6 @@ def delete_requirement(
     manager = get_manager(Path(toml_path) if toml_path else None)
     result = manager.delete_requirement(req_id)
     return f"Deleted {result['deleted']}. {result['remaining']} requirements remaining."
-
 
 @mcp.tool()
 def renumber_requirements(toml_path: Optional[str] = None) -> str:
@@ -516,7 +506,6 @@ def renumber_requirements(toml_path: Optional[str] = None) -> str:
             lines.append(f"  ... and {len(result['id_map']) - 20} more")
     return "\n".join(lines)
 
-
 @mcp.tool()
 def insert_requirement(
     layer: str,
@@ -531,12 +520,12 @@ def insert_requirement(
     """Insert a new requirement. Auto-assigns next sequential ID for the layer.
 
     Args:
-        layer: LLC, MAC, PCS, or FCE
+        layer: LLC, MAC, PCS, FCE, or system
         original_wording: Verbatim ISO requirement text
         side: transmitter, receiver, or both
         source_clause: ISO 11898-1 section reference (e.g. "§6.6.8")
         format_applicability: Comma-separated formats (e.g. "CB, CE, FB, FE")
-        observability: external or derived
+        observability: black_box or white_box
         notes: How this is verified and any relevant caveats
         toml_path: Path to requirements file (auto-detected if not provided)
     """
@@ -551,7 +540,6 @@ def insert_requirement(
         notes=notes,
     )
     return f"Inserted {result['id']}. Total: {result['total']} requirements."
-
 
 @mcp.tool()
 def get_statistics(toml_path: Optional[str] = None) -> str:
@@ -571,19 +559,16 @@ def get_statistics(toml_path: Optional[str] = None) -> str:
         f"Flags present: {stats['flags_present']}",
         f"Blank label: {stats['blank_label_count']}",
         f"Blank file: {stats['blank_file_count']}",
-        f"Blank observability: {stats['blank_observability_count']}",
+        f"",
     ]
     return "\n".join(lines)
 
-
 # ── Entry Point ───────────────────────────────────────────────────────────────
-
 
 def main() -> None:
     """Start the MCP server using stdio transport."""
     logger.info("Starting Verification Plan MCP server")
     mcp.run(transport="stdio")
-
 
 if __name__ == "__main__":
     main()

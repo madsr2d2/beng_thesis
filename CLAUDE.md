@@ -156,30 +156,32 @@ ISO 11898-1:2015 CAN system requirements are tracked in `verification_plan/verif
 ### Verification Plan File Format
 
 **File**: `verification_plan/verification_plan.toml`
-**Structure**: 146 requirements, per-layer IDs (REQ-LLC-NNN, REQ-MAC-NNN, REQ-PCS-NNN, REQ-FCE-NNN)
+**Structure**: 118 requirements, sequential IDs (REQ-NNN), five layer values: LLC, MAC, PCS, FCE, system.
 **Scope**: CAN Classic (CC) and CAN FD only - CB, CE, FB, and FE frames. CAN XL frames are strictly out of scope and must NOT be added to the verification plan.
 
 Each entry has exactly these fields:
 
 | Field | Values |
 |-------|--------|
-| `id` | `REQ-{LAYER}-{NNN}` |
+| `id` | `REQ-NNN` (sequential) |
 | `source_clause` | ISO 11898-1 section (e.g. `§6.6.8`) |
 | `original_wording` | Verbatim ISO text |
-| `layer` | `LLC`, `MAC`, `PCS`, `FCE` |
+| `layer` | `LLC`, `MAC`, `PCS`, `FCE`, `system` |
 | `side` | `transmitter`, `receiver`, `both` |
 | `format_applicability` | `CB`, `CE`, `FB`, `FE` (comma-separated subset) |
-| `flags` | `COMPOUND`, `EXTERNAL_DEP`, `SHOULD`, `AMBIGUOUS` |
-| `observability` | `external`, `derived` |
+| `flags` | `EXTERNAL_DEP`, `SHOULD` |
+| `observability` | `black_box`, `white_box` |
 | `notes` | How it is verified; relevant caveats |
 | `label` | PSL assertion label or TB procedure name (blank until linked) |
 | `file` | Target VHDL source file (blank until linked) |
 
-**Observability** is layer-relative (not top-level node):
-- `external`: fully observable at the layer's own boundary from stimulus and config alone.
-- `derived`: observable at the boundary but verifying correctness requires a non-trivial reference model (e.g. CRC polynomial, error counter arithmetic).
+**Observability** is relative to the sub-module boundary named in `layer`:
+- `black_box`: verified purely at the sub-module's ports from stimulus and config alone - no reference model needed.
+- `white_box`: boundary-observable but verifying correctness requires a non-trivial reference computation (e.g. CRC polynomial, error counter arithmetic).
 
-All 22 requirements with `internal` observability (structural definitions, oscillator tolerances, configuration constraints) have been removed - they have no testable boundary effect.
+**Layer `system`**: used for requirements whose behaviour is jointly owned by multiple sub-layers, or that inherently require two nodes on the shared bus (ACK overwrite, passive error flag coordination, bus re-integration). These are verified by the integration testbenches (`can_mac_pcs_fce_tb`, `can_llc_mac_pcs_fce_tb`).
+
+**Flag `EXTERNAL_DEP`**: the requirement belongs to one layer but can only be fully exercised when another layer is also active (e.g. a MAC requirement that depends on the FCE being in error-passive state). These still need the integration testbench even though they are not `system`-layer.
 
 ### Verification Plan Management via MCP Server (Recommended)
 

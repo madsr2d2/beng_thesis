@@ -160,10 +160,10 @@ Protocol compliance is the central objective of this project. The CAN and CAN-FD
 
 The verification methodology is **black-box**: only behaviour observable at a module's canonical service boundary counts as a verification target. Each requirement is classified by its observability relative to the layer under test, anchored in the service primitives defined by ISO 11898-1 [@iso11898_1]:
 
-- **External**: the postcondition maps directly onto a service-primitive parameter or its timing, and the testbench can derive the expected value from configuration generics and driven stimulus alone. For example, the bit-level encoding of the SOF field is directly observable at the MAC↔PCS boundary as the first `Output_Unit` value.
-- **Derived**: the postcondition manifests at the layer boundary but requires a non-trivial reference computation. CRC correctness falls here: the CRC bits appear in the transmitted bit-stream, but a polynomial reference model is needed to verify their value.
+- **Black-box**: the postcondition maps directly onto a service-primitive parameter or its timing, and the testbench can derive the expected value from configuration generics and driven stimulus alone. For example, the bit-level encoding of the SOF field is directly observable at the MAC↔PCS boundary as the first `Output_Unit` value.
+- **White-box**: the postcondition manifests at the layer boundary but requires a non-trivial reference computation. CRC correctness falls here: the CRC bits appear in the transmitted bit-stream, but a polynomial reference model is needed to verify their value.
 
-Requirements with no boundary manifestation - structural definitions, configuration-space constraints, and oscillator tolerances - were removed during curation. The 118 surviving requirements are all external (83) or derived (35).
+Requirements with no boundary manifestation - structural definitions, configuration-space constraints, and oscillator tolerances - were removed during curation. The 118 surviving requirements are all black-box (83) or white-box (35).
 
 ## Verification Plan Construction {#sec:verification-plan-construction}
 
@@ -180,22 +180,24 @@ The plan is stored as `verification_plan/verification_plan.toml`. Each entry is 
 | `id` | Sequential identifier REQ-NNN. |
 | `source_clause` | ISO 11898-1:2015 section reference. |
 | `original_wording` | Verbatim normative text from the standard. |
-| `layer` | Architectural sub-layer: LLC, MAC, PCS, or FCE. |
+| `layer` | Sub-layer: LLC, MAC, PCS, FCE, or system (see below). |
 | `side` | Obligation direction: transmitter, receiver, or both. |
 | `format_applicability` | Applicable frame formats: CB, CE, FB, FE. |
-| `flags` | `COMPOUND`, `AMBIGUOUS`, `EXTERNAL_DEP`, `SHOULD`. |
-| `observability` | `external` or `derived` (see @sec:observability-classification). |
+| `flags` | `EXTERNAL_DEP` (needs another layer active to test), `SHOULD` (advisory). |
+| `observability` | `black_box` or `white_box` (see @sec:observability-classification). |
 | `notes` | Engineering notes and caveats. |
 | `label` | Assertion label in the implementing testbench. |
 | `file` | Testbench file where the requirement is verified. |
 
 : Verification-plan metadata fields. {#tbl:vplan-metadata-fields}
 
+The `system` layer is used for requirements whose behaviour is jointly owned by multiple sub-layers, or that inherently require two nodes on the bus - ACK overwrite, error flag coordination, bus re-integration, and the PCS↔FCE bus-off handshake. These 12 requirements have no home in a single sub-layer TB and are verified exclusively by the integration testbenches. Requirements flagged `EXTERNAL_DEP` (21 entries) belong to one layer but can only be fully exercised when another layer is active (e.g. a MAC requirement that depends on the FCE being in error-passive state); they also target the integration TBs.
+
 A **Model Context Protocol (MCP) server** (`mcp_tools/verification_plan_manager.py`) provides query, update, insert, delete, and statistics operations as validated tool calls. Constraining writes to atomic, schema-validated operations avoids the data-corruption risks of asking an LLM to rewrite a large structured file directly.
 
 ## Verification Strategy {#sec:verification-strategy}
 
-The plan drives a two-tier testbench structure. *External* requirements are verified by port-level stimulus and observation alone; *derived* requirements additionally use a software reference model.
+The plan drives a two-tier testbench structure. *Black-box* requirements are verified by port-level stimulus and observation alone; *white-box* requirements additionally use a software reference model.
 
 **Sub-module testbenches** target individual components in isolation:
 
