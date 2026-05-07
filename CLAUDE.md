@@ -156,28 +156,30 @@ ISO 11898-1:2015 CAN system requirements are tracked in `verification_plan/verif
 ### Verification Plan File Format
 
 **File**: `verification_plan/verification_plan.toml`
-**Structure**: 123 requirements (IDs 001-123), sequential with no gaps
+**Structure**: 146 requirements, per-layer IDs (REQ-LLC-NNN, REQ-MAC-NNN, REQ-PCS-NNN, REQ-FCE-NNN)
 **Scope**: CAN Classic (CC) and CAN FD only - CB, CE, FB, and FE frames. CAN XL frames are strictly out of scope and must NOT be added to the verification plan.
 
-**Categories**: FRM (frame), ERR (error), TMG (timing), CRC (checksum)
-**Sides**: TX (transmitter), RX (receiver)
-**Formats**: CB (Classic Basic), CE (Classic Extended), FB (FD Basic), FE (FD Extended)
-**Priorities**: critical, high, medium, low
-**Verification**: simulation, coverage, waveform, assertion
-**Status**: verified, implemented, unverified, diagnostic
-**Observability**: external, derived, internal (layer-level black-box testability axis)
+Each entry has exactly these fields:
 
-  Observability is defined **relative to the layer's own canonical interface boundary**
-  (not the top-level CAN node). The canonical interfaces are defined in
-  `docs/canonical_layer_interfaces.md` (ISO 11898-1:2015 service primitives).
+| Field | Values |
+|-------|--------|
+| `id` | `REQ-{LAYER}-{NNN}` |
+| `source_clause` | ISO 11898-1 section (e.g. `§6.6.8`) |
+| `original_wording` | Verbatim ISO text |
+| `layer` | `LLC`, `MAC`, `PCS`, `FCE` |
+| `side` | `transmitter`, `receiver`, `both` |
+| `format_applicability` | `CB`, `CE`, `FB`, `FE` (comma-separated subset) |
+| `flags` | `COMPOUND`, `EXTERNAL_DEP`, `SHOULD`, `AMBIGUOUS` |
+| `observability` | `external`, `derived` |
+| `notes` | How it is verified; relevant caveats |
+| `label` | PSL assertion label or TB procedure name (blank until linked) |
+| `file` | Target VHDL source file (blank until linked) |
 
-  - `external`: postcondition is fully observable at the layer's own boundary, either as
-    a named primitive parameter, or as the *timing* of a primitive call where that timing
-    is fully determined by configuration generics and stimulus inputs known to the testbench.
-  - `derived`: effect manifests at the layer boundary but verifying it requires knowledge
-    of a non-trivial internal algorithm beyond reading config generics and measuring timing.
-  - `internal`: postcondition is a structural definition, a constraint on valid config
-    inputs, or has no manifestation at any layer boundary even indirectly.
+**Observability** is layer-relative (not top-level node):
+- `external`: fully observable at the layer's own boundary from stimulus and config alone.
+- `derived`: observable at the boundary but verifying correctness requires a non-trivial reference model (e.g. CRC polynomial, error counter arithmetic).
+
+All 22 requirements with `internal` observability (structural definitions, oscillator tolerances, configuration constraints) have been removed - they have no testable boundary effect.
 
 ### Verification Plan Management via MCP Server (Recommended)
 
@@ -192,27 +194,21 @@ pip install -r mcp_tools/requirements.txt
 **Available Tools** (use via Claude Code MCP integration):
 
 ```
-query_requirements(category, side, status, priority, verification)
+query_requirements(layer, side, has_flags, observability, is_blank_label, is_blank_file)
+get_requirement(req_id)
 update_requirement(req_id, field, value)
-bulk_update(field, value, category, side, status, priority, verification)
+bulk_update(field, value, layer, has_flags, observability, is_blank_label, is_blank_file)
 delete_requirement(req_id)
 renumber_requirements()
+insert_requirement(layer, original_wording, side, source_clause, format_applicability, observability, notes)
 get_statistics()
-```
-
-### Legacy: Command-line Tools
-
-```bash
-python verification_plan/verification_plan_table.py --delete 011
-python verification_plan/verification_plan_table.py --renumber
-python verification_plan/verification_plan_table.py --toml verification_plan/verification_plan.toml  # HTML export
 ```
 
 ### Key Points
 
-- **IDs are sequential** (001-NNN) with no gaps; the script maintains this invariant
 - **XL frames are out of scope** - do not add XL-related requirements
-- **All keys and valid values** are documented in the `verification_plan.toml` header comment
+- **No internal observability** - all requirements must have a testable boundary effect
+- All `label` and `file` fields are blank until linked to a TB assertion or procedure
 
 ---
 
