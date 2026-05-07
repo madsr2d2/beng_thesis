@@ -1274,7 +1274,7 @@ notes = "Two sub-claims: only one synchronization is allowed per bit time, and s
 label = ""
 file = ""
 side = "both"
-observability = "black_box"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-094"
@@ -1286,7 +1286,7 @@ notes = "Two sub-claims: an edge causes synchronization only if the previous sam
 label = ""
 file = ""
 side = "both"
-observability = "black_box"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-095"
@@ -1298,7 +1298,7 @@ notes = "Three trigger conditions for hard sync: edges during inter-frame space 
 label = ""
 file = ""
 side = "both"
-observability = "black_box"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-096"
@@ -1310,7 +1310,7 @@ notes = "Rule (d) of synchronization rules. The FD data phase exception prevents
 label = ""
 file = ""
 side = "both"
-observability = "black_box"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-097"
@@ -1322,7 +1322,7 @@ notes = "Three sub-claims: after hard sync the bit time restarts with Sync_Seg c
 label = ""
 file = ""
 side = "both"
-observability = "black_box"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-098"
@@ -1334,7 +1334,7 @@ notes = "Small phase errors are fully corrected, same as hard sync. All four for
 label = ""
 file = ""
 side = "both"
-observability = "black_box"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-099"
@@ -1346,7 +1346,7 @@ notes = "Two sub-claims for large phase errors: a positive phase error lengthens
 label = ""
 file = ""
 side = "both"
-observability = "black_box"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-100"
