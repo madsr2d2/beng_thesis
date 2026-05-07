@@ -1262,7 +1262,7 @@ format_applicability = "FB, FE"
 notes = "Four sub-claims describing the TDC measurement procedure: the SSP position is derived from a measurement, the measurement is taken at the FDF-to-res edge, a counter incremented by one per minimum time quantum captures the delay, and SSP = measured delay + configured offset. Only FB and FE apply."
 label = ""
 file = ""
-observability = "black_box"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-093"
