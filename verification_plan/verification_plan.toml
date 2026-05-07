@@ -1120,65 +1120,8 @@ notes = "PCS+FCE interaction: bus_off_release_request originates from the FCE su
 label = ""
 file = ""
 
-
-# === SECTION SUMMARY: §6.6 — MAC sub-layer ===
-# Requirements output: 97
-#   triggered:      35  (REQ-MAC-011, REQ-MAC-012, REQ-MAC-013, REQ-MAC-015, REQ-MAC-017, REQ-MAC-022, REQ-MAC-023, REQ-MAC-024, REQ-MAC-026, REQ-MAC-027, REQ-MAC-029, REQ-MAC-032, REQ-MAC-033, REQ-MAC-039, REQ-MAC-045, REQ-MAC-046, REQ-MAC-053, REQ-MAC-062, REQ-MAC-064, REQ-MAC-065, REQ-MAC-070, REQ-MAC-077, REQ-MAC-078, REQ-MAC-079, REQ-MAC-084, REQ-MAC-085, REQ-MAC-086, REQ-MAC-087, REQ-MAC-088, REQ-MAC-089, REQ-MAC-090, REQ-MAC-091, REQ-MAC-092, REQ-MAC-093, REQ-MAC-094)
-#   invariant:      62  (REQ-MAC-001, REQ-MAC-002, REQ-MAC-003, REQ-MAC-004, REQ-MAC-005, REQ-MAC-006, REQ-MAC-007, REQ-MAC-008, REQ-MAC-009, REQ-MAC-010, REQ-MAC-014, REQ-MAC-016, REQ-MAC-018, REQ-MAC-019, REQ-MAC-020, REQ-MAC-021, REQ-MAC-025, REQ-MAC-028, REQ-MAC-030, REQ-MAC-031, REQ-MAC-034, REQ-MAC-035, REQ-MAC-036, REQ-MAC-037, REQ-MAC-038, REQ-MAC-040, REQ-MAC-041, REQ-MAC-042, REQ-MAC-043, REQ-MAC-044, REQ-MAC-047, REQ-MAC-048, REQ-MAC-049, REQ-MAC-050, REQ-MAC-051, REQ-MAC-052, REQ-MAC-054, REQ-MAC-055, REQ-MAC-056, REQ-MAC-057, REQ-MAC-058, REQ-MAC-059, REQ-MAC-060, REQ-MAC-061, REQ-MAC-063, REQ-MAC-066, REQ-MAC-067, REQ-MAC-068, REQ-MAC-069, REQ-MAC-071, REQ-MAC-072, REQ-MAC-073, REQ-MAC-074, REQ-MAC-075, REQ-MAC-076, REQ-MAC-080, REQ-MAC-081, REQ-MAC-082, REQ-MAC-083, REQ-MAC-095, REQ-MAC-096, REQ-MAC-097)
-#   liveness:        0
-#   reachability:    0
-# Flags raised:
-#   COMPOUND:       27  (REQ-MAC-001, REQ-MAC-013, REQ-MAC-017, REQ-MAC-018, REQ-MAC-025, REQ-MAC-028, REQ-MAC-037, REQ-MAC-045, REQ-MAC-050, REQ-MAC-051, REQ-MAC-052, REQ-MAC-054, REQ-MAC-058, REQ-MAC-060, REQ-MAC-061, REQ-MAC-062, REQ-MAC-070, REQ-MAC-073, REQ-MAC-077, REQ-MAC-081, REQ-MAC-082, REQ-MAC-083, REQ-MAC-084, REQ-MAC-086, REQ-MAC-087, REQ-MAC-093, REQ-MAC-094)
-#   AMBIGUOUS:       1  (REQ-MAC-012)
-#   EXTERNAL_DEP:   10  (REQ-MAC-011, REQ-MAC-019, REQ-MAC-023, REQ-MAC-025, REQ-MAC-026, REQ-MAC-027, REQ-MAC-032, REQ-MAC-054, REQ-MAC-077, REQ-MAC-082)
-#   SHOULD:          0
-#   DOC_ONLY:        0
-# ===
-
-# === SECTION SUMMARY: §7.1 + §7.2 + §7.3 + §7.4.2 — PCS ===
-# Requirements output: 36
-#   triggered:      11  (REQ-PCS-001, REQ-PCS-002, REQ-PCS-021, REQ-PCS-022, REQ-PCS-026, REQ-PCS-028, REQ-PCS-029, REQ-PCS-030, REQ-PCS-034, REQ-PCS-035, REQ-PCS-036)
-#   invariant:      25  (REQ-PCS-003, REQ-PCS-004, REQ-PCS-005, REQ-PCS-006, REQ-PCS-007, REQ-PCS-008, REQ-PCS-009, REQ-PCS-010, REQ-PCS-011, REQ-PCS-012, REQ-PCS-013, REQ-PCS-014, REQ-PCS-015, REQ-PCS-016, REQ-PCS-017, REQ-PCS-018, REQ-PCS-019, REQ-PCS-020, REQ-PCS-023, REQ-PCS-024, REQ-PCS-025, REQ-PCS-027, REQ-PCS-031, REQ-PCS-032, REQ-PCS-033)
-#   liveness:        0
-#   reachability:    0
-# Flags raised:
-#   COMPOUND:       14  (REQ-PCS-005, REQ-PCS-010, REQ-PCS-011, REQ-PCS-016, REQ-PCS-018, REQ-PCS-019, REQ-PCS-021, REQ-PCS-022, REQ-PCS-023, REQ-PCS-024, REQ-PCS-025, REQ-PCS-026, REQ-PCS-028, REQ-PCS-030)
-#   AMBIGUOUS:       1  (REQ-PCS-031)
-#   EXTERNAL_DEP:    2  (REQ-PCS-035, REQ-PCS-036)
-#   SHOULD:          0
-#   DOC_ONLY:        0
-# ===
-
-# ============================================================
-# SECTION: §8 — FCE (Fault Confinement Entity)
-# ============================================================
-# === SECTION INVENTORY: §8 — Fault Confinement Entity (layer = FCE) ===
-# Subsections covered: §8.1.1, §8.1.2, §8.1.3.1, §8.1.3.2, §8.1.3.3, §8.1.3.4,
-#   §8.1.4.1, §8.1.4.2, §8.1.4.3, §8.1.4.4, §8.1.5, §8.2
-# Requirement count lower bound: 25
-# Cross-section dependencies noted:
-#   - §8.1.3.2 LLC/FCE interface: Normal_mode_request resets FCE (from LLC)
-#   - §8.1.3.3 MAC/FCE interface: Error, Primary_error, Successful_transfer signals (from MAC)
-#   - §8.1.3.4 PL/FCE interface: Bus_off_request/release to PCS
-#   - §8.1.4.2 Error counting rules reference MAC-layer error detection signals
-#   - §8.1.4.4 Bus-off management references re-integration (MAC §6.6.7.5)
-#   - §8.1.5 Node start-up references bus synchronisation (MAC §6.6.7.5)
-# ===
-
 [[requirement]]
 id = "REQ-081"
-source_clause = "§8.1.2"
-original_wording = "When frames are sent or received correctly, the counters shall be decremented. ; When frames are sent or received with errors, the counters shall be incremented more than they are decremented in the absence of errors."
-side = "both"
-layer = "FCE"
-format_applicability = "CB, CE, FB, FE"
-notes = "Verified via reference model or internal signal visibility in the testbench. Two sub-claims: successful frames decrement counters, and error frames cause a net increment. Specific increment and decrement values are defined in §8.1.4.2. All four formats share the same counting strategy."
-label = ""
-file = ""
-observability = "white_box"
-
-[[requirement]]
-id = "REQ-082"
 source_clause = "§8.1.3.2, Table 14"
 original_wording = "Normal_mode_request: Resets FCE to initial state (the values of the transmit error counter and the receive error counter are set to zero when the FCE passes into its initial state)."
 side = "both"
@@ -1190,67 +1133,31 @@ file = ""
 observability = "white_box"
 
 [[requirement]]
-id = "REQ-083"
+id = "REQ-082"
 source_clause = "§8.1.4.2 rule a)"
-original_wording = "When a receiver detects an error, the receive error counter shall be incremented by 1, except when the detected error is a bit error during the sending of an active error flag or an overload flag."
+original_wording = "When a receiver detects an error, the receive error counter shall be incremented by 1, except when the detected error is a bit error during the sending of an active error flag or an overload flag. ; When a receiver detects a dominant bit as the first bit after sending an error flag, the receive error counter shall be incremented by 8. ; If a receiver detects a bit error while sending an active error flag or an overload flag, the receive error counter shall be incremented by 8."
 side = "receiver"
 layer = "FCE"
 format_applicability = "CB, CE, FB, FE"
-notes = "Verified via reference model or internal signal visibility in the testbench. The error detection signal originates from the MAC sub-layer. The exception for bit errors during active error flag or overload flag transmission is covered by rule e). All four formats share the same rule."
+notes = "Verified via reference model or internal signal visibility in the testbench. Three REC increment rules (§8.1.4.2 a, b, e): (a) REC increments by 1 on any receiver-detected error except bit errors during active error or overload flag transmission; (b) REC increments by 8 when a receiver detects a dominant bit as the first bit after sending an error flag; (e) REC increments by 8 when a receiver detects a bit error while sending an active error or overload flag. All four formats share these rules."
+label = ""
+file = ""
+observability = "white_box"
+
+[[requirement]]
+id = "REQ-083"
+source_clause = "§8.1.4.2 rule c)"
+original_wording = "When a transmitter sends an error flag, the transmit error counter shall be incremented by 8. ; Exception 1: If the transmitter is error-passive and detects an ACK error because of not detecting a dominant ACK and does not detect a dominant bit while sending its passive error flag. ; Exception 2: If the transmitter sends an error flag because a stuff error occurred before the arbitration is decided, whereby the stuff bit should have been recessive, and after it is sent recessive but is monitored to be dominant. ; In exception 1 and in exception 2, the transmit error counter remains unchanged. ; If a transmitter detects a bit error while sending an active error flag or an overload flag, the transmit error counter shall be incremented by 8."
+side = "transmitter"
+layer = "FCE"
+format_applicability = "CB, CE, FB, FE"
+notes = "Verified via reference model or internal signal visibility in the testbench. Two TEC increment rules (§8.1.4.2 c, d): (c) TEC increments by 8 when the transmitter sends an error flag, with exceptions for error-passive ACK errors and stuff errors in the arbitration field; (d) TEC increments by 8 when the transmitter detects a bit error while sending an active error or overload flag. All four formats share these rules."
 label = ""
 file = ""
 observability = "white_box"
 
 [[requirement]]
 id = "REQ-084"
-source_clause = "§8.1.4.2 rule b)"
-original_wording = "When a receiver detects a dominant bit as the first bit after sending an error flag, the receive error counter shall be incremented by 8."
-side = "receiver"
-layer = "FCE"
-format_applicability = "CB, CE, FB, FE"
-notes = "Verified via reference model or internal signal visibility in the testbench. Bit detection and error flag completion signals originate from the MAC sub-layer. All four formats share the same rule."
-label = ""
-file = ""
-observability = "white_box"
-
-[[requirement]]
-id = "REQ-085"
-source_clause = "§8.1.4.2 rule c)"
-original_wording = "When a transmitter sends an error flag, the transmit error counter shall be incremented by 8. ; Exception 1: If the transmitter is error-passive and detects an ACK error because of not detecting a dominant ACK and does not detect a dominant bit while sending its passive error flag. ; Exception 2: If the transmitter sends an error flag because a stuff error occurred before the arbitration is decided, whereby the stuff bit should have been recessive, and after it is sent recessive but is monitored to be dominant. ; In exception 1 and in exception 2, the transmit error counter remains unchanged."
-side = "transmitter"
-layer = "FCE"
-format_applicability = "CB, CE, FB, FE"
-notes = "Verified via reference model or internal signal visibility in the testbench. Three sub-claims: the base rule increments TEC by 8 when an error flag is sent, exception 1 leaves TEC unchanged for an error-passive node that gets no ACK and sees no dominant during its passive error flag, and exception 2 leaves TEC unchanged for a stuff error before arbitration is decided where the stuff bit should have been recessive. Error flag sending and error detection signals originate from the MAC sub-layer. All four formats share the same rule."
-label = ""
-file = ""
-observability = "white_box"
-
-[[requirement]]
-id = "REQ-086"
-source_clause = "§8.1.4.2 rule d)"
-original_wording = "If a transmitter detects a bit error while sending an active error flag or an overload flag, the transmit error counter shall be incremented by 8."
-side = "transmitter"
-layer = "FCE"
-format_applicability = "CB, CE, FB, FE"
-notes = "Verified via reference model or internal signal visibility in the testbench. Bit error detection during error or overload flag transmission originates from the MAC sub-layer. All four formats share the same rule."
-label = ""
-file = ""
-observability = "white_box"
-
-[[requirement]]
-id = "REQ-087"
-source_clause = "§8.1.4.2 rule e)"
-original_wording = "If a receiver detects a bit error while sending an active error flag or an overload flag, the receive error counter shall be incremented by 8."
-side = "receiver"
-layer = "FCE"
-format_applicability = "CB, CE, FB, FE"
-notes = "Verified via reference model or internal signal visibility in the testbench. Bit error detection during error or overload flag transmission originates from the MAC sub-layer. All four formats share the same rule."
-label = ""
-file = ""
-observability = "white_box"
-
-[[requirement]]
-id = "REQ-088"
 source_clause = "§8.1.4.2 rule f)"
 original_wording = "Any node shall tolerate up to 7 consecutive dominant bits after sending an active error flag, passive error flag, or overload flag. After detecting 14 consecutive dominant bits (in case of an active error flag or an overload flag) or after detecting 8 consecutive dominant bits following a passive error flag, and after each sequence of additional 8 consecutive dominant bits, every transmitter shall increment its transmit error counter by 8 and every receiver shall increment its receive error counter by 8."
 side = "both"
@@ -1262,31 +1169,19 @@ file = ""
 observability = "white_box"
 
 [[requirement]]
-id = "REQ-089"
+id = "REQ-085"
 source_clause = "§8.1.4.2 rule g)"
-original_wording = "After the successful transmission of a frame (getting ACK and no error has been detected until EOF is finished), the transmit error counter shall be decremented by 1 unless it was already 0."
-side = "transmitter"
+original_wording = "After the successful transmission of a frame (getting ACK and no error has been detected until EOF is finished), the transmit error counter shall be decremented by 1 unless it was already 0. ; After the successful reception of a frame (reception without error up to the ACK slot and the successful sending of the ACK bit), the receive error counter shall be decremented by 1 if it was between 1 and 127. If the receive error counter was 0, it shall stay at 0, and if it was greater than 127, then it shall be set to a value between 119 and 127."
+side = "both"
 layer = "FCE"
 format_applicability = "CB, CE, FB, FE"
-notes = "Verified via reference model or internal signal visibility in the testbench. The successful_transfer signal originates from the MAC sub-layer. All four formats share the same decrement rule."
+notes = "Verified via reference model or internal signal visibility in the testbench. Two success decrement rules (§8.1.4.2 g, h): (g) TEC decrements by 1 after successful frame transmission, floored at 0; (h) REC decrements by 1 if in range 1-127, stays 0 if already 0, and is set to a value between 119 and 127 if above 127 after successful reception. All four formats share these rules."
 label = ""
 file = ""
 observability = "white_box"
 
 [[requirement]]
-id = "REQ-090"
-source_clause = "§8.1.4.2 rule h)"
-original_wording = "After the successful reception of a frame (reception without error up to the ACK slot and the successful sending of the ACK bit), the receive error counter shall be decremented by 1 if it was between 1 and 127. If the receive error counter was 0, it shall stay at 0, and if it was greater than 127, then it shall be set to a value between 119 and 127."
-side = "receiver"
-layer = "FCE"
-format_applicability = "CB, CE, FB, FE"
-notes = "Verified via reference model or internal signal visibility in the testbench. Three sub-claims depending on REC range: REC in [1,127] decrements by 1, REC = 0 stays 0, and REC > 127 is set to a value between 119 and 127. The successful_transfer signal originates from the MAC sub-layer. All four formats share the same rule."
-label = ""
-file = ""
-observability = "white_box"
-
-[[requirement]]
-id = "REQ-091"
+id = "REQ-086"
 source_clause = "§8.1.4.3"
 original_wording = "If the transmit error counter or the receive error counter of a node exceeds 127 (carry condition in case of a 7-bit receive error counter) then the supervisor shall request the MAC sub-layer to set the corresponding node into the error-passive state. ; An error-passive node shall become error-active again when both the transmit error counter and the receive error counter are less than or equal to 127 (see Figure 43)."
 side = "both"
@@ -1298,7 +1193,7 @@ file = ""
 observability = "white_box"
 
 [[requirement]]
-id = "REQ-092"
+id = "REQ-087"
 source_clause = "§8.1.4.4"
 original_wording = "If the transmit error counter of a node is greater than 255 (carry condition in case of an 8-bit transmit error counter) then the supervisor shall request the PL to set the node into the bus-off state."
 side = "transmitter"
@@ -1310,7 +1205,7 @@ file = ""
 observability = "white_box"
 
 [[requirement]]
-id = "REQ-093"
+id = "REQ-088"
 source_clause = "§8.1.4.4"
 original_wording = "A node which is in the bus-off state shall have no influence on the bus."
 side = "both"
@@ -1322,7 +1217,7 @@ file = ""
 observability = "black_box"
 
 [[requirement]]
-id = "REQ-094"
+id = "REQ-089"
 source_clause = "§8.1.4.4"
 original_wording = "Upon a restart request, a node which is in the bus-off state shall be re-integrating to the CAN communication (see 6.6.7.5) and may become error-active (no longer bus-off) with its error counters both set to zero after having monitored 128 occurrences of the idle condition (see 3.34) on the bus."
 side = "both"
