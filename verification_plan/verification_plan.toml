@@ -1,22 +1,3 @@
-# CAN Verification Plan — ISO 11898-1:2024
-# ISO-aligned shape/scope/layer taxonomy.
-
-# SECTION: §6.4 + §6.5 — LLC sub-layer
-# ============================================================
-# ============================================================
-# === SECTION INVENTORY: §6.4 + §6.5 — LLC sub-layer (layer = LLC) ===
-# Subsections covered: §6.4.1, §6.4.2, §6.4.3, §6.4.4, §6.4.5.1, §6.4.5.2,
-#   §6.4.5.3, §6.4.5.4, §6.4.5.5.1, §6.4.5.5.2, §6.4.5.5.3, §6.4.5.5.4,
-#   §6.4.5.5.5, §6.5.1, §6.5.2, §6.5.3, §6.5.4, §6.5.5, §6.5.6, §6.5.7
-# Requirement count lower bound: 30
-# Cross-section dependencies noted:
-#   - §6.5.6 Transfer_Status reporting references MAC sub-layer transmission outcomes
-#   - §6.5.7 Time-stamping references MAC sub-layer time reference points (§6.6.3)
-#   - §6.5.5 Overload notification references OF (defined in MAC §6.6.6)
-#   - §6.5.2 Re-arbitration references bus arbitration (MAC §6.6.7)
-# ===
-
-# ── §6.4.1 Overview ──
 
 [[requirement]]
 id = "REQ-001"
