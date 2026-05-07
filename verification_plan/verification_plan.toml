@@ -10,6 +10,7 @@ notes = "The notification trigger is the MAC sub-layer transfer status. All four
 label = ""
 file = ""
 observability = "black_box"
+verification_method = "simulation"
 
 [[requirement]]
 id = "REQ-002"
@@ -22,6 +23,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-003"
@@ -34,6 +36,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-004"
@@ -46,6 +49,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-005"
@@ -58,6 +62,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-006"
@@ -70,6 +75,7 @@ notes = "Five distinct sub-claims, one per Transfer_Status value: Ongoing when M
 label = ""
 file = ""
 observability = "black_box"
+verification_method = "simulation"
 
 [[requirement]]
 id = "REQ-007"
@@ -82,6 +88,7 @@ notes = "Verified by code inspection of RTL constants and via two procedures in 
 label = "p_output_vc, p_reset_checker"
 file = "src/can_mac_crc/hdl_tb/can_mac_crc_tb.vhd"
 observability = "white_box"
+verification_method = "simulation, coverage"
 
 [[requirement]]
 id = "REQ-008"
@@ -94,6 +101,7 @@ notes = "Bus-scope synchronisation behaviour shared by the error delimiter and t
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-009"
@@ -106,6 +114,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-010"
@@ -118,6 +127,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-011"
@@ -130,6 +140,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-012"
@@ -142,6 +153,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-013"
@@ -154,6 +166,7 @@ notes = "Two sub-claims from §6.6.8 defining how a transmitter initiates a fram
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-014"
@@ -166,6 +179,7 @@ notes = "Verified by code inspection of the RTL constant. TX sub-claim: SRR pola
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-015"
@@ -178,6 +192,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-016"
@@ -190,6 +205,7 @@ notes = "Merged CC (§6.6.10.6) and FD (§6.6.11.6) ACK rules - same structure a
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-017"
@@ -202,6 +218,7 @@ notes = "Verified by code inspection of the RTL constant. TX sub-claim: RRS pola
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-018"
@@ -214,6 +231,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-019"
@@ -226,6 +244,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-020"
@@ -238,6 +257,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = "p_sbc_checker"
 file = "src/can_mac_bs/hdl_tb/can_mac_bs_tb.vhd"
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-021"
@@ -250,6 +270,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-022"
@@ -262,6 +283,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-023"
@@ -274,6 +296,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = "p_stuff_bit_checker"
 file = "src/can_mac_bs/hdl_tb/can_mac_bs_tb.vhd"
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-024"
@@ -286,6 +309,7 @@ notes = "TX and RX sides of the fixed stuffing rule from §6.6.13.3.1. TX sub-cl
 label = "p_fsb_checker"
 file = "src/can_mac_bs/hdl_tb/can_mac_bs_tb.vhd"
 observability = "white_box"
+verification_method = "simulation, coverage"
 
 [[requirement]]
 id = "REQ-025"
@@ -298,6 +322,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "simulation, coverage"
 
 [[requirement]]
 id = "REQ-026"
@@ -310,6 +335,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-027"
@@ -322,6 +348,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-028"
@@ -334,6 +361,7 @@ notes = "Stuff error detection: the sixth consecutive identical bit in any dynam
 label = ""
 file = ""
 observability = "black_box"
+verification_method = "simulation"
 
 [[requirement]]
 id = "REQ-029"
@@ -346,6 +374,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-030"
@@ -358,6 +387,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-031"
@@ -370,6 +400,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-032"
@@ -382,6 +413,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-033"
@@ -394,6 +426,7 @@ label = ""
 file = ""
 side = "transmitter"
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-034"
@@ -406,6 +439,7 @@ label = ""
 file = ""
 side = "both"
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-035"
@@ -418,6 +452,7 @@ label = ""
 file = ""
 side = "both"
 observability = "black_box"
+verification_method = "simulation"
 
 [[requirement]]
 id = "REQ-036"
@@ -430,6 +465,7 @@ label = ""
 file = ""
 side = "transmitter"
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-037"
@@ -442,6 +478,7 @@ label = ""
 file = ""
 side = "both"
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-038"
@@ -454,6 +491,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-039"
@@ -466,6 +504,7 @@ label = ""
 file = ""
 side = "both"
 observability = "black_box"
+verification_method = "simulation"
 
 [[requirement]]
 id = "REQ-040"
@@ -478,6 +517,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-041"
@@ -490,6 +530,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-042"
@@ -502,6 +543,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-043"
@@ -514,6 +556,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-044"
@@ -526,6 +569,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"
 
 [[requirement]]
 id = "REQ-045"
@@ -538,3 +582,4 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = ""
 file = ""
 observability = "white_box"
+verification_method = "code_inspection"

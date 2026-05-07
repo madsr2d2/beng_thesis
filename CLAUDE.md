@@ -170,13 +170,20 @@ Each entry has exactly these fields:
 | `side` | `transmitter`, `receiver`, `both` |
 | `format_applicability` | `CB`, `CE`, `FB`, `FE` (comma-separated subset) |
 | `observability` | `black_box`, `white_box` |
+| `verification_method` | `simulation`, `code_inspection`, `coverage`, or comma-separated combination |
 | `notes` | How it is verified; relevant caveats |
-| `label` | PSL assertion label or TB procedure name (blank until linked) |
-| `file` | Target VHDL source file (blank until linked) |
+| `label` | PSL assertion label, TB procedure name, coverage ID, or RTL tag (blank until linked) |
+| `file` | Target VHDL source file - TB for simulation/coverage, RTL for code_inspection (blank until linked) |
 
 **Observability** is relative to the sub-module boundary named in `layer`:
 - `black_box`: verified purely at the sub-module's ports from stimulus and config alone - no reference model needed.
-- `white_box`: boundary-observable but verifying correctness requires a non-trivial reference computation (e.g. CRC polynomial, error counter arithmetic).
+- `white_box`: requires internal FSM state, FCE error state, bit-position counters, or a non-trivial reference computation (e.g. CRC polynomial, error counter arithmetic).
+
+**Verification method**:
+- `simulation`: verified by a TB assertion or check procedure; `label`/`file` point to the TB.
+- `code_inspection`: verified by RTL code review; `label`/`file` point to the RTL source location.
+- `coverage`: verified by coverage-driven stimulus sweeping a value range (e.g. DLC bins, data length threshold); `label`/`file` reference the coverage ID or bin set in the TB.
+- Combinations (e.g. `simulation, coverage`) are valid when multiple methods apply to sub-claims within the same requirement.
 
 **Layer `system`**: used for requirements whose behaviour is jointly owned by multiple sub-layers, or that inherently require two nodes on the shared bus (ACK overwrite, passive error flag coordination, bus re-integration). These are verified by the integration testbenches (`can_mac_pcs_fce_tb`, `can_llc_mac_pcs_fce_tb`).
 
