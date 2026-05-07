@@ -246,7 +246,7 @@ begin
 
       -- Check expectation from previous cycle
       if (expect_stuff) then
-        -- REQ-061: transmitter inserts complement stuff bit after 5 consecutive identical bits
+        -- REQ-038: transmitter inserts complement stuff bit after 5 consecutive identical bits
         AffirmIf(dsb_id, bs_o.valid = '1', "Expected bs_o.valid = '1', was '0'");
         if (bs_o.valid = '1') then
           AffirmIf(dsb_id, bs_o.data /= polarity, "Wrong stuff bit polarity");
@@ -300,8 +300,7 @@ begin
     loop
       WaitForClock(clk_i);
 
-      -- REQ-054: SBC is Gray-coded with parity bit SBC0 = xor(SBC3, SBC2, SBC1)
-      -- REQ-055: stuff bit count increments on each dynamic stuff bit, holds on FSB
+      -- REQ-032: SBC Gray-coded with parity SBC0 = xor(SBC3, SBC2, SBC1); count increments on dynamic stuff bit, holds on FSB
       AffirmIf(id, bs_o.stuff_bit_count(0) = (bs_o.stuff_bit_count(3) xor bs_o.stuff_bit_count(2) xor bs_o.stuff_bit_count(1)), "SBC parity bit incorrect");
 
       if (rst_i = '1' or frame_rst = '1') then
@@ -342,10 +341,9 @@ begin
 
       -- Check pending FSB expectation from previous cycle
       if (expect_fsb) then
-        -- REQ-063: initial FSB placed before first SBC bit; REQ-065: FSB after each 4th CRC bit
+        -- REQ-039: initial FSB before first SBC bit; FSB after each 4th CRC bit; FSB value inverse of preceding bit
         AffirmIf(id, bs_o.valid = '1', "Expected FSB not asserted");
         if (bs_o.valid = '1') then
-          -- REQ-066: FSB value is inverse of the preceding bit
           AffirmIf(id, bs_o.data = expected_data, "FSB polarity wrong: expected " & std_logic'image(expected_data));
         end if;
         expect_fsb     := false;
