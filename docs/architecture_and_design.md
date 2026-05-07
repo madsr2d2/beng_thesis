@@ -423,6 +423,30 @@ Output register note:
 
 - `sample_strobe` and `fifo_index` are registered in `monitor_output_reg` before driving `pcs_to_mac_o`.
 
+### 6.5 Error Flag Timing Rationale (ISO 11898-1:2015 §6.6.21.3.1)
+
+The standard specifies two distinct error flag start points, and the distinction follows directly from whether the transmitter is aware of the error before the ACK slot.
+
+**General rule** - bit error, stuff error, form error, ACK error, PCRC error:
+The node starts an error flag at the immediately following bit.
+
+**FCRC error exception** (frame CRC mismatch, CC/XL frames):
+The receiver starts the error flag at the first bit of EOF - three bits later than the general rule would dictate. The receiver must also not send a dominant bit in the ACK slot.
+
+**Why the exception exists:**
+
+The FCRC check passes or fails at the sample point of the CRC delimiter. At that moment the transmitter has just sent a correct, recessive CRC delimiter and is about to enter the ACK slot expecting an acknowledgement. The transmitter has seen no error and is still relying on the ACK slot to confirm delivery.
+
+If a receiver with a pending FCRC error sent a dominant error flag at the ACK slot, the transmitter would see a dominant bit there and record a (false) ACK before the frame is destroyed by the rest of the error flag. Delaying to EOF ensures the ACK slot remains honest: the transmitter sees no dominant ACK, detects an ACK error, and correctly treats the frame as unacknowledged.
+
+By contrast, a form error at the CRC delimiter means the CRC delimiter bit was dominant when it must be recessive. The transmitter sent it recessive and monitored the bus as dominant - that is a bit error for the transmitter. The transmitter is also starting an error flag at the ACK slot. The ACK slot is already destroyed from the transmitter's side; receivers joining at the same bit cause no additional harm.
+
+**The key principle:**
+A receiver must never corrupt information the transmitter is still relying on. The ACK slot is the only window where receiver-detected errors must wait. Any error that the transmitter already knows about before the ACK slot means the ACK slot is already doomed - receivers can start immediately.
+
+**The "dominant bits not treated as errors" clause:**
+§6.6.21.3.1 states that dominant bits seen between the CRC delimiter and the start of the FCRC error flag shall not be treated as errors. This is a "don't cascade" protection for FCRC-error-holding nodes. While sitting quietly waiting for EOF, such a node may see dominant bits from other nodes that detected earlier errors (e.g. a form error at the CRC delimiter) and started error flags at the ACK slot. Without this clause, the FCRC-holding node would double-count those dominant bits as additional form errors. The clause applies only to nodes already in FCRC-error-pending state, not to all nodes on the bus.
+
 ## 7. Verification Status
 
 Current regression status for key benches:
