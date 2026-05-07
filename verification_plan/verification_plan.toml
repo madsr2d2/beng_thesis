@@ -394,29 +394,16 @@ observability = "black_box"
 [[requirement]]
 id = "REQ-034"
 source_clause = "§6.6.21.2"
-original_wording = "The receivers shall calculate the CRC in the same way as the transmitter. ; A receiver shall detect an FCRC error when the calculated frame FCRC sequence does not equal the received one, or when the SBC of an FD frame does not match to the number of the received dynamic stuff bits, or when the SBC parity does not match."
-side = "receiver"
+original_wording = "The receivers shall calculate the CRC in the same way as the transmitter. ; A receiver shall detect an FCRC error when the calculated frame FCRC sequence does not equal the received one, or when the SBC of an FD frame does not match to the number of the received dynamic stuff bits, or when the SBC parity does not match. ; A transmitter shall detect an ACK error whenever it does not detect a dominant bit during the ACK slot."
+side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-notes = "Three FCRC error conditions: calculated FCRC does not match received, SBC does not match the count of received dynamic stuff bits (FD only), or SBC parity does not match (FD only). CRC calculation method is specified in §6.6.4.4. All four formats have FCRC checking."
+notes = "Three sub-claims from §6.6.21.2: (1) Receiver sub-claim: receivers compute CRC using the same algorithm as the transmitter. (2) Receiver sub-claim: an FCRC error is detected when the computed sequence does not match the received FCRC; for FD frames additionally when the SBC does not match the count of received dynamic stuff bits, or when the SBC parity does not match. (3) Transmitter sub-claim: an ACK error is detected whenever no dominant bit is monitored during the ACK slot. The receiver response to an FCRC error (withheld ACK, error flag timing) is specified in §6.6.21.3.1 and covered by the adjacent requirement. All four formats have both checks."
 label = ""
 file = ""
 observability = "black_box"
-
 [[requirement]]
 id = "REQ-035"
-source_clause = "§6.6.21.2"
-original_wording = "A transmitter shall detect an ACK error whenever it does not detect a dominant bit during the ACK slot."
-side = "transmitter"
-layer = "MAC"
-format_applicability = "CB, CE, FB, FE"
-notes = "ACK error means no receiver acknowledged the frame. All four formats have an ACK slot and share this detection rule."
-label = ""
-file = ""
-observability = "black_box"
-
-[[requirement]]
-id = "REQ-036"
 source_clause = "§6.6.21.3.1"
 original_wording = "Whenever a bit error, a stuff error, a form error, a PCRC error, or an ACK error is detected by a node, the LLC sub-layer shall be informed, and the node shall start an error flag at the following bit."
 side = "both"
@@ -428,7 +415,7 @@ file = ""
 observability = "black_box"
 
 [[requirement]]
-id = "REQ-037"
+id = "REQ-036"
 source_clause = "§6.6.21.3.1"
 original_wording = "When a receiver detects an FCRC error, it shall not send a dominant bit in the ACK slot of the received frame. A receiver receiving a CC frame and detecting an FCRC error shall send an EF starting with the first bit of EOF. A receiver receiving an FD frame and detecting an FCRC error shall send an EF after three bit-times following the CRC delimiter."
 side = "receiver"
@@ -440,7 +427,7 @@ file = ""
 observability = "black_box"
 
 [[requirement]]
-id = "REQ-038"
+id = "REQ-037"
 source_clause = "§6.6.21.3.1"
 original_wording = "When error signalling is enabled and a node detects an error during the arbitration phase, the node shall send an EF. ; When a node detects an error while the data phase bit rate is used, the node shall switch from the data bit time back into the nominal bit time of the arbitration phase before it starts the error flag."
 layer = "MAC"
@@ -452,7 +439,7 @@ side = "transmitter"
 observability = "black_box"
 
 [[requirement]]
-id = "REQ-039"
+id = "REQ-038"
 source_clause = "§6.6.21.3.2"
 original_wording = "The following conditions shall lead to the transmission of an OF. a) LLC-requested OF: An LLC may cause an OF transmission, when internal conditions of the receiver need a delay of the next MAC DF or MAC RF. b) Reactive OF: Detection of a dominant bit during either of the first two bits of intermission, detection of one dominant bit at the last bit of EOF by a receiver, or detection of one dominant bit by any node at the last bit of error delimiter or overload delimiter shall cause an OF transmission. ; An LLC-requested OF shall only be started at the first bit of an expected intermission."
 layer = "MAC"
@@ -464,7 +451,7 @@ side = "both"
 observability = "black_box"
 
 [[requirement]]
-id = "REQ-040"
+id = "REQ-039"
 source_clause = "§7.3.2"
 original_wording = "CAN nodes shall support three different bit rates, the nominal bit rate and the FD data bit rate. There shall be separate configuration register sets for the definition of these bit rates. ; The time quantum (t_q) shall be a fixed unit of time derived from the node clock period. There shall exist a programmable prescaler, with integer values. The minimum time quantum (t_q,min) shall be one node clock period long. The length of t_q shall be an integer multiple m of the minimum time quantum t_q,min with m as the value of the prescaler."
 layer = "PCS"
@@ -476,7 +463,7 @@ side = "both"
 observability = "black_box"
 
 [[requirement]]
-id = "REQ-041"
+id = "REQ-040"
 source_clause = "§7.3.4"
 original_wording = "Nodes that support the FD frame format and nodes that support the XL frame format shall support a transmitter delay compensation mechanism. ; Transmitters shall only use this mechanism in the FD data phase of FD frames if the BRS bit is recessive. It shall be programmable whether the mechanism is used. When this mechanism is used, the value of the prescaler m shall be one or two. ; The position of the SSP is specified by its distance from the start of the bit time. The SSP position shall be set to a value derived from a measurement of the actual transmitter delay. ; The measurement of the transmitter delay shall be done in each transmitted frame at the recessive to dominant edge from the FDF bit to the res bit in FD frames. ; A counter shall be started when the transmitter starts to transmit the dominant res bit at the transmit output. The counter shall be incremented by one each minimum time quantum until the dominant signal is detected at the receive input; then the counter shall be stopped. The counter value is the measured transmitter delay time. The SSP position shall be the sum of the measured transmitter delay value and the configured SSP offset."
 layer = "PCS"
@@ -488,7 +475,7 @@ side = "transmitter"
 observability = "white_box"
 
 [[requirement]]
-id = "REQ-042"
+id = "REQ-041"
 source_clause = "§7.3.5.1"
 original_wording = "Only one synchronization within one bit time (between two sample points) shall be allowed. After an edge is detected, synchronizations shall be disabled until the next time the bus state detected at the sample point is recessive. ; An edge shall cause synchronization only if the bus state detected at the previous sample point (previous read bus state) was recessive. ; An edge with a positive phase error shall not cause synchronization in a node sending a dominant bit. ; Hard synchronization shall be performed: on edges during inter-frame space (with the exception of the first bit of intermission); when a node is in bus-integration state; at the edge between the FDF bit and the following dominant res bit inside an FD frame. ; All other recessive to dominant edges fulfilling rules a) and b) shall be used for resynchronization with one exception: A node transmitting an FD frame shall not synchronize while it transmits the data phase of that frame."
 layer = "PCS"
@@ -500,31 +487,18 @@ side = "both"
 observability = "white_box"
 
 [[requirement]]
+id = "REQ-042"
+source_clause = "§7.3.5.3, §7.3.5.4"
+original_wording = "After a hard synchronization, the bit time shall be restarted by each bit-timing logic unit with Sync_Seg completed. Thus, hard synchronization shall force the edge which has caused the hard synchronization to lie within the synchronization segment of the restarted bit time. The function of hard synchronization shall not be limited by the synchronization jump width. ; When the magnitude of the phase error of the edge which causes resynchronization is less than or equal to the programmed value of the synchronization jump width, the effect of a resynchronization shall be the same as a hard synchronization. ; When the magnitude of the phase error is larger than the programmed value of the synchronization jump width, and if the phase error e is positive, Phase_Seg1 shall be lengthened by an amount equal to the synchronization jump width; and if the phase error e is negative, then Phase_Seg2 shall be shortened by an amount equal to the synchronization jump width."
+side = "both"
+layer = "PCS"
+format_applicability = "CB, CE, FB, FE"
+notes = "Verified via reference model or internal signal visibility in the testbench. Four sub-claims covering both correction mechanisms: (1) Hard sync sub-claim: the bit time restarts with Sync_Seg already completed, forcing the triggering edge into the synchronization segment. (2) Hard sync sub-claim: the correction is not bounded by the SJW. (3) Resync sub-claim: when the phase error magnitude is at or below the SJW the correction is identical to a hard synchronization. (4) Resync sub-claim: when the phase error magnitude exceeds the SJW, positive errors lengthen Phase_Seg1 by exactly SJW and negative errors shorten Phase_Seg2 by exactly SJW. All four formats share both correction behaviours."
+label = ""
+file = ""
+observability = "white_box"
+[[requirement]]
 id = "REQ-043"
-source_clause = "§7.3.5.3"
-original_wording = "After a hard synchronization, the bit time shall be restarted by each bit-timing logic unit with Sync_Seg completed. Thus, hard synchronization shall force the edge which has caused the hard synchronization to lie within the synchronization segment of the restarted bit time. The function of hard synchronization shall not be limited by the synchronization jump width."
-layer = "PCS"
-format_applicability = "CB, CE, FB, FE"
-notes = "Verified via reference model or internal signal visibility in the testbench. Three sub-claims: after hard sync the bit time restarts with Sync_Seg completed, the triggering edge is forced to lie within the synchronization segment, and the correction is not limited by the SJW. All four formats share the same hard sync behavior."
-label = ""
-file = ""
-side = "both"
-observability = "white_box"
-
-[[requirement]]
-id = "REQ-044"
-source_clause = "§7.3.5.4"
-original_wording = "When the magnitude of the phase error of the edge which causes resynchronization is less than or equal to the programmed value of the synchronization jump width, the effect of a resynchronization shall be the same as a hard synchronization. ; When the magnitude of the phase error is larger than the programmed value of the synchronization jump width, and if the phase error e is positive, Phase_Seg1 shall be lengthened by an amount equal to the synchronization jump width; and if the phase error e is negative, then Phase_Seg2 shall be shortened by an amount equal to the synchronization jump width."
-layer = "PCS"
-format_applicability = "CB, CE, FB, FE"
-notes = "Verified via reference model or internal signal visibility in the testbench. Two sub-claims for resynchronization phase error correction: errors at or below the synchronization jump width are corrected fully (same as hard synchronization); larger errors lengthen Phase_Seg1 by SJW for positive errors and shorten Phase_Seg2 by SJW for negative errors. All four formats share this behaviour."
-label = ""
-file = ""
-side = "both"
-observability = "white_box"
-
-[[requirement]]
-id = "REQ-045"
 source_clause = "§7.4.2.2, §7.4.2.3"
 original_wording = "The PCS shall send a bus_off symbol to the PMA sub-layer, when it receives a bus_off_request from the supervisor (see 8.1.3.4). The PCS shall send a bus_off_release symbol to the PMA sub-layer when it receives a bus_off_release_request from the supervisor (see 8.1.3.4)."
 layer = "system"
@@ -536,7 +510,7 @@ side = "both"
 observability = "black_box"
 
 [[requirement]]
-id = "REQ-046"
+id = "REQ-044"
 source_clause = "§8.1.3.2, Table 14"
 original_wording = "Normal_mode_request: Resets FCE to initial state (the values of the transmit error counter and the receive error counter are set to zero when the FCE passes into its initial state)."
 side = "both"
@@ -548,7 +522,7 @@ file = ""
 observability = "white_box"
 
 [[requirement]]
-id = "REQ-047"
+id = "REQ-045"
 source_clause = "§8.1.4.2 rule a)"
 original_wording = "When a receiver detects an error, the receive error counter shall be incremented by 1, except when the detected error is a bit error during the sending of an active error flag or an overload flag. ; When a receiver detects a dominant bit as the first bit after sending an error flag, the receive error counter shall be incremented by 8. ; If a receiver detects a bit error while sending an active error flag or an overload flag, the receive error counter shall be incremented by 8."
 side = "receiver"
@@ -560,7 +534,7 @@ file = ""
 observability = "white_box"
 
 [[requirement]]
-id = "REQ-048"
+id = "REQ-046"
 source_clause = "§8.1.4.2 rule c)"
 original_wording = "When a transmitter sends an error flag, the transmit error counter shall be incremented by 8. ; Exception 1: If the transmitter is error-passive and detects an ACK error because of not detecting a dominant ACK and does not detect a dominant bit while sending its passive error flag. ; Exception 2: If the transmitter sends an error flag because a stuff error occurred before the arbitration is decided, whereby the stuff bit should have been recessive, and after it is sent recessive but is monitored to be dominant. ; In exception 1 and in exception 2, the transmit error counter remains unchanged. ; If a transmitter detects a bit error while sending an active error flag or an overload flag, the transmit error counter shall be incremented by 8."
 side = "transmitter"
@@ -572,7 +546,7 @@ file = ""
 observability = "white_box"
 
 [[requirement]]
-id = "REQ-049"
+id = "REQ-047"
 source_clause = "§8.1.4.2 rule f)"
 original_wording = "Any node shall tolerate up to 7 consecutive dominant bits after sending an active error flag, passive error flag, or overload flag. After detecting 14 consecutive dominant bits (in case of an active error flag or an overload flag) or after detecting 8 consecutive dominant bits following a passive error flag, and after each sequence of additional 8 consecutive dominant bits, every transmitter shall increment its transmit error counter by 8 and every receiver shall increment its receive error counter by 8."
 side = "both"
@@ -584,7 +558,7 @@ file = ""
 observability = "white_box"
 
 [[requirement]]
-id = "REQ-050"
+id = "REQ-048"
 source_clause = "§8.1.4.2 rule g)"
 original_wording = "After the successful transmission of a frame (getting ACK and no error has been detected until EOF is finished), the transmit error counter shall be decremented by 1 unless it was already 0. ; After the successful reception of a frame (reception without error up to the ACK slot and the successful sending of the ACK bit), the receive error counter shall be decremented by 1 if it was between 1 and 127. If the receive error counter was 0, it shall stay at 0, and if it was greater than 127, then it shall be set to a value between 119 and 127."
 side = "both"
@@ -596,7 +570,7 @@ file = ""
 observability = "white_box"
 
 [[requirement]]
-id = "REQ-051"
+id = "REQ-049"
 source_clause = "§8.1.4.3"
 original_wording = "If the transmit error counter or the receive error counter of a node exceeds 127 (carry condition in case of a 7-bit receive error counter) then the supervisor shall request the MAC sub-layer to set the corresponding node into the error-passive state. ; An error-passive node shall become error-active again when both the transmit error counter and the receive error counter are less than or equal to 127 (see Figure 43)."
 side = "both"
@@ -608,7 +582,7 @@ file = ""
 observability = "white_box"
 
 [[requirement]]
-id = "REQ-052"
+id = "REQ-050"
 source_clause = "§8.1.4.4"
 original_wording = "If the transmit error counter of a node is greater than 255 then the supervisor shall request the PL to set the node into the bus-off state. A node which is in the bus-off state shall have no influence on the bus. Upon a restart request, a node which is in the bus-off state shall be re-integrating to the CAN communication (see 6.6.7.5) and may become error-active (no longer bus-off) with its error counters both set to zero after having monitored 128 occurrences of the idle condition (see 3.34) on the bus."
 side = "transmitter"
