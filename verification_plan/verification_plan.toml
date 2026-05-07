@@ -186,10 +186,10 @@ original_wording = "All receivers check the consistency of the received DF or RF
 side = "both"
 layer = "system"
 format_applicability = "CB, CE, FB, FE"
-notes = "Merged CC (§6.6.10.6) and FD (§6.6.11.6) ACK rules - same structure across all formats. Sub-claim 1 (all formats): receivers ACK consistent frames by overwriting the transmitter's recessive ACK slot with a dominant bit; inconsistent frames are flagged with an EF; a non-ACK'd frame is flagged by the transmitter with an EF. Sub-claim 2 (FB, FE only): ACK condition additionally requires matching SBC (stuff count), and nodes accept up to a 2-bit dominant phase to compensate for receiver phase shifts."
+notes = "Merged CC (§6.6.10.6) and FD (§6.6.11.6) ACK rules - same structure across all formats. Sub-claim 1 (all formats): receivers ACK consistent frames by overwriting the transmitter's recessive ACK slot with a dominant bit; inconsistent frames are flagged with an EF; a non-ACK'd frame is flagged by the transmitter with an EF. Sub-claim 2 (FB, FE only): ACK condition additionally requires matching SBC (stuff count), and nodes accept up to a 2-bit dominant phase to compensate for receiver phase shifts. White-box because sub-claim 2 requires knowing the receiver's internal ACK acceptance window - the 2-bit dominant tolerance cannot be distinguished from 1-bit acceptance by bus observation alone."
 label = ""
 file = ""
-observability = "black_box"
+observability = "white_box"
 
 [[requirement]]
 id = "REQ-017"
