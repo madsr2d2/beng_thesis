@@ -102,8 +102,6 @@ Before committing to an in-house redesign, the available CAN FD controller IP co
 
 **CAST CAN FD** [@cast_canfd] is a technology-independent RTL core with AMBA APB/AHB bus interface options. It is licensed per-design with an upfront fee. Synopsys (DesignWare) and Cadence offer similar ASIC-targeted CAN FD cores under their respective IP licensing programs.
 
-::: {.landscape-tables}
-
 | Implementation | Language | CAN FD | License | Scope | Conformance Tested |
 |---|---|---|---|---|---|
 | CTU CAN FD [@ctucanfd] | VHDL | Yes | MIT | Full node (TX+RX, buffers, DMA) | ISO 16845-1 |
@@ -114,8 +112,6 @@ Before committing to an in-house redesign, the available CAN FD controller IP co
 | CAST CAN FD [@cast_canfd] | RTL | Yes | Per-design fee | Full node | Yes |
 
 : Survey of available CAN FD controller IP cores. {#tbl:canfd-ip-survey}
-
-:::
 
 ### Rationale for In-House Development {#sec:rationale-in-house}
 

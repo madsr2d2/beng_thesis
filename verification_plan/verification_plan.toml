@@ -465,8 +465,6 @@ flags = []
 notes = "Init vector for FD CRC. Only FB and FE use CRC_17/CRC_21."
 label = ""
 file = ""
-
-# ── §6.6.5.2 Error flag ──
 observability = "derived"
 
 [[requirement]]
@@ -519,8 +517,6 @@ flags = ["COMPOUND"]
 notes = "COMPOUND: (1) error delimiter = 8 recessive bits; (2) monitor for recessive after error flag; (3) complete with 7 more recessive bits. All four formats share the same error delimiter structure."
 label = ""
 file = ""
-
-# ── §6.6.6.1 OF types ──
 observability = "external"
 
 [[requirement]]
@@ -547,8 +543,6 @@ flags = []
 notes = "The specific trigger conditions are detailed in §6.6.21.3.2. All four formats may precede an OF."
 label = ""
 file = ""
-
-# ── §6.6.6.2 Overload flag ──
 observability = "external"
 
 [[requirement]]
@@ -562,8 +556,6 @@ flags = []
 notes = "Structural definition. The second sentence about other nodes detecting the overload is a bus-scope consequence but the structural claim is frame-scope. All four formats share the same OF structure."
 label = ""
 file = ""
-
-# ── §6.6.6.3 Overload delimiter ──
 observability = "external"
 
 [[requirement]]
@@ -577,8 +569,6 @@ flags = ["COMPOUND"]
 notes = "COMPOUND: (1) overload delimiter = 8 recessive bits; (2) monitor for recessive; (3) complete with 7 more. Structurally identical to error delimiter (REQ-MAC-013). All four formats share this structure."
 label = ""
 file = ""
-
-# ── §6.6.7.1 Separation of frames ──
 observability = "external"
 
 [[requirement]]
@@ -605,8 +595,6 @@ flags = ["EXTERNAL_DEP"]
 notes = "EXTERNAL_DEP: error-passive state is owned by the FCE (§8). All four formats share the same IFS structure."
 label = ""
 file = ""
-
-# ── §6.6.7.2 Intermission ──
 observability = "external"
 
 [[requirement]]
@@ -646,8 +634,6 @@ flags = []
 notes = "This links to the SOF specification in §6.6.8. All four formats use the same SOF detection mechanism."
 label = ""
 file = ""
-
-# ── §6.6.7.3 Bus idle ──
 observability = "external"
 
 [[requirement]]
@@ -674,8 +660,6 @@ flags = []
 notes = "Any dominant bit during bus idle starts a new frame. All four formats use the same SOF detection."
 label = ""
 file = ""
-
-# ── §6.6.7.4 Suspend transmission ──
 observability = "external"
 
 [[requirement]]
@@ -689,8 +673,6 @@ flags = ["COMPOUND", "EXTERNAL_DEP"]
 notes = "COMPOUND: (1) suspend for 8 bit times; (2) become receiver if another node starts. EXTERNAL_DEP: error-passive state is owned by FCE (§8). All four formats share the same suspend rules."
 label = ""
 file = ""
-
-# ── §6.6.7.5 Bus re-integration ──
 observability = "external"
 
 [[requirement]]
@@ -769,8 +751,6 @@ flags = ["COMPOUND"]
 notes = "COMPOUND: (1) TX sends recessive SRR; (2) RX accepts both values. Only CE (CEFF) has the SRR bit. The NOTE clarifies that dominant SRR is not a form error."
 label = ""
 file = ""
-
-# ── §6.6.10.3 Control field (CC) ──
 observability = "external"
 
 [[requirement]]
@@ -810,8 +790,6 @@ flags = []
 notes = "In CEFF, r0 does not trigger protocol exception — both values are accepted. Only CE applies."
 label = ""
 file = ""
-
-# ── §6.6.10.4 Data field (CC) ──
 observability = "external"
 
 [[requirement]]
@@ -890,8 +868,6 @@ flags = []
 notes = "The ACK slot is surrounded by recessive bits (CRC delimiter and ACK delimiter). Only CB and CE apply."
 label = ""
 file = ""
-
-# ── §6.6.10.7 EOF (CC) ──
 observability = "external"
 
 [[requirement]]
@@ -905,8 +881,6 @@ flags = []
 notes = "CC EOF structure. Only CB and CE apply; FD EOF is specified in §6.6.11.7."
 label = ""
 file = ""
-
-# ── §6.6.11.2 Arbitration field (FD) ──
 observability = "external"
 
 [[requirement]]
@@ -920,8 +894,6 @@ flags = ["COMPOUND"]
 notes = "COMPOUND: (1) TX sends dominant; (2) RX accepts both. The NOTE clarifies recessive RRS is not a form error. Only FB and FE apply."
 label = ""
 file = ""
-
-# ── §6.6.11.3 Control field (FD) ──
 observability = "external"
 
 [[requirement]]
@@ -961,8 +933,6 @@ flags = ["COMPOUND", "EXTERNAL_DEP"]
 notes = "COMPOUND: three sub-claims depending on LLC ESI value and FCE error state. EXTERNAL_DEP: Error Active/Passive state is owned by FCE (§8). Only FB and FE apply."
 label = ""
 file = ""
-
-# ── §6.6.11.4 Data field (FD) ──
 observability = "external"
 
 [[requirement]]
@@ -1028,8 +998,6 @@ flags = ["COMPOUND"]
 notes = "COMPOUND: (1) TX sends 1 recessive; (2) accepts 2 recessive before ACK edge. This allows phase compensation between TX and RX bit timing. Only FB and FE apply."
 label = ""
 file = ""
-
-# ── §6.6.11.6 ACK field (FD) ──
 observability = "external"
 
 [[requirement]]
@@ -1095,8 +1063,6 @@ flags = []
 notes = "Mirror of REQ-MAC-064 for the receiver side. All four in-scope formats use this rule."
 label = ""
 file = ""
-
-# ── §6.6.13.3.1 Fixed bit stuffing (FD CRC field) ──
 observability = "external"
 
 [[requirement]]
@@ -1162,10 +1128,6 @@ flags = ["COMPOUND"]
 notes = "COMPOUND: (1) discard fixed stuff bits for CRC; (2) form error on wrong value. Only FB and FE apply."
 label = ""
 file = ""
-
-# ── §6.6.13.3.2 CAN XL data phase — out of scope, skipped ──
-
-# ── §6.6.14 Data frame acknowledgement ──
 observability = "derived"
 
 [[requirement]]
@@ -1205,8 +1167,6 @@ flags = []
 notes = "TX validation is stricter than RX: TX must see all 7 EOF bits without error. All four formats share this rule."
 label = ""
 file = ""
-
-# ── §6.6.16 Order of bit transmission ──
 observability = "external"
 
 [[requirement]]
@@ -1219,8 +1179,6 @@ flags = []
 notes = "Defines the bit ordering for all frame fields. All four in-scope formats use the same MSB-first ordering."
 label = ""
 file = ""
-
-# ── §6.6.17.1 Bus access ──
 side = "both"
 observability = "external"
 
@@ -1234,8 +1192,6 @@ flags = ["COMPOUND", "EXTERNAL_DEP"]
 notes = "COMPOUND: four distinct sub-claims. EXTERNAL_DEP: error counters are owned by FCE (§8). All four formats share the same protocol exception response."
 label = ""
 file = ""
-
-# ── §6.6.17.4 Identifier based arbitration ──
 side = "both"
 observability = "derived"
 
@@ -1276,8 +1232,6 @@ flags = []
 notes = "Defines format-specific arbitration endpoints. All four in-scope formats are covered."
 label = ""
 file = ""
-
-# ── §6.6.18 MAC data consistency ──
 observability = "external"
 
 [[requirement]]
@@ -1343,8 +1297,6 @@ flags = []
 notes = "ACK error means no receiver acknowledged the frame. All four formats have an ACK slot and share this detection rule."
 label = ""
 file = ""
-
-# ── §6.6.21.3.1 Error handling (error signalling enabled) ──
 observability = "external"
 
 [[requirement]]
@@ -1409,8 +1361,6 @@ flags = ["COMPOUND"]
 notes = "COMPOUND: (1) EF on arbitration phase error; (2) bit rate switch before EF on data phase error. The bit rate switch applies only to FD frames with BRS=recessive. All four formats share the arbitration-phase rule; data-phase rule applies to FB and FE with BRS."
 label = ""
 file = ""
-
-# ── §6.6.21.3.2 Overload signalling ──
 side = "transmitter"
 observability = "external"
 
@@ -1503,8 +1453,6 @@ flags = ["COMPOUND"]
 notes = "COMPOUND: (1) SSP position from measurement; (2) measurement at FDF-to-res edge; (3) counter mechanism; (4) SSP = measured + offset. This is the TDC measurement procedure. Only FB and FE apply."
 label = ""
 file = ""
-
-# ── §7.3.5.1 Synchronization description ──
 observability = "external"
 
 [[requirement]]
@@ -1556,8 +1504,6 @@ flags = []
 notes = "Rule (d) of synchronization rules. The FD data phase exception prevents the transmitter from resynchronizing to its own delayed bits during high-speed data phase. XL exception excluded. All four formats use resynchronization."
 label = ""
 file = ""
-
-# ── §7.3.5.3 Hard synchronization ──
 side = "both"
 observability = "external"
 
@@ -1571,8 +1517,6 @@ flags = ["COMPOUND"]
 notes = "COMPOUND: (1) bit time restart with Sync_Seg completed; (2) edge within Sync_Seg; (3) not limited by SJW. All four formats share the same hard sync behavior."
 label = ""
 file = ""
-
-# ── §7.3.5.4 Bit resynchronization ──
 side = "both"
 observability = "external"
 
@@ -1612,8 +1556,6 @@ flags = ["EXTERNAL_DEP"]
 notes = "EXTERNAL_DEP: the bus_off_request originates from the FCE supervisor (§8.1.3.4). All four formats share the same bus-off signalling path."
 label = ""
 file = ""
-
-# ── §7.4.2.3 Bus_off_release symbol ──
 side = "both"
 observability = "external"
 
@@ -1672,10 +1614,6 @@ file = ""
 #   - §8.1.4.4 Bus-off management references re-integration (MAC §6.6.7.5)
 #   - §8.1.5 Node start-up references bus synchronisation (MAC §6.6.7.5)
 # ===
-
-# ── §8.1.1 Objectives ──
-side = "both"
-observability = "external"
 
 [[requirement]]
 id = "REQ-104"
@@ -1805,8 +1743,6 @@ flags = ["COMPOUND", "EXTERNAL_DEP"]
 notes = "COMPOUND: three sub-claims depending on REC range: (1) REC in [1,127] → decrement by 1, (2) REC = 0 → stays 0, (3) REC > 127 → set to [119,127]. EXTERNAL_DEP: successful_transfer signal originates from MAC sub-layer. All four formats share the same rule."
 label = ""
 file = ""
-
-# ── §8.1.4.3 Transition between error-active and error-passive states ──
 observability = "derived"
 
 [[requirement]]
