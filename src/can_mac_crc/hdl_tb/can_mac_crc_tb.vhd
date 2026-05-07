@@ -275,8 +275,7 @@ begin
         when others =>
           v_expected := (others => '0');
       end case;
-      -- REQ-017: CRC_INIT_VECTOR = (0,...,0) for CRC_15
-      -- REQ-018: CRC_INIT_VECTOR = (1,0,...,0) for CRC_17 and CRC_21
+      -- REQ-014: CRC_INIT_VECTOR = (0,...,0) for CRC_15; (1,0,...,0) for CRC_17 and CRC_21
       AffirmIf(reset_id, crc_o.crc = v_expected, "CRC output not reset to init value");
     end loop;
   end process p_reset_checker;
