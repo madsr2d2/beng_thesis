@@ -19,7 +19,7 @@ This is a B.Eng thesis project implementing a **full CAN (Controller Area Networ
 
 **Key Dependencies**: GHDL compiler, OSVVM libraries, VSG linter
 
-**Standards Reference**: `docs/md_out/ISO_11898_1_CAN_bus_link/ISO_11898_1_CAN_bus_link.md` (ISO 11898-1:2015) - searchable markdown version
+**Standards Reference**: `docs/md_out/ISO_11898_1_CAN_bus_link/ISO_11898_1_CAN_bus_link.md` (ISO 11898-1:2024, Third edition) - searchable markdown version
 
 ---
 
