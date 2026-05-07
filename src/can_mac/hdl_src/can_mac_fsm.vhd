@@ -561,6 +561,11 @@ begin
               elsif pcs_i.sample_point = '1' then
                 case bit_count is
                   when 0 to c_arb_id_base_last | c_arb_id_ext_first to c_arb_id_ext_last =>
+                    report "DBG ARB bc=" & to_string(bit_count)
+                         & " by=" & to_string(byte_index)
+                         & " bi=" & to_string(bit_index)
+                         & " rx=" & to_string(pcs_i.rx_data)
+                         & " tx=" & to_string(is_transmitter) severity note;
                     llc_frame(c_id_offset + byte_index)((c_byte_width - 1) - bit_index) <= pcs_i.rx_data;
                     bit_index  <= 0 when bit_index = (c_byte_width - 1) else (bit_index + 1);
                     byte_index <= (byte_index + 1) when bit_index = (c_byte_width - 1);
@@ -569,6 +574,10 @@ begin
                     llc_frame(c_conf_0_offset)(c_llc_frame_ftyp) <= pcs_i.rx_data;
                     bit_count <= bit_count + 1;
                   when c_arb_ide_pos =>
+                    report "DBG IDE rx=" & to_string(pcs_i.rx_data)
+                         & " by=" & to_string(byte_index)
+                         & " bi=" & to_string(bit_index)
+                         & " tx=" & to_string(is_transmitter) severity note;
                     llc_frame(c_conf_0_offset)(c_llc_frame_ide) <= pcs_i.rx_data;
                     if pcs_i.rx_data = c_dominant then
                       state     <= s_fdf_r1_r0;

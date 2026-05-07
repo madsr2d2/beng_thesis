@@ -19,26 +19,6 @@
 # ── §6.4.1 Overview ──
 
 [[requirement]]
-id = "REQ-LLC-001"
-source_clause = "§6.4.3"
-original_wording = "The LLC frame structure shall contain all content needed for all CAN frame formats and types, including the selection of a specific CAN frame format. ; In the interaction between the LLC sub-layer and the MAC sub-layer, the content of that parts of the LLC frame that are not used for the selected CAN frame format shall be ignored."
-shape = "invariant"
-scope = "node"
-side = "both"
-layer = "LLC"
-format_applicability = "CB, CE, FB, FE"
-precondition = "An LLC frame is being constructed or transferred to MAC"
-postcondition = "The LLC frame contains all fields from Table 4; unused fields for the selected format are ignored by the MAC sub-layer"
-flags = ["DOC_ONLY", "COMPOUND"]
-notes = "COMPOUND: (1) LLC frame shall contain all content for all formats; (2) unused fields shall be ignored. DOC_ONLY because compliance requires inspecting the frame data structure definition, not a runtime signal. All four in-scope formats are covered by the single LLC frame structure."
-label = ""
-file = ""
-
-# ── §6.4.4 Limited LLC frames ──
-observability = "internal"
-observability_rationale = "Structural definition of LLC frame content. DOC_ONLY — defines what fields exist, not a testable behaviour. [Rule 3 — structural definition]"
-
-[[requirement]]
 id = "REQ-LLC-002"
 source_clause = "§6.4.4"
 original_wording = "If an LLC sub-layer is restricted to the use of a sub-range of identifiers (e.g. only 11-bit identifiers), then it shall be limited to LLC DFs and LLC RFs with identifiers of that sub-range."
@@ -76,24 +56,6 @@ file = ""
 # ── §6.4.5.2 Types of connectionless-mode transmission services ──
 observability = "external"
 observability_rationale = "[Rule 1a] Padding behavior is observable at LLC↔User boundary via the Frame parameter in L_Data.Confirm(Transfer_Status, Timestamp, Handle) for TX and in L_Data.Indication(Frame, Timestamp) for RX; excess bytes must contain 0xCC, which is directly inspectable as a named parameter of these primitives per §6.4.4."
-
-[[requirement]]
-id = "REQ-LLC-004"
-source_clause = "§6.4.5.2"
-original_wording = "The remote node shall serve the data request in the following two ways."
-shape = "invariant"
-scope = "bus"
-side = "both"
-layer = "LLC"
-format_applicability = "CB, CE"
-precondition = "A remote data request (LLC RF) has been received by a remote node"
-postcondition = "The remote node serves the request either by preparing data for transmission or by transmitting upon reception of the request frame"
-flags = ["DOC_ONLY", "AMBIGUOUS"]
-notes = "AMBIGUOUS scope: assigned bus because the requirement describes interaction between two nodes (requester and remote). However, from a single-node perspective, this could be node-scope (the remote node's response to an RF). Assigned bus as the more conservative choice. DOC_ONLY because the two response modes are implementation choices, not independently assertable behaviors. Only CB and CE support remote frames."
-label = ""
-file = ""
-observability = "internal"
-observability_rationale = "Describes how a remote node serves data requests. DOC_ONLY, AMBIGUOUS — defines protocol behaviour conceptually, not a testable single-node postcondition. [Rule 3 — structural definition]"
 
 [[requirement]]
 id = "REQ-LLC-005"
@@ -330,42 +292,6 @@ observability = "derived"
 observability_rationale = "Frame acceptance filtering outcome observable at LLC↔User boundary via presence/absence of L_Data.Indication. Verifying filter independence requires multi-frame protocol knowledge. [Rule 2]"
 
 [[requirement]]
-id = "REQ-LLC-014"
-source_clause = "§6.5.5"
-original_wording = "The transmission of a OF shall be initiated by the LLC sub-layer if internal conditions of a receiver require delay of the next LLC DF or LLC RF."
-shape = "triggered"
-scope = "node"
-side = "receiver"
-layer = "LLC"
-format_applicability = "CB, CE, FB, FE"
-precondition = "The receiver's internal conditions require delay of the next LLC DF or LLC RF"
-event = "The inter-frame space begins after the current frame"
-postcondition = "The LLC sub-layer initiates transmission of an overload frame (OF)"
-flags = ["EXTERNAL_DEP"]
-notes = "EXTERNAL_DEP: the overload frame itself is defined in the MAC sub-layer (§6.6.6). The LLC layer decides when to initiate it, but the OF structure and encoding are MAC-layer concerns. All four formats may precede an OF."
-label = ""
-file = ""
-
-# NOTE: Probably relevant for our implementation, but included here for completeness and traceability to the standard. These are documentation obligations without direct RTL assertions.
-# 
-# [[requirement]]
-# id = "REQ-LLC-026"
-# source_clause = "§6.5.5"
-# original_wording = "If there are internal conditions of a CAN node that cause a OF to be initiated, these conditions shall be documented for that CAN node."
-# shape = "invariant"
-# scope = "node"
-# layer = "LLC"
-# format_applicability = "CB, CE, FB, FE"
-# precondition = "The CAN node implementation supports overload frame generation"
-# postcondition = "The internal conditions that can cause an overload frame are documented in the node specification"
-# flags = ["DOC_ONLY"]
-# notes = "Documentation obligation — no RTL signal can be asserted against 'conditions are documented'. Retained for completeness and requirements traceability."
-# label = ""
-# file = ""
-observability = "internal"
-observability_rationale = "OF initiation triggered by internal receiver conditions. The precondition (internal conditions require delay) is not observable at any LLC boundary. The OF itself appears on the bus but the trigger decision is internal. [Rule 3 — no boundary effect for precondition]"
-
-[[requirement]]
 id = "REQ-LLC-015"
 source_clause = "§6.5.6"
 original_wording = "The LLC sub-layer's transmission service shall report the Transfer_Status of a requested transmission as Ongoing when the MAC has started that transmission. ; It shall report the Transfer_Status as Transmitted when that transmission is successfully completed. ; It shall report the Transfer_Status as Lost_Arbitration when that transmission loses the bus arbitration, until the frame is started again or aborted. ; It shall report the Transfer_Status as Disturbed when that transmission is disturbed by an error or is not acknowledged, until the frame is started again or aborted. ; It shall report the Transfer_Status as Aborted when that transmission is not successful and is not retransmitted because the frame is aborted, or its retransmission limit is reached."
@@ -599,24 +525,6 @@ label = ""
 file = ""
 observability = "derived"
 observability_rationale = "[Rule 2] The 21-bit FCRC field manifests as PCS_Data.Request(Output_Unit) calls at the MAC↔PCS boundary, but verifying correctness requires applying the CRC_21(0x302899) polynomial to the FD bit stream (including dynamic stuff bits and stuff count) — a non-trivial algorithm beyond reading config generics"
-
-[[requirement]]
-id = "REQ-MAC-005"
-source_clause = "§6.6.4.4"
-original_wording = "At the SOF, the five specified CRC sequences shall be calculated concurrently by the transmitting nodes and the receiving nodes."
-shape = "invariant"
-scope = "node"
-side = "both"
-layer = "MAC"
-format_applicability = "CB, CE, FB, FE"
-precondition = "A frame transmission or reception has begun (SOF detected)"
-postcondition = "All applicable CRC sequences are calculated concurrently from SOF onwards by both TX and RX nodes"
-flags = []
-notes = "The standard specifies five CRC sequences (CRC_13, 15, 17, 21, 32) calculated in parallel. For this project (no XL), CRC_13 and CRC_32 are not needed, but CRC_15, CRC_17, and CRC_21 must run concurrently. All four in-scope formats require concurrent CRC calculation."
-label = ""
-file = ""
-observability = "internal"
-observability_rationale = "CRC results are observable at MAC↔PCS boundary (derived), but the postcondition specifically requires concurrent calculation. Concurrency is an internal implementation constraint with no boundary manifestation. [Rule 3 — structural definition]"
 
 [[requirement]]
 id = "REQ-MAC-006"
@@ -1043,45 +951,6 @@ label = ""
 file = ""
 observability = "external"
 observability_rationale = "Eleven consecutive PCS_Data.Indicate(Input_Unit=recessive) calls and resulting MAC idle recognition are directly countable and observable at MAC↔PCS boundary. [Rule 1a]"
-
-[[requirement]]
-id = "REQ-MAC-028"
-source_clause = "§6.6.7.5"
-original_wording = "There shall be a bit counter that is reset when the bus re-integration state is started or when the CAN bus is detected dominant at the sample point. The bit counter shall be incremented when the CAN bus is detected recessive at the sample point. The idle condition shall be detected when this bit counter reaches the value 11."
-shape = "invariant"
-scope = "node"
-side = "both"
-layer = "MAC"
-format_applicability = "CB, CE, FB, FE"
-precondition = "The node is in bus re-integration state"
-postcondition = "A bit counter exists: reset on re-integration start or dominant sample, incremented on recessive sample; idle condition detected when counter reaches 11"
-flags = ["COMPOUND"]
-notes = "COMPOUND: (1) counter reset conditions; (2) counter increment condition; (3) idle detection threshold. All four formats share the same re-integration counter logic."
-label = ""
-file = ""
-observability = "internal"
-observability_rationale = "Internal bit counter for bus re-integration state management. Counter value is not a parameter on any MAC boundary primitive. [Rule 3 — no boundary effect]"
-
-[[requirement]]
-id = "REQ-MAC-029"
-source_clause = "§6.6.7.5"
-original_wording = "For nodes that are FD tolerant, FD enabled, or XL enabled, there shall be a third reset condition for the bit counter. It shall be reset when detecting an edge that causes synchronization."
-shape = "triggered"
-scope = "node"
-layer = "MAC"
-format_applicability = "CB, CE, FB, FE"
-precondition = "The node is FD-tolerant or FD-enabled and is in bus re-integration state"
-event = "An edge that causes synchronization is detected"
-postcondition = "The bit counter for idle detection is reset"
-flags = []
-notes = "This ensures FD nodes do not mistake shorter data-phase bits as idle during re-integration. All four in-scope formats imply FD capability."
-label = ""
-file = ""
-
-# ── §6.6.8 SOF ──
-side = "both"
-observability = "internal"
-observability_rationale = "Internal requirement for a third CRC sequence state machine for FD-tolerant nodes. The existence of a separate state machine is an implementation detail; the CRC result itself is covered by other requirements. [Rule 3 — structural definition]"
 
 [[requirement]]
 id = "REQ-MAC-030"
@@ -2466,46 +2335,6 @@ observability = "external"
 observability_rationale = "[Rule 1b] t_q = m × t_q_min is the fundamental unit underlying all PCS_Data.Indicate(Input_Unit) timing; prescaler m is a config generic; testbench can verify by measuring PCS_Data.Indicate intervals in clock cycles and confirming they are integer multiples of m — fully determined by config generics without internal state knowledge"
 
 [[requirement]]
-id = "REQ-PCS-006"
-source_clause = "§7.3.2"
-original_wording = "The frequencies of the node clock oscillators in the different CAN nodes shall be coordinated to provide a network-wide specified time quantum for the nominal bit time and, for FD or XL enabled nodes, for the data bit time."
-shape = "invariant"
-scope = "bus"
-layer = "PCS"
-format_applicability = "CB, CE, FB, FE"
-precondition = "A CAN network is being configured"
-postcondition = "Node clock oscillator frequencies are coordinated to achieve a consistent time quantum across the network for nominal and (for FD-enabled nodes) data bit times"
-flags = []
-notes = "Bus-scope because coordination is across all nodes in the network. All four formats share the same clock coordination requirement."
-label = ""
-file = ""
-
-# ── §7.3.2 Bit times — segments ──
-side = "both"
-observability = "internal"
-observability_rationale = "Oscillator frequency tolerance is a physical/manufacturing constraint. In simulation the clock is ideal. No manifestation at any layer boundary in a simulation environment. [Rule 3 — no boundary effect]"
-
-[[requirement]]
-id = "REQ-PCS-007"
-source_clause = "§7.3.2"
-original_wording = "All three bit times shall consist of separate non-overlapping time segments. The segments shall form the bit times as shown in Figure 32."
-shape = "invariant"
-scope = "node"
-layer = "PCS"
-format_applicability = "CB, CE, FB, FE"
-precondition = "Bit timing is configured"
-postcondition = "Each bit time consists of non-overlapping segments: Sync_Seg, Prop_Seg, Phase_Seg1, Phase_Seg2"
-flags = []
-notes = "The four segments are: Sync_Seg, Prop_Seg, Phase_Seg1, Phase_Seg2 per Figure 32. All four formats share the same bit time segment structure."
-label = ""
-file = ""
-
-# ── §7.3.2 Sample point ──
-side = "both"
-observability = "internal"
-observability_rationale = "Structural definition of bit time segments — names and describes the four segments with no behavioral output at any layer boundary. [Rule 3 — structural definition]"
-
-[[requirement]]
 id = "REQ-PCS-008"
 source_clause = "§7.3.2"
 original_wording = "The sample point shall be the point in time at which the bus level is read and interpreted as the value of that respective bit. Its location shall be at the end of Phase_Seg1."
@@ -2526,82 +2355,6 @@ observability = "external"
 observability_rationale = "[Rule 1b] The timing of PCS_Data.Indicate(Input_Unit) (sample point) equals m × (1 + prop_seg + phase_seg1) clock cycles after bit start — fully determined by config generics m, prop_seg, phase_seg1; testbench can predict and verify the exact cycle without any internal state knowledge"
 
 [[requirement]]
-id = "REQ-PCS-009"
-source_clause = "§7.3.2"
-original_wording = "The information processing time shall be the number of time quanta required for the calculation of the subsequent bit level. This calculation begins at the sample point and shall be less than or equal to Phase_Seg2."
-shape = "invariant"
-scope = "node"
-layer = "PCS"
-format_applicability = "CB, CE, FB, FE"
-precondition = "A bit has been sampled and the subsequent bit level is being calculated"
-postcondition = "The information processing time (IPT) starts at the sample point and is ≤ Phase_Seg2 in duration"
-flags = []
-notes = "IPT must fit within Phase_Seg2. Additional restrictions on IPT ≤ 2 t_q are in §7.3.3. All four formats share the same IPT constraint."
-label = ""
-file = ""
-
-# ── §7.3.2 Internal delay time and propagation ──
-side = "both"
-observability = "internal"
-observability_rationale = "Defines the concept of information processing time (IPT) as a number of tq. This is a naming/definition with no behavioral output. The testable constraint is in REQ-PCS-013. [Rule 3 — structural definition]"
-
-[[requirement]]
-id = "REQ-PCS-010"
-source_clause = "§7.3.2"
-original_wording = "The internal delay time of a CAN node, t_node, shall be the sum of all asynchronous delays that occur along the transmission and reception path, relative to the bit timing logic unit of the CAN node. ; For proper arbitration, the following conditions given by Formula (2) shall be met: t_prop_seg ≥ t_nodeA + t_nodeB + 2 × t_busline."
-shape = "invariant"
-scope = "bus"
-layer = "PCS"
-format_applicability = "CB, CE, FB, FE"
-precondition = "Two CAN nodes A and B are communicating on a bus"
-postcondition = "t_node = t_output + t_input; and Prop_Seg duration ≥ sum of both nodes' internal delays plus twice the bus line propagation delay"
-flags = ["COMPOUND"]
-notes = "COMPOUND: (1) t_node definition; (2) propagation constraint for proper arbitration. Bus-scope because it relates two nodes' delays plus bus line delay. All four formats require proper arbitration timing."
-label = ""
-file = ""
-
-# ── §7.3.3 Configuration of the bit time parameters ──
-side = "both"
-observability = "internal"
-observability_rationale = "Defines t_node as sum of internal async delays (oscillator tolerance, bus driver, receiver, comparator). These are physical characteristics, not config generics. No boundary manifestation. [Rule 3 — no boundary effect]"
-
-[[requirement]]
-id = "REQ-PCS-011"
-source_clause = "§7.3.3"
-original_wording = "There shall be one prescaler m for the three sets of bit time configurations. ; Except for the synchronization segment, which shall be exactly one t_q long, CAN nodes may allow time segments that exceed the minimum required configuration ranges specified in the tables."
-shape = "invariant"
-scope = "node"
-layer = "PCS"
-format_applicability = "CB, CE, FB, FE"
-precondition = "Bit timing is being configured"
-postcondition = "A single prescaler m is used for all bit time configurations (separate prescalers are allowed but should be equal); Sync_Seg is exactly 1 t_q"
-flags = ["COMPOUND"]
-notes = "COMPOUND: (1) one prescaler m; (2) Sync_Seg = 1 t_q exactly. The table notes allow separate prescalers but recommends same values. All four formats share the same prescaler and Sync_Seg rules."
-label = ""
-file = ""
-side = "both"
-observability = "internal"
-observability_rationale = "Internal hardware architecture decision — one prescaler for three bit time configs. No observable effect at any layer boundary. [Rule 3 — structural definition]"
-
-[[requirement]]
-id = "REQ-PCS-012"
-source_clause = "§7.3.3"
-original_wording = "When the bit time configuration of a CAN node is not programmable, its fixed bit time configuration shall meet the restrictions for this configuration as specified in this subclause."
-shape = "invariant"
-scope = "node"
-layer = "PCS"
-format_applicability = "CB, CE, FB, FE"
-precondition = "The CAN node uses a fixed (non-programmable) bit time configuration"
-postcondition = "The fixed configuration meets all restrictions specified in §7.3.3"
-flags = []
-notes = "Ensures fixed-configuration nodes still comply with timing constraints. All four formats share this rule."
-label = ""
-file = ""
-side = "both"
-observability = "internal"
-observability_rationale = "Applies to non-programmable nodes with fixed bit timing. This implementation is programmable (config generics), so this is a config input constraint for a non-applicable case. [Rule 3 — config input constraint]"
-
-[[requirement]]
 id = "REQ-PCS-013"
 source_clause = "§7.3.3"
 original_wording = "The information processing time shall be less than or equal to 2 t_q long."
@@ -2618,62 +2371,6 @@ file = ""
 side = "both"
 observability = "external"
 observability_rationale = "[Rule 1a] IPT is the delta between PCS_Data.Indicate(Input_Unit) firing (sample point) and the subsequent PCS_Data.Request(Output_Unit) for the next bit; both are named primitives at the MAC↔PCS boundary, making IPT directly measurable as a time delta between two observable events — no internal state knowledge required"
-
-[[requirement]]
-id = "REQ-PCS-014"
-source_clause = "§7.3.3"
-original_wording = "In data bit time, Phase_Seg2 shall be greater than or equal to these two items: SJW and the maximum information processing time. ; In nominal bit time, Phase_Seg2 shall be greater than or equal to the maximum of these two items: SJW and the information processing time."
-shape = "invariant"
-scope = "node"
-layer = "PCS"
-format_applicability = "CB, CE, FB, FE"
-precondition = "Bit timing parameters are being configured"
-postcondition = "Phase_Seg2 ≥ max(SJW, IPT) for both nominal and data bit times"
-flags = []
-notes = "Ensures Phase_Seg2 is large enough for both resynchronization jumps and information processing. All four formats share these constraints."
-label = ""
-file = ""
-side = "both"
-observability = "internal"
-observability_rationale = "Constrains valid Phase_Seg2 values (≥ IPT and ≥ SJW). This is a constraint on valid configuration inputs, not on observable output behaviour for a given valid configuration. [Rule 3 — config input constraint]"
-
-[[requirement]]
-id = "REQ-PCS-015"
-source_clause = "§7.3.3"
-original_wording = "In nominal bit time and in data bit time, SJW shall be less than or equal to the minimum of these two items: Phase_Seg1 and Phase_Seg2."
-shape = "invariant"
-scope = "node"
-layer = "PCS"
-format_applicability = "CB, CE, FB, FE"
-precondition = "Bit timing parameters are being configured"
-postcondition = "SJW ≤ min(Phase_Seg1, Phase_Seg2) for both nominal and data bit times"
-flags = []
-notes = "Prevents SJW from exceeding either phase segment. All four formats share this constraint."
-label = ""
-file = ""
-side = "both"
-observability = "internal"
-observability_rationale = "Constrains valid SJW values (≤ min(Phase_Seg1, Phase_Seg2)). This is a constraint on valid configuration inputs, not on observable output behaviour. [Rule 3 — config input constraint]"
-
-[[requirement]]
-id = "REQ-PCS-016"
-source_clause = "§7.3.3"
-original_wording = "In a CAN node, Prop_Seg and Phase_Seg1 do not need to be programmable separately; it shall be sufficient to program the sum of Prop_Seg and Phase_Seg1. ; The total number of time quanta in a nominal bit time shall be programmable at least from 8 to 25 for nodes that are not FD enabled. For nodes that are FD enabled, the total number of time quanta in a data bit time shall be programmable at least from 5 to 25 and in a nominal bit time at least from 8 to 80."
-shape = "invariant"
-scope = "node"
-layer = "PCS"
-format_applicability = "CB, CE, FB, FE"
-precondition = "Bit timing is being configured for an FD-enabled node"
-postcondition = "Prop_Seg + Phase_Seg1 may be programmed as a single sum; nominal bit time is programmable from 8 to at least 80 t_q; FD data bit time is programmable from 5 to at least 25 t_q"
-flags = ["COMPOUND"]
-notes = "COMPOUND: (1) Prop_Seg + Phase_Seg1 combined programming allowed; (2) nominal range 8–80; (3) data range 5–25. XL range (5–385/5–641) excluded. For this project (FD-enabled, non-XL), the FD ranges apply."
-label = ""
-file = ""
-
-# ── §7.3.4 Transmitter delay compensation ──
-side = "both"
-observability = "internal"
-observability_rationale = "Internal programmability flexibility — whether Prop_Seg and Phase_Seg1 are separately programmable or combined is an implementation choice with no effect at any layer boundary. [Rule 3 — structural definition]"
 
 [[requirement]]
 id = "REQ-PCS-017"
@@ -2712,61 +2409,6 @@ observability = "external"
 observability_rationale = "[Rule 1b] TDC activation scope and prescaler constraint are verifiable from config generics tdc_enable, m_data, and from PCS_Status.Transmitter(D_Transmit) at the MAC↔PCS boundary; PCS_Data.Indicate(Input_Unit) timing in FD data phase shifts predictably to SSP-based values when all conditions are met"
 
 [[requirement]]
-id = "REQ-PCS-019"
-source_clause = "§7.3.4"
-original_wording = "The node shall be able to compensate transmitter delays of at least 95 t_q,min. The position of the SSP shall be configurable separately for XL frames and for FD frames."
-shape = "invariant"
-scope = "node"
-layer = "PCS"
-format_applicability = "FB, FE"
-precondition = "TDC is implemented"
-postcondition = "The node compensates transmitter delays of at least 95 t_q,min; the SSP position is separately configurable for FD frames"
-flags = ["COMPOUND"]
-notes = "COMPOUND: (1) minimum compensation range 95 t_q,min; (2) SSP separately configurable. Non-XL nodes may limit to 63 t_q,min per the standard. Only FB and FE apply."
-label = ""
-file = ""
-side = "transmitter"
-observability = "internal"
-observability_rationale = "Capability constraint on the TDC compensation range (≥ 95 tq_min for XL, ≥ 63 tq_min for FD-only per Table 12). Constrains the supported config space, not the output behaviour for a given valid config. [Rule 3 — config input constraint]"
-
-[[requirement]]
-id = "REQ-PCS-020"
-source_clause = "§7.3.4"
-original_wording = "Bit error detection shall be disabled for those bits at the end of the FD data phase in which the SSPs of the bits are in the following arbitration phase."
-shape = "invariant"
-scope = "node"
-side = "transmitter"
-layer = "PCS"
-format_applicability = "FB, FE"
-precondition = "TDC is active and the end of the FD data phase is being processed"
-postcondition = "Bit error detection via SSP is disabled for bits whose SSP would fall in the subsequent arbitration phase"
-flags = []
-notes = "Prevents false bit errors from SSPs that extend beyond the data phase. Only FB and FE apply."
-label = ""
-file = ""
-observability = "internal"
-observability_rationale = "Bit error detection disabling at end of FD data phase is a MAC-level comparison (Output_Unit vs Input_Unit). From PCS perspective, PCS simply delivers Input_Unit; whether MAC uses it for error detection is not observable at the PCS boundary. [Rule 3 — no PCS boundary effect]"
-
-[[requirement]]
-id = "REQ-PCS-021"
-source_clause = "§7.3.4"
-original_wording = "When it is used, the transmitter shall ignore bit errors detected at the sample point. The received bit value shall be compared, at the SSP, with the (delayed) transmitted bit value. If a bit error is detected at the SSP, the transmitter shall react to this bit error at the subsequent following sample point."
-shape = "triggered"
-scope = "node"
-side = "transmitter"
-layer = "PCS"
-format_applicability = "FB, FE"
-precondition = "TDC is active during the FD data phase"
-event = "A bit is sampled at the sample point and at the SSP"
-postcondition = "Bit errors at SP are ignored; the received bit at SSP is compared with the delayed transmitted bit; if SSP detects a mismatch, the error is reported at the next SP"
-flags = ["COMPOUND"]
-notes = "COMPOUND: (1) SP bit errors ignored; (2) SSP comparison; (3) SSP error reported at next SP. This is the core TDC bit error detection mechanism. Only FB and FE apply."
-label = ""
-file = ""
-observability = "internal"
-observability_rationale = "Ignoring SP bit errors when TDC enabled is a MAC-level decision (compare at SSP instead of SP). PCS delivers Input_Unit at both SP and SSP timing; whether MAC ignores the SP comparison is not observable at PCS boundary. [Rule 3 — no PCS boundary effect]"
-
-[[requirement]]
 id = "REQ-PCS-022"
 source_clause = "§7.3.4"
 original_wording = "The position of the SSP is specified by its distance from the start of the bit time. The SSP position shall be set to a value derived from a measurement of the actual transmitter delay. ; The measurement of the transmitter delay shall be done in each transmitted frame at the recessive to dominant edge from the FDF bit to the res bit in FD frames. ; A counter shall be started when the transmitter starts to transmit the dominant res bit at the transmit output. The counter shall be incremented by one each minimum time quantum until the dominant signal is detected at the receive input; then the counter shall be stopped. The counter value is the measured transmitter delay time. The SSP position shall be the sum of the measured transmitter delay value and the configured SSP offset."
@@ -2786,24 +2428,6 @@ file = ""
 # ── §7.3.5.1 Synchronization description ──
 observability = "external"
 observability_rationale = "[Rule 1b] SSP position = measured_delay + ssp_offset; ssp_offset is a config generic (1–63 t_q_min); measured_delay is observable at the MAC↔PCS boundary (time from TX dominant res bit to RX dominant detected); the resulting PCS_Data.Indicate(Input_Unit) timing is fully predictable and verifiable without internal algorithm"
-
-[[requirement]]
-id = "REQ-PCS-023"
-source_clause = "§7.3.5.1"
-original_wording = "The state machine synchronizing the operation of the CAN node to the PCS_Data.Indicate shall operate in time steps of one t_q. ; At each time quantum, it shall be analysed whether the bus state is recessive or dominant. The bus state detected at the sample point of a bit shall be regarded as the value of that bit."
-shape = "invariant"
-scope = "node"
-layer = "PCS"
-format_applicability = "CB, CE, FB, FE"
-precondition = "The synchronization state machine is operational"
-postcondition = "The state machine operates in t_q steps; bus state is analyzed each t_q; the bus state at the sample point is the bit value"
-flags = ["COMPOUND"]
-notes = "COMPOUND: (1) t_q time steps; (2) bus state analyzed each t_q; (3) sample point determines bit value. All four formats share the same synchronization state machine."
-label = ""
-file = ""
-side = "both"
-observability = "internal"
-observability_rationale = "Defines the synchronization state machine structure (two states: synchronizing and idle). Structural definition of internal state machine architecture with no direct boundary output. [Rule 3 — structural definition]"
 
 [[requirement]]
 id = "REQ-PCS-024"
@@ -2958,42 +2582,6 @@ file = ""
 side = "both"
 observability = "external"
 observability_rationale = "[Rule 1b] No-sync-after-SP constraint is verifiable by measuring that PCS_Data.Indicate(Input_Unit) timing does not shift in response to edges in the ADH-to-DH1 window; the window boundaries are determined by frame structure and config generics — no internal state knowledge required beyond segment lengths"
-
-[[requirement]]
-id = "REQ-PCS-032"
-source_clause = "§7.3.6"
-original_wording = "The tolerance of a node clock oscillator frequency f_osc around the nominal frequency f_nom shall be given by the range (1-df)×f_nom ≤ f_osc ≤ (1+df)×f_nom."
-shape = "invariant"
-scope = "node"
-layer = "PCS"
-format_applicability = "CB, CE, FB, FE"
-precondition = "The node clock oscillator is being specified"
-postcondition = "The oscillator frequency tolerance df defines the acceptable range: f_osc ∈ [(1-df)×f_nom, (1+df)×f_nom]"
-flags = []
-notes = "The tolerance df is constrained by Formulae (3)–(7). All four formats share this oscillator tolerance definition."
-label = ""
-file = ""
-side = "both"
-observability = "internal"
-observability_rationale = "Oscillator frequency tolerance (df) is a physical/manufacturing constraint. In simulation the clock is ideal; df has no manifestation at any layer boundary. [Rule 3 — no boundary effect]"
-
-[[requirement]]
-id = "REQ-PCS-033"
-source_clause = "§7.3.6"
-original_wording = "The conditions given in Formulae (3) and (4) shall be met for CC frames. ; All conditions of Formulae (3) to (7) shall be met for FD frames."
-shape = "invariant"
-scope = "node"
-layer = "PCS"
-format_applicability = "CB, CE, FB, FE"
-precondition = "The oscillator tolerance df is being verified"
-postcondition = "For CC frames: df satisfies Formulae (3) and (4). For FD frames: df satisfies Formulae (3) through (7)"
-flags = []
-notes = "CC frames use two tolerance conditions; FD frames add three more (5, 6, 7) related to the data phase. The formulae involve SJW, Phase_Seg1/2, and bit times for both nominal and data phases. All four formats are covered."
-label = ""
-file = ""
-side = "both"
-observability = "internal"
-observability_rationale = "Oscillator tolerance formula conditions (Formulae 3-8) are physical constraints on oscillator selection. Not testable in simulation where clocks are ideal. [Rule 3 — no boundary effect]"
 
 [[requirement]]
 id = "REQ-PCS-034"
@@ -3369,24 +2957,6 @@ label = ""
 file = ""
 observability = "derived"
 observability_rationale = "[Rule 2] The recovery threshold (both TEC ≤127 and REC ≤127) is internal to the FCE. Recovery to error-active is observable at the MAC↔FCE boundary via Error_active_response. Verifying the exact recovery threshold requires correlating the Successful_transfer sequence count with the observed Error_active_response firing point per §8.1.4.3 — non-trivial multi-step counter state tracking."
-
-[[requirement]]
-id = "REQ-FCE-015"
-source_clause = "§8.1.4.3"
-original_wording = "When the receive error counter of a node exceeds the error-passive limit of 127, further increments of this receive error counter shall be limited by the width of the counter."
-shape = "invariant"
-scope = "node"
-side = "receiver"
-layer = "FCE"
-format_applicability = "CB, CE, FB, FE"
-precondition = "REC > 127 and fault confinement is active"
-postcondition = "Further REC increments are limited by the counter width (no overflow beyond maximum representable value)"
-flags = []
-notes = "Prevents REC overflow — the counter saturates at its maximum value (e.g. 255 for an 8-bit counter). All four formats share the same rule."
-label = ""
-file = ""
-observability = "internal"
-observability_rationale = "Counter saturation/overflow capping is purely about internal counter width. No state transition at any FCE boundary results from saturation itself — the node remains in error-passive regardless. [Rule 3 — no boundary effect]"
 
 [[requirement]]
 id = "REQ-FCE-016"
