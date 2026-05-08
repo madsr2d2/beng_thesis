@@ -581,6 +581,20 @@ verification_method = "simulation"
 
 [[requirement]]
 id = "REQ-040"
+source_clause = "§6.6.7.5, §8.1.4.4"
+original_wording = "A node which is in the bus-off state shall have no influence on the bus. It shall not send any frames nor acknowledge DFs or RFs. ; There shall be a bit counter that is reset when the bus re-integration state is started or when the CAN bus is detected dominant at the sample point. The bit counter shall be incremented when the CAN bus is detected recessive at the sample point. The idle condition shall be detected when this bit counter reaches the value 11."
+paraphrase = "During bus_off the PCS shall not drive dominant bits; it shall count consecutive recessive bits at each sample point and strobe idle_condition once per 11 consecutive recessive bits, resetting the count on any dominant."
+layer = "PCS"
+side = "both"
+format_applicability = "CB, CE, FB, FE"
+notes = "Two sub-claims: (1) bus silence (§8.1.4.4) - the PCS output stays recessive while fce_i.bus_off is asserted, verified by test_bus_off confirming bus_level never goes dominant; (2) idle condition strobe (§6.6.7.5) - the PCS generates fce_o.idle_condition once per 11 consecutive recessive bits at the sample point, verified by test_bus_off counting strobe pulses from both TX and RX PCS instances. This is the PCS-side contribution to bus-off recovery; REQ-047 (FCE) covers the FCE-side counting and state transition."
+label = "test_bus_off"
+file = "src/can_pcs/hdl_tb/can_pcs_tb.vhd"
+observability = "black_box"
+verification_method = "simulation"
+
+[[requirement]]
+id = "REQ-041"
 source_clause = "§7.4.2.2, §7.4.2.3"
 original_wording = "The PCS shall send a bus_off symbol to the PMA sub-layer, when it receives a bus_off_request from the supervisor (see 8.1.3.4). ; The PCS shall send a bus_off_release symbol to the PMA sub-layer when it receives a bus_off_release_request from the supervisor (see 8.1.3.4)."
 paraphrase = "The PCS shall disconnect the node from the bus on a bus_off_request from the FCE supervisor and shall reconnect it on a bus_off_release_request."
@@ -594,7 +608,7 @@ observability = "black_box"
 verification_method = "simulation"
 
 [[requirement]]
-id = "REQ-041"
+id = "REQ-042"
 source_clause = "§8.1.3.2, Table 14"
 original_wording = "Normal_mode_request: Resets FCE to initial state (the values of the transmit error counter and the receive error counter are set to zero when the FCE passes into its initial state)."
 paraphrase = "Normal_mode_request resets TEC and REC to zero."
@@ -608,7 +622,7 @@ observability = "black_box"
 verification_method = "simulation"
 
 [[requirement]]
-id = "REQ-042"
+id = "REQ-043"
 source_clause = "§8.1.4.2 rule a), rule b), rule e)"
 original_wording = "When a receiver detects an error, the receive error counter shall be incremented by 1, except when the detected error is a bit error during the sending of an active error flag or an overload flag. ; When a receiver detects a dominant bit as the first bit after sending an error flag, the receive error counter shall be incremented by 8. ; If a receiver detects a bit error while sending an active error flag or an overload flag, the receive error counter shall be incremented by 8."
 paraphrase = "REC increments by 1 on RX error; by 8 on first dominant bit after an error flag; by 8 on bit error while sending an error or overload flag."
@@ -622,7 +636,7 @@ observability = "black_box"
 verification_method = "simulation"
 
 [[requirement]]
-id = "REQ-043"
+id = "REQ-044"
 source_clause = "§8.1.4.2 rule c), rule d)"
 original_wording = "When a transmitter sends an error flag, the transmit error counter shall be incremented by 8. ; Exception 1: If the transmitter is error-passive and detects an ACK error because of not detecting a dominant ACK and does not detect a dominant bit while sending its passive error flag. ; Exception 2: If the transmitter sends an error flag because a stuff error occurred before the arbitration is decided, whereby the stuff bit should have been recessive, and after it is sent recessive but is monitored to be dominant. ; In exception 1 and in exception 2, the transmit error counter remains unchanged. ; If a transmitter detects a bit error while sending an active error flag or an overload flag, the transmit error counter shall be incremented by 8."
 paraphrase = "TEC increments by 8 when sending an error flag (exemptions: passive ACK error, pre-arbitration stuff error); by 8 on bit error while sending an active error or overload flag."
@@ -636,7 +650,7 @@ observability = "black_box"
 verification_method = "simulation"
 
 [[requirement]]
-id = "REQ-044"
+id = "REQ-045"
 source_clause = "§8.1.4.2 rule f)"
 original_wording = "Any node shall tolerate up to 7 consecutive dominant bits after sending an active error flag, passive error flag, or overload flag. After detecting 14 consecutive dominant bits (in case of an active error flag or an overload flag) or after detecting 8 consecutive dominant bits following a passive error flag, and after each sequence of additional 8 consecutive dominant bits, every transmitter shall increment its transmit error counter by 8 and every receiver shall increment its receive error counter by 8."
 paraphrase = "Error counters increment by 8 after 14 consecutive dominant bits following an active error or overload flag (8 after a passive error flag); and after each further 8."
@@ -650,7 +664,7 @@ observability = "black_box"
 verification_method = "simulation"
 
 [[requirement]]
-id = "REQ-045"
+id = "REQ-046"
 source_clause = "§8.1.4.2 rule g), rule h)"
 original_wording = "After the successful transmission of a frame (getting ACK and no error has been detected until EOF is finished), the transmit error counter shall be decremented by 1 unless it was already 0. ; After the successful reception of a frame (reception without error up to the ACK slot and the successful sending of the ACK bit), the receive error counter shall be decremented by 1 if it was between 1 and 127. If the receive error counter was 0, it shall stay at 0, and if it was greater than 127, then it shall be set to a value between 119 and 127."
 paraphrase = "TEC decrements by 1 on successful TX (floor 0); REC decrements by 1 on successful RX if in 1-127, stays at 0 if already 0, or is set to 119-127 if above 127."
@@ -664,7 +678,7 @@ observability = "black_box"
 verification_method = "simulation"
 
 [[requirement]]
-id = "REQ-046"
+id = "REQ-047"
 source_clause = "§8.1.4.3, §8.1.4.4"
 original_wording = "If the transmit error counter or the receive error counter of a node exceeds 127 (carry condition in case of a 7-bit receive error counter) then the supervisor shall request the MAC sub-layer to set the corresponding node into the error-passive state. ; An error-passive node shall become error-active again when both the transmit error counter and the receive error counter are less than or equal to 127 (see Figure 43). ; If the transmit error counter of a node is greater than 255 (carry condition in case of an 8-bit transmit error counter) then the supervisor shall request the PL to set the node into the bus-off state. A node which is in the bus-off state shall have no influence on the bus. It shall not send any frames nor acknowledge DFs or RFs. Whether or not such a node accepts DFs from the bus depends on the implementation. Upon a restart request, a node which is in the bus-off state shall be re-integrating to the CAN communication (see 6.6.7.5) and may become error-active (no longer bus-off) with its error counters both set to zero after having monitored 128 occurrences of the idle condition (see 3.34) on the bus."
 paraphrase = "Either counter exceeding 127 causes error-passive; both at or below 127 restores error-active; TEC exceeding 255 causes bus-off; recovery requires 128 idle conditions with counters reset to zero."
