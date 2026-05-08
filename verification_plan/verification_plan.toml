@@ -311,7 +311,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = "p_sbc_checker"
 file = "src/can_mac_bs/hdl_tb/can_mac_bs_tb.vhd"
 observability = "white_box"
-verification_method = "code_inspection"
+verification_method = "simulation"
 
 [[requirement]]
 id = "REQ-021"
@@ -353,7 +353,7 @@ notes = "Verified via reference model or internal signal visibility in the testb
 label = "p_stuff_bit_checker"
 file = "src/can_mac_bs/hdl_tb/can_mac_bs_tb.vhd"
 observability = "white_box"
-verification_method = "code_inspection"
+verification_method = "simulation, coverage"
 
 [[requirement]]
 id = "REQ-024"

@@ -246,7 +246,7 @@ begin
 
       -- Check expectation from previous cycle
       if (expect_stuff) then
-        -- REQ-038: transmitter inserts complement stuff bit after 5 consecutive identical bits
+        -- REQ-023: transmitter inserts complement stuff bit after 5 consecutive identical bits
         AffirmIf(dsb_id, bs_o.valid = '1', "Expected bs_o.valid = '1', was '0'");
         if (bs_o.valid = '1') then
           AffirmIf(dsb_id, bs_o.data /= polarity, "Wrong stuff bit polarity");
@@ -300,7 +300,7 @@ begin
     loop
       WaitForClock(clk_i);
 
-      -- REQ-032: SBC Gray-coded with parity SBC0 = xor(SBC3, SBC2, SBC1); count increments on dynamic stuff bit, holds on FSB
+      -- REQ-020: SBC Gray-coded with parity SBC0 = xor(SBC3, SBC2, SBC1); count increments on dynamic stuff bit, holds on FSB
       AffirmIf(id, bs_o.stuff_bit_count(0) = (bs_o.stuff_bit_count(3) xor bs_o.stuff_bit_count(2) xor bs_o.stuff_bit_count(1)), "SBC parity bit incorrect");
 
       if (rst_i = '1' or frame_rst = '1') then
@@ -341,7 +341,7 @@ begin
 
       -- Check pending FSB expectation from previous cycle
       if (expect_fsb) then
-        -- REQ-039: initial FSB before first SBC bit; FSB after each 4th CRC bit; FSB value inverse of preceding bit
+        -- REQ-024: initial FSB before first SBC bit. FSB after each 4th CRC bit. FSB value inverse of preceding bit
         AffirmIf(id, bs_o.valid = '1', "Expected FSB not asserted");
         if (bs_o.valid = '1') then
           AffirmIf(id, bs_o.data = expected_data, "FSB polarity wrong: expected " & std_logic'image(expected_data));
@@ -419,31 +419,43 @@ begin
       WaitForClock(clk_i);
 
       -- Classify input
-      if (frame_rst = '1') then                                           v_in := 3;
+      if (frame_rst = '1') then
+        v_in := 3;
+
       elsif (bs_i.fixed_bit_stuffing_en = '1' and bs_i.valid = '1') then
-        if (bs_i.data = c_dominant) then                                  v_in := 4;
-        else                                                              v_in := 5;
+        if (bs_i.data = c_dominant) then
+          v_in := 4;
+        else
+          v_in := 5;
         end if;
       elsif (bs_i.valid = '1') then
-        if (bs_i.data = c_dominant) then                                  v_in := 1;
-        else                                                              v_in := 2;
+        if (bs_i.data = c_dominant) then 
+          v_in := 1;
+        else
+          v_in := 2;
         end if;
-      else                                                                v_in := 0;
+      else 
+        v_in := 0;
       end if;
       ICover(cov_input, v_in);
 
       -- Classify output
       if (bs_o.valid = '1') then
         if (bs_i.fixed_bit_stuffing_en = '1') then
-          if (bs_o.data = c_dominant) then                                v_out := 3;
-          else                                                            v_out := 4;
+          if (bs_o.data = c_dominant) then
+            v_out := 3;
+          else 
+            v_out := 4;
           end if;
         else
-          if (bs_o.data = c_dominant) then                                v_out := 1;
-          else                                                            v_out := 2;
+          if (bs_o.data = c_dominant) then  
+            v_out := 1;
+          else
+            v_out := 2;
           end if;
         end if;
-      else                                                                v_out := 0;
+      else
+        v_out := 0;
       end if;
       ICover(cov_output, v_out);
 
