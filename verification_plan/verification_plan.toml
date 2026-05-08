@@ -1,3 +1,38 @@
+# verification_plan.toml — ISO 11898-1 CAN verification requirements
+#
+# Fields per [[requirement]] entry:
+#
+#   id                   REQ-NNN (sequential, managed by --renumber)
+#   source_clause        ISO 11898-1 section reference (e.g. §6.4.5.2)
+#   original_wording     Verbatim ISO text; use " ; " to separate sub-clauses
+#   paraphrase           Concise restatement for the report table
+#   layer                LLC | MAC | PCS | FCE | system
+#   side                 transmitter | receiver | both
+#   format_applicability Comma-separated subset of: CB, CE, FB, FE
+#   observability        black_box | white_box
+#                          black_box  — verified purely at the sub-module's ports
+#                          white_box  — requires internal signals, FSM state, or
+#                                       a non-trivial reference computation
+#   verification_method  simulation | code_inspection | waveform_inspection |
+#                        coverage | or comma-separated combination
+#                          simulation          — automated TB assertion, fires every run
+#                          code_inspection     — RTL review; label/file point to RTL source
+#                          waveform_inspection — manual GTKWave review of simulation output;
+#                                               label points to TB procedure, file points
+#                                               to the .gtkw save file
+#                          coverage            — coverage-driven sweep; label/file point to
+#                                               coverage ID or bin set in the TB
+#   label                PSL label, TB procedure name, coverage ID, or RTL tag
+#                        For code_inspection: process_name:~line (e.g. p_can_pcs:~177)
+#   file                 Target file — TB for simulation/coverage/waveform_inspection,
+#                        RTL for code_inspection (blank until linked)
+#   notes                How it is verified; relevant caveats and sub-claim breakdown
+#
+# Layer "system": requirements jointly owned by multiple sub-layers, or that
+# inherently require two nodes on the shared bus. Verified by integration TBs.
+#
+# XL frames are strictly OUT OF SCOPE — do not add XL-related requirements.
+
 [[requirement]]
 id = "REQ-001"
 source_clause = "§6.4.5.2"
@@ -482,10 +517,10 @@ paraphrase = "Nodes shall support separate nominal and FD data bit rate configur
 layer = "PCS"
 format_applicability = "CB, CE, FB, FE"
 notes = "Two sub-claims: nodes shall support separate nominal and FD data bit rate configurations (XL data bit rate is out of scope for this implementation), each based on a programmable integer prescaler that derives the time quantum from the node clock period. All four formats share the time quantum definition."
-label = ""
-file = ""
+label = "test_normal"
+file = "src/can_pcs/hdl_tb/can_pcs_tb.vhd"
 side = "both"
-observability = "black_box"
+observability = "white_box"
 verification_method = "simulation"
 
 [[requirement]]
@@ -496,11 +531,11 @@ paraphrase = "FD-capable nodes shall implement TDC for the FD data phase when BR
 layer = "PCS"
 format_applicability = "FB, FE"
 notes = "Verified via reference model or internal signal visibility in the testbench. The mechanism is TDC (Transmitter Delay Compensation, §7.3.4). Complete TDC specification: FD-capable nodes shall implement TDC, restricted to the FD data phase when BRS is recessive with programmable enable and prescaler constrained to 1 or 2; the SSP position is set to the measured transmitter delay plus a configured offset, where the delay is measured by a counter started at the dominant res bit transmit and stopped when the dominant signal is detected at the receive input. Only FB and FE apply."
-label = ""
-file = ""
+label = "p_check_tdc_delay"
+file = "src/can_pcs/hdl_tb/can_pcs_tb.vhd"
 side = "transmitter"
-observability = "white_box"
-verification_method = "code_inspection"
+observability = "black_box"
+verification_method = "simulation"
 
 [[requirement]]
 id = "REQ-037"
@@ -510,11 +545,11 @@ paraphrase = "Only one synchronisation per bit time is allowed; edges qualify on
 layer = "PCS"
 format_applicability = "CB, CE, FB, FE"
 notes = "Verified via reference model or internal signal visibility in the testbench. Four synchronization rules (a-d): only one synchronization per bit time with disable after each edge until the next recessive sample point; edges only cause synchronization if the previous sample point was recessive and no positive phase error is present while sending dominant; hard synchronization is performed on IFS edges (except first intermission bit), bus-integration state, and FDF-to-res edge; all other qualifying edges cause resynchronization, except FD transmitters during the data phase. All four formats share these rules."
-label = ""
+label = "test_normal"
 file = ""
 side = "both"
 observability = "white_box"
-verification_method = "code_inspection"
+verification_method = "waveform_inspection"
 
 [[requirement]]
 id = "REQ-038"
@@ -525,13 +560,27 @@ side = "both"
 layer = "PCS"
 format_applicability = "CB, CE, FB, FE"
 notes = "Verified via reference model or internal signal visibility in the testbench. Four sub-claims covering both correction mechanisms: (1) Hard sync sub-claim: the bit time restarts with Sync_Seg already completed, forcing the triggering edge into the synchronization segment. (2) Hard sync sub-claim: the correction is not bounded by the SJW. (3) Resync sub-claim: when the phase error magnitude is at or below the SJW the correction is identical to a hard synchronization. (4) Resync sub-claim: when the phase error magnitude exceeds the SJW, positive errors lengthen Phase_Seg1 by exactly SJW and negative errors shorten Phase_Seg2 by exactly SJW. All four formats share both correction behaviours."
-label = ""
+label = "test_normal"
 file = ""
 observability = "white_box"
-verification_method = "code_inspection"
+verification_method = "waveform_inspection"
 
 [[requirement]]
 id = "REQ-039"
+source_clause = "§7.3.6"
+original_wording = "The tolerance of a node clock oscillator frequency f_osc around the nominal frequency f_nom shall be given by the range (1-df)*f_nom <= f_osc <= (1+df)*f_nom. The maximum tolerance df of f_osc shall meet the following conditions: df < SJW(N) / (2 * 10 * tbit(N)) [Eq. 3]; df < min[Phase_Seg1(N), Phase_Seg2(N)] / (2 * [13 * tbit(N) - Phase_Seg2(N)]) [Eq. 4]. The conditions given in Formulae (3) and (4) shall be met for CC frames. All conditions of Formulae (3) to (7) shall be met for FD frames. The configured SJW shall not be larger than the smaller one of the Phase_Seg1 and Phase_Seg2."
+paraphrase = "Each node oscillator shall stay within a frequency tolerance df bounded by SJW and segment lengths (Eq. 3-4 for CC, Eq. 3-7 for FD); the SJW shall not exceed the smaller of Phase_Seg1 and Phase_Seg2."
+layer = "PCS"
+side = "both"
+format_applicability = "CB, CE, FB, FE"
+notes = "Verified by test_normal in can_pcs_tb: two PCS instances run on clocks derived from the maximum ISO 7.3.6 tolerance (Eq. 3: df = SJW / (20 * N) = 4 / (20 * 100) = 0.2%). The slower clock alternates between TX and RX each frame iteration, so every frame exercises the worst-case frequency offset in both directions. Correct bit-level reception by p_rx_mac_vc across 100 frames confirms the implementation tolerates the full oscillator frequency budget. XL data rate conditions (Eq. 8) are out of scope."
+label = "test_normal"
+file = "src/can_pcs/hdl_tb/can_pcs_tb.vhd"
+observability = "black_box"
+verification_method = "simulation"
+
+[[requirement]]
+id = "REQ-040"
 source_clause = "§7.4.2.2, §7.4.2.3"
 original_wording = "The PCS shall send a bus_off symbol to the PMA sub-layer, when it receives a bus_off_request from the supervisor (see 8.1.3.4). ; The PCS shall send a bus_off_release symbol to the PMA sub-layer when it receives a bus_off_release_request from the supervisor (see 8.1.3.4)."
 paraphrase = "The PCS shall disconnect the node from the bus on a bus_off_request from the FCE supervisor and shall reconnect it on a bus_off_release_request."
@@ -545,7 +594,7 @@ observability = "black_box"
 verification_method = "simulation"
 
 [[requirement]]
-id = "REQ-040"
+id = "REQ-041"
 source_clause = "§8.1.3.2, Table 14"
 original_wording = "Normal_mode_request: Resets FCE to initial state (the values of the transmit error counter and the receive error counter are set to zero when the FCE passes into its initial state)."
 paraphrase = "Normal_mode_request resets TEC and REC to zero."
@@ -559,7 +608,7 @@ observability = "black_box"
 verification_method = "simulation"
 
 [[requirement]]
-id = "REQ-041"
+id = "REQ-042"
 source_clause = "§8.1.4.2 rule a), rule b), rule e)"
 original_wording = "When a receiver detects an error, the receive error counter shall be incremented by 1, except when the detected error is a bit error during the sending of an active error flag or an overload flag. ; When a receiver detects a dominant bit as the first bit after sending an error flag, the receive error counter shall be incremented by 8. ; If a receiver detects a bit error while sending an active error flag or an overload flag, the receive error counter shall be incremented by 8."
 paraphrase = "REC increments by 1 on RX error; by 8 on first dominant bit after an error flag; by 8 on bit error while sending an error or overload flag."
@@ -573,7 +622,7 @@ observability = "black_box"
 verification_method = "simulation"
 
 [[requirement]]
-id = "REQ-042"
+id = "REQ-043"
 source_clause = "§8.1.4.2 rule c), rule d)"
 original_wording = "When a transmitter sends an error flag, the transmit error counter shall be incremented by 8. ; Exception 1: If the transmitter is error-passive and detects an ACK error because of not detecting a dominant ACK and does not detect a dominant bit while sending its passive error flag. ; Exception 2: If the transmitter sends an error flag because a stuff error occurred before the arbitration is decided, whereby the stuff bit should have been recessive, and after it is sent recessive but is monitored to be dominant. ; In exception 1 and in exception 2, the transmit error counter remains unchanged. ; If a transmitter detects a bit error while sending an active error flag or an overload flag, the transmit error counter shall be incremented by 8."
 paraphrase = "TEC increments by 8 when sending an error flag (exemptions: passive ACK error, pre-arbitration stuff error); by 8 on bit error while sending an active error or overload flag."
@@ -587,7 +636,7 @@ observability = "black_box"
 verification_method = "simulation"
 
 [[requirement]]
-id = "REQ-043"
+id = "REQ-044"
 source_clause = "§8.1.4.2 rule f)"
 original_wording = "Any node shall tolerate up to 7 consecutive dominant bits after sending an active error flag, passive error flag, or overload flag. After detecting 14 consecutive dominant bits (in case of an active error flag or an overload flag) or after detecting 8 consecutive dominant bits following a passive error flag, and after each sequence of additional 8 consecutive dominant bits, every transmitter shall increment its transmit error counter by 8 and every receiver shall increment its receive error counter by 8."
 paraphrase = "Error counters increment by 8 after 14 consecutive dominant bits following an active error or overload flag (8 after a passive error flag); and after each further 8."
@@ -601,7 +650,7 @@ observability = "black_box"
 verification_method = "simulation"
 
 [[requirement]]
-id = "REQ-044"
+id = "REQ-045"
 source_clause = "§8.1.4.2 rule g), rule h)"
 original_wording = "After the successful transmission of a frame (getting ACK and no error has been detected until EOF is finished), the transmit error counter shall be decremented by 1 unless it was already 0. ; After the successful reception of a frame (reception without error up to the ACK slot and the successful sending of the ACK bit), the receive error counter shall be decremented by 1 if it was between 1 and 127. If the receive error counter was 0, it shall stay at 0, and if it was greater than 127, then it shall be set to a value between 119 and 127."
 paraphrase = "TEC decrements by 1 on successful TX (floor 0); REC decrements by 1 on successful RX if in 1-127, stays at 0 if already 0, or is set to 119-127 if above 127."
@@ -615,7 +664,7 @@ observability = "black_box"
 verification_method = "simulation"
 
 [[requirement]]
-id = "REQ-045"
+id = "REQ-046"
 source_clause = "§8.1.4.3, §8.1.4.4"
 original_wording = "If the transmit error counter or the receive error counter of a node exceeds 127 (carry condition in case of a 7-bit receive error counter) then the supervisor shall request the MAC sub-layer to set the corresponding node into the error-passive state. ; An error-passive node shall become error-active again when both the transmit error counter and the receive error counter are less than or equal to 127 (see Figure 43). ; If the transmit error counter of a node is greater than 255 (carry condition in case of an 8-bit transmit error counter) then the supervisor shall request the PL to set the node into the bus-off state. A node which is in the bus-off state shall have no influence on the bus. It shall not send any frames nor acknowledge DFs or RFs. Whether or not such a node accepts DFs from the bus depends on the implementation. Upon a restart request, a node which is in the bus-off state shall be re-integrating to the CAN communication (see 6.6.7.5) and may become error-active (no longer bus-off) with its error counters both set to zero after having monitored 128 occurrences of the idle condition (see 3.34) on the bus."
 paraphrase = "Either counter exceeding 127 causes error-passive; both at or below 127 restores error-active; TEC exceeding 255 causes bus-off; recovery requires 128 idle conditions with counters reset to zero."
