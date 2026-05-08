@@ -140,10 +140,10 @@ side = "both"
 layer = "system"
 format_applicability = "CB, CE, FB, FE"
 notes = "Bus-scope synchronisation behaviour shared by the error delimiter and the overload delimiter. The bus output (flag followed by delimiter) is observable, but verifying the mechanism - each node monitors the bus until it detects a recessive bit and then independently starts its 7-bit delimiter - requires internal FSM state visibility to distinguish correct behaviour from coincidental correctness. Verified at system level with multi-node bus interaction. All four formats share this behaviour."
-label = "p_fsm:~900"
+label = "p_fsm:~900, test_bus_off"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd"
 observability = "white_box"
-verification_method = "code_inspection"
+verification_method = "code_inspection, waveform_inspection"
 
 [[requirement]]
 id = "REQ-009"
@@ -196,10 +196,10 @@ side = "both"
 layer = "system"
 format_applicability = "CB, CE, FB, FE"
 notes = "Verified via reference model or internal signal visibility in the testbench. Two sub-claims: nodes initiate re-integration on startup or bus-off recovery, and complete re-integration when the idle condition is detected. Both triggers (startup, bus-off recovery) and the bus-integrating state itself are internal FSM/FCE states not observable from the bus alone. The ISO clause also lists protocol exception event as a third trigger, but protocol exception handling is not implemented - see architecture_and_design.md §8. All four formats share this behaviour."
-label = "p_fsm:~433"
+label = "p_fsm:~433, test_bus_off"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd"
 observability = "white_box"
-verification_method = "code_inspection"
+verification_method = "code_inspection, waveform_inspection"
 
 [[requirement]]
 id = "REQ-013"
@@ -255,7 +255,7 @@ notes = "Merged CC (§6.6.10.6) and FD (§6.6.11.6) ACK rules - same structure a
 label = "test_normal"
 file = "can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
-verification_method = "simulation, code_inspection"
+verification_method = "simulation, waveform_inspection"
 
 [[requirement]]
 id = "REQ-017"
