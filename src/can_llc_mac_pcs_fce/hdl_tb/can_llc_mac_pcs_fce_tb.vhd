@@ -101,17 +101,11 @@ architecture tb of can_llc_mac_pcs_fce_tb is
   signal bus_off_seen  : boolean := false;
   signal bus_off_clear : boolean := false;
   -- DUT 1 user TX interface
-  signal user_tx_s2d_dut_1 : t_can_user_llc_tx_if_s2d := (
-    avalon_st_source => (data => (others => '0'), valid => '0',
-                         startofpacket => '0', endofpacket => '0'),
-    abort_request    => '0'
+  signal user_tx_s2d_dut_1 : t_can_user_llc_tx_if_s2d := ( avalon_st_source => (data => (others => '0'), valid => '0', startofpacket => '0', endofpacket => '0'), abort_request    => '0'
   );
   signal user_tx_d2s_dut_1 : t_can_user_llc_tx_if_d2s;
   -- DUT 2 user TX interface
-  signal user_tx_s2d_dut_2 : t_can_user_llc_tx_if_s2d := (
-    avalon_st_source => (data => (others => '0'), valid => '0',
-                         startofpacket => '0', endofpacket => '0'),
-    abort_request    => '0'
+  signal user_tx_s2d_dut_2 : t_can_user_llc_tx_if_s2d := ( avalon_st_source => (data => (others => '0'), valid => '0', startofpacket => '0', endofpacket => '0'), abort_request    => '0'
   );
   signal user_tx_d2s_dut_2 : t_can_user_llc_tx_if_d2s;
   -- DUT 1 RX LLC interface (internal format from MAC)
