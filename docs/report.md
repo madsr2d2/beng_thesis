@@ -152,26 +152,45 @@ The role of modern VHDL standards and verification frameworks in digital design.
 
 ---
 
-# Verification Planning {#sec:verification-planning}
+# Requirements {#sec:requirements}
 
-Protocol compliance is the central objective of this project. The CAN and CAN-FD standards [@iso11898_1] specify normative requirements governing frame structure, bit timing, error handling, and fault confinement. A structured **Verification Plan** links these requirements to testbench evidence, covering the four in-scope frame formats - Classic Basic (CB), Classic Extended (CE), FD Basic (FB), and FD Extended (FE) - across all four architectural layers (LLC, MAC, PCS, FCE). CAN XL is excluded from scope. After curation the plan contains 118 requirements.
+This project is bounded by two distinct sets of requirements: normative clauses extracted from ISO 11898-1 [@iso11898_1], which define what the CAN and CAN-FD protocol must do, and non-negotiable engineering constraints from the company's FPGA development environment, which define the feasible implementation space. Both sets feed directly into the architectural design decisions documented in @sec:architectural-design-decisions.
 
-## Observability Classification {#sec:observability-classification}
+## Protocol Requirements {#sec:protocol-requirements}
 
-The verification methodology is **black-box**: only behaviour observable at a module's canonical service boundary counts as a verification target. Each requirement is classified by its observability relative to the layer under test, anchored in the service primitives defined by ISO 11898-1 [@iso11898_1]:
+### Requirements Extraction {#sec:requirements-extraction}
 
-- **Black-box**: the postcondition maps directly onto a service-primitive parameter or its timing, and the testbench can derive the expected value from configuration generics and driven stimulus alone. For example, the bit-level encoding of the SOF field is directly observable at the MAC↔PCS boundary as the first `Output_Unit` value.
+The requirement set was bootstrapped by feeding the ISO 11898-1 markdown to an LLM, which extracted normative clauses and formatted them as TOML entries. A subsequent manual review pruned entries describing internal mechanics with no observable boundary effect, re-classified observability, and consolidated related sub-clauses. This process produced 45 final requirements covering the four in-scope frame formats across five architectural layers. A wider retrospective on the AI-assisted workflow used throughout this project is in @sec:architectural-design-decisions.
+
+### Scope {#sec:requirements-scope}
+
+The requirement set covers the four in-scope frame formats: Classic Basic (CB), Classic Extended (CE), FD Basic (FB), and FD Extended (FE). CAN XL is explicitly out of scope. Requirements are grouped into five layers, as shown in @tbl:req-layer-distribution.
+
+| Layer | Count | Description |
+| :--- | :---: | :--- |
+| MAC | 22 | Frame structure, bit stuffing, CRC, error detection, arbitration |
+| LLC | 6 | Frame submission, abort, and delivery to the LLC user |
+| PCS | 6 | Bit timing, sample point, TDC |
+| FCE | 5 | Error counters, state transitions, bus-off recovery |
+| system | 6 | Requirements jointly owned by multiple sub-layers or requiring two nodes |
+| **Total** | **45** | |
+
+: Protocol requirement distribution by layer. {#tbl:req-layer-distribution}
+
+The `system` layer captures requirements whose behaviour is jointly owned by multiple sub-layers, or that inherently require two nodes on the shared bus - ACK overwrite, error flag coordination, bus re-integration, and the PCS-FCE bus-off handshake. These six requirements cannot be assigned to a single sub-layer testbench and are verified exclusively by the integration testbenches.
+
+LLC requirements are retained in full despite LLC TX-only implementation at this stage, to document the original scope intent and provide a complete target for future work.
+
+### Observability Classification {#sec:observability-classification}
+
+Each requirement is classified by its observability relative to the layer under test, anchored in the service primitives defined by ISO 11898-1 [@iso11898_1]:
+
+- **Black-box**: the postcondition maps directly onto a service-primitive parameter or its timing, and the testbench can derive the expected value from configuration generics and driven stimulus alone. For example, the bit-level encoding of the SOF field is directly observable at the MAC-PCS boundary as the first `Output_Unit` value.
 - **White-box**: the postcondition manifests at the layer boundary but requires a non-trivial reference computation. CRC correctness falls here: the CRC bits appear in the transmitted bit-stream, but a polynomial reference model is needed to verify their value.
 
-Requirements with no boundary manifestation - structural definitions, configuration-space constraints, and oscillator tolerances - were removed during curation. The 118 surviving requirements are all black-box (83) or white-box (35).
+Of the 45 requirements, 16 are black-box and 29 are white-box.
 
-## Verification Plan Construction {#sec:verification-plan-construction}
-
-The plan was bootstrapped by feeding the ISO 11898-1 markdown to an LLM, which extracted normative clauses and formatted them as TOML entries. The technique accelerated the first draft but the net value was modest: the manual review, pruning, and re-classification that followed absorbed most of the time saved, and a bulk extraction inevitably produces many entries that describe internal mechanics rather than boundary-observable behaviour. The experience informed both the observability taxonomy above and the subsequent curation effort, which reduced 168 initial entries to 118. A wider retrospective on AI-assisted workflow in this project is in @sec:design-space-exploration.
-
-All 12 LLC requirements are retained despite LLC implementation being deferred, to document original scope intent.
-
-## Storage Format and Tooling {#sec:storage-format-tooling}
+### Storage Format and Tooling {#sec:storage-format-tooling}
 
 The plan is stored as `verification_plan/verification_plan.toml`. Each entry is a self-contained `[[requirement]]` block with one key per line, making version-control diffs clean and merge conflicts rare. @tbl:vplan-metadata-fields lists the fields carried by each entry.
 
@@ -180,72 +199,98 @@ The plan is stored as `verification_plan/verification_plan.toml`. Each entry is 
 | `id` | Sequential identifier REQ-NNN. |
 | `source_clause` | ISO 11898-1:2015 section reference. |
 | `original_wording` | Verbatim normative text from the standard. |
-| `layer` | Sub-layer: LLC, MAC, PCS, FCE, or system (see below). |
+| `paraphrase` | Concise restatement for report tables and review. |
+| `layer` | Sub-layer: LLC, MAC, PCS, FCE, or system (see @sec:requirements-scope). |
 | `side` | Obligation direction: transmitter, receiver, or both. |
 | `format_applicability` | Applicable frame formats: CB, CE, FB, FE. |
 | `observability` | `black_box` or `white_box` (see @sec:observability-classification). |
+| `verification_method` | Method(s) used to verify the requirement (see @sec:verification-methods). |
 | `notes` | Engineering notes and caveats. |
-| `label` | Assertion label in the implementing testbench. |
-| `file` | Testbench file where the requirement is verified. |
+| `label` | Assertion label, TB procedure name, coverage ID, or RTL tag. |
+| `file` | Target file - TB for simulation/coverage, RTL for code inspection. |
 
 : Verification-plan metadata fields. {#tbl:vplan-metadata-fields}
 
-The `system` layer is used for requirements whose behaviour is jointly owned by multiple sub-layers, or that inherently require two nodes on the bus - ACK overwrite, error flag coordination, bus re-integration, and the PCS↔FCE bus-off handshake. These 12 requirements have no home in a single sub-layer TB and are verified exclusively by the integration testbenches.
-
 A **Model Context Protocol (MCP) server** (`mcp_tools/verification_plan_manager.py`) provides query, update, insert, delete, and statistics operations as validated tool calls. Constraining writes to atomic, schema-validated operations avoids the data-corruption risks of asking an LLM to rewrite a large structured file directly.
 
-## Verification Strategy {#sec:verification-strategy}
+## Engineering Constraints {#sec:engineering-constraints}
 
-The plan drives a two-tier testbench structure. *Black-box* requirements are verified by port-level stimulus and observation alone; *white-box* requirements additionally use a software reference model.
-
-**Sub-module testbenches** target individual components in isolation:
-
-- `can_mac_ser_tb` - MAC serializer: LLC byte stream to serial bit-stream.
-- `can_mac_bs_tb` - Bit stuffer and de-stuffer, including fixed stuff bits and SBC generation.
-- `can_mac_crc_tb` - CRC engine verified against a software reference model (CRC-15, CRC-17, CRC-21).
-- `can_fce_tb` - Fault Confinement Entity: TEC/REC counters, state transitions, bus-off recovery.
-- `can_pcs_tb` - PCS bit timing, sample point position, and TDC.
-
-**Integration testbenches** verify full-stack frame exchange between two simulated nodes:
-
-- `can_mac_pcs_fce_tb` - Covers nominal TX/RX, lost arbitration, bit-timing delay sweep, and bus-off recovery.
-- `can_llc_mac_pcs_fce_tb` - Full stack including LLC frame submission and retransmission (deferred with LLC implementation).
-
-Coverage is driven by OSVVM coverage bins spanning frame format (IDE × FDF), BRS, ESI, and DLC.
-
-::: {.landscape-tables}
-
-| ID | ISO ref | Layer | Requirement | Method | Label | File |
-| --- | --- | --- | --- | --- | --- | --- |
-| REQ-040 | 8.1.3.2, Table 14 | FCE | Normal_mode_request resets TEC and REC to zero. | sim | test_reset, test_bus_off_recovery | can_fce_tb.vhd |
-| REQ-041 | 8.1.4.2 rule a), rule b), rule e) | FCE | REC increments by 1 on RX error (except during error/overload flag) • by 8 on first dominant bit after an error flag • by 8 on bit error while sending an error or overload flag. | sim | test_rule_a, test_rule_b, test_rule_e | can_fce_tb.vhd |
-| REQ-042 | 8.1.4.2 rule c), rule d) | FCE | TEC increments by 8 when sending an error flag (exemptions: passive ACK error, pre-arbitration stuff error) • by 8 on bit error while sending an active error or overload flag. | sim | test_rule_c, test_rule_c_exception, test_rule_d | can_fce_tb.vhd |
-| REQ-043 | 8.1.4.2 rule f) | FCE | Error counters increment by 8 after 14 consecutive dominant bits following an active error or overload flag (8 after a passive error flag) • and after each further 8. | sim | test_rule_f_tx, test_rule_f_rx | can_fce_tb.vhd |
-| REQ-044 | 8.1.4.2 rule g), rule h) | FCE | TEC decrements by 1 on successful TX (floor 0) • REC decrements by 1 on successful RX if in 1-127, stays at 0 if already 0, or is set to 119-127 if above 127. | sim | test_rule_g, test_rule_h | can_fce_tb.vhd |
-| REQ-045 | 8.1.4.3, 8.1.4.4 | FCE | Either counter exceeding 127 causes error-passive • both at or below 127 restores error-active • TEC exceeding 255 causes bus-off • recovery requires 128 idle conditions with counters reset to zero. | sim | test_bus_off, test_bus_off_recovery | can_fce_tb.vhd |
-
-: FCE requirements and verification mapping. {#tbl:fce-requirements}
-
-::: 
-
-# Design and Architecture {#sec:design-architecture}
-
-## Design Space Exploration {#sec:design-space-exploration}
-
-
-Before settling on the final architecture, several design alternatives were evaluated. The exploration drew on three sources: the existing in-house CAN Classic controller (@sec:existing-controller), the open-source CTU CAN FD core [@ctucanfd; @jerabek2019], and the ISO 11898-1 standard's own layered reference model [@iso11898_1]. This section documents the key design decisions, the alternatives that were considered, and the constraints that shaped the outcome.
-
-### Company Design Constraints {#sec:company-design-constraints}
-
-The company imposes a set of non-negotiable constraints on all FPGA IP modules. These constraints were established before the design exploration began and are not subject to trade-off analysis - they define the feasible design space.
+The company imposes a set of non-negotiable constraints on all FPGA IP modules. These constraints were established before the design exploration began and are not subject to trade-off analysis - they define the feasible design space alongside the protocol requirements.
 
 **`std_logic`-only entity ports.** All module interfaces must use `std_logic` and `std_logic_vector` exclusively. No custom enumeration types, booleans, or integers are permitted on entity ports. This mandate ensures that every module can be integrated into the company's existing synthesis and static analysis toolchain without adapter logic. The constraint precludes designs that expose protocol-level enumerations (such as FSM state types or frame format selectors) on their interfaces - a pattern used in the existing in-house controller, where `t_fsm_can_state` and `t_node_state` enums appear on debug ports. Internally, modules may use any VHDL-2008 type; the restriction applies only at module boundaries.
 
-**Per-module directory structure.** Each module resides in its own directory with `hdl_src/`, `hdl_tb/`, and `test_case/` subdirectories. This convention is enforced across all company FPGA projects and must be followed by any new IP. It rules out monolithic file organizations where multiple entities share a single source directory.
+**Per-module directory structure.** Each module resides in its own directory with `hdl_src/`, `hdl_tb/`, and `test_case/` subdirectories. This convention is enforced across all company FPGA projects and must be followed by any new IP. It rules out monolithic file organisations where multiple entities share a single source directory.
 
 **Avalon-ST streaming interfaces.** Data-transfer interfaces between modules use the Avalon-ST protocol (data, valid, ready, sop, eop). The existing FPGA infrastructure relies on this protocol for inter-module communication, and the CAN transceiver must integrate natively. This constraint excludes IP cores with AXI, APB, or custom register-map interfaces (such as CTU CAN FD's Avalon-MM or the Xilinx core's AXI4-Lite) without an adaptation layer.
 
-**Shared `gen_crc` IP block.** The company maintains a reusable, parameterized CRC generator (`gen_crc`) in its IP library. All CRC computation must instantiate this block rather than implementing polynomial division inline. The CRC wrapper module must therefore be a structural shell that instantiates `gen_crc` with the appropriate polynomial, initial value, and data width for each CRC variant.
+**Shared `gen_crc` IP block.** The company maintains a reusable, parameterised CRC generator (`gen_crc`) in its IP library. All CRC computation must instantiate this block rather than implementing polynomial division inline. The CRC wrapper module must therefore be a structural shell that instantiates `gen_crc` with the appropriate polynomial, initial value, and data width for each CRC variant.
+
+**Platform independence.** The implementation must be written in portable VHDL-2008, synthesisable on any FPGA platform or ASIC flow. This rules out device-locked IP cores such as the AMD/Xilinx CAN FD core and commercial cores delivered as technology-specific netlists.
+
+**VHDL-2008 standard.** All source files target VHDL-2008, enabling record types, unconstrained arrays, and aggregate signal assignments that simplify the typed interface definitions between sub-layers.
+
+**OSVVM verification framework.** All testbenches use the OSVVM library [@osvvm] for clock and reset generation, coverage model management, and alert/check reporting. This ensures that verification infrastructure is consistent across all modules and that pass/fail results are machine-readable.
+
+**VSG linting.** All RTL source files are checked with the VHDL Style Guide (VSG) linter using a shared project configuration (`vsg_config.yaml`), enforcing consistent formatting and naming conventions across the codebase.
+
+---
+
+# Verification Planning {#sec:verification-planning}
+
+The verification plan is the artefact connecting the protocol requirements of @sec:protocol-requirements to testbench evidence. This section describes the plan structure and intent: which methods are used, how testbenches are organised, and how coverage is driven. Execution results - waveform captures, pass/fail tallies, and requirements-closure evidence - appear in @sec:verification.
+
+## Verification Methods {#sec:verification-methods}
+
+Each requirement in the plan is assigned one or more verification methods. Four methods are used:
+
+- **`simulation`** - an automated assertion or check procedure in a GHDL testbench; fires on every simulation run and produces a machine-readable pass/fail result. This is the primary method for functional requirements with a deterministic expected value.
+- **`waveform_inspection`** - a manual GTKWave review of the simulation output, cited with a `.gtkw` save file that configures the signal layout and zoom level. Used for requirements whose correct behaviour is most naturally read from a timing diagram - such as sample point placement or TDC offset measurement - rather than encoded as a single-cycle assertion.
+- **`code_inspection`** - review of the RTL source; label and file point to a specific process and approximate line number. Used for structural requirements verifiable by reading the implementation, such as CRC polynomial selection or FSM state encoding.
+- **`coverage`** - OSVVM coverage bins that sweep a value range, cited with a coverage ID or bin set in the testbench. Used for requirements that must hold across a parametric space (DLC values, frame format combinations, BRS and ESI flags).
+
+Combinations are allowed when multiple sub-claims within one requirement each call for a different method. @tbl:verification-method-distribution shows the distribution across the 45 requirements.
+
+| Method | Count |
+| :--- | :---: |
+| `simulation` | 15 |
+| `code_inspection, waveform_inspection` | 12 |
+| `code_inspection` | 9 |
+| `simulation, coverage` | 5 |
+| `waveform_inspection` | 3 |
+| `simulation, waveform_inspection` | 1 |
+| **Total** | **45** |
+
+: Verification method distribution. {#tbl:verification-method-distribution}
+
+## Testbench Architecture {#sec:testbench-architecture}
+
+The plan drives a two-tier testbench structure. Black-box requirements are verified by port-level stimulus and observation alone; white-box requirements additionally use a software reference model.
+
+**Sub-module testbenches** target individual components in isolation:
+
+- `can_mac_ser_tx_tb` - MAC TX serialiser: LLC byte stream to serial bit-stream.
+- `can_mac_bs_tb` - Bit stuffer, including fixed stuff bits and SBC generation, with PSL assertions for formal verification.
+- `can_mac_crc_tb` - CRC engine verified against a software reference model (CRC-15, CRC-17, CRC-21).
+- `can_fce_tb` - Fault Confinement Entity: TEC/REC counters, state transitions, bus-off recovery.
+- `can_pcs_tx_tb` - PCS TX bit timing, sample point position, and TDC.
+
+**Integration testbenches** verify frame exchange across multiple sub-layers:
+
+- `can_mac_pcs_fce_tb` - Covers nominal TX/RX, lost arbitration, bit-timing delay sweep, and bus-off recovery across the MAC+PCS+FCE stack.
+- `can_tx_tb` - Full TX stack (LLC+MAC+PCS), 35 tests covering all four frame formats and error injection scenarios.
+
+RX pipeline testbenches are in progress; happy-path cases pass and error injection coverage is pending.
+
+## Coverage Strategy {#sec:coverage-strategy}
+
+Coverage-driven stimulus is used for requirements that must hold across a parametric space. OSVVM coverage bins span the four frame format dimensions - IDE (base vs. extended identifier), FDF (classic vs. FD), BRS (bit rate switch), and ESI (error state indicator) - producing 16 format combinations. DLC bins cover all legal values (0-8 for classic frames, 0-15 for FD frames). The test sequencer loops via OSVVM's `IsCovered` until all bins are hit, ensuring that no format or length combination is systematically excluded from a simulation run.
+
+# Design and Architecture {#sec:design-architecture}
+
+## Architectural Design Decisions {#sec:architectural-design-decisions}
+
+
+Before settling on the final architecture, several design alternatives were evaluated. The exploration drew on three sources: the existing in-house CAN Classic controller (@sec:existing-controller), the open-source CTU CAN FD core [@ctucanfd; @jerabek2019], and the ISO 11898-1 standard's own layered reference model [@iso11898_1]. The protocol requirements and engineering constraints documented in @sec:requirements bound the feasible design space; this section documents the key decisions made within it.
 
 ### Monolithic vs. Layered Architecture {#sec:monolithic-vs-layered}
 
