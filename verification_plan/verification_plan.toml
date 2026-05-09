@@ -535,8 +535,8 @@ id = "REQ-032"
 source_clause = "§6.6.21.3.2"
 original_wording = "The following conditions shall lead to the transmission of an OF. a) LLC-requested OF (initiated by the LLC sub-layer): An LLC may cause an OF transmission, when internal conditions of the receiver need a delay of the next MAC DF or MAC RF. b) Reactive OF (initiated by the MAC sub-layer): Detection of a dominant bit during either of the first two bits of intermission, detection of one dominant bit at the last bit of EOF by a receiver, or detection of one dominant bit by any node at the last bit of error delimiter or overload delimiter shall cause an OF transmission. ; An LLC-requested OF shall only be started at the first bit of an expected intermission, whereas reactive OFs shall start one bit after detecting the dominant bit due to condition b) above."
 paraphrase = """An OF is triggered by:
-1) LLC request - at the first bit of intermission.
-2) Reactive - one bit after a dominant at the first two intermission bits, the last EOF bit (receivers only), or the last bit of any error or overload delimiter."""
+1) LLC request - starts at the first bit of intermission. Implementation is optional.
+2) Reactive - dominant at either of the first two intermission bits, the last EOF bit (receivers only), or the last error/overload delimiter bit. The OF starts one bit after the triggering bit."""
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
 notes = "Verified via reference model or internal signal visibility in the testbench. Complete overload flag generation rule covering LLC-requested and reactive triggers. All reactive triggers are position-dependent: 'first two bits of intermission', 'last bit of EOF', and 'last bit of error or overload delimiter' all require internal bit position counters to identify the triggering bit precisely, not derivable from bus observation alone. LLC-requested OFs are held pending until intermission start. All four formats share these triggers."
