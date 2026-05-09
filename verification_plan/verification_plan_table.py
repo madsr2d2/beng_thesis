@@ -153,6 +153,7 @@ def _html_cell(col: str, value: str) -> str:
     style = CAT_CSS.get(value, "") if col == "layer" else ""
     nowrap = "white-space: nowrap;" if col in _NOWRAP_COLS else ""
     combined = (style + " " + nowrap).strip()
+    value = value.replace("\n", "<br>")
     if combined:
         return f'<td style="{combined}">{value}</td>'
     return f"<td>{value}</td>"

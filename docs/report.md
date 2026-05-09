@@ -232,6 +232,8 @@ Coverage is driven by OSVVM coverage bins spanning frame format (IDE × FDF), BR
 
 ## Design Space Exploration {#sec:design-space-exploration}
 
+![GTKWave waveform of a CAN FD frame transmission captured from the `can_mac_pcs_fce_tb` testbench, showing MAC state, bit count, TX/RX bus, sample points, and CRC progression.](figures/waveforms/full_fd_frame.pdf){#fig:can-mac-pcs-fce-waveform width=100%}
+
 Before settling on the final architecture, several design alternatives were evaluated. The exploration drew on three sources: the existing in-house CAN Classic controller (@sec:existing-controller), the open-source CTU CAN FD core [@ctucanfd; @jerabek2019], and the ISO 11898-1 standard's own layered reference model [@iso11898_1]. This section documents the key design decisions, the alternatives that were considered, and the constraints that shaped the outcome.
 
 ### Company Design Constraints {#sec:company-design-constraints}

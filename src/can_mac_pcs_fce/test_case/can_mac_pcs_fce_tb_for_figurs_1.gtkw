@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Sat May  9 11:37:49 2026
+[*] Sat May  9 12:30:59 2026
 [*]
 [dumpfile] "/home/madsr2d2/beng_thesis/sim/can_mac_pcs_fce_tb.ghw"
 [dumpfile_mtime] "Sat May  9 11:05:33 2026"
 [dumpfile_size] 405753963
-[savefile] "/home/madsr2d2/beng_thesis/src/can_mac_pcs_fce/test_case/can_mac_pcs_fce_tb_for_figurs.gtkw"
-[timestart] 4063284000000
-[size] 1920 1080
-[pos] -27 -24
-*-30.751371 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[savefile] "/home/madsr2d2/beng_thesis/src/can_mac_pcs_fce/test_case/can_mac_pcs_fce_tb_for_figurs_1.gtkw"
+[timestart] 4059644000000
+[size] 1920 585
+[pos] -7 -4
+*-30.651371 -1 4065280000000 4065380000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.can_mac_pcs_fce_tb.
 [treeopen] top.can_mac_pcs_fce_tb.u_dut_1.
@@ -74,27 +74,6 @@ top.can_mac_pcs_fce_tb.u_dut_1.mac_to_pcs.transmitting
 @1401200
 -DUT 1: MAC_to_PCS interface
 @c00200
--DUT 1: PCS
-@28
-[color] 1
-top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.tx_o
-[color] 1
-top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.bit_boundary
-@420
-[color] 1
-top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.segment
-@28
-top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.sync_applied
-@420
-[color] 1
-top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.active_phase_seg2
-[color] 1
-top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.active_phase_seg1
-[color] 1
-top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.delay_count_tq
-@1401200
--DUT 1: PCS
-@c00200
 -dut_2_essentials
 @420
 top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.is_transmitter
@@ -133,10 +112,9 @@ top.can_mac_pcs_fce_tb.u_dut_2.u_pcs.active_prop_seg
 -DUT 2: PCS
 @800200
 -DUT 1
-@421
+@420
 [color] 1
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.data_len
-@420
 [color] 1
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.crc_length
 @22
@@ -155,11 +133,40 @@ top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.state
 [color] 1
 top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.bit_count
 @28
-+{SP} top.can_mac_pcs_fce_tb.u_dut_1.pcs_to_mac.sample_point
+top.can_mac_pcs_fce_tb.u_dut_1.pcs_to_mac.sample_point
 [color] 1
 +{transmit_point} top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.bit_boundary
-+{SSP} top.can_mac_pcs_fce_tb.u_dut_1.pcs_to_mac.secondary_sample_point
+top.can_mac_pcs_fce_tb.u_dut_1.pcs_to_mac.secondary_sample_point
+@420
+[color] 1
+top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.active_phase_seg2
+[color] 1
+top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.active_phase_seg1
+@421
+[color] 1
+top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.delay_count_tq
 @1000200
 -DUT 1
+@c00200
+-DUT 1: PCS
+@28
+[color] 1
+top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.tx_o
+[color] 1
+top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.bit_boundary
+@420
+[color] 1
+top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.segment
+@28
+top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.sync_applied
+@420
+[color] 1
+top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.active_phase_seg2
+[color] 1
+top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.active_phase_seg1
+[color] 1
+top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.delay_count_tq
+@1401200
+-DUT 1: PCS
 [pattern_trace] 1
 [pattern_trace] 0
