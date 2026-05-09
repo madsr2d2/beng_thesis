@@ -191,7 +191,7 @@ verification_method = "waveform_inspection"
 id = "REQ-011"
 source_clause = "§6.6.7.4"
 original_wording = "An error-passive node, which has been transmitter of the previous frame, shall suspend the start of further frame transmissions for 8 bit times following intermission. ; If another node starts a transmission during that suspend transmission time, the node shall become a receiver of this DF or RF frame."
-paraphrase = """1) An error-passive transmitter shall suspend for 8 bit times after intermission.
+paraphrase = """1) The 8-bit suspend period applies only to error-passive nodes that were the previous frame's transmitter; they shall not initiate a new frame during this window.
 2) If another node starts transmitting during the suspend window, the node shall become a receiver."""
 side = "transmitter"
 layer = "MAC"
