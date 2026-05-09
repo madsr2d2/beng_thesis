@@ -76,7 +76,6 @@ EXPORT_COLS = [
     "verification_method",
     "label",
     "file",
-    "notes",
 ]
 
 REPORT_COLS = ["id", "iso_ref", "layer", "paraphrase", "method", "label", "file"]
@@ -154,6 +153,8 @@ def _html_cell(col: str, value: str) -> str:
     nowrap = "white-space: nowrap;" if col in _NOWRAP_COLS else ""
     combined = (style + " " + nowrap).strip()
     value = value.replace("\n", "<br>")
+    if col == "file" and value:
+        value = ", ".join(Path(p.strip()).name for p in value.split(","))
     if combined:
         return f'<td style="{combined}">{value}</td>'
     return f"<td>{value}</td>"

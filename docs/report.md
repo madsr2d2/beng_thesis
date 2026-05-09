@@ -1071,7 +1071,7 @@ Implementation details of the flexible CRC generator and the hybrid bit stuffer.
 
 ![REQ-009.](figures/waveforms/full_fd_frame.pdf){#fig:full_fd_frame width=100%}
 
-![REQ-010.](figures/waveforms/req_10.pdf){#fig:req_10 width=100%}
+![REQ-010.](figures/waveforms/req_10_11.pdf){#fig:req_10 width=100%}
 
 *Note: This section is currently being populated as the verification plan is executed.*
 
