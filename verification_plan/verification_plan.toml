@@ -26,11 +26,10 @@
 #                          P1 — must be verified before tape-out; failure is critical
 #                          P2 — important; verified in normal verification cycle
 #                          P3 — low risk or recommendation ("should"); verified if time permits
-#   status               not_started | in_progress | complete | waived
+#   status               not_started | in_progress | complete
 #                          not_started — no testbench work started (label/file blank)
 #                          in_progress — testbench exists but closure not confirmed
 #                          complete    — all listed label/file procedures pass
-#                          waived      — explicitly descoped with documented rationale
 #   label                PSL label, TB procedure name, coverage ID, or RTL tag
 #                        For code_inspection: process_name:~line (e.g. p_can_pcs:~177)
 #                        Comma-separated when multiple procedures cover distinct sub-claims
