@@ -51,9 +51,11 @@ This thesis describes the design, implementation, and verification of a CAN (Con
 ---
 
 # Introduction {#sec:introduction}
+
 **TODO**: Add a section on the IO extender board (The board is on the test wall, get the name from Alex)
 
 ## Motivation {#sec:motivation}
+
 The Controller Area Network (CAN) has been the workhorse of automotive and industrial communication for decades. However, the increasing bandwidth requirements of modern systems led to the development of CAN-FD (Flexible Data rate), which allows for larger payloads and higher bit rates. This project aims to provide a robust, hardware-independent VHDL implementation of a CAN-FD transmitter.
 
 ## Existing CAN Controller {#sec:existing-controller}
@@ -129,9 +131,11 @@ Despite the availability of these solutions, none satisfies the combined require
 **Platform independence.** The AMD/Xilinx CAN FD core is locked to Xilinx devices. The Bosch M\_CAN and other commercial cores are delivered as technology-specific netlists or encrypted RTL for a particular target. The in-house design is written in portable VHDL-2008, synthesizable on any FPGA platform or ASIC flow, ensuring that the IP remains usable if the company changes FPGA vendors.
 
 ## Problem Statement {#sec:problem-statement}
+
 The need for CAN FD support in the company's engine controller platform, combined with the architectural limitations of the existing CAN Classic controller (@sec:existing-limitations) and the unsuitability of available third-party IP cores for the company's specific requirements (@sec:rationale-in-house), motivates the development of a new CAN FD transceiver from the ground up. The challenge lies in creating a modular, independently verifiable implementation that supports both Classic and FD frame formats, handles dual bit rate switching with Transmitter Delay Compensation (TDC), and maintains strict compliance with ISO 11898-1 [@iso11898_1] - all while fitting into the company's existing FPGA infrastructure and verification methodology.
 
 ## Objectives {#sec:objectives}
+
 - Implement a VHDL-2008 compliant CAN/CAN-FD transmitter.
 - Support both Base (11-bit) and Extended (29-bit) identifiers.
 - Implement TDC measurement and compensation logic.
@@ -142,12 +146,15 @@ The need for CAN FD support in the company's engine controller platform, combine
 # Background {#sec:background}
 
 ## CAN Protocol Evolution {#sec:can-protocol-evolution}
+
 Brief history from CAN 2.0 to CAN-FD.
 
 ## ISO 11898-1:2024 Standard {#sec:iso-standard}
+
 Overview of the data link layer and physical signaling requirements [@iso11898_1].
 
 ## VHDL and OSVVM {#sec:vhdl-osvvm}
+
 The role of modern VHDL standards and verification frameworks in digital design.
 
 ---
@@ -156,9 +163,18 @@ The role of modern VHDL standards and verification frameworks in digital design.
 
 ## From Standard to Structured Requirements {#sec:req-extraction}
 
-A key objective of the requirements engineering process was to establish a clear, traceable link between the ISO 11898-1 specification and the verification environment. The standard defines the CAN and CAN FD protocol at the data link layer. However, the standard is not structured with verification traceability in mind. Normative requirements are scattered across numerous subsections, often repeated or paraphrased from different perspectives, and interspersed with descriptive and explanatory text. Without a structured requirements artifact, verification coverage risks becoming informal and anecdotal - a situation that is particularly problematic in a safety-relevant protocol context.
+The requirements engineering process was aimed at tackling to key objectives:
 
-To address this, the requirement set was bootstrapped by an AI-assisted extraction pipeline. The ISO standard was first converted into Markdown format, making it searchable and ingestible by a Claude Sonnet 4.6 language model agent. The agent was prompted to extract all normative language from the document - sentences containing "shall", "shall not", "should", and "should not", the canonical markers of mandatory requirements and recommendations respectively in ISO standards. Each extracted statement was classified according to the subsection of the standard it appeared under, with initial classification labels corresponding directly to the ISO layer structure: the MAC layer, the LLC layer, the fault confinement logic, and the PCS layer.
+1. Extracting a clear and actionable set of requirements that could serve as a starting point for the design phase.
+2. Establishing a clear, traceable link between the ISO 11898-1 specification and the verification environment.
+
+**NOTE:** The following paragraph should be linked clearly to the enumerated points above and make the narrative flow clear and compelling. Also, it should address the inherent ambiguities related to extracting precise requirements from ISO standard plain text prose. Additionally, ensure that the characterization of the ISO standard's "shortcomings" is accurate. Maybe also find a good example for the ISO illustrating the impression or poor formatting.
+
+The standard is not structured with verification traceability in mind. Normative requirements are scattered across numerous subsections, often repeated or paraphrased from different perspectives, and interspersed with descriptive and explanatory text. Without a structured requirements artifact, verification coverage risks becoming informal and anecdotal.
+
+**NOTE:** Part of the AI approach was also to alleviate the manual burden of initial requirement extraction and classification.
+
+To address this, the requirement set was bootstrapped by an AI-assisted extraction pipeline. The ISO standard was first converted into Markdown format, making it efficiently searchable and ingestible by a Claude Sonnet 4.6 language model agent. The agent was prompted to extract all normative language from the document - sentences containing "shall", "should", "must" etc. along with their corresponding negations. Each extracted statement was classified according to the subsection of the standard it appeared under, with initial classification labels corresponding directly to the ISO layer structure: the MAC layer, the LLC layer, the fault confinement logic, and the PCS layer.
 
 The extraction prompt was intentionally broad. Rather than filtering strictly on mandatory "shall" and "shall not" statements, the prompt also captured "should" and "should not" statements. This decision was deliberate: while "should" statements are technically optional from a conformance perspective, they represent best-practice behaviors that a robust CAN FD implementation ought to exhibit. Excluding them entirely risked producing a requirements table that was conformance-complete but implementation-incomplete. The distinction between mandatory and recommended requirements was preserved as metadata, allowing the verification effort to prioritize accordingly while retaining full visibility of the recommendation landscape.
 
@@ -277,7 +293,6 @@ The ISO standard occasionally employs language that resists unambiguous reductio
 
 ## Architectural Design Decisions {#sec:architectural-design-decisions}
 
-
 Before settling on the final architecture, several design alternatives were evaluated. The exploration drew on three sources: the existing in-house CAN Classic controller (@sec:existing-controller), the open-source CTU CAN FD core [@ctucanfd; @jerabek2019], and the ISO 11898-1 standard's own layered reference model [@iso11898_1]. The protocol requirements and engineering constraints documented in @sec:requirements bound the feasible design space; this section documents the key decisions made within it.
 
 ### Monolithic vs. Layered Architecture {#sec:monolithic-vs-layered}
@@ -327,6 +342,7 @@ A non-obvious design decision concerns the CRC engine's data input. In CAN Class
 The chosen solution exposes two data inputs on the CRC interface: `data_cc` (Classic CAN data, always de-stuffed) and `data_fd` (FD data, which includes dynamic stuff bits during the arbitration region). The FSM drives both feeds, and the CRC wrapper routes `data_cc` to the CRC-15 engine and `data_fd` to the CRC-17 and CRC-21 engines. This avoids multiplexing logic inside the CRC module and keeps the CRC wrapper purely structural - it instantiates three `gen_crc` blocks and an output mux, with no protocol knowledge.
 
 ## System Overview {#sec:system-overview}
+
 A complete CAN node decomposes into a TX path and an RX path, coordinated by a shared Fault Confinement Entity (FCE) and Physical Medium Attachment (PMA) control, as shown in @fig:can-node-architecture. Each path spans three sub-layers - LLC (@sec:llc-sub-layer), MAC (@sec:mac-sub-layer), and PCS (@sec:pcs-sub-layer) - with the LLC frame format defined in @sec:llc-frame-format and interface bundles defined in @sec:interface-definition-tables. A centralized types package (@sec:protocol-driven-type-system) defines all protocol constants and interface records. Within the MAC sub-layer, a unified `can_mac` wrapper (@sec:can-mac-wrapper) instantiates `can_mac_tx`, `can_mac_rx`, and `can_fce`, merging their error signals internally so that the wrapper exposes only LLC and PCS interfaces for each path plus the FCE's LLC and PCS interfaces.
 
 ```{.mermaid #fig:can-node-architecture caption="CAN node decomposition across LLC, MAC, PCS, FCE, and PMA boundaries. Interface definitions are provided for llc_tx_if (@tbl:llc-tx-if), llc_rx_if (@tbl:llc-rx-if), llc_mac_tx_if (@tbl:llc-mac-tx-if), llc_mac_rx_if (@tbl:llc-mac-rx-if), mac_pcs_if (@tbl:mac-pcs-if), aui_if (@tbl:aui-if), fce_llc_if (@tbl:fce-llc-if), fce_mac_if (@tbl:fce-mac-if), and fce_pcs_if (@tbl:fce-pcs-if)."}
@@ -381,6 +397,7 @@ flowchart TD
 ```
 
 ## LLC Frame Format {#sec:llc-frame-format}
+
 The `LLC Frame` format used by the existing CAN-bus implementation (`can_bus_controller`) is depicted in @fig:llc-frame-current with the ID byte format depicted in @tbl:ID-bytes. A revised `LLC Frame` supporting FD is depicted in @fig:llc-frame-revised. The revised format adds a 3-bit `FMT` [@iso11898_1 Sec. 6.4.3] field to the DLC byte (`LLC Frame` byte 4), expands the data field to 64 bytes, and repurposes reserved bits in the last byte for BRS and ESI flags.
 
 The `FMT` encodes the supported frame formats as '`000`' = CB, '`100`' = CE, '`010`' = FB, '`110`' = FE. Accordingly, for the frame content to be self-consistent the IDE bit must be set to `0` for `FMT` = CB/FB and `1` for `FMT` = CE/FE. The revised format is designed to be backward compatible. An implementation that only supports Classic frames can simply ignore the `FMT` bits and treat all frames as Classic, while an implementation that supports FD can use the `FMT` field and the additional control bits (BRS and ESI) to distinguish frame types without affecting the existing ID and data field structure.
@@ -412,7 +429,6 @@ packet
 +1: "0000000,RTR"
 ```
 
-
 ```{.mermaid #fig:llc-frame-revised caption="Revised LLC frame format with FD support, shown at maximum length (71 bytes). The FMT field selects frame type; BRS and ESI repurpose reserved bits in the final byte. ID byte encoding is defined in @tbl:ID-bytes."}
 ---
 look: classic
@@ -440,11 +456,10 @@ packet
 +1: "00000,BRS,ESI,RTR"
 ```
 
-
 | Format     | Byte ID0 | Byte ID1 | Byte ID2 | Byte ID3 |
-| --- | --- | --- | --- | --- | 
-| Basic | '`00000000`' | '`00000000`' | '`00000`' `&` '`ID(10-8)`' | '`ID(7-0)`' | 
-| Extended | '`000`' `&` '`ID(28:24)`' | '`ID(23-16)`' | '`ID(15-8)`' | '`ID(7-0)`' | 
+| --- | --- | --- | --- | --- |
+| Basic | '`00000000`' | '`00000000`' | '`00000`' `&` '`ID(10-8)`' | '`ID(7-0)`' |
+| Extended | '`000`' `&` '`ID(28:24)`' | '`ID(23-16)`' | '`ID(15-8)`' | '`ID(7-0)`' |
 
 : ID byte encoding for the LLC frame formats shown in @fig:llc-frame-current and @fig:llc-frame-revised. {#tbl:ID-bytes}
 
@@ -456,7 +471,6 @@ All module interfaces use `std_logic` and `std_logic_vector` exclusively, as man
 
 ::: {.landscape-tables}
 
-
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | 6.4.5.5.2 | `L_Data.Request` | `LLC Frame`, `Handle` | Submit LLC frame for transmission | `User -> LLC` | `llc_tx_if.data` (`byte_t`), `llc_tx_if.valid` (`std_logic`), `llc_tx_if.sop` (`std_logic`) | `valid` high with byte on data; `sop` asserted on first byte |
@@ -466,7 +480,6 @@ All module interfaces use `std_logic` and `std_logic_vector` exclusively, as man
 | 6.4.5.5.3 | `L_Data.AbortRequest` | `Handle` | Abort pending frame transfer | `User -> LLC` | `llc_tx_if.abort_request` (`std_logic`) | Pulse when user wants to cancel an in-progress transfer |
 
 : Interface definition for `llc_tx_if`. Implements `L_Data.Request` as an Avalon-ST byte stream. `L_Data.AbortRequest` is included for complete ISO service coverage but is not yet implemented. {#tbl:llc-tx-if}
-
 
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -478,7 +491,6 @@ All module interfaces use `std_logic` and `std_logic_vector` exclusively, as man
 
 : Interface definition for `llc_rx_if`. Implements `L_Data.Indication` as an Avalon-ST byte stream. `Timestamp` is included for complete ISO service coverage but is not yet implemented. {#tbl:llc-rx-if}
 
-
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | 6.3, 6.6.4.2 | `DLL SDU` | `LLC Frame` | Transfer LLC frame to MAC for serialization | `LLC -> MAC` | `llc_mac_tx_if.data` (`byte_t`), `llc_mac_tx_if.valid` (`std_logic`), `llc_mac_tx_if.sop` (`std_logic`) | `valid` high with byte on data; `sop` marks first byte of new frame |
@@ -487,14 +499,12 @@ All module interfaces use `std_logic` and `std_logic_vector` exclusively, as man
 
 : Interface definition for `llc_mac_tx_if`. Frame length is self-describing from the DLC config bytes; the MAC serializer does not consume `eop`. {#tbl:llc-mac-tx-if}
 
-
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | 6.6.4.3, 6.6.9 | `DLL SDU` | Reconstructed `LLC Frame` | Transfer reconstructed LLC frame to LLC | `MAC -> LLC` | `llc_mac_rx_if.data` (`byte_t`), `llc_mac_rx_if.valid` (`std_logic`), `llc_mac_rx_if.sop` (`std_logic`), `llc_mac_rx_if.eop` (`std_logic`) | Avalon-ST byte stream; the RX FSM streams the stored `llc_frame` array during the quiet phase |
 | 6.6.4.3, 6.6.9 | `DLL SDU` | | Flow control | `LLC -> MAC` | `llc_mac_rx_if.ready` (`std_logic`) | Asserted by LLC when able to consume next byte |
 
 : Interface definition for `llc_mac_rx_if`. Carries the reconstructed LLC frame from `can_mac_rx` to `can_llc_rx` (@sec:can-mac-rx) as an Avalon-ST byte stream. The RX FSM stores received bits in an internal frame array during reception and streams the completed frame after EOF. {#tbl:llc-mac-rx-if}
-
 
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -505,7 +515,6 @@ All module interfaces use `std_logic` and `std_logic_vector` exclusively, as man
 
 : Interface definition for `mac_pcs_if`. The `D_Transmit` status is signalled via a dedicated `use_data_rate` flag rather than encoding it in a semantic bit name. The PCS switches between nominal and data-phase bit timing based on this flag, keeping the interface to plain `std_logic` signals. {#tbl:mac-pcs-if}
 
-
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | 7.4.2.1 | `output symbol` | `Dominant/recessive symbol` | Drive physical output symbol | `PCS -> PMA` | `aui_if.tx` (`std_logic`) | Updated on each `Output_Unit` request |
@@ -515,7 +524,6 @@ All module interfaces use `std_logic` and `std_logic_vector` exclusively, as man
 
 : Interface definition for `aui_if`. All signals are `std_logic`, as this interface crosses from the ISO protocol domain into the physical medium. {#tbl:aui-if}
 
-
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | 8.1.3.2 | `Normal_mode_request` | `Mode request` | Request reset to normal mode | `LLC -> FCE` | `fce_llc_if.normal_mode_request` (`std_logic`) | Issued on startup/restart |
@@ -523,7 +531,6 @@ All module interfaces use `std_logic` and `std_logic_vector` exclusively, as man
 | 8.1.3.2 | `Bus_off` | `Bus-off status` | Indicate node is bus-off | `FCE -> LLC` | `fce_llc_if.bus_off` (`std_logic`) | Asserted on bus-off transition |
 
 : Interface definition for `fce_llc_if`. Carries bus-off status and mode-request handshake between the FCE and LLC layers [@iso11898_1, sec. 8.1.3.2]. {#tbl:fce-llc-if}
-
 
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -540,7 +547,6 @@ All module interfaces use `std_logic` and `std_logic_vector` exclusively, as man
 | 8.1.3.3 | `Error_active_request` | `State request` | Request MAC return to error-active state | `FCE -> MAC` | `fce_mac_if.error_active_request` (`std_logic`) | On TEC/REC recovery |
 
 : Interface definition for `fce_mac_if`. The MAC reports error events and frame outcomes to the FCE; the FCE returns the current error-active/passive state to the MAC [@iso11898_1, sec. 8.1.3.3]. {#tbl:fce-mac-if}
-
 
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -568,6 +574,7 @@ Two VHDL packages centralize the shared definitions used across the design. All 
 **`can_tb_p`** (`can_tb_p.vhd`) is the testbench utility package, extracted from `pk_can_types` to separate simulation-only code from synthesizable definitions. It provides CRC reference calculation, metadata extraction, and bus stream reference model functions used by the testbenches for expected-value computation.
 
 ## LLC Sub-layer {#sec:llc-sub-layer}
+
 Responsible for frame buffering and retransmission management. It provides an Avalon-ST interface to the user application and communicates with the FCE to handle retransmission limits and error status reporting.
 
 ### `can_llc_tx` {#sec:can-llc-tx}
@@ -579,6 +586,7 @@ Responsible for frame buffering and retransmission management. It provides an Av
 `can_llc_rx` receives a reconstructed LLC frame from the MAC layer, applies acceptance filtering, and delivers accepted frames to the user over the `llc_rx_if` Avalon-ST stream [@iso11898_1, sec. 6.4.5].
 
 ## MAC Sub-layer {#sec:mac-sub-layer}
+
 The MAC sub-layer is the core of the protocol logic, responsible for bit serialization, CRC generation, bit stuffing, and frame-level error detection. It coordinates closely with the FCE (@sec:fce-sub-layer) for error counter management and node-state transitions (Error Active/Passive/Bus Off), and with the PCS (@sec:pcs-sub-layer) for sample-point-driven bit output.
 
 The earlier CAN bus controller concentrated TX, RX, MAC, and FCE logic in a single monolithic FSM (`can_fsm`), with the sub-functions - serialization (`can_ast_to_serial`), bit stuffing (`can_stuff_bit_gen`), and CRC (`gen_crc`) - implemented in satellite modules driven directly by it. PCS timing logic was implemented in `can_node_clock`, which fed sample-point and transmit pulses into `can_fsm` - a strategy retained in the current design.
@@ -635,7 +643,6 @@ flowchart TD
 
 The interfaces between MAC sub-components are implementation-defined and carry no direct ISO service primitive mapping. @tbl:mac-fsm-ser-if, @tbl:mac-fsm-bs-if, and @tbl:mac-fsm-crc-if define each bidirectional bundle; the Direction column identifies the driving component for each field. The bit stuffer and CRC engine interfaces are shared between the TX and RX paths - each path instantiates its own copy wired through identical record types.
 
-
 | field | type | direction | description |
 | --- | --- | --- | --- |
 | `data` | `std_logic` | `ser -> fsm` | current bit polarity; FSM reads this when `valid` is asserted |
@@ -645,7 +652,6 @@ The interfaces between MAC sub-components are implementation-defined and carry n
 | `transfer_status` | `std_logic_vector(2:0)` | `fsm -> ser` | frame outcome; any non-`c_ongoing` value terminates serialization |
 
 : Interface definition for `can_mac_ser_fsm_if`, connecting `can_mac_ser_tx` and `can_mac_fsm_tx` (see @fig:mac-tx-architecture). {#tbl:mac-fsm-ser-if}
-
 
 | field | type | direction | description |
 | --- | --- | --- | --- |
@@ -657,7 +663,6 @@ The interfaces between MAC sub-components are implementation-defined and carry n
 | `stuff_bit_count` | `std_logic_vector(3:0)` | `bs -> fsm` | gray-coded stuff bit count with parity for the FD SBC field |
 
 : Interface definition for `can_mac_fsm_bs_if`, connecting `can_mac_fsm_tx`/`can_mac_fsm_rx` and `can_mac_bs` (see @fig:mac-tx-architecture). The bit stuffer is reset by a dedicated `bs_rst` signal from the FSM rather than a field in this record. {#tbl:mac-fsm-bs-if}
-
 
 | field | type | direction | description |
 | --- | --- | --- | --- |
@@ -1038,6 +1043,7 @@ s_bus_off --> s_error_active : 128 idle conditions or normal_mode_request<br/>(T
 ```
 
 ## PCS Sub-layer {#sec:pcs-sub-layer}
+
 Handles bit timing and synchronization. It generates the sample point (SP) and secondary sample point (SSP) strobes. It provides bit-level monitoring data to the FCE to detect synchronization and timing errors.
 
 ### `can_pcs_tx` {#sec:can-pcs-tx}
@@ -1092,12 +1098,15 @@ stateDiagram-v2
 # Implementation {#sec:implementation}
 
 ## Type Safety and Packages {#sec:type-safety-packages}
+
 The implementation uses custom record types (defined in `can_types_pkg.vhd`) to ensure clean interfaces between modules.
 
 ## Bit Timing and TDC {#sec:bit-timing-tdc}
+
 Detailed description of how `tx_pcs` measures propagation delay and calculates the SSP.
 
 ## CRC and Bit Stuffing {#sec:crc-bit-stuffing}
+
 Implementation details of the flexible CRC generator and the hybrid bit stuffer.
 
 # Verification and Results {#sec:verification-results}
@@ -1109,6 +1118,7 @@ Implementation details of the flexible CRC generator and the hybrid bit stuffer.
 *Note: This section is currently being populated as the verification plan is executed.*
 
 ## Testbench Results Summary {#sec:testbench-results-summary}
+
 | Testbench | Status | Coverage |
 | :--- | :--- | :--- |
 | `tx_pcs_tb` | Pass | 95% |
@@ -1120,13 +1130,16 @@ Implementation details of the flexible CRC generator and the hybrid bit stuffer.
 ---
 
 # Discussion {#sec:discussion}
+
 Comparison of the implemented architecture against theoretical models. Performance analysis in high-load scenarios.
 
 ## Future Work {#sec:future-work}
+
 1. Make the the CRC and BS modules to save area on the FPGA.
 2. CAN XL implementation...
 
 # Conclusion {#sec:conclusion}
+
 Summary of work completed and how objectives were met.
 
 # References {#sec:references}
