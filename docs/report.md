@@ -210,7 +210,7 @@ The consolidated requirements set described in @sec:req-extraction provided the 
 
 ### Layer {#sec:vplan-layer}
 
-The **layer** field assigns each requirement to the protocol sub-layer that owns it: LLC, MAC, PCS, FCE, or system. This follows the ISO 11898-1 sub-layer structure described in @sec:req-extraction and maps directly onto the modular architecture of the implementation: requirements assigned to a given layer can be verified in isolation against that layer's module testbench, rather than through the surface of a fully integrated system. A fifth label - **system** - was introduced alongside the four protocol layers to classify requirements that are inherently multi-layer or multi-node in character. Some CAN behaviors cannot be attributed to a single layer of a single node: they emerge from interactions between multiple nodes on the bus, or span the layer boundary within a single node. Attempting to force such requirements into a single-layer classification would have been misleading and would have obscured their true verification implications. The system label flags these requirements as ones that require either an integrated multi-module testbench or a multi-node simulation environment. @tbl:req-layer-distribution shows the distribution of the 45 final requirements across the five layers.
+The layer field assigns each requirement to the protocol sub-layer that owns it: LLC, MAC, PCS, FCE, or system. This follows the ISO 11898-1 sub-layer structure described in @sec:req-extraction and maps directly onto the modular architecture of the implementation: requirements assigned to a given layer can be verified in isolation against that layer's module testbench, rather than through the surface of a fully integrated system. A fifth label - **system** - was introduced alongside the four protocol layers to classify requirements that are inherently multi-layer or multi-node in character. Some CAN behaviors cannot be attributed to a single layer of a single node: they emerge from interactions between multiple nodes on the bus, or span the layer boundary within a single node. Attempting to force such requirements into a single-layer classification would have been misleading and would have obscured their true verification implications. The system label flags these requirements as ones that require either an integrated multi-module testbench or a multi-node simulation environment. @tbl:req-layer-distribution shows the distribution of the 45 final requirements across the five layers.
 
 | Layer | Count | Description |
 | :--- | :---: | :--- |
@@ -225,19 +225,19 @@ The **layer** field assigns each requirement to the protocol sub-layer that owns
 
 ### Side {#sec:vplan-side}
 
-The **side** field records whether a requirement pertains to the transmitter path, the receiver path, or both roles simultaneously. This dimension reflects the ISO standard's own framing, which frequently specifies transmitter and receiver obligations separately.
+The side field records whether a requirement pertains to the transmitter path, the receiver path, or both roles simultaneously. This dimension reflects the ISO standard's own framing, which frequently specifies transmitter and receiver obligations separately.
 
 **Note:** We need to think more carefully about the examles listed in the Format sub-section bleow. The given example is a bit akward. I dont which claims about extended ID frams would not also apply to FD frames. The other way around it is clear to see that that not all FD claims apply to extended frames.
 
 ### Format Applicability {#sec:vplan-format}
 
-The **format_applicability** field records which of the four in-scope frame formats (CB, CE, FB, FE) each requirement applies to. Not all requirements apply to all formats: some are specific to FD frames, others to extended-identifier frames. This field determines which testbench stimulus configurations are required to exercise a given requirement.
+The format_applicability field records which of the four in-scope frame formats (CB, CE, FB, FE) each requirement applies to. Not all requirements apply to all formats: some are specific to FD frames, others to extended-identifier frames. This field determines which testbench stimulus configurations are required to exercise a given requirement.
 
 **Note:** Not sure this is actually what is in the text book ref. I will paste the content of the relevant section of the text book in the chat interface.
 
 ### Observability {#sec:vplan-observability}
 
-The **observability** field classifies each requirement relative to the module boundary of the owning layer, following Bergeron's distinction between black-box and white-box verification [@bergeron2003ch3]:
+The observability field classifies each requirement relative to the module boundary of the owning layer, following Bergeron's distinction between black-box and white-box verification [@bergeron2003ch3]:
 
 - **Black-box**: the postcondition maps directly onto a service-primitive parameter or its timing, and the testbench can derive the expected value from configuration generics and driven stimulus alone. For example, the bit-level encoding of the SOF field is directly observable at the MAC-PCS boundary as the first `Output_Unit` value.
 - **White-box**: the postcondition manifests at the layer boundary but requires a non-trivial reference computation. CRC correctness falls here: the CRC bits appear in the transmitted bit-stream, but a polynomial reference model is needed to verify their value.
@@ -248,11 +248,11 @@ Of the 45 requirements, 16 are black-box and 29 are white-box.
 
 ### Verification Method {#sec:vplan-method}
 
-The **verification_method** field makes the path from requirement to verification artifact explicit and actionable before any testbench is written, giving each requirement a clear route to closure before implementation begins. Three methods are used: simulation (automated assertion or check procedure in a testbench), code inspection (RTL source review), and coverage (OSVVM coverage bins sweeping a value range). Combinations are valid when multiple sub-claims within one requirement each call for a different method.
+The verification_method field makes the path from requirement to verification artifact explicit and actionable before any testbench is written, giving each requirement a clear route to closure before implementation begins. Three methods are used: simulation (automated assertion or check procedure in a testbench), code inspection (RTL source review), and coverage (OSVVM coverage bins sweeping a value range). Combinations are valid when multiple sub-claims within one requirement each call for a different method.
 
 ### Priority {#sec:vplan-priority}
 
-The **priority** field (P1, P2, P3) records the criticality of each requirement, reflecting both its importance to correct protocol operation and the risk of it being implemented incorrectly. P1 requirements must be closed before the design can be considered verified; P3 requirements correspond to "should" recommendations where failure carries lower severity. This allows the verification effort to be sequenced so that the highest-risk behaviors are covered first.
+The priority field (P1, P2, P3) records the criticality of each requirement, reflecting both its importance to correct protocol operation and the risk of it being implemented incorrectly. P1 requirements must be closed before the design can be considered verified; P3 requirements correspond to "should" recommendations where failure carries lower severity. This allows the verification effort to be sequenced so that the highest-risk behaviors are covered first.
 
 ### Traceability: Label and File {#sec:vplan-traceability}
 
@@ -260,9 +260,7 @@ Each requirement entry carries two dedicated traceability fields: a `file` field
 
 ### Status {#sec:vplan-status}
 
-The **status** field (`not_started`, `in_progress`, `complete`) records closure state explicitly, allowing partial progress to be tracked without relying on whether the traceability fields happen to be populated. Crucially, gaps in coverage remain immediately visible: requirements with unpopulated traceability fields and `status = not_started` are structurally obvious in the data file without requiring a separate coverage matrix.
-
-@tbl:vplan-metadata-fields lists all fields carried by each entry, with references to the detailed descriptions above where applicable.
+The status field (`not_started`, `in_progress`, `complete`) records closure state explicitly, allowing partial progress to be tracked without relying on whether the traceability fields happen to be populated. Crucially, gaps in coverage remain immediately visible: requirements with unpopulated traceability fields and `status = not_started` are structurally obvious in the data file without requiring a separate coverage matrix.
 
 | Field | Purpose |
 | :--- | :--- |
@@ -285,9 +283,11 @@ The **status** field (`not_started`, `in_progress`, `complete`) records closure 
 
 ## Storage Format and Tooling {#sec:req-tooling}
 
-The plan is stored as `verification_plan/verification_plan.toml`. Each entry is a self-contained `[[requirement]]` block with one key per line, making version-control diffs clean and merge conflicts rare. The TOML format was chosen over a spreadsheet or database because it is both human-readable and diffable: individual field changes produce single-line diffs, and merge conflicts - which arise frequently in a document that evolves in parallel with implementation work - are localized and easy to resolve.
+**Note:** This forma t was chose because it is eazily readable and the content can effeciently be manipulated through smal pythn scripts using the toml.lib build in library.
 
-A **Model Context Protocol (MCP) server** (`mcp_tools/verification_plan_manager.py`) provides a constrained, schema-validated interface for LLM-assisted operations on the plan. Rather than allowing an LLM agent to rewrite large swaths of a structured file directly - a pattern prone to silent corruption of unrelated entries - all writes are channeled through a set of typed tool calls. The available operations are:
+The verification plan is stored as a `TOML` file with each entry as a self-contained `[[requirement]]` block with one key per line.
+
+A **Model Context Protocol (MCP) server** (`mcp_tools/verification_plan_manager.py`) was written to provide a constrained interface for LLM-assisted operations on the plan thus minimizing the risk of silint data corruption caused by un-constraint LLM-agent interactions with the verification plan source.
 
 - **`get_requirement`** / **`query_requirements`**: retrieve individual entries or filtered subsets by layer, side, status, observability, or whether traceability fields are populated.
 - **`update_requirement`**: atomically update a single named field of a single entry, with schema validation before the write is committed.
@@ -296,9 +296,9 @@ A **Model Context Protocol (MCP) server** (`mcp_tools/verification_plan_manager.
 - **`renumber_requirements`**: regenerate all REQ-NNN identifiers after insertions or deletions, maintaining a consistent sequential namespace.
 - **`get_statistics`**: report coverage of label, file, and status fields to give an instant snapshot of plan completeness.
 
-This design keeps the LLM agent as a collaborator rather than a direct file editor: the agent reasons about what change to make and calls the appropriate tool, while the server enforces schema correctness and records each operation in an audit log.
+The verification plan TOML operated as a living document throughout the project. As implementation and verification work progressed,  traceability links were added as testbenches were written, and status fields were updated to reflect closure. The MCP tooling made these ongoing updates tractable: individual field changes were atomic, sequentially logged, and immediately visible in version-control diffs.
 
-The verification plan TOML operated as a living document throughout the project. As implementation and verification work progressed, newly identified requirements were inserted, traceability links were added as testbenches were written, and status fields were updated to reflect closure. The MCP tooling made these ongoing updates tractable: individual field changes were atomic, sequentially logged, and immediately visible in version-control diffs.
+**Note:** This section belongs in in the following design an darchitecture section.
 
 ## Ramifications for Initial Design Strategy {#sec:req-design-ramifications}
 
@@ -311,16 +311,6 @@ The **TX/RX side dimension** had a subtler and more consequential effect. Organi
 This turned out to be a red herring. The pitfalls of the split-path approach were not at all apparent from the requirements table alone. The table made the split architecture look clean and well-motivated. The problems - design drift between separately implemented FSMs, integration complexity, and unnecessary hardware duplication - only surfaced later, during integration. This is an important general lesson: the structure of a requirements model can inadvertently bias architectural decisions in ways that are not immediately obvious, and the apparent naturalness of a design strategy that mirrors the requirements structure is not in itself a reliable signal that the strategy is sound.
 
 The architectural consequences of both observations, including the resolution of the split-path problem, are developed in @sec:architectural-design-decisions.
-
-## Limitations {#sec:req-limitations}
-
-An honest account of the requirements engineering process should acknowledge what the requirements table could not fully capture.
-
-The flat tabular format struggles to express temporal and ordering relationships between requirements. Many CAN behaviors are inherently sequential - a transmitter error flag must be followed by an error delimiter, which must be followed by a specific interframe spacing - and while individual steps in such sequences can be captured as separate requirements, the ordering constraints between them are difficult to express compactly in a table row. These relationships were partially addressed through natural language in the requirement entries, but a more expressive formalism - such as temporal logic or a state-transition specification - would have been better suited to capturing them precisely.
-
-Requirements describing bus-level interactions between multiple nodes present a fundamental verification scope challenge. Such requirements, classified under the system layer, cannot be fully verified through single-node unit testing. They require either a multi-node simulation environment or a formal argument about emergent bus behavior from the individual node specifications. This represents a genuine limitation of what the unit testing strategy can achieve, and is worth stating explicitly rather than implicitly.
-
-The ISO standard occasionally employs language that resists unambiguous reduction to a single testable requirement statement. Some normative sentences contain implicit assumptions about system context that are not fully specified, or use terms defined elsewhere in the standard in ways that are themselves open to interpretation. In such cases, the requirements table entry necessarily embeds a design decision about how the ambiguity was resolved - a decision that ideally should be documented and justified rather than silently made.
 
 ## AI-Assisted Extraction: Utility and Limitations {#sec:ai-extraction}
 
