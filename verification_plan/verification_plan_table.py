@@ -2,15 +2,17 @@
 verification_plan_table.py  --  Manage CAN verification plan TOML file
 
 Usage:
-    python verification_plan_table.py                              # saves verification_plan.html
-    python verification_plan_table.py --toml path/to/file.toml     # specify TOML file
-    python verification_plan_table.py --html out.html              # full HTML table
-    python verification_plan_table.py --markdown out.md            # full Markdown table
-    python verification_plan_table.py --report-md out.md           # condensed report table (paraphrase + abbrev.)
-    python verification_plan_table.py --renumber                   # renumber IDs sequentially
-    python verification_plan_table.py --delete REQ-005             # delete requirement and renumber
-    python verification_plan_table.py --include 'layer=FCE'        # include only rows matching pattern
-    python verification_plan_table.py --exclude 'layer=system'     # exclude rows matching pattern
+    python verification_plan_table.py                          # saves verification_plan.html
+    python verification_plan_table.py --toml path/to/file.toml # specify TOML file
+    python verification_plan_table.py --html out.html          # full interactive HTML table
+    python verification_plan_table.py --markdown out.md        # full Markdown pipe table
+    python verification_plan_table.py --report-md out.md       # condensed 7-column report table
+    python verification_plan_table.py --req-md out.md          # 3-column requirements appendix table
+    python verification_plan_table.py --vplan-md out.md        # 10-column verification plan appendix table
+    python verification_plan_table.py --renumber               # renumber IDs sequentially
+    python verification_plan_table.py --delete REQ-005         # delete requirement and renumber
+    python verification_plan_table.py --include 'layer=FCE'    # include only rows matching pattern
+    python verification_plan_table.py --exclude 'layer=system' # exclude rows matching pattern
 """
 
 import argparse
@@ -18,97 +20,124 @@ import re
 import tomllib
 from pathlib import Path
 
-# -- Auto-detect TOML file ----------------------------------------------------
+# ---------------------------------------------------------------------------
+# TOML loading
+# ---------------------------------------------------------------------------
 
 _SCRIPT_DIR = Path(__file__).parent
 
 
 def _find_toml() -> str:
-    for name in ["verification_plan.toml"]:
-        path = _SCRIPT_DIR / name
-        if path.exists():
-            return str(path)
-    return "verification_plan.toml"
-
-
-# -- Load TOML ----------------------------------------------------------------
+    path = _SCRIPT_DIR / "verification_plan.toml"
+    return str(path) if path.exists() else "verification_plan.toml"
 
 
 def load_toml(path: str) -> list[dict]:
     """Load requirements from TOML and return as a list of dicts."""
     with open(path, "rb") as f:
         raw = tomllib.load(f)
-
     if "requirement" not in raw:
         raise ValueError(f"No [[requirement]] array found in {path}")
+    return [
+        {
+            "id":                  fields.get("id", ""),
+            "iso_ref":             fields.get("source_clause", ""),
+            "layer":               fields.get("layer", ""),
+            "side":                fields.get("side", ""),
+            "format":              fields.get("format_applicability", ""),
+            "original_wording":    fields.get("original_wording", ""),
+            "paraphrase":          fields.get("paraphrase", ""),
+            "observability":       fields.get("observability", ""),
+            "verification_method": fields.get("verification_method", ""),
+            "priority":            fields.get("priority", ""),
+            "status":              fields.get("status", ""),
+            "label":               fields.get("label", ""),
+            "file":                fields.get("file", ""),
+            "notes":               fields.get("notes", ""),
+        }
+        for fields in raw["requirement"]
+    ]
 
-    rows = []
-    for fields in raw["requirement"]:
-        rows.append(
-            {
-                "id": fields.get("id", ""),
-                "iso_ref": fields.get("source_clause", ""),
-                "layer": fields.get("layer", ""),
-                "side": fields.get("side", ""),
-                "format": fields.get("format_applicability", ""),
-                "original_wording": fields.get("original_wording", ""),
-                "paraphrase": fields.get("paraphrase", ""),
-                "observability": fields.get("observability", ""),
-                "verification_method": fields.get("verification_method", ""),
-                "label": fields.get("label", ""),
-                "file": fields.get("file", ""),
-                "notes": fields.get("notes", ""),
-            }
-        )
-    return rows
+# ---------------------------------------------------------------------------
+# Column / header constants
+# ---------------------------------------------------------------------------
 
-
-# -- Column sets --------------------------------------------------------------
-
+# Full HTML/markdown export
 EXPORT_COLS = [
-    "id",
-    "iso_ref",
-    "layer",
-    "side",
-    "format",
-    "paraphrase",
-    "observability",
-    "verification_method",
-    "label",
-    "file",
+    "id", "iso_ref", "layer", "side", "format",
+    "paraphrase", "observability", "verification_method", "label", "file",
 ]
 
-REPORT_COLS = ["id", "iso_ref", "layer", "paraphrase", "method", "label", "file"]
-
+# Condensed 7-column report table (--report-md)
+REPORT_COLS    = ["id", "iso_ref", "layer", "paraphrase", "method", "label", "file"]
 REPORT_HEADERS = ["ID", "ISO ref", "Layer", "Requirement", "Method", "Label", "File"]
 
-# -- Value abbreviations for report table -------------------------------------
+# 4-column requirements appendix table (--req-md)
+REQ_COLS    = ["id", "iso_ref", "priority", "paraphrase"]
+REQ_HEADERS = ["ID", "ISO ref", "Priority", "Requirement"]
 
-_METHOD_ABBREV = {
-    "simulation": "sim",
-    "code_inspection": "inspection",
-    "coverage": "coverage",
-    "simulation, coverage": "sim + coverage",
-    "simulation, code_inspection": "sim + inspection",
-    "code_inspection, simulation": "sim + inspection",
-}
+# 9-column verification plan appendix table (--vplan-md)
+VPLAN_COLS = [
+    "id", "layer", "side", "format", "observability",
+    "method", "status", "label", "file",
+]
+VPLAN_HEADERS = [
+    "ID", "Layer", "Side", "Format", "Observability",
+    "Method", "Status", "Label", "File",
+]
+
+# ---------------------------------------------------------------------------
+# Row transformers
+# ---------------------------------------------------------------------------
+
+def _break_enumeration(text: str) -> str:
+    """Replace TOML newlines with Pandoc raw LaTeX line breaks for PDF table cells.
+
+    Paraphrases use actual newline characters between enumeration items. _md_row
+    collapses these to spaces, so we replace them with `\\newline`{=latex} first.
+    Pandoc preserves raw inline nodes through its markdown round-trip and emits
+    \\newline inside the p{} LaTeX column, producing a visible line break.
+    """
+    return text.replace("\n", " `\\newline`{=latex}")
 
 
 def _to_report_row(row: dict) -> dict:
     return {
-        "id": row["id"],
-        "iso_ref": row["iso_ref"].replace("§", ""),
-        "layer": row["layer"],
+        "id":        row["id"],
+        "iso_ref":   row["iso_ref"].replace("§", ""),
+        "layer":     row["layer"],
         "paraphrase": row["paraphrase"].replace("; ", " • "),
-        "method": _METHOD_ABBREV.get(
-            row["verification_method"], row["verification_method"]
-        ),
-        "label": row["label"],
-        "file": Path(row["file"]).name if row["file"] else "",
+        "method":    row["verification_method"],
+        "label":     row["label"],
+        "file":      Path(row["file"]).name if row["file"] else "",
     }
 
 
-# -- Filtering ----------------------------------------------------------------
+def _to_req_row(row: dict) -> dict:
+    return {
+        "id":        row["id"],
+        "iso_ref":   row["iso_ref"].replace("§", ""),
+        "priority":  row["priority"],
+        "paraphrase": _break_enumeration(row["paraphrase"]),
+    }
+
+
+def _to_vplan_row(row: dict) -> dict:
+    return {
+        "id":           row["id"],
+        "layer":        row["layer"],
+        "side":         row["side"],
+        "format":       row["format"],
+        "observability": row["observability"],
+        "method":       row["verification_method"],
+        "status":       row["status"],
+        "label":        row["label"],
+        "file":         Path(row["file"]).name if row["file"] else "",
+    }
+
+# ---------------------------------------------------------------------------
+# Filtering
+# ---------------------------------------------------------------------------
 
 
 def apply_filters(
@@ -122,7 +151,6 @@ def apply_filters(
             print(f"Included {len(rows)} of {before} rows matching {pat}")
         else:
             print(f"Warning: --include pattern '{pat}' has no '='")
-
     for pat in exclude or []:
         if "=" in pat:
             col, val = pat.split("=", 1)
@@ -131,25 +159,24 @@ def apply_filters(
             print(f"Excluded {before - len(rows)} rows matching {pat}")
         else:
             print(f"Warning: --exclude pattern '{pat}' has no '='")
-
     return rows
 
+# ---------------------------------------------------------------------------
+# HTML export
+# ---------------------------------------------------------------------------
 
-# -- HTML export ---------------------------------------------------------------
-
-CAT_CSS = {
-    "LLC": "color: #ffeb3b; font-weight: bold",
-    "MAC": "color: #03a9f4; font-weight: bold",
-    "PCS": "color: #8bc34a; font-weight: bold",
-    "FCE": "color: #9c27b0; font-weight: bold",
+_LAYER_CSS = {
+    "LLC":    "color: #ffeb3b; font-weight: bold",
+    "MAC":    "color: #03a9f4; font-weight: bold",
+    "PCS":    "color: #8bc34a; font-weight: bold",
+    "FCE":    "color: #9c27b0; font-weight: bold",
     "system": "color: #ff7043; font-weight: bold",
 }
-
 _NOWRAP_COLS = {"id", "layer", "side", "iso_ref", "format", "label"}
 
 
 def _html_cell(col: str, value: str) -> str:
-    style = CAT_CSS.get(value, "") if col == "layer" else ""
+    style = _LAYER_CSS.get(value, "") if col == "layer" else ""
     nowrap = "white-space: nowrap;" if col in _NOWRAP_COLS else ""
     combined = (style + " " + nowrap).strip()
     value = value.replace("\n", "<br>")
@@ -163,14 +190,11 @@ def _html_cell(col: str, value: str) -> str:
 def export_html(rows: list[dict], path: str, cols: list[str] | None = None):
     """Export requirements as an interactive dark-theme HTML table."""
     cols = cols or EXPORT_COLS
-
     header_cells = "".join(f"<th>{c}</th>" for c in cols)
-    body_rows = []
-    for row in rows:
-        cells = "".join(_html_cell(c, row.get(c, "")) for c in cols)
-        body_rows.append(f"<tr>{cells}</tr>")
-    body = "\n".join(body_rows)
-
+    body = "\n".join(
+        f"<tr>{''.join(_html_cell(c, row.get(c, '')) for c in cols)}</tr>"
+        for row in rows
+    )
     html = f"""<!DOCTYPE html>
 <html>
 <head>
@@ -225,31 +249,35 @@ def export_html(rows: list[dict], path: str, cols: list[str] | None = None):
   </script>
 </body>
 </html>"""
-
     with open(path, "w", encoding="utf-8") as f:
         f.write(html)
 
-
-# -- Markdown export -----------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Markdown export helpers
+# ---------------------------------------------------------------------------
 
 
 def _md_row(values: list[str]) -> str:
-    return (
-        "| "
-        + " | ".join(v.replace("|", "\\|").replace("\n", " ") for v in values)
-        + " |"
-    )
+    return "| " + " | ".join(v.replace("|", "\\|").replace("\n", " ") for v in values) + " |"
+
+
+def _write_md(path: str, lines: list[str]) -> None:
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+
+# ---------------------------------------------------------------------------
+# Markdown exports
+# ---------------------------------------------------------------------------
 
 
 def export_markdown(rows: list[dict], path: str, cols: list[str] | None = None):
     """Export full requirements table as a Markdown pipe table."""
     cols = cols or EXPORT_COLS
-    lines = [
+    _write_md(path, [
         _md_row(cols),
         _md_row(["---"] * len(cols)),
-    ] + [_md_row([row.get(c, "") for c in cols]) for row in rows]
-    with open(path, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines) + "\n")
+        *[_md_row([row.get(c, "") for c in cols]) for row in rows],
+    ])
 
 
 def export_report_markdown(
@@ -258,18 +286,62 @@ def export_report_markdown(
     caption: str = "ISO 11898-1 verification requirements.",
     label: str = "tbl:verification-plan",
 ):
-    """Export condensed report table as a Pandoc pipe table with caption and crossref label."""
+    """Export condensed 7-column report table as a Pandoc pipe table."""
     report_rows = [_to_report_row(r) for r in rows]
-    lines = [
+    _write_md(path, [
         _md_row(REPORT_HEADERS),
         _md_row(["---"] * len(REPORT_HEADERS)),
-    ] + [_md_row([r[c] for c in REPORT_COLS]) for r in report_rows]
-    lines += ["", f": {caption} {{#{label}}}"]
-    with open(path, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines) + "\n")
+        *[_md_row([r[c] for c in REPORT_COLS]) for r in report_rows],
+        "",
+        f": {caption} {{#{label}}}",
+    ])
 
 
-# -- Renumber / Delete ---------------------------------------------------------
+def export_req_markdown(
+    rows: list[dict],
+    path: str,
+    caption: str = "ISO 11898-1 extracted requirements.",
+    label: str = "tbl:appendix-requirements",
+):
+    """Export 4-column requirements table in landscape for the PDF appendix.
+
+    Column widths: ID 6%, ISO ref 14%, Priority 9%, Requirement 71%, set via dash-count ratios.
+    Enumeration items in the Requirement column are separated by LaTeX line breaks.
+    """
+    req_rows = [_to_req_row(r) for r in rows]
+    separator = "| :----- | :------------- | :-------- | :" + "-" * 70 + " |"
+    _write_md(path, [
+        "::: {.landscape-tables}",
+        _md_row(REQ_HEADERS),
+        separator,
+        *[_md_row([r[c] for c in REQ_COLS]) for r in req_rows],
+        "",
+        f": {caption} {{#{label}}}",
+        ":::",
+    ])
+
+
+def export_vplan_markdown(
+    rows: list[dict],
+    path: str,
+    caption: str = "ISO 11898-1 verification plan.",
+    label: str = "tbl:appendix-vplan",
+):
+    """Export 10-column verification plan table in landscape for the PDF appendix."""
+    vplan_rows = [_to_vplan_row(r) for r in rows]
+    _write_md(path, [
+        "::: {.landscape-tables}",
+        _md_row(VPLAN_HEADERS),
+        _md_row(["---"] * len(VPLAN_HEADERS)),
+        *[_md_row([r[c] for c in VPLAN_COLS]) for r in vplan_rows],
+        "",
+        f": {caption} {{#{label}}}",
+        ":::",
+    ])
+
+# ---------------------------------------------------------------------------
+# TOML mutation: renumber and delete
+# ---------------------------------------------------------------------------
 
 
 def renumber(path: str) -> int:
@@ -279,8 +351,6 @@ def renumber(path: str) -> int:
     header_end = next(
         (i for i, l in enumerate(lines) if l.strip() == "[[requirement]]"), 0
     )
-    header = lines[:header_end]
-
     blocks, current = [], []
     for line in lines[header_end:]:
         if line.strip() == "[[requirement]]" and current:
@@ -291,7 +361,7 @@ def renumber(path: str) -> int:
     if current:
         blocks.append(current)
 
-    new_lines = header[:]
+    new_lines = lines[:header_end]
     counters: dict[str, int] = {}
     for block in blocks:
         for line in block:
@@ -324,70 +394,39 @@ def delete_requirement(path: str, req_id: str):
 
     with open(path, "w") as f:
         f.write(new_content)
+    print(f"Deleted {req_id}, renumbered to {renumber(path)} entries")
 
-    count = renumber(path)
-    print(f"Deleted {req_id}, renumbered to {count} entries")
-
-
-# -- CLI -----------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
 
 
 def main():
     parser = argparse.ArgumentParser(
         description="Manage CAN verification plan: export tables, renumber, delete",
     )
-    parser.add_argument(
-        "--toml", default=None, help="Path to TOML file (auto-detected if omitted)"
-    )
-    parser.add_argument(
-        "--html",
-        metavar="FILE",
-        nargs="?",
-        const="verification_plan.html",
-        help="Save full table as HTML (default: verification_plan.html)",
-    )
-    parser.add_argument(
-        "--markdown", metavar="FILE", help="Save full table as Markdown pipe table"
-    )
-    parser.add_argument(
-        "--report-md",
-        metavar="FILE",
-        help="Save condensed Pandoc table (paraphrase, abbreviated values)",
-    )
-    parser.add_argument(
-        "--caption",
-        default="ISO 11898-1 verification requirements.",
-        help="Caption for --report-md",
-    )
-    parser.add_argument(
-        "--label",
-        default="tbl:verification-plan",
-        help="Pandoc crossref label for --report-md",
-    )
-    parser.add_argument(
-        "--renumber", action="store_true", help="Renumber IDs sequentially"
-    )
-    parser.add_argument(
-        "--delete", metavar="ID", help="Delete requirement by ID and renumber"
-    )
-    parser.add_argument(
-        "--include",
-        metavar="COL=PAT",
-        action="append",
-        help="Include only rows where COL contains PAT",
-    )
-    parser.add_argument(
-        "--exclude",
-        metavar="COL=PAT",
-        action="append",
-        help="Exclude rows where COL contains PAT",
-    )
-    parser.add_argument(
-        "--hide",
-        metavar="COL",
-        action="append",
-        help="Hide a column from HTML/markdown output",
-    )
+    parser.add_argument("--toml", default=None, help="Path to TOML file (auto-detected if omitted)")
+    parser.add_argument("--html", metavar="FILE", nargs="?", const="verification_plan.html",
+                        help="Save full table as HTML (default: verification_plan.html)")
+    parser.add_argument("--markdown", metavar="FILE", help="Save full table as Markdown pipe table")
+    parser.add_argument("--report-md", metavar="FILE",
+                        help="Save condensed 7-column Pandoc table")
+    parser.add_argument("--req-md", metavar="FILE",
+                        help="Save 3-column requirements appendix table (landscape, PDF)")
+    parser.add_argument("--vplan-md", metavar="FILE",
+                        help="Save 10-column verification plan appendix table (landscape, PDF)")
+    parser.add_argument("--caption", default="ISO 11898-1 verification requirements.",
+                        help="Caption for --report-md")
+    parser.add_argument("--label", default="tbl:verification-plan",
+                        help="Pandoc crossref label for --report-md")
+    parser.add_argument("--renumber", action="store_true", help="Renumber IDs sequentially")
+    parser.add_argument("--delete", metavar="ID", help="Delete requirement by ID and renumber")
+    parser.add_argument("--include", metavar="COL=PAT", action="append",
+                        help="Include only rows where COL contains PAT")
+    parser.add_argument("--exclude", metavar="COL=PAT", action="append",
+                        help="Exclude rows where COL contains PAT")
+    parser.add_argument("--hide", metavar="COL", action="append",
+                        help="Hide a column from HTML/markdown output")
     args = parser.parse_args()
 
     toml_path = args.toml or _find_toml()
@@ -395,34 +434,32 @@ def main():
     if args.delete:
         delete_requirement(toml_path, args.delete)
         return
-
     if args.renumber:
         print(f"Renumbered {renumber(toml_path)} requirements")
         return
 
     rows = load_toml(toml_path)
     rows = apply_filters(rows, args.include, args.exclude)
+    cols = [c for c in EXPORT_COLS if c not in (args.hide or [])]
 
-    cols = EXPORT_COLS
-    if args.hide:
-        cols = [c for c in cols if c not in args.hide]
-
-    if not any([args.html, args.markdown, args.report_md]):
+    if not any([args.html, args.markdown, args.report_md, args.req_md, args.vplan_md]):
         args.html = "verification_plan.html"
 
     if args.html:
         export_html(rows, args.html, cols=cols)
         print(f"Saved {len(rows)} requirements to {args.html}")
-
     if args.markdown:
         export_markdown(rows, args.markdown, cols=cols)
         print(f"Saved {len(rows)} requirements to {args.markdown}")
-
     if args.report_md:
-        export_report_markdown(
-            rows, args.report_md, caption=args.caption, label=args.label
-        )
+        export_report_markdown(rows, args.report_md, caption=args.caption, label=args.label)
         print(f"Saved {len(rows)}-row report table to {args.report_md}")
+    if args.req_md:
+        export_req_markdown(rows, args.req_md)
+        print(f"Saved {len(rows)}-row requirements table to {args.req_md}")
+    if args.vplan_md:
+        export_vplan_markdown(rows, args.vplan_md)
+        print(f"Saved {len(rows)}-row verification plan table to {args.vplan_md}")
 
 
 if __name__ == "__main__":

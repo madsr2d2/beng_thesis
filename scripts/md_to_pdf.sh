@@ -183,6 +183,8 @@ find_mermaid_filter_cmd() {
 cleanup() {
   [[ -n "${TEMP_RENDERED_MD:-}" && -f "${TEMP_RENDERED_MD:-}" ]] && rm -f "$TEMP_RENDERED_MD"
   [[ -n "${TEMP_MD:-}" && -f "${TEMP_MD:-}" ]] && rm -f "$TEMP_MD"
+  [[ -n "${TEMP_REQ_MD:-}" && -f "${TEMP_REQ_MD:-}" ]] && rm -f "$TEMP_REQ_MD"
+  [[ -n "${TEMP_VPLAN_MD:-}" && -f "${TEMP_VPLAN_MD:-}" ]] && rm -f "$TEMP_VPLAN_MD"
   [[ -n "${TEMP_MERMAID_DIR:-}" && -d "${TEMP_MERMAID_DIR:-}" ]] && rm -rf "$TEMP_MERMAID_DIR"
 }
 
@@ -229,6 +231,7 @@ main() {
   PANDOC_TABLE_LAYOUT_FILTER="${PANDOC_TABLE_LAYOUT_FILTER:-$ROOT_DIR/scripts/filters/table_landscape.lua}"
   PANDOC_SECTION_SELECT_FILTER="${PANDOC_SECTION_SELECT_FILTER:-$ROOT_DIR/scripts/filters/select_sections.lua}"
   PANDOC_MERMAID_WIDTH_FILTER="${PANDOC_MERMAID_WIDTH_FILTER:-$ROOT_DIR/scripts/filters/mermaid_width.lua}"
+  PANDOC_CELL_BREAK_FILTER="${PANDOC_CELL_BREAK_FILTER:-$ROOT_DIR/scripts/filters/cell_break.lua}"
 
   case "$PANDOC_TABLE_STYLE" in
   clean | enhanced) ;;
@@ -284,6 +287,9 @@ main() {
   if [[ -f "$PANDOC_TABLE_LAYOUT_FILTER" ]]; then
     LUA_FILTER_ARGS+=(--lua-filter "$PANDOC_TABLE_LAYOUT_FILTER")
   fi
+  if [[ -f "$PANDOC_CELL_BREAK_FILTER" ]]; then
+    LUA_FILTER_ARGS+=(--lua-filter "$PANDOC_CELL_BREAK_FILTER")
+  fi
   if [[ -f "$PANDOC_MERMAID_WIDTH_FILTER" ]]; then
     LUA_FILTER_ARGS+=(--lua-filter "$PANDOC_MERMAID_WIDTH_FILTER")
     export PANDOC_SOURCE_MD="$INPUT_MD_ABS"
@@ -294,13 +300,40 @@ main() {
     export PANDOC_SECTION_IDS="$SECTION_SELECTOR"
   fi
 
+  # Generate appendix tables from the verification plan TOML if sentinels are present
+  TEMP_REQ_MD=""
+  TEMP_VPLAN_MD=""
+  if grep -qE '<!-- generated:(requirements|verification-plan)-table -->' "$INPUT_MD_ABS"; then
+    VPLAN_TOML="$ROOT_DIR/verification_plan/verification_plan.toml"
+    VPLAN_SCRIPT="$ROOT_DIR/verification_plan/verification_plan_table.py"
+    if [[ -f "$VPLAN_SCRIPT" && -f "$VPLAN_TOML" ]]; then
+      TEMP_REQ_MD="$(mktemp "$INPUT_DIR/.pandoc-req.XXXXXX.md")"
+      TEMP_VPLAN_MD="$(mktemp "$INPUT_DIR/.pandoc-vplan.XXXXXX.md")"
+      python3 "$VPLAN_SCRIPT" \
+        --toml "$VPLAN_TOML" \
+        --req-md "$TEMP_REQ_MD" \
+        --vplan-md "$TEMP_VPLAN_MD" \
+        >/dev/null
+    else
+      echo "Warning: verification plan script or TOML not found; sentinels left as-is." >&2
+    fi
+  fi
+
   TEMP_MD="$(mktemp "$INPUT_DIR/.pandoc-export.XXXXXX.md")"
-  awk '
+  awk -v req="${TEMP_REQ_MD:-}" -v vplan="${TEMP_VPLAN_MD:-}" '
     BEGIN { in_mtoc = 0 }
     /^[[:space:]]*<!--[[:space:]]*mtoc-start[[:space:]]*-->[[:space:]]*$/ { in_mtoc = 1; next }
     /^[[:space:]]*<!--[[:space:]]*mtoc-end[[:space:]]*-->[[:space:]]*$/ { in_mtoc = 0; next }
     in_mtoc == 1 { next }
     /^[[:space:]]*##[[:space:]]+Table of Contents[[:space:]]*$/ { next }
+    /^[[:space:]]*<!--[[:space:]]*generated:requirements-table[[:space:]]*-->[[:space:]]*$/ {
+      if (req != "") { while ((getline line < req) > 0) print line; close(req) } else { print }
+      next
+    }
+    /^[[:space:]]*<!--[[:space:]]*generated:verification-plan-table[[:space:]]*-->[[:space:]]*$/ {
+      if (vplan != "") { while ((getline line < vplan) > 0) print line; close(vplan) } else { print }
+      next
+    }
     { print }
   ' "$INPUT_MD_ABS" >"$TEMP_MD"
 

@@ -22,10 +22,10 @@
 #                                               to the .gtkw save file
 #                          coverage            — coverage-driven sweep; label/file point to
 #                                               coverage ID or bin set in the TB
-#   priority             P1 | P2 | P3  (blank until assigned)
-#                          P1 — must be verified before tape-out; failure is critical
-#                          P2 — important; verified in normal verification cycle
-#                          P3 — low risk or recommendation ("should"); verified if time permits
+#   priority             P1 | P2 | P3
+#                          P1 — need-to-have; blocking ("shall" requirements, core correctness)
+#                          P2 — nice-to-have; verified in the normal verification cycle
+#                          P3 — optional; verified if schedule permits ("should" clauses)
 #   status               not_started | in_progress | complete
 #                          not_started — no testbench work started (label/file blank)
 #                          in_progress — testbench exists but closure not confirmed
@@ -56,7 +56,7 @@ label = ""
 file = ""
 observability = "black_box"
 verification_method = "simulation"
-priority             = ""
+priority             = "P1"
 status                = "not_started"
 
 [[requirement]]
@@ -72,7 +72,7 @@ label = ""
 file = ""
 observability = "white_box"
 verification_method = "code_inspection"
-priority             = ""
+priority             = "P2"
 status                = "not_started"
 
 [[requirement]]
@@ -91,7 +91,7 @@ label = ""
 file = ""
 observability = "white_box"
 verification_method = "code_inspection"
-priority             = ""
+priority             = "P2"
 status                = "not_started"
 
 [[requirement]]
@@ -109,7 +109,7 @@ label = ""
 file = ""
 observability = "white_box"
 verification_method = "code_inspection"
-priority             = ""
+priority             = "P1"
 status                = "not_started"
 
 [[requirement]]
@@ -127,7 +127,7 @@ label = ""
 file = ""
 observability = "white_box"
 verification_method = "code_inspection"
-priority             = ""
+priority             = "P3"
 status                = "not_started"
 
 [[requirement]]
@@ -143,7 +143,7 @@ label = ""
 file = ""
 observability = "black_box"
 verification_method = "simulation"
-priority             = ""
+priority             = "P1"
 status                = "not_started"
 
 [[requirement]]
@@ -161,7 +161,7 @@ label = "p_output_vc, p_reset_checker"
 file = "src/can_mac_crc/hdl_tb/can_mac_crc_tb.vhd"
 observability = "white_box"
 verification_method = "simulation, coverage"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -179,7 +179,7 @@ label = "p_fsm:~900, test_bus_off"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -198,7 +198,7 @@ label = "test_normal"
 file = "can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "waveform_inspection"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -217,7 +217,7 @@ label = "test_bus_off"
 file = "can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "waveform_inspection"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -235,7 +235,7 @@ label = "p_fsm:~486, test_bus_off"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
-priority             = ""
+priority             = "P2"
 status                = "in_progress"
 
 [[requirement]]
@@ -253,7 +253,7 @@ label = "p_fsm:~433, test_bus_off"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -271,7 +271,7 @@ label = "p_fsm:~451, test_normal"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -289,7 +289,7 @@ label = ""
 file = ""
 observability = "black_box"
 verification_method = "simulation"
-priority             = ""
+priority             = "P2"
 status                = "not_started"
 
 [[requirement]]
@@ -307,7 +307,7 @@ label = "p_fsm:~546, p_fsm:~548, test_normal"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
-priority             = ""
+priority             = "P2"
 status                = "in_progress"
 
 [[requirement]]
@@ -325,7 +325,7 @@ label = "p_fsm:~299, p_fsm:~216"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd"
 observability = "white_box"
 verification_method = "code_inspection"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -344,7 +344,7 @@ label = "test_normal"
 file = "can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "simulation, waveform_inspection"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 
@@ -364,7 +364,7 @@ label = "p_fsm:~613, test_normal"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -383,7 +383,7 @@ label = "test_normal"
 file = "can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "waveform_inspection"
-priority             = ""
+priority             = "P2"
 status                = "in_progress"
 
 [[requirement]]
@@ -399,7 +399,7 @@ label = "p_sbc_checker"
 file = "src/can_mac_bs/hdl_tb/can_mac_bs_tb.vhd"
 observability = "black_box"
 verification_method = "simulation"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 
@@ -416,7 +416,7 @@ label = "p_fsm:~768, p_fsm:~796, test_normal"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
-priority             = ""
+priority             = "P2"
 status                = "in_progress"
 
 [[requirement]]
@@ -435,7 +435,7 @@ label = "p_stuff_bit_checker"
 file = "src/can_mac_bs/hdl_tb/can_mac_bs_tb.vhd"
 observability = "white_box"
 verification_method = "simulation, coverage"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -451,7 +451,7 @@ label = "p_fsb_checker"
 file = "src/can_mac_bs/hdl_tb/can_mac_bs_tb.vhd"
 observability = "white_box"
 verification_method = "simulation, coverage"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -470,7 +470,7 @@ label = "test_normal"
 file = "can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "simulation, coverage"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -489,7 +489,7 @@ label = "test_lost_arb"
 file = "can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "black_box"
 verification_method = "simulation"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -508,7 +508,7 @@ label = "p_fsm:~283, test_bus_off"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -524,7 +524,7 @@ label = "p_fsm:~336"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd"
 observability = "black_box"
 verification_method = "code_inspection"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -542,7 +542,7 @@ label = "p_fsm:~343"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd"
 observability = "white_box"
 verification_method = "code_inspection"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -561,7 +561,7 @@ label = "p_fsm:~415"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd"
 observability = "white_box"
 verification_method = "code_inspection"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -579,7 +579,7 @@ label = "p_fsm:~294, p_fsm:~283, test_bus_off"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -598,7 +598,7 @@ label = "p_fsm:~357"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd"
 observability = "white_box"
 verification_method = "code_inspection"
-priority             = ""
+priority             = "P2"
 status                = "in_progress"
 
 
@@ -617,7 +617,7 @@ file = "src/can_mac/hdl_src/can_mac_fsm.vhd"
 side = "both"
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
-priority             = ""
+priority             = "P2"
 status                = "in_progress"
 
 [[requirement]]
@@ -633,7 +633,7 @@ file = "src/can_pcs/hdl_tb/can_pcs_tb.vhd"
 side = "both"
 observability = "white_box"
 verification_method = "simulation"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -648,7 +648,7 @@ side = "both"
 format_applicability = "CB, CE, FB, FE"
 observability = "black_box"
 verification_method = "simulation, coverage"
-priority             = ""
+priority             = "P2"
 status                = "in_progress"
 notes = "Coverage closure criterion: five delay-sweep bins - (transceiver_d=50 ns, bus_d=300 ns) down to (10 ns, 60 ns) - must each yield successful frame exchange."
 label = "test_delay_sweep"
@@ -670,7 +670,7 @@ file = "src/can_pcs/hdl_tb/can_pcs_tb.vhd"
 side = "transmitter"
 observability = "black_box"
 verification_method = "simulation"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -690,7 +690,7 @@ file = "src/can_pcs/hdl_src/can_pcs.vhd, src/can_pcs/hdl_tb/can_pcs_tb.vhd"
 side = "both"
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -708,7 +708,7 @@ label = "p_can_pcs:~228, test_normal"
 file = "src/can_pcs/hdl_src/can_pcs.vhd, src/can_pcs/hdl_tb/can_pcs_tb.vhd"
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -726,7 +726,7 @@ label = "test_normal"
 file = "src/can_pcs/hdl_tb/can_pcs_tb.vhd"
 observability = "black_box"
 verification_method = "simulation"
-priority             = ""
+priority             = "P2"
 status                = "in_progress"
 
 [[requirement]]
@@ -744,7 +744,7 @@ label = "test_bus_off"
 file = "src/can_pcs/hdl_tb/can_pcs_tb.vhd"
 observability = "black_box"
 verification_method = "simulation"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -762,7 +762,7 @@ file = "can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 side = "both"
 observability = "black_box"
 verification_method = "simulation"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -778,7 +778,7 @@ label = "test_reset, test_bus_off_recovery"
 file = "src/can_fce/hdl_tb/can_fce_tb.vhd"
 observability = "black_box"
 verification_method = "simulation"
-priority             = ""
+priority             = "P2"
 status                = "in_progress"
 
 [[requirement]]
@@ -798,7 +798,7 @@ label = "test_rule_a, test_rule_b, test_rule_e, test_rule_h"
 file = "src/can_fce/hdl_tb/can_fce_tb.vhd"
 observability = "black_box"
 verification_method = "simulation"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -817,7 +817,7 @@ label = "test_rule_c, test_rule_c_exception, test_rule_d, test_rule_g"
 file = "src/can_fce/hdl_tb/can_fce_tb.vhd"
 observability = "black_box"
 verification_method = "simulation"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -835,7 +835,7 @@ label = "test_rule_f_tx, test_rule_f_rx"
 file = "src/can_fce/hdl_tb/can_fce_tb.vhd"
 observability = "black_box"
 verification_method = "simulation"
-priority             = ""
+priority             = "P2"
 status                = "in_progress"
 
 [[requirement]]
@@ -855,5 +855,5 @@ label = "test_bus_off, test_bus_off_recovery"
 file = "src/can_fce/hdl_tb/can_fce_tb.vhd"
 observability = "black_box"
 verification_method = "simulation"
-priority             = ""
+priority             = "P1"
 status                = "in_progress"

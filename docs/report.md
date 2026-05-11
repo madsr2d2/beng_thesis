@@ -200,7 +200,7 @@ The standard devotes separate sections to each of these sub-layers and they prov
 
 ## Verification Plan Data Structure {#sec:verification-plan-data-structure}
 
-The consolidated requirements set described in @sec:req-extraction provided the foundation for the verification plan development. The verification plan data structure augments each requirement with the dimensions needed to answer not just *what* must be true, but *how* it will be verified, *where* the evidence lives, and *when* verification is complete. This additional structure follows the verification planning methodology described by Bergeron [@bergeron2003ch3], which organizes a verification plan around explicit links between requirements, verification methods, and traceability artifacts. The verification plan data structure is summarized @tbl:vplan-metadata-fields and the following sections details content of the individual fields.
+The consolidated requirements set described in @sec:req-extraction provided the foundation for the verification plan development. The verification plan data structure augments each requirement with the dimensions needed to answer not just *what* must be true, but *how* it will be verified, *where* the evidence lives, and *when* verification is complete. This additional structure follows the verification planning methodology described by Bergeron [@bergeron2003ch3], which organizes a verification plan around explicit links between requirements, verification methods, and traceability artifacts. The complete 45-requirement plan is reproduced in @sec:appendix-vplan. @tbl:vplan-metadata-fields lists the fields attached to each requirement entry; the following sections detail the rationale and allowed values for each field.
 
 ### Layer {#sec:vplan-layer}
 
@@ -240,7 +240,7 @@ The verification_method field makes the path from requirement to verification ar
 
 ### Priority {#sec:vplan-priority}
 
-The priority field (P1, P2, P3) records the criticality of each requirement, reflecting both its importance to correct protocol operation and the risk of it being implemented incorrectly. P1 requirements must be closed before the design can be considered verified; P3 requirements correspond to "should" recommendations where failure carries lower severity. This allows the verification effort to be sequenced so that the highest-risk behaviors are covered first.
+The priority field classifies each requirement into one of three levels following the first-time success methodology described by Bergeron [@bergeron2003ch3]: P1 requirements are need-to-have - they must be verified before the design can be considered complete; P2 requirements are nice-to-have - they are verified in the normal verification cycle but do not block closure; P3 requirements are optional - they correspond to ISO "should" recommendations and are addressed only if schedule permits. Priority is recorded in the requirements table (@tbl:appendix-requirements) alongside the paraphrase, so the assignment can be evaluated directly against the requirement text.
 
 ### Traceability: Label and File {#sec:vplan-traceability}
 
@@ -261,7 +261,7 @@ The status field (`not_started`, `in_progress`, `complete`) records closure stat
 | `format_applicability` | Applicable frame formats: CB, CE, FB, FE (see @sec:vplan-format). |
 | `observability` | `black_box` or `white_box` (see @sec:vplan-observability). |
 | `verification_method` | Method(s) used to verify the requirement (see @sec:vplan-method). |
-| `priority` | P1 (critical), P2 (important), or P3 (low risk / recommendation) (see @sec:vplan-priority). |
+| `priority` | P1 (need-to-have), P2 (nice-to-have), or P3 (optional) (see @sec:vplan-priority). |
 | `status` | `not_started`, `in_progress`, `complete`, or `waived` (see @sec:vplan-status). |
 | `notes` | Engineering notes and caveats. |
 | `label` | Assertion label, TB procedure name, coverage ID, or RTL tag. Comma-separated when multiple procedures cover distinct sub-claims (see @sec:vplan-traceability). |
@@ -476,116 +476,6 @@ packet
 
 : ID byte encoding for the LLC frame formats shown in @fig:llc-frame-current and @fig:llc-frame-revised. {#tbl:ID-bytes}
 
-## Interface Definition Tables {#sec:interface-definition-tables}
-
-The interface bundles shown in @fig:can-node-architecture are defined in full below, with each signal mapped to its corresponding ISO 11898-1 service primitive, [@iso11898_1]. This normative anchoring provides a direct traceability path from protocol clauses to VHDL ports. The types used in these interfaces are defined in @sec:protocol-driven-type-system.
-
-All module interfaces use `std_logic` and `std_logic_vector` exclusively, as mandated for synthesis compatibility. Protocol semantics such as polarity, frame format, and transfer status are encoded as named `std_logic`/`std_logic_vector` constants defined in `pk_can_types` (@sec:protocol-driven-type-system). The LLC-User interface (`llc_tx_if`, `llc_rx_if`) is implemented as an Avalon-ST byte stream to maintain backward compatibility with the existing CAN bus controller, which uses the same `valid`/`ready`/`startofpacket` handshake convention.
-
-::: {.landscape-tables}
-
-| ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
-| --- | --- | --- | --- | --- | --- | --- |
-| 6.4.5.5.2 | `L_Data.Request` | `LLC Frame`, `Handle` | Submit LLC frame for transmission | `User -> LLC` | `llc_tx_if.data` (`byte_t`), `llc_tx_if.valid` (`std_logic`), `llc_tx_if.sop` (`std_logic`) | `valid` high with byte on data; `sop` asserted on first byte |
-| 6.4.5.5.2 | `L_Data.Request` | `LLC Frame`, `Handle` | Submit LLC frame for transmission | `User -> LLC` | `llc_tx_if.data` (`byte_t`), `llc_tx_if.valid` (`std_logic`) | `valid` high; `sop` and `eop` deasserted on intermediate bytes |
-| 6.4.5.5.2 | `L_Data.Request` | `LLC Frame`, `Handle` | Submit LLC frame for transmission | `User -> LLC` | `llc_tx_if.data` (`byte_t`), `llc_tx_if.valid` (`std_logic`), `llc_tx_if.eop` (`std_logic`) | `valid` high with byte on data; `eop` asserted on last byte |
-| 6.4.5.5.2 | `L_Data.Request` | | Flow control | `LLC -> User` | `llc_tx_if.ready` (`std_logic`) | Asserted by LLC when able to consume next byte |
-| 6.4.5.5.3 | `L_Data.AbortRequest` | `Handle` | Abort pending frame transfer | `User -> LLC` | `llc_tx_if.abort_request` (`std_logic`) | Pulse when user wants to cancel an in-progress transfer |
-
-: Interface definition for `llc_tx_if`. Implements `L_Data.Request` as an Avalon-ST byte stream. `L_Data.AbortRequest` is included for complete ISO service coverage but is not yet implemented. {#tbl:llc-tx-if}
-
-| ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
-| --- | --- | --- | --- | --- | --- | --- |
-| 6.4.5.5.5 | `L_Data.Indication` | `LLC Frame`, `Timestamp` | Deliver received LLC frame to user | `LLC -> User` | `llc_rx_if.data` (`byte_t`), `llc_rx_if.valid` (`std_logic`), `llc_rx_if.sop` (`std_logic`) | `valid` high with byte on data; `sop` asserted on first byte |
-| 6.4.5.5.5 | `L_Data.Indication` | `LLC Frame`, `Timestamp` | Deliver received LLC frame to user | `LLC -> User` | `llc_rx_if.data` (`byte_t`), `llc_rx_if.valid` (`std_logic`) | `valid` high; `sop` and `eop` deasserted on intermediate bytes |
-| 6.4.5.5.5 | `L_Data.Indication` | `LLC Frame`, `Timestamp` | Deliver received LLC frame to user | `LLC -> User` | `llc_rx_if.data` (`byte_t`), `llc_rx_if.valid` (`std_logic`), `llc_rx_if.eop` (`std_logic`) | `valid` high with byte on data; `eop` asserted on last byte |
-| 6.4.5.5.5 | `L_Data.Indication` | | Flow control | `User -> LLC` | `llc_rx_if.ready` (`std_logic`) | Asserted by user when able to consume next byte |
-| 6.4.5.5.4 | `L_Data.Confirm` | `Transfer_Status`, `Timestamp`, `Handle` | Report outcome of prior `L_Data.Request` | `LLC -> User` | `llc_rx_if.transfer_status` (`std_logic_vector(2:0)`) | Issued on frame completion, loss, or error |
-
-: Interface definition for `llc_rx_if`. Implements `L_Data.Indication` as an Avalon-ST byte stream. `Timestamp` is included for complete ISO service coverage but is not yet implemented. {#tbl:llc-rx-if}
-
-| ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
-| --- | --- | --- | --- | --- | --- | --- |
-| 6.3, 6.6.4.2 | `DLL SDU` | `LLC Frame` | Transfer LLC frame to MAC for serialization | `LLC -> MAC` | `llc_mac_tx_if.data` (`byte_t`), `llc_mac_tx_if.valid` (`std_logic`), `llc_mac_tx_if.sop` (`std_logic`) | `valid` high with byte on data; `sop` marks first byte of new frame |
-| 6.3, 6.6.4.2 | `DLL SDU` | | Flow control | `MAC -> LLC` | `llc_mac_tx_if.ready` (`std_logic`) | Asserted by MAC serializer when able to consume next byte |
-| 6.6.4.2 | Interface control information | `Transfer_Status` | Report frame transmission outcome | `MAC -> LLC` | `llc_mac_tx_if.transfer_status` (`std_logic_vector(2:0)`) | Updated by MAC on completion, loss, or error |
-
-: Interface definition for `llc_mac_tx_if`. Frame length is self-describing from the DLC config bytes; the MAC serializer does not consume `eop`. {#tbl:llc-mac-tx-if}
-
-| ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
-| --- | --- | --- | --- | --- | --- | --- |
-| 6.6.4.3, 6.6.9 | `DLL SDU` | Reconstructed `LLC Frame` | Transfer reconstructed LLC frame to LLC | `MAC -> LLC` | `llc_mac_rx_if.data` (`byte_t`), `llc_mac_rx_if.valid` (`std_logic`), `llc_mac_rx_if.sop` (`std_logic`), `llc_mac_rx_if.eop` (`std_logic`) | Avalon-ST byte stream; the RX FSM streams the stored `llc_frame` array during the quiet phase |
-| 6.6.4.3, 6.6.9 | `DLL SDU` | | Flow control | `LLC -> MAC` | `llc_mac_rx_if.ready` (`std_logic`) | Asserted by LLC when able to consume next byte |
-
-: Interface definition for `llc_mac_rx_if`. Carries the reconstructed LLC frame from `can_mac_rx` to `can_llc_rx` (@sec:can-mac-rx) as an Avalon-ST byte stream. The RX FSM stores received bits in an internal frame array during reception and streams the completed frame after EOF. {#tbl:llc-mac-rx-if}
-
-| ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
-| --- | --- | --- | --- | --- | --- | --- |
-| 7.2.1, 7.2.2 | `PCS_Data.Request` | `Output_Unit` | Present next bit for transmission | `MAC -> PCS` | `mac_pcs_if.polarity` (`std_logic`), `mac_pcs_if.valid` (`std_logic`) | MAC holds polarity stable; PCS samples at each bit boundary autonomously |
-| 7.2.1, 7.2.5 | `PCS_Status.Transmitter` | `D_Transmit` | Indicate FD data-phase interval to PCS | `MAC -> PCS` | `mac_pcs_if.use_data_rate` (`std_logic`), `mac_pcs_if.start_tdc` (`std_logic`) | `use_data_rate` asserted during FD data phase; `start_tdc` pulsed at BRS to begin delay measurement |
-| 7.2.1, 7.2.3 | `PCS_Data.Indicate` | `Input_Unit` | Indicate bus polarity at sample point | `PCS -> MAC` | `mac_pcs_if.bus_polarity` (`std_logic`), `mac_pcs_if.sp` (`std_logic`), `mac_pcs_if.ssp` (`std_logic`), `mac_pcs_if.fifo_index` (`t_fifo_index_vec`) | `sp` pulses once per nominal sample point; `ssp` pulses once per secondary sample point for TDC |
-| 7.2.1, 7.2.6 | `PCS_Status.Receiver` | `D_Receive` | Indicate FD data-phase interval to PCS | `MAC -> PCS` | not yet implemented | Asserted during FD data-phase reception |
-
-: Interface definition for `mac_pcs_if`. The `D_Transmit` status is signalled via a dedicated `use_data_rate` flag rather than encoding it in a semantic bit name. The PCS switches between nominal and data-phase bit timing based on this flag, keeping the interface to plain `std_logic` signals. {#tbl:mac-pcs-if}
-
-| ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
-| --- | --- | --- | --- | --- | --- | --- |
-| 7.4.2.1 | `output symbol` | `Dominant/recessive symbol` | Drive physical output symbol | `PCS -> PMA` | `aui_if.tx` (`std_logic`) | Updated on each `Output_Unit` request |
-| 7.4.2.2, 8.1.3.4 | `bus_off symbol` | `Bus-off control` | Switch node off bus | `PCS -> PMA` | `aui_if.bus_off` (`std_logic`) | On `Bus_off_request` from FCE |
-| 7.4.2.3, 8.1.3.4 | `bus_off_release symbol` | `Bus-off release control` | Release node from bus-off | `PCS -> PMA` | `aui_if.bus_off_release` (`std_logic`) | On `Bus_off_release_request` from FCE |
-| 7.4.3 | `input symbol` | `Dominant/recessive symbol` | Indicate physical input symbol | `PMA -> PCS` | `aui_if.rx` (`std_logic`) | Continuously driven by PMA |
-
-: Interface definition for `aui_if`. All signals are `std_logic`, as this interface crosses from the ISO protocol domain into the physical medium. {#tbl:aui-if}
-
-| ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
-| --- | --- | --- | --- | --- | --- | --- |
-| 8.1.3.2 | `Normal_mode_request` | `Mode request` | Request reset to normal mode | `LLC -> FCE` | `fce_llc_if.normal_mode_request` (`std_logic`) | Issued on startup/restart |
-| 8.1.3.2 | `Normal_mode_response` | `Mode response` | Acknowledge normal-mode request | `FCE -> LLC` | `fce_llc_if.normal_mode_response` (`std_logic`) | Returned after FCE processing |
-| 8.1.3.2 | `Bus_off` | `Bus-off status` | Indicate node is bus-off | `FCE -> LLC` | `fce_llc_if.bus_off` (`std_logic`) | Asserted on bus-off transition |
-
-: Interface definition for `fce_llc_if`. Carries bus-off status and mode-request handshake between the FCE and LLC layers [@iso11898_1, sec. 8.1.3.2]. {#tbl:fce-llc-if}
-
-| ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
-| --- | --- | --- | --- | --- | --- | --- |
-| 8.1.3.3 | `Transmit/receive` | `Transfer mode context` | Report current TX/RX context | `MAC -> FCE` | `fce_mac_if.transmitting` (`std_logic`) | Updated with MAC transfer context |
-| 8.1.3.3 | `Error` | `Error event` | Report detected protocol error | `MAC -> FCE` | `fce_mac_if.error` (`std_logic`) | Pulse on bit/stuff/CRC/form/ACK error |
-| 8.1.3.3 | `Primary_error` | `Primary error event` | Report primary error condition | `MAC -> FCE` | `fce_mac_if.primary_error` (`std_logic`) | Pulse on primary error condition |
-| 8.1.3.3 | `Error/overload flag` | `EF/OF state` | Report EF/OF transmission state | `MAC -> FCE` | `fce_mac_if.sending_error_overload_flag` (`std_logic`) | Asserted during EF/OF transmission |
-| 8.1.3.3 | `Counters_unchanged` | `Counter-update qualifier` | Qualify counter exception path | `MAC -> FCE` | `fce_mac_if.counters_unchanged` (`std_logic`) | Asserted on rule-c exception cases |
-| 8.1.3.3 | `Error_delimiter_too_late` | `Late delimiter event` | Report late error-delimiter condition | `MAC -> FCE` | `fce_mac_if.error_delimiter_too_late` (`std_logic`) | Asserted on late delimiter condition |
-| 8.1.3.3 | `Successful_transfer` | `Transfer completion event` | Report successful TX/RX completion | `MAC -> FCE` | `fce_mac_if.successful_transfer` (`std_logic`) | Pulse on successful frame transfer |
-| 8.1.3.3 | `Error_passive_response` | `State response` | Report entry into error-passive state | `MAC -> FCE` | `fce_mac_if.error_passive_response` (`std_logic`) | On state transition completion |
-| 8.1.3.3 | `Error_active_response` | `State response` | Report return to error-active state | `MAC -> FCE` | `fce_mac_if.error_active_response` (`std_logic`) | On state transition completion |
-| 8.1.3.3 | `Error_passive_request` | `State request` | Request MAC enter error-passive state | `FCE -> MAC` | `fce_mac_if.error_passive_request` (`std_logic`) | On TEC/REC threshold crossing |
-| 8.1.3.3 | `Error_active_request` | `State request` | Request MAC return to error-active state | `FCE -> MAC` | `fce_mac_if.error_active_request` (`std_logic`) | On TEC/REC recovery |
-
-: Interface definition for `fce_mac_if`. The MAC reports error events and frame outcomes to the FCE; the FCE returns the current error-active/passive state to the MAC [@iso11898_1, sec. 8.1.3.3]. {#tbl:fce-mac-if}
-
-| ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
-| --- | --- | --- | --- | --- | --- | --- |
-| 8.1.3.4 | `Bus_off_request` | `Bus-off request` | Request node switch-off from bus | `FCE -> PCS` | `fce_pcs_if.bus_off_request` (`std_logic`) | On bus-off transition condition |
-| 8.1.3.4 | `Bus_off_release_request` | `Bus-off release request` | Request node re-enable from bus-off | `FCE -> PCS` | `fce_pcs_if.bus_off_release_request` (`std_logic`) | On restart/reintegration |
-| 8.1.3.4 | `Bus_off_response` | `Bus-off response` | Acknowledge bus-off request | `PCS -> FCE` | `fce_pcs_if.bus_off_response` (`std_logic`) | Returned after bus-off action |
-| 8.1.3.4 | `Bus_off_release_response` | `Bus-off release response` | Acknowledge bus-off-release request | `PCS -> FCE` | `fce_pcs_if.bus_off_release_response` (`std_logic`) | Returned after release action |
-
-: Interface definition for `fce_pcs_if`. Carries bus-off and bus-off-release request/response handshakes between the FCE and PCS layers [@iso11898_1, sec. 8.1.3.4]. {#tbl:fce-pcs-if}
-:::
-
-## Protocol-Driven Type System {#sec:protocol-driven-type-system}
-
-Two VHDL packages centralize the shared definitions used across the design. All module interfaces use `std_logic` and `std_logic_vector` exclusively - protocol concepts such as polarity, frame format, and transfer status are encoded as named constants. Enumeration types such as FSM state types are declared locally within each module's architecture, keeping the packages free of module-specific types.
-
-**`pk_can_types`** (`can_types_p.vhd`) is the primary design package, organized into the following sections:
-
-1. **Protocol constants** - bus polarity (`c_dominant` = '`0`', `c_recessive` = '`1`'), frame field widths (base ID 11 bits, extended ID 18 bits, DLC 4 bits, EOF 7 bits), bit stuffing parameters (`c_stuff_width` = 5), CRC polynomial vectors and selector constants (CRC-15, CRC-17, CRC-21), transfer status encodings (`c_ongoing`, `c_transmitted`, `c_aborted`, `c_lost_arb`, `c_disturbed`), error signalling widths, inter-frame spacing widths, and FCE counter thresholds.
-2. **Bit timing subtypes** - constrained natural ranges matching ISO Table 12 [@iso11898_1, sec. 7.3.2]: prescaler (1-32), propagation segments, phase segments, and SSP offset (1-63).
-3. **Composite types** - the sole composite type is `t_llc_metadata`, a record capturing the six LLC config byte fields (IDE, FDF, DLC, FTYP, BRS, ESI) extracted by the serializer and held stable for the duration of a frame.
-4. **Interface records** - typed bundles for each inter-module boundary (serializer-FSM, LLC-MAC TX/RX, MAC-PCS, FSM-bit stuffer, FSM-CRC, MAC-FCE, LLC-FCE, FCE-PCS), each paired with a reset constant. These are defined in full in @sec:interface-definition-tables.
-5. **LLC frame format** - array types and config byte bit-position constants for both the internal LLC frame format (variable length, streamed to the serializer) and the legacy 71-byte user-facing format.
-6. **Utility functions** - `dlc_to_data_length` (ISO Table 5 DLC-to-byte-count conversion), `f_to_gray` (binary-to-Gray encoding for the SBC field), and `f_calc_parity` (XOR parity for SBC).
-
-**`can_tb_p`** (`can_tb_p.vhd`) is the testbench utility package, extracted from `pk_can_types` to separate simulation-only code from synthesizable definitions. It provides CRC reference calculation, metadata extraction, and bus stream reference model functions used by the testbenches for expected-value computation.
-
 ## LLC Sub-layer {#sec:llc-sub-layer}
 
 Responsible for frame buffering and retransmission management. It provides an Avalon-ST interface to the user application and communicates with the FCE to handle retransmission limits and error status reporting.
@@ -651,42 +541,6 @@ flowchart TD
     FSM <==>|mac_pcs_if| PCS
     FSM <==>|fce_mac_if| FCE
 ```
-
-#### `can_mac_tx` Internal Interfaces {#sec:mac-internal-interfaces}
-
-The interfaces between MAC sub-components are implementation-defined and carry no direct ISO service primitive mapping. @tbl:mac-fsm-ser-if, @tbl:mac-fsm-bs-if, and @tbl:mac-fsm-crc-if define each bidirectional bundle; the Direction column identifies the driving component for each field. The bit stuffer and CRC engine interfaces are shared between the TX and RX paths - each path instantiates its own copy wired through identical record types.
-
-| field | type | direction | description |
-| --- | --- | --- | --- |
-| `data` | `std_logic` | `ser -> fsm` | current bit polarity; FSM reads this when `valid` is asserted |
-| `valid` | `std_logic` | `ser -> fsm` | asserted while a bit is available for the FSM to consume |
-| `llc_metadata` | `t_llc_metadata` | `ser -> fsm` | LLC config byte fields (IDE, FDF, DLC, FTYP, BRS, ESI) extracted by the serializer; valid for the lifetime of the frame |
-| `ready` | `std_logic` | `fsm -> ser` | pulsed when the FSM has consumed the current bit; advances the serializer to the next bit |
-| `transfer_status` | `std_logic_vector(2:0)` | `fsm -> ser` | frame outcome; any non-`c_ongoing` value terminates serialization |
-
-: Interface definition for `can_mac_ser_fsm_if`, connecting `can_mac_ser_tx` and `can_mac_fsm_tx` (see @fig:mac-tx-architecture). {#tbl:mac-fsm-ser-if}
-
-| field | type | direction | description |
-| --- | --- | --- | --- |
-| `data` | `std_logic` | `fsm -> bs` | bit polarity fed into the bit stuffer |
-| `valid` | `std_logic` | `fsm -> bs` | pulsed when a new bit is presented to the stuffer |
-| `fixed_bit_stuffing_en` | `std_logic` | `fsm -> bs` | when high, the bit stuffer operates in fixed bit stuffing mode (FD CRC region) |
-| `data` | `std_logic` | `bs -> fsm` | polarity of the required stuff bit |
-| `valid` | `std_logic` | `bs -> fsm` | asserted when a stuff bit insertion is required |
-| `stuff_bit_count` | `std_logic_vector(3:0)` | `bs -> fsm` | gray-coded stuff bit count with parity for the FD SBC field |
-
-: Interface definition for `can_mac_fsm_bs_if`, connecting `can_mac_fsm_tx`/`can_mac_fsm_rx` and `can_mac_bs` (see @fig:mac-tx-architecture). The bit stuffer is reset by a dedicated `bs_rst` signal from the FSM rather than a field in this record. {#tbl:mac-fsm-bs-if}
-
-| field | type | direction | description |
-| --- | --- | --- | --- |
-| `crc_poly_select` | `std_logic_vector(1:0)` | `fsm -> crc` | selects the active CRC polynomial: CRC-15, CRC-17, or CRC-21 |
-| `valid_cc` | `std_logic` | `fsm -> crc` | pulsed when `data_cc` should be accumulated into the CRC-15 engine |
-| `valid_fd` | `std_logic` | `fsm -> crc` | pulsed when `data_fd` should be accumulated into the CRC-17/CRC-21 engines |
-| `data_cc` | `std_logic` | `fsm -> crc` | bit value fed to the CRC-15 engine (CC frames: data bits only, no stuff bits) |
-| `data_fd` | `std_logic` | `fsm -> crc` | bit value fed to the CRC-17/CRC-21 engines (FD frames: dynamic stuff bits + data bits) |
-| `crc` | `std_logic_vector(20:0)` | `crc -> fsm` | current CRC register value, left-aligned and zero-padded to 21 bits |
-
-: Interface definition for `can_mac_fsm_crc_if`, connecting `can_mac_fsm_tx`/`can_mac_fsm_rx` and `can_mac_crc` (see @fig:mac-tx-architecture). Separate data feeds for CC and FD are required because CC and FD frames compute CRC over different bit streams: CC excludes stuff bits while FD includes them [@iso11898_1, sec. 10.4.2.6]. This dual-feed design also allows the RX path to run both CRC engines in parallel until the frame type is known. The CRC engine is reset by a dedicated `crc_rst` signal from the FSM. {#tbl:mac-fsm-crc-if}
 
 #### `can_mac_fsm_tx` {#sec:can-mac-fsm-tx}
 
@@ -1158,3 +1012,21 @@ Summary of work completed and how objectives were met.
 # References {#sec:references}
 
 <!-- Generated automatically by Pandoc from docs/references.bib -->
+
+`\appendix`{=latex}
+
+# Verification Plan {#sec:appendix-vplan}
+
+Both tables are regenerated automatically from `verification_plan/verification_plan.toml` on each PDF build. The ID field is the join key between them. See @sec:verification-plan-data-structure for the meaning of each field.
+
+## Extracted Requirements {#sec:appendix-requirements}
+
+The requirements table contains four fields: the identifier, the ISO 11898-1 source clause, the priority assignment, and the paraphrase. Placing priority here allows each assignment to be evaluated directly against the requirement text. The table corresponds to the requirements extraction and prioritisation phases described in @sec:req-extraction and @sec:vplan-priority.
+
+<!-- generated:requirements-table -->
+
+## Verification Plan Fields {#sec:appendix-vplan-fields}
+
+The verification plan table contains the verification metadata fields added during the planning phase. Cross-reference to the requirements table above via the shared ID field.
+
+<!-- generated:verification-plan-table -->
