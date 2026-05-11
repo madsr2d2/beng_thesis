@@ -141,8 +141,6 @@ The need for CAN FD support in the company's engine controller platform, combine
 - Implement TDC measurement and compensation logic.
 - Ensure high verification coverage using OSVVM and GHDL.
 
----
-
 # Background {#sec:background}
 
 ## CAN Protocol Evolution {#sec:can-protocol-evolution}
@@ -153,96 +151,13 @@ Brief history from CAN 2.0 to CAN-FD.
 
 Overview of the data link layer and physical signaling requirements [@iso11898_1].
 
+![CAN-Bus consisting of three CAN nodes.](figures/can_bus.png){#fig:can_bus width=50%}
+
 ## VHDL and OSVVM {#sec:vhdl-osvvm}
 
 The role of modern VHDL standards and verification frameworks in digital design.
 
----
-
 # Requirements Engineering & Verification Planning {#sec:requirements-engineering}
-
-## From Standard to Structured Requirements {#sec:req-extraction}
-
-The requirements engineering process was aimed at tackling to key objectives:
-
-1. Extracting a clear and actionable set of requirements that could serve as a starting point for the design phase.
-2. Establishing a clear, traceable link between the ISO 11898-1 specification and the verification environment.
-
-Both objectives are complicated by the nature of the source material. ISO 11898-1 is written as a specification document, not a verification artifact. Normative requirements are distributed across many subsections, often stated from different perspectives or restated for different frame types, and interspersed with explanatory and descriptive text. Extracting precise, unambiguous requirements from this prose is non-trivial: the standard does not always distinguish cleanly between what a compliant implementation must do and how it typically achieves it, and the same behavioral constraint can appear in multiple sections with subtly different phrasing. Without a structured requirements artifact, verification coverage risks becoming informal and anecdotal.
-
-ISO 11898-1 structures the CAN protocol into four functional sub-layers that map directly onto the architectural decomposition of this project: the Logical Link Control (LLC) sub-layer, the Medium Access Control (MAC) sub-layer, the Physical Coding Sub-layer (PCS), and the Fault Confinement Entity (FCE). The standard devotes separate sections to each of these sub-layers, which provided a natural first-pass classification axis for the requirement extraction process.
-
-To address both objectives while alleviating the manual burden of initial extraction and classification, the requirement set was bootstrapped by an AI-assisted pipeline. The ISO standard was first converted into Markdown format, making it efficiently searchable and ingestible by a Claude Sonnet 4.6 language model agent. The agent was prompted to extract all normative language from the document - sentences containing "shall", "should", "must", and their corresponding negations - and to classify each extracted statement according to the sub-layer section of the standard it appeared under, mapping directly to the LLC, MAC, PCS, and FCE layers described above.
-
-This initial extraction yielded 168 normative statements. Many extracted statements were effectively descriptions of the same underlying requirement, expressed from slightly different angles or in different parts of the document. Condensing these into an organized, non-redundant requirements table was largely manual and time-consuming. It required repeated close reading of the relevant standard sections, identifying which statements described the same underlying behavior, and paraphrasing the often verbose normative language into precise, concise requirement statements. A key driver in this consolidation process was the principle of requirement orthogonality: each entry in the final requirements table should describe a distinct, independently verifiable behavioral claim. This kind of semantic consolidation - distinguishing between a restatement and a genuinely distinct requirement - is not a task that can be fully automated, as it requires domain-level understanding of the protocol.
-
-The scale of the condensation is conveyed by the numbers: 168 raw normative extractions were reduced to a final table of 45 requirements, a reduction to roughly 27% of the original count. On average, each final requirement entry absorbed and unified approximately three to four raw extractions. This reduction ratio is primarily a consequence of the extraction strategy and the orthogonality principle: statements describing the same underlying behavior from different angles, or expressed in different parts of the document, were grouped into a single entry that could be efficiently verified together. The ratio is therefore an artifact of the consolidation methodology, not a commentary on the structure of the standard itself.
-
-## AI-Assisted Extraction: Utility and Limitations {#sec:ai-extraction}
-
-The LLM agent earned its keep by bootstrapping the initial content of the verification plan data structure. Starting from a blank requirements table would have required a significantly larger upfront effort, and having a populated, classified starting point - even one requiring substantial revision - gave the manual review process a concrete artifact to work from and react to. Generating a rough first draft from source material is a well-understood and widely used application of language models, and this case was no exception.
-
-That said, the overall time saving was marginal. The most time-consuming part of the process - close reading, semantic consolidation, and orthogonality-driven reduction from 168 to 45 entries - is equally demanding whether the starting point is a blank table or an AI-generated draft. The agent's output had to be reviewed statement by statement, which is structurally similar to extracting requirements manually in the first place. The primary benefit of the AI-assisted approach was therefore not efficiency, but coverage consistency: the initial pass covered the entire document systematically, reducing the risk of missing normative statements that a manual skim might overlook.
-
-The requirements table was not frozen at a single point in time. It functioned as a living document throughout the project, evolving as implementation and verification work revealed aspects of the specification that had been misunderstood, overlooked, or insufficiently specified in the initial extraction. This iterative refinement is an inherent property of requirements engineering in complex protocol implementations, and should be expected rather than treated as a sign of process failure.
-
-## Verification Plan Data Structure {#sec:verification-plan-data-structure}
-
-**Note:** I think we need to be mindful of the distinction between the "Requirements set" and the verification plan data structure. The requirements set (which was described above along with its extraction processes from the ISO document and the following manual condensation) forms the foundation for the verification plan data structure. This section should describe how the verification plan evolves from the requirements set. Accordingly, I think we should start by focussing on describing the addition of the extra dimensions and giving thorough rationales for each of the new dimensions. The key reference for this section is  [@bergeron2003] (the text book describing best practise verification plan methods). BTW. Add Chapter 3, to the ref in the bib file. This is hte chapter describing verification planning and reffrencing the specific chapter convays that we have actually red the reference. Think carefully about where to place this referenc ein the section. It shoul dtake center stage since it is describes th emethods and procedures and principles we use and rely on in this section. When describing the dimensions of the verification paln I think it would be most clear if we do this under sub headings fro each field in the verification plan.
-
-Through manual review and additional LLM-assisted iterations, the requirements data structure was enriched with several dimensions beyond the raw normative text. The requirement set covers the four in-scope frame formats: Classic Basic (CB), Classic Extended (CE), FD Basic (FB), and FD Extended (FE). CAN XL is explicitly out of scope. @tbl:req-layer-distribution shows the distribution of the 45 final requirements across the five architectural layers.
-
-The **layer** dimension indicates which architectural layer the requirement pertains to. A fifth label - "system" - was introduced alongside the four protocol layers to classify requirements that are inherently multi-layer or multi-node in character. Some CAN behaviors cannot be attributed to a single layer of a single node; they emerge from interactions between multiple nodes on the bus, or span the layer boundary within a single node. Attempting to force such requirements into a single-layer classification would have been misleading and would have obscured their true verification implications. The system label acknowledges this explicitly, flagging these requirements as ones that cannot be fully verified through isolated unit testing of individual modules, but instead require either an integrated multi-module testbench or a multi-node simulation environment.
-
-Each requirement also carries a **side** dimension (transmitter, receiver, or both), indicating whether it pertains to the transmitter path, the receiver path, or both roles simultaneously.
-
-The **format applicability** dimension (CB, CE, FB, FE) records which of the four in-scope frame formats each requirement applies to. Not all requirements apply to all formats: some are specific to FD frames, others to extended-identifier frames. This dimension determines which testbench stimulus configurations are required to exercise a given requirement.
-
-Each requirement is classified by **observability** relative to the layer under test, anchored in the service primitives defined by ISO 11898-1 [@iso11898_1]:
-
-- **Black-box**: the postcondition maps directly onto a service-primitive parameter or its timing, and the testbench can derive the expected value from configuration generics and driven stimulus alone. For example, the bit-level encoding of the SOF field is directly observable at the MAC-PCS boundary as the first `Output_Unit` value.
-- **White-box**: the postcondition manifests at the layer boundary but requires a non-trivial reference computation. CRC correctness falls here: the CRC bits appear in the transmitted bit-stream, but a polynomial reference model is needed to verify their value.
-
-Of the 45 requirements, 16 are black-box and 29 are white-box.
-
-**Note:** Remove references to GTKWave. We should not specify the tool we use to inspect waveforms.
-
-The **verification method** dimension makes the path from requirement to verification artifact explicit and actionable from the outset, giving each requirement a clear route to closure before any testbench is written. Four methods are used: simulation (automated assertion or check procedure in a testbench), code inspection (RTL source review), waveform inspection (manual GTKWave review of simulation output), and coverage (OSVVM coverage bins sweeping a value range). Combinations are valid when multiple sub-claims within one requirement each call for a different method.
-
-A **priority** field (P1, P2, P3) records the criticality of each requirement, reflecting both its importance to correct protocol operation and the risk of it being implemented incorrectly. P1 requirements must be closed before the design can be considered verified; P3 requirements correspond to "should" recommendations where failure carries lower severity. This allows the verification effort to be sequenced so that the highest-risk behaviors are covered first.
-
-Each requirement entry carries two dedicated **traceability fields**: a `file` field identifying the testbench or RTL source file responsible for covering that requirement, and a `label` field identifying a specific named procedure, assertion, or coverage ID within that file. This establishes a direct, navigable link from each requirement to its verification artifact, following the requirements-driven verification methodology described in [@bergeron2003]. Where a requirement decomposes into multiple independently verifiable sub-claims, both fields accept comma-separated values pointing to distinct procedures - each sub-claim then has its own navigable evidence link. A **status** field (`not_started`, `in_progress`, `complete`, `waived`) records closure state explicitly, allowing partial progress to be tracked without relying on whether the traceability fields happen to be populated. Crucially, gaps in coverage remain immediately visible: requirements with unpopulated traceability fields and status `not_started` are structurally obvious in the data file without requiring a separate coverage matrix. @tbl:vplan-metadata-fields lists all fields carried by each entry.
-
-**Notes**: I like this tabel sumerizing the verification plan data structure. But I think we should include references to each of the subsections elaborating on the individual fields. So the general idea is to use the purpose column to give a very prife description of the relevant field and then have the section ref point back at the the detaild elaboration in the sections above.
-
-| Field | Purpose |
-| :--- | :--- |
-| `id` | Sequential identifier REQ-NNN. |
-| `source_clause` | ISO 11898-1:2015 section reference. |
-| `original_wording` | Verbatim normative text from the standard. |
-| `paraphrase` | Concise restatement for report tables and review. |
-| `layer` | Sub-layer: LLC, MAC, PCS, FCE, or system (see @sec:req-structure). |
-| `side` | Obligation direction: transmitter, receiver, or both. |
-| `format_applicability` | Applicable frame formats: CB, CE, FB, FE. |
-| `observability` | `black_box` or `white_box` (see @sec:req-structure). |
-| `verification_method` | Method(s) used to verify the requirement. |
-| `priority` | P1 (critical), P2 (important), or P3 (low risk / recommendation). |
-| `status` | `not_started`, `in_progress`, `complete`, or `waived`. |
-| `notes` | Engineering notes and caveats. |
-| `label` | Assertion label, TB procedure name, coverage ID, or RTL tag. Comma-separated when multiple procedures cover distinct sub-claims. |
-| `file` | Target file - TB for simulation/coverage, RTL for code inspection. Comma-separated when sub-claims span multiple files. |
-
-: Verification-plan metadata fields. {#tbl:vplan-metadata-fields}
-
-**Note:** We shoudl expand this section. This is an importent section ment to illustrate that w have really thought about the most effecient and "safe" way to use the AI tools here. So we could for instace elaborate on which operatiosn our PCM tools afords the LLM agent (new field insertion, req retrival and deletion, renumbering etc etc).
-
-## Storage Format and Tooling {#sec:req-tooling}
-
-The plan is stored as `verification_plan/verification_plan.toml`. Each entry is a self-contained `[[requirement]]` block with one key per line, making version-control diffs clean and merge conflicts rare.
-
-A **Model Context Protocol (MCP) server** (`mcp_tools/verification_plan_manager.py`) provides query, update, insert, delete, and statistics operations as validated tool calls. Constraining writes to atomic, schema-validated operations avoids the data-corruption risks of asking an LLM to rewrite a large structured file directly.
-
-**Notes:** I actually think that the constraints imposed by the company belong in the requirements section above sec:req-extraction. These should be considered as part of the initial requirements set I would think.
 
 ## Engineering Constraints {#sec:engineering-constraints}
 
@@ -263,6 +178,113 @@ The company imposes a set of non-negotiable constraints on all FPGA IP modules. 
 **OSVVM verification framework.** All testbenches use the OSVVM library [@osvvm] for clock and reset generation, coverage model management, and alert/check reporting. This ensures that verification infrastructure is consistent across all modules and that pass/fail results are machine-readable.
 
 **VSG linting.** All RTL source files are checked with the VHDL Style Guide (VSG) linter using a shared project configuration (`vsg_config.yaml`), enforcing consistent formatting and naming conventions across the codebase.
+
+## From Standard to Structured Requirements {#sec:req-extraction}
+
+The requirements engineering process was aimed at tackling two key objectives:
+
+1. Extracting a clear and actionable set of requirements that could serve as a starting point for the design phase.
+2. Establishing a clear, traceable link between the ISO 11898-1 specification and the verification environment.
+
+Both objectives are complicated by the nature of the source material. ISO 11898-1 is written as a specification document, not a verification artifact. Normative requirements are distributed across many subsections, often stated from different perspectives or restated for different frame types, and interspersed with explanatory and descriptive text. Extracting precise, unambiguous requirements from this prose is non-trivial: the standard does not always distinguish cleanly between what a compliant implementation must do and how it typically achieves it, and the same behavioral constraint can appear in multiple sections with subtly different phrasing. Without a structured requirements artifact, verification coverage risks becoming informal and anecdotal.
+
+ISO 11898-1 structures the CAN protocol into four functional sub-layers that map directly onto the architectural decomposition of this project: the Logical Link Control (LLC) sub-layer, the Medium Access Control (MAC) sub-layer, the Physical Coding Sub-layer (PCS), and the Fault Confinement Entity (FCE). The standard devotes separate sections to each of these sub-layers, which provided a natural first-pass classification axis for the requirement extraction process.
+
+To address both objectives while alleviating the manual burden of initial extraction and classification, the requirement set was bootstrapped by an AI-assisted pipeline. The ISO standard was first converted into Markdown format, making it efficiently searchable and ingestible by a Claude Sonnet 4.6 language model agent. The agent was prompted to extract all normative language from the document - sentences containing "shall", "should", "must", and their corresponding negations - and to classify each extracted statement according to the sub-layer section of the standard it appeared under, mapping directly to the LLC, MAC, PCS, and FCE layers described above.
+
+This initial extraction yielded 168 normative statements. Many extracted statements were effectively descriptions of the same underlying requirement, expressed from slightly different angles or in different parts of the document. Condensing these into an organized, non-redundant requirements table was largely manual and time-consuming. It required repeated close reading of the relevant standard sections, identifying which statements described the same underlying behavior, and paraphrasing the often verbose normative language into precise, concise requirement statements. A key driver in this consolidation process was the principle of requirement orthogonality: each entry in the final requirements table should describe a distinct, independently verifiable behavioral claim. This kind of semantic consolidation - distinguishing between a restatement and a genuinely distinct requirement - is not a task that can be fully automated, as it requires domain-level understanding of the protocol.
+
+The scale of the condensation is conveyed by the numbers: 168 raw normative extractions were reduced to a final table of 45 requirements, a reduction to roughly 27% of the original count. On average, each final requirement entry absorbed and unified approximately three to four raw extractions. This reduction ratio is primarily a consequence of the extraction strategy and the orthogonality principle: statements describing the same underlying behavior from different angles, or expressed in different parts of the document, were grouped into a single entry that could be efficiently verified together. The ratio is therefore an artifact of the consolidation methodology, not a commentary on the structure of the standard itself.
+
+The requirements table was not frozen at a single point in time. It functioned as a living document throughout the project, evolving as implementation and verification work revealed aspects of the specification that had been misunderstood, overlooked, or insufficiently specified in the initial extraction. This iterative refinement is an inherent property of requirements engineering in complex protocol implementations, and should be expected rather than treated as a sign of process failure.
+
+## Verification Plan Data Structure {#sec:verification-plan-data-structure}
+
+The requirements set described in @sec:req-extraction provides the normative foundation - 45 protocol behaviors extracted and consolidated from ISO 11898-1. The verification plan data structure is a richer artifact: it augments each requirement with the dimensions needed to answer not just *what* must be true, but *how* it will be verified, *where* the evidence lives, and *when* verification is complete. This additional structure follows the verification planning methodology described by Bergeron [@bergeron2003ch3], which organizes a verification plan around explicit links between requirements, verification methods, and traceability artifacts.
+
+### Layer {#sec:vplan-layer}
+
+The **layer** field assigns each requirement to the protocol sub-layer that owns it: LLC, MAC, PCS, FCE, or system. This follows the ISO 11898-1 sub-layer structure described in @sec:req-extraction and maps directly onto the modular architecture of the implementation: requirements assigned to a given layer can be verified in isolation against that layer's module testbench, rather than through the surface of a fully integrated system. A fifth label - **system** - was introduced alongside the four protocol layers to classify requirements that are inherently multi-layer or multi-node in character. Some CAN behaviors cannot be attributed to a single layer of a single node: they emerge from interactions between multiple nodes on the bus, or span the layer boundary within a single node. Attempting to force such requirements into a single-layer classification would have been misleading and would have obscured their true verification implications. The system label flags these requirements as ones that require either an integrated multi-module testbench or a multi-node simulation environment. @tbl:req-layer-distribution shows the distribution of the 45 final requirements across the five layers.
+
+| Layer | Count | Description |
+| :--- | :---: | :--- |
+| MAC | 22 | Frame structure, bit stuffing, CRC, error detection, arbitration |
+| LLC | 6 | Frame submission, abort, and delivery to the LLC user |
+| PCS | 6 | Bit timing, sample point, TDC |
+| FCE | 5 | Error counters, state transitions, bus-off recovery |
+| system | 6 | Requirements jointly owned by multiple sub-layers or requiring two nodes |
+| **Total** | **45** | |
+
+: Protocol requirement distribution by layer. {#tbl:req-layer-distribution}
+
+### Side {#sec:vplan-side}
+
+The **side** field records whether a requirement pertains to the transmitter path, the receiver path, or both roles simultaneously. This dimension reflects the ISO standard's own framing, which frequently specifies transmitter and receiver obligations separately.
+
+### Format Applicability {#sec:vplan-format}
+
+The **format_applicability** field records which of the four in-scope frame formats (CB, CE, FB, FE) each requirement applies to. Not all requirements apply to all formats: some are specific to FD frames, others to extended-identifier frames. This field determines which testbench stimulus configurations are required to exercise a given requirement.
+
+### Observability {#sec:vplan-observability}
+
+The **observability** field classifies each requirement relative to the module boundary of the owning layer, following Bergeron's distinction between black-box and white-box verification [@bergeron2003ch3]:
+
+- **Black-box**: the postcondition maps directly onto a service-primitive parameter or its timing, and the testbench can derive the expected value from configuration generics and driven stimulus alone. For example, the bit-level encoding of the SOF field is directly observable at the MAC-PCS boundary as the first `Output_Unit` value.
+- **White-box**: the postcondition manifests at the layer boundary but requires a non-trivial reference computation. CRC correctness falls here: the CRC bits appear in the transmitted bit-stream, but a polynomial reference model is needed to verify their value.
+
+Of the 45 requirements, 16 are black-box and 29 are white-box.
+
+### Verification Method {#sec:vplan-method}
+
+The **verification_method** field makes the path from requirement to verification artifact explicit and actionable before any testbench is written, giving each requirement a clear route to closure before implementation begins. Three methods are used: simulation (automated assertion or check procedure in a testbench), code inspection (RTL source review), and coverage (OSVVM coverage bins sweeping a value range). Combinations are valid when multiple sub-claims within one requirement each call for a different method.
+
+### Priority {#sec:vplan-priority}
+
+The **priority** field (P1, P2, P3) records the criticality of each requirement, reflecting both its importance to correct protocol operation and the risk of it being implemented incorrectly. P1 requirements must be closed before the design can be considered verified; P3 requirements correspond to "should" recommendations where failure carries lower severity. This allows the verification effort to be sequenced so that the highest-risk behaviors are covered first.
+
+### Traceability: Label and File {#sec:vplan-traceability}
+
+Each requirement entry carries two dedicated traceability fields: a `file` field identifying the testbench or RTL source file responsible for covering the requirement, and a `label` field identifying a specific named procedure, assertion, or coverage ID within that file. Together they establish a direct, navigable link from each requirement to its verification artifact, following the requirements-driven traceability methodology described in [@bergeron2003ch3]. Where a requirement decomposes into multiple independently verifiable sub-claims, both fields accept comma-separated values - each sub-claim then has its own navigable evidence link.
+
+### Status {#sec:vplan-status}
+
+The **status** field (`not_started`, `in_progress`, `complete`, `waived`) records closure state explicitly, allowing partial progress to be tracked without relying on whether the traceability fields happen to be populated. Crucially, gaps in coverage remain immediately visible: requirements with unpopulated traceability fields and `status = not_started` are structurally obvious in the data file without requiring a separate coverage matrix.
+
+@tbl:vplan-metadata-fields lists all fields carried by each entry, with references to the detailed descriptions above where applicable.
+
+| Field | Purpose |
+| :--- | :--- |
+| `id` | Sequential identifier REQ-NNN. |
+| `source_clause` | ISO 11898-1:2015 section reference. |
+| `original_wording` | Verbatim normative text from the standard. |
+| `paraphrase` | Concise restatement for report tables and review. |
+| `layer` | Sub-layer owner: LLC, MAC, PCS, FCE, or system (see @sec:vplan-layer). |
+| `side` | Obligation direction: transmitter, receiver, or both (see @sec:vplan-side). |
+| `format_applicability` | Applicable frame formats: CB, CE, FB, FE (see @sec:vplan-format). |
+| `observability` | `black_box` or `white_box` (see @sec:vplan-observability). |
+| `verification_method` | Method(s) used to verify the requirement (see @sec:vplan-method). |
+| `priority` | P1 (critical), P2 (important), or P3 (low risk / recommendation) (see @sec:vplan-priority). |
+| `status` | `not_started`, `in_progress`, `complete`, or `waived` (see @sec:vplan-status). |
+| `notes` | Engineering notes and caveats. |
+| `label` | Assertion label, TB procedure name, coverage ID, or RTL tag. Comma-separated when multiple procedures cover distinct sub-claims (see @sec:vplan-traceability). |
+| `file` | Target file - TB for simulation/coverage, RTL for code inspection. Comma-separated when sub-claims span multiple files (see @sec:vplan-traceability). |
+
+: Verification-plan metadata fields. {#tbl:vplan-metadata-fields}
+
+## Storage Format and Tooling {#sec:req-tooling}
+
+The plan is stored as `verification_plan/verification_plan.toml`. Each entry is a self-contained `[[requirement]]` block with one key per line, making version-control diffs clean and merge conflicts rare. The TOML format was chosen over a spreadsheet or database because it is both human-readable and diffable: individual field changes produce single-line diffs, and merge conflicts - which arise frequently in a document that evolves in parallel with implementation work - are localized and easy to resolve.
+
+A **Model Context Protocol (MCP) server** (`mcp_tools/verification_plan_manager.py`) provides a constrained, schema-validated interface for LLM-assisted operations on the plan. Rather than allowing an LLM agent to rewrite large swaths of a structured file directly - a pattern prone to silent corruption of unrelated entries - all writes are channeled through a set of typed tool calls. The available operations are:
+
+- **`get_requirement`** / **`query_requirements`**: retrieve individual entries or filtered subsets by layer, side, status, observability, or whether traceability fields are populated.
+- **`update_requirement`**: atomically update a single named field of a single entry, with schema validation before the write is committed.
+- **`insert_requirement`**: add a new entry with automatic field initialization and sequential-ID assignment.
+- **`delete_requirement`**: remove an entry and flag any cross-references to it.
+- **`renumber_requirements`**: regenerate all REQ-NNN identifiers after insertions or deletions, maintaining a consistent sequential namespace.
+- **`get_statistics`**: report coverage of label, file, and status fields to give an instant snapshot of plan completeness.
+
+This design keeps the LLM agent as a collaborator rather than a direct file editor: the agent reasons about what change to make and calls the appropriate tool, while the server enforces schema correctness and records each operation in an audit log.
 
 ## Ramifications for Initial Design Strategy {#sec:req-design-ramifications}
 
@@ -286,7 +308,13 @@ Requirements describing bus-level interactions between multiple nodes present a 
 
 The ISO standard occasionally employs language that resists unambiguous reduction to a single testable requirement statement. Some normative sentences contain implicit assumptions about system context that are not fully specified, or use terms defined elsewhere in the standard in ways that are themselves open to interpretation. In such cases, the requirements table entry necessarily embeds a design decision about how the ambiguity was resolved - a decision that ideally should be documented and justified rather than silently made.
 
-**Note:** I think the natural place for the AI-workflow review section sec:ai-extraction is actually here at the end of the sec:requirements-engineering section. This is the natural to review how played into the entiere requerment engeenering and verification planning process. I think it would be a good idea to mention how the set of MCP tools allowed the continusly churning of the verification plan that continued throught the porject to be effeciently handled by the LLM agent - I think thsi si a good poit. How ever it is importent that we not overemphasies the role of that the LLM agent played here - the human should get the credit! It is mainly ment to convay how AI was used in a clever, effecient and defensible and time-saving way to maintain the varification dta structure.
+## AI-Assisted Extraction: Utility and Limitations {#sec:ai-extraction}
+
+The LLM agent earned its keep by bootstrapping the initial content of the verification plan data structure. Starting from a blank requirements table would have required a significantly larger upfront effort, and having a populated, classified starting point - even one requiring substantial revision - gave the manual review process a concrete artifact to work from and react to. Generating a rough first draft from source material is a well-understood and widely used application of language models, and this case was no exception.
+
+That said, the overall time saving was marginal. The most time-consuming part of the process - close reading, semantic consolidation, and orthogonality-driven reduction from 168 to 45 entries - is equally demanding whether the starting point is a blank table or an AI-generated draft. The agent's output had to be reviewed statement by statement, which is structurally similar to extracting requirements manually in the first place. The primary benefit of the AI-assisted approach was therefore not efficiency, but coverage consistency: the initial pass covered the entire document systematically, reducing the risk of missing normative statements that a manual skim might overlook.
+
+Beyond the initial extraction, the LLM agent remained a contributor throughout the ongoing maintenance of the verification plan. The MCP-constrained tooling described in @sec:req-tooling made this safe and efficient: rather than handing an agent write-access to a structured file, each update was channeled through schema-validated tool calls. This allowed the plan to evolve continuously as implementation and verification work progressed - adding traceability links, updating status fields, inserting newly identified requirements - without risking data corruption or requiring manual editing of TOML syntax. The agent's role here was narrowly administrative: executing specific, well-defined updates that the engineer had already decided to make. All judgment calls about what a requirement means, how it should be verified, and whether it is complete remained with the engineer.
 
 # Design and Architecture {#sec:design-architecture}
 
