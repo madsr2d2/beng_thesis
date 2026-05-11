@@ -248,9 +248,8 @@ begin
 
     case rx_rec.Operation is
       when CHECK =>
-        AffirmIf(crc_check_id,
-          std_logic_vector(crc_o.crc) = std_logic_vector(rx_rec.DataToModel),
-          "Got : " & to_string(crc_o.crc) & ", expected: " & to_string(std_logic_vector(rx_rec.DataToModel)));
+        -- REQ-007: CRC polynomial selection (CRC_15/17/21) and receiver verification
+        AffirmIf(crc_check_id, std_logic_vector(crc_o.crc) = std_logic_vector(rx_rec.DataToModel), "Got : " & to_string(crc_o.crc) & ", expected: " & to_string(std_logic_vector(rx_rec.DataToModel)));
         rx_rec.Ack <= rx_rec.Ack + 1;
       when others => null;
     end case;
@@ -275,6 +274,7 @@ begin
         when others =>
           v_expected := (others => '0');
       end case;
+      -- REQ-007: CRC_INIT_VECTOR = (0,...,0) for CRC_15; (1,0,...,0) for CRC_17 and CRC_21
       AffirmIf(reset_id, crc_o.crc = v_expected, "CRC output not reset to init value");
     end loop;
   end process p_reset_checker;

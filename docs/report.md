@@ -51,9 +51,11 @@ This thesis describes the design, implementation, and verification of a CAN (Con
 ---
 
 # Introduction {#sec:introduction}
+
 **TODO**: Add a section on the IO extender board (The board is on the test wall, get the name from Alex)
 
 ## Motivation {#sec:motivation}
+
 The Controller Area Network (CAN) has been the workhorse of automotive and industrial communication for decades. However, the increasing bandwidth requirements of modern systems led to the development of CAN-FD (Flexible Data rate), which allows for larger payloads and higher bit rates. This project aims to provide a robust, hardware-independent VHDL implementation of a CAN-FD transmitter.
 
 ## Existing CAN Controller {#sec:existing-controller}
@@ -102,8 +104,6 @@ Before committing to an in-house redesign, the available CAN FD controller IP co
 
 **CAST CAN FD** [@cast_canfd] is a technology-independent RTL core with AMBA APB/AHB bus interface options. It is licensed per-design with an upfront fee. Synopsys (DesignWare) and Cadence offer similar ASIC-targeted CAN FD cores under their respective IP licensing programs.
 
-::: {.landscape-tables}
-
 | Implementation | Language | CAN FD | License | Scope | Conformance Tested |
 |---|---|---|---|---|---|
 | CTU CAN FD [@ctucanfd] | VHDL | Yes | MIT | Full node (TX+RX, buffers, DMA) | ISO 16845-1 |
@@ -114,8 +114,6 @@ Before committing to an in-house redesign, the available CAN FD controller IP co
 | CAST CAN FD [@cast_canfd] | RTL | Yes | Per-design fee | Full node | Yes |
 
 : Survey of available CAN FD controller IP cores. {#tbl:canfd-ip-survey}
-
-:::
 
 ### Rationale for In-House Development {#sec:rationale-in-house}
 
@@ -133,161 +131,196 @@ Despite the availability of these solutions, none satisfies the combined require
 **Platform independence.** The AMD/Xilinx CAN FD core is locked to Xilinx devices. The Bosch M\_CAN and other commercial cores are delivered as technology-specific netlists or encrypted RTL for a particular target. The in-house design is written in portable VHDL-2008, synthesizable on any FPGA platform or ASIC flow, ensuring that the IP remains usable if the company changes FPGA vendors.
 
 ## Problem Statement {#sec:problem-statement}
+
 The need for CAN FD support in the company's engine controller platform, combined with the architectural limitations of the existing CAN Classic controller (@sec:existing-limitations) and the unsuitability of available third-party IP cores for the company's specific requirements (@sec:rationale-in-house), motivates the development of a new CAN FD transceiver from the ground up. The challenge lies in creating a modular, independently verifiable implementation that supports both Classic and FD frame formats, handles dual bit rate switching with Transmitter Delay Compensation (TDC), and maintains strict compliance with ISO 11898-1 [@iso11898_1] - all while fitting into the company's existing FPGA infrastructure and verification methodology.
 
 ## Objectives {#sec:objectives}
+
 - Implement a VHDL-2008 compliant CAN/CAN-FD transmitter.
 - Support both Base (11-bit) and Extended (29-bit) identifiers.
 - Implement TDC measurement and compensation logic.
 - Ensure high verification coverage using OSVVM and GHDL.
 
----
-
 # Background {#sec:background}
 
 ## CAN Protocol Evolution {#sec:can-protocol-evolution}
+
 Brief history from CAN 2.0 to CAN-FD.
 
 ## ISO 11898-1:2024 Standard {#sec:iso-standard}
+
 Overview of the data link layer and physical signaling requirements [@iso11898_1].
 
+![CAN-Bus consisting of three CAN nodes.](figures/can_bus.png){#fig:can_bus width=50%}
+
 ## VHDL and OSVVM {#sec:vhdl-osvvm}
+
 The role of modern VHDL standards and verification frameworks in digital design.
 
----
+# Requirements Engineering & Verification Planning {#sec:requirements-engineering}
 
-# Verification Planning {#sec:verification-planning}
+## Engineering Constraints {#sec:engineering-constraints}
 
-## Overview and Scope {#sec:overview-scope}
-
-Protocol compliance is the central objective of this project. The CAN and CAN-FD standards [@iso11898_1] specify hundreds of normative requirements governing frame structure, bit timing, error handling, and fault confinement. To verify the transmitter against these requirements systematically, a structured **Verification Plan** was developed as the first major deliverable of the project - before any RTL implementation began.
-
-The plan covers the four in-scope frame formats: Classic Basic (CB), Classic Extended (CE), FD Basic (FB), and FD Extended (FE). CAN XL frames are excluded. In total, the plan contains 168 requirements extracted from the standard, organized by architectural layer (LLC, MAC, PCS, FCE) and spanning the major functional areas:
-
-- **Frame structure**: Field ordering, bit-level encoding, and format-specific control bits.
-- **CRC generation**: CRC-15 (Classic), CRC-17, and CRC-21 (FD) polynomials.
-- **Bit stuffing**: Dynamic stuffing during arbitration/data and fixed stuffing in the FD CRC region.
-- **Error handling**: Bit error, ACK error, Form error, and Stuff error detection.
-- **Fault confinement**: TEC/REC counter management and Error Active/Passive/Bus Off state transitions.
-
-## Requirement Taxonomy {#sec:requirement-taxonomy}
-
-A key design decision was the development of a two-axis taxonomy to classify each requirement by its **shape** and **scope**. This taxonomy determines both *how* a requirement is verified and *what environment* is needed.
-
-**Shape** classifies the verification primitive. These categories draw on established concepts from formal verification theory:
-
-- **Triggered**: A precondition/event/postcondition triplet that translates directly into a directed test procedure - establish the precondition, apply the event, assert the postcondition. This structure follows the Hoare triple formalism {P} S {Q} [@hoare1969].
-- **Invariant**: A property that must hold at all times (e.g., "the SOF bit shall always be dominant"), mapping to concurrent assertions or monitors.
-- **Liveness**: A property asserting that something eventually happens (e.g., "after detecting an error, the node shall eventually transmit an error flag"), requiring temporal reasoning [@alpern1985].
-- **Reachability**: A property asserting that a state or condition *can* be reached (e.g., "the node shall be capable of entering Bus Off"), mapping to coverage points.
-
-**Scope** defines the required verification environment:
-
-- **Frame**: Verified by inspecting a single transmitted bit-stream in isolation.
-- **Node**: Requires visibility into internal state such as error counters or FSM transitions.
-- **Bus**: Requires a multi-node simulation with arbitration and acknowledge behavior.
-
-Together, these two axes allow each requirement to be mapped to the appropriate testbench level and verification technique without ambiguity.
-
-## Observability Classification {#sec:observability-classification}
-
-The shape and scope taxonomy determines *how* and *where* a requirement is tested, but it does not answer a more fundamental question: *can* the requirement be tested at all from outside the design under test? Not every normative requirement produces a visible effect at the module's ports. Some requirements constrain internal counter thresholds, define structural concepts, or restrict valid configurations - none of which produce a unique, externally distinguishable output. To distinguish these cases systematically, a third classification axis - **observability** - was introduced.
-
-Observability is assessed **per layer**, not per top-level CAN node. The design under test for a PCS requirement is the PCS module in isolation; for a MAC requirement it is the MAC module. This layer-relative framing is essential because a signal that is internal within a full node may be perfectly visible at a sub-layer boundary. For example, the sample point strobe is internal to the CAN node as a whole, but it is the defining output of the PCS module - it determines *when* `PCS_Data.Indicate` fires at the MAC↔PCS boundary and is therefore directly observable in a PCS-level testbench.
-
-### Canonical Layer Interfaces {#sec:canonical-layer-interfaces}
-
-To make observability judgments repeatable and independent of VHDL implementation choices, the classification is anchored in the **canonical service primitives** defined by ISO 11898-1 [@iso11898_1]. The standard specifies inter-layer boundaries as abstract service access points with named primitives and parameters:
-
-- **LLC ↔ User**: `L_Data.Request`, `L_Data.Confirm`, `L_Data.Indication` - carrying frame content, transfer status, and timestamps (§6.4.5).
-- **MAC ↔ PCS**: `PCS_Data.Request(Output_Unit)`, `PCS_Data.Indicate(Input_Unit)` - the bit-level transmission and reception interface; `PCS_Status.Transmitter(D_Transmit)` and `PCS_Status.Receiver(D_Receive)` - signalling the FD data phase (§7.2).
-- **MAC ↔ FCE**: Error notifications (`Error(type)`, `Successful_transfer`), state transition requests (`Error_passive_request`, `Error_active_request`), and responses (`Error_passive_response`, `Error_active_response`) (§8.1.3, Tables 16-17).
-- **PCS ↔ FCE**: `Bus_off_request`, `Bus_off_release_request` and their responses (§8.1.3, Tables 18-19).
-
-These canonical interfaces serve as the reference frame for observability: a requirement is classified based on whether its postcondition manifests at the relevant layer's canonical boundary, regardless of how the VHDL implementation names its ports or structures its handshaking.
-
-In addition to the interface primitives, each layer has a set of **configurable values** that the testbench knows at instantiation time - entity generics, constants, or driven stimulus. For the PCS, these include the nominal and FD data bit timing parameters from ISO Table 12 (prescaler, propagation segment, phase segments, SJW) and TDC settings (enable flag, SSP offset). For the MAC, the relevant configurations are error signalling enable and protocol exception enable. For the FCE, there are no user-configurable parameters; its behaviour is entirely determined by fixed counting rules and thresholds defined in §8.1.4.
-
-The combination of canonical interfaces and known configurables provides a complete decision framework: if a postcondition is fully determined by boundary primitives, configuration generics, and driven stimulus, it is externally verifiable; if it additionally requires knowledge of an internal algorithm, it is derived; if it has no boundary manifestation at all, it is internal.
-
-### Classification Rules {#sec:classification-rules}
-
-From this framework, three classification rules were defined:
-
-**Rule 1 - External.** A requirement is `external` if its postcondition is fully observable at the layer's own canonical boundary, in one of two forms. *Rule 1a*: the postcondition maps directly onto a named parameter of a canonical service primitive (e.g., "MAC shall present `dominant` Output_Unit when transmitting SOF" - `Output_Unit` is a parameter of `PCS_Data.Request`). *Rule 1b*: the postcondition manifests as the *timing* of a primitive call, and that timing is completely determined by configuration generics and stimulus inputs known to the testbench (e.g., the sample point position equals `brp × (sync_seg + prop_seg + phase_seg1)`, all configuration generics, so the testbench can predict and verify exactly when `PCS_Data.Indicate` fires).
-
-**Rule 2 - Derived.** A requirement is `derived` if its effect manifests at the layer boundary, but verifying correctness requires knowledge of a **non-trivial internal algorithm** beyond reading configuration generics and measuring timing. The distinction between trivial and non-trivial is important: counting stimulus bits or applying fixed positional offsets is trivial (Rule 1b), while polynomial computation (CRC), state-dependent counter arithmetic (FCE error counters), or multi-step protocol state tracking is non-trivial (Rule 2). For example, CRC bits appear in `Output_Unit` calls at the MAC↔PCS boundary, but verifying their correctness requires applying the CRC-15, CRC-17, or CRC-21 polynomial to the preceding data - a non-trivial computation that goes beyond what is directly visible at the interface.
-
-**Rule 3 - Internal.** A requirement is `internal` if its postcondition is a structural definition with no behavioural output (e.g., "the bit time consists of four segments"), a constraint on valid configuration inputs rather than on observable output behaviour (e.g., "Phase_Seg2 shall be ≥ IPT + SJW"), or has no manifestation at any layer boundary even indirectly (e.g., oscillator tolerance specifications that are physical constraints not testable in digital simulation).
-
-Applying these rules to the 168 requirements yielded the following distribution: 106 external (63%), 40 derived (24%), and 22 internal (13%). The high proportion of externally observable requirements reflects the standard's emphasis on bit-level protocol behaviour, which by definition crosses layer boundaries. The internal requirements are concentrated in the PCS layer (configuration constraints and oscillator tolerances) and the FCE (structural definitions of counting concepts). Each requirement's rationale field records which rule was applied and which canonical interface primitive or configurable value justifies the classification, providing a fully auditable trail from ISO clause to testability assessment.
-
-## Verification Plan Construction {#sec:verification-plan-construction}
-
-With the taxonomy and observability framework defined, the next step was to extract and classify the normative requirements from the ISO standard text. This was a two-stage process combining AI-assisted extraction with manual engineering review.
-
-### AI-Assisted Extraction {#sec:ai-assisted-extraction}
-
-The initial extraction of normative "shall" and "should" statements was performed using a **Large Language Model (LLM)**. The ISO standard was provided as a searchable markdown document, and the LLM was prompted to identify normative clauses, extract their wording verbatim, assign a shape and scope classification, and format the result as TOML entries. This task is well-suited for LLMs because it involves processing large volumes of technical text, identifying structural patterns (normative vs. informative language), and reformatting unstructured prose into a consistent structured format. The use of AI significantly accelerated the initial drafting phase and reduced the risk of human oversight during the translation from standard text to a machine-readable plan.
-
-### Human-in-the-Loop Validation {#sec:human-in-the-loop-validation}
-
-The AI-generated extraction served only as a first draft. Every requirement - its wording, assigned shape, scope, layer, and flags - underwent a comprehensive **manual review**. This step was critical to:
-
-- Verify the technical accuracy of the AI's interpretation of protocol nuances (e.g., distinguishing between transmitter-side and receiver-side obligations).
-- Refine the shape/scope classification where the standard's wording was ambiguous or where a single clause contained multiple independent requirements (flagged as `COMPOUND`).
-- Identify requirements that depend on components outside the TX pipeline (flagged as `EXTERNAL_DEP`) or that are advisory rather than mandatory (flagged as `SHOULD`).
-- Ensure that the resulting plan provides a reliable and authoritative basis for the subsequent VHDL implementation and testbench development.
-
-## Storage Format and Tooling {#sec:storage-format-tooling}
-
-The Verification Plan is stored as a single TOML file (`verification_plan/verification_plan.toml`). TOML was selected for two practical reasons: (1) it is easy to read and edit by hand - each requirement is a self-contained `[[requirement]]` block with one key per line, making version-control diffs clean and merge conflicts rare; and (2) it can be parsed and manipulated programmatically by Python tools (specifically `tomlkit`, which preserves comments and formatting on round-trip). This second property was essential for building the automated tooling described below.
-
-Each requirement entry carries metadata fields designed to drive the verification workflow:
-
-| Field | Purpose |
-| :--- | :--- |
-| `shape` | Classification axis described in @sec:requirement-taxonomy - determines the verification primitive. |
-| `scope` | Classification axis described in @sec:requirement-taxonomy - determines the test environment. |
-| `layer` | Architectural sub-layer (LLC, MAC, PCS, or FCE), enabling a divide-and-conquer approach where each testbench targets one layer. |
-| `precondition` / `event` / `postcondition` | For *triggered*-shape requirements, these three fields form a testable triplet that translates directly into a test procedure. |
-| `coverage_target` | Describes how to verify the requirement (e.g., "assert CRC field matches polynomial output", "cover all four frame formats"). |
-| `observability` | Layer-relative testability classification (`external`, `derived`, `internal`) as defined in @sec:observability-classification. |
-| `observability_rationale` | Auditable justification citing the specific classification rule and canonical interface primitive. |
-| `flags` | Marks special properties: `COMPOUND`, `AMBIGUOUS`, `EXTERNAL_DEP`, `SHOULD`, or `DOC_ONLY`. These flags inform review priority and test generation strategy. |
-| `label` / `file` | Link the requirement to its implementing assertion label or testbench procedure, providing full traceability from standard clause to RTL. |
-
-: Verification-plan metadata fields and their intended use in workflow automation. {#tbl:vplan-metadata-fields}
-
-To maintain the integrity of the plan as it evolves, a **Model Context Protocol (MCP) server** (`mcp_tools/verification_plan_manager.py`) was developed. The server exposes query, update, insert, delete, and statistics operations as tool calls that the AI coding agent can invoke directly within the development environment. Each write operation creates an automatic backup and validates field values against the schema before committing changes. This design serves two purposes: first, the agent receives summarized query results rather than the entire raw file, avoiding context window bloat; and second, constraining the agent to narrow, validated operations minimizes the risk of data corruption and hallucination - rather than asking the LLM to rewrite a large structured file (where it may silently drop entries, fabricate field values, or break TOML syntax), each MCP call targets a single atomic change with schema-level validation, making such errors structurally impossible.
-
-## Verification Strategy {#sec:verification-strategy}
-
-The verification plan drives a layered testing strategy, where each level targets a different scope of requirements. The observability classification directly informs this strategy: *external* requirements can be verified through port-level stimulus and observation alone, *derived* requirements additionally need a reference model (e.g., a software CRC or error counter model) to compute the expected result, and *internal* requirements are verified through design review or configuration validation rather than simulation.
-
-- **Unit Testing**: Individual modules (Serializer, CRC, Bit Stuffer) are verified in isolation against *frame*-scope requirements. External requirements at this level are verified by driving stimulus and checking output bits; derived requirements (e.g., CRC correctness) use a software reference model for comparison.
-- **Protocol Testing**: `tx_can_protocol_tb` verifies frame structure and field timing, covering *node*-scope requirements that involve FSM state and internal counters. Derived FCE requirements (error counter thresholds) are tested by injecting controlled error sequences and observing the resulting state transitions at the MAC↔FCE boundary.
-- **Integrated Testing**: `tx_can_tb` verifies end-to-end transmission, retries, and abort scenarios, targeting *bus*-scope requirements that involve multi-node arbitration and acknowledgment.
-
----
-
-# Design and Architecture {#sec:design-architecture}
-
-## Design Space Exploration {#sec:design-space-exploration}
-
-Before settling on the final architecture, several design alternatives were evaluated. The exploration drew on three sources: the existing in-house CAN Classic controller (@sec:existing-controller), the open-source CTU CAN FD core [@ctucanfd; @jerabek2019], and the ISO 11898-1 standard's own layered reference model [@iso11898_1]. This section documents the key design decisions, the alternatives that were considered, and the constraints that shaped the outcome.
-
-### Company Design Constraints {#sec:company-design-constraints}
-
-The company imposes a set of non-negotiable constraints on all FPGA IP modules. These constraints were established before the design exploration began and are not subject to trade-off analysis - they define the feasible design space.
+The company imposes a set of non-negotiable constraints on all FPGA IP modules. These constraints were established before the design exploration began and are not subject to trade-off analysis - they define the feasible design space alongside the protocol requirements.
 
 **`std_logic`-only entity ports.** All module interfaces must use `std_logic` and `std_logic_vector` exclusively. No custom enumeration types, booleans, or integers are permitted on entity ports. This mandate ensures that every module can be integrated into the company's existing synthesis and static analysis toolchain without adapter logic. The constraint precludes designs that expose protocol-level enumerations (such as FSM state types or frame format selectors) on their interfaces - a pattern used in the existing in-house controller, where `t_fsm_can_state` and `t_node_state` enums appear on debug ports. Internally, modules may use any VHDL-2008 type; the restriction applies only at module boundaries.
 
-**Per-module directory structure.** Each module resides in its own directory with `hdl_src/`, `hdl_tb/`, and `test_case/` subdirectories. This convention is enforced across all company FPGA projects and must be followed by any new IP. It rules out monolithic file organizations where multiple entities share a single source directory.
+**Per-module directory structure.** Each module resides in its own directory with `hdl_src/`, `hdl_tb/`, and `test_case/` subdirectories. This convention is enforced across all company FPGA projects and must be followed by any new IP. It rules out monolithic file organisations where multiple entities share a single source directory.
 
 **Avalon-ST streaming interfaces.** Data-transfer interfaces between modules use the Avalon-ST protocol (data, valid, ready, sop, eop). The existing FPGA infrastructure relies on this protocol for inter-module communication, and the CAN transceiver must integrate natively. This constraint excludes IP cores with AXI, APB, or custom register-map interfaces (such as CTU CAN FD's Avalon-MM or the Xilinx core's AXI4-Lite) without an adaptation layer.
 
-**Shared `gen_crc` IP block.** The company maintains a reusable, parameterized CRC generator (`gen_crc`) in its IP library. All CRC computation must instantiate this block rather than implementing polynomial division inline. The CRC wrapper module must therefore be a structural shell that instantiates `gen_crc` with the appropriate polynomial, initial value, and data width for each CRC variant.
+**Shared `gen_crc` IP block.** The company maintains a reusable, parameterised CRC generator (`gen_crc`) in its IP library. All CRC computation must instantiate this block rather than implementing polynomial division inline. The CRC wrapper module must therefore be a structural shell that instantiates `gen_crc` with the appropriate polynomial, initial value, and data width for each CRC variant.
+
+**Platform independence.** The implementation must be written in portable VHDL-2008, synthesisable on any FPGA platform or ASIC flow. This rules out device-locked IP cores such as the AMD/Xilinx CAN FD core and commercial cores delivered as technology-specific netlists.
+
+**VHDL-2008 standard.** All source files target VHDL-2008, enabling record types, unconstrained arrays, and aggregate signal assignments that simplify the typed interface definitions between sub-layers.
+
+**OSVVM verification framework.** All testbenches use the OSVVM library [@osvvm] for clock and reset generation, coverage model management, and alert/check reporting. This ensures that verification infrastructure is consistent across all modules and that pass/fail results are machine-readable.
+
+**VSG linting.** All RTL source files are checked with the VHDL Style Guide (VSG) linter using a shared project configuration (`vsg_config.yaml`), enforcing consistent formatting and naming conventions across the codebase.
+
+## From Standard to Structured Requirements {#sec:req-extraction}
+
+The requirements engineering process was aimed at tackling two key objectives:
+
+1. Extracting a clear and actionable set of requirements that could serve as a starting point for the design phase.
+2. Establishing a clear, traceable link between the ISO 11898-1 specification and the verification environment.
+
+Both objectives are complicated by the nature of the source material. ISO 11898-1 is written as a specification document, not a verification artifact. Normative requirements are distributed across many subsections, often stated from different perspectives or restated for different frame types, and interspersed with explanatory and descriptive text. Extracting precise, unambiguous requirements from this prose is non-trivial: the standard does not always distinguish cleanly between what a compliant implementation must do and how it typically achieves it, and the same behavioral constraint can appear in multiple sections with subtly different phrasing. Without a structured requirements artifact, verification coverage risks becoming informal and anecdotal.
+
+ISO 11898-1 structures the CAN protocol into four functional sub-layers that map directly onto the architectural decomposition of this project: the Logical Link Control (LLC) sub-layer, the Medium Access Control (MAC) sub-layer, the Physical Coding Sub-layer (PCS), and the Fault Confinement Entity (FCE). The standard devotes separate sections to each of these sub-layers, which provided a natural first-pass classification axis for the requirement extraction process.
+
+To address both objectives while alleviating the manual burden of initial extraction and classification, the requirement set was bootstrapped by an AI-assisted pipeline. The ISO standard was first converted into Markdown format, making it efficiently searchable and ingestible by a Claude Sonnet 4.6 language model agent. The agent was prompted to extract all normative language from the document - sentences containing "shall", "should", "must", and their corresponding negations - and to classify each extracted statement according to the sub-layer section of the standard it appeared under, mapping directly to the LLC, MAC, PCS, and FCE layers described above.
+
+This initial extraction yielded 168 normative statements. Many extracted statements were effectively descriptions of the same underlying requirement, expressed from slightly different angles or in different parts of the document. Condensing these into an organized, non-redundant requirements table was largely manual and time-consuming. It required repeated close reading of the relevant standard sections, identifying which statements described the same underlying behavior, and paraphrasing the often verbose normative language into precise, concise requirement statements. A key driver in this consolidation process was the principle of requirement orthogonality: each entry in the final requirements table should describe a distinct, independently verifiable behavioral claim. This kind of semantic consolidation - distinguishing between a restatement and a genuinely distinct requirement - is not a task that can be fully automated, as it requires domain-level understanding of the protocol.
+
+The scale of the condensation is conveyed by the numbers: 168 raw normative extractions were reduced to a final table of 45 requirements, a reduction to roughly 27% of the original count. On average, each final requirement entry absorbed and unified approximately three to four raw extractions. This reduction ratio is primarily a consequence of the extraction strategy and the orthogonality principle: statements describing the same underlying behavior from different angles, or expressed in different parts of the document, were grouped into a single entry that could be efficiently verified together. The ratio is therefore an artifact of the consolidation methodology, not a commentary on the structure of the standard itself.
+
+The requirements table was not frozen at a single point in time. It functioned as a living document throughout the project, evolving as implementation and verification work revealed aspects of the specification that had been misunderstood, overlooked, or insufficiently specified in the initial extraction. This iterative refinement is an inherent property of requirements engineering in complex protocol implementations, and should be expected rather than treated as a sign of process failure.
+
+## Verification Plan Data Structure {#sec:verification-plan-data-structure}
+
+The requirements set described in @sec:req-extraction provides the normative foundation - 45 protocol behaviors extracted and consolidated from ISO 11898-1. The verification plan data structure is a richer artifact: it augments each requirement with the dimensions needed to answer not just *what* must be true, but *how* it will be verified, *where* the evidence lives, and *when* verification is complete. This additional structure follows the verification planning methodology described by Bergeron [@bergeron2003ch3], which organizes a verification plan around explicit links between requirements, verification methods, and traceability artifacts.
+
+### Layer {#sec:vplan-layer}
+
+The **layer** field assigns each requirement to the protocol sub-layer that owns it: LLC, MAC, PCS, FCE, or system. This follows the ISO 11898-1 sub-layer structure described in @sec:req-extraction and maps directly onto the modular architecture of the implementation: requirements assigned to a given layer can be verified in isolation against that layer's module testbench, rather than through the surface of a fully integrated system. A fifth label - **system** - was introduced alongside the four protocol layers to classify requirements that are inherently multi-layer or multi-node in character. Some CAN behaviors cannot be attributed to a single layer of a single node: they emerge from interactions between multiple nodes on the bus, or span the layer boundary within a single node. Attempting to force such requirements into a single-layer classification would have been misleading and would have obscured their true verification implications. The system label flags these requirements as ones that require either an integrated multi-module testbench or a multi-node simulation environment. @tbl:req-layer-distribution shows the distribution of the 45 final requirements across the five layers.
+
+| Layer | Count | Description |
+| :--- | :---: | :--- |
+| MAC | 22 | Frame structure, bit stuffing, CRC, error detection, arbitration |
+| LLC | 6 | Frame submission, abort, and delivery to the LLC user |
+| PCS | 6 | Bit timing, sample point, TDC |
+| FCE | 5 | Error counters, state transitions, bus-off recovery |
+| system | 6 | Requirements jointly owned by multiple sub-layers or requiring two nodes |
+| **Total** | **45** | |
+
+: Protocol requirement distribution by layer. {#tbl:req-layer-distribution}
+
+### Side {#sec:vplan-side}
+
+The **side** field records whether a requirement pertains to the transmitter path, the receiver path, or both roles simultaneously. This dimension reflects the ISO standard's own framing, which frequently specifies transmitter and receiver obligations separately.
+
+### Format Applicability {#sec:vplan-format}
+
+The **format_applicability** field records which of the four in-scope frame formats (CB, CE, FB, FE) each requirement applies to. Not all requirements apply to all formats: some are specific to FD frames, others to extended-identifier frames. This field determines which testbench stimulus configurations are required to exercise a given requirement.
+
+### Observability {#sec:vplan-observability}
+
+The **observability** field classifies each requirement relative to the module boundary of the owning layer, following Bergeron's distinction between black-box and white-box verification [@bergeron2003ch3]:
+
+- **Black-box**: the postcondition maps directly onto a service-primitive parameter or its timing, and the testbench can derive the expected value from configuration generics and driven stimulus alone. For example, the bit-level encoding of the SOF field is directly observable at the MAC-PCS boundary as the first `Output_Unit` value.
+- **White-box**: the postcondition manifests at the layer boundary but requires a non-trivial reference computation. CRC correctness falls here: the CRC bits appear in the transmitted bit-stream, but a polynomial reference model is needed to verify their value.
+
+Of the 45 requirements, 16 are black-box and 29 are white-box.
+
+### Verification Method {#sec:vplan-method}
+
+The **verification_method** field makes the path from requirement to verification artifact explicit and actionable before any testbench is written, giving each requirement a clear route to closure before implementation begins. Three methods are used: simulation (automated assertion or check procedure in a testbench), code inspection (RTL source review), and coverage (OSVVM coverage bins sweeping a value range). Combinations are valid when multiple sub-claims within one requirement each call for a different method.
+
+### Priority {#sec:vplan-priority}
+
+The **priority** field (P1, P2, P3) records the criticality of each requirement, reflecting both its importance to correct protocol operation and the risk of it being implemented incorrectly. P1 requirements must be closed before the design can be considered verified; P3 requirements correspond to "should" recommendations where failure carries lower severity. This allows the verification effort to be sequenced so that the highest-risk behaviors are covered first.
+
+### Traceability: Label and File {#sec:vplan-traceability}
+
+Each requirement entry carries two dedicated traceability fields: a `file` field identifying the testbench or RTL source file responsible for covering the requirement, and a `label` field identifying a specific named procedure, assertion, or coverage ID within that file. Together they establish a direct, navigable link from each requirement to its verification artifact, following the requirements-driven traceability methodology described in [@bergeron2003ch3]. Where a requirement decomposes into multiple independently verifiable sub-claims, both fields accept comma-separated values - each sub-claim then has its own navigable evidence link.
+
+### Status {#sec:vplan-status}
+
+The **status** field (`not_started`, `in_progress`, `complete`, `waived`) records closure state explicitly, allowing partial progress to be tracked without relying on whether the traceability fields happen to be populated. Crucially, gaps in coverage remain immediately visible: requirements with unpopulated traceability fields and `status = not_started` are structurally obvious in the data file without requiring a separate coverage matrix.
+
+@tbl:vplan-metadata-fields lists all fields carried by each entry, with references to the detailed descriptions above where applicable.
+
+| Field | Purpose |
+| :--- | :--- |
+| `id` | Sequential identifier REQ-NNN. |
+| `source_clause` | ISO 11898-1:2015 section reference. |
+| `original_wording` | Verbatim normative text from the standard. |
+| `paraphrase` | Concise restatement for report tables and review. |
+| `layer` | Sub-layer owner: LLC, MAC, PCS, FCE, or system (see @sec:vplan-layer). |
+| `side` | Obligation direction: transmitter, receiver, or both (see @sec:vplan-side). |
+| `format_applicability` | Applicable frame formats: CB, CE, FB, FE (see @sec:vplan-format). |
+| `observability` | `black_box` or `white_box` (see @sec:vplan-observability). |
+| `verification_method` | Method(s) used to verify the requirement (see @sec:vplan-method). |
+| `priority` | P1 (critical), P2 (important), or P3 (low risk / recommendation) (see @sec:vplan-priority). |
+| `status` | `not_started`, `in_progress`, `complete`, or `waived` (see @sec:vplan-status). |
+| `notes` | Engineering notes and caveats. |
+| `label` | Assertion label, TB procedure name, coverage ID, or RTL tag. Comma-separated when multiple procedures cover distinct sub-claims (see @sec:vplan-traceability). |
+| `file` | Target file - TB for simulation/coverage, RTL for code inspection. Comma-separated when sub-claims span multiple files (see @sec:vplan-traceability). |
+
+: Verification-plan metadata fields. {#tbl:vplan-metadata-fields}
+
+## Storage Format and Tooling {#sec:req-tooling}
+
+The plan is stored as `verification_plan/verification_plan.toml`. Each entry is a self-contained `[[requirement]]` block with one key per line, making version-control diffs clean and merge conflicts rare. The TOML format was chosen over a spreadsheet or database because it is both human-readable and diffable: individual field changes produce single-line diffs, and merge conflicts - which arise frequently in a document that evolves in parallel with implementation work - are localized and easy to resolve.
+
+A **Model Context Protocol (MCP) server** (`mcp_tools/verification_plan_manager.py`) provides a constrained, schema-validated interface for LLM-assisted operations on the plan. Rather than allowing an LLM agent to rewrite large swaths of a structured file directly - a pattern prone to silent corruption of unrelated entries - all writes are channeled through a set of typed tool calls. The available operations are:
+
+- **`get_requirement`** / **`query_requirements`**: retrieve individual entries or filtered subsets by layer, side, status, observability, or whether traceability fields are populated.
+- **`update_requirement`**: atomically update a single named field of a single entry, with schema validation before the write is committed.
+- **`insert_requirement`**: add a new entry with automatic field initialization and sequential-ID assignment.
+- **`delete_requirement`**: remove an entry and flag any cross-references to it.
+- **`renumber_requirements`**: regenerate all REQ-NNN identifiers after insertions or deletions, maintaining a consistent sequential namespace.
+- **`get_statistics`**: report coverage of label, file, and status fields to give an instant snapshot of plan completeness.
+
+This design keeps the LLM agent as a collaborator rather than a direct file editor: the agent reasons about what change to make and calls the appropriate tool, while the server enforces schema correctness and records each operation in an audit log.
+
+## Ramifications for Initial Design Strategy {#sec:req-design-ramifications}
+
+The structure of the requirements data structure had direct consequences for the initial design strategy, in ways that were not fully anticipated at the outset.
+
+The **layer dimension** mapped naturally onto the ISO standard's own layered reference model, making a layered module architecture look like the obvious and well-motivated implementation strategy. A dedicated hardware module for each layer - MAC, LLC, fault confinement, and PCS - would allow requirements pertaining to a given layer to be verified in isolation against that layer's module, rather than through the surface of a fully integrated system where internal behavior is obscured by surrounding logic. The observability dimension reinforced this directly: black-box requirements mapped cleanly onto port-level stimulus and observation, while white-box requirements pointed toward the need for reference models or PSL assertions on internal signals, both of which are most tractable in a per-module testbench. In retrospect, this was a sound conclusion. The modular architecture proved to be the right design choice, and the requirements table provided a well-motivated rationale for it from the start.
+
+The **TX/RX side dimension** had a subtler and more consequential effect. Organizing requirements along the transmitter/receiver axis made intuitive sense from a specification perspective - the ISO standard itself frames many requirements in terms of transmitter behavior and receiver behavior - and it was genuinely useful for thinking through which requirements belonged where. However, it also made a split-path implementation architecture look like the natural design strategy, simply because the requirements were literally organized along that split. The implication appeared to be: implement a TX module, implement an RX module, and map the TX requirements to the former and the RX requirements to the latter.
+
+This turned out to be a red herring. The pitfalls of the split-path approach were not at all apparent from the requirements table alone. The table made the split architecture look clean and well-motivated. The problems - design drift between separately implemented FSMs, integration complexity, and unnecessary hardware duplication - only surfaced later, during integration. This is an important general lesson: the structure of a requirements model can inadvertently bias architectural decisions in ways that are not immediately obvious, and the apparent naturalness of a design strategy that mirrors the requirements structure is not in itself a reliable signal that the strategy is sound.
+
+The architectural consequences of both observations, including the resolution of the split-path problem, are developed in @sec:architectural-design-decisions.
+
+## Limitations {#sec:req-limitations}
+
+An honest account of the requirements engineering process should acknowledge what the requirements table could not fully capture.
+
+The flat tabular format struggles to express temporal and ordering relationships between requirements. Many CAN behaviors are inherently sequential - a transmitter error flag must be followed by an error delimiter, which must be followed by a specific interframe spacing - and while individual steps in such sequences can be captured as separate requirements, the ordering constraints between them are difficult to express compactly in a table row. These relationships were partially addressed through natural language in the requirement entries, but a more expressive formalism - such as temporal logic or a state-transition specification - would have been better suited to capturing them precisely.
+
+Requirements describing bus-level interactions between multiple nodes present a fundamental verification scope challenge. Such requirements, classified under the system layer, cannot be fully verified through single-node unit testing. They require either a multi-node simulation environment or a formal argument about emergent bus behavior from the individual node specifications. This represents a genuine limitation of what the unit testing strategy can achieve, and is worth stating explicitly rather than implicitly.
+
+The ISO standard occasionally employs language that resists unambiguous reduction to a single testable requirement statement. Some normative sentences contain implicit assumptions about system context that are not fully specified, or use terms defined elsewhere in the standard in ways that are themselves open to interpretation. In such cases, the requirements table entry necessarily embeds a design decision about how the ambiguity was resolved - a decision that ideally should be documented and justified rather than silently made.
+
+## AI-Assisted Extraction: Utility and Limitations {#sec:ai-extraction}
+
+The LLM agent earned its keep by bootstrapping the initial content of the verification plan data structure. Starting from a blank requirements table would have required a significantly larger upfront effort, and having a populated, classified starting point - even one requiring substantial revision - gave the manual review process a concrete artifact to work from and react to. Generating a rough first draft from source material is a well-understood and widely used application of language models, and this case was no exception.
+
+That said, the overall time saving was marginal. The most time-consuming part of the process - close reading, semantic consolidation, and orthogonality-driven reduction from 168 to 45 entries - is equally demanding whether the starting point is a blank table or an AI-generated draft. The agent's output had to be reviewed statement by statement, which is structurally similar to extracting requirements manually in the first place. The primary benefit of the AI-assisted approach was therefore not efficiency, but coverage consistency: the initial pass covered the entire document systematically, reducing the risk of missing normative statements that a manual skim might overlook.
+
+Beyond the initial extraction, the LLM agent remained a contributor throughout the ongoing maintenance of the verification plan. The MCP-constrained tooling described in @sec:req-tooling made this safe and efficient: rather than handing an agent write-access to a structured file, each update was channeled through schema-validated tool calls. This allowed the plan to evolve continuously as implementation and verification work progressed - adding traceability links, updating status fields, inserting newly identified requirements - without risking data corruption or requiring manual editing of TOML syntax. The agent's role here was narrowly administrative: executing specific, well-defined updates that the engineer had already decided to make. All judgment calls about what a requirement means, how it should be verified, and whether it is complete remained with the engineer.
+
+# Design and Architecture {#sec:design-architecture}
+
+## Architectural Design Decisions {#sec:architectural-design-decisions}
+
+Before settling on the final architecture, several design alternatives were evaluated. The exploration drew on three sources: the existing in-house CAN Classic controller (@sec:existing-controller), the open-source CTU CAN FD core [@ctucanfd; @jerabek2019], and the ISO 11898-1 standard's own layered reference model [@iso11898_1]. The protocol requirements and engineering constraints documented in @sec:requirements bound the feasible design space; this section documents the key decisions made within it.
 
 ### Monolithic vs. Layered Architecture {#sec:monolithic-vs-layered}
 
@@ -336,6 +369,7 @@ A non-obvious design decision concerns the CRC engine's data input. In CAN Class
 The chosen solution exposes two data inputs on the CRC interface: `data_cc` (Classic CAN data, always de-stuffed) and `data_fd` (FD data, which includes dynamic stuff bits during the arbitration region). The FSM drives both feeds, and the CRC wrapper routes `data_cc` to the CRC-15 engine and `data_fd` to the CRC-17 and CRC-21 engines. This avoids multiplexing logic inside the CRC module and keeps the CRC wrapper purely structural - it instantiates three `gen_crc` blocks and an output mux, with no protocol knowledge.
 
 ## System Overview {#sec:system-overview}
+
 A complete CAN node decomposes into a TX path and an RX path, coordinated by a shared Fault Confinement Entity (FCE) and Physical Medium Attachment (PMA) control, as shown in @fig:can-node-architecture. Each path spans three sub-layers - LLC (@sec:llc-sub-layer), MAC (@sec:mac-sub-layer), and PCS (@sec:pcs-sub-layer) - with the LLC frame format defined in @sec:llc-frame-format and interface bundles defined in @sec:interface-definition-tables. A centralized types package (@sec:protocol-driven-type-system) defines all protocol constants and interface records. Within the MAC sub-layer, a unified `can_mac` wrapper (@sec:can-mac-wrapper) instantiates `can_mac_tx`, `can_mac_rx`, and `can_fce`, merging their error signals internally so that the wrapper exposes only LLC and PCS interfaces for each path plus the FCE's LLC and PCS interfaces.
 
 ```{.mermaid #fig:can-node-architecture caption="CAN node decomposition across LLC, MAC, PCS, FCE, and PMA boundaries. Interface definitions are provided for llc_tx_if (@tbl:llc-tx-if), llc_rx_if (@tbl:llc-rx-if), llc_mac_tx_if (@tbl:llc-mac-tx-if), llc_mac_rx_if (@tbl:llc-mac-rx-if), mac_pcs_if (@tbl:mac-pcs-if), aui_if (@tbl:aui-if), fce_llc_if (@tbl:fce-llc-if), fce_mac_if (@tbl:fce-mac-if), and fce_pcs_if (@tbl:fce-pcs-if)."}
@@ -390,6 +424,7 @@ flowchart TD
 ```
 
 ## LLC Frame Format {#sec:llc-frame-format}
+
 The `LLC Frame` format used by the existing CAN-bus implementation (`can_bus_controller`) is depicted in @fig:llc-frame-current with the ID byte format depicted in @tbl:ID-bytes. A revised `LLC Frame` supporting FD is depicted in @fig:llc-frame-revised. The revised format adds a 3-bit `FMT` [@iso11898_1 Sec. 6.4.3] field to the DLC byte (`LLC Frame` byte 4), expands the data field to 64 bytes, and repurposes reserved bits in the last byte for BRS and ESI flags.
 
 The `FMT` encodes the supported frame formats as '`000`' = CB, '`100`' = CE, '`010`' = FB, '`110`' = FE. Accordingly, for the frame content to be self-consistent the IDE bit must be set to `0` for `FMT` = CB/FB and `1` for `FMT` = CE/FE. The revised format is designed to be backward compatible. An implementation that only supports Classic frames can simply ignore the `FMT` bits and treat all frames as Classic, while an implementation that supports FD can use the `FMT` field and the additional control bits (BRS and ESI) to distinguish frame types without affecting the existing ID and data field structure.
@@ -421,7 +456,6 @@ packet
 +1: "0000000,RTR"
 ```
 
-
 ```{.mermaid #fig:llc-frame-revised caption="Revised LLC frame format with FD support, shown at maximum length (71 bytes). The FMT field selects frame type; BRS and ESI repurpose reserved bits in the final byte. ID byte encoding is defined in @tbl:ID-bytes."}
 ---
 look: classic
@@ -449,11 +483,10 @@ packet
 +1: "00000,BRS,ESI,RTR"
 ```
 
-
 | Format     | Byte ID0 | Byte ID1 | Byte ID2 | Byte ID3 |
-| --- | --- | --- | --- | --- | 
-| Basic | '`00000000`' | '`00000000`' | '`00000`' `&` '`ID(10-8)`' | '`ID(7-0)`' | 
-| Extended | '`000`' `&` '`ID(28:24)`' | '`ID(23-16)`' | '`ID(15-8)`' | '`ID(7-0)`' | 
+| --- | --- | --- | --- | --- |
+| Basic | '`00000000`' | '`00000000`' | '`00000`' `&` '`ID(10-8)`' | '`ID(7-0)`' |
+| Extended | '`000`' `&` '`ID(28:24)`' | '`ID(23-16)`' | '`ID(15-8)`' | '`ID(7-0)`' |
 
 : ID byte encoding for the LLC frame formats shown in @fig:llc-frame-current and @fig:llc-frame-revised. {#tbl:ID-bytes}
 
@@ -465,7 +498,6 @@ All module interfaces use `std_logic` and `std_logic_vector` exclusively, as man
 
 ::: {.landscape-tables}
 
-
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | 6.4.5.5.2 | `L_Data.Request` | `LLC Frame`, `Handle` | Submit LLC frame for transmission | `User -> LLC` | `llc_tx_if.data` (`byte_t`), `llc_tx_if.valid` (`std_logic`), `llc_tx_if.sop` (`std_logic`) | `valid` high with byte on data; `sop` asserted on first byte |
@@ -475,7 +507,6 @@ All module interfaces use `std_logic` and `std_logic_vector` exclusively, as man
 | 6.4.5.5.3 | `L_Data.AbortRequest` | `Handle` | Abort pending frame transfer | `User -> LLC` | `llc_tx_if.abort_request` (`std_logic`) | Pulse when user wants to cancel an in-progress transfer |
 
 : Interface definition for `llc_tx_if`. Implements `L_Data.Request` as an Avalon-ST byte stream. `L_Data.AbortRequest` is included for complete ISO service coverage but is not yet implemented. {#tbl:llc-tx-if}
-
 
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -487,7 +518,6 @@ All module interfaces use `std_logic` and `std_logic_vector` exclusively, as man
 
 : Interface definition for `llc_rx_if`. Implements `L_Data.Indication` as an Avalon-ST byte stream. `Timestamp` is included for complete ISO service coverage but is not yet implemented. {#tbl:llc-rx-if}
 
-
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | 6.3, 6.6.4.2 | `DLL SDU` | `LLC Frame` | Transfer LLC frame to MAC for serialization | `LLC -> MAC` | `llc_mac_tx_if.data` (`byte_t`), `llc_mac_tx_if.valid` (`std_logic`), `llc_mac_tx_if.sop` (`std_logic`) | `valid` high with byte on data; `sop` marks first byte of new frame |
@@ -496,14 +526,12 @@ All module interfaces use `std_logic` and `std_logic_vector` exclusively, as man
 
 : Interface definition for `llc_mac_tx_if`. Frame length is self-describing from the DLC config bytes; the MAC serializer does not consume `eop`. {#tbl:llc-mac-tx-if}
 
-
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | 6.6.4.3, 6.6.9 | `DLL SDU` | Reconstructed `LLC Frame` | Transfer reconstructed LLC frame to LLC | `MAC -> LLC` | `llc_mac_rx_if.data` (`byte_t`), `llc_mac_rx_if.valid` (`std_logic`), `llc_mac_rx_if.sop` (`std_logic`), `llc_mac_rx_if.eop` (`std_logic`) | Avalon-ST byte stream; the RX FSM streams the stored `llc_frame` array during the quiet phase |
 | 6.6.4.3, 6.6.9 | `DLL SDU` | | Flow control | `LLC -> MAC` | `llc_mac_rx_if.ready` (`std_logic`) | Asserted by LLC when able to consume next byte |
 
 : Interface definition for `llc_mac_rx_if`. Carries the reconstructed LLC frame from `can_mac_rx` to `can_llc_rx` (@sec:can-mac-rx) as an Avalon-ST byte stream. The RX FSM stores received bits in an internal frame array during reception and streams the completed frame after EOF. {#tbl:llc-mac-rx-if}
-
 
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -514,7 +542,6 @@ All module interfaces use `std_logic` and `std_logic_vector` exclusively, as man
 
 : Interface definition for `mac_pcs_if`. The `D_Transmit` status is signalled via a dedicated `use_data_rate` flag rather than encoding it in a semantic bit name. The PCS switches between nominal and data-phase bit timing based on this flag, keeping the interface to plain `std_logic` signals. {#tbl:mac-pcs-if}
 
-
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | 7.4.2.1 | `output symbol` | `Dominant/recessive symbol` | Drive physical output symbol | `PCS -> PMA` | `aui_if.tx` (`std_logic`) | Updated on each `Output_Unit` request |
@@ -524,7 +551,6 @@ All module interfaces use `std_logic` and `std_logic_vector` exclusively, as man
 
 : Interface definition for `aui_if`. All signals are `std_logic`, as this interface crosses from the ISO protocol domain into the physical medium. {#tbl:aui-if}
 
-
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | 8.1.3.2 | `Normal_mode_request` | `Mode request` | Request reset to normal mode | `LLC -> FCE` | `fce_llc_if.normal_mode_request` (`std_logic`) | Issued on startup/restart |
@@ -532,7 +558,6 @@ All module interfaces use `std_logic` and `std_logic_vector` exclusively, as man
 | 8.1.3.2 | `Bus_off` | `Bus-off status` | Indicate node is bus-off | `FCE -> LLC` | `fce_llc_if.bus_off` (`std_logic`) | Asserted on bus-off transition |
 
 : Interface definition for `fce_llc_if`. Carries bus-off status and mode-request handshake between the FCE and LLC layers [@iso11898_1, sec. 8.1.3.2]. {#tbl:fce-llc-if}
-
 
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -549,7 +574,6 @@ All module interfaces use `std_logic` and `std_logic_vector` exclusively, as man
 | 8.1.3.3 | `Error_active_request` | `State request` | Request MAC return to error-active state | `FCE -> MAC` | `fce_mac_if.error_active_request` (`std_logic`) | On TEC/REC recovery |
 
 : Interface definition for `fce_mac_if`. The MAC reports error events and frame outcomes to the FCE; the FCE returns the current error-active/passive state to the MAC [@iso11898_1, sec. 8.1.3.3]. {#tbl:fce-mac-if}
-
 
 | ISO ref. | ISO symbol | ISO payload | ISO semantics | Direction | Implementation mapping | Implementation notes |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -577,6 +601,7 @@ Two VHDL packages centralize the shared definitions used across the design. All 
 **`can_tb_p`** (`can_tb_p.vhd`) is the testbench utility package, extracted from `pk_can_types` to separate simulation-only code from synthesizable definitions. It provides CRC reference calculation, metadata extraction, and bus stream reference model functions used by the testbenches for expected-value computation.
 
 ## LLC Sub-layer {#sec:llc-sub-layer}
+
 Responsible for frame buffering and retransmission management. It provides an Avalon-ST interface to the user application and communicates with the FCE to handle retransmission limits and error status reporting.
 
 ### `can_llc_tx` {#sec:can-llc-tx}
@@ -588,6 +613,7 @@ Responsible for frame buffering and retransmission management. It provides an Av
 `can_llc_rx` receives a reconstructed LLC frame from the MAC layer, applies acceptance filtering, and delivers accepted frames to the user over the `llc_rx_if` Avalon-ST stream [@iso11898_1, sec. 6.4.5].
 
 ## MAC Sub-layer {#sec:mac-sub-layer}
+
 The MAC sub-layer is the core of the protocol logic, responsible for bit serialization, CRC generation, bit stuffing, and frame-level error detection. It coordinates closely with the FCE (@sec:fce-sub-layer) for error counter management and node-state transitions (Error Active/Passive/Bus Off), and with the PCS (@sec:pcs-sub-layer) for sample-point-driven bit output.
 
 The earlier CAN bus controller concentrated TX, RX, MAC, and FCE logic in a single monolithic FSM (`can_fsm`), with the sub-functions - serialization (`can_ast_to_serial`), bit stuffing (`can_stuff_bit_gen`), and CRC (`gen_crc`) - implemented in satellite modules driven directly by it. PCS timing logic was implemented in `can_node_clock`, which fed sample-point and transmit pulses into `can_fsm` - a strategy retained in the current design.
@@ -644,7 +670,6 @@ flowchart TD
 
 The interfaces between MAC sub-components are implementation-defined and carry no direct ISO service primitive mapping. @tbl:mac-fsm-ser-if, @tbl:mac-fsm-bs-if, and @tbl:mac-fsm-crc-if define each bidirectional bundle; the Direction column identifies the driving component for each field. The bit stuffer and CRC engine interfaces are shared between the TX and RX paths - each path instantiates its own copy wired through identical record types.
 
-
 | field | type | direction | description |
 | --- | --- | --- | --- |
 | `data` | `std_logic` | `ser -> fsm` | current bit polarity; FSM reads this when `valid` is asserted |
@@ -654,7 +679,6 @@ The interfaces between MAC sub-components are implementation-defined and carry n
 | `transfer_status` | `std_logic_vector(2:0)` | `fsm -> ser` | frame outcome; any non-`c_ongoing` value terminates serialization |
 
 : Interface definition for `can_mac_ser_fsm_if`, connecting `can_mac_ser_tx` and `can_mac_fsm_tx` (see @fig:mac-tx-architecture). {#tbl:mac-fsm-ser-if}
-
 
 | field | type | direction | description |
 | --- | --- | --- | --- |
@@ -666,7 +690,6 @@ The interfaces between MAC sub-components are implementation-defined and carry n
 | `stuff_bit_count` | `std_logic_vector(3:0)` | `bs -> fsm` | gray-coded stuff bit count with parity for the FD SBC field |
 
 : Interface definition for `can_mac_fsm_bs_if`, connecting `can_mac_fsm_tx`/`can_mac_fsm_rx` and `can_mac_bs` (see @fig:mac-tx-architecture). The bit stuffer is reset by a dedicated `bs_rst` signal from the FSM rather than a field in this record. {#tbl:mac-fsm-bs-if}
-
 
 | field | type | direction | description |
 | --- | --- | --- | --- |
@@ -1047,6 +1070,7 @@ s_bus_off --> s_error_active : 128 idle conditions or normal_mode_request<br/>(T
 ```
 
 ## PCS Sub-layer {#sec:pcs-sub-layer}
+
 Handles bit timing and synchronization. It generates the sample point (SP) and secondary sample point (SSP) strobes. It provides bit-level monitoring data to the FCE to detect synchronization and timing errors.
 
 ### `can_pcs_tx` {#sec:can-pcs-tx}
@@ -1101,19 +1125,27 @@ stateDiagram-v2
 # Implementation {#sec:implementation}
 
 ## Type Safety and Packages {#sec:type-safety-packages}
+
 The implementation uses custom record types (defined in `can_types_pkg.vhd`) to ensure clean interfaces between modules.
 
 ## Bit Timing and TDC {#sec:bit-timing-tdc}
+
 Detailed description of how `tx_pcs` measures propagation delay and calculates the SSP.
 
 ## CRC and Bit Stuffing {#sec:crc-bit-stuffing}
+
 Implementation details of the flexible CRC generator and the hybrid bit stuffer.
 
 # Verification and Results {#sec:verification-results}
 
+![REQ-009.](figures/waveforms/full_fd_frame.pdf){#fig:full_fd_frame width=100%}
+
+![REQ-010.](figures/waveforms/req_10_11.pdf){#fig:req_10 width=100%}
+
 *Note: This section is currently being populated as the verification plan is executed.*
 
 ## Testbench Results Summary {#sec:testbench-results-summary}
+
 | Testbench | Status | Coverage |
 | :--- | :--- | :--- |
 | `tx_pcs_tb` | Pass | 95% |
@@ -1125,13 +1157,16 @@ Implementation details of the flexible CRC generator and the hybrid bit stuffer.
 ---
 
 # Discussion {#sec:discussion}
+
 Comparison of the implemented architecture against theoretical models. Performance analysis in high-load scenarios.
 
 ## Future Work {#sec:future-work}
+
 1. Make the the CRC and BS modules to save area on the FPGA.
 2. CAN XL implementation...
 
 # Conclusion {#sec:conclusion}
+
 Summary of work completed and how objectives were met.
 
 # References {#sec:references}

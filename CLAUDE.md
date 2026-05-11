@@ -19,7 +19,7 @@ This is a B.Eng thesis project implementing a **full CAN (Controller Area Networ
 
 **Key Dependencies**: GHDL compiler, OSVVM libraries, VSG linter
 
-**Standards Reference**: `docs/md_out/ISO_11898_1_CAN_bus_link/ISO_11898_1_CAN_bus_link.md` (ISO 11898-1:2015) - searchable markdown version
+**Standards Reference**: `docs/md_out/ISO_11898_1_CAN_bus_link/ISO_11898_1_CAN_bus_link.md` (ISO 11898-1:2024, Third edition) - searchable markdown version
 
 ---
 
@@ -156,28 +156,39 @@ ISO 11898-1:2015 CAN system requirements are tracked in `verification_plan/verif
 ### Verification Plan File Format
 
 **File**: `verification_plan/verification_plan.toml`
-**Structure**: 123 requirements (IDs 001-123), sequential with no gaps
+**Structure**: 118 requirements, sequential IDs (REQ-NNN), five layer values: LLC, MAC, PCS, FCE, system.
 **Scope**: CAN Classic (CC) and CAN FD only - CB, CE, FB, and FE frames. CAN XL frames are strictly out of scope and must NOT be added to the verification plan.
 
-**Categories**: FRM (frame), ERR (error), TMG (timing), CRC (checksum)
-**Sides**: TX (transmitter), RX (receiver)
-**Formats**: CB (Classic Basic), CE (Classic Extended), FB (FD Basic), FE (FD Extended)
-**Priorities**: critical, high, medium, low
-**Verification**: simulation, coverage, waveform, assertion
-**Status**: verified, implemented, unverified, diagnostic
-**Observability**: external, derived, internal (layer-level black-box testability axis)
+Each entry has exactly these fields:
 
-  Observability is defined **relative to the layer's own canonical interface boundary**
-  (not the top-level CAN node). The canonical interfaces are defined in
-  `docs/canonical_layer_interfaces.md` (ISO 11898-1:2015 service primitives).
+| Field | Values |
+|-------|--------|
+| `id` | `REQ-NNN` (sequential) |
+| `source_clause` | ISO 11898-1 section (e.g. `§6.6.8`) |
+| `original_wording` | Verbatim ISO text |
+| `layer` | `LLC`, `MAC`, `PCS`, `FCE`, `system` |
+| `side` | `transmitter`, `receiver`, `both` |
+| `format_applicability` | `CB`, `CE`, `FB`, `FE` (comma-separated subset) |
+| `observability` | `black_box`, `white_box` |
+| `verification_method` | `simulation`, `code_inspection`, `coverage`, or comma-separated combination |
+| `priority` | `P1` (critical), `P2` (important), `P3` (low risk / recommendation) |
+| `status` | `not_started`, `in_progress`, `complete`, `waived` |
+| `notes` | How it is verified; relevant caveats |
+| `label` | PSL assertion label, TB procedure name, coverage ID, or RTL tag (blank until linked). Comma-separated for multiple sub-claims. |
+| `file` | Target VHDL source file - TB for simulation/coverage, RTL for code_inspection (blank until linked). Comma-separated for multiple sub-claims. |
 
-  - `external`: postcondition is fully observable at the layer's own boundary, either as
-    a named primitive parameter, or as the *timing* of a primitive call where that timing
-    is fully determined by configuration generics and stimulus inputs known to the testbench.
-  - `derived`: effect manifests at the layer boundary but verifying it requires knowledge
-    of a non-trivial internal algorithm beyond reading config generics and measuring timing.
-  - `internal`: postcondition is a structural definition, a constraint on valid config
-    inputs, or has no manifestation at any layer boundary even indirectly.
+**Observability** is relative to the sub-module boundary named in `layer`:
+- `black_box`: verified purely at the sub-module's ports from stimulus and config alone - no reference model needed.
+- `white_box`: requires internal FSM state, FCE error state, bit-position counters, or a non-trivial reference computation (e.g. CRC polynomial, error counter arithmetic).
+
+**Verification method**:
+- `simulation`: verified by a TB assertion or check procedure; `label`/`file` point to the TB.
+- `code_inspection`: verified by RTL code review; `label`/`file` point to the RTL source location.
+- `coverage`: verified by coverage-driven stimulus sweeping a value range (e.g. DLC bins, data length threshold); `label`/`file` reference the coverage ID or bin set in the TB.
+- Combinations (e.g. `simulation, coverage`) are valid when multiple methods apply to sub-claims within the same requirement.
+
+**Layer `system`**: used for requirements whose behaviour is jointly owned by multiple sub-layers, or that inherently require two nodes on the shared bus (ACK overwrite, passive error flag coordination, bus re-integration). These are verified by the integration testbenches (`can_mac_pcs_fce_tb`, `can_llc_mac_pcs_fce_tb`).
+
 
 ### Verification Plan Management via MCP Server (Recommended)
 
@@ -192,27 +203,21 @@ pip install -r mcp_tools/requirements.txt
 **Available Tools** (use via Claude Code MCP integration):
 
 ```
-query_requirements(category, side, status, priority, verification)
+query_requirements(layer, side, has_flags, observability, is_blank_label, is_blank_file)
+get_requirement(req_id)
 update_requirement(req_id, field, value)
-bulk_update(field, value, category, side, status, priority, verification)
+bulk_update(field, value, layer, has_flags, observability, is_blank_label, is_blank_file)
 delete_requirement(req_id)
 renumber_requirements()
+insert_requirement(layer, original_wording, side, source_clause, format_applicability, observability, notes)
 get_statistics()
-```
-
-### Legacy: Command-line Tools
-
-```bash
-python verification_plan/verification_plan_table.py --delete 011
-python verification_plan/verification_plan_table.py --renumber
-python verification_plan/verification_plan_table.py --toml verification_plan/verification_plan.toml  # HTML export
 ```
 
 ### Key Points
 
-- **IDs are sequential** (001-NNN) with no gaps; the script maintains this invariant
 - **XL frames are out of scope** - do not add XL-related requirements
-- **All keys and valid values** are documented in the `verification_plan.toml` header comment
+- **No internal observability** - all requirements must have a testable boundary effect
+- All `label` and `file` fields are blank until linked to a TB assertion or procedure
 
 ---
 

@@ -101,17 +101,11 @@ architecture tb of can_llc_mac_pcs_fce_tb is
   signal bus_off_seen  : boolean := false;
   signal bus_off_clear : boolean := false;
   -- DUT 1 user TX interface
-  signal user_tx_s2d_dut_1 : t_can_user_llc_tx_if_s2d := (
-    avalon_st_source => (data => (others => '0'), valid => '0',
-                         startofpacket => '0', endofpacket => '0'),
-    abort_request    => '0'
+  signal user_tx_s2d_dut_1 : t_can_user_llc_tx_if_s2d := ( avalon_st_source => (data => (others => '0'), valid => '0', startofpacket => '0', endofpacket => '0'), abort_request    => '0'
   );
   signal user_tx_d2s_dut_1 : t_can_user_llc_tx_if_d2s;
   -- DUT 2 user TX interface
-  signal user_tx_s2d_dut_2 : t_can_user_llc_tx_if_s2d := (
-    avalon_st_source => (data => (others => '0'), valid => '0',
-                         startofpacket => '0', endofpacket => '0'),
-    abort_request    => '0'
+  signal user_tx_s2d_dut_2 : t_can_user_llc_tx_if_s2d := ( avalon_st_source => (data => (others => '0'), valid => '0', startofpacket => '0', endofpacket => '0'), abort_request    => '0'
   );
   signal user_tx_d2s_dut_2 : t_can_user_llc_tx_if_d2s;
   -- DUT 1 RX LLC interface (internal format from MAC)
@@ -402,6 +396,9 @@ begin
           collect_loop : loop
             wait until rising_edge(clk);
             if rx_llc_s2d_dut_2.avalon_st_source.valid = '1' then
+              report "DBG RX sop=" & to_string(rx_llc_s2d_dut_2.avalon_st_source.startofpacket)
+                   & " eop=" & to_string(rx_llc_s2d_dut_2.avalon_st_source.endofpacket)
+                   & " data=0x" & to_hstring(rx_llc_s2d_dut_2.avalon_st_source.data) severity note;
               Push(tx_rec_dut_1.BurstFifo, SafeResize(rx_llc_s2d_dut_2.avalon_st_source.data, c_rec_width));
               exit collect_loop when rx_llc_s2d_dut_2.avalon_st_source.endofpacket = '1';
             end if;
@@ -571,6 +568,13 @@ begin
       for i in 0 to v_last_byte loop
         Push(rx_rec_dut_2.BurstFifo, SafeResize(v_tx_frame(i), c_rec_width));
       end loop;
+      report "DBG EXP cfg0=0x" & to_hstring(v_tx_frame(0))
+           & " cfg1=0x" & to_hstring(v_tx_frame(1))
+           & " id0=0x"  & to_hstring(v_tx_frame(2))
+           & " id1=0x"  & to_hstring(v_tx_frame(3))
+           & " id2=0x"  & to_hstring(v_tx_frame(4))
+           & " id3=0x"  & to_hstring(v_tx_frame(5))
+           & " last_byte=" & to_string(v_last_byte) severity note;
       -- Drive all 71 legacy bytes to DUT 1
       for i in 0 to c_legacy_frame_len - 1 loop
         if i = 0 then

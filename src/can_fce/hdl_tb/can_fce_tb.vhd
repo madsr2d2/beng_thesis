@@ -120,6 +120,28 @@ architecture tb of can_fce_tb is
     wait until rising_edge(clk);
   end procedure pulse_rx_delim_late;
 
+  procedure pulse_tx_error_exempt(signal s2d : inout t_can_mac_fce_if_m2s) is
+  begin
+    s2d.transmitting                  <= '1';
+    s2d.error                         <= '1';
+    s2d.passive_tx_ack_error_exempt_1 <= '1';
+    wait until rising_edge(clk);
+    s2d                               <= c_mac_to_fce_if_reset;
+    s2d.transmitting                  <= '1';
+    wait until rising_edge(clk);
+  end procedure pulse_tx_error_exempt;
+
+  procedure pulse_tx_error_in_flag(signal s2d : inout t_can_mac_fce_if_m2s) is
+  begin
+    s2d.transmitting                <= '1';
+    s2d.error                       <= '1';
+    s2d.sending_error_overload_flag <= '1';
+    wait until rising_edge(clk);
+    s2d                             <= c_mac_to_fce_if_reset;
+    s2d.transmitting                <= '1';
+    wait until rising_edge(clk);
+  end procedure pulse_tx_error_in_flag;
+
   procedure pulse_rx_error_in_flag(signal s2d : inout t_can_mac_fce_if_m2s) is
   begin
     s2d.transmitting                <= '0';
@@ -223,6 +245,19 @@ begin
       AffirmIf(test_id, mac_o = c_fce_to_mac_if_reset, "mac_o not reset correctly");
       AffirmIf(test_id, llc_o = c_fce_to_llc_if_reset, "llc_o not reset correctly");
       AffirmIf(test_id, pcs_o = c_fce_to_pcs_if_reset, "pcs_o not reset correctly");
+      -- normal_mode acts as a synchronous reset from any state (ISO 8.1.3.2 Table 14)
+      for i in 1 to 16 loop
+        pulse_tx_error(mac_i);
+      end loop;
+      WaitForClock(clk);
+      AffirmIf(test_id, mac_o.error_active = '0', "normal_mode setup: error-passive at TEC=128");
+      llc_i.normal_mode <= '1';
+      WaitForClock(clk);
+      llc_i.normal_mode <= '0';
+      WaitForClock(clk);
+      AffirmIf(test_id, mac_o = c_fce_to_mac_if_reset, "mac_o not cleared by normal_mode");
+      AffirmIf(test_id, llc_o = c_fce_to_llc_if_reset, "llc_o not cleared by normal_mode");
+      AffirmIf(test_id, pcs_o = c_fce_to_pcs_if_reset, "pcs_o not cleared by normal_mode");
     end procedure test_reset;
 
     --------------------------------------------------------------------------
@@ -255,7 +290,7 @@ begin
     end procedure test_rule_b;
 
     -- Rule c/d: TX error -> TEC += 8 ----------------------------------------
-    procedure test_rule_c_d is
+    procedure test_rule_c is
     begin
       reset_dut;
       for i in 1 to 15 loop
@@ -265,20 +300,40 @@ begin
       pulse_tx_error(mac_i);
       WaitForClock(clk);
       AffirmIf(rule_c_d, mac_o.error_active = '0', "Rule c: passive at TEC=128");
-    end procedure test_rule_c_d;
+    end procedure test_rule_c;
 
-    -- Rule c Except. 1: passive_tx_ack_error_exempt_1 suppresses TEC count --
+    -- Rule c Except. 1: passive_tx_ack_error_exempt_1 suppresses TEC increment when error-passive
     procedure test_rule_c_exception is
     begin
       reset_dut;
+      -- Drive to error-passive: 16 x TEC+8 = TEC=128
       for i in 1 to 16 loop
-        mac_i.transmitting                  <= '1';
-        mac_i.error                         <= '1';
-        mac_i.passive_tx_ack_error_exempt_1 <= '1';
-        wait until rising_edge(clk);
+        pulse_tx_error(mac_i);
       end loop;
-      AffirmIf(rule_c_d, mac_o.error_active = '1', "Rule c Exc.1: still active");
+      WaitForClock(clk);
+      AffirmIf(rule_c_d, mac_o.error_active = '0', "Rule c Exc.1 setup: error-passive at TEC=128");
+      -- Drive 16 more errors while error-passive with the passive_tx_ack_error_exempt_1 = '1'.
+      -- This would drive us to bus-off if the exemption did not work.
+      for i in 1 to 16 loop
+        pulse_tx_error_exempt(mac_i);
+      end loop;
+      WaitForClock(clk);
+      -- Affirm we did not enter bus-off.
+      AffirmIf(rule_c_d, llc_o.bus_off = '0', "Rule c Exc.1: bus-off not asserted, TEC exempt from incrementing");
     end procedure test_rule_c_exception;
+
+    -- Rule d: TX bit error during active error/overload flag -> TEC += 8 ----
+    procedure test_rule_d is
+    begin
+      reset_dut;
+      for i in 1 to 15 loop
+        pulse_tx_error_in_flag(mac_i);
+      end loop;
+      AffirmIf(rule_c_d, mac_o.error_active = '1', "Rule d: still active at TEC=120");
+      pulse_tx_error_in_flag(mac_i);
+      WaitForClock(clk);
+      AffirmIf(rule_c_d, mac_o.error_active = '0', "Rule d: passive at TEC=128");
+    end procedure test_rule_d;
 
     -- Rule e: RX error during flag -> REC += 8 ------------------------------
     procedure test_rule_e is
@@ -369,7 +424,6 @@ begin
       end loop;
       WaitForClock(clk);
       AffirmIf(bus_off_recovery, llc_o.bus_off = '1', "Bus_off before recovery");
-      llc_i.normal_mode <= '1';                                                 -- required alongside idle count to release bus-off
 
       for i in 1 to 64 loop
         pulse_idle_condition(pcs_i);
@@ -380,8 +434,6 @@ begin
         pulse_idle_condition(pcs_i);
       end loop;
       WaitForClock(clk);
-      llc_i.normal_mode <= '0';
-
       AffirmIf(bus_off_recovery, llc_o.bus_off = '0', "llc_o.bus_off cleared after 128 pulses");
       AffirmIf(bus_off_recovery, pcs_o.bus_off = '0', "pcs_o.bus_off cleared after 128 pulses");
       AffirmIf(bus_off_recovery, mac_o.error_active = '1', "error_active after recovery");
@@ -411,8 +463,9 @@ begin
     Print("--------------------------------------------------------------------------");
     test_rule_a;
     test_rule_b;
-    test_rule_c_d;
+    test_rule_c;
     test_rule_c_exception;
+    test_rule_d;
     test_rule_e;
     test_rule_f_tx;
     test_rule_f_rx;

@@ -124,9 +124,9 @@ architecture tb of can_mac_pcs_fce_tb is
   signal mac_to_llc_tx_s2d_dut_2 : t_can_llc_mac_rx_if_s2d;
   signal mac_to_llc_tx_d2s_dut_2 : t_can_llc_mac_rx_if_d2s := c_llc_to_mac_rx_if_reset;
   -- LLC-FCE interfaces
-  signal llc_fce_i_dut_1 : t_can_llc_fce_if_m2s := (normal_mode => '1');
+  signal llc_fce_i_dut_1 : t_can_llc_fce_if_m2s := (normal_mode => '0');
   signal llc_fce_o_dut_1 : t_can_fce_llc_if_s2m;
-  signal llc_fce_i_dut_2 : t_can_llc_fce_if_m2s := (normal_mode => '1');
+  signal llc_fce_i_dut_2 : t_can_llc_fce_if_m2s := (normal_mode => '0');
   signal llc_fce_o_dut_2 : t_can_fce_llc_if_s2m;
   -- Transfer status latches
   signal status_latch_dut_1            : std_logic_vector(2 downto 0) := c_ongoing;

@@ -63,7 +63,7 @@ begin
     variable v_go_active  : std_logic;
   begin
     if rising_edge(clk_i) then
-      if reset_i = '1' then
+      if reset_i = '1' or llc_i.normal_mode = '1' then
         transmitter_error_count <= 0;
         receiver_error_count    <= 0;
         fce_state               <= s_error_active;
@@ -129,7 +129,7 @@ begin
             -- Count idle conditions from PCS -----------------------------------------
             if ((pcs_i.idle_condition = '1') and (idle_count < c_bus_off_recovery_count)) then
               idle_count <= idle_count + 1;
-            elsif ((idle_count = c_bus_off_recovery_count) and (llc_i.normal_mode = '1')) then
+            elsif (idle_count = c_bus_off_recovery_count) then
               fce_state               <= s_error_active;
               transmitter_error_count <= 0;
               receiver_error_count    <= 0;

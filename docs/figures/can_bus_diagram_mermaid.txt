@@ -1,3 +1,9 @@
+---
+config:
+  theme: neutral
+  layout: elk
+---
+
 graph TD
 
 classDef dll fill:#ddeeff,stroke:#336
