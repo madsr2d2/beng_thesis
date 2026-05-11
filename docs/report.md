@@ -159,19 +159,15 @@ The role of modern VHDL standards and verification frameworks in digital design.
 
 # Requirements Engineering & Verification Planning {#sec:requirements-engineering}
 
-**NOTE:** This initial paragrapg is to generic and void of actual content. It sounds very much like AI generated slob. It really needs improvemnt.
-
-This section documents the requirements engineering process and the verification plan that guided the project. It begins with the constraints that bounded the design space before any implementation decisions were made (@sec:engineering-constraints), then describes how a structured requirements set was extracted from the ISO 11898-1 standard (@sec:req-extraction), and how that set was evolved into a multi-dimensional verification plan data structure (@sec:verification-plan-data-structure). The storage format and tooling used to maintain the plan throughout the project are described in @sec:req-tooling. The section closes with a discussion of how the requirements structure influenced the initial architectural strategy (@sec:req-design-ramifications), an honest account of the methodology's limitations (@sec:req-limitations), and a retrospective on the role of AI assistance across the entire requirements engineering and planning workflow (@sec:ai-extraction).
+Bridging the gap between a normative specification and a traceable verification plan is one of the more demanding tasks in a protocol implementation project. ISO 11898-1 was written as a specification, not a verification artifact: its normative requirements are distributed across dozens of subsections, interleaved with explanatory text, and organized around protocol function rather than testability. The 45-requirement plan that resulted from this work is therefore not a direct transcription of the standard - it is the product of a deliberate extraction, consolidation, and classification effort, making each behavioral claim independently verifiable and each test traceable to a specific normative source. The section begins with the engineering constraints that bounded the design space (@sec:engineering-constraints), then documents the extraction and consolidation process (@sec:req-extraction) and the multi-dimensional plan data structure that tracks coverage (@sec:verification-plan-data-structure, @sec:req-tooling). It closes with an examination of how the plan structure unexpectedly influenced early architectural decisions (@sec:req-design-ramifications) and a retrospective on the AI tooling used throughout (@sec:ai-extraction).
 
 ## VHDL Code Standard and Design Constraints {#sec:engineering-constraints}
 
 The constraints on this project come from two distinct sources. Two requirements are specific to this project's place within the company's existing CAN infrastructure while the remaining constraints come from the company's VHDL Code Standard and apply uniformly to all FPGA IP modules developed in-house.
 
-**Note:** Add a ref to the bib file for the Avalona-ST interface (<httpsl://www.intel.com/programmable/technical-pdfs/683091.pdf>) and use it below when mentioning the Avalon interface for the first time.
-
 ### Project-specific Infrastructure Requirements
 
-1. **Avalon-ST user interface:** The CAN controller's external interface to the host system must use the Avalon-ST streaming protocol (data, valid, ready, sop, eop).The requirement applies specifically to the boundary between the CAN controller and its user.
+1. **Avalon-ST user interface:** The CAN controller's external interface to the host system must use the Avalon-ST streaming protocol [@avalon_st] (data, valid, ready, sop, eop). The requirement applies specifically to the boundary between the CAN controller and its user.
 2. **IP library CRC block:** The company maintains a reusable, parameterised CRC generator (`gen_crc`) in its IP library. This module must be used for all CRC computations.
 
 ### File Structure and Naming
@@ -206,11 +202,9 @@ The standard devotes separate sections to each of these sub-layers and they prov
 
 The consolidated requirements set described in @sec:req-extraction provided the foundation for the verification plan development. The verification plan data structure augments each requirement with the dimensions needed to answer not just *what* must be true, but *how* it will be verified, *where* the evidence lives, and *when* verification is complete. This additional structure follows the verification planning methodology described by Bergeron [@bergeron2003ch3], which organizes a verification plan around explicit links between requirements, verification methods, and traceability artifacts. The verification plan data structure is summarized @tbl:vplan-metadata-fields and the following sections details content of the individual fields.
 
-**NOTE:** We should not reference the design choices like implementation at this point in the document. It muddies up the narrative flow. So the mention of implementation details is avoided.
-
 ### Layer {#sec:vplan-layer}
 
-The layer field assigns each requirement to the protocol sub-layer that owns it: LLC, MAC, PCS, FCE, or system. This follows the ISO 11898-1 sub-layer structure described in @sec:req-extraction and maps directly onto the modular architecture of the implementation: requirements assigned to a given layer can be verified in isolation against that layer's module testbench, rather than through the surface of a fully integrated system. A fifth label - **system** - was introduced alongside the four protocol layers to classify requirements that are inherently multi-layer or multi-node in character. Some CAN behaviors cannot be attributed to a single layer of a single node: they emerge from interactions between multiple nodes on the bus, or span the layer boundary within a single node. Attempting to force such requirements into a single-layer classification would have been misleading and would have obscured their true verification implications. The system label flags these requirements as ones that require either an integrated multi-module testbench or a multi-node simulation environment. @tbl:req-layer-distribution shows the distribution of the 45 final requirements across the five layers.
+The layer field assigns each requirement to the protocol sub-layer that owns it: LLC, MAC, PCS, FCE, or system, following the ISO 11898-1 sub-layer structure described in @sec:req-extraction. This classification determines the verification boundary at which each requirement must be exercised. A fifth label - **system** - was introduced alongside the four protocol layers to classify requirements that are inherently multi-layer or multi-node in character. Some CAN behaviors cannot be attributed to a single layer of a single node: they emerge from interactions between multiple nodes on the bus, or span the layer boundary within a single node. The system label flags these requirements as ones that require either an integrated multi-module testbench or a multi-node simulation environment. @tbl:req-layer-distribution shows the distribution of the 45 final requirements across the five layers.
 
 | Layer | Count | Description |
 | :--- | :---: | :--- |
@@ -227,28 +221,22 @@ The layer field assigns each requirement to the protocol sub-layer that owns it:
 
 The side field records whether a requirement pertains to the transmitter path, the receiver path, or both roles simultaneously. This dimension reflects the ISO standard's own framing, which frequently specifies transmitter and receiver obligations separately.
 
-**Note:** We need to think more carefully about the examles listed in the Format sub-section bleow. The given example is a bit akward. I dont which claims about extended ID frams would not also apply to FD frames. The other way around it is clear to see that that not all FD claims apply to extended frames.
-
 ### Format Applicability {#sec:vplan-format}
 
-The format_applicability field records which of the four in-scope frame formats (CB, CE, FB, FE) each requirement applies to. Not all requirements apply to all formats: some are specific to FD frames, others to extended-identifier frames. This field determines which testbench stimulus configurations are required to exercise a given requirement.
-
-**Note:** Not sure this is actually what is in the text book ref. I will paste the content of the relevant section of the text book in the chat interface.
+The format_applicability field records which of the four in-scope frame formats (CB, CE, FB, FE) each requirement applies to. Not all requirements apply to all formats: requirements governing the data-phase bit rate switch (BRS), fixed bit stuffing, and the CRC_17/CRC_21 polynomials are specific to FD frames (FB, FE), while requirements covering the classic five-in-a-row stuff rule and CRC_15 apply across all four formats. This field determines which testbench stimulus configurations are required to exercise a given requirement.
 
 ### Observability {#sec:vplan-observability}
 
-The observability field classifies each requirement relative to the module boundary of the owning layer, following Bergeron's distinction between black-box and white-box verification [@bergeron2003ch3]:
+The observability field classifies each requirement according to Bergeron's black-box and white-box verification distinction [@bergeron2003ch3], applied relative to the module boundary of the owning layer:
 
-- **Black-box**: the postcondition maps directly onto a service-primitive parameter or its timing, and the testbench can derive the expected value from configuration generics and driven stimulus alone. For example, the bit-level encoding of the SOF field is directly observable at the MAC-PCS boundary as the first `Output_Unit` value.
-- **White-box**: the postcondition manifests at the layer boundary but requires a non-trivial reference computation. CRC correctness falls here: the CRC bits appear in the transmitted bit-stream, but a polynomial reference model is needed to verify their value.
+- **Black-box**: verification is conducted purely through the module's observable port signals. The testbench exercises the module through its interfaces and checks outputs without any access to internal state or signals. For example, the SOF bit appearing as the first bit driven on the MAC-PCS output immediately after bus-idle is directly observable at the port level.
+- **White-box**: verification requires direct observation of internal signals - such as FSM state registers, bit-position counters, or error counter values - that are not exposed as primary outputs. For example, confirming that the bit stuffer's consecutive-equal-bit counter resets correctly after a stuff bit is inserted requires access to the internal counter, since only the stuffed bit stream is visible at the module boundary.
 
 Of the 45 requirements, 16 are black-box and 29 are white-box.
 
-**Note:** We are missing waveform inspection this is also a verification stratigy we use.
-
 ### Verification Method {#sec:vplan-method}
 
-The verification_method field makes the path from requirement to verification artifact explicit and actionable before any testbench is written, giving each requirement a clear route to closure before implementation begins. Three methods are used: simulation (automated assertion or check procedure in a testbench), code inspection (RTL source review), and coverage (OSVVM coverage bins sweeping a value range). Combinations are valid when multiple sub-claims within one requirement each call for a different method.
+The verification_method field makes the path from requirement to verification artifact explicit and actionable before any testbench is written, giving each requirement a clear route to closure before implementation begins. Four methods are used: simulation (automated assertion or check procedure in a testbench), code inspection (RTL source review), waveform inspection (manual review of simulation output to confirm bit-level timing or signal sequencing), and coverage (OSVVM coverage bins sweeping a value range). Combinations are valid when multiple sub-claims within one requirement each call for a different method.
 
 ### Priority {#sec:vplan-priority}
 
@@ -283,9 +271,7 @@ The status field (`not_started`, `in_progress`, `complete`) records closure stat
 
 ## Storage Format and Tooling {#sec:req-tooling}
 
-**Note:** This forma t was chose because it is eazily readable and the content can effeciently be manipulated through smal pythn scripts using the toml.lib build in library.
-
-The verification plan is stored as a `TOML` file with each entry as a self-contained `[[requirement]]` block with one key per line.
+The verification plan is stored as a `TOML` file with each entry as a self-contained `[[requirement]]` block with one key per line. TOML was chosen because it is human-readable, maps cleanly onto structured records without a schema file, and can be parsed and manipulated with minimal code using Python's built-in `tomllib` library - making it straightforward to write validation and query scripts alongside the MCP server.
 
 A **Model Context Protocol (MCP) server** (`mcp_tools/verification_plan_manager.py`) was written to provide a constrained interface for LLM-assisted operations on the plan thus minimizing the risk of silint data corruption caused by un-constraint LLM-agent interactions with the verification plan source.
 
@@ -298,20 +284,6 @@ A **Model Context Protocol (MCP) server** (`mcp_tools/verification_plan_manager.
 
 The verification plan TOML operated as a living document throughout the project. As implementation and verification work progressed,  traceability links were added as testbenches were written, and status fields were updated to reflect closure. The MCP tooling made these ongoing updates tractable: individual field changes were atomic, sequentially logged, and immediately visible in version-control diffs.
 
-**Note:** This section belongs in in the following design an darchitecture section.
-
-## Ramifications for Initial Design Strategy {#sec:req-design-ramifications}
-
-The structure of the requirements data structure had direct consequences for the initial design strategy, in ways that were not fully anticipated at the outset.
-
-The **layer dimension** mapped naturally onto the ISO standard's own layered reference model, making a layered module architecture look like the obvious and well-motivated implementation strategy. A dedicated hardware module for each layer - MAC, LLC, fault confinement, and PCS - would allow requirements pertaining to a given layer to be verified in isolation against that layer's module, rather than through the surface of a fully integrated system where internal behavior is obscured by surrounding logic. The observability dimension reinforced this directly: black-box requirements mapped cleanly onto port-level stimulus and observation, while white-box requirements pointed toward the need for reference models or PSL assertions on internal signals, both of which are most tractable in a per-module testbench. In retrospect, this was a sound conclusion. The modular architecture proved to be the right design choice, and the requirements table provided a well-motivated rationale for it from the start.
-
-The **TX/RX side dimension** had a subtler and more consequential effect. Organizing requirements along the transmitter/receiver axis made intuitive sense from a specification perspective - the ISO standard itself frames many requirements in terms of transmitter behavior and receiver behavior - and it was genuinely useful for thinking through which requirements belonged where. However, it also made a split-path implementation architecture look like the natural design strategy, simply because the requirements were literally organized along that split. The implication appeared to be: implement a TX module, implement an RX module, and map the TX requirements to the former and the RX requirements to the latter.
-
-This turned out to be a red herring. The pitfalls of the split-path approach were not at all apparent from the requirements table alone. The table made the split architecture look clean and well-motivated. The problems - design drift between separately implemented FSMs, integration complexity, and unnecessary hardware duplication - only surfaced later, during integration. This is an important general lesson: the structure of a requirements model can inadvertently bias architectural decisions in ways that are not immediately obvious, and the apparent naturalness of a design strategy that mirrors the requirements structure is not in itself a reliable signal that the strategy is sound.
-
-The architectural consequences of both observations, including the resolution of the split-path problem, are developed in @sec:architectural-design-decisions.
-
 ## AI-Assisted Extraction: Utility and Limitations {#sec:ai-extraction}
 
 The LLM agent earned its keep by bootstrapping the initial content of the verification plan data structure. Starting from a blank requirements table would have required a significantly larger upfront effort, and having a populated, classified starting point - even one requiring substantial revision - gave the manual review process a concrete artifact to work from and react to. Generating a rough first draft from source material is a well-understood and widely used application of language models, and this case was no exception.
@@ -321,6 +293,16 @@ That said, the overall time saving was marginal. The most time-consuming part of
 Beyond the initial extraction, the LLM agent remained a contributor throughout the ongoing maintenance of the verification plan. The MCP-constrained tooling described in @sec:req-tooling made this safe and efficient: rather than handing an agent write-access to a structured file, each update was channeled through schema-validated tool calls. This allowed the plan to evolve continuously as implementation and verification work progressed - adding traceability links, updating status fields, inserting newly identified requirements - without risking data corruption or requiring manual editing of TOML syntax. The agent's role here was narrowly administrative: executing specific, well-defined updates that the engineer had already decided to make. All judgment calls about what a requirement means, how it should be verified, and whether it is complete remained with the engineer.
 
 # Design and Architecture {#sec:design-architecture}
+
+## Ramifications of the Requirements Model on Initial Design Strategy {#sec:req-design-ramifications}
+
+The structure of the requirements model had direct consequences for the initial design strategy, in ways that were not fully anticipated at the outset.
+
+The **layer dimension** mapped naturally onto the ISO standard's own layered reference model, making a layered module architecture look like the obvious and well-motivated implementation strategy. A dedicated hardware module for each layer - MAC, LLC, fault confinement, and PCS - would allow requirements pertaining to a given layer to be verified in isolation against that layer's module, rather than through the surface of a fully integrated system where internal behavior is obscured by surrounding logic. The observability dimension reinforced this directly: black-box requirements mapped cleanly onto port-level stimulus and observation, while white-box requirements pointed toward the need for reference models or PSL assertions on internal signals, both of which are most tractable in a per-module testbench. In retrospect, this was a sound conclusion. The modular architecture proved to be the right design choice, and the requirements table provided a well-motivated rationale for it from the start.
+
+The **TX/RX side dimension** had a subtler and more consequential effect. Organizing requirements along the transmitter/receiver axis made intuitive sense from a specification perspective - the ISO standard itself frames many requirements in terms of transmitter behavior and receiver behavior - and it was genuinely useful for thinking through which requirements belonged where. However, it also made a split-path implementation architecture look like the natural design strategy, simply because the requirements were literally organized along that split. The implication appeared to be: implement a TX module, implement an RX module, and map the TX requirements to the former and the RX requirements to the latter.
+
+This turned out to be a red herring. The pitfalls of the split-path approach were not at all apparent from the requirements table alone. The table made the split architecture look clean and well-motivated. The problems - design drift between separately implemented FSMs, integration complexity, and unnecessary hardware duplication - only surfaced later, during integration. This is an important general lesson: the structure of a requirements model can inadvertently bias architectural decisions in ways that are not immediately obvious, and the apparent naturalness of a design strategy that mirrors the requirements structure is not in itself a reliable signal that the strategy is sound.
 
 ## Architectural Design Decisions {#sec:architectural-design-decisions}
 
