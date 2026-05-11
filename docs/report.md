@@ -159,13 +159,15 @@ The role of modern VHDL standards and verification frameworks in digital design.
 
 # Requirements Engineering & Verification Planning {#sec:requirements-engineering}
 
+  **Note:** This section need extensive revision. Have look at the beng_thesis/The+VHDL+Code+Standard.pdf document describing the VHDL code guidelines imposed by the company. This section does not actually refference waht is actually in the company gudielines. Aldo think the title should be changed to "code guidelines and design constraints" or something similar. You can Probably come up with a better title.
+
 ## Engineering Constraints {#sec:engineering-constraints}
 
 The company imposes a set of non-negotiable constraints on all FPGA IP modules. These constraints were established before the design exploration began and are not subject to trade-off analysis - they define the feasible design space alongside the protocol requirements.
 
 **`std_logic`-only entity ports.** All module interfaces must use `std_logic` and `std_logic_vector` exclusively. No custom enumeration types, booleans, or integers are permitted on entity ports. This mandate ensures that every module can be integrated into the company's existing synthesis and static analysis toolchain without adapter logic. The constraint precludes designs that expose protocol-level enumerations (such as FSM state types or frame format selectors) on their interfaces - a pattern used in the existing in-house controller, where `t_fsm_can_state` and `t_node_state` enums appear on debug ports. Internally, modules may use any VHDL-2008 type; the restriction applies only at module boundaries.
 
-**Per-module directory structure.** Each module resides in its own directory with `hdl_src/`, `hdl_tb/`, and `test_case/` subdirectories. This convention is enforced across all company FPGA projects and must be followed by any new IP. It rules out monolithic file organisations where multiple entities share a single source directory.
+**Note:** This is also not correct. This requerment is related to the interface of the of the CAN module with the CAN module user. The CAN to CAN user inter face must ba an avalon streaming interface making it compatible with the wider system in which the module is to be used. This is the same interface requirment that applied to the lode CAN implementation located in the can_controller folder. The is no requirment that the interfaces beteween the individul modules making up the CAN imlementation communicate vai Avalon-st.
 
 **Avalon-ST streaming interfaces.** Data-transfer interfaces between modules use the Avalon-ST protocol (data, valid, ready, sop, eop). The existing FPGA infrastructure relies on this protocol for inter-module communication, and the CAN transceiver must integrate natively. This constraint excludes IP cores with AXI, APB, or custom register-map interfaces (such as CTU CAN FD's Avalon-MM or the Xilinx core's AXI4-Lite) without an adaptation layer.
 
@@ -173,11 +175,7 @@ The company imposes a set of non-negotiable constraints on all FPGA IP modules. 
 
 **Platform independence.** The implementation must be written in portable VHDL-2008, synthesisable on any FPGA platform or ASIC flow. This rules out device-locked IP cores such as the AMD/Xilinx CAN FD core and commercial cores delivered as technology-specific netlists.
 
-**VHDL-2008 standard.** All source files target VHDL-2008, enabling record types, unconstrained arrays, and aggregate signal assignments that simplify the typed interface definitions between sub-layers.
-
 **OSVVM verification framework.** All testbenches use the OSVVM library [@osvvm] for clock and reset generation, coverage model management, and alert/check reporting. This ensures that verification infrastructure is consistent across all modules and that pass/fail results are machine-readable.
-
-**VSG linting.** All RTL source files are checked with the VHDL Style Guide (VSG) linter using a shared project configuration (`vsg_config.yaml`), enforcing consistent formatting and naming conventions across the codebase.
 
 ## From Standard to Structured Requirements {#sec:req-extraction}
 
@@ -195,6 +193,8 @@ To address both objectives while alleviating the manual burden of initial extrac
 This initial extraction yielded 168 normative statements. Many extracted statements were effectively descriptions of the same underlying requirement, expressed from slightly different angles or in different parts of the document. Condensing these into an organized, non-redundant requirements table was largely manual and time-consuming. It required repeated close reading of the relevant standard sections, identifying which statements described the same underlying behavior, and paraphrasing the often verbose normative language into precise, concise requirement statements. A key driver in this consolidation process was the principle of requirement orthogonality: each entry in the final requirements table should describe a distinct, independently verifiable behavioral claim. This kind of semantic consolidation - distinguishing between a restatement and a genuinely distinct requirement - is not a task that can be fully automated, as it requires domain-level understanding of the protocol.
 
 The scale of the condensation is conveyed by the numbers: 168 raw normative extractions were reduced to a final table of 45 requirements, a reduction to roughly 27% of the original count. On average, each final requirement entry absorbed and unified approximately three to four raw extractions. This reduction ratio is primarily a consequence of the extraction strategy and the orthogonality principle: statements describing the same underlying behavior from different angles, or expressed in different parts of the document, were grouped into a single entry that could be efficiently verified together. The ratio is therefore an artifact of the consolidation methodology, not a commentary on the structure of the standard itself.
+
+**Note:** The only point worth keepin gfrom the following paragraph is that that the verification is a very lively document that was continously iterated upon during the entier project. So we shoudl actually move this to the following section describing where the verification plan is described - it is the verification paln toml that evolved thriugh the projec.
 
 The requirements table was not frozen at a single point in time. It functioned as a living document throughout the project, evolving as implementation and verification work revealed aspects of the specification that had been misunderstood, overlooked, or insufficiently specified in the initial extraction. This iterative refinement is an inherent property of requirements engineering in complex protocol implementations, and should be expected rather than treated as a sign of process failure.
 
