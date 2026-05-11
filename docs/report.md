@@ -152,19 +152,27 @@ The role of modern VHDL standards and verification frameworks in digital design.
 
 ---
 
-# Requirements {#sec:requirements}
+# Requirements Engineering & Verification Planning {#sec:requirements-engineering}
 
-This project is bounded by two distinct sets of requirements: normative clauses extracted from ISO 11898-1 [@iso11898_1], which define what the CAN and CAN-FD protocol must do, and non-negotiable engineering constraints from the company's FPGA development environment, which define the feasible implementation space. Both sets feed directly into the architectural design decisions documented in @sec:architectural-design-decisions.
+## From Standard to Structured Requirements {#sec:req-extraction}
 
-## Protocol Requirements {#sec:protocol-requirements}
+A key objective of the requirements engineering process was to establish a clear, traceable link between the ISO 11898-1 specification and the verification environment. The standard defines the CAN and CAN FD protocol at the data link layer. However, the standard is not structured with verification traceability in mind. Normative requirements are scattered across numerous subsections, often repeated or paraphrased from different perspectives, and interspersed with descriptive and explanatory text. Without a structured requirements artifact, verification coverage risks becoming informal and anecdotal - a situation that is particularly problematic in a safety-relevant protocol context.
 
-### Requirements Extraction {#sec:requirements-extraction}
+To address this, the requirement set was bootstrapped by an AI-assisted extraction pipeline. The ISO standard was first converted into Markdown format, making it searchable and ingestible by a Claude Sonnet 4.6 language model agent. The agent was prompted to extract all normative language from the document - sentences containing "shall", "shall not", "should", and "should not", the canonical markers of mandatory requirements and recommendations respectively in ISO standards. Each extracted statement was classified according to the subsection of the standard it appeared under, with initial classification labels corresponding directly to the ISO layer structure: the MAC layer, the LLC layer, the fault confinement logic, and the PCS layer.
 
-The requirement set was bootstrapped by feeding the ISO 11898-1 markdown to an LLM, which extracted normative clauses and formatted them as TOML entries. A subsequent manual review pruned entries describing internal mechanics with no observable boundary effect, re-classified observability, and consolidated related sub-clauses. This process produced 45 final requirements covering the four in-scope frame formats across five architectural layers. A wider retrospective on the AI-assisted workflow used throughout this project is in @sec:architectural-design-decisions.
+The extraction prompt was intentionally broad. Rather than filtering strictly on mandatory "shall" and "shall not" statements, the prompt also captured "should" and "should not" statements. This decision was deliberate: while "should" statements are technically optional from a conformance perspective, they represent best-practice behaviors that a robust CAN FD implementation ought to exhibit. Excluding them entirely risked producing a requirements table that was conformance-complete but implementation-incomplete. The distinction between mandatory and recommended requirements was preserved as metadata, allowing the verification effort to prioritize accordingly while retaining full visibility of the recommendation landscape.
 
-### Scope {#sec:requirements-scope}
+This initial extraction yielded 168 normative statements. The raw output had significant limitations: many extracted statements were effectively descriptions of the same underlying requirement, expressed from slightly different angles or in different parts of the document - a direct reflection of the standard's disorganized structure. Condensing these into an organized, non-redundant requirements table was largely manual and time-consuming. It required repeated close reading of the relevant standard sections, identifying which statements described the same underlying behavior, and paraphrasing the often verbose normative language into precise, concise requirement statements. This kind of semantic consolidation - distinguishing between a restatement and a genuinely distinct requirement - is not a task that can be fully automated, as it requires domain-level understanding of the protocol.
 
-The requirement set covers the four in-scope frame formats: Classic Basic (CB), Classic Extended (CE), FD Basic (FB), and FD Extended (FE). CAN XL is explicitly out of scope. Requirements are grouped into five layers, as shown in @tbl:req-layer-distribution.
+The scale of the condensation is conveyed by the numbers: 168 raw normative extractions were reduced to a final table of 45 requirements, a reduction to roughly 27% of the original count. On average, each final requirement entry absorbed and unified approximately three to four raw extractions, each of which had described the same underlying behavior from a different angle or in a different part of the document. This degree of redundancy in the source material is itself a telling commentary on the structure of the ISO standard.
+
+The LLM agent nonetheless earned its keep by bootstrapping the initial content of the verification plan data structure. Starting from a blank requirements table would have been a significantly more daunting undertaking. Having a populated, classified starting point - even one requiring substantial revision - dramatically reduced the upfront effort and gave the manual review process a concrete artifact to work from and react to. This reflects an underappreciated mode of LLM utility in engineering workflows: not autonomous completion of a task, but the generation of a rough first draft that makes the subsequent human effort more tractable.
+
+The requirements table was not frozen at a single point in time. It functioned as a living document throughout the project, evolving as implementation and verification work revealed aspects of the specification that had been misunderstood, overlooked, or insufficiently specified in the initial extraction. This iterative refinement is an inherent property of requirements engineering in complex protocol implementations, and should be expected rather than treated as a sign of process failure.
+
+## Requirements Structure {#sec:req-structure}
+
+Through manual review and additional LLM-assisted iterations, the requirements data structure was enriched with several dimensions beyond the raw normative text. The requirement set covers the four in-scope frame formats: Classic Basic (CB), Classic Extended (CE), FD Basic (FB), and FD Extended (FE). CAN XL is explicitly out of scope. @tbl:req-layer-distribution shows the distribution of the 45 final requirements across the five architectural layers.
 
 | Layer | Count | Description |
 | :--- | :---: | :--- |
@@ -177,22 +185,24 @@ The requirement set covers the four in-scope frame formats: Classic Basic (CB), 
 
 : Protocol requirement distribution by layer. {#tbl:req-layer-distribution}
 
-The `system` layer captures requirements whose behaviour is jointly owned by multiple sub-layers, or that inherently require two nodes on the shared bus - ACK overwrite, error flag coordination, bus re-integration, and the PCS-FCE bus-off handshake. These six requirements cannot be assigned to a single sub-layer testbench and are verified exclusively by the integration testbenches.
+The **layer** dimension indicates which architectural layer the requirement pertains to. A fifth label - "system" - was introduced alongside the four protocol layers to classify requirements that are inherently multi-layer or multi-node in character. Some CAN behaviors cannot be attributed to a single layer of a single node; they emerge from interactions between multiple nodes on the bus, or span the layer boundary within a single node. Attempting to force such requirements into a single-layer classification would have been misleading and would have obscured their true verification implications. The system label acknowledges this explicitly, flagging these requirements as ones that cannot be fully verified through isolated unit testing of individual modules, but instead require either an integrated multi-module testbench or a multi-node simulation environment.
 
-LLC requirements are retained in full despite LLC TX-only implementation at this stage, to document the original scope intent and provide a complete target for future work.
+Each requirement also carries a **side** dimension (transmitter, receiver, or both), indicating whether it pertains to the transmitter path, the receiver path, or both roles simultaneously.
 
-### Observability Classification {#sec:observability-classification}
+The **format applicability** dimension (CB, CE, FB, FE) records which of the four in-scope frame formats each requirement applies to. Not all requirements apply to all formats: some are specific to FD frames, others to extended-identifier frames. This dimension determines which testbench stimulus configurations are required to exercise a given requirement.
 
-Each requirement is classified by its observability relative to the layer under test, anchored in the service primitives defined by ISO 11898-1 [@iso11898_1]:
+Each requirement is classified by **observability** relative to the layer under test, anchored in the service primitives defined by ISO 11898-1 [@iso11898_1]:
 
 - **Black-box**: the postcondition maps directly onto a service-primitive parameter or its timing, and the testbench can derive the expected value from configuration generics and driven stimulus alone. For example, the bit-level encoding of the SOF field is directly observable at the MAC-PCS boundary as the first `Output_Unit` value.
 - **White-box**: the postcondition manifests at the layer boundary but requires a non-trivial reference computation. CRC correctness falls here: the CRC bits appear in the transmitted bit-stream, but a polynomial reference model is needed to verify their value.
 
 Of the 45 requirements, 16 are black-box and 29 are white-box.
 
-### Storage Format and Tooling {#sec:storage-format-tooling}
+The **verification method** dimension makes the path from requirement to verification artifact explicit and actionable from the outset, giving each requirement a clear route to closure before any testbench is written. Four methods are used: simulation (automated assertion or check procedure in a testbench), code inspection (RTL source review), waveform inspection (manual GTKWave review of simulation output), and coverage (OSVVM coverage bins sweeping a value range). Combinations are valid when multiple sub-claims within one requirement each call for a different method.
 
-The plan is stored as `verification_plan/verification_plan.toml`. Each entry is a self-contained `[[requirement]]` block with one key per line, making version-control diffs clean and merge conflicts rare. @tbl:vplan-metadata-fields lists the fields carried by each entry.
+A **priority** field (P1, P2, P3) records the criticality of each requirement, reflecting both its importance to correct protocol operation and the risk of it being implemented incorrectly. P1 requirements must be closed before the design can be considered verified; P3 requirements correspond to "should" recommendations where failure carries lower severity. This allows the verification effort to be sequenced so that the highest-risk behaviors are covered first.
+
+Each requirement entry carries two dedicated **traceability fields**: a `file` field identifying the testbench or RTL source file responsible for covering that requirement, and a `label` field identifying a specific named procedure, assertion, or coverage ID within that file. This establishes a direct, navigable link from each requirement to its verification artifact, following the requirements-driven verification methodology described in [@bergeron2003]. Where a requirement decomposes into multiple independently verifiable sub-claims, both fields accept comma-separated values pointing to distinct procedures - each sub-claim then has its own navigable evidence link. A **status** field (`not_started`, `in_progress`, `complete`, `waived`) records closure state explicitly, allowing partial progress to be tracked without relying on whether the traceability fields happen to be populated. Crucially, gaps in coverage remain immediately visible: requirements with unpopulated traceability fields and status `not_started` are structurally obvious in the data file without requiring a separate coverage matrix. @tbl:vplan-metadata-fields lists all fields carried by each entry.
 
 | Field | Purpose |
 | :--- | :--- |
@@ -200,16 +210,24 @@ The plan is stored as `verification_plan/verification_plan.toml`. Each entry is 
 | `source_clause` | ISO 11898-1:2015 section reference. |
 | `original_wording` | Verbatim normative text from the standard. |
 | `paraphrase` | Concise restatement for report tables and review. |
-| `layer` | Sub-layer: LLC, MAC, PCS, FCE, or system (see @sec:requirements-scope). |
+| `layer` | Sub-layer: LLC, MAC, PCS, FCE, or system (see @sec:req-structure). |
 | `side` | Obligation direction: transmitter, receiver, or both. |
 | `format_applicability` | Applicable frame formats: CB, CE, FB, FE. |
-| `observability` | `black_box` or `white_box` (see @sec:observability-classification). |
-| `verification_method` | Method(s) used to verify the requirement (see @sec:verification-methods). |
+| `observability` | `black_box` or `white_box` (see @sec:req-structure). |
+| `verification_method` | Method(s) used to verify the requirement. |
+| `priority` | P1 (critical), P2 (important), or P3 (low risk / recommendation). |
+| `status` | `not_started`, `in_progress`, `complete`, or `waived`. |
 | `notes` | Engineering notes and caveats. |
-| `label` | Assertion label, TB procedure name, coverage ID, or RTL tag. |
-| `file` | Target file - TB for simulation/coverage, RTL for code inspection. |
+| `label` | Assertion label, TB procedure name, coverage ID, or RTL tag. Comma-separated when multiple procedures cover distinct sub-claims. |
+| `file` | Target file - TB for simulation/coverage, RTL for code inspection. Comma-separated when sub-claims span multiple files. |
 
 : Verification-plan metadata fields. {#tbl:vplan-metadata-fields}
+
+LLC requirements are retained in full despite LLC TX-only implementation at this stage, to document the original scope intent and provide a complete target for future work.
+
+## Storage Format and Tooling {#sec:req-tooling}
+
+The plan is stored as `verification_plan/verification_plan.toml`. Each entry is a self-contained `[[requirement]]` block with one key per line, making version-control diffs clean and merge conflicts rare.
 
 A **Model Context Protocol (MCP) server** (`mcp_tools/verification_plan_manager.py`) provides query, update, insert, delete, and statistics operations as validated tool calls. Constraining writes to atomic, schema-validated operations avoids the data-corruption risks of asking an LLM to rewrite a large structured file directly.
 
@@ -233,57 +251,27 @@ The company imposes a set of non-negotiable constraints on all FPGA IP modules. 
 
 **VSG linting.** All RTL source files are checked with the VHDL Style Guide (VSG) linter using a shared project configuration (`vsg_config.yaml`), enforcing consistent formatting and naming conventions across the codebase.
 
----
+## Ramifications for Initial Design Strategy {#sec:req-design-ramifications}
 
-# Verification Planning {#sec:verification-planning}
+The structure of the requirements data structure had direct consequences for the initial design strategy, in ways that were not fully anticipated at the outset.
 
-The verification plan is the artefact connecting the protocol requirements of @sec:protocol-requirements to testbench evidence. This section describes the plan structure and intent: which methods are used, how testbenches are organised, and how coverage is driven. Execution results - waveform captures, pass/fail tallies, and requirements-closure evidence - appear in @sec:verification.
+The **layer dimension** mapped naturally onto the ISO standard's own layered reference model, making a layered module architecture look like the obvious and well-motivated implementation strategy. A dedicated hardware module for each layer - MAC, LLC, fault confinement, and PCS - would allow requirements pertaining to a given layer to be verified in isolation against that layer's module, rather than through the surface of a fully integrated system where internal behavior is obscured by surrounding logic. The observability dimension reinforced this directly: black-box requirements mapped cleanly onto port-level stimulus and observation, while white-box requirements pointed toward the need for reference models or PSL assertions on internal signals, both of which are most tractable in a per-module testbench. In retrospect, this was a sound conclusion. The modular architecture proved to be the right design choice, and the requirements table provided a well-motivated rationale for it from the start.
 
-## Verification Methods {#sec:verification-methods}
+The **TX/RX side dimension** had a subtler and more consequential effect. Organizing requirements along the transmitter/receiver axis made intuitive sense from a specification perspective - the ISO standard itself frames many requirements in terms of transmitter behavior and receiver behavior - and it was genuinely useful for thinking through which requirements belonged where. However, it also made a split-path implementation architecture look like the natural design strategy, simply because the requirements were literally organized along that split. The implication appeared to be: implement a TX module, implement an RX module, and map the TX requirements to the former and the RX requirements to the latter.
 
-Each requirement in the plan is assigned one or more verification methods. Four methods are used:
+This turned out to be a red herring. The pitfalls of the split-path approach were not at all apparent from the requirements table alone. The table made the split architecture look clean and well-motivated. The problems - design drift between separately implemented FSMs, integration complexity, and unnecessary hardware duplication - only surfaced later, during integration. This is an important general lesson: the structure of a requirements model can inadvertently bias architectural decisions in ways that are not immediately obvious, and the apparent naturalness of a design strategy that mirrors the requirements structure is not in itself a reliable signal that the strategy is sound.
 
-- **`simulation`** - an automated assertion or check procedure in a GHDL testbench; fires on every simulation run and produces a machine-readable pass/fail result. This is the primary method for functional requirements with a deterministic expected value.
-- **`waveform_inspection`** - a manual GTKWave review of the simulation output, cited with a `.gtkw` save file that configures the signal layout and zoom level. Used for requirements whose correct behaviour is most naturally read from a timing diagram - such as sample point placement or TDC offset measurement - rather than encoded as a single-cycle assertion.
-- **`code_inspection`** - review of the RTL source; label and file point to a specific process and approximate line number. Used for structural requirements verifiable by reading the implementation, such as CRC polynomial selection or FSM state encoding.
-- **`coverage`** - OSVVM coverage bins that sweep a value range, cited with a coverage ID or bin set in the testbench. Used for requirements that must hold across a parametric space (DLC values, frame format combinations, BRS and ESI flags).
+The architectural consequences of both observations, including the resolution of the split-path problem, are developed in @sec:architectural-design-decisions.
 
-Combinations are allowed when multiple sub-claims within one requirement each call for a different method. @tbl:verification-method-distribution shows the distribution across the 45 requirements.
+## Limitations {#sec:req-limitations}
 
-| Method | Count |
-| :--- | :---: |
-| `simulation` | 15 |
-| `code_inspection, waveform_inspection` | 12 |
-| `code_inspection` | 9 |
-| `simulation, coverage` | 5 |
-| `waveform_inspection` | 3 |
-| `simulation, waveform_inspection` | 1 |
-| **Total** | **45** |
+An honest account of the requirements engineering process should acknowledge what the requirements table could not fully capture.
 
-: Verification method distribution. {#tbl:verification-method-distribution}
+The flat tabular format struggles to express temporal and ordering relationships between requirements. Many CAN behaviors are inherently sequential - a transmitter error flag must be followed by an error delimiter, which must be followed by a specific interframe spacing - and while individual steps in such sequences can be captured as separate requirements, the ordering constraints between them are difficult to express compactly in a table row. These relationships were partially addressed through natural language in the requirement entries, but a more expressive formalism - such as temporal logic or a state-transition specification - would have been better suited to capturing them precisely.
 
-## Testbench Architecture {#sec:testbench-architecture}
+Requirements describing bus-level interactions between multiple nodes present a fundamental verification scope challenge. Such requirements, classified under the system layer, cannot be fully verified through single-node unit testing. They require either a multi-node simulation environment or a formal argument about emergent bus behavior from the individual node specifications. This represents a genuine limitation of what the unit testing strategy can achieve, and is worth stating explicitly rather than implicitly.
 
-The plan drives a two-tier testbench structure. Black-box requirements are verified by port-level stimulus and observation alone; white-box requirements additionally use a software reference model.
-
-**Sub-module testbenches** target individual components in isolation:
-
-- `can_mac_ser_tx_tb` - MAC TX serialiser: LLC byte stream to serial bit-stream.
-- `can_mac_bs_tb` - Bit stuffer, including fixed stuff bits and SBC generation, with PSL assertions for formal verification.
-- `can_mac_crc_tb` - CRC engine verified against a software reference model (CRC-15, CRC-17, CRC-21).
-- `can_fce_tb` - Fault Confinement Entity: TEC/REC counters, state transitions, bus-off recovery.
-- `can_pcs_tx_tb` - PCS TX bit timing, sample point position, and TDC.
-
-**Integration testbenches** verify frame exchange across multiple sub-layers:
-
-- `can_mac_pcs_fce_tb` - Covers nominal TX/RX, lost arbitration, bit-timing delay sweep, and bus-off recovery across the MAC+PCS+FCE stack.
-- `can_tx_tb` - Full TX stack (LLC+MAC+PCS), 35 tests covering all four frame formats and error injection scenarios.
-
-RX pipeline testbenches are in progress; happy-path cases pass and error injection coverage is pending.
-
-## Coverage Strategy {#sec:coverage-strategy}
-
-Coverage-driven stimulus is used for requirements that must hold across a parametric space. OSVVM coverage bins span the four frame format dimensions - IDE (base vs. extended identifier), FDF (classic vs. FD), BRS (bit rate switch), and ESI (error state indicator) - producing 16 format combinations. DLC bins cover all legal values (0-8 for classic frames, 0-15 for FD frames). The test sequencer loops via OSVVM's `IsCovered` until all bins are hit, ensuring that no format or length combination is systematically excluded from a simulation run.
+The ISO standard occasionally employs language that resists unambiguous reduction to a single testable requirement statement. Some normative sentences contain implicit assumptions about system context that are not fully specified, or use terms defined elsewhere in the standard in ways that are themselves open to interpretation. In such cases, the requirements table entry necessarily embeds a design decision about how the ambiguity was resolved - a decision that ideally should be documented and justified rather than silently made.
 
 # Design and Architecture {#sec:design-architecture}
 

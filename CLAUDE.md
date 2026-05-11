@@ -171,9 +171,11 @@ Each entry has exactly these fields:
 | `format_applicability` | `CB`, `CE`, `FB`, `FE` (comma-separated subset) |
 | `observability` | `black_box`, `white_box` |
 | `verification_method` | `simulation`, `code_inspection`, `coverage`, or comma-separated combination |
+| `priority` | `P1` (critical), `P2` (important), `P3` (low risk / recommendation) |
+| `status` | `not_started`, `in_progress`, `complete`, `waived` |
 | `notes` | How it is verified; relevant caveats |
-| `label` | PSL assertion label, TB procedure name, coverage ID, or RTL tag (blank until linked) |
-| `file` | Target VHDL source file - TB for simulation/coverage, RTL for code_inspection (blank until linked) |
+| `label` | PSL assertion label, TB procedure name, coverage ID, or RTL tag (blank until linked). Comma-separated for multiple sub-claims. |
+| `file` | Target VHDL source file - TB for simulation/coverage, RTL for code_inspection (blank until linked). Comma-separated for multiple sub-claims. |
 
 **Observability** is relative to the sub-module boundary named in `layer`:
 - `black_box`: verified purely at the sub-module's ports from stimulus and config alone - no reference model needed.
