@@ -159,35 +159,32 @@ The role of modern VHDL standards and verification frameworks in digital design.
 
 # Requirements Engineering & Verification Planning {#sec:requirements-engineering}
 
+**NOTE:** This initial paragrapg is to generic and void of actual content. It sounds very much like AI generated slob. It really needs improvemnt.
+
+This section documents the requirements engineering process and the verification plan that guided the project. It begins with the constraints that bounded the design space before any implementation decisions were made (@sec:engineering-constraints), then describes how a structured requirements set was extracted from the ISO 11898-1 standard (@sec:req-extraction), and how that set was evolved into a multi-dimensional verification plan data structure (@sec:verification-plan-data-structure). The storage format and tooling used to maintain the plan throughout the project are described in @sec:req-tooling. The section closes with a discussion of how the requirements structure influenced the initial architectural strategy (@sec:req-design-ramifications), an honest account of the methodology's limitations (@sec:req-limitations), and a retrospective on the role of AI assistance across the entire requirements engineering and planning workflow (@sec:ai-extraction).
+
 ## VHDL Code Standard and Design Constraints {#sec:engineering-constraints}
 
-The constraints on this project come from two distinct sources. Two requirements are specific to this project's place within the company's existing CAN infrastructure and are not derived from the general code standard. The remaining constraints come from the company's VHDL Code Standard (v1.2), which applies uniformly to all FPGA IP modules developed in-house.
+The constraints on this project come from two distinct sources. Two requirements are specific to this project's place within the company's existing CAN infrastructure while the remaining constraints come from the company's VHDL Code Standard and apply uniformly to all FPGA IP modules developed in-house.
 
-*Project-specific infrastructure requirements.* Two constraints reflect the project's integration context rather than general coding policy.
+**Note:** Add a ref for the Avalona-ST interface (<https://www.intel.com/programmable/technical-pdfs/683091.pdf>)
 
-**Avalon-ST user interface.** The CAN controller's external interface to the host system must use the Avalon-ST streaming protocol (data, valid, ready, sop, eop). This ensures the module integrates natively into the company's existing FPGA infrastructure. The requirement applies specifically to the boundary between the CAN controller and its user - the same interface convention used by the existing in-house CAN Classic implementation - and does not constrain the internal interfaces between sub-modules within the CAN implementation itself.
+### Project-specific Infrastructure Requirements
 
-**IP library CRC block.** The company maintains a reusable, parameterised CRC generator (`gen_crc`) in its IP library, and the code standard mandates using company IP library modules in preference to inline implementations. All CRC computation must therefore instantiate `gen_crc` with the appropriate polynomial, initial value, and data width for each CRC variant.
+1. **Avalon-ST user interface:** The CAN controller's external interface to the host system must use the Avalon-ST streaming protocol (data, valid, ready, sop, eop).The requirement applies specifically to the boundary between the CAN controller and its user.
+2. **IP library CRC block:** The company maintains a reusable, parameterised CRC generator (`gen_crc`) in its IP library. This module must be used for all CRC computations.
 
-*File structure and naming.* The code standard defines a consistent organisation and identification scheme across all modules.
+### File Structure and Naming
 
-**Per-module file structure.** Each module must be organized into a fixed directory layout: `hdl_src/` for RTL source files, `hdl_tb/` for testbench files, and `test_case/` for waveform configuration. One entity per VHDL file, with the filename matching the entity name. Every entity requires a dedicated testbench, unless it is instantiated exclusively as a sub-module of a fully tested parent.
+1. **Per-module file structure:** Each module must be organized into a fixed directory layout: `hdl_src/` for RTL source files, `hdl_tb/` for test bench files, and `test_case/` for waveform configuration. One entity per VHDL file, with the filename matching the entity name. Every entity requires a dedicated test bench, unless it is instantiated exclusively as a sub-module of a fully tested parent.
+2. **Entity port types:** Entity ports are restricted to `std_logic`, `std_logic_vector`, and records or arrays of these types. Modes are restricted to `in` and `out`.
+3. **Naming conventions:** A mandatory prefix/suffix scheme applies to all VHDL identifiers: types (`t_`), constants (`c_`), generics (`gc_`), processes (`p_`), functions (`f_`), packages (`pk_`), state variables (`s_`), entity inputs (`_i`), and entity outputs (`_o`).
 
-**Entity port types.** Entity ports are restricted to `std_logic`, `std_logic_vector`, and records or arrays of these types. Modes are restricted to `in` and `out`. This precludes exposing custom enumeration types, booleans, or integers on module boundaries, enforcing a type-safe, tool-independent interface representation. Internally, any VHDL-2008 type may be used; the restriction applies only at entity ports.
+### RTL Coding Style and Verification
 
-**Naming conventions.** A mandatory prefix/suffix scheme applies to all VHDL identifiers: types (`t_`), constants (`c_`), generics (`gc_`), processes (`p_`), functions (`f_`), packages (`pk_`), state variables (`s_`), entity inputs (`_i`), and entity outputs (`_o`).
-
-*RTL coding style.* The code standard specifies the register-transfer implementation style expected across all modules.
-
-**RTL design rules.** Synchronous processes must be sensitive to the clock only, use a synchronous reset, and initialize all control registers in reset. FSMs are preferably implemented as single-process designs where all signal assignments are derived from the current state, with an explicit other-state that returns to a known safe state. Latches, combinational feedback loops, data/clock coupling, and dead code are prohibited. Data gating must be used in place of clock gating.
-
-**Records for interface grouping.** The standard explicitly recommends using records to collect groups of related signals. This directly motivated the record-based interface design used throughout this implementation, where each inter-module interface is defined as a named record type rather than a flat list of individual signals.
-
-*Verification and sign-off.* The code standard imposes requirements on the verification side as well as the design side.
-
-**Testbench requirements.** Testbenches must follow a black-box testing model - changing inputs and observing outputs without accessing internal states. OSVVM packages [@osvvm] (RandomBasePkg, CoveragePkg, AlertLogPkg) must be included. Architecture names must be `tb`. Test cases must be ordered: reset tests first, then a normal-usage test that demonstrates intended use, then all remaining tests.
-
-**Sigasi linting.** All RTL source files must pass Sigasi linting against the company's shared configuration. Every rule violation that cannot be resolved must be annotated with the author's initials, date, and reason.
+1. **RTL design rules:** Synchronous processes must be sensitive to the clock only. Reset must be synchronous and initialize all control registers. FSMs are preferably implemented as single-process designs where all signal assignments are derived from the current state, with an explicit other-state that returns to a known safe state.
+2. **Records for interface grouping:** It is recommended to use records to collect groups of related signals.
+3. **Test bench requirements:** Test benches must follow a black-box testing model and test cases must be ordered as: reset tests first, then a normal-usage test, then all remaining tests.
 
 ## From Standard to Structured Requirements {#sec:req-extraction}
 
