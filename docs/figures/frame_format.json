@@ -1,0 +1,21 @@
+{signal: [
+  ['CBFF',
+  { "name": "Bit name",        "wave": "x==.|====.|=.|=.|====.|x", "data": ["SOF", "IDB", "RTR", "IDE", "r0", "DLC","DATA", "CRC", "CD", "ACK", "AD", "EOF"]},
+  { "name": "BUS polarity",	   "wave": "10x...0.x........1x1...." },
+  ],
+  {},
+  ['CEFF',
+  { "name": "Bit name",        "wave": "x==.|===.|====.|=.|=.|=.|====.|x", "data": ["SOF", "IDB", "SRR", "IDE", "Ext","RTR", "r1", "r0", "DLC","DATA", "SBC", "CRC", "CD", "ACK", "AD", "EOF"] },
+  { "name": "BUS polarity",    "wave": "10x..1.x...0.x...........1x1...." },
+  ],
+  {},
+  ['FBFF',
+  { "name": "Bit name",        "wave": "x==.|=======.|=.|=.|=.|====.|x", "data": ["SOF", "IDB", "RRS", "IDE", "FDF", "res", "BRS", "ESI", "DLC","DATA", "SBC", "CRC", "CD", "ACK", "AD", "EOF"]},
+  { "name": "BUS polarity",    "wave": "10x..0.10x.............1x1...." },
+  ],
+  {},
+  ['FEFF',
+  { "name": "Bit name",        "wave": "x==.|===.|======.|=.|=.|=.|====.|x", "data": ["SOF", "IDB", "SRR", "IDE", "Ext","RRS", "FDF", "res", "BRS", "ESI", "DLC","DATA", "SBC", "CRC", "CD", "ACK", "AD", "EOF"] },
+  { "name": "BUS polarity",    "wave": "10x..1.x..010x.............1x1...." },
+  ]
+]}

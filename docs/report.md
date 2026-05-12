@@ -161,7 +161,7 @@ The verification framework is OSVVM (Open Source VHDL Verification Methodology) 
 
 # Requirements {#sec:requirements-engineering}
 
-Bridging the gap between a normative specification document and a traceable verification plan is a pivotal task in any protocol implementation project. The present section describes the process of distilling a coherent set of verifiable requirements and associated verification plan from the ISO 11898-1 standard. In addition, the constraints imposed by general company practices and standards are described along with project-specific requirements related to the larger system in which the module is intended to integrate.
+Bridging the gap between a normative specification document and a structured, verifiable requirements set is a pivotal task in any protocol implementation project. The present section describes the process of distilling a coherent set of verifiable requirements from the ISO 11898-1 standard. In addition, the constraints imposed by general company practices and standards are described along with project-specific requirements related to the larger system in which the module is intended to integrate.
 
 ## VHDL Code Standard and Design Constraints {#sec:engineering-constraints}
 
@@ -196,11 +196,17 @@ The requirements set was constructed using the AI-assisted pipeline shown in @fi
 
 ![Pipeline generating the `verification_plan.toml` artifact. 1) LLM agent extraction of normative statements from the ISO 11898-1 standard. 2) Manual grouping of related normative statements and requirement distillation. 3) Argumentation with additional requirement labels and verification specific fields.](figures/ver_plan_pipeline.png){#fig:ver_plan_pipeline width=100%}
 
-This process yielded a raw set of 168 normative statements linked to the ISO standard sections from which they were extracted. The normative set was then manually reviewed, consolidated, and distilled into a final set of 45 requirements (reproduced in @sec:appendix-vplan). With the scope of the verification effort established, the following section presents the protocol in the detail needed to make those requirements - and the design decisions they drive - fully intelligible.
+This process yielded a raw set of 168 normative statements linked to the ISO standard sections from which they were extracted. The normative set was then manually reviewed, consolidated, and distilled into a final set of 45 requirements (reproduced in @sec:appendix-vplan).
+
+## AI-Assisted Extraction: Utility and Limitations {#sec:ai-extraction}
+
+The LLM agent earned its keep by bootstrapping and linking the initial normative statement set. Having a fully populated and linked starting point - even one requiring substantial revision - gave the manual review process a concrete artifact to work from. That said, the overall time saving was likely marginal. The agent's output had to be reviewed statement by statement, which is functionally similar to extracting requirements manually in the first place. The primary benefit of the AI-assisted approach was therefore not efficiency, but rather the increased consistency associated with an automated extraction process.
+
+The 45-requirement set establishes the scope of the verification effort. Before the classification dimensions that structure the verification plan can be introduced, the following section presents the protocol in the detail those dimensions presuppose: the sub-layer model that the layer dimension maps onto, the four frame formats the format dimension enumerates, the bit timing and dual-rate concepts that underlie several P1 requirements, and the error-handling model that drives the FCE module separation.
 
 # CAN and CAN-FD Protocol Overview {#sec:can-protocol-overview}
 
-This section covers the ISO 11898-1 layered reference model, frame types and fields, bit timing and the dual-rate mechanism that distinguishes CAN FD from Classic CAN, bit stuffing, CRC, and error handling. A reader already familiar with ISO 11898-1 may skip to @sec:vplan-dimensions.
+This section covers the ISO 11898-1 layered reference model, frame types and fields, bit timing and the dual-rate mechanism that distinguishes CAN FD from Classic CAN, bit stuffing, CRC, and error handling. A reader already familiar with ISO 11898-1 may skip to @sec:verification-plan.
 
 ## Layered Reference Model {#sec:can-layered-model}
 
@@ -246,7 +252,7 @@ CAN defines two classes of frames: Classic CAN (CC) and CAN FD (FD). Within each
 
 A Classic CAN frame consists of: Start of Frame (SOF), Arbitration field (identifier, RTR, IDE), Control field (DLC), Data field, CRC field, ACK slot and delimiter, End of Frame, and Intermission. A CAN FD frame shares the same structure through the arbitration phase, then introduces the FDF bit (marking the frame as FD), followed by BRS (Bit Rate Switch) and ESI (Error State Indicator) control bits that govern the transition into the higher-speed data phase.
 
-![Classic CAN base frame (CB) and CAN FD base frame (FB) bit-field layouts. The FD frame extends the control field with FDF, res, BRS, and ESI between the IDE bit and the DLC; the data and CRC fields are transmitted at the data-phase bit rate when BRS is recessive.](figures/can_frame_structure.png){#fig:can-frame-structure}
+![Classic CAN base frame (CB) and CAN FD base frame (FB) bit-field layouts. The FD frame extends the control field with FDF, res, BRS, and ESI between the IDE bit and the DLC; the data and CRC fields are transmitted at the data-phase bit rate when BRS is recessive.](figures/frame_format.png){#fig:can-frame-structure width=100%}
 
 ## Bit Timing and Flexible Data Rate {#sec:bit-timing}
 
@@ -289,17 +295,19 @@ Every CAN node monitors the bus for five categories of error. Bit errors occur w
 
 The FCE tracks each node's error history through TEC and REC. Counter increments and decrements follow the rules in ISO 11898-1 Section 12. A node begins in Error Active and transitions to Error Passive when either counter exceeds 127, then to Bus Off when TEC exceeds 255. In Bus Off the node ceases all bus activity until 128 sequences of 11 consecutive recessive bits are observed, after which it returns to Error Active. This escalation mechanism is the subject of several verification plan requirements and directly motivates the separation of the FCE into a dedicated module with its own testbench.
 
-# Verification Plan {#sec:vplan-dimensions}
+With those mechanisms established - sub-layer boundaries, frame formats, bit timing and the dual data rate, stuffing rules, CRC polynomials, and the fault confinement escalation model - the following section introduces the five classification dimensions of the verification plan and shows how each one connects back to the protocol concepts described here.
 
-In addition to the ISO standard section links provided by the initial LLM agent extraction, each requirement was classified along the following set of dimensions:
+# Verification Plan {#sec:verification-plan}
+
+The 45 requirements from @sec:requirements-engineering were each classified along five dimensions. Each dimension draws directly on the protocol concepts presented in @sec:can-protocol-overview: the layer dimension maps onto the sub-layer model (@sec:can-layered-model); the format dimension maps onto the four frame types of @tbl:frame-formats; the observability dimension reflects the distinction between externally visible behavior and internal protocol state that the error-model and CRC sections illustrate concretely. Together the dimensions make the required testbench configuration and evidence type explicit for each requirement, without leaving either to be inferred from the requirement text alone. The dimensions are:
 
 - layer, @sec:vplan-layer
 - side, @sec:vplan-side
 - format, @sec:vplan-format
-- priority, @sec:vplan-priority
 - observability, @sec:vplan-observability
+- priority, @sec:vplan-priority
 
-These dimensions, described in the following subsections, should serve to focus the design phase by carving out the natural sub-module boundaries and guide the verification effort by highlighting the relevant layer of abstraction associated with a given requirement.
+The following subsections describe the rationale and allowed values for each dimension, followed by the full verification plan data structure and its traceability fields.
 
 
 ## Layer {#sec:vplan-layer}
@@ -316,7 +324,7 @@ The side field records whether a requirement pertains to the transmitter path, t
 
 The format_applicability field records which of the four in-scope frame formats (CB, CE, FB, FE - see @tbl:frame-formats) each requirement applies to. Because the formats differ in stuffing mode, CRC polynomial, and control field structure (@sec:can-protocol-overview), a requirement that applies only to FD frames implies stimulus configurations with FDF=1 and DLC values spanning both the CRC-17 and CRC-21 threshold, while a requirement that applies to all four formats must be exercised across all format-specific configurations. The field makes those implications explicit rather than leaving them to be inferred from the requirement text.
 
-### Observability {#sec:vplan-observability}
+## Observability {#sec:vplan-observability}
 
 The observability field resolves each requirement as either black-box or white-box, relative to the module boundary of the owning layer:
 
@@ -325,7 +333,7 @@ The observability field resolves each requirement as either black-box or white-b
 
 This distinction has direct consequences for testbench architecture. Black-box requirements are verifiable with stimulus-and-observe testbenches that drive inputs and check outputs without any knowledge of internal implementation. White-box requirements - which include CRC polynomial correctness, bit counter arithmetic, error counter thresholds, and Gray-coded SBC encoding - require either PSL assertions on internal signals or a parallel reference model that re-computes the expected value independently. In the verification plan, white-box requirements are the primary driver for embedding PSL assertions directly in the RTL source files, where they have access to internal signals regardless of module hierarchy.
 
-### Priority {#sec:vplan-priority}
+## Priority {#sec:vplan-priority}
 
 The priority field classifies each requirement into one of three levels:
 
@@ -372,11 +380,7 @@ Each requirement entry carries two dedicated traceability fields: a `file` field
 
 The status field (`not_started`, `in_progress`, `complete`) records requirement closure state explicitly, allowing partial progress to be tracked.
 
-## AI-Assisted Extraction: Utility and Limitations {#sec:ai-extraction}
-
-The LLM agent definitely earned its keep by bootstrapping and linking the initial normative statement set. Having a fully populated and linked starting point - even one requiring substantial revision - gave the manual review process a concrete artifact to work from. That said, the overall time saving was likely marginal. The agent's output had to be reviewed statement by statement, which is functionally similar to extracting requirements manually in the first place. The primary benefit of the AI-assisted approach was therefore not efficiency, but rather the increased consistency associated with an automated extraction process.
-
-The resulting 45-requirement plan, structured by layer, side, format, observability, and priority, provided the architectural inputs for the design phase. How those inputs were used - and where the apparent mapping from requirements structure to design structure broke down - is the subject of the next section.
+The verification plan - 45 requirements each classified by layer, side, format, observability, and priority, and each linked to a testbench file and assertion label - constituted the principal set of architectural inputs for the design phase. How those inputs shaped the module decomposition, and where the apparent mapping from requirements structure to design structure broke down, is the subject of the next section.
 
 # Design and Architecture {#sec:design-architecture}
 
