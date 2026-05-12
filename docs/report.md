@@ -309,13 +309,17 @@ CTU CAN FD [@ctucanfd] takes a middle path: it separates protocol processing (in
 
 ### Combined vs. Separated TX/RX FSMs {#sec:combined-vs-separated-fsm}
 
-The existing controller uses a single FSM for both transmission and reception, switching between roles via an `is_transmitter` flag. Every state contains parallel `if transmit_i` and `elsif sample_rx_i` branches, one for the transmitter path and one for the receiver path. This approach has two advantages: it avoids duplicating shared state (bit counters, format detection) and it naturally handles the transmitter-to-receiver role switch that occurs when a node loses arbitration.
+The initial design for the new MAC used **separate TX and RX FSMs**: `can_mac_fsm_tx` (~700 lines, 21 states) wrapped inside `can_mac_tx`, and `can_mac_fsm_rx` (~640 lines, 19 states) wrapped inside `can_mac_rx`. Each wrapper instantiated its own `can_mac_bs` and `can_mac_crc`. The two FSMs shared no state. The only coupling was a `transmitting_i` flag passed from TX to RX, and a dominant-wins OR-merge of their respective PCS outputs at the `can_mac` wrapper level.
 
-The disadvantage is that TX and RX logic evolve together. Adding a TX-only feature (such as the data-phase bit rate switch) requires modifying states that also contain RX logic, and vice versa. In CAN FD, the TX and RX paths diverge more than in CAN Classic: the transmitter drives BRS and ESI based on local state, while the receiver samples and validates them. The transmitter feeds the CRC engine with transmitted bits, while the receiver feeds it with received bits (including dynamic stuff bits in the arbitration region, per ISO 6.6.13.3). Encoding both paths in every state produces deeply nested conditionals that are difficult to review and difficult to cover in verification.
+The argument for the split was grounded in the verification plan structure. The AI-assisted extraction described in @sec:ai-extraction had classified each requirement by side (TX, RX, both), layer, and frame format. Mapping that classification onto separate entities looked elegant: TX-side requirements would be verified by exercising `can_mac_tx` in isolation, RX-side requirements by exercising `can_mac_rx` in isolation, with no cross-path stimulus needed. The separation also appeared to offer independence - a bug in one path could not corrupt the other's state.
 
-The chosen design uses separate TX and RX FSMs (`can_mac_fsm_tx` with 19 states, `can_mac_fsm_rx` with 17 states), each with its own bit stuffer and CRC interface. The two FSMs share no state. Arbitration loss in the TX FSM triggers a `transfer_status` change, but the actual reception of the frame is handled by the RX FSM operating independently on the same bus. This separation means that the TX FSM can be verified exhaustively against TX-side requirements without any RX stimulus beyond bus-level loopback, and conversely for the RX FSM.
+In practice the split created more problems than it solved. Frame structure - the field ordering, the bit stuffing rules, and the CRC polynomials - is identical regardless of which node is driving. Encoding it twice meant that a fix to FD CRC delimiter handling in the TX FSM had to be replicated in the RX FSM with no compiler enforcement that the copies remained in sync. The doubled submodule footprint similarly doubled investigation surface: every "is the bit stuffer handling fixed stuffing correctly?" question had to be answered for two independent instances.
 
-The cost of separation is that sub-components used by both paths - the bit stuffer (`can_mac_bs`) and CRC engine (`can_mac_crc`) - must be either shared with multiplexing logic or duplicated. The chosen design duplicates both: `can_mac_tx` instantiates its own `can_mac_bs` and `can_mac_crc`, and `can_mac_rx` does the same. This trades a modest increase in area for complete independence between the two paths - each FSM drives its bit stuffer and CRC engine through its own interface signals without any arbitration or routing logic. The duplication is justified because the bit stuffer and CRC engine are small combinational-plus-register modules (under 120 and 80 lines respectively), while a shared-resource approach would require multiplexing logic in the `can_mac` wrapper and careful coordination to prevent one path's state from corrupting the other's. The `can_mac` wrapper (@sec:can-mac-wrapper) therefore contains no datapath logic at all - it is purely structural, instantiating `can_mac_tx`, `can_mac_rx`, and `can_fce`, and merging only the FCE error signals.
+The most concrete cost was a debugging episode in `can_mac_pcs_fce_tb`, where a node that had successfully transmitted a frame was reporting `c_disturbed` instead of `c_transmitted`. Tracing the bug required correlating TX FSM state, TX bit count, RX FSM state, RX bit count, BS state on both sides, CRC state on both sides, and the merged PCS output - all in the same waveform pane, across two parallel state vectors that re-derived the frame position independently. The session made clear that single-bit-time bugs need a single-bit-time view, and that two parallel FSMs fundamentally opposed that.
+
+The deeper lesson concerns the relationship between verification plan structure and RTL structure. Verification plan dimensions - TX/RX side, layer, frame format - are inputs to **testbench architecture**, not to RTL architecture. They describe what must be tested and what stimulus configuration is needed to test it. RTL architecture should follow the structure of the protocol itself. The natural code unit of the MAC is the frame, not the side, because a frame has the same shape whether the local node is driving it or sampling it. Cutting the natural code unit at an artificial seam, then re-joining the halves with shared submodules and a dominant-wins merge, added coupling without removing complexity.
+
+The **final design** uses a single unified `can_mac_fsm` entity: one synchronous process, one `t_fsm_state` enum (24 states), one shared `can_mac_bs`, one shared `can_mac_crc`, and one `is_transmitter` mode flag latched at Start-of-Frame. TX-only requirements are verified with `is_transmitter = true` stimulus, RX-only with `is_transmitter = false` - the verification plan dimensions map cleanly onto testbench configurations rather than onto separate RTL entities.
 
 ### Per-Field vs. Per-Phase FSM Granularity {#sec:per-field-vs-per-phase}
 
@@ -343,7 +347,7 @@ The chosen solution exposes two data inputs on the CRC interface: `data_cc` (Cla
 
 ## System Overview {#sec:system-overview}
 
-A complete CAN node decomposes into a TX path and an RX path, coordinated by a shared Fault Confinement Entity (FCE) and Physical Medium Attachment (PMA) control, as shown in @fig:can-node-architecture. Each path spans three sub-layers - LLC (@sec:llc-sub-layer), MAC (@sec:mac-sub-layer), and PCS (@sec:pcs-sub-layer) - with the LLC frame format defined in @sec:llc-frame-format and interface bundles defined in @sec:interface-definition-tables. A centralized types package (@sec:protocol-driven-type-system) defines all protocol constants and interface records. Within the MAC sub-layer, a unified `can_mac` wrapper (@sec:can-mac-wrapper) instantiates `can_mac_tx`, `can_mac_rx`, and `can_fce`, merging their error signals internally so that the wrapper exposes only LLC and PCS interfaces for each path plus the FCE's LLC and PCS interfaces.
+A complete CAN node decomposes into a TX path and an RX path, coordinated by a shared Fault Confinement Entity (FCE) and Physical Medium Attachment (PMA) control, as shown in @fig:can-node-architecture. Each path spans three sub-layers - LLC (@sec:llc-sub-layer), MAC (@sec:mac-sub-layer), and PCS (@sec:pcs-sub-layer) - with the LLC frame format defined in @sec:llc-frame-format and interface bundles defined in @sec:interface-definition-tables. A centralized types package (@sec:protocol-driven-type-system) defines all protocol constants and interface records. Within the MAC sub-layer, a unified `can_mac` wrapper (@sec:can-mac-wrapper) instantiates `can_mac_fsm` and `can_fce`, so that the wrapper exposes only LLC and PCS interfaces plus the FCE's LLC and PCS interfaces.
 
 ```{.mermaid #fig:can-node-architecture caption="CAN node decomposition across LLC, MAC, PCS, FCE, and PMA boundaries. Interface definitions are provided for llc_tx_if (@tbl:llc-tx-if), llc_rx_if (@tbl:llc-rx-if), llc_mac_tx_if (@tbl:llc-mac-tx-if), llc_mac_rx_if (@tbl:llc-mac-rx-if), mac_pcs_if (@tbl:mac-pcs-if), aui_if (@tbl:aui-if), fce_llc_if (@tbl:fce-llc-if), fce_mac_if (@tbl:fce-mac-if), and fce_pcs_if (@tbl:fce-pcs-if)."}
 ---
@@ -367,7 +371,7 @@ flowchart TD
     subgraph Node ["**CAN Node**<br/>─────────<br/>DLL + PCS, §6.1-6.3"]
         subgraph TX_Pipeline ["**TX Pipeline**"]
             LLC_TX["**can_llc_tx**<br/>─────────<br/>Frame buffering & retransmission<br/>(LLC Sub-layer, §6.4-6.5)"]
-            MAC_TX["**can_mac_tx**<br/>─────────<br/>Serialization, CRC & bit stuffing<br/>(MAC Sub-layer, §6.6)"]
+            MAC_TX["**can_mac (TX mode)**<br/>─────────<br/>Serialization, CRC & bit stuffing<br/>(MAC Sub-layer, §6.6)"]
             PCS_TX["**can_pcs_tx**<br/>─────────<br/>Bit timing & TDC<br/>(PCS Sub-layer, §7.2-7.4)"]
 
             LLC_TX <==>|llc_mac_tx_if| MAC_TX <==>|mac_pcs_if| PCS_TX
@@ -375,7 +379,7 @@ flowchart TD
 
         subgraph RX_Pipeline ["**RX Pipeline**"]
             LLC_RX["**can_llc_rx**<br/>─────────<br/>Frame delivery & filtering<br/>(LLC Sub-layer, §6.4-6.5)"]
-            MAC_RX["**can_mac_rx**<br/>─────────<br/>Deserialization, CRC & destuffing<br/>(MAC Sub-layer, §6.6)"]
+            MAC_RX["**can_mac (RX mode)**<br/>─────────<br/>Deserialization, CRC & destuffing<br/>(MAC Sub-layer, §6.6)"]
             PCS_RX["**can_pcs_rx**<br/>─────────<br/>Bit timing & synchronization<br/>(PCS Sub-layer, §7.2-7.4)"]
 
             LLC_RX <==>|llc_mac_rx_if| MAC_RX <==>|mac_pcs_if| PCS_RX
@@ -481,18 +485,13 @@ The MAC sub-layer is the core of the protocol logic, responsible for bit seriali
 
 The earlier CAN bus controller concentrated TX, RX, MAC, and FCE logic in a single monolithic FSM (`can_fsm`), with the sub-functions - serialization (`can_ast_to_serial`), bit stuffing (`can_stuff_bit_gen`), and CRC (`gen_crc`) - implemented in satellite modules driven directly by it. PCS timing logic was implemented in `can_node_clock`, which fed sample-point and transmit pulses into `can_fsm` - a strategy retained in the current design.
 
-The current design restructures these modules around the ISO 11898-1 [@iso11898_1] layer boundaries. On the TX side the mapping is direct: `can_ast_to_serial` becomes `can_mac_ser_tx` (@sec:can-mac-ser-tx), `can_stuff_bit_gen` becomes `can_mac_bs` (@sec:can-mac-bs), `gen_crc` becomes `can_mac_crc` (@sec:can-mac-crc), and `can_node_clock` becomes `can_pcs_tx` (@sec:can-pcs-tx). The bit stuffer and CRC engine are reused across both paths - each of `can_mac_tx` and `can_mac_rx` instantiates its own copy of the same `can_mac_bs` and `can_mac_crc` entities, with the RX path reusing the bit stuffer for destuffing and the CRC engine for CRC checking. The RX FSM (`can_mac_fsm_rx`) stores received bits directly in an internal frame array and streams the completed frame to the LLC during the quiet phase, eliminating the need for a separate deserializer module. Fault confinement, previously embedded in `can_fsm`, is separated into its own entity (`can_fce`) and wired through the unified `can_mac` wrapper (@sec:can-mac-wrapper).
+The current design restructures these modules around the ISO 11898-1 [@iso11898_1] layer boundaries: `can_ast_to_serial` becomes `can_mac_ser_tx` (@sec:can-mac-ser-tx), `can_stuff_bit_gen` becomes `can_mac_bs` (@sec:can-mac-bs), `gen_crc` becomes `can_mac_crc` (@sec:can-mac-crc), and `can_node_clock` becomes `can_pcs` (@sec:can-pcs-tx). A single unified `can_mac_fsm` entity handles both TX and RX roles, sharing one `can_mac_bs` and one `can_mac_crc` instance across both paths. The FSM stores received bits directly in an internal frame array and streams the completed frame to the LLC during intermission, eliminating the need for a separate deserializer module. Fault confinement, previously embedded in `can_fsm`, is separated into its own entity (`can_fce`) and wired through the `can_mac` wrapper (@sec:can-mac-wrapper).
 
-### `can_mac_tx` {#sec:can-mac-tx}
+### `can_mac_fsm` {#sec:can-mac-fsm}
 
-The `can_mac_tx` (@fig:mac-tx-architecture) is composed of four main components:
+The `can_mac` sub-layer is built around a single unified FSM entity (`can_mac_fsm`, ~1100 lines) that handles both frame transmission and frame reception. The architecture is shown in @fig:mac-fsm-architecture.
 
-1. **can_mac_ser_tx**: Converts LLC bytes into a serial bit stream, extracts LLC metadata from config bytes
-2. **can_mac_fsm_tx**: Coordinates frame transmission with per-field state granularity, controls all submodules
-3. **can_mac_bs**: Shared bit stuffer implementing both dynamic and fixed bit stuffing modes
-4. **can_mac_crc**: CRC engine with three parallel generators (CRC-15, CRC-17, CRC-21) and dual data feeds for CC/FD
-
-```{.mermaid #fig:mac-tx-architecture fig-width=0.5 caption="can_mac_tx architecture showing internal component interconnections and external interfaces. Internal interface definitions are provided for can_mac_ser_fsm_if (@tbl:mac-fsm-ser-if), can_mac_fsm_bs_if (@tbl:mac-fsm-bs-if), and can_mac_fsm_crc_if (@tbl:mac-fsm-crc-if). The bit stuffer and CRC engine are the same entities reused in can_mac_rx."}
+```{.mermaid #fig:mac-fsm-architecture fig-width=0.5 caption="can_mac architecture showing the unified can_mac_fsm and its internal submodules. The FSM instantiates one can_mac_ser_tx serializer, one can_mac_bs bit stuffer, and one can_mac_crc CRC engine, shared across TX and RX modes. Internal interface definitions are provided for can_mac_ser_fsm_if (@tbl:mac-fsm-ser-if), can_mac_fsm_bs_if (@tbl:mac-fsm-bs-if), and can_mac_fsm_crc_if (@tbl:mac-fsm-crc-if)."}
 ---
 config:
   flowchart:
@@ -508,14 +507,15 @@ config:
     fontSize: "14px"
 ---
 flowchart TD
-    LLC["**can_llc_tx**<br/>─────────<br/>LLC Sub-layer, §6.4-6.5"]
-    PCS["**can_pcs_tx**<br/>─────────<br/>PCS Sub-layer, §7.2-7.4"]
+    LLC_TX["**can_llc_tx**<br/>─────────<br/>LLC TX Sub-layer, §6.4-6.5"]
+    LLC_RX["**can_llc_rx**<br/>─────────<br/>LLC RX Sub-layer, §6.4-6.5"]
+    PCS["**can_pcs**<br/>─────────<br/>PCS Sub-layer, §7.2-7.4"]
     FCE["**can_fce**<br/>─────────<br/>FCE, §8.1.3-8.1.4"]
 
-    subgraph MAC_TX ["**can_mac_tx**<br/>─────────<br/>MAC Sub-layer, §6.6"]
+    subgraph MAC ["**can_mac**<br/>─────────<br/>MAC Sub-layer, §6.6"]
         SER["**can_mac_ser_tx**<br/>─────────<br/>LLC Frame Serializer"]
-        FSM["**can_mac_fsm_tx**<br/>─────────<br/>Controlling FSM"]
-        BS["**can_mac_bs**<br/>─────────<br/>Bit Stuffer"]
+        FSM["**can_mac_fsm**<br/>─────────<br/>Unified TX/RX FSM<br/>(24 states, is_transmitter flag)"]
+        BS["**can_mac_bs**<br/>─────────<br/>Bit Stuffer / Destuffer"]
         CRC["**can_mac_crc**<br/>─────────<br/>CRC Engine"]
 
         SER <==>|can_mac_ser_fsm_if| FSM
@@ -523,27 +523,53 @@ flowchart TD
         FSM <==>|can_mac_fsm_crc_if| CRC
     end
 
-    LLC <==>|llc_mac_tx_if| SER
+    LLC_TX <==>|llc_mac_tx_if| SER
+    FSM <==>|llc_mac_rx_if| LLC_RX
 
     FSM <==>|mac_pcs_if| PCS
     FSM <==>|fce_mac_if| FCE
 ```
 
-#### `can_mac_fsm_tx` {#sec:can-mac-fsm-tx}
+#### FSM structure and mode flag
 
-`can_mac_fsm_tx` (@fig:mac-tx-fsm) orchestrates frame transmission, coordinating the serializer (@sec:can-mac-ser-tx), bit stuffer (@sec:can-mac-bs), and CRC engine (@sec:can-mac-crc). The FSM uses per-field state granularity: rather than a single `s_transmitting_frame` state with function-dispatched field logic, each protocol field (SOF, ID, DLC, data, CRC, ACK, EOF, etc.) has its own dedicated FSM state. This design makes the field boundaries explicit in the state encoding and eliminates the need for frame parameter precomputation functions. The FSM derives `data_len` and `crc_length` from `t_llc_metadata` on frame entry and tracks `bit_count` within each field state.
+`can_mac_fsm` contains one synchronous process and one `t_fsm_state` enum covering 24 states. An `is_transmitter` boolean signal is latched to `true` when the FSM drives the SOF dominant bit at the start of a new frame transmission and cleared at arbitration loss or on any transition back to `s_bus_idle`. Once latched, `is_transmitter` remains stable for the entire frame, partitioning per-state logic into a TX branch and an RX branch without duplicating the state graph itself. States that genuinely diverge between roles - `s_ack`, `s_ack_delimiter`, `s_eof` - carry an explicit `if is_transmitter` branch. States that are behaviorally identical for both roles (which is most of the frame-field sequence) execute a single shared code path and read `rx_data` from the PCS, relying on the bus loopback guarantee that the winning transmitter's own echo matches its drive in the nominal phase.
 
-On each sample-point strobe from `can_pcs_tx` (@sec:can-pcs-tx), each frame-field state executes the following sequence:
+The per-field state granularity introduced in @sec:per-field-vs-per-phase is preserved in the unified FSM. Each protocol field (SOF, ID, RTR/SRR/RRS, IDE, FDF, RES, BRS, ESI, DLC, Data, SBC, CRC, ACK, ACK Delimiter, EOF) has its own dedicated state, making field boundaries explicit in the state encoding without bit-counter conditionals.
 
-1. **Monitor the bus.** The sampled bus polarity is compared against the previously transmitted bit to detect errors, ACK, and arbitration loss. In the CAN-FD data phase, the FSM maintains a 32-bit polarity history shift register for Transmitter Delay Compensation (TDC). Any pending secondary sample point (SSP) observation from the previous bit period is evaluated against this history before the current bit is checked [@iso11898_1, sec. 7.3.4]. A detected error triggers a transition to `s_error_overload` with the appropriate flag type based on the FCE fault confinement status [@iso11898_1, sec. 8.1.3-8.1.4]. Arbitration loss during the ID or control fields causes the FSM to stop driving and return to `s_intermission`.
+#### TX mode: frame transmission
 
-2. **Determine the next bit.** If the bit stuffer has a pending stuff bit (`bs_i.valid`), that takes priority. Otherwise, the polarity is determined by the current state: form bits (SOF, IDE, FDF, reserved, delimiters, EOF) have fixed polarities, while ID, DLC, data, SBC, and CRC bits are sourced from the serializer, metadata, bit stuffer count, or CRC register respectively.
+When `is_transmitter = true`, the FSM drives bits through `pcs_o.tx_data` at the bit-boundary strobe (`drive_bit`, generated internally by registering `pcs_i.sample_point` twice). On each sample-point strobe the FSM executes the following four-step sequence per frame-field state:
 
-3. **Feed the CRC engine and bit stuffer.** The output polarity is forwarded to the CRC engine (for bits within the CRC-protected region) via separate `data_cc` and `data_fd` feeds, and to the bit stuffer (for bits within the stuffing region). The FSM asserts `fixed_bit_stuffing_en` when entering the SBC/CRC field region of FD frames to switch the bit stuffer from dynamic to fixed mode.
+1. **Monitor the bus.** The sampled bus polarity (`pcs_i.rx_data`) is compared against the previously transmitted bit (held in a 32-bit polarity history shift register, `transmitted_bits_shift_reg`) to detect bit errors, ACK, and arbitration loss. In the CAN-FD data phase, any pending secondary sample point (SSP) observation from the previous bit period is evaluated against this history before the current bit is checked [@iso11898_1, sec. 7.3.4]. A detected error triggers a transition to the error-frame sequence with the appropriate flag type based on FCE fault confinement status [@iso11898_1, sec. 8.1.3-8.1.4]. Arbitration loss causes `is_transmitter` to flip to `false` in-place, and the `s_arbitration` state then continues as an RX observer for the remaining bits.
 
-4. **Present the bit at the PCS interface.** The resolved polarity is driven onto the `t_can_mac_pcs_if_m2s` interface. The `use_data_rate` signal is asserted during the CAN-FD data phase to switch the PCS to faster bit timing, and `start_tdc` is pulsed at the FDF bit to initiate transmitter delay compensation [@iso11898_1, sec. 7.3.4].
+2. **Determine the next bit.** If the bit stuffer has a pending stuff bit (`bs_i.valid`), that takes priority. Otherwise, the polarity is determined by the current state: form bits (SOF, IDE, FDF, reserved, delimiters, EOF) have fixed polarities, while ID, DLC, data, SBC, and CRC bits are sourced from the serializer, metadata, stuff bit count, or CRC register respectively.
 
-```{.mermaid #fig:mac-tx-fsm caption="can_mac_fsm_tx FSM with per-field state granularity. Frame-field states (s_sof through s_eof) each handle one protocol field, with bit_count tracking position within the field. After a successful frame or arbitration loss the FSM passes through s_intermission before returning to s_bus_idle. Detected errors branch to s_error_overload, which drives either an active (dominant) or passive (recessive) error flag depending on FCE status. The dashed box groups the frame-field states for clarity."}
+3. **Feed the CRC engine and bit stuffer.** In the nominal (arbitration and control) phase, `pcs_i.rx_data` feeds both the bit stuffer and the CRC engine - the bus echo of the winning transmitter is identical to its drive, so this feed is correct regardless of role. In the FD data phase, where TDC delay may cause `rx_data` to lag the drive by several bit periods, the TX path instead feeds the bit stuffer and CRC engine from `transmitted_bits_shift_reg(0)` (the bit just driven), avoiding latency-induced stuff bit misplacement. The FSM asserts `fixed_bit_stuffing_en` when entering the SBC/CRC field region of FD frames to switch the bit stuffer from dynamic to fixed mode.
+
+4. **Present the bit at the PCS interface.** The resolved polarity is written to `pcs_o.tx_data` and becomes visible at `tx_o` when the bit-boundary latch fires. The `use_data_rate` signal is asserted during the CAN-FD data phase to switch the PCS to the faster bit timing, and `start_tdc` is pulsed at the FDF bit to initiate transmitter delay compensation [@iso11898_1, sec. 7.3.4].
+
+#### RX mode: frame reception
+
+When `is_transmitter = false`, the FSM observes `pcs_i.rx_data` at each sample-point strobe and stores received bits directly into an internal `llc_frame` byte array. No separate deserializer is needed. The bit stuffer is driven from `pcs_i.rx_data` to perform destuffing, and the CRC engine accumulates the received bit stream in parallel. The FSM validates the SBC field (FD frames), compares the received CRC against the locally accumulated result, and checks form bits (reserved bits, CRC delimiter, ACK delimiter, EOF) for required polarities. A mismatch in any of these fields triggers a transition to the error-frame sequence. During the ACK slot the FSM drives `pcs_o.tx_data = c_dominant` (1 bit for CC frames, 2 bits for FD frames) and releases the bus after the ACK delimiter [@iso11898_1, sec. 8.1.4.2.b].
+
+After the EOF field the FSM transitions through `s_intermission`. A dedicated streaming section within the same process transfers the completed `llc_frame` array byte-by-byte to the LLC RX sink over the Avalon-ST interface, and signals successful reception to the FCE. This design eliminates the need for a separate deserializer entity on the RX path - the frame buffer and the LLC stream interface are managed entirely within `can_mac_fsm`.
+
+#### Error-frame states
+
+The unified FSM uses four explicit error-frame states rather than a single compressed state, following the structure of the reference `can_fsm` controller. The split makes the four ISO-defined error-frame phases directly visible as state names in GTKWave and eliminates an ambiguity that existed in a two-state predecessor: a dominant during the recessive delimiter (a form error per ISO 6.6.21.3.2) and a dominant from another node's late error flag (tolerated per ISO 8.1.4.2.f) previously shared one code path. The four states are:
+
+| State | ISO reference | Role |
+|---|---|---|
+| `s_error_flag` | §6.6.13, §6.6.5.2 | Drive 6 dominant bits (active) or 6 recessive bits (passive). |
+| `s_error_flag_check` | §8.1.4.2.b | Evaluate the first bit after the flag; detect co-signalled errors. |
+| `s_error_dominant_delim` | §8.1.4.2.f | Count tolerated dominant bits from other nodes during the delimiter. |
+| `s_error_delimiter` | §6.6.5.3 | Count 8 recessive delimiter bits; a dominant here starts a fresh error frame. |
+
+: Four explicit error-frame states of `can_mac_fsm`. {#tbl:error-frame-states}
+
+The complete FSM is shown in @fig:mac-fsm.
+
+```{.mermaid #fig:mac-fsm caption="can_mac_fsm state diagram with per-field granularity (24 states). TX mode is active when is_transmitter = true (latched at SOF drive); RX mode when is_transmitter = false. Frame-field states (s_sof through s_eof) each handle one protocol field with bit_count tracking position within the field. After a successful frame, arbitration loss, or error recovery, the FSM passes through s_intermission before returning to s_bus_idle. Detected errors branch to the four-state error-frame sequence (s_error_flag through s_error_delimiter). The s_bus_off state is entered when the FCE asserts bus_off and exits when bus_off clears. The dashed box groups the frame-field states for clarity."}
 ---
 config:
   layout: elk
@@ -564,10 +590,23 @@ stateDiagram-v2
 
   state "**s_bus_reintegration**<br/>─────────<br/>• Bus not driving<br/>• Await 11 recessive bits, or<br/>  128 x 11 recessive bits if bus-off" as s_bus_reintegration
   class s_bus_reintegration reset
-  state "**s_bus_idle**<br/>─────────<br/>• Bus not driving<br/>• Await frame request" as s_bus_idle
-  state "**s_intermission**<br/>─────────<br/>• Bus not driving<br/>• 3-bit inter-frame spacing<br/>• Monitoring for overload" as s_intermission
+  state "**s_bus_off**<br/>─────────<br/>• Bus not driving<br/>• FCE bus_off asserted<br/>• Awaiting bus_off clearance" as s_bus_off
+  state "**s_bus_idle**<br/>─────────<br/>• Bus not driving<br/>• Await frame request (TX) or SOF (RX)" as s_bus_idle
+  state "**s_intermission**<br/>─────────<br/>• Bus not driving<br/>• 3-bit inter-frame spacing<br/>• RX: streaming llc_frame to LLC<br/>• Monitoring for overload" as s_intermission
   state "**s_suspend_transmission**<br/>─────────<br/>• Bus not driving<br/>• Error-passive 8-bit hold-off" as s_suspend_transmission
-  state "**s_error_overload**<br/>─────────<br/>• Active: 6 dominant + 8 recessive<br/>• Passive: 6 recessive + 8 recessive<br/>• Overload: 6 dominant + 8 recessive<br/>• Signals error to FCE" as s_error_overload
+
+  state error_frame {
+    state "**s_error_flag**<br/>─────────<br/>• Active: drive 6 dominant<br/>• Passive: drive 6 recessive<br/>• Signals error to FCE" as s_error_flag
+    state "**s_error_flag_check**<br/>─────────<br/>• Evaluate first bit after flag<br/>• Detect co-signalled errors<br/>  (ISO 8.1.4.2.b)" as s_error_flag_check
+    state "**s_error_dominant_delim**<br/>─────────<br/>• Count tolerated dominant bits<br/>  from other nodes<br/>  (ISO 8.1.4.2.f)" as s_error_dominant_delim
+    state "**s_error_delimiter**<br/>─────────<br/>• Count 8 recessive delimiter bits<br/>• Dominant here starts new error frame<br/>  (ISO 6.6.21.3.2)" as s_error_delimiter
+
+    s_error_flag --> s_error_flag_check : flag complete
+    s_error_flag_check --> s_error_dominant_delim : dominant observed
+    s_error_flag_check --> s_error_delimiter : recessive observed
+    s_error_dominant_delim --> s_error_delimiter : dominant run ends
+    s_error_delimiter --> s_error_flag : dominant (new error frame)
+  }
 
   state frame_fields {
     state "**s_sof**" as s_sof
@@ -583,6 +622,7 @@ stateDiagram-v2
     state "**s_sbc**" as s_sbc
     state "**s_crc**" as s_crc
     state "**s_ack**" as s_ack
+    state "**s_ack_delimiter**" as s_ack_delim
     state "**s_eof**" as s_eof
 
     s_sof --> s_id
@@ -600,26 +640,30 @@ stateDiagram-v2
     s_data --> s_crc : CC
     s_sbc --> s_crc
     s_crc --> s_ack
-    s_ack --> s_eof
+    s_ack --> s_ack_delim
+    s_ack_delim --> s_eof
   }
 
 s_bus_reintegration --> s_bus_idle : 11 recessive bits
 
-s_bus_idle --> s_sof : frame pending
+s_bus_idle --> s_sof : frame pending (TX) or dominant SOF (RX)
+s_bus_idle --> s_bus_off : fce bus_off asserted
+
+s_bus_off --> s_bus_reintegration : bus_off cleared
 
 s_eof --> s_intermission : frame complete
-frame_fields --> s_intermission : lost arbitration
-frame_fields --> s_error_overload : error detected
 
-s_error_overload --> s_intermission : sequence complete
-s_error_overload --> s_error_overload : overload detected
+frame_fields --> s_intermission : lost arbitration (TX)
+frame_fields --> s_error_flag : error detected
+
+s_error_delimiter --> s_intermission : delimiter complete
 
 s_intermission --> s_bus_idle : intermission complete
 s_intermission --> s_suspend_transmission : error-passive transmitter
-s_intermission --> s_error_overload : overload detected
+s_intermission --> s_error_flag : overload detected
 
 s_suspend_transmission --> s_bus_idle : suspend complete
-s_suspend_transmission --> s_error_overload : overload detected
+s_suspend_transmission --> s_error_flag : overload detected
 ```
 
 #### `can_mac_ser_tx` {#sec:can-mac-ser-tx}
@@ -663,7 +707,7 @@ stateDiagram-v2
 
 #### `can_mac_bs` {#sec:can-mac-bs}
 
-`can_mac_bs` implements both dynamic and fixed bit stuffing for CAN Classic and CAN-FD frames [@iso11898_1, sec. 10.6]. The same entity is instantiated in both `can_mac_tx` and `can_mac_rx` - on the TX side it inserts stuff bits, while on the RX side the FSM uses its output to detect and remove stuff bits from the received stream.
+`can_mac_bs` implements both dynamic and fixed bit stuffing for CAN Classic and CAN-FD frames [@iso11898_1, sec. 10.6]. The single entity is instantiated once inside `can_mac_fsm` and is used for both TX stuffing and RX destuffing, controlled by the FSM's `is_transmitter` mode and the frame-field state.
 
 In **dynamic mode** (`fixed_bit_stuffing_en` = '0'), the stuffer monitors the polarity stream and inserts an inverse-polarity stuff bit after every five consecutive identical bits (ISO 6.6.13.2). In **fixed mode** (`fixed_bit_stuffing_en` = '1'), used for the FD CRC region, one fixed stuff bit (FSB) is inserted on the rising edge of `fixed_bit_stuffing_en`, then one every four real bits (ISO 6.6.13.3.1). Any dynamic stuff bit pending at the mode boundary is suppressed. The stuffer maintains a Gray-coded stuff bit count with parity for the SBC field via `f_to_gray()` and `f_calc_parity()`. The data path diagram is shown in @fig:mac-bs-dataflow.
 
@@ -712,9 +756,9 @@ stateDiagram-v2
 
 #### `can_mac_crc` {#sec:can-mac-crc}
 
-`can_mac_crc` provides CRC generation and checking for both CAN Classic and CAN-FD frames. CAN Classic frames use CRC-15, while CAN-FD frames use CRC-17 (data payloads up to 16 bytes) or CRC-21 (data payloads above 16 bytes) [@iso11898_1, sec. 10.4.2.6]. The same entity is instantiated in both `can_mac_tx` (for generation) and `can_mac_rx` (for checking). The FSM selects the appropriate polynomial via the `crc_poly_select` field (@tbl:mac-fsm-crc-if). The data path diagram is shown in @fig:mac-crc.
+`can_mac_crc` provides CRC generation and checking for both CAN Classic and CAN-FD frames. CAN Classic frames use CRC-15, while CAN-FD frames use CRC-17 (data payloads up to 16 bytes) or CRC-21 (data payloads above 16 bytes) [@iso11898_1, sec. 10.4.2.6]. The single entity is instantiated once inside `can_mac_fsm`, serving both TX (generation) and RX (checking). The FSM selects the appropriate polynomial via the `crc_poly_select` field (@tbl:mac-fsm-crc-if). The data path diagram is shown in @fig:mac-crc.
 
-Three parallel `gen_crc` instances run continuously on separate data feeds: `data_cc` drives CRC-15 via `valid_cc`, while `data_fd` drives both CRC-17 and CRC-21 via `valid_fd`. This dual-feed architecture is necessary because CC and FD frames compute CRC over different bit streams (CC excludes stuff bits; FD includes them), and the RX path does not know which CRC engine to use until after the frame type has been determined. The output multiplexer selects the active engine's result based on `crc_poly_select` and left-aligns it to the common 21-bit output width.
+Three parallel `gen_crc` instances run continuously on separate data feeds: `data_cc` drives CRC-15 via `valid_cc`, while `data_fd` drives both CRC-17 and CRC-21 via `valid_fd`. This dual-feed architecture is necessary because CC and FD frames compute CRC over different bit streams (CC excludes stuff bits; FD includes them in the arbitration region), and the RX path does not know which CRC engine to use until after the frame type has been determined. The output multiplexer selects the active engine's result based on `crc_poly_select` and left-aligns it to the common 21-bit output width.
 
 ```{.mermaid #fig:mac-crc fig-width=0.8 caption="can_mac_crc data path diagram. Three parallel gen_crc instances accumulate continuously: data_cc drives CRC-15 via valid_cc, while data_fd drives both CRC-17 and CRC-21 via valid_fd. The output register selects the active engine result based on crc_poly_select and left-aligns it to 21 bits. The external rst signal reinitializes all three engines and the output register."}
 ---
@@ -767,95 +811,9 @@ stateDiagram-v2
   out21 --> wait
 ```
 
-### `can_mac_rx` {#sec:can-mac-rx}
-
-`can_mac_rx` receives the bit stream from the PCS, performs bit destuffing and CRC verification, and reconstructs the LLC frame for delivery to `can_llc_rx` [@iso11898_1, sec. 6.6]. Unlike the TX path, the RX path has no separate deserializer module. The RX FSM (`can_mac_fsm_rx`) stores received bits directly into an internal `llc_frame` array during reception and streams the completed frame byte-by-byte to the LLC during the quiet phase (after EOF and intermission) using a dedicated Avalon-ST streaming process.
-
-The `can_mac_rx` wrapper instantiates three components:
-
-1. **can_mac_fsm_rx**: Frame reception FSM with 17 per-field states mirroring the TX FSM structure
-2. **can_mac_bs**: Shared bit stuffer entity, reused for destuffing
-3. **can_mac_crc**: Shared CRC engine entity, reused for CRC checking
-
-The RX FSM (@fig:mac-rx-fsm) validates SBC and CRC fields during reception, detects form errors (reserved bits, CRC mismatch, delimiter errors), and drives ACK dominant during the ACK slot (1 bit for CC, 2 bits for FD). It reports errors to the FCE through the same `t_can_mac_fce_if_m2s` interface used by the TX FSM.
-
-```{.mermaid #fig:mac-rx-fsm caption="can_mac_fsm_rx FSM with per-field state granularity. The RX FSM mirrors the TX FSM structure (@fig:mac-tx-fsm) but replaces transmission logic with reception, storage, and validation. On detecting a dominant SOF in s_idle, the FSM enters s_id and stores received bits into an internal llc_frame array. After EOF, the FSM transitions through s_intermission and a dedicated streaming process transfers the stored frame to the LLC. Form errors (reserved bit violations, CRC mismatch, delimiter errors) and SBC mismatches trigger s_error_overload. The dashed box groups the frame-field states for clarity."}
----
-config:
-  layout: elk
-  elk:
-    algorithm: layered
-    mergeEdges: false
-    nodePlacementStrategy: LINEAR_SEGMENTS
-  look: classic
-  theme: neutral
-  themeVariables:
-    fontFamily: "Libertinus Serif, Noto Serif, serif"
-    fontSize: "14px"
-    primaryTextColor: "#000"
----
-stateDiagram-v2
-
-  classDef reset stroke:#000,stroke-width:3px
-
-  state "**s_bus_reintegration**<br/>─────────<br/>• Not driving bus<br/>• Await 11 recessive bits" as s_bus_reintegration
-  class s_bus_reintegration reset
-  state "**s_idle**<br/>─────────<br/>• Not driving bus<br/>• Await dominant SOF" as s_idle
-  state "**s_intermission**<br/>─────────<br/>• 3-bit inter-frame spacing<br/>• Stream llc_frame to LLC<br/>• Signal successful_transfer to FCE" as s_intermission
-  state "**s_error_overload**<br/>─────────<br/>• Active: 6 dominant + 8 recessive<br/>• Passive: 6 recessive + 8 recessive<br/>• Overload: 6 dominant + 8 recessive<br/>• Signal error to FCE" as s_error_overload
-
-  state frame_fields {
-    state "**s_id**" as s_id
-    state "**s_rtr_srr_rrs**" as s_rtr
-    state "**s_ide**" as s_ide
-    state "**s_fdf_r1_r0**" as s_fdf
-    state "**s_res_r0**" as s_res
-    state "**s_brs**" as s_brs
-    state "**s_esi**" as s_esi
-    state "**s_dlc**" as s_dlc
-    state "**s_data**" as s_data
-    state "**s_sbc**" as s_sbc
-    state "**s_crc**" as s_crc
-    state "**s_ack**" as s_ack
-    state "**s_eof**" as s_eof
-
-    s_id --> s_rtr
-    s_id --> s_ide : base ID complete
-    s_rtr --> s_ide
-    s_rtr --> s_fdf : extended
-    s_ide --> s_id : extended (IDE=1)
-    s_ide --> s_fdf : base (IDE=0)
-    s_fdf --> s_res : FD or CC extended
-    s_fdf --> s_dlc : CC base
-    s_res --> s_brs : FD
-    s_res --> s_dlc : CC extended
-    s_brs --> s_esi
-    s_esi --> s_dlc
-    s_dlc --> s_data
-    s_data --> s_sbc : FD
-    s_data --> s_crc : CC
-    s_sbc --> s_crc
-    s_crc --> s_ack : CRC delimiter OK
-    s_ack --> s_eof
-  }
-
-s_bus_reintegration --> s_idle : 11 recessive bits
-
-s_idle --> s_id : dominant SOF detected
-
-s_eof --> s_intermission : frame complete
-frame_fields --> s_error_overload : form/CRC/SBC error
-
-s_error_overload --> s_intermission : sequence complete
-s_error_overload --> s_error_overload : overload detected
-
-s_intermission --> s_idle : intermission complete
-s_intermission --> s_error_overload : overload detected
-```
-
 ### `can_mac` Unified Wrapper {#sec:can-mac-wrapper}
 
-`can_mac` is a structural wrapper that instantiates `can_mac_tx`, `can_mac_rx`, and `can_fce` (@sec:fce-sub-layer), wiring the FCE internally so that the wrapper exposes only LLC and PCS interfaces for each path plus the FCE's LLC and PCS interfaces. TX and RX have separate PCS interfaces (half-duplex; only one path drives the bus at a time). The TX and RX FCE output records (`t_can_mac_fce_if_m2s`) are merged by OR-ing all fields before feeding the FCE input - the half-duplex guarantee ensures no simultaneous assertions from both paths. The FCE's response (`t_can_mac_fce_if_s2m`, carrying `error_passive_request` and `error_active_request`) is fanned back to both TX and RX paths.
+`can_mac` is a structural wrapper that instantiates `can_mac_fsm` and `can_fce` (@sec:fce-sub-layer). Because both TX and RX roles are handled by the single FSM entity, the wrapper requires no dominant-wins merge of separate PCS outputs and no multiplexing of separate FCE error records. The FSM drives one PCS interface and one FCE interface directly. The wrapper exposes LLC TX and RX interfaces (connected to `can_mac_ser_tx` inside the FSM and to the FSM's internal LLC RX stream respectively), one `mac_pcs_if` interface, and the FCE's LLC and PCS interfaces.
 
 ## FCE Sub-layer {#sec:fce-sub-layer}
 
