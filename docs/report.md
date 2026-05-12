@@ -215,13 +215,15 @@ The ISO 11898-1 structures the CAN protocol into three functional sub-layers and
 
 Each of these have a dedicated section in the ISO 11898-1 standard and the layer field assigns each requirement to the protocol sub-layer that owns it. This classification determines the verification boundary at which each requirement must be exercised. A fifth label - **system** - was introduced alongside the four protocol layers to classify requirements that are inherently multi-layer or multi-node in character. Some CAN behaviors cannot be attributed to a single layer of a single node. They emerge from interactions between multiple nodes on the bus, or span the layer boundary within a single node. The system label flags these requirements as ones that require either an integrated multi-module test bench or a multi-node simulation environment.
 
+At design time, this classification directly motivated the layered module architecture: requirements assigned to a given layer pointed to the corresponding module as the responsible implementation unit and to that module's testbench as the primary verification environment. The consequence of the system label is described further in @sec:combined-vs-separated-fsm.
+
 ### Side {#sec:vplan-side}
 
-The side field records whether a requirement pertains to the transmitter path, the receiver path, or both roles simultaneously. This dimension reflects the ISO standard's own framing, which frequently specifies transmitter and receiver obligations separately.
+The side field records whether a requirement pertains to the transmitter path, the receiver path, or both roles simultaneously. This dimension reflects the ISO standard's own framing, which frequently specifies transmitter and receiver obligations separately. In the verification environment, the side field determines whether a testbench drives the DUT in transmitter mode, receiver mode, or both roles in succession within a single test scenario. The design consequences of this dimension - and why it appeared to motivate a split-path architecture but did not - are discussed in @sec:combined-vs-separated-fsm.
 
 ### Format Applicability {#sec:vplan-format}
 
-The format_applicability field records which of the four in-scope frame formats (CB, CE, FB, FE) each requirement applies to. This field determines which testbench stimulus configurations are required to exercise a given requirement.
+The format_applicability field records which of the four in-scope frame formats (CB, CE, FB, FE) each requirement applies to. CAN FD introduced two new frame formats (FB, FE) alongside the two Classic formats (CB, CE), and the formats differ in ways that affect nearly every protocol layer: the bit stuffing mode switches from dynamic-only (Classic) to a combined dynamic-plus-fixed scheme (FD), the CRC polynomial changes from CRC-15 to CRC-17 or CRC-21 depending on data length, and the control field gains new bits (BRS, ESI, SBC) that are absent in Classic frames. A requirement that applies only to FD frames therefore implies stimulus configurations with FDF=1 and DLC values spanning both CRC-17 and CRC-21 threshold, while a requirement that applies to all four formats must be exercised across all format-specific configurations. The format field makes those implications explicit rather than leaving them to be inferred from the requirement text.
 
 ### Observability {#sec:vplan-observability}
 
@@ -230,17 +232,21 @@ The observability field resolves each requirement as either black-box or white-b
 - **Black-box**: Can be verified purely through the module's observable port signals.
 - **White-box**: Verification requires direct observation of the module's internal state.
 
+This distinction has direct consequences for testbench architecture. Black-box requirements are verifiable with stimulus-and-observe testbenches that drive inputs and check outputs without any knowledge of internal implementation. White-box requirements - which include CRC polynomial correctness, bit counter arithmetic, error counter thresholds, and Gray-coded SBC encoding - require either PSL assertions on internal signals or a parallel reference model that re-computes the expected value independently. In the verification plan, white-box requirements are the primary driver for embedding PSL assertions directly in the RTL source files, where they have access to internal signals regardless of module hierarchy.
+
 ### Priority {#sec:vplan-priority}
 
-The priority field classifies each requirement into one of three levels:  
+The priority field classifies each requirement into one of three levels:
 
 - P1 requirements are need-to-have - they must be verified before the design can be considered complete.
 - P2 requirements are nice-to-have - they are verified in the normal verification cycle but do not block closure.
 - P3 requirements are optional - addressed only if schedule permits.
 
+The final plan contains 31 P1, 13 P2, and 1 P3 requirements. The single P3 requirement covers optional transmitter delay compensation accuracy bounds that go beyond the ISO minimum; it was deferred because the core TDC mechanism is covered by P1 requirements and the accuracy bound can only be assessed against a hardware target.
+
 ## Verification Plan Data Structure {#sec:verification-plan-data-structure}
 
-The verification plan data structure (@tbl:vplan-metadata-fields) augments each requirement with the dimensions needed to answer not just *what* must be true, but *how* it will be verified, *where* the evidence lives, and *when* verification is complete. The verification plan was a very lively document throughout the project and it was continuously updated as implementation and verification work progressed. The following sub-sections detail the rationale and allowed values for each field in the verification plan. The complete verification plan is reproduced in @sec:appendix-vplan as two separate tables (linked by common ID's).
+The verification plan data structure (@tbl:vplan-metadata-fields) augments each requirement with the dimensions needed to answer not just *what* must be true, but *how* it will be verified, *where* the evidence lives, and *when* verification is complete. The plan evolved continuously throughout the project as implementation and verification work progressed. The following sub-sections detail the rationale and allowed values for each field in the verification plan. The complete verification plan is reproduced in @sec:appendix-vplan as two separate tables (linked by common ID's).
 
 
 | Field | Purpose |
@@ -248,7 +254,7 @@ The verification plan data structure (@tbl:vplan-metadata-fields) augments each 
 | `id` | Sequential identifier REQ-NNN. |
 | `source_clause` | ISO 11898-1:2024 section reference. |
 | `original_wording` | Verbatim normative text excerpets from the ISO standard.|
-| `paraphrase` | Concise paraphrase of the `original_wording` field (this is the actual requerment) |
+| `paraphrase` | Concise paraphrase of the `original_wording` field (this is the actual requirement) |
 | `layer` | Sub-layer owner: LLC, MAC, PCS, FCE, or system (@sec:vplan-layer). |
 | `side` |  transmitter, receiver, or both (@sec:vplan-side). |
 | `format_applicability` | Applicable frame formats: CB, CE, FB, FE (@sec:vplan-format). |
@@ -256,7 +262,7 @@ The verification plan data structure (@tbl:vplan-metadata-fields) augments each 
 | `verification_method` | Method(s) used to verify the requirement (@sec:vplan-method). |
 | `priority` | P1 (need-to-have), P2 (nice-to-have), or P3 (optional) (@sec:vplan-priority). |
 | `status` | `not_started`, `in_progress` or `complete` (@sec:vplan-status). |
-| `notes` | The field is intended to celrify residual ambiguity left over form the other fields |
+| `notes` | The field is intended to clarify residual ambiguity left over from the other fields |
 | `label` | Assertion label, TB procedure name, coverage ID, or RTL tag. Comma-separated when multiple procedures cover distinct sub-claims (@sec:vplan-traceability). |
 | `file` | Target file: TB for simulation/coverage, RTL for code inspection. Comma-separated when sub-claims span multiple files (@sec:vplan-traceability). |
 
@@ -277,7 +283,9 @@ The status field (`not_started`, `in_progress`, `complete`) records requirement 
 
 ## AI-Assisted Extraction: Utility and Limitations {#sec:ai-extraction}
 
-The LLM agent definitely earned its keep by bootstrapping and linking the initial normative statement set. Having a fully populated and liked starting point - even one requiring substantial revision - gave the manual review process a concrete artifact to work from. That said, the overall time saving was likely marginal. The agent's output had to be reviewed statement by statement, which is functionally similar to extracting requirements manually in the first place. The primary benefit of the AI-assisted approach was therefore not efficiency, but rather the increased consistency associated with an automated extraction process.
+The LLM agent definitely earned its keep by bootstrapping and linking the initial normative statement set. Having a fully populated and linked starting point - even one requiring substantial revision - gave the manual review process a concrete artifact to work from. That said, the overall time saving was likely marginal. The agent's output had to be reviewed statement by statement, which is functionally similar to extracting requirements manually in the first place. The primary benefit of the AI-assisted approach was therefore not efficiency, but rather the increased consistency associated with an automated extraction process.
+
+The resulting 45-requirement plan, structured by layer, side, format, observability, and priority, provided the architectural inputs for the design phase. How those inputs were used - and where the apparent mapping from requirements structure to design structure broke down - is the subject of the next section.
 
 # Design and Architecture {#sec:design-architecture}
 
