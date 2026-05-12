@@ -159,8 +159,7 @@ The role of modern VHDL standards and verification frameworks in digital design.
 
 # Requirements Engineering & Verification Planning {#sec:requirements-engineering}
 
-Bridging the gap between a normative specification and a traceable verification plan is one of the more demanding tasks in a protocol implementation project. ISO 11898-1 was written as a specification, not a verification artifact: its normative requirements are distributed across dozens of subsections, interleaved with explanatory text, and organized around protocol function rather than testability. The 45-requirement plan that resulted from this work is therefore not a direct transcription of the standard - it is the product of a deliberate extraction, consolidation, and classification effort, making each behavioral claim independently verifiable and each test traceable to a specific normative source. The section begins with the engineering constraints that bounded the design space (@sec:engineering-constraints), then documents the extraction and consolidation process (@sec:req-extraction) and the multi-dimensional plan data structure that tracks coverage (@sec:verification-plan-data-structure, @sec:req-tooling). It closes with an examination of how the plan structure unexpectedly influenced early architectural decisions (@sec:req-design-ramifications) and a retrospective on the AI tooling used throughout (@sec:ai-extraction).
-
+Bridging the gap between a normative specification document and a traceable verification plan is a pivotal task in any protocol implementation project. The present section describes the process of distilling a coherent set of verifiable requirements and associated verification plan from the ISO 11898-1 standard. In addition, the constraints imposed by general company practices and standards are described along with project-specific requirements related to the larger system in which the module is intended to integrate.
 
 ## VHDL Code Standard and Design Constraints {#sec:engineering-constraints}
 
@@ -182,43 +181,39 @@ The constraints on this project come from two distinct sources. Two requirements
 1. **RTL design rules:** Synchronous processes must be sensitive to the clock only. Reset must be synchronous and initialize all control registers. FSMs are preferably implemented as single-process designs where all signal assignments are derived from the current state, with an explicit other-state that returns to a known safe state.
 2. **Test bench requirements:** Test benches must follow a black-box testing model and test cases must be ordered as: reset tests first, then a normal-usage test, then all remaining tests.
 
-## From Standard to Structured Requirements {#sec:req-extraction}
+## From Specification to Structured Requirements {#sec:req-extraction}
 
 The requirements engineering process was aimed at tackling two key objectives:
 
 1. Extracting a clear and actionable set of requirements that could serve as a starting point for the design phase.
 2. Establishing a clear, traceable link between the ISO 11898-1 specification and the verification environment.
 
-Both objectives are complicated by the nature of the source material. The ISO 11898-1 is written as a specification document, not a verification artifact. Normative requirements are distributed across many subsections, often restated from different perspectives and interspersed with explanatory and descriptive text. Accordingly, extracting precise unambiguous requirements from this prose is non-trivial and inherently error prone and without a structured requirements artifact, verification coverage risks becoming informal and anecdotal.
+Both objectives are complicated by the nature of the source material. Normative requirements are distributed across subsections, often restated from different perspectives, and interspersed with explanatory and descriptive text. Accordingly, extracting a precise unambiguous set of requirements from such prose is non-trivial and inherently prone to oversights and misinterpretations. Nonetheless, a structured and precise requirements set is absolutely essential. It serves as both the starting point for the system design phase and as the target of verification effort. [@bergeron2003ch3]
+
+The requirements set was constructed using the AI-assisted pipeline shown in @fig:ver_plan_pipeline. The first step was converting the ISO 11898-1 pdf to Markdown - a format which can be efficiently searched and ingested by LLM models. The resulting Markdown file was then fed to a Claude Sonnet 4.6 LLM agent, which was prompted to extract all normative statements - sentences containing words like "shall", "should", "must", and their corresponding negations.
 
 ![Pipeline generating the `verification_plan.toml` artifact. 1) LLM agent extraction of normative statements from the ISO 11898-1 standard. 2) Manual grouping of related normative statements and requirement distillation. 3) Argumentation with additional requirement labels and verification specific fields.](figures/ver_plan_pipeline.png){#fig:ver_plan_pipeline width=100%}
 
-To address both objectives and alleviate the risk of consistency associated with manual initial requirement extraction, the requirement set was bootstrapped by an AI-assisted pipeline. The ISO standard was first converted into Markdown format, making it efficiently searchable and ingestible by a Claude Sonnet 4.6 LLM agent. The agent was prompted to extract all normative language from the document - sentences containing "shall", "should", "must", and their corresponding negations. The ISO 11898-1 structures the CAN protocol into three functional sub-layers and a layer-spanning Fault Confinement Entity (FCE):
+This process yielded a raw set of 168 normative statements linked to the ISO standard sections from which they were extracted. The normative set was then manually reviewed, consolidated, and distilled into a final set of 45 requirements. In addition to the ISO standard section links provided by the initial LLM agent extraction, each requirement was classified along the following set of dimensions:
+
+- layer, @sec:vplan-layer
+- side, @sec:vplan-side
+- format, @sec:vplan-format
+- priority, @sec:vplan-priority
+- observability, @sec:vplan-observability
+
+These dimensions, described in the following subsections, should serve to focus the design phase by carving out the natural sub-module boundaries and guide the verification effort by highlighting the relevant layer of abstraction associated with a given requirement.
+
+
+### Layer {#sec:vplan-layer}
+
+The ISO 11898-1 structures the CAN protocol into three functional sub-layers and a layer-spanning Fault Confinement Entity (FCE):
 
 - Logic Link Control (LLC).
 - Medium Access Control (MAC).
 - Physical Coding Sub-layer (PCS).
 
-The standard devotes separate sections to each of these sub-layers and they provided a natural first-pass classification axis for the requirement extraction process. This initial extraction yielded 168 normative statements. Many extracted statements were effectively descriptions of the same underlying requirement, expressed from slightly different angles or in different parts of the document. Condensing these into an organized, non-redundant requirements table was manual and time-consuming. It required repeated close reading of the relevant standard sections, identifying which statements described the same underlying behavior, and paraphrasing the often verbose normative language into precise, concise requirement statements. The 168 raw normative extractions were reduced to a final table of 45 requirements with the key driver in this consolidation process being requirement orthogonality, i.e. each entry in the final requirements table should describe a distinct, independently verifiable behavioral claim or group of sub-claims that could verified together.
-
-## Verification Plan Data Structure {#sec:verification-plan-data-structure}
-
-The consolidated requirements set described in @sec:req-extraction provided the foundation for the verification plan development. The verification plan data structure augments each requirement with the dimensions needed to answer not just *what* must be true, but *how* it will be verified, *where* the evidence lives, and *when* verification is complete. This additional structure follows the verification planning methodology described by Bergeron [@bergeron2003ch3], which organizes a verification plan around explicit links between requirements, verification methods, and traceability artifacts. The complete 45-requirement plan is reproduced in @sec:appendix-vplan. @tbl:vplan-metadata-fields lists the fields attached to each requirement entry; the following sections detail the rationale and allowed values for each field.
-
-### Layer {#sec:vplan-layer}
-
-The layer field assigns each requirement to the protocol sub-layer that owns it: LLC, MAC, PCS, FCE, or system, following the ISO 11898-1 sub-layer structure described in @sec:req-extraction. This classification determines the verification boundary at which each requirement must be exercised. A fifth label - **system** - was introduced alongside the four protocol layers to classify requirements that are inherently multi-layer or multi-node in character. Some CAN behaviors cannot be attributed to a single layer of a single node: they emerge from interactions between multiple nodes on the bus, or span the layer boundary within a single node. The system label flags these requirements as ones that require either an integrated multi-module testbench or a multi-node simulation environment. @tbl:req-layer-distribution shows the distribution of the 45 final requirements across the five layers.
-
-| Layer | Count | Description |
-| :--- | :---: | :--- |
-| MAC | 22 | Frame structure, bit stuffing, CRC, error detection, arbitration |
-| LLC | 6 | Frame submission, abort, and delivery to the LLC user |
-| PCS | 6 | Bit timing, sample point, TDC |
-| FCE | 5 | Error counters, state transitions, bus-off recovery |
-| system | 6 | Requirements jointly owned by multiple sub-layers or requiring two nodes |
-| **Total** | **45** | |
-
-: Protocol requirement distribution by layer. {#tbl:req-layer-distribution}
+Each of these have a dedicated section in the ISO 11898-1 standard and the layer field assigns each requirement to the protocol sub-layer that owns it. This classification determines the verification boundary at which each requirement must be exercised. A fifth label - **system** - was introduced alongside the four protocol layers to classify requirements that are inherently multi-layer or multi-node in character. Some CAN behaviors cannot be attributed to a single layer of a single node. They emerge from interactions between multiple nodes on the bus, or span the layer boundary within a single node. The system label flags these requirements as ones that require either an integrated multi-module test bench or a multi-node simulation environment.
 
 ### Side {#sec:vplan-side}
 
@@ -226,24 +221,33 @@ The side field records whether a requirement pertains to the transmitter path, t
 
 ### Format Applicability {#sec:vplan-format}
 
-The format_applicability field records which of the four in-scope frame formats (CB, CE, FB, FE) each requirement applies to. Not all requirements apply to all formats: requirements governing the data-phase bit rate switch (BRS), fixed bit stuffing, and the CRC_17/CRC_21 polynomials are specific to FD frames (FB, FE), while requirements covering the classic five-in-a-row stuff rule and CRC_15 apply across all four formats. This field determines which testbench stimulus configurations are required to exercise a given requirement.
+The format_applicability field records which of the four in-scope frame formats (CB, CE, FB, FE) each requirement applies to. This field determines which testbench stimulus configurations are required to exercise a given requirement.
 
 ### Observability {#sec:vplan-observability}
 
-The observability field classifies each requirement according to Bergeron's black-box and white-box verification distinction [@bergeron2003ch3], applied relative to the module boundary of the owning layer:
+The observability field resolves each requirement as either black-box or white-box, relative to the module boundary of the owning layer:
 
-- **Black-box**: verification is conducted purely through the module's observable port signals. The testbench exercises the module through its interfaces and checks outputs without any access to internal state or signals. For example, the SOF bit appearing as the first bit driven on the MAC-PCS output immediately after bus-idle is directly observable at the port level.
-- **White-box**: verification requires direct observation of internal signals - such as FSM state registers, bit-position counters, or error counter values - that are not exposed as primary outputs. For example, confirming that the bit stuffer's consecutive-equal-bit counter resets correctly after a stuff bit is inserted requires access to the internal counter, since only the stuffed bit stream is visible at the module boundary.
+- **Black-box**: Can be verified purely through the module's observable port signals.
+- **White-box**: Verification requires direct observation of the module's internal state.
 
-Of the 45 requirements, 16 are black-box and 29 are white-box.
+### Priority {#sec:vplan-priority}
+
+The priority field classifies each requirement into one of three levels:  
+
+- P1 requirements are need-to-have - they must be verified before the design can be considered complete.
+- P2 requirements are nice-to-have - they are verified in the normal verification cycle but do not block closure.
+- P3 requirements are optional - addressed only if schedule permits.
+
+
+## Verification Plan Data Structure {#sec:verification-plan-data-structure}
+
+The consolidated requirements set described in @sec:req-extraction provided the foundation for the verification plan development. The verification plan data structure augments each requirement with the dimensions needed to answer not just *what* must be true, but *how* it will be verified, *where* the evidence lives, and *when* verification is complete. This additional structure follows the verification planning methodology described by Bergeron [@bergeron2003ch3], which organizes a verification plan around explicit links between requirements, verification methods, and traceability artifacts. The complete 45-requirement plan is reproduced in @sec:appendix-vplan. @tbl:vplan-metadata-fields lists the fields attached to each requirement entry; the following sections detail the rationale and allowed values for each field.
+
 
 ### Verification Method {#sec:vplan-method}
 
 The verification_method field makes the path from requirement to verification artifact explicit and actionable before any testbench is written, giving each requirement a clear route to closure before implementation begins. Four methods are used: simulation (automated assertion or check procedure in a testbench), code inspection (RTL source review), waveform inspection (manual review of simulation output to confirm bit-level timing or signal sequencing), and coverage (OSVVM coverage bins sweeping a value range). Combinations are valid when multiple sub-claims within one requirement each call for a different method.
 
-### Priority {#sec:vplan-priority}
-
-The priority field classifies each requirement into one of three levels following the first-time success methodology described by Bergeron [@bergeron2003ch3]: P1 requirements are need-to-have - they must be verified before the design can be considered complete; P2 requirements are nice-to-have - they are verified in the normal verification cycle but do not block closure; P3 requirements are optional - they correspond to ISO "should" recommendations and are addressed only if schedule permits. Priority is recorded in the requirements table (@tbl:appendix-requirements) alongside the paraphrase, so the assignment can be evaluated directly against the requirement text.
 
 ### Traceability: Label and File {#sec:vplan-traceability}
 

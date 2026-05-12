@@ -19,15 +19,15 @@ graph LR
     ─────────
     + id
     + paraphrase
+    + layer
+    + side
+    + format
+    + observability
     + priority`")
 
     ver_plan("`**Verification plan**
     (Size = 45)
     ─────────
-    + layer
-    + side
-    + format
-    + observability
     + method
     + status
     + label
