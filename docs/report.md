@@ -143,21 +143,23 @@ The need for CAN FD support in the company's engine controller platform, combine
 
 # Background {#sec:background}
 
-## CAN Protocol Evolution {#sec:can-protocol-evolution}
+## CAN as a Communication Bus {#sec:can-as-bus}
 
-Brief history from CAN 2.0 to CAN-FD.
+The Controller Area Network (CAN) is a serial communication bus developed by Bosch in 1986 [@bosch1991] to connect electronic control units (ECUs) in automotive environments without a central host computer. Where point-to-point wiring and star-switched architectures require a dedicated conductor between every communicating pair, CAN uses a shared two-wire differential bus on which all nodes broadcast simultaneously and arbitrate access without any designated bus master. Any node may initiate a transmission at any time; contention is resolved by a non-destructive bitwise arbitration in which the transmitter with the lower-priority identifier detects the collision and silently withdraws, leaving the winner's frame intact. Differential signaling on a twisted pair (ISO 11898-2 physical layer) provides strong common-mode noise rejection - a practical necessity in the electrically harsh environment of an engine bay or industrial cabinet.
 
-## ISO 11898-1:2024 Standard {#sec:iso-standard}
+![CAN bus consisting of three CAN nodes connected via a shared differential two-wire bus. Each node contains a CAN controller and transceiver; termination resistors at each end of the bus prevent signal reflections.](figures/can_bus.png){#fig:can_bus width=60%}
 
-Overview of the data link layer and physical signaling requirements [@iso11898_1].
+CAN's error-handling architecture is a distinguishing feature relative to simpler serial protocols. Five complementary error detection mechanisms operate concurrently on every transmitted frame: bit monitoring, frame check, cyclic redundancy checking, acknowledgement checking, and bit stuffing violation detection. A fault confinement mechanism tracks each node's error history and automatically escalates from error-active operation through error-passive to a bus-off state in which a persistently faulty node is electrically isolated from the network, preventing it from corrupting communication between healthy nodes. Together these properties made CAN the protocol of choice for safety-relevant in-vehicle networks; adoption subsequently spread to industrial automation, medical devices, and aerospace ground support equipment.
 
-![CAN-Bus consisting of three CAN nodes.](figures/can_bus.png){#fig:can_bus width=50%}
+CAN's original data payload was capped at eight bytes per frame, limiting raw throughput to around 1 Mbit/s. As embedded control applications became more data-intensive, this ceiling became a practical constraint. CAN FD (Flexible Data-Rate), finalized by Bosch in 2012 and incorporated into ISO 11898-1 in 2015, extends the maximum payload to 64 bytes and introduces a separate higher-speed data phase with bit rates up to 8 Mbit/s or beyond, while preserving the Classic CAN arbitration phase and the fault-confinement architecture unchanged. The governing standard for this project is ISO 11898-1:2015, which specifies both Classic CAN and CAN FD data link layer and physical signaling requirements.
 
-## VHDL and OSVVM {#sec:vhdl-osvvm}
+## VHDL-2008 and OSVVM {#sec:vhdl-osvvm}
 
-The role of modern VHDL standards and verification frameworks in digital design.
+The implementation language for this project is VHDL-2008, the current revision of the IEEE VHDL standard. VHDL-2008 adds several features relevant to parameterized hardware design and verification: unconstrained record elements, enhanced generic lists, and improved support for the IEEE numeric packages. The GHDL open-source simulator [@ghdl] supports VHDL-2008 natively and is used for all simulation in this project.
 
-# Requirements Engineering & Verification Planning {#sec:requirements-engineering}
+The verification framework is OSVVM (Open Source VHDL Verification Methodology) [@osvvm], a VHDL-native library providing test infrastructure including clock and reset generation, constrained-random stimulus, functional coverage, and a uniform pass/fail reporting framework. OSVVM procedures replace ad-hoc signal manipulation in testbenches, ensuring that timing relationships are expressed in terms of clock cycles rather than time literals and that pass/fail decisions are logged uniformly across all test scenarios.
+
+# Requirements {#sec:requirements-engineering}
 
 Bridging the gap between a normative specification document and a traceable verification plan is a pivotal task in any protocol implementation project. The present section describes the process of distilling a coherent set of verifiable requirements and associated verification plan from the ISO 11898-1 standard. In addition, the constraints imposed by general company practices and standards are described along with project-specific requirements related to the larger system in which the module is intended to integrate.
 
@@ -194,7 +196,102 @@ The requirements set was constructed using the AI-assisted pipeline shown in @fi
 
 ![Pipeline generating the `verification_plan.toml` artifact. 1) LLM agent extraction of normative statements from the ISO 11898-1 standard. 2) Manual grouping of related normative statements and requirement distillation. 3) Argumentation with additional requirement labels and verification specific fields.](figures/ver_plan_pipeline.png){#fig:ver_plan_pipeline width=100%}
 
-This process yielded a raw set of 168 normative statements linked to the ISO standard sections from which they were extracted. The normative set was then manually reviewed, consolidated, and distilled into a final set of 45 requirements. In addition to the ISO standard section links provided by the initial LLM agent extraction, each requirement was classified along the following set of dimensions:
+This process yielded a raw set of 168 normative statements linked to the ISO standard sections from which they were extracted. The normative set was then manually reviewed, consolidated, and distilled into a final set of 45 requirements (reproduced in @sec:appendix-vplan). With the scope of the verification effort established, the following section presents the protocol in the detail needed to make those requirements - and the design decisions they drive - fully intelligible.
+
+# CAN and CAN-FD Protocol Overview {#sec:can-protocol-overview}
+
+This section covers the ISO 11898-1 layered reference model, frame types and fields, bit timing and the dual-rate mechanism that distinguishes CAN FD from Classic CAN, bit stuffing, CRC, and error handling. A reader already familiar with ISO 11898-1 may skip to @sec:vplan-dimensions.
+
+## Layered Reference Model {#sec:can-layered-model}
+
+ISO 11898-1 structures the CAN data link layer into three functional sub-layers and a cross-cutting Fault Confinement Entity (FCE):
+
+- **LLC (Logical Link Control)**: accepts frame requests from the host application, applies retransmission policy on error or lost arbitration, and supplies frames to the MAC in serialized form.
+- **MAC (Medium Access Control)**: encodes and decodes the frame bit-by-bit - performing bit stuffing and destuffing, CRC generation and checking, and acknowledgement handling - and governs bus access arbitration.
+- **PCS (Physical Coding Sub-layer)**: manages bit timing, clock synchronization (including Transmitter Delay Compensation for FD data phase), and the sample/drive interface to the physical transceiver.
+- **FCE (Fault Confinement Entity)**: maintains Transmit Error Counter (TEC) and Receive Error Counter (REC), escalating the node's error state from Error Active through Error Passive to Bus Off as error counts accumulate.
+
+```{.mermaid #fig:can-layers caption="ISO 11898-1 layered reference model. LLC, MAC, and PCS form a vertical data-path stack; the FCE spans all three sub-layers via a dedicated interface."}
+flowchart TD
+  APP(["Host Application"])
+  LLC["**LLC** — Logical Link Control\nFrame buffering · retransmission policy"]
+  MAC["**MAC** — Medium Access Control\nBit stuffing · CRC · arbitration · ACK"]
+  PCS["**PCS** — Physical Coding Sub-layer\nBit timing · synchronization · TDC"]
+  PHY(["Physical Layer (ISO 11898-2)\nTransceiver · differential bus"])
+  FCE["**FCE** — Fault Confinement Entity\nTEC / REC counters · Error Active/Passive/Bus Off"]
+
+  APP <--> LLC
+  LLC <--> MAC
+  MAC <--> PCS
+  PCS <--> PHY
+  FCE <-.->|error signals| LLC
+  FCE <-.->|error signals| MAC
+  FCE <-.->|error signals| PCS
+```
+
+In the implementation described in this report, each sub-layer maps to a dedicated VHDL module, and the sub-layer interfaces become the port records connecting those modules (@sec:design-architecture).
+
+## Frame Types and Formats {#sec:frame-types}
+
+CAN defines two classes of frames: Classic CAN (CC) and CAN FD (FD). Within each class, frames may carry either an 11-bit base identifier or a 29-bit extended identifier, giving four in-scope formats (@tbl:frame-formats). Remote frames and CAN XL frames are out of scope for this project.
+
+| Format | Identifier | Max payload | CRC | Bit stuffing |
+| :--- | :--- | :--- | :--- | :--- |
+| CB (Classic Base) | 11-bit | 8 bytes | CRC-15 | Dynamic (5-in-a-row) |
+| CE (Classic Extended) | 29-bit | 8 bytes | CRC-15 | Dynamic (5-in-a-row) |
+| FB (FD Base) | 11-bit | 64 bytes | CRC-17 or CRC-21 | Dynamic + fixed |
+| FE (FD Extended) | 29-bit | 64 bytes | CRC-17 or CRC-21 | Dynamic + fixed |
+
+: In-scope frame formats and their key parameters. {#tbl:frame-formats}
+
+A Classic CAN frame consists of: Start of Frame (SOF), Arbitration field (identifier, RTR, IDE), Control field (DLC), Data field, CRC field, ACK slot and delimiter, End of Frame, and Intermission. A CAN FD frame shares the same structure through the arbitration phase, then introduces the FDF bit (marking the frame as FD), followed by BRS (Bit Rate Switch) and ESI (Error State Indicator) control bits that govern the transition into the higher-speed data phase.
+
+![Classic CAN base frame (CB) and CAN FD base frame (FB) bit-field layouts. The FD frame extends the control field with FDF, res, BRS, and ESI between the IDE bit and the DLC; the data and CRC fields are transmitted at the data-phase bit rate when BRS is recessive.](figures/can_frame_structure.png){#fig:can-frame-structure}
+
+## Bit Timing and Flexible Data Rate {#sec:bit-timing}
+
+Every CAN bit period is divided into four non-overlapping time segments measured in Time Quanta (TQ), where one TQ equals the period of the prescaled system clock:
+
+- **Sync Segment (SYNC_SEG)**: one TQ; the point at which the bus is expected to produce a recessive-to-dominant edge after synchronization.
+- **Propagation Segment (PROP_SEG)**: compensates for round-trip signal propagation delay on the bus and in the transceiver; configurable.
+- **Phase Segment 1 (PHASE_SEG1)**: immediately precedes the sample point; can be lengthened by the resynchronization mechanism to absorb positive phase errors.
+- **Phase Segment 2 (PHASE_SEG2)**: follows the sample point to the end of the bit; can be shortened to absorb negative phase errors.
+
+The **sample point** falls at the PHASE_SEG1 / PHASE_SEG2 boundary. Every receiver samples the bus exactly once per bit at this point; the sampled polarity is the received bit value. The sample point position - expressed as a percentage of the total bit time - is a configuration parameter traded off against bus length, node count, and oscillator tolerance.
+
+**Resynchronization** corrects for accumulated phase error between a receiver's local oscillator and the transmitter's bus edges. Hard synchronization forces a full re-alignment on the SOF falling edge at the start of each frame. During the frame, soft resynchronization adjusts PHASE_SEG1 or PHASE_SEG2 by up to the configured Synchronization Jump Width (SJW) on each recessive-to-dominant edge, keeping the sample point aligned with the transmitter.
+
+**CAN FD and the flexible data rate.** CAN FD introduces a second, independently configured bit rate for the data phase. The BRS (Bit Rate Switch) bit in the FD control field (@tbl:frame-formats) controls this transition: when BRS is recessive, the bus switches to the data-phase bit rate immediately after the BRS sample point and returns to the nominal rate at the CRC delimiter. The nominal rate governs the arbitration phase (SOF through BRS) and the return path (CRC delimiter onward); the data rate governs the payload and CRC fields in between. Because the data phase operates at a much shorter bit time, the same physical propagation delay represents a larger fraction of the bit period. On electrically long buses at high data rates, the loop propagation delay can exceed a full data-phase bit time.
+
+**Transmitter Delay Compensation (TDC)** addresses this. A transmitter in the FD data phase cannot rely on immediate bus loopback for bit-error monitoring, because the echo of a driven bit arrives one or more bit times late. TDC measures the actual round-trip delay at the start of the data phase and configures a Secondary Sample Point (SSP) at the correct offset, so that each transmitted bit is still checked for loopback correctness. The TDC measurement and SSP configuration are PCS responsibilities and are a significant driver of PCS complexity in the implementation (@sec:can-pcs).
+
+![CAN nominal bit time structure. One bit consists of SYNC_SEG (1 TQ), PROP_SEG, PHASE_SEG1, and PHASE_SEG2. The sample point (SP) sits at the PHASE_SEG1/PHASE_SEG2 boundary. In the CAN FD data phase the total bit period is shorter but the four-segment structure is preserved with independently configured values.](figures/can_bit_timing.png){#fig:can-bit-timing}
+
+## Bit Stuffing {#sec:bit-stuffing}
+
+Bit stuffing ensures sufficient transitions on the bus for receiver clock synchronization. Classic CAN applies dynamic stuffing throughout the frame: after five consecutive bits of the same polarity, the transmitter inserts one complement stuff bit and the receiver removes it before forwarding the data stream. CAN FD retains dynamic stuffing through the arbitration phase, then switches to a combined dynamic-plus-fixed scheme in the data phase. Fixed stuff bits are inserted at predetermined positions (every fourth bit in the CRC field, independent of the preceding bit pattern); they carry a parity-encoded Stuff Bit Count (SBC) field that allows receivers to independently verify the number of dynamic stuff bits seen in the frame - an additional error detection layer absent in Classic CAN.
+
+![Dynamic bit stuffing: five consecutive bits of the same polarity trigger insertion of one complement stuff bit (S). The receiver detects and removes the stuff bit. A sixth consecutive same-polarity bit is a stuff error.](figures/can_bit_stuffing.png){#fig:can-bit-stuffing}
+
+## Cyclic Redundancy Check {#sec:crc-overview}
+
+The CRC polynomial and length depend on frame format and data length:
+
+- **CRC-15**: used for all Classic CAN frames; covers the stuffed bit stream from SOF through the data field.
+- **CRC-17**: used for FD frames with data lengths up to 16 bytes.
+- **CRC-21**: used for FD frames with data lengths from 20 to 64 bytes.
+
+For FD frames, the CRC is computed over the fixed-stuff-bit-augmented bit stream rather than the raw data, meaning CRC computation must be interleaved with stuff bit insertion. A received frame with a CRC mismatch triggers an Error Flag.
+
+## Error Detection and Fault Confinement {#sec:error-model}
+
+Every CAN node monitors the bus for five categories of error. Bit errors occur when a transmitter reads back a polarity different from what it drove. Stuff errors occur when six consecutive bits of the same polarity appear where the stuffing rule prohibits it. CRC errors occur when the received checksum does not match the locally recomputed value. Form errors occur when fixed-format fields contain illegal bit values. Acknowledgement errors occur when a transmitter receives no dominant ACK bit from any receiver. Detection of any error causes the detecting node to immediately transmit an Error Flag, aborting the in-progress frame.
+
+The FCE tracks each node's error history through TEC and REC. Counter increments and decrements follow the rules in ISO 11898-1 Section 12. A node begins in Error Active and transitions to Error Passive when either counter exceeds 127, then to Bus Off when TEC exceeds 255. In Bus Off the node ceases all bus activity until 128 sequences of 11 consecutive recessive bits are observed, after which it returns to Error Active. This escalation mechanism is the subject of several verification plan requirements and directly motivates the separation of the FCE into a dedicated module with its own testbench.
+
+# Verification Plan {#sec:vplan-dimensions}
+
+In addition to the ISO standard section links provided by the initial LLM agent extraction, each requirement was classified along the following set of dimensions:
 
 - layer, @sec:vplan-layer
 - side, @sec:vplan-side
@@ -205,25 +302,19 @@ This process yielded a raw set of 168 normative statements linked to the ISO sta
 These dimensions, described in the following subsections, should serve to focus the design phase by carving out the natural sub-module boundaries and guide the verification effort by highlighting the relevant layer of abstraction associated with a given requirement.
 
 
-### Layer {#sec:vplan-layer}
+## Layer {#sec:vplan-layer}
 
-The ISO 11898-1 structures the CAN protocol into three functional sub-layers and a layer-spanning Fault Confinement Entity (FCE):
-
-- Logic Link Control (LLC).
-- Medium Access Control (MAC).
-- Physical Coding Sub-layer (PCS).
-
-Each of these have a dedicated section in the ISO 11898-1 standard and the layer field assigns each requirement to the protocol sub-layer that owns it. This classification determines the verification boundary at which each requirement must be exercised. A fifth label - **system** - was introduced alongside the four protocol layers to classify requirements that are inherently multi-layer or multi-node in character. Some CAN behaviors cannot be attributed to a single layer of a single node. They emerge from interactions between multiple nodes on the bus, or span the layer boundary within a single node. The system label flags these requirements as ones that require either an integrated multi-module test bench or a multi-node simulation environment.
+The layer field assigns each requirement to the protocol sub-layer that owns it (LLC, MAC, PCS, or FCE - see @sec:can-layered-model), determining the verification boundary at which the requirement must be exercised. A fifth label - **system** - classifies requirements that are inherently multi-layer or multi-node in character. Some CAN behaviors cannot be attributed to a single layer of a single node: they emerge from interactions between multiple nodes on the bus, or span the layer boundary within a single node. The system label flags these requirements as ones that require either an integrated multi-module testbench or a multi-node simulation environment.
 
 At design time, this classification directly motivated the layered module architecture: requirements assigned to a given layer pointed to the corresponding module as the responsible implementation unit and to that module's testbench as the primary verification environment. The consequence of the system label is described further in @sec:combined-vs-separated-fsm.
 
-### Side {#sec:vplan-side}
+## Side {#sec:vplan-side}
 
 The side field records whether a requirement pertains to the transmitter path, the receiver path, or both roles simultaneously. This dimension reflects the ISO standard's own framing, which frequently specifies transmitter and receiver obligations separately. In the verification environment, the side field determines whether a testbench drives the DUT in transmitter mode, receiver mode, or both roles in succession within a single test scenario. The design consequences of this dimension - and why it appeared to motivate a split-path architecture but did not - are discussed in @sec:combined-vs-separated-fsm.
 
-### Format Applicability {#sec:vplan-format}
+## Format Applicability {#sec:vplan-format}
 
-The format_applicability field records which of the four in-scope frame formats (CB, CE, FB, FE) each requirement applies to. CAN FD introduced two new frame formats (FB, FE) alongside the two Classic formats (CB, CE), and the formats differ in ways that affect nearly every protocol layer: the bit stuffing mode switches from dynamic-only (Classic) to a combined dynamic-plus-fixed scheme (FD), the CRC polynomial changes from CRC-15 to CRC-17 or CRC-21 depending on data length, and the control field gains new bits (BRS, ESI, SBC) that are absent in Classic frames. A requirement that applies only to FD frames therefore implies stimulus configurations with FDF=1 and DLC values spanning both CRC-17 and CRC-21 threshold, while a requirement that applies to all four formats must be exercised across all format-specific configurations. The format field makes those implications explicit rather than leaving them to be inferred from the requirement text.
+The format_applicability field records which of the four in-scope frame formats (CB, CE, FB, FE - see @tbl:frame-formats) each requirement applies to. Because the formats differ in stuffing mode, CRC polynomial, and control field structure (@sec:can-protocol-overview), a requirement that applies only to FD frames implies stimulus configurations with FDF=1 and DLC values spanning both the CRC-17 and CRC-21 threshold, while a requirement that applies to all four formats must be exercised across all format-specific configurations. The field makes those implications explicit rather than leaving them to be inferred from the requirement text.
 
 ### Observability {#sec:vplan-observability}
 
