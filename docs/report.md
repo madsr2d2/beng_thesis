@@ -238,66 +238,46 @@ The priority field classifies each requirement into one of three levels:
 - P2 requirements are nice-to-have - they are verified in the normal verification cycle but do not block closure.
 - P3 requirements are optional - addressed only if schedule permits.
 
-
 ## Verification Plan Data Structure {#sec:verification-plan-data-structure}
 
-The consolidated requirements set described in @sec:req-extraction provided the foundation for the verification plan development. The verification plan data structure augments each requirement with the dimensions needed to answer not just *what* must be true, but *how* it will be verified, *where* the evidence lives, and *when* verification is complete. This additional structure follows the verification planning methodology described by Bergeron [@bergeron2003ch3], which organizes a verification plan around explicit links between requirements, verification methods, and traceability artifacts. The complete 45-requirement plan is reproduced in @sec:appendix-vplan. @tbl:vplan-metadata-fields lists the fields attached to each requirement entry; the following sections detail the rationale and allowed values for each field.
+The verification plan data structure (@tbl:vplan-metadata-fields) augments each requirement with the dimensions needed to answer not just *what* must be true, but *how* it will be verified, *where* the evidence lives, and *when* verification is complete. The verification plan was a very lively document throughout the project and it was continuously updated as implementation and verification work progressed. The following sub-sections detail the rationale and allowed values for each field in the verification plan. The complete verification plan is reproduced in @sec:appendix-vplan as two separate tables (linked by common ID's).
 
-
-### Verification Method {#sec:vplan-method}
-
-The verification_method field makes the path from requirement to verification artifact explicit and actionable before any testbench is written, giving each requirement a clear route to closure before implementation begins. Four methods are used: simulation (automated assertion or check procedure in a testbench), code inspection (RTL source review), waveform inspection (manual review of simulation output to confirm bit-level timing or signal sequencing), and coverage (OSVVM coverage bins sweeping a value range). Combinations are valid when multiple sub-claims within one requirement each call for a different method.
-
-
-### Traceability: Label and File {#sec:vplan-traceability}
-
-Each requirement entry carries two dedicated traceability fields: a `file` field identifying the testbench or RTL source file responsible for covering the requirement, and a `label` field identifying a specific named procedure, assertion, or coverage ID within that file. Together they establish a direct, navigable link from each requirement to its verification artifact, following the requirements-driven traceability methodology described in [@bergeron2003ch3].
-
-### Status {#sec:vplan-status}
-
-The status field (`not_started`, `in_progress`, `complete`) records closure state explicitly, allowing partial progress to be tracked without relying on whether the traceability fields happen to be populated. Crucially, gaps in coverage remain immediately visible: requirements with unpopulated traceability fields and `status = not_started` are structurally obvious in the data file without requiring a separate coverage matrix.
 
 | Field | Purpose |
 | :--- | :--- |
 | `id` | Sequential identifier REQ-NNN. |
-| `source_clause` | ISO 11898-1:2015 section reference. |
-| `original_wording` | Verbatim normative text from the standard. |
-| `paraphrase` | Concise restatement for report tables and review. |
-| `layer` | Sub-layer owner: LLC, MAC, PCS, FCE, or system (see @sec:vplan-layer). |
-| `side` | Obligation direction: transmitter, receiver, or both (see @sec:vplan-side). |
-| `format_applicability` | Applicable frame formats: CB, CE, FB, FE (see @sec:vplan-format). |
-| `observability` | `black_box` or `white_box` (see @sec:vplan-observability). |
-| `verification_method` | Method(s) used to verify the requirement (see @sec:vplan-method). |
-| `priority` | P1 (need-to-have), P2 (nice-to-have), or P3 (optional) (see @sec:vplan-priority). |
-| `status` | `not_started`, `in_progress`, `complete`, or `waived` (see @sec:vplan-status). |
-| `notes` | Engineering notes and caveats. |
-| `label` | Assertion label, TB procedure name, coverage ID, or RTL tag. Comma-separated when multiple procedures cover distinct sub-claims (see @sec:vplan-traceability). |
-| `file` | Target file - TB for simulation/coverage, RTL for code inspection. Comma-separated when sub-claims span multiple files (see @sec:vplan-traceability). |
+| `source_clause` | ISO 11898-1:2024 section reference. |
+| `original_wording` | Verbatim normative text excerpets from the ISO standard.|
+| `paraphrase` | Concise paraphrase of the `original_wording` field (this is the actual requerment) |
+| `layer` | Sub-layer owner: LLC, MAC, PCS, FCE, or system (@sec:vplan-layer). |
+| `side` |  transmitter, receiver, or both (@sec:vplan-side). |
+| `format_applicability` | Applicable frame formats: CB, CE, FB, FE (@sec:vplan-format). |
+| `observability` | `black_box` or `white_box` (@sec:vplan-observability). |
+| `verification_method` | Method(s) used to verify the requirement (@sec:vplan-method). |
+| `priority` | P1 (need-to-have), P2 (nice-to-have), or P3 (optional) (@sec:vplan-priority). |
+| `status` | `not_started`, `in_progress` or `complete` (@sec:vplan-status). |
+| `notes` | The field is intended to celrify residual ambiguity left over form the other fields |
+| `label` | Assertion label, TB procedure name, coverage ID, or RTL tag. Comma-separated when multiple procedures cover distinct sub-claims (@sec:vplan-traceability). |
+| `file` | Target file: TB for simulation/coverage, RTL for code inspection. Comma-separated when sub-claims span multiple files (@sec:vplan-traceability). |
 
-: Verification-plan metadata fields. {#tbl:vplan-metadata-fields}
+: Verification-plan data structure fields. {#tbl:vplan-metadata-fields}
 
-## Storage Format and Tooling {#sec:req-tooling}
+### Verification Method {#sec:vplan-method}
 
-The verification plan is stored as a `TOML` file with each entry as a self-contained `[[requirement]]` block with one key per line. TOML was chosen because it is human-readable, maps cleanly onto structured records without a schema file, and can be parsed and manipulated with minimal code using Python's built-in `tomllib` library - making it straightforward to write validation and query scripts alongside the MCP server.
+The verification_method field makes the path from requirement to verification artifact explicit and actionable. Four methods are used: `simulation` (automated assertion procedures in a test bench), `code_inspection`  (RTL source review), `waveform_inspection` (manual review of simulation output), and `coverage` (coverage bins a value range). Combinations are valid when multiple sub-claims within one requirement each call for a different method.
 
-A **Model Context Protocol (MCP) server** (`mcp_tools/verification_plan_manager.py`) was written to provide a constrained interface for LLM-assisted operations on the plan thus minimizing the risk of silint data corruption caused by un-constraint LLM-agent interactions with the verification plan source.
 
-- **`get_requirement`** / **`query_requirements`**: retrieve individual entries or filtered subsets by layer, side, status, observability, or whether traceability fields are populated.
-- **`update_requirement`**: atomically update a single named field of a single entry, with schema validation before the write is committed.
-- **`insert_requirement`**: add a new entry with automatic field initialization and sequential-ID assignment.
-- **`delete_requirement`**: remove an entry and flag any cross-references to it.
-- **`renumber_requirements`**: regenerate all REQ-NNN identifiers after insertions or deletions, maintaining a consistent sequential namespace.
-- **`get_statistics`**: report coverage of label, file, and status fields to give an instant snapshot of plan completeness.
+### Traceability: Label and File {#sec:vplan-traceability}
 
-The verification plan TOML operated as a living document throughout the project. As implementation and verification work progressed,  traceability links were added as testbenches were written, and status fields were updated to reflect closure. The MCP tooling made these ongoing updates tractable: individual field changes were atomic, sequentially logged, and immediately visible in version-control diffs.
+Each requirement entry carries two dedicated traceability fields: a `file` field identifying the test bench or RTL source file responsible for covering the requirement, and a `label` field identifying a specific named procedure, assertion, or coverage ID within that file. Together they establish a direct, navigable link from each requirement to its verification artifact.
+
+### Status {#sec:vplan-status}
+
+The status field (`not_started`, `in_progress`, `complete`) records requirement closure state explicitly, allowing partial progress to be tracked.
 
 ## AI-Assisted Extraction: Utility and Limitations {#sec:ai-extraction}
 
-The LLM agent earned its keep by bootstrapping the initial content of the verification plan data structure. Starting from a blank requirements table would have required a significantly larger upfront effort, and having a populated, classified starting point - even one requiring substantial revision - gave the manual review process a concrete artifact to work from and react to. Generating a rough first draft from source material is a well-understood and widely used application of language models, and this case was no exception.
-
-That said, the overall time saving was marginal. The most time-consuming part of the process - close reading, semantic consolidation, and orthogonality-driven reduction from 168 to 45 entries - is equally demanding whether the starting point is a blank table or an AI-generated draft. The agent's output had to be reviewed statement by statement, which is structurally similar to extracting requirements manually in the first place. The primary benefit of the AI-assisted approach was therefore not efficiency, but coverage consistency: the initial pass covered the entire document systematically, reducing the risk of missing normative statements that a manual skim might overlook.
-
-Beyond the initial extraction, the LLM agent remained a contributor throughout the ongoing maintenance of the verification plan. The MCP-constrained tooling described in @sec:req-tooling made this safe and efficient: rather than handing an agent write-access to a structured file, each update was channeled through schema-validated tool calls. This allowed the plan to evolve continuously as implementation and verification work progressed - adding traceability links, updating status fields, inserting newly identified requirements - without risking data corruption or requiring manual editing of TOML syntax. The agent's role here was narrowly administrative: executing specific, well-defined updates that the engineer had already decided to make. All judgment calls about what a requirement means, how it should be verified, and whether it is complete remained with the engineer.
+The LLM agent definitely earned its keep by bootstrapping and linking the initial normative statement set. Having a fully populated and liked starting point - even one requiring substantial revision - gave the manual review process a concrete artifact to work from. That said, the overall time saving was likely marginal. The agent's output had to be reviewed statement by statement, which is functionally similar to extracting requirements manually in the first place. The primary benefit of the AI-assisted approach was therefore not efficiency, but rather the increased consistency associated with an automated extraction process.
 
 # Design and Architecture {#sec:design-architecture}
 
