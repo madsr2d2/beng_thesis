@@ -1,0 +1,37 @@
+---
+config:
+  theme: neutral
+  layout: elk
+---
+
+graph LR
+    iso_pdf("`ISO.pdf`")
+    iso_md("`ISO.md`")
+    
+    norm_set("`**Normative set**
+    (Size = 168)
+    ─────────
+    + source_caluse
+    + original_wording`")
+    
+    req_set("`**Requirement set**
+    (Size = 45)
+    ─────────
+    + id
+    + paraphrase
+    + priority`")
+
+    ver_plan("`**Verification plan**
+    (Size = 45)
+    ─────────
+    + layer
+    + side
+    + format
+    + observability
+    + method
+    + status
+    + label
+    + file`")
+
+    iso_pdf ==> iso_md ==>|Search/extraction of normative statements by LLM agent| norm_set ==>|Manual requirement
+    destilation| req_set ==> ver_plan
