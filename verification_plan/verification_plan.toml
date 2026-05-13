@@ -97,14 +97,15 @@ status                = "not_started"
 [[requirement]]
 id = "REQ-004"
 source_clause = "§6.5.2, §6.5.3"
-original_wording = "The transmission of frames losing bus arbitration shall be restarted by the LLC entity unless the transmission of that frame is aborted by the LLC user. ; The retransmission of frames that are not aborted by the LLC user shall be attempted for the configured specific number of times. ; Retransmission attempts shall be counted in the retransmission counter."
+original_wording = "The transmission of frames losing bus arbitration shall be restarted by the LLC entity unless the transmission of that frame is aborted by the LLC user. ; The retransmission of frames that are not aborted by the LLC user shall be attempted for the configured specific number of times. ; Retransmission attempts shall be counted in the retransmission counter. ; The node's retransmission counter shall be reset to zero when a transmission is successful or when the LLC user requests a new transmission."
 paraphrase = """Retransmission policy:
 1) Frames losing arbitration shall be retransmitted up to the configured limit unless aborted.
-2) Retransmission attempts shall be counted in the retransmission counter."""
+2) Retransmission attempts shall be counted in the retransmission counter.
+3) The retransmission counter shall be reset to zero on successful transmission or when the LLC user requests a new transmission."""
 side = "transmitter"
 layer = "LLC"
 format_applicability = "CB, CE, FB, FE"
-notes = "Retransmission limit configures from 0 (no retransmission) to at least 6, with optional unlimited."
+notes = "Retransmission limit configures from 0 (no retransmission) to at least 6, with optional unlimited. Sub-claim 3 guards against counter bleed-over from a previous aborted frame into the next frame's limit."
 label = ""
 file = ""
 observability = "white_box"
@@ -187,13 +188,14 @@ status                = "in_progress"
 
 [[requirement]]
 id = "REQ-009"
-source_clause = "§6.6.7.1, §6.6.7.2"
-original_wording = "DFs and RFs shall be separated from preceding frames, whatever frame type the preceding frames are (DF, RF, EF, OF), by a time period called inter-frame space. In contrast to this, EFs and OFs shall not be preceded by inter-frame space, and multiple OFs shall not be separated by inter-frame space. ; The intermission field shall consist of three recessive bits. During intermission, a node shall not start transmission of DFs or RFs. An OF may be transmitted. The detection of a dominant bit at the third bit of intermission shall be interpreted as SOF (see 6.6.8)."
+source_clause = "§6.6.7.1, §6.6.7.2, §6.6.7.3"
+original_wording = "DFs and RFs shall be separated from preceding frames, whatever frame type the preceding frames are (DF, RF, EF, OF), by a time period called inter-frame space. In contrast to this, EFs and OFs shall not be preceded by inter-frame space, and multiple OFs shall not be separated by inter-frame space. ; The intermission field shall consist of three recessive bits. During intermission, a node shall not start transmission of DFs or RFs. An OF may be transmitted. The detection of a dominant bit at the third bit of intermission shall be interpreted as SOF (see 6.6.8). ; A frame pending for transmission during the transmission of another frame shall be started in the first bit following intermission."
 paraphrase = """Intermission rules:
 1) Intermission shall be exactly three recessive bits.
 2) No DF or RF may be started during intermission.
 3) A dominant bit at the third intermission bit shall be interpreted as SOF.
-4) EFs and OFs shall not be preceded by inter-frame space; consecutive OFs shall not be separated by inter-frame space."""
+4) EFs and OFs shall not be preceded by inter-frame space; consecutive OFs shall not be separated by inter-frame space.
+5) A frame pending for transmission during the transmission of another frame shall be started at the first bit following intermission, not deferred to a later idle bit."""
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
@@ -335,13 +337,14 @@ status                = "in_progress"
 
 [[requirement]]
 id = "REQ-017"
-source_clause = "§6.6.10.6, §6.6.11.6"
-original_wording = "All receivers check the consistency of the received DF or RF and shall acknowledge a consistent frame and shall flag an inconsistent frame by means of an EF (see 6.6.2). A DF or RF that is not acknowledged shall be regarded as corrupted and shall be flagged by the transmitting node with an EF. All nodes that receive the matching FCRC sequence shall send an ACK within the ACK slot by overwriting the recessive bit of the transmitter with a dominant bit (they send ACK). ; All receivers check the consistency of the received DF and shall acknowledge a consistent frame and shall flag an inconsistent frame by means of an EF (see 6.6.2). A DF that is not acknowledged shall be regarded as corrupted and shall be flagged by the transmitting node with an EF. Nodes that receive the matching FCRC sequence and the matching stuff count shall send an ACK within the ACK slot by overwriting the recessive bit of the transmitter with a dominant bit (they send ACK). In FD frames, all nodes shall accept an up to two bit long dominant phase of overlapping ACK slot bits as a valid ACK, to compensate for phase shifts between the receivers. ; The ACK delimiter, being the last bit of the ACK field, shall be a recessive bit. Consequently, the ACK slot is surrounded by recessive bits (CRC delimiter, ACK delimiter)."
+source_clause = "§6.6.10.6, §6.6.11.6, §6.6.14"
+original_wording = "All receivers check the consistency of the received DF or RF and shall acknowledge a consistent frame and shall flag an inconsistent frame by means of an EF (see 6.6.2). A DF or RF that is not acknowledged shall be regarded as corrupted and shall be flagged by the transmitting node with an EF. All nodes that receive the matching FCRC sequence shall send an ACK within the ACK slot by overwriting the recessive bit of the transmitter with a dominant bit (they send ACK). ; All receivers check the consistency of the received DF and shall acknowledge a consistent frame and shall flag an inconsistent frame by means of an EF (see 6.6.2). A DF that is not acknowledged shall be regarded as corrupted and shall be flagged by the transmitting node with an EF. Nodes that receive the matching FCRC sequence and the matching stuff count shall send an ACK within the ACK slot by overwriting the recessive bit of the transmitter with a dominant bit (they send ACK). In FD frames, all nodes shall accept an up to two bit long dominant phase of overlapping ACK slot bits as a valid ACK, to compensate for phase shifts between the receivers. ; The ACK delimiter, being the last bit of the ACK field, shall be a recessive bit. Consequently, the ACK slot is surrounded by recessive bits (CRC delimiter, ACK delimiter). ; All receivers shall check the consistency of all received DFs and RFs and they shall acknowledge all consistent DFs and RFs. Acknowledgement shall not depend on the frame's identifier."
 paraphrase = """ACK slot rules:
 1) Receivers shall ACK consistent frames and flag inconsistent frames with an EF.
 2) Transmitters shall flag unacknowledged frames with an EF.
 3) FD frames tolerate a two-bit dominant ACK overlap to compensate for receiver phase differences.
-4) The ACK delimiter shall be one recessive bit; the ACK slot is surrounded by recessive bits on both sides."""
+4) The ACK delimiter shall be one recessive bit; the ACK slot is surrounded by recessive bits on both sides.
+5) ACK shall not depend on the frame's identifier - a receiver shall ACK every consistent frame regardless of ID."""
 side = "both"
 layer = "system"
 format_applicability = "CB, CE, FB, FE"
@@ -428,12 +431,13 @@ status                = "in_progress"
 
 [[requirement]]
 id = "REQ-022"
-source_clause = "§6.6.13.2"
-original_wording = "Dynamic bit stuffing shall be used in CC frames from the SOF up to and including the FCRC sequence. Dynamic bit stuffing shall be used in FD frames from the SOF up to and including the data field. ; Whenever a transmitter detects five consecutive bits (including dynamic stuff bits) of the identical value in the bit stream to be transmitted, it shall insert a complementary bit (called dynamic stuff bit) into the actual transmitted bit stream. The receiver shall recognize a sequence of five consecutive bits of identical value and shall discard the following dynamic stuff bit."
+source_clause = "§6.6.13.1, §6.6.13.2"
+original_wording = "The frame segments from SOF to the frame FCRC sequence shall be coded by the method of the bit stuffing. The remaining bit fields of the frame (ACK field, EOF) shall not be stuffed. ; Dynamic bit stuffing shall be used in CC frames from the SOF up to and including the FCRC sequence. Dynamic bit stuffing shall be used in FD frames from the SOF up to and including the data field. ; Whenever a transmitter detects five consecutive bits (including dynamic stuff bits) of the identical value in the bit stream to be transmitted, it shall insert a complementary bit (called dynamic stuff bit) into the actual transmitted bit stream. The receiver shall recognize a sequence of five consecutive bits of identical value and shall discard the following dynamic stuff bit."
 paraphrase = """Dynamic bit stuffing:
 1) After five consecutive identical bits, a complementary dynamic stuff bit shall be inserted.
 2) CC stuffing covers SOF through the FCRC sequence.
-3) FD stuffing covers SOF through the data field only."""
+3) FD stuffing covers SOF through the data field only.
+4) The ACK field and EOF shall not be subject to dynamic bit stuffing; a receiver shall not raise a stuff error in those fields."""
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
@@ -483,13 +487,15 @@ status                = "in_progress"
 
 [[requirement]]
 id = "REQ-025"
-source_clause = "§6.6.17.4, §6.6.17.5"
-original_wording = "During arbitration, every transmitter shall compare the level of the bit transmitted with the level monitored on the bus. If these levels are equal, the transmitter may continue to send. When a CAN node sends a recessive level and monitors a dominant level, the CAN node loses arbitration and shall withdraw from transmitting any more bits, and it shall become receiver of this frame. ; When a dominant level is sent and a recessive level is monitored, the node shall detect a bit error. ; Identifier based arbitration shall be performed in CBFF from the first bit of the identifier up to the IDE bit, in CEFF from the first bit of the identifier up to the RTR bit, and in FBFF, FEFF, as well as in XLFF from the first bit of the identifier up to the bit following the FDF bit. ; Among two or more frames with different identifiers, the identifier-based arbitration assigns the higher priority to the identifier containing the lower binary value. If one DF in CBFF, one DF in FBFF, and one DF in XLFF with the same identifier are initiated at the same time, the DF in FBFF has a lower priority than the DF in CBFF, and the DF in XLFF has a lower priority than the DF in FBFF and the DF in CBFF."
+source_clause = "§6.6.10.2, §6.6.11.2, §6.6.17.4, §6.6.17.5"
+original_wording = "During arbitration, every transmitter shall compare the level of the bit transmitted with the level monitored on the bus. If these levels are equal, the transmitter may continue to send. When a CAN node sends a recessive level and monitors a dominant level, the CAN node loses arbitration and shall withdraw from transmitting any more bits, and it shall become receiver of this frame. ; When a dominant level is sent and a recessive level is monitored, the node shall detect a bit error. ; Identifier based arbitration shall be performed in CBFF from the first bit of the identifier up to the IDE bit, in CEFF from the first bit of the identifier up to the RTR bit, and in FBFF, FEFF, as well as in XLFF from the first bit of the identifier up to the bit following the FDF bit. ; Among two or more frames with different identifiers, the identifier-based arbitration assigns the higher priority to the identifier containing the lower binary value. If one DF in CBFF, one DF in FBFF, and one DF in XLFF with the same identifier are initiated at the same time, the DF in FBFF has a lower priority than the DF in CBFF, and the DF in XLFF has a lower priority than the DF in FBFF and the DF in CBFF. ; The recessive values of SRR and IDE bit ensure that collisions between a frame in CBFF or FBFF and a frame in CEFF or FEFF, with both frames having the same base identifier, are resolved such that the frame in CBFF or FBFF prevails over the frame in CEFF or FEFF. ; The recessive value of the RTR bit in RFs ensure that collisions between a DF and an RF having the same identifier and format are resolved such that the DF prevails over the RF."
 paraphrase = """Arbitration rules:
 1) Recessive-sent, dominant-monitored: lose arbitration and become a receiver.
 2) Dominant-sent, recessive-monitored: bit error.
 3) Arbitration spans from the first ID bit to the format-specific boundary bit (IDE for CB, RTR for CE, bit after FDF for FB/FE).
-4) When a CB and FB frame with the same base identifier collide, the CB frame shall win because its dominant r0/FDF bit overrides the recessive FDF bit of the FB frame."""
+4) When a CB and FB frame with the same base identifier collide, the CB frame shall win because its dominant r0/FDF bit overrides the recessive FDF bit of the FB frame.
+5) When a CBFF or FBFF frame collides with a CEFF or FEFF frame having the same 11-bit base identifier, the 11-bit-ID frame (CBFF or FBFF) shall win via the recessive SRR/IDE bits of the 29-bit frame.
+6) When a DF and an RF with the same identifier and format collide, the DF shall win because the recessive RTR bit of the RF yields to the dominant RTR bit of the DF."""
 side = "transmitter"
 layer = "system"
 format_applicability = "CB, CE, FB, FE"
