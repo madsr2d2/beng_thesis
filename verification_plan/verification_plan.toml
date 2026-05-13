@@ -187,12 +187,13 @@ status                = "in_progress"
 
 [[requirement]]
 id = "REQ-009"
-source_clause = "§6.6.7.2"
-original_wording = "The intermission field shall consist of three recessive bits. During intermission, a node shall not start transmission of DFs or RFs. An OF may be transmitted. The detection of a dominant bit at the third bit of intermission shall be interpreted as SOF (see 6.6.8)."
+source_clause = "§6.6.7.1, §6.6.7.2"
+original_wording = "DFs and RFs shall be separated from preceding frames, whatever frame type the preceding frames are (DF, RF, EF, OF), by a time period called inter-frame space. In contrast to this, EFs and OFs shall not be preceded by inter-frame space, and multiple OFs shall not be separated by inter-frame space. ; The intermission field shall consist of three recessive bits. During intermission, a node shall not start transmission of DFs or RFs. An OF may be transmitted. The detection of a dominant bit at the third bit of intermission shall be interpreted as SOF (see 6.6.8)."
 paraphrase = """Intermission rules:
 1) Intermission shall be exactly three recessive bits.
 2) No DF or RF may be started during intermission.
-3) A dominant bit at the third intermission bit shall be interpreted as SOF."""
+3) A dominant bit at the third intermission bit shall be interpreted as SOF.
+4) EFs and OFs shall not be preceded by inter-frame space; consecutive OFs shall not be separated by inter-frame space."""
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
@@ -244,10 +245,11 @@ status                = "in_progress"
 [[requirement]]
 id = "REQ-012"
 source_clause = "§6.6.7.5"
-original_wording = "CAN nodes shall start the bus re-integration after starting the protocol operation, during bus-off recovery, or (for nodes that are FD tolerant, FD enabled, or XL enabled) after detecting a protocol exception event. ; CAN nodes that are not in bus-off state shall finish the bus re-integration when the idle condition (see 3.34) is detected."
+original_wording = "CAN nodes shall start the bus re-integration after starting the protocol operation, during bus-off recovery, or (for nodes that are FD tolerant, FD enabled, or XL enabled) after detecting a protocol exception event. ; CAN nodes that are not in bus-off state shall finish the bus re-integration when the idle condition (see 3.34) is detected. ; There shall be a bit counter that is reset when the bus re-integration state is started or when the CAN bus is detected dominant at the sample point. The bit counter shall be incremented when the CAN bus is detected recessive at the sample point. The idle condition shall be detected when this bit counter reaches the value 11. ; For nodes that are FD tolerant, FD enabled, or XL enabled, there shall be a third reset condition for the bit counter. It shall be reset when detecting an edge that causes synchronization. When synchronization occurs, the counting of the sequence of 11 consecutive recessive bits shall be restarted."
 paraphrase = """Bus re-integration:
 1) Nodes shall start bus re-integration on protocol startup or bus-off recovery.
-2) Re-integration completes after 11 consecutive recessive bits at the sample point."""
+2) Re-integration completes after 11 consecutive recessive bits at the sample point.
+3) For FD-capable nodes, any edge that causes synchronisation shall also reset the 11-bit counter, preventing data-phase short bits from falsely completing the idle count."""
 side = "both"
 layer = "system"
 format_applicability = "CB, CE, FB, FE"
@@ -479,12 +481,13 @@ status                = "in_progress"
 
 [[requirement]]
 id = "REQ-025"
-source_clause = "§6.6.17.4"
-original_wording = "During arbitration, every transmitter shall compare the level of the bit transmitted with the level monitored on the bus. If these levels are equal, the transmitter may continue to send. When a CAN node sends a recessive level and monitors a dominant level, the CAN node loses arbitration and shall withdraw from transmitting any more bits, and it shall become receiver of this frame. ; When a dominant level is sent and a recessive level is monitored, the node shall detect a bit error. ; Identifier based arbitration shall be performed in CBFF from the first bit of the identifier up to the IDE bit, in CEFF from the first bit of the identifier up to the RTR bit, and in FBFF, FEFF, as well as in XLFF from the first bit of the identifier up to the bit following the FDF bit."
+source_clause = "§6.6.17.4, §6.6.17.5"
+original_wording = "During arbitration, every transmitter shall compare the level of the bit transmitted with the level monitored on the bus. If these levels are equal, the transmitter may continue to send. When a CAN node sends a recessive level and monitors a dominant level, the CAN node loses arbitration and shall withdraw from transmitting any more bits, and it shall become receiver of this frame. ; When a dominant level is sent and a recessive level is monitored, the node shall detect a bit error. ; Identifier based arbitration shall be performed in CBFF from the first bit of the identifier up to the IDE bit, in CEFF from the first bit of the identifier up to the RTR bit, and in FBFF, FEFF, as well as in XLFF from the first bit of the identifier up to the bit following the FDF bit. ; Among two or more frames with different identifiers, the identifier-based arbitration assigns the higher priority to the identifier containing the lower binary value. If one DF in CBFF, one DF in FBFF, and one DF in XLFF with the same identifier are initiated at the same time, the DF in FBFF has a lower priority than the DF in CBFF, and the DF in XLFF has a lower priority than the DF in FBFF and the DF in CBFF."
 paraphrase = """Arbitration rules:
 1) Recessive-sent, dominant-monitored: lose arbitration and become a receiver.
 2) Dominant-sent, recessive-monitored: bit error.
-3) Arbitration spans from the first ID bit to the format-specific boundary bit (IDE for CB, RTR for CE, bit after FDF for FB/FE)."""
+3) Arbitration spans from the first ID bit to the format-specific boundary bit (IDE for CB, RTR for CE, bit after FDF for FB/FE).
+4) When a CB and FB frame with the same base identifier collide, the CB frame shall win because its dominant r0/FDF bit overrides the recessive FDF bit of the FB frame."""
 side = "transmitter"
 layer = "system"
 format_applicability = "CB, CE, FB, FE"
@@ -609,9 +612,9 @@ status                = "in_progress"
 [[requirement]]
 id = "REQ-032"
 source_clause = "§6.6.21.3.2"
-original_wording = "The following conditions shall lead to the transmission of an OF. a) LLC-requested OF (initiated by the LLC sub-layer): An LLC may cause an OF transmission, when internal conditions of the receiver need a delay of the next MAC DF or MAC RF. b) Reactive OF (initiated by the MAC sub-layer): Detection of a dominant bit during either of the first two bits of intermission, detection of one dominant bit at the last bit of EOF by a receiver, or detection of one dominant bit by any node at the last bit of error delimiter or overload delimiter shall cause an OF transmission. ; An LLC-requested OF shall only be started at the first bit of an expected intermission, whereas reactive OFs shall start one bit after detecting the dominant bit due to condition b) above."
+original_wording = "The following conditions shall lead to the transmission of an OF. a) LLC-requested OF (initiated by the LLC sub-layer): An LLC may cause an OF transmission, when internal conditions of the receiver need a delay of the next MAC DF or MAC RF. b) Reactive OF (initiated by the MAC sub-layer): Detection of a dominant bit during either of the first two bits of intermission, detection of one dominant bit at the last bit of EOF by a receiver, or detection of one dominant bit by any node at the last bit of error delimiter or overload delimiter shall cause an OF transmission. ; An LLC-requested OF shall only be started at the first bit of an expected intermission, whereas reactive OFs shall start one bit after detecting the dominant bit due to condition b) above. The start of LLC-requested OFs due to condition a) above shall be allowed but are not required to be implemented. At most, two LLC requested OFs shall be generated to delay the next MAC DF or MAC RF."
 paraphrase = """An OF is triggered by:
-1) LLC request - starts at the first bit of intermission. Implementation is optional.
+1) LLC request - starts at the first bit of intermission. Implementation is optional; at most two LLC-requested OFs shall be generated per inter-frame space.
 2) Reactive - dominant at either of the first two intermission bits, the last EOF bit (receivers only), or the last error/overload delimiter bit. The OF starts one bit after the triggering bit."""
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
@@ -930,5 +933,23 @@ verification_method = "simulation"
 priority             = "P3"
 status                = "not_started"
 notes = ""
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-050"
+source_clause = "§8.1.5"
+original_wording = "If during network start-up only one node is online and if this node transmits any DF or RF, it does not get an ACK. In this case, it shall detect an error and repeat the frame. According to rule c) in 8.1.4.2, exception 1, it may become error-passive but shall not go bus-off. ; When a switched-off node is switched on again, it shall: synchronize with already available nodes to re-integrate into the bus communication (see 6.6.7.5) before starting to transmit. Synchronization is achieved when 11 recessive bits have been detected that are equivalent to ACK delimiter + EOF + intermission or Error/Overload delimiter + intermission; wait for other nodes if there is no other node available at the moment without becoming bus-off."
+paraphrase = """Node start-up:
+1) A node shall complete bus re-integration (11 consecutive recessive bits) before starting to transmit.
+2) A single transmitting node that receives no ACK shall become error-passive but shall never go bus-off; the error-passive ACK exception (rule c, exception 1) applies indefinitely in a single-node network."""
+side = "both"
+layer = "system"
+format_applicability = "CB, CE, FB, FE"
+observability = "black_box"
+verification_method = "simulation"
+priority             = "P2"
+status                = "not_started"
+notes = "Sub-claim 1 is an emergent property of REQ-012 (re-integration) and REQ-013 (SOF only when idle); the dedicated test here confirms the node does not transmit before integration completes. Sub-claim 2 requires a single-node scenario where ACK injection is permanently absent, verifying TEC rises to error-passive but does not exceed 255."
 label = ""
 file = ""
