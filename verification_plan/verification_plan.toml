@@ -484,50 +484,17 @@ status                = "in_progress"
 [[requirement]]
 id = "REQ-027"
 source_clause = "§6.6.21.2"
-original_wording = "A stuff error shall be detected at the bit time of the sixth consecutive equal bit level in a field that is coded by the method of dynamic bit stuffing."
-paraphrase = "Stuff error rules: a stuff error shall be detected at the sixth consecutive identical bit in any dynamically-stuffed field."
+original_wording = "A stuff error shall be detected at the bit time of the sixth consecutive equal bit level in a field that is coded by the method of dynamic bit stuffing. ; A form error shall be detected in the following cases: when a fixed form bit field contains one or more unexpected bit values, or when a fixed stuff bit in an XL frame or in an FD frame is not at its expected value. ; Exception 1: A receiver detecting a dominant bit at the last bit of EOF, or a node detecting a dominant bit at the last bit of the error delimiter or of the overload delimiter, shall not treat this as a form error. ; The receivers shall calculate the CRC in the same way as the transmitter. ; A receiver shall detect an FCRC error when the calculated frame FCRC sequence does not equal the received one, or when the SBC of an FD frame does not match to the number of the received dynamic stuff bits, or when the SBC parity does not match. ; A transmitter shall detect an ACK error whenever it does not detect a dominant bit during the ACK slot."
+paraphrase = """MAC error detection: stuff, form, CRC, and ACK errors:
+1) A stuff error shall be detected at the sixth consecutive identical bit in any dynamically-stuffed field; the counter shall not run in the fixed-stuffing CRC region of FD frames.
+2) A form error shall be detected on any unexpected fixed-form bit value or wrong fixed stuff bit polarity (FB, FE). Exception: a dominant bit at the last EOF bit or at the last bit of any error or overload delimiter shall not be treated as a form error.
+3) Receivers shall compute CRC identically to the transmitter and detect a CRC error on FCRC mismatch; FD frames additionally require SBC match and correct SBC parity.
+4) A transmitter shall detect an ACK error if no dominant bit is monitored in the ACK slot."""
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-notes = "The consecutive-bit counter must not run in the fixed-stuffing CRC region of FD frames."
-label = "p_fsm:~336"
-file = "src/can_mac/hdl_src/can_mac_fsm.vhd"
-observability = "black_box"
-verification_method = "code_inspection"
-priority             = "P1"
-status                = "in_progress"
-
-[[requirement]]
-id = "REQ-028"
-source_clause = "§6.6.21.2"
-original_wording = "A form error shall be detected in the following cases: when a fixed form bit field contains one or more unexpected bit values, or when a fixed stuff bit in an XL frame or in an FD frame is not at its expected value. ; Exception 1: A receiver detecting a dominant bit at the last bit of EOF, or a node detecting a dominant bit at the last bit of the error delimiter or of the overload delimiter, shall not treat this as a form error."
-paraphrase = """Form error rules:
-1) A form error shall be detected on any unexpected fixed-form bit value or wrong fixed stuff bit polarity (FB, FE).
-2) Exception: dominant bits at the last EOF bit or at the last bit of any error or overload delimiter."""
-side = "both"
-layer = "MAC"
-format_applicability = "CB, CE, FB, FE"
-notes = ""
-label = "p_fsm:~343"
-file = "src/can_mac/hdl_src/can_mac_fsm.vhd"
-observability = "white_box"
-verification_method = "code_inspection"
-priority             = "P1"
-status                = "in_progress"
-
-[[requirement]]
-id = "REQ-029"
-source_clause = "§6.6.21.2"
-original_wording = "The receivers shall calculate the CRC in the same way as the transmitter. ; A receiver shall detect an FCRC error when the calculated frame FCRC sequence does not equal the received one, or when the SBC of an FD frame does not match to the number of the received dynamic stuff bits, or when the SBC parity does not match. ; A transmitter shall detect an ACK error whenever it does not detect a dominant bit during the ACK slot."
-paraphrase = """CRC and ACK error rules:
-1) Receivers shall compute CRC identically to the transmitter and detect a CRC error on FCRC mismatch.
-2) FD frames additionally check SBC match and SBC parity.
-3) A transmitter shall detect an ACK error if no dominant bit is monitored in the ACK slot."""
-side = "both"
-layer = "MAC"
-format_applicability = "CB, CE, FB, FE"
-notes = "For FD frames the SBC comparison and SBC parity check are separate sub-claims from the FCRC comparison."
-label = "p_fsm:~415"
+notes = "The consecutive-bit counter must not run in the fixed-stuffing CRC region of FD frames. For FD frames the SBC comparison and SBC parity check are separate sub-claims from the FCRC comparison."
+label = "p_fsm:~336, p_fsm:~343, p_fsm:~415"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd"
 observability = "white_box"
 verification_method = "code_inspection"
@@ -633,37 +600,19 @@ status                = "in_progress"
 
 [[requirement]]
 id = "REQ-036"
-source_clause = "§7.3.5.1"
-original_wording = "Only one synchronization within one bit time (between two sample points) shall be allowed. After an edge is detected, synchronizations shall be disabled until the next time the bus state detected at the sample point is recessive. ; An edge shall cause synchronization only if the bus state detected at the previous sample point (previous read bus state) was recessive. If a transmitter uses the transmitter delay compensation (see 7.3.4), also the first detected edge from recessive to dominant after the sample point of the CRC delimiter shall cause synchronization. In this case, CAN nodes may choose alternatively to synchronize on the first detected edge from recessive to dominant seen by an amount of at least the transmitter delay plus one time quantum after the sample point of the CRC delimiter. An edge with a positive phase error (see 7.3.5.2) shall not cause synchronization in a node sending a dominant bit. ; Hard synchronization shall be performed: on edges during inter-frame space (with the exception of the first bit of intermission); when a node is in bus-integration state; at the edge between the FDF bit and the following dominant res bit inside an FD frame; when a node is a receiver of an XL frame, at the edge between the XLF bit and the following dominant resXL bit; at the edge between the DH1 and DH2 bits and the DL1 bit; at the edge between the DAH or AH1 bit and the AL1 bit. ; All other recessive to dominant edges fulfilling rules a) and b) shall be used for resynchronization with one exception: A node transmitting an FD frame or an XL frame shall not synchronize while it transmits the data phase of that frame."
-paraphrase = """Synchronisation rules:
+source_clause = "§7.3.5.1, §7.3.5.3, §7.3.5.4"
+original_wording = "Only one synchronization within one bit time (between two sample points) shall be allowed. After an edge is detected, synchronizations shall be disabled until the next time the bus state detected at the sample point is recessive. ; An edge shall cause synchronization only if the bus state detected at the previous sample point (previous read bus state) was recessive. If a transmitter uses the transmitter delay compensation (see 7.3.4), also the first detected edge from recessive to dominant after the sample point of the CRC delimiter shall cause synchronization. In this case, CAN nodes may choose alternatively to synchronize on the first detected edge from recessive to dominant seen by an amount of at least the transmitter delay plus one time quantum after the sample point of the CRC delimiter. An edge with a positive phase error (see 7.3.5.2) shall not cause synchronization in a node sending a dominant bit. ; Hard synchronization shall be performed: on edges during inter-frame space (with the exception of the first bit of intermission); when a node is in bus-integration state; at the edge between the FDF bit and the following dominant res bit inside an FD frame; when a node is a receiver of an XL frame, at the edge between the XLF bit and the following dominant resXL bit; at the edge between the DH1 and DH2 bits and the DL1 bit; at the edge between the DAH or AH1 bit and the AL1 bit. ; All other recessive to dominant edges fulfilling rules a) and b) shall be used for resynchronization with one exception: A node transmitting an FD frame or an XL frame shall not synchronize while it transmits the data phase of that frame. ; After a hard synchronization, the bit time shall be restarted by each bit-timing logic unit with Sync_Seg completed. Thus, hard synchronization shall force the edge which has caused the hard synchronization to lie within the synchronization segment of the restarted bit time. The function of hard synchronization shall not be limited by the synchronization jump width. ; When the magnitude of the phase error of the edge which causes resynchronization is less than or equal to the programmed value of the synchronization jump width, the effect of a resynchronization shall be the same as a hard synchronization. ; When the magnitude of the phase error is larger than the programmed value of the synchronization jump width, and if the phase error e is positive, Phase_Seg1 shall be lengthened by an amount equal to the synchronization jump width; and if the phase error e is negative, then Phase_Seg2 shall be shortened by an amount equal to the synchronization jump width."
+paraphrase = """PCS synchronisation: qualifying conditions and correction magnitude:
 1) Only one synchronisation is allowed per bit time; synchronisation is re-enabled after the next recessive sample point.
 2) Edges qualify only if the previous sample point was recessive and no positive phase error is present while sending dominant.
-3) Hard synchronisation occurs on IFS edges, during bus-integration, and at the FDF-to-res transition.
-4) All other qualifying edges cause resynchronisation, except during the FD data phase."""
+3) Hard synchronisation occurs on IFS edges, during bus-integration, and at the FDF-to-res transition; the correction is unconstrained by SJW and restarts the bit time with Sync_Seg completed.
+4) All other qualifying edges cause resynchronisation (except during the FD data phase): Phase_Seg1 is lengthened by SJW on a positive phase error, Phase_Seg2 is shortened by SJW on a negative phase error; when the error magnitude does not exceed SJW the effect is identical to hard synchronisation."""
 layer = "PCS"
 format_applicability = "CB, CE, FB, FE"
 notes = ""
-label = "p_can_pcs:~177, test_normal"
+label = "p_can_pcs:~177, p_can_pcs:~228, test_normal"
 file = "src/can_pcs/hdl_src/can_pcs.vhd, src/can_pcs/hdl_tb/can_pcs_tb.vhd"
 side = "both"
-observability = "white_box"
-verification_method = "code_inspection, waveform_inspection"
-priority             = "P1"
-status                = "in_progress"
-
-[[requirement]]
-id = "REQ-037"
-source_clause = "§7.3.5.3, §7.3.5.4"
-original_wording = "After a hard synchronization, the bit time shall be restarted by each bit-timing logic unit with Sync_Seg completed. Thus, hard synchronization shall force the edge which has caused the hard synchronization to lie within the synchronization segment of the restarted bit time. The function of hard synchronization shall not be limited by the synchronization jump width. ; When the magnitude of the phase error of the edge which causes resynchronization is less than or equal to the programmed value of the synchronization jump width, the effect of a resynchronization shall be the same as a hard synchronization. ; When the magnitude of the phase error is larger than the programmed value of the synchronization jump width, and if the phase error e is positive, Phase_Seg1 shall be lengthened by an amount equal to the synchronization jump width; and if the phase error e is negative, then Phase_Seg2 shall be shortened by an amount equal to the synchronization jump width."
-paraphrase = """Synchronisation corrections:
-1) Hard synchronisation restarts the bit time with Sync_Seg completed, unconstrained by SJW.
-2) Resynchronisation adjusts Phase_Seg1/Phase_Seg2 by SJW when phase error exceeds SJW, otherwise acts identically to hard synchronisation."""
-side = "both"
-layer = "PCS"
-format_applicability = "CB, CE, FB, FE"
-notes = ""
-label = "p_can_pcs:~228, test_normal"
-file = "src/can_pcs/hdl_src/can_pcs.vhd, src/can_pcs/hdl_tb/can_pcs_tb.vhd"
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority             = "P1"
@@ -689,35 +638,19 @@ status                = "in_progress"
 
 [[requirement]]
 id = "REQ-039"
-source_clause = "§6.6.7.5, §8.1.4.4"
-original_wording = "A node which is in the bus-off state shall have no influence on the bus. It shall not send any frames nor acknowledge DFs or RFs. ; There shall be a bit counter that is reset when the bus re-integration state is started or when the CAN bus is detected dominant at the sample point. The bit counter shall be incremented when the CAN bus is detected recessive at the sample point. The idle condition shall be detected when this bit counter reaches the value 11."
-paraphrase = """PCS bus-off behaviour:
-1) During bus_off, the PCS shall not drive dominant bits.
-2) The PCS counts consecutive recessive bits at the sample point and strobes idle_condition after 11, resetting on any dominant."""
-layer = "PCS"
+source_clause = "§6.6.7.5, §7.4.2.2, §7.4.2.3, §8.1.4.4"
+original_wording = "A node which is in the bus-off state shall have no influence on the bus. It shall not send any frames nor acknowledge DFs or RFs. ; There shall be a bit counter that is reset when the bus re-integration state is started or when the CAN bus is detected dominant at the sample point. The bit counter shall be incremented when the CAN bus is detected recessive at the sample point. The idle condition shall be detected when this bit counter reaches the value 11. ; The PCS shall send a bus_off symbol to the PMA sub-layer, when it receives a bus_off_request from the supervisor (see 8.1.3.4). ; The PCS shall send a bus_off_release symbol to the PMA sub-layer when it receives a bus_off_release_request from the supervisor (see 8.1.3.4)."
+paraphrase = """PCS bus-off isolation and signalling:
+1) During bus-off, the PCS shall not drive dominant bits.
+2) The PCS counts consecutive recessive bits at the sample point and strobes idle_condition after 11, resetting on any dominant.
+3) The PCS shall disconnect the node from the bus on a bus_off_request from the FCE supervisor.
+4) The PCS shall reconnect it on a bus_off_release_request."""
+layer = "system"
 side = "both"
 format_applicability = "CB, CE, FB, FE"
 notes = "The FCE-side idle condition counting and bus-off state transition are covered by REQ-045."
 label = "test_bus_off"
-file = "src/can_pcs/hdl_tb/can_pcs_tb.vhd"
-observability = "black_box"
-verification_method = "simulation"
-priority             = "P1"
-status                = "in_progress"
-
-[[requirement]]
-id = "REQ-040"
-source_clause = "§7.4.2.2, §7.4.2.3"
-original_wording = "The PCS shall send a bus_off symbol to the PMA sub-layer, when it receives a bus_off_request from the supervisor (see 8.1.3.4). ; The PCS shall send a bus_off_release symbol to the PMA sub-layer when it receives a bus_off_release_request from the supervisor (see 8.1.3.4)."
-paraphrase = """PCS bus-off signalling:
-1) The PCS shall disconnect the node from the bus on a bus_off_request from the FCE supervisor.
-2) The PCS shall reconnect it on a bus_off_release_request."""
-layer = "system"
-format_applicability = "CB, CE, FB, FE"
-notes = ""
-label = "test_bus_off"
-file = "can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
-side = "both"
+file = "src/can_pcs/hdl_tb/can_pcs_tb.vhd, can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "black_box"
 verification_method = "simulation"
 priority             = "P1"
