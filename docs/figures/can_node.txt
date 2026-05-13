@@ -1,0 +1,41 @@
+---
+config:
+  theme: neutral
+  layout: elk
+---
+
+graph LR
+
+classDef dll fill:#,stroke:#
+classDef pcs fill:#,stroke:#
+classDef pma fill:#,stroke:#
+classDef fce fill:#,stroke:#
+classDef user fill:#,stroke:#
+
+subgraph dev1["`**Host Device**`"]
+  user1("`**CAN Bus
+  user process**`")
+  subgraph d1["`**CAN Node**`"]
+      LLC1("`**Logic Link Control
+      (LLC)**`") <==> MAC1("`**Medium Access Control
+      (MAC)**`")
+      PCS1("`**Physical Coding Sublayer
+      (PCS)**`")
+      FCE1("`**Fault Confinement Entity
+      (FCE)**`")
+      MAC1 <==> PCS1
+      FCE1 <==> MAC1
+      FCE1 <==> LLC1
+      FCE1 <==> PCS1
+  end
+  t1("`**Transceiver IC**`")
+  user1 <==> LLC1
+  PCS1 -->|TX| t1
+  t1 -->|RX| PCS1
+end
+
+class LLC1,MAC1 dll
+class PCS1 pcs
+class t1,t2,t3 pma
+class FCE1 fce
+class user1 user

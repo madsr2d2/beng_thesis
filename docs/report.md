@@ -217,23 +217,7 @@ ISO 11898-1 structures the CAN data link layer into three functional sub-layers 
 - **PCS (Physical Coding Sub-layer)**: manages bit timing, clock synchronization (including Transmitter Delay Compensation for FD data phase), and the sample/drive interface to the physical transceiver.
 - **FCE (Fault Confinement Entity)**: maintains Transmit Error Counter (TEC) and Receive Error Counter (REC), escalating the node's error state from Error Active through Error Passive to Bus Off as error counts accumulate.
 
-```{.mermaid #fig:can-layers caption="ISO 11898-1 layered reference model. LLC, MAC, and PCS form a vertical data-path stack; the FCE spans all three sub-layers via a dedicated interface."}
-flowchart TD
-  APP(["Host Application"])
-  LLC["**LLC** — Logical Link Control\nFrame buffering · retransmission policy"]
-  MAC["**MAC** — Medium Access Control\nBit stuffing · CRC · arbitration · ACK"]
-  PCS["**PCS** — Physical Coding Sub-layer\nBit timing · synchronization · TDC"]
-  PHY(["Physical Layer (ISO 11898-2)\nTransceiver · differential bus"])
-  FCE["**FCE** — Fault Confinement Entity\nTEC / REC counters · Error Active/Passive/Bus Off"]
-
-  APP <--> LLC
-  LLC <--> MAC
-  MAC <--> PCS
-  PCS <--> PHY
-  FCE <-.->|error signals| LLC
-  FCE <-.->|error signals| MAC
-  FCE <-.->|error signals| PCS
-```
+![CAN node.](figures/can_node.png){#fig:can-node width=100%}
 
 In the implementation described in this report, each sub-layer maps to a dedicated VHDL module, and the sub-layer interfaces become the port records connecting those modules (@sec:design-architecture).
 
