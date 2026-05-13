@@ -45,15 +45,16 @@
 
 [[requirement]]
 id = "REQ-001"
-source_clause = "§6.4.5.2, §6.5.7"
-original_wording = "In both cases, the LLC sub-layer shall notify the successful transmission or reception of a DF or RF to the LLC user. ; For the capturing of time stamps, the LLC may provide a cross-layer function interface to a time-base that is outside the DLL. The time-base and time-stamps shall have a length of 64 bit. When time-stamping is not supported, time-base and time-stamps shall be treated as constants with the value 0."
+source_clause = "§6.4.5.2, §6.5.7, §6.6.3"
+original_wording = "In both cases, the LLC sub-layer shall notify the successful transmission or reception of a DF or RF to the LLC user. ; For the capturing of time stamps, the LLC may provide a cross-layer function interface to a time-base that is outside the DLL. The time-base and time-stamps shall have a length of 64 bit. When time-stamping is not supported, time-base and time-stamps shall be treated as constants with the value 0. ; Any DF or RF received or transmitted by the MAC sub-layer shall cause a notification to be sent from the MAC sub-layer to the LLC sub-layer to signal a time reference point for the capture of the time-base as a timestamp. Time reference points shall be signalled both at the sample point of the SOF bit and at the sample point of the bit of the frame when that frame gets valid."
 paraphrase = """LLC notification and timestamping:
 1) LLC shall notify the LLC user of every successful DF transmission or reception (all formats), and every RF transmission or reception (CB, CE only).
-2) (P3) If timestamping is not implemented, the LLC shall return a constant 0 for all timestamp fields rather than leaving them undefined."""
+2) MAC shall signal time reference points at both the SOF sample point and the frame-valid sample point for use by the timestamping cross-layer interface (§6.6.3).
+3) (P3) If timestamping is not implemented, the LLC shall return a constant 0 for all timestamp fields rather than leaving them undefined."""
 side = "both"
 layer = "LLC"
 format_applicability = "CB, CE, FB, FE"
-notes = "Sub-claim 2 is P3 and verified by code_inspection: confirm that timestamp outputs are tied to 0 when the timestamping feature is absent."
+notes = "Sub-claim 2 (§6.6.3 dual time reference points) is the MAC-side trigger; sub-claim 3 is P3 and verified by code_inspection: confirm that timestamp outputs are tied to 0 when the timestamping feature is absent."
 label = ""
 file = ""
 observability = "black_box"
@@ -99,15 +100,15 @@ status                = "not_started"
 [[requirement]]
 id = "REQ-004"
 source_clause = "§6.5.2, §6.5.3"
-original_wording = "The transmission of frames losing bus arbitration shall be restarted by the LLC entity unless the transmission of that frame is aborted by the LLC user. ; The retransmission of frames that are not aborted by the LLC user shall be attempted for the configured specific number of times. ; Retransmission attempts shall be counted in the retransmission counter. ; The node's retransmission counter shall be reset to zero when a transmission is successful or when the LLC user requests a new transmission."
+original_wording = "The transmission of frames losing bus arbitration shall be restarted by the LLC entity unless the transmission of that frame is aborted by the LLC user. ; The retransmission of frames that are not aborted by the LLC user shall be attempted for the configured specific number of times. ; Retransmission attempts shall be counted in the retransmission counter. ; The node's retransmission counter shall be reset to zero when a transmission is successful or when the LLC user requests a new transmission. ; Nodes that do not support the XL frame format are not required to implement the retransmission counter, but they shall support unlimited retransmissions."
 paraphrase = """Retransmission policy:
 1) Frames losing arbitration shall be retransmitted up to the configured limit unless aborted.
-2) Retransmission attempts shall be counted in the retransmission counter.
-3) The retransmission counter shall be reset to zero on successful transmission or when the LLC user requests a new transmission."""
+2) FD-only (non-XL) nodes are not required to implement a retransmission counter but shall support unlimited retransmissions.
+3) If a retransmission counter is implemented, it shall be reset to zero on successful transmission or when the LLC user requests a new transmission."""
 side = "transmitter"
 layer = "LLC"
 format_applicability = "CB, CE, FB, FE"
-notes = "Retransmission limit configures from 0 (no retransmission) to at least 6, with optional unlimited. Sub-claim 3 guards against counter bleed-over from a previous aborted frame into the next frame's limit."
+notes = "§6.5.3 last sentence explicitly exempts non-XL nodes from implementing the counter while mandating unlimited retransmission support. Sub-claim 3 guards against counter bleed-over only when a counter is present. Retransmission limit range (0 to ≥6, optional unlimited) applies only to nodes that implement the counter."
 label = ""
 file = ""
 observability = "white_box"
@@ -268,14 +269,15 @@ status                = "in_progress"
 [[requirement]]
 id = "REQ-013"
 source_clause = "§6.6.8"
-original_wording = "A node shall send an SOF only when the bus is idle (see 6.6.7.3). ; If a node samples a dominant bit at the third bit of intermission, this node shall, if it has a pending transmission and if the node is error active or has been receiver of the previous frame, start transmitting its frame at the next bit with the first bit of its identifier and take part in arbitration, without first transmitting an SOF bit and without becoming receiver."
+original_wording = "SOF shall mark the beginning of DFs and RFs. It shall be dominant. ; A node shall send an SOF only when the bus is idle (see 6.6.7.3). ; If a node samples a dominant bit at the third bit of intermission, this node shall, if it has a pending transmission and if the node is error active or has been receiver of the previous frame, start transmitting its frame at the next bit with the first bit of its identifier and take part in arbitration, without first transmitting an SOF bit and without becoming receiver."
 paraphrase = """Frame initiation:
-1) A node shall send SOF only when the bus is idle.
-2) A dominant third intermission bit causes a node with a pending frame (if error-active or previous receiver) to skip the SOF and begin arbitration immediately."""
+1) SOF shall be a single dominant bit.
+2) A node shall send SOF only when the bus is idle.
+3) A dominant third intermission bit causes a node with a pending frame (if error-active or previous receiver) to skip the SOF and begin arbitration immediately."""
 side = "transmitter"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-notes = ""
+notes = "Sub-claim 1 (SOF dominant) is the first sentence of §6.6.8; sub-claim 2 follows from the same clause. Sub-claim 3 is the skip-SOF arbitration shortcut."
 label = "p_fsm:~451, test_normal"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
@@ -640,12 +642,13 @@ status                = "in_progress"
 [[requirement]]
 id = "REQ-033"
 source_clause = "§7.3.2, §7.3.3"
-original_wording = "CAN nodes shall support three different bit rates, the nominal bit rate, the FD data bit rate and the XL data bit rate. There shall be separate configuration register sets for the definition of these bit rates. ; The time quantum (t_q) shall be a fixed unit of time derived from the node clock period. There shall exist a programmable prescaler, with integer values. The minimum time quantum (t_q,min) shall be one node clock period long. The length of t_q shall be an integer multiple m of the minimum time quantum t_q,min with m as the value of the prescaler. ; The sample point shall be the point in time at which the bus level is read and interpreted as the value of that respective bit. Its location shall be at the end of Phase_Seg1. ; The synchronization segment shall be exactly one t_q long. ; The information processing time shall be less than or equal to 2 t_q long. ; In nominal bit time and in data bit time, SJW shall be less than or equal to the minimum of these two items: Phase_Seg1 and Phase_Seg2."
+original_wording = "CAN nodes shall support three different bit rates, the nominal bit rate, the FD data bit rate and the XL data bit rate. There shall be separate configuration register sets for the definition of these bit rates. ; The time quantum (t_q) shall be a fixed unit of time derived from the node clock period. There shall exist a programmable prescaler, with integer values. The minimum time quantum (t_q,min) shall be one node clock period long. The length of t_q shall be an integer multiple m of the minimum time quantum t_q,min with m as the value of the prescaler. ; The sample point shall be the point in time at which the bus level is read and interpreted as the value of that respective bit. Its location shall be at the end of Phase_Seg1. ; The synchronization segment shall be exactly one t_q long. ; The information processing time shall be less than or equal to 2 t_q long. ; In nominal bit time and in data bit time, SJW shall be less than or equal to the minimum of these two items: Phase_Seg1 and Phase_Seg2. ; In data bit time, Phase_Seg2 shall be greater than or equal to these two items: SJW and the maximum information processing time."
 paraphrase = """Bit time configuration (CB, CE, FB, FE):
 1) Nodes shall support separate nominal and FD data bit rate configurations (XL excluded), each based on a programmable integer prescaler.
 2) Sample point shall be at the end of Phase_Seg1.
 3) Sync_Seg shall be exactly one tq.
-4) Information processing time shall be ≤ 2 tq; SJW ≤ min(Phase_Seg1, Phase_Seg2) in both phases."""
+4) Information processing time shall be ≤ 2 tq; SJW ≤ min(Phase_Seg1, Phase_Seg2) in both phases.
+5) In the FD data bit time, Phase_Seg2 shall be ≥ SJW and ≥ the maximum IPT (§7.3.3 additional constraint beyond the SJW bound)."""
 layer = "PCS"
 format_applicability = "CB, CE, FB, FE"
 notes = "XL data bit rate (third configuration set) is out of scope."
@@ -788,13 +791,15 @@ status                = "in_progress"
 
 [[requirement]]
 id = "REQ-041"
-source_clause = "§8.1.3.2, Table 14"
-original_wording = "Normal_mode_request: Resets FCE to initial state (the values of the transmit error counter and the receive error counter are set to zero when the FCE passes into its initial state)."
-paraphrase = "Normal_mode_request resets TEC and REC to zero."
+source_clause = "§8.1.3.2, Table 14, Table 15"
+original_wording = "Normal_mode_request: Resets FCE to initial state (the values of the transmit error counter and the receive error counter are set to zero when the FCE passes into its initial state). ; Normal_mode_response: Response to the Normal_mode_request."
+paraphrase = """FCE reset and response:
+1) Normal_mode_request resets TEC and REC to zero.
+2) FCE shall send Normal_mode_response to LLC after servicing a Normal_mode_request (Table 15)."""
 side = "both"
 layer = "FCE"
 format_applicability = "CB, CE, FB, FE"
-notes = "The reset must take effect within one clock cycle of the request asserting."
+notes = "Sub-claim 1: the reset must take effect within one clock cycle of the request asserting. Sub-claim 2: Normal_mode_response is the Table 15 FCE-to-LLC acknowledgement; verify that the response signal is asserted after reset completes."
 label = "test_reset, test_bus_off_recovery"
 file = "src/can_fce/hdl_tb/can_fce_tb.vhd"
 observability = "black_box"
@@ -882,9 +887,11 @@ status                = "in_progress"
 
 [[requirement]]
 id = "REQ-046"
-source_clause = "§6.6.11.3"
-original_wording = "This bit indicates whether the bit rate is switched inside the FD frame. If the bit is detected recessive, the bit rate shall be switched from the nominal bit rate of the arbitration phase to the preconfigured FD data bit rate of the data phase. It is not required for the BRS bit to be the same in all FD frames in a single network. The value of the BRS bit is passed from the BRS bit of the LLC frame."
-paraphrase = "BRS bit rate switching (FB, FE): a recessive BRS bit shall cause the bit rate to switch from the nominal arbitration-phase rate to the preconfigured FD data-phase rate at the BRS sample point. A dominant BRS bit keeps the nominal rate for the entire frame."
+source_clause = "§6.6.11.3, §7.2.5, §7.2.6"
+original_wording = "This bit indicates whether the bit rate is switched inside the FD frame. If the bit is detected recessive, the bit rate shall be switched from the nominal bit rate of the arbitration phase to the preconfigured FD data bit rate of the data phase. It is not required for the BRS bit to be the same in all FD frames in a single network. The value of the BRS bit is passed from the BRS bit of the LLC frame. ; In transmitted FD frames, D_Transmit shall be set to active at the beginning of the FD data phase and it shall be set to passive at the end of the FD data phase or when that frame is disturbed. ; In received FD frames, D_Receive shall be set to active at the beginning of the FD data phase and it shall be set to passive at the end of the FD data phase or when that frame is disturbed."
+paraphrase = """BRS bit rate switching (FB, FE):
+1) A recessive BRS bit shall cause the bit rate to switch from the nominal arbitration-phase rate to the preconfigured FD data-phase rate at the BRS sample point. A dominant BRS bit keeps the nominal rate for the entire frame.
+2) The bit rate shall switch back from the FD data rate to the nominal rate at the sample point of the (first) CRC delimiter bit for both transmitter and receiver (normal non-error path). The error path is covered by REQ-030."""
 side = "both"
 layer = "MAC"
 format_applicability = "FB, FE"
@@ -892,7 +899,7 @@ observability = "white_box"
 verification_method = "waveform_inspection"
 priority             = "P1"
 status                = "not_started"
-notes = "The actual rate switch is executed by the PCS on the use_data_rate signal driven by the MAC FSM. Verification confirms the FSM asserts use_data_rate at the correct bit position."
+notes = "The actual rate switch is executed by the PCS on the use_data_rate signal driven by the MAC FSM. Verification confirms the FSM both asserts use_data_rate at the BRS sample point (sub-claim 1) and de-asserts it at the CRC delimiter sample point (sub-claim 2). REQ-030 covers de-assertion on the error/disturbed path."
 label = ""
 file = ""
 

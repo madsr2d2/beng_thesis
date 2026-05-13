@@ -290,7 +290,7 @@ The **sample point** falls at the PHASE_SEG1 / PHASE_SEG2 boundary. Every receiv
 
 Bit stuffing ensures sufficient transitions on the bus for receiver clock synchronization. Classic CAN applies dynamic stuffing throughout the frame: after five consecutive bits of the same polarity, the transmitter inserts one complement stuff bit and the receiver removes it before forwarding the data stream. CAN FD retains dynamic stuffing through the arbitration phase, then switches to a combined dynamic-plus-fixed scheme in the data phase. Fixed stuff bits are inserted at predetermined positions (every fourth bit in the CRC field, independent of the preceding bit pattern); they carry a parity-encoded Stuff Bit Count (SBC) field that allows receivers to independently verify the number of dynamic stuff bits seen in the frame - an additional error detection layer absent in Classic CAN.
 
-![Dynamic bit stuffing: five consecutive bits of the same polarity trigger insertion of one complement stuff bit (S). The receiver detects and removes the stuff bit. A sixth consecutive same-polarity bit is a stuff error.](figures/bit_stuffing.png){#fig:can-bit-stuffing}
+![Dynamically and statically bit-stuffed stream examples. In frame fields encoded with dynamic bit-stuffing an opposite polarity stuff bit (SB) is inserted after five consecutive same-polarity bits. In frame fields encoded with static bit-stuffing (SBC and CRC in FD frames) a fixed stuff bit (FSB) is inserted after each fourth bit. A FSB is also inserted before the first bit of the SBC field.](figures/bit_stuffing.png){#fig:can-bit-stuffing}
 
 ## Cyclic Redundancy Check {#sec:crc-overview}
 
