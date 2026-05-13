@@ -60,6 +60,7 @@ observability = "black_box"
 verification_method = "simulation, code_inspection"
 priority             = "P1"
 status                = "not_started"
+group_title = "LLC notification and timestamping"
 
 [[requirement]]
 id = "REQ-002"
@@ -79,6 +80,7 @@ observability = "white_box"
 verification_method = "code_inspection"
 priority             = "P2"
 status                = "not_started"
+group_title = "LLC transmission request and abort timing"
 
 [[requirement]]
 id = "REQ-003"
@@ -97,6 +99,7 @@ observability = "white_box"
 verification_method = "code_inspection"
 priority             = "P1"
 status                = "not_started"
+group_title = "Retransmission"
 
 [[requirement]]
 id = "REQ-004"
@@ -114,6 +117,7 @@ observability = "white_box"
 verification_method = "code_inspection"
 priority             = "P3"
 status                = "not_started"
+group_title = "Frame acceptance filtering"
 
 [[requirement]]
 id = "REQ-005"
@@ -130,6 +134,7 @@ observability = "black_box"
 verification_method = "simulation"
 priority             = "P1"
 status                = "not_started"
+group_title = "LLC transfer status reporting"
 
 [[requirement]]
 id = "REQ-006"
@@ -147,6 +152,7 @@ observability = "white_box"
 verification_method = "simulation, coverage"
 priority             = "P1"
 status                = "in_progress"
+group_title = "CRC rules"
 
 [[requirement]]
 id = "REQ-007"
@@ -167,6 +173,7 @@ observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority             = "P1"
 status                = "in_progress"
+group_title = "Error and overload flags"
 
 [[requirement]]
 id = "REQ-008"
@@ -189,6 +196,7 @@ observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority             = "P1"
 status                = "in_progress"
+group_title = "Inter-frame space"
 
 [[requirement]]
 id = "REQ-009"
@@ -207,6 +215,7 @@ observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority             = "P1"
 status                = "in_progress"
+group_title = "Bus re-integration"
 
 [[requirement]]
 id = "REQ-010"
@@ -226,6 +235,7 @@ observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority             = "P1"
 status                = "in_progress"
+group_title = "Frame initiation"
 
 [[requirement]]
 id = "REQ-011"
@@ -243,6 +253,7 @@ observability = "black_box"
 verification_method = "simulation"
 priority             = "P2"
 status                = "not_started"
+group_title = "Remote frame"
 
 [[requirement]]
 id = "REQ-012"
@@ -260,6 +271,7 @@ observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority             = "P2"
 status                = "in_progress"
+group_title = "SRR and RRS reserved bits"
 
 [[requirement]]
 id = "REQ-013"
@@ -277,6 +289,7 @@ observability = "white_box"
 verification_method = "code_inspection"
 priority             = "P1"
 status                = "in_progress"
+group_title = "CRC bit stream coverage"
 
 [[requirement]]
 id = "REQ-014"
@@ -297,6 +310,7 @@ observability = "white_box"
 verification_method = "simulation, waveform_inspection"
 priority             = "P1"
 status                = "in_progress"
+group_title = "Frame acknowledgement"
 
 
 [[requirement]]
@@ -318,6 +332,7 @@ observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority             = "P1"
 status                = "in_progress"
+group_title = "FDF bit and CC/FD format differentiation"
 
 [[requirement]]
 id = "REQ-016"
@@ -336,6 +351,7 @@ observability = "white_box"
 verification_method = "waveform_inspection"
 priority             = "P2"
 status                = "in_progress"
+group_title = "ESI bit transmission"
 
 [[requirement]]
 id = "REQ-017"
@@ -352,6 +368,7 @@ observability = "black_box"
 verification_method = "simulation"
 priority             = "P1"
 status                = "in_progress"
+group_title = "Stuff count (SBC) field"
 
 
 [[requirement]]
@@ -370,6 +387,7 @@ observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority             = "P2"
 status                = "in_progress"
+group_title = "CRC delimiter"
 
 [[requirement]]
 id = "REQ-019"
@@ -389,6 +407,7 @@ observability = "white_box"
 verification_method = "simulation, coverage"
 priority             = "P1"
 status                = "in_progress"
+group_title = "Bit stuffing"
 
 [[requirement]]
 id = "REQ-020"
@@ -408,6 +427,7 @@ observability = "white_box"
 verification_method = "simulation, coverage"
 priority             = "P1"
 status                = "in_progress"
+group_title = "End of frame (EOF)"
 
 [[requirement]]
 id = "REQ-021"
@@ -429,6 +449,7 @@ observability = "black_box"
 verification_method = "simulation"
 priority             = "P1"
 status                = "in_progress"
+group_title = "Bus arbitration"
 
 [[requirement]]
 id = "REQ-022"
@@ -449,6 +470,7 @@ observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority             = "P1"
 status                = "in_progress"
+group_title = "MAC error detection"
 
 [[requirement]]
 id = "REQ-023"
@@ -468,6 +490,7 @@ observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority             = "P1"
 status                = "in_progress"
+group_title = "Error flag initiation and FCRC error behaviour"
 
 
 [[requirement]]
@@ -486,6 +509,7 @@ observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority             = "P2"
 status                = "in_progress"
+group_title = "Overload frame"
 
 [[requirement]]
 id = "REQ-025"
@@ -506,6 +530,7 @@ observability = "white_box"
 verification_method = "simulation"
 priority             = "P1"
 status                = "in_progress"
+group_title = "PCS bit timing configuration"
 
 [[requirement]]
 id = "REQ-026"
@@ -522,6 +547,7 @@ status                = "in_progress"
 notes = "Coverage closure criterion: five delay-sweep bins - (transceiver_d=50 ns, bus_d=300 ns) down to (10 ns, 60 ns) - must each yield successful frame exchange."
 label = "test_delay_sweep"
 file = "can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
+group_title = "Propagation segment sizing"
 
 [[requirement]]
 id = "REQ-027"
@@ -540,6 +566,7 @@ observability = "black_box"
 verification_method = "simulation"
 priority             = "P1"
 status                = "in_progress"
+group_title = "Transmitter delay compensation"
 
 [[requirement]]
 id = "REQ-028"
@@ -559,6 +586,7 @@ observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority             = "P1"
 status                = "in_progress"
+group_title = "PCS synchronisation"
 
 [[requirement]]
 id = "REQ-029"
@@ -576,6 +604,7 @@ observability = "black_box"
 verification_method = "simulation"
 priority             = "P2"
 status                = "in_progress"
+group_title = "Oscillator frequency tolerance"
 
 [[requirement]]
 id = "REQ-030"
@@ -595,6 +624,7 @@ observability = "black_box"
 verification_method = "simulation"
 priority             = "P1"
 status                = "in_progress"
+group_title = "PCS bus-off isolation and signalling"
 
 [[requirement]]
 id = "REQ-031"
@@ -612,48 +642,24 @@ observability = "black_box"
 verification_method = "simulation"
 priority             = "P2"
 status                = "in_progress"
+group_title = "FCE reset and response"
 
 [[requirement]]
 id = "REQ-032"
-source_clause = "§8.1.4.2 rule a), rule b), rule c), rule d), rule e), rule g), rule h)"
-original_wording = "When a receiver detects an error, the receive error counter shall be incremented by 1, except when the detected error is a bit error during the sending of an active error flag or an overload flag. ; When a receiver detects a dominant bit as the first bit after sending an error flag, the receive error counter shall be incremented by 8. ; If a receiver detects a bit error while sending an active error flag or an overload flag, the receive error counter shall be incremented by 8. ; After the successful reception of a frame (reception without error up to the ACK slot and the successful sending of the ACK bit), the receive error counter shall be decremented by 1 if it was between 1 and 127. If the receive error counter was 0, it shall stay at 0, and if it was greater than 127, then it shall be set to a value between 119 and 127. ; When a transmitter sends an error flag, the transmit error counter shall be incremented by 8. ; Exception 1: If the transmitter is error-passive and detects an ACK error because of not detecting a dominant ACK and does not detect a dominant bit while sending its passive error flag. ; Exception 2: If the transmitter sends an error flag because a stuff error occurred before the arbitration is decided, whereby the stuff bit should have been recessive, and after it is sent recessive but is monitored to be dominant. ; In exception 1 and in exception 2, the transmit error counter remains unchanged. ; If a transmitter detects a bit error while sending an active error flag or an overload flag, the transmit error counter shall be incremented by 8. ; After the successful transmission of a frame (getting ACK and no error has been detected until EOF is finished), the transmit error counter shall be decremented by 1 unless it was already 0."
-paraphrase = """Error counter rules (REC and TEC):
-REC:
-1) +1 on any receiver-detected error (except bit errors during error/overload flag).
-2) +8 on first dominant bit after sending an error flag.
-3) +8 on bit error while sending an active error or overload flag.
-4) -1 on successful RX if in 1-127; stays 0 if already 0; set to 119-127 if above 127.
-TEC:
-5) +8 when sending an error flag (exceptions: error-passive ACK error, pre-arbitration stuff error).
-6) +8 on bit error while sending an active error or overload flag.
-7) -1 on successful TX (floor 0)."""
+source_clause = "§8.1.4.2 rule a), rule b), rule c), rule d), rule e), rule f), rule g), rule h)"
+original_wording = "When a receiver detects an error, the receive error counter shall be incremented by 1, except when the detected error is a bit error during the sending of an active error flag or an overload flag. ; When a receiver detects a dominant bit as the first bit after sending an error flag, the receive error counter shall be incremented by 8. ; If a receiver detects a bit error while sending an active error flag or an overload flag, the receive error counter shall be incremented by 8. ; After the successful reception of a frame (reception without error up to the ACK slot and the successful sending of the ACK bit), the receive error counter shall be decremented by 1 if it was between 1 and 127. If the receive error counter was 0, it shall stay at 0, and if it was greater than 127, then it shall be set to a value between 119 and 127. ; When a transmitter sends an error flag, the transmit error counter shall be incremented by 8. ; Exception 1: If the transmitter is error-passive and detects an ACK error because of not detecting a dominant ACK and does not detect a dominant bit while sending its passive error flag. ; Exception 2: If the transmitter sends an error flag because a stuff error occurred before the arbitration is decided, whereby the stuff bit should have been recessive, and after it is sent recessive but is monitored to be dominant. ; In exception 1 and in exception 2, the transmit error counter remains unchanged. ; If a transmitter detects a bit error while sending an active error flag or an overload flag, the transmit error counter shall be incremented by 8. ; After the successful transmission of a frame (getting ACK and no error has been detected until EOF is finished), the transmit error counter shall be decremented by 1 unless it was already 0. ; Any node shall tolerate up to 7 consecutive dominant bits after sending an active error flag, passive error flag, or overload flag. After detecting 14 consecutive dominant bits (in case of an active error flag or an overload flag) or after detecting 8 consecutive dominant bits following a passive error flag, and after each sequence of additional 8 consecutive dominant bits, every transmitter shall increment its transmit error counter by 8 and every receiver shall increment its receive error counter by 8."
+paraphrase = "1) +1 on any receiver-detected error (except bit errors during error/overload flag).\n2) +8 on first dominant bit after sending an error flag.\n3) +8 on bit error while sending an active error or overload flag.\n4) -1 on successful RX if in 1-127; stays 0 if already 0; set to 119-127 if above 127.\n5) +8 when sending an error flag (exceptions: error-passive ACK error, pre-arbitration stuff error).\n6) +8 on bit error while sending an active error or overload flag.\n7) -1 on successful TX (floor 0).\nProlonged dominant (rule f):\n8) After 14 consecutive dominant bits following an active error or overload flag (8 after a passive error flag), increment both counters by 8.\n9) Further +8 for each additional 8 consecutive dominant bits."
 side = "both"
 layer = "FCE"
 format_applicability = "CB, CE, FB, FE"
-notes = "Counter values are inferred from error_active/error_passive threshold crossings; the raw TEC and REC values are internal. Rule h requires the '>127 set to 119-127' clamp path to be confirmed, not just the +1 and -1 paths. TEC exception 2 is architecturally handled by the MAC routing c_lost_arb for a recessive stuff bit monitored as dominant during arbitration; no FCE-side exception logic exists for this case."
-label = "test_rule_a, test_rule_b, test_rule_c, test_rule_c_exception, test_rule_d, test_rule_e, test_rule_g, test_rule_h"
+notes = "Counter values are inferred from error_active/error_passive threshold crossings; the raw TEC and REC values are internal. Rule h requires the '>127 set to 119-127' clamp path to be confirmed, not just the +1 and -1 paths. TEC exception 2 is architecturally handled by the MAC routing c_lost_arb for a recessive stuff bit monitored as dominant during arbitration; no FCE-side exception logic exists for this case. Sub-layer split for rule f: the MAC counts consecutive dominant bits and signals error_delimiter_too_late; the FCE is only responsible for the counter increments. The MAC-side threshold logic (14-bit for active/overload flag, 8-bit for passive flag) is verified by MAC testbenches."
+label = "test_rule_a, test_rule_b, test_rule_c, test_rule_c_exception, test_rule_d, test_rule_e, test_rule_f_tx, test_rule_f_rx, test_rule_g, test_rule_h"
 file = "src/can_fce/hdl_tb/can_fce_tb.vhd"
 observability = "black_box"
 verification_method = "simulation"
 priority             = "P1"
 status                = "in_progress"
-
-[[requirement]]
-id = "REQ-033"
-source_clause = "§8.1.4.2 rule f)"
-original_wording = "Any node shall tolerate up to 7 consecutive dominant bits after sending an active error flag, passive error flag, or overload flag. After detecting 14 consecutive dominant bits (in case of an active error flag or an overload flag) or after detecting 8 consecutive dominant bits following a passive error flag, and after each sequence of additional 8 consecutive dominant bits, every transmitter shall increment its transmit error counter by 8 and every receiver shall increment its receive error counter by 8."
-paraphrase = """1) After 14 consecutive dominant bits following an active error or overload flag (8 after a passive error flag), increment both counters by 8.
-2) Increment by a further +8 for each additional 8 consecutive dominant bits."""
-side = "both"
-layer = "FCE"
-format_applicability = "CB, CE, FB, FE"
-notes = "Sub-layer split: the MAC counts consecutive dominant bits and signals error_delimiter_too_late; the FCE is only responsible for the counter increments. The MAC-side threshold logic (14-bit for active/overload flag, 8-bit for passive flag) is verified by MAC testbenches."
-label = "test_rule_f_tx, test_rule_f_rx"
-file = "src/can_fce/hdl_tb/can_fce_tb.vhd"
-observability = "black_box"
-verification_method = "simulation"
-priority             = "P2"
-status                = "in_progress"
+group_title = "Error counter rules"
 
 [[requirement]]
 id = "REQ-034"
@@ -674,6 +680,7 @@ observability = "black_box"
 verification_method = "simulation"
 priority             = "P1"
 status                = "in_progress"
+group_title = "Error confinement state transitions"
 
 [[requirement]]
 id = "REQ-035"
@@ -691,6 +698,7 @@ status                = "not_started"
 notes = "The actual rate switch is executed by the PCS on the use_data_rate signal driven by the MAC FSM. Verification confirms the FSM both asserts use_data_rate at the BRS sample point (sub-claim 1) and de-asserts it at the CRC delimiter sample point (sub-claim 2). REQ-023 covers de-assertion on the error/disturbed path."
 label = ""
 file = ""
+group_title = "BRS bit rate switching"
 
 [[requirement]]
 id = "REQ-036"
@@ -708,12 +716,13 @@ status                = "not_started"
 notes = "Coverage closure criterion: all four non-linear FD DLC values (9, 12, 14, 15 → 12, 24, 48, 64 bytes) plus DLC=8 (boundary) must each produce a correctly sized frame. Sub-claim 2 (0xCC padding) is P3 and only applies if the implementation exposes a configurable maximum-data-byte restriction; verify only if that feature is implemented."
 label = ""
 file = ""
+group_title = "DLC byte-count mapping"
 
 [[requirement]]
 id = "REQ-037"
 source_clause = "§6.6.16"
 original_wording = "Within a field, the MSB is transmitted first. Within the data field, the bytes are transferred from byte 0 to the last byte (indicated by the DLC). Within each byte, the bits are transferred from bit(7) down to bit(0)."
-paraphrase = "Bit transmission order: within each field the MSB is transmitted first; within the data field byte 0 is sent first; within each byte bit(7) is sent first."
+paraphrase = "Within each field the MSB is transmitted first; within the data field byte 0 is sent first; within each byte bit(7) is sent first."
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
@@ -724,6 +733,7 @@ status                = "not_started"
 notes = ""
 label = ""
 file = ""
+group_title = "Bit transmission order"
 
 [[requirement]]
 id = "REQ-038"
@@ -741,6 +751,7 @@ status                = "not_started"
 notes = "Sub-claim 1 is an emergent property of REQ-009 (re-integration) and REQ-010 (SOF only when idle); the dedicated test here confirms the node does not transmit before integration completes. Sub-claim 2 requires a single-node scenario where ACK injection is permanently absent, verifying TEC rises to error-passive but does not exceed 255."
 label = ""
 file = ""
+group_title = "Node start-up"
 
 [[requirement]]
 id = "REQ-039"
@@ -757,6 +768,7 @@ observability = "white_box"
 verification_method = "code_inspection"
 priority             = "P2"
 status                = "not_started"
+group_title = "MAC data consistency"
 
 [[requirement]]
 id = "REQ-040"
@@ -773,3 +785,4 @@ status                = "waived"
 notes = "The implementation always has error signalling enabled; no disable path is provided. §6.6.21.4 (disabled-mode behaviour: no EF/OF transmitted, alternative frame validation via §6.6.15.3, separate error-counting rules) is therefore out of scope. Waived by design scope decision."
 label = ""
 file = ""
+group_title = "Error signalling enable"
