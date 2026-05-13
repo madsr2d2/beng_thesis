@@ -284,7 +284,7 @@ The **sample point** falls at the PHASE_SEG1 / PHASE_SEG2 boundary. Every receiv
 
 **Transmitter Delay Compensation (TDC)** addresses this. A transmitter in the FD data phase cannot rely on immediate bus loopback for bit-error monitoring, because the echo of a driven bit arrives one or more bit times late. TDC measures the actual round-trip delay at the start of the data phase and configures a Secondary Sample Point (SSP) at the correct offset, so that each transmitted bit is still checked for loopback correctness. The TDC measurement and SSP configuration are PCS responsibilities and are a significant driver of PCS complexity in the implementation (@sec:can-pcs).
 
-![CAN nominal bit time structure. One bit consists of SYNC_SEG (1 TQ), PROP_SEG, PHASE_SEG1, and PHASE_SEG2. The sample point (SP) sits at the PHASE_SEG1/PHASE_SEG2 boundary. In the CAN FD data phase the total bit period is shorter but the four-segment structure is preserved with independently configured values.](figures/bit_timing.png){#fig:can-bit-timing}
+![CAN bit time structure. One bit consists of SYNC_SEG (SS) which is 1 Time Quantum (TQ) long, PROP_SEG (PS), PHASE_SEG1 (PS1), and PHASE_SEG2 (PS2). The sample point (SP) sits at the PHASE_SEG1/PHASE_SEG2 boundary. The figure illustrates a to-node synchronised bus with bus wire delay t_bus and transceiver delay t_TRX.](figures/bit_timing.png){#fig:can-bit-timing}
 
 ## Bit Stuffing {#sec:bit-stuffing}
 
