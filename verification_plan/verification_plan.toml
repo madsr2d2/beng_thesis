@@ -47,9 +47,7 @@
 id = "REQ-001"
 source_clause = "§6.4.5.2, §6.5.7, §6.6.3"
 original_wording = "In both cases, the LLC sub-layer shall notify the successful transmission or reception of a DF or RF to the LLC user. ; For the capturing of time stamps, the LLC may provide a cross-layer function interface to a time-base that is outside the DLL. The time-base and time-stamps shall have a length of 64 bit. When time-stamping is not supported, time-base and time-stamps shall be treated as constants with the value 0. ; Any DF or RF received or transmitted by the MAC sub-layer shall cause a notification to be sent from the MAC sub-layer to the LLC sub-layer to signal a time reference point for the capture of the time-base as a timestamp. Time reference points shall be signalled both at the sample point of the SOF bit and at the sample point of the bit of the frame when that frame gets valid."
-paraphrase = """1) LLC shall notify the user on every successful DF/RF TX or RX.
-2) MAC shall signal time reference points at the SOF sample point and the frame-valid sample point.
-3) If timestamping is absent, all timestamp outputs shall be constant zero."""
+paraphrase = "1) LLC shall notify the user on every successful DF/RF TX or RX.\n2) MAC shall signal time reference points at the SOF sample point and the frame-valid sample point.\n3) (P3) If timestamping is absent, all timestamp outputs shall be constant zero."
 side = "both"
 layer = "LLC"
 format_applicability = "CB, CE, FB, FE"
@@ -140,8 +138,7 @@ group_title = "LLC transfer status reporting"
 id = "REQ-006"
 source_clause = "§6.6.4.4"
 original_wording = "The first polynomial, CRC_15, shall be used for CC frames. The second, CRC_17, shall be used for FD frames with a data field up to 16 byte long. The third, CRC_21, shall be used for FD frames with a data field longer than 16 byte. The fourth, CRC_13, shall be used for the arbitration and control fields of XL frames while the fifth, CRC_32, shall be used for the whole XL frame. Each polynomial results in a Hamming distance of six. ; The receivers shall consider only the selected CRC polynomials to check for a CRC-error. ; The CRC_INIT_VECTOR shall be (0,...,0) for CRC_15. The CRC_INIT_VECTOR shall be (1,0,...,0) for CRC_17 and for CRC_21; where the single 1 is at the most significant bit position."
-paraphrase = """1) CRC_15 for CC; CRC_17 for FD ≤16 B payload; CRC_21 for FD >16 B payload.
-2) Init vector: all-zero for CRC_15; MSB-one for CRC_17 and CRC_21."""
+paraphrase = "1) CRC_15 for CC frames. CRC_17 for FD frames with payload ≤16 B. CRC_21 for FD frames with payload >16 B.\n2) Init vector: all-zero for CRC_15. MSB-one for CRC_17 and CRC_21."
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
@@ -158,11 +155,7 @@ group_title = "CRC rules"
 id = "REQ-007"
 source_clause = "§6.6.5.2, §6.6.5.3, §6.6.6.2, §6.6.6.3"
 original_wording = "the active error flag shall consist of six consecutive dominant bits, and the passive error flag shall consist of six consecutive recessive bits unless it is overwritten by dominant bits from other nodes. ; The error delimiter shall consist of eight recessive bits. After sending an error flag, each node shall monitor the bus until it detects a recessive bit. At this point in time, every node shall finish sending its error flag and all nodes shall start sending seven more recessive bits simultaneously, to complete the 8-bit error delimiter. ; The overload flag shall consist of six dominant bits. ; The overload delimiter shall consist of eight recessive bits. After sending an overload flag, each node shall monitor the bus until it detects a recessive bit. At this point in time, every node shall finish sending its overload flag and all nodes shall start sending seven more recessive bits simultaneously, to complete the 8-bit overload delimiter."
-paraphrase = """1) Active error flag: 6 consecutive dominant bits.
-2) Passive error flag: 6 consecutive recessive bits (may be overwritten by dominant bits from other nodes).
-3) Overload flag: 6 consecutive dominant bits.
-4) Error and overload delimiters: 8 recessive bits each.
-5) After the flag, all nodes monitor the bus and simultaneously begin their 7-bit delimiter on detecting the first recessive bit."""
+paraphrase = "1) Active error and overload flags: 6 consecutive dominant bits each.\n2) Passive error flag: 6 consecutive recessive bits (may be overwritten by dominant bits from other nodes).\n3) Error and overload delimiters: 8 recessive bits each.\n4) After the flag, all nodes monitor the bus and simultaneously begin their 7-bit delimiter on detecting the first recessive bit."
 side = "both"
 layer = "system"
 format_applicability = "CB, CE, FB, FE"
@@ -179,13 +172,7 @@ group_title = "Error and overload flags"
 id = "REQ-008"
 source_clause = "§6.6.7.1, §6.6.7.2, §6.6.7.3, §6.6.7.4"
 original_wording = "DFs and RFs shall be separated from preceding frames, whatever frame type the preceding frames are (DF, RF, EF, OF), by a time period called inter-frame space. In contrast to this, EFs and OFs shall not be preceded by inter-frame space, and multiple OFs shall not be separated by inter-frame space. ; The intermission field shall consist of three recessive bits. During intermission, a node shall not start transmission of DFs or RFs. An OF may be transmitted. The detection of a dominant bit at the third bit of intermission shall be interpreted as SOF (see 6.6.8). ; A frame pending for transmission during the transmission of another frame shall be started in the first bit following intermission. ; The bus shall be recognized to be idle by receivers and by error active transmitters when the third bit of intermission is seen recessive; by error passive transmitters when the eighth bit of suspend transmission time is seen recessive; or when the bus integrating state is left (see 6.6.7.5). ; An error-passive node, which has been transmitter of the previous frame, shall suspend the start of further frame transmissions for 8 bit times following intermission. ; If another node starts a transmission during that suspend transmission time, the node shall become a receiver of this DF or RF frame."
-paraphrase = """1) Intermission shall be exactly 3 recessive bits.
-2) No DF or RF may be started during intermission.
-3) A dominant third intermission bit shall be interpreted as SOF.
-4) EFs and OFs shall not be preceded by inter-frame space; consecutive OFs shall not be separated by inter-frame space.
-5) A pending frame shall be started at the first bit following intermission.
-6) Bus idle is recognised at the third recessive intermission bit (error-active nodes/receivers), the eighth recessive suspend bit (error-passive transmitters), or on leaving bus-integration state.
-7) An error-passive transmitter shall suspend for 8 bit times after intermission; if another node transmits during the suspend window, the node shall become a receiver."""
+paraphrase = "1) Intermission shall be exactly 3 recessive bits.\n2) No DF or RF may be started during intermission.\n3) A dominant third intermission bit shall be interpreted as SOF.\n4) EFs and OFs shall not be preceded by inter-frame space. Consecutive OFs shall not be separated by inter-frame space.\n5) A pending frame shall be started at the first bit following intermission.\n6) Bus idle is recognised at the third recessive intermission bit (error-active nodes/receivers), the eighth recessive suspend bit (error-passive transmitters), or on leaving bus-integration state.\n7) An error-passive transmitter shall suspend for 8 bit times after intermission. If another node transmits during the suspend window, the node shall become a receiver."
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
@@ -241,8 +228,7 @@ group_title = "Frame initiation"
 id = "REQ-011"
 source_clause = "§6.6.10.1, §6.6.10.4"
 original_wording = "The value of the RTR bit shall be dominant for DFs and recessive for RFs. ; Remote frames shall not have a data field. ; The data length code of a remote frame shall indicate the number of data bytes in the corresponding data frame."
-paraphrase = """1) RTR bit shall be dominant for DFs and recessive for RFs.
-2) RFs have no data field; DLC indicates the requested data length."""
+paraphrase = "1) RTR bit shall be dominant for DFs and recessive for RFs.\n2) RFs have no data field. DLC indicates the requested data length."
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE"
@@ -259,8 +245,7 @@ group_title = "Remote frame"
 id = "REQ-012"
 source_clause = "§6.6.10.2, §6.6.11.2"
 original_wording = "The SRR bit shall be transmitted recessive, but receivers shall accept recessive and dominant SRR bits. ; The RRS bit shall be transmitted dominant, but receivers shall accept recessive and dominant RRS bits."
-paraphrase = """1) SRR (CE, FE): transmitted recessive; receivers accept either polarity without form error.
-2) RRS (FB, FE): transmitted dominant; receivers accept either polarity without form error."""
+paraphrase = "1) SRR (CE, FE): transmitted recessive. Receivers accept either polarity without form error.\n2) RRS (FB, FE): transmitted dominant. Receivers accept either polarity without form error."
 side = "both"
 layer = "MAC"
 format_applicability = "CE, FB, FE"
@@ -295,11 +280,7 @@ group_title = "CRC bit stream coverage"
 id = "REQ-014"
 source_clause = "§6.6.10.6, §6.6.11.6, §6.6.14"
 original_wording = "All receivers check the consistency of the received DF or RF and shall acknowledge a consistent frame and shall flag an inconsistent frame by means of an EF (see 6.6.2). A DF or RF that is not acknowledged shall be regarded as corrupted and shall be flagged by the transmitting node with an EF. All nodes that receive the matching FCRC sequence shall send an ACK within the ACK slot by overwriting the recessive bit of the transmitter with a dominant bit (they send ACK). ; All receivers check the consistency of the received DF and shall acknowledge a consistent frame and shall flag an inconsistent frame by means of an EF (see 6.6.2). A DF that is not acknowledged shall be regarded as corrupted and shall be flagged by the transmitting node with an EF. Nodes that receive the matching FCRC sequence and the matching stuff count shall send an ACK within the ACK slot by overwriting the recessive bit of the transmitter with a dominant bit (they send ACK). In FD frames, all nodes shall accept an up to two bit long dominant phase of overlapping ACK slot bits as a valid ACK, to compensate for phase shifts between the receivers. ; The ACK delimiter, being the last bit of the ACK field, shall be a recessive bit. Consequently, the ACK slot is surrounded by recessive bits (CRC delimiter, ACK delimiter). ; All receivers shall check the consistency of all received DFs and RFs and they shall acknowledge all consistent DFs and RFs. Acknowledgement shall not depend on the frame's identifier."
-paraphrase = """1) Receivers shall ACK consistent frames and flag inconsistent frames with an EF.
-2) Transmitters shall flag unacknowledged frames with an EF.
-3) FD frames tolerate up to a 2-bit dominant ACK overlap to compensate for receiver phase differences.
-4) The ACK delimiter shall be one recessive bit; the ACK slot is surrounded by recessive bits on both sides.
-5) ACK shall not depend on the frame identifier."""
+paraphrase = "1) Receivers shall ACK consistent frames and flag inconsistent frames with an EF.\n2) Transmitters shall flag unacknowledged frames with an EF.\n3) FD frames tolerate up to a 2-bit dominant ACK overlap to compensate for receiver phase differences.\n4) The ACK delimiter shall be one recessive bit. The ACK slot is surrounded by recessive bits on both sides.\n5) ACK shall not depend on the frame identifier."
 side = "both"
 layer = "system"
 format_applicability = "CB, CE, FB, FE"
@@ -317,11 +298,7 @@ group_title = "Frame acknowledgement"
 id = "REQ-015"
 source_clause = "§6.6.10.3, §6.6.11.2, §6.6.11.3"
 original_wording = "The first two bits of the control field shall be transmitted dominant, followed by the DLC. ; The first bit of the control field is the IDE bit in CBFF, and it is r1 in CEFF, matching with the FDF bit in FEFF and a CAN FD tolerant CAN node shall detect a protocol exception event when this bit is received recessive. ; The second bit of the control field is r0 bit. In CBFF, this bit matches with the FDF bit in FBFF and a CAN FD tolerant CAN node shall detect a protocol exception event when this bit is received recessive. In CEFF, receivers shall accept it with recessive and with dominant state. ; This bit distinguishes between CC frames and FD or XL frames. It is recessive in FD and XL frames, and it is dominant in CC frames. ; The only difference is the IDE bit, which distinguishes between the identifier formats and is part of the control field in FBFF and part of the arbitration field in FEFF. ; In FD frames, the FDF bit shall be followed by the dominant res bit. ; When an FD enabled receiver detects the res bit to be recessive instead of the expected dominant it shall, when protocol exception handling is enabled, detect a protocol exception event; when protocol exception handling is disabled, it shall treat this as a form error."
-paraphrase = """1) FDF: dominant in CC frames, recessive in FD frames.
-2) The first two CC control field bits (IDE in CBFF, r1/r0 in CEFF) shall be transmitted dominant.
-3) An FD-tolerant receiver that samples a recessive r0 (CBFF) or r1 (CEFF) shall detect a protocol exception event.
-4) In FBFF the IDE bit is the first control field bit; in FEFF it is in the arbitration field after SRR.
-5) The res bit (FB, FE) shall be dominant; a recessive res bit is a form error."""
+paraphrase = "1) FDF: dominant in CC frames, recessive in FD frames.\n2) The first two CC control field bits (IDE in CBFF, r1/r0 in CEFF) shall be transmitted dominant.\n3) An FD-tolerant receiver that samples a recessive r0 (CBFF) or r1 (CEFF) shall detect a protocol exception event.\n4) In FBFF the IDE bit is the first control field bit. In FEFF it is in the arbitration field after SRR.\n5) The res bit (FB, FE) shall be dominant. A recessive res bit is a form error."
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
@@ -375,8 +352,7 @@ group_title = "Stuff count (SBC) field"
 id = "REQ-018"
 source_clause = "§6.6.10.5, §6.6.11.5"
 original_wording = "The CRC delimiter shall follow the FCRC sequence. In CC frames, the CRC delimiter is one single recessive bit. ; In FD frames, the CRC delimiter may consist of one or two recessive bits. A transmitter shall send one recessive bit as CRC delimiter, but it shall accept two recessive bits before the edge from recessive to dominant that starts the acknowledge slot."
-paraphrase = """1) CC frames: exactly one recessive CRC delimiter bit.
-2) FD frames: transmitter sends one recessive bit; a second recessive bit is tolerated before the ACK slot."""
+paraphrase = "1) CC frames: exactly one recessive CRC delimiter bit.\n2) FD frames: transmitter sends one recessive bit. A second recessive bit is tolerated before the ACK slot."
 side = "transmitter"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
@@ -393,10 +369,7 @@ group_title = "CRC delimiter"
 id = "REQ-019"
 source_clause = "§6.6.13.1, §6.6.13.2, §6.6.13.3.1"
 original_wording = "The frame segments from SOF to the frame FCRC sequence shall be coded by the method of the bit stuffing. The remaining bit fields of the frame (ACK field, EOF) shall not be stuffed. ; Dynamic bit stuffing shall be used in CC frames from the SOF up to and including the FCRC sequence. Dynamic bit stuffing shall be used in FD frames from the SOF up to and including the data field. ; Whenever a transmitter detects five consecutive bits (including dynamic stuff bits) of the identical value in the bit stream to be transmitted, it shall insert a complementary bit (called dynamic stuff bit) into the actual transmitted bit stream. The receiver shall recognize a sequence of five consecutive bits of identical value and shall discard the following dynamic stuff bit. ; In the CRC field of FD frames, the stuff bits shall be inserted at fixed positions; they are called fixed stuff bits. There shall be a fixed stuff bit before the first bit of the stuff count, even if the last bits of the preceding field are not a sequence of five consecutive bits of identical value. If the last bits of the preceding field are a sequence of five consecutive bits of identical value, there shall be only the fixed stuff bit, there shall not be two consecutive stuff bits. A further fixed stuff bit shall be inserted after each fourth bit of the CRC field. The value of such a fixed stuff bit shall be the inverse value of the bit preceding the fixed stuff bit. ; A receiver shall discard the fixed stuff bits from the bit stream for the CRC check. It shall detect a form error if the fixed stuff bit has the same value as its preceding bit."
-paraphrase = """1) After 5 consecutive identical bits, a complementary dynamic stuff bit shall be inserted; the receiver shall discard it.
-2) CC stuffing covers SOF through the FCRC sequence; FD dynamic stuffing covers SOF through the data field only.
-3) The ACK field and EOF shall not be dynamically stuffed.
-4) FD frames (FB, FE): a fixed stuff bit precedes the SBC field and follows every fourth CRC bit, each the inverse of the preceding bit. If the preceding field ends with 5 consecutive identical bits, only the FSB is emitted. A receiver detecting a fixed stuff bit with the same polarity as the preceding bit shall flag a form error."""
+paraphrase = "1) After 5 consecutive identical bits, a complementary dynamic stuff bit shall be inserted. The receiver shall discard it.\n2) CC stuffing covers SOF through the FCRC sequence. FD dynamic stuffing covers SOF through the data field only.\n3) The ACK field and EOF shall not be dynamically stuffed.\n4) FD frames (FB, FE): a fixed stuff bit precedes the SBC field and follows every fourth CRC bit, each the inverse of the preceding bit. If the preceding field ends with 5 consecutive identical bits, only the FSB is emitted. A receiver detecting a fixed stuff bit with the same polarity as the preceding bit shall flag a form error."
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
@@ -420,7 +393,7 @@ paraphrase = """1) EOF shall consist of exactly 7 recessive bits.
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-notes = "Coverage closure criterion: three bins - (1) successful TX closure across all four formats, (2) successful RX validation across all four formats, (3) dominant seventh EOF bit triggering an OF rather than a form error."
+notes = "Coverage closure criterion: three bins - (1) successful TX closure across all four formats, (2) successful RX validation across all four formats, (3) dominant seventh EOF bit triggering an OF rather than a form error. Sub-claim 3 is the same physical event as the reactive OF trigger in REQ-024 sub-claim 2; REQ-022 sub-claim 3 documents the corresponding form-error exception."
 label = "test_normal"
 file = "can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
@@ -455,11 +428,7 @@ group_title = "Bus arbitration"
 id = "REQ-022"
 source_clause = "§6.6.21.2"
 original_wording = "A node sending a bit on the bus shall also monitor the bus. A bit error shall be detected at that bit time, when the bit value that is monitored differs from the bit value sent. ; Exception 1: A monitored dominant bit shall not lead to a bit error when a recessive bit, which is not a dynamic stuff bit, is sent during arbitration, or a recessive bit is sent during ACK slot. ; Exception 2: A node sending a passive error flag and detecting a dominant bit shall not interpret this as a bit error. ; A stuff error shall be detected at the bit time of the sixth consecutive equal bit level in a field that is coded by the method of dynamic bit stuffing. ; A form error shall be detected in the following cases: when a fixed form bit field contains one or more unexpected bit values, or when a fixed stuff bit in an XL frame or in an FD frame is not at its expected value. ; Exception 1: A receiver detecting a dominant bit at the last bit of EOF, or a node detecting a dominant bit at the last bit of the error delimiter or of the overload delimiter, shall not treat this as a form error. ; The receivers shall calculate the CRC in the same way as the transmitter. ; A receiver shall detect an FCRC error when the calculated frame FCRC sequence does not equal the received one, or when the SBC of an FD frame does not match to the number of the received dynamic stuff bits, or when the SBC parity does not match. ; A transmitter shall detect an ACK error whenever it does not detect a dominant bit during the ACK slot."
-paraphrase = """1) Bit error: any sent/monitored mismatch. Exceptions: recessive non-stuff bits during arbitration or ACK slot; dominant bits monitored while sending a passive error flag.
-2) Stuff error: detected at the sixth consecutive identical bit in any dynamically-stuffed field.
-3) Form error: any unexpected fixed-form bit value or wrong fixed stuff bit polarity (FB, FE). Exception: a dominant bit at the last EOF bit or last delimiter bit is not a form error.
-4) CRC error: FCRC mismatch; FD frames additionally require SBC match and correct SBC parity.
-5) ACK error: transmitter detects no dominant bit in the ACK slot."""
+paraphrase = "1) Bit error: any sent/monitored mismatch. Exceptions: recessive non-stuff bits during arbitration or ACK slot, and dominant bits monitored while sending a passive error flag.\n2) Stuff error: detected at the sixth consecutive identical bit in any dynamically-stuffed field.\n3) Form error: any unexpected fixed-form bit value (all formats) or a fixed stuff bit not the inverse of the preceding bit (FB, FE). Exception: a dominant bit at the last EOF bit or last delimiter bit is not a form error.\n4) CRC error: FCRC mismatch. FD frames additionally require SBC match and correct SBC parity.\n5) ACK error: transmitter detects no dominant bit in the ACK slot."
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
@@ -497,11 +466,10 @@ group_title = "Error flag initiation and FCRC error behaviour"
 id = "REQ-024"
 source_clause = "§6.6.21.3.2"
 original_wording = "The following conditions shall lead to the transmission of an OF. a) LLC-requested OF (initiated by the LLC sub-layer): An LLC may cause an OF transmission, when internal conditions of the receiver need a delay of the next MAC DF or MAC RF. b) Reactive OF (initiated by the MAC sub-layer): Detection of a dominant bit during either of the first two bits of intermission, detection of one dominant bit at the last bit of EOF by a receiver, or detection of one dominant bit by any node at the last bit of error delimiter or overload delimiter shall cause an OF transmission. ; An LLC-requested OF shall only be started at the first bit of an expected intermission, whereas reactive OFs shall start one bit after detecting the dominant bit due to condition b) above. The start of LLC-requested OFs due to condition a) above shall be allowed but are not required to be implemented. At most, two LLC requested OFs shall be generated to delay the next MAC DF or MAC RF."
-paraphrase = """1) LLC-requested OF: starts at the first intermission bit; optional, at most 2 per inter-frame space.
-2) Reactive OF: triggered by a dominant bit at either of the first two intermission bits, the last EOF bit (receivers only), or the last error/overload delimiter bit; starts one bit after the triggering bit."""
+paraphrase = "1) LLC-requested OF: starts at the first intermission bit. Optional, at most 2 per inter-frame space.\n2) Reactive OF: triggered by a dominant bit at either of the first two intermission bits, the last EOF bit (receivers only), or the last error/overload delimiter bit. Starts one bit after the triggering bit."
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-notes = ""
+notes = "The dominant last-EOF-bit trigger in sub-claim 2 is the same physical event as REQ-020 sub-claim 3; REQ-022 sub-claim 3 documents the corresponding form-error exception."
 label = "p_fsm:~370"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd"
 side = "both"
@@ -515,11 +483,7 @@ group_title = "Overload frame"
 id = "REQ-025"
 source_clause = "§7.3.2, §7.3.3"
 original_wording = "CAN nodes shall support three different bit rates, the nominal bit rate, the FD data bit rate and the XL data bit rate. There shall be separate configuration register sets for the definition of these bit rates. ; The time quantum (t_q) shall be a fixed unit of time derived from the node clock period. There shall exist a programmable prescaler, with integer values. The minimum time quantum (t_q,min) shall be one node clock period long. The length of t_q shall be an integer multiple m of the minimum time quantum t_q,min with m as the value of the prescaler. ; The sample point shall be the point in time at which the bus level is read and interpreted as the value of that respective bit. Its location shall be at the end of Phase_Seg1. ; The synchronization segment shall be exactly one t_q long. ; The information processing time shall be less than or equal to 2 t_q long. ; In nominal bit time and in data bit time, SJW shall be less than or equal to the minimum of these two items: Phase_Seg1 and Phase_Seg2. ; In data bit time, Phase_Seg2 shall be greater than or equal to these two items: SJW and the maximum information processing time."
-paraphrase = """1) Separate nominal and FD data bit rate configurations (XL excluded), each based on a programmable integer prescaler.
-2) Sample point shall be at the end of Phase_Seg1.
-3) Sync_Seg shall be exactly 1 tq.
-4) IPT ≤ 2 tq; SJW ≤ min(Phase_Seg1, Phase_Seg2) in both phases.
-5) In FD data bit time, Phase_Seg2 ≥ SJW and ≥ maximum IPT."""
+paraphrase = "1) Separate nominal and FD data bit rate configurations (XL excluded), each based on a programmable integer prescaler.\n2) Sample point shall be at the end of Phase_Seg1.\n3) Sync_Seg shall be exactly 1 tq.\n4) IPT ≤ 2 tq. SJW ≤ min(Phase_Seg1, Phase_Seg2) in both phases.\n5) In FD data bit time, Phase_Seg2 ≥ SJW and ≥ maximum IPT."
 layer = "PCS"
 format_applicability = "CB, CE, FB, FE"
 notes = "XL data bit rate (third configuration set) is out of scope."
@@ -552,10 +516,8 @@ group_title = "Propagation segment sizing"
 [[requirement]]
 id = "REQ-027"
 source_clause = "§7.3.4, §6.6.21.3.1"
-original_wording = "Nodes that support the FD frame format and nodes that support the XL frame format shall support a transmitter delay compensation mechanism. ; Transmitters shall only use this mechanism in the XL data phase of XL frames when error signalling is enabled or in the FD data phase of FD frames if the BRS bit is recessive. It shall be programmable whether the mechanism is used. When this mechanism is used, the value of the prescaler m shall be one or two. ; The position of the SSP is specified by its distance from the start of the bit time. The SSP position shall be set to a value derived from a measurement of the actual transmitter delay. ; The measurement of the transmitter delay shall be done in each transmitted frame at the recessive to dominant edge from the FDF bit to the res bit in FD frames and at the recessive to dominant edge from the XLF bit to the resXL bit in XL frames. Application of the measured value for the SSP position is done at the data phase of the same frame. ; A counter shall be started when the transmitter starts to transmit the dominant res bit in FD frames or the resXL bit in XL frames at the transmit output. The counter shall be incremented by one each minimum time quantum until the dominant signal is detected at the receive input; then the counter shall be stopped. The counter value is the measured transmitter delay time. The SSP position shall be the sum of the measured transmitter delay value and the configured SSP offset."
-paraphrase = """1) FD-capable nodes shall implement TDC for the FD data phase when BRS is recessive, with programmable enable and prescaler constrained to 1 or 2.
-2) SSP position = measured transmitter delay + configured offset.
-3) When TDC is active, bit errors at the regular SP are ignored; errors at the SSP are reacted upon at the following nominal SP."""
+original_wording = "Nodes that support the FD frame format and nodes that support the XL frame format shall support a transmitter delay compensation mechanism. ; Transmitters shall only use this mechanism in the XL data phase of XL frames when error signalling is enabled or in the FD data phase of FD frames if the BRS bit is recessive. It shall be programmable whether the mechanism is used. When this mechanism is used, the value of the prescaler m shall be one or two. ; The position of the SSP is specified by its distance from the start of the bit time. The SSP position shall be set to a value derived from a measurement of the actual transmitter delay. ; The measurement of the transmitter delay shall be done in each transmitted frame at the recessive to dominant edge from the FDF bit to the res bit in FD frames and at the recessive to dominant edge from the XLF bit to the resXL bit in XL frames. Application of the measured value for the SSP position is done at the data phase of the same frame. ; A counter shall be started when the transmitter starts to transmit the dominant res bit in FD frames or the resXL bit in XL frames at the transmit output. The counter shall be incremented by one each minimum time quantum until the dominant signal is detected at the receive input; then the counter shall be stopped. The counter value is the measured transmitter delay time. The SSP position shall be the sum of the measured transmitter delay value and the configured SSP offset. ; When this mechanism is used, the transmitter shall ignore bit errors detected at the sample point. The received bit value shall be compared, at the SSP, with the (delayed) transmitted bit value. If a bit error is detected at the SSP, the transmitter shall react to this bit error at the subsequent following sample point. [§7.3.4] ; A transmitter using TDC (see 7.3.4) shall notice a potential bit error at an SSP and it shall detect that error at the following SP. [§6.6.21.3.1]"
+paraphrase = "1) FD-capable nodes shall implement TDC for the FD data phase when BRS is recessive, with programmable enable and prescaler constrained to 1 or 2.\n2) SSP position = measured transmitter delay + configured offset.\n3) When TDC is active, bit errors at the regular SP are ignored. Errors at the SSP are reacted upon at the following nominal SP."
 layer = "PCS"
 format_applicability = "FB, FE"
 notes = ""
@@ -570,12 +532,9 @@ group_title = "Transmitter delay compensation"
 
 [[requirement]]
 id = "REQ-028"
-source_clause = "§7.3.5.1, §7.3.5.3, §7.3.5.4"
+source_clause = "§7.3.5.1, §7.3.5.2, §7.3.5.3, §7.3.5.4"
 original_wording = "Only one synchronization within one bit time (between two sample points) shall be allowed. After an edge is detected, synchronizations shall be disabled until the next time the bus state detected at the sample point is recessive. ; An edge shall cause synchronization only if the bus state detected at the previous sample point (previous read bus state) was recessive. If a transmitter uses the transmitter delay compensation (see 7.3.4), also the first detected edge from recessive to dominant after the sample point of the CRC delimiter shall cause synchronization. In this case, CAN nodes may choose alternatively to synchronize on the first detected edge from recessive to dominant seen by an amount of at least the transmitter delay plus one time quantum after the sample point of the CRC delimiter. An edge with a positive phase error (see 7.3.5.2) shall not cause synchronization in a node sending a dominant bit. ; Hard synchronization shall be performed: on edges during inter-frame space (with the exception of the first bit of intermission); when a node is in bus-integration state; at the edge between the FDF bit and the following dominant res bit inside an FD frame; when a node is a receiver of an XL frame, at the edge between the XLF bit and the following dominant resXL bit; at the edge between the DH1 and DH2 bits and the DL1 bit; at the edge between the DAH or AH1 bit and the AL1 bit. ; All other recessive to dominant edges fulfilling rules a) and b) shall be used for resynchronization with one exception: A node transmitting an FD frame or an XL frame shall not synchronize while it transmits the data phase of that frame. ; After a hard synchronization, the bit time shall be restarted by each bit-timing logic unit with Sync_Seg completed. Thus, hard synchronization shall force the edge which has caused the hard synchronization to lie within the synchronization segment of the restarted bit time. The function of hard synchronization shall not be limited by the synchronization jump width. ; When the magnitude of the phase error of the edge which causes resynchronization is less than or equal to the programmed value of the synchronization jump width, the effect of a resynchronization shall be the same as a hard synchronization. ; When the magnitude of the phase error is larger than the programmed value of the synchronization jump width, and if the phase error e is positive, Phase_Seg1 shall be lengthened by an amount equal to the synchronization jump width; and if the phase error e is negative, then Phase_Seg2 shall be shortened by an amount equal to the synchronization jump width."
-paraphrase = """1) Only one synchronisation per bit time; re-enabled after the next recessive sample point.
-2) Edges qualify only if the previous sample point was recessive and no positive phase error exists while sending dominant.
-3) Hard synchronisation occurs on IFS edges, during bus-integration, and at the FDF-to-res transition; correction is unconstrained by SJW and restarts the bit time with Sync_Seg completed.
-4) All other qualifying edges cause resynchronisation (except during FD data phase): Phase_Seg1 is lengthened by SJW on a positive phase error, Phase_Seg2 is shortened by SJW on a negative phase error; when error ≤ SJW the effect equals hard synchronisation."""
+paraphrase = "1) Only one synchronisation per bit time. Re-enabled after the next recessive sample point.\n2) Edges qualify only if the previous sample point was recessive and no positive phase error exists while sending dominant.\n3) Hard synchronisation occurs on IFS edges, during bus-integration, and at the FDF-to-res transition. Correction is unconstrained by SJW and restarts the bit time with Sync_Seg completed.\n4) All other qualifying edges cause resynchronisation, except during the FD data phase. Positive phase error: Phase_Seg1 lengthened by SJW. Negative phase error: Phase_Seg2 shortened by SJW. When error ≤ SJW the effect equals hard synchronisation."
 layer = "PCS"
 format_applicability = "CB, CE, FB, FE"
 notes = ""
@@ -617,7 +576,7 @@ paraphrase = """1) During bus-off, the PCS shall not drive dominant bits.
 layer = "system"
 side = "both"
 format_applicability = "CB, CE, FB, FE"
-notes = "The FCE-side idle condition counting and bus-off state transition are covered by REQ-034."
+notes = "Sub-claim 2 is the PCS implementation of the 11-bit idle counter defined at system level in REQ-009. The FCE-side idle condition counting and bus-off state transition are covered by REQ-033."
 label = "test_bus_off"
 file = "src/can_pcs/hdl_tb/can_pcs_tb.vhd, can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "black_box"
@@ -648,7 +607,7 @@ group_title = "FCE reset and response"
 id = "REQ-032"
 source_clause = "§8.1.4.2 rule a), rule b), rule c), rule d), rule e), rule f), rule g), rule h)"
 original_wording = "When a receiver detects an error, the receive error counter shall be incremented by 1, except when the detected error is a bit error during the sending of an active error flag or an overload flag. ; When a receiver detects a dominant bit as the first bit after sending an error flag, the receive error counter shall be incremented by 8. ; If a receiver detects a bit error while sending an active error flag or an overload flag, the receive error counter shall be incremented by 8. ; After the successful reception of a frame (reception without error up to the ACK slot and the successful sending of the ACK bit), the receive error counter shall be decremented by 1 if it was between 1 and 127. If the receive error counter was 0, it shall stay at 0, and if it was greater than 127, then it shall be set to a value between 119 and 127. ; When a transmitter sends an error flag, the transmit error counter shall be incremented by 8. ; Exception 1: If the transmitter is error-passive and detects an ACK error because of not detecting a dominant ACK and does not detect a dominant bit while sending its passive error flag. ; Exception 2: If the transmitter sends an error flag because a stuff error occurred before the arbitration is decided, whereby the stuff bit should have been recessive, and after it is sent recessive but is monitored to be dominant. ; In exception 1 and in exception 2, the transmit error counter remains unchanged. ; If a transmitter detects a bit error while sending an active error flag or an overload flag, the transmit error counter shall be incremented by 8. ; After the successful transmission of a frame (getting ACK and no error has been detected until EOF is finished), the transmit error counter shall be decremented by 1 unless it was already 0. ; Any node shall tolerate up to 7 consecutive dominant bits after sending an active error flag, passive error flag, or overload flag. After detecting 14 consecutive dominant bits (in case of an active error flag or an overload flag) or after detecting 8 consecutive dominant bits following a passive error flag, and after each sequence of additional 8 consecutive dominant bits, every transmitter shall increment its transmit error counter by 8 and every receiver shall increment its receive error counter by 8."
-paraphrase = "1) +1 on any receiver-detected error (except bit errors during error/overload flag).\n2) +8 on first dominant bit after sending an error flag.\n3) +8 on bit error while sending an active error or overload flag.\n4) -1 on successful RX if in 1-127; stays 0 if already 0; set to 119-127 if above 127.\n5) +8 when sending an error flag (exceptions: error-passive ACK error, pre-arbitration stuff error).\n6) +8 on bit error while sending an active error or overload flag.\n7) -1 on successful TX (floor 0).\n8) After 14 consecutive dominant bits following an active error or overload flag (8 after a passive error flag), increment both counters by 8.\n9) Further +8 for each additional 8 consecutive dominant bits."
+paraphrase = "1) REC +1 on any receiver-detected error (except bit errors during error/overload flag).\n2) REC +8 on first dominant bit after sending an error flag.\n3) REC +8 on bit error while sending an active error or overload flag.\n4) REC -1 on successful RX if in 1-127. Stays 0 if already 0. Set to 119-127 if above 127.\n5) TEC +8 when sending an error flag (exceptions: error-passive ACK error, pre-arbitration stuff error).\n6) TEC +8 on bit error while sending an active error or overload flag.\n7) TEC -1 on successful TX (floor 0).\n8) After 14 consecutive dominant bits following an active error or overload flag (8 after a passive error flag), increment both counters by 8.\n9) Further +8 for each additional 8 consecutive dominant bits."
 side = "both"
 layer = "FCE"
 format_applicability = "CB, CE, FB, FE"
@@ -662,7 +621,7 @@ status                = "in_progress"
 group_title = "Error counter rules"
 
 [[requirement]]
-id = "REQ-034"
+id = "REQ-033"
 source_clause = "§8.1.4.3, §8.1.4.4, §8.1.3.2"
 original_wording = "If the transmit error counter or the receive error counter of a node exceeds 127 (carry condition in case of a 7-bit receive error counter) then the supervisor shall request the MAC sub-layer to set the corresponding node into the error-passive state. ; An error-passive node shall become error-active again when both the transmit error counter and the receive error counter are less than or equal to 127 (see Figure 43). ; If the transmit error counter of a node is greater than 255 (carry condition in case of an 8-bit transmit error counter) then the supervisor shall request the PL to set the node into the bus-off state. A node which is in the bus-off state shall have no influence on the bus. It shall not send any frames nor acknowledge DFs or RFs. Whether or not such a node accepts DFs from the bus depends on the implementation. Upon a restart request, a node which is in the bus-off state shall be re-integrating to the CAN communication (see 6.6.7.5) and may become error-active (no longer bus-off) with its error counters both set to zero after having monitored 128 occurrences of the idle condition (see 3.34) on the bus. ; Table 15: Bus_off — Indicates that the node is in the bus-off state (FCE-to-LLC service interface)."
 paraphrase = """1) Either counter exceeding 127 causes error-passive.
@@ -683,11 +642,10 @@ status                = "in_progress"
 group_title = "Error confinement state transitions"
 
 [[requirement]]
-id = "REQ-035"
+id = "REQ-034"
 source_clause = "§6.6.11.3, §7.2.5, §7.2.6"
 original_wording = "This bit indicates whether the bit rate is switched inside the FD frame. If the bit is detected recessive, the bit rate shall be switched from the nominal bit rate of the arbitration phase to the preconfigured FD data bit rate of the data phase. It is not required for the BRS bit to be the same in all FD frames in a single network. The value of the BRS bit is passed from the BRS bit of the LLC frame. ; In transmitted FD frames, D_Transmit shall be set to active at the beginning of the FD data phase and it shall be set to passive at the end of the FD data phase or when that frame is disturbed. ; In received FD frames, D_Receive shall be set to active at the beginning of the FD data phase and it shall be set to passive at the end of the FD data phase or when that frame is disturbed."
-paraphrase = """1) A recessive BRS bit switches from nominal to FD data rate at the BRS sample point; dominant keeps nominal rate.
-2) The bit rate switches back to nominal at the sample point of the first CRC delimiter bit."""
+paraphrase = "1) A recessive BRS bit switches from nominal to FD data rate at the BRS sample point. A dominant BRS bit keeps nominal rate.\n2) The bit rate switches back to nominal at the sample point of the first CRC delimiter bit."
 side = "both"
 layer = "MAC"
 format_applicability = "FB, FE"
@@ -701,11 +659,10 @@ file = ""
 group_title = "BRS bit rate switching"
 
 [[requirement]]
-id = "REQ-036"
+id = "REQ-035"
 source_clause = "§6.4.3, §6.4.4, Table 5"
 original_wording = "For DFs of all other formats the 4 LSB encode the number of data bytes as specified in Table 5. ; If the DLC indicates a higher number of data bytes, the data bytes beyond the restricted range shall be replaced in the LLC DF by bytes with the value of CCHEX ('padding') both for received and for transmitted frames."
-paraphrase = """1) DLC 0-8 map linearly; FD extends DLC 9→12, 10→16, 11→20, 12→24, 13→32, 14→48, 15→64 bytes; CC treats DLC 9-15 as 8 bytes.
-2) An LLC restricted to fewer bytes shall replace excess bytes with 0xCC padding in both TX and RX directions."""
+paraphrase = "1) DLC 0-8 map linearly. FD extends DLC 9→12, 10→16, 11→20, 12→24, 13→32, 14→48, 15→64 bytes. CC treats DLC 9-15 as 8 bytes.\n2) An LLC restricted to fewer bytes shall replace excess bytes with 0xCC padding in both TX and RX directions."
 side = "both"
 layer = "LLC"
 format_applicability = "CB, CE, FB, FE"
@@ -719,10 +676,10 @@ file = ""
 group_title = "DLC byte-count mapping"
 
 [[requirement]]
-id = "REQ-037"
+id = "REQ-036"
 source_clause = "§6.6.16"
 original_wording = "Within a field, the MSB is transmitted first. Within the data field, the bytes are transferred from byte 0 to the last byte (indicated by the DLC). Within each byte, the bits are transferred from bit(7) down to bit(0)."
-paraphrase = "Within each field the MSB is transmitted first; within the data field byte 0 is sent first; within each byte bit(7) is sent first."
+paraphrase = "Within each field the MSB is transmitted first. Within the data field byte 0 is sent first. Within each byte bit(7) is sent first."
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
@@ -736,11 +693,10 @@ file = ""
 group_title = "Bit transmission order"
 
 [[requirement]]
-id = "REQ-038"
+id = "REQ-037"
 source_clause = "§8.1.5"
 original_wording = "If during network start-up only one node is online and if this node transmits any DF or RF, it does not get an ACK. In this case, it shall detect an error and repeat the frame. According to rule c) in 8.1.4.2, exception 1, it may become error-passive but shall not go bus-off. ; When a switched-off node is switched on again, it shall: synchronize with already available nodes to re-integrate into the bus communication (see 6.6.7.5) before starting to transmit. Synchronization is achieved when 11 recessive bits have been detected that are equivalent to ACK delimiter + EOF + intermission or Error/Overload delimiter + intermission; wait for other nodes if there is no other node available at the moment without becoming bus-off."
-paraphrase = """1) A node shall complete bus re-integration (11 consecutive recessive bits) before transmitting.
-2) A single node that receives no ACK shall become error-passive but shall never go bus-off; the error-passive ACK exception applies indefinitely."""
+paraphrase = "1) A node shall complete bus re-integration (11 consecutive recessive bits) before transmitting.\n2) A single node that receives no ACK shall become error-passive but shall never go bus-off. The error-passive ACK exception applies indefinitely."
 side = "both"
 layer = "system"
 format_applicability = "CB, CE, FB, FE"
@@ -754,7 +710,7 @@ file = ""
 group_title = "Node start-up"
 
 [[requirement]]
-id = "REQ-039"
+id = "REQ-038"
 source_clause = "§6.6.18"
 original_wording = "MAC frames may be stored in a shared memory. Data consistency of transmitted MAC frames from a shared memory shall be ensured by at least one of two methods. The MAC entity shall store the whole frame content to be transmitted in a temporary buffer that is filled before the transmission is started. The LLC entity shall check for data errors while the frame content to be transmitted is transferred to the MAC entity. If a data error is detected, the transmission shall not be started. If it is already started when the data error is detected, the node shall invalidate the frame by, e.g. switching to the restricted operation mode, see 6.6.19, or into bus monitoring mode, see 6.6.20."
 paraphrase = "Transmitted frames shall be protected against mid-transmission corruption by at least one of: (a) buffering the full frame before TX starts, or (b) LLC data-error checking with frame invalidation on detection."
@@ -771,10 +727,10 @@ status                = "not_started"
 group_title = "MAC data consistency"
 
 [[requirement]]
-id = "REQ-040"
+id = "REQ-039"
 source_clause = "§6.6.21.1, §6.6.21.4"
 original_wording = "There shall be a configuration parameter to decide whether error signalling is enabled or is disabled."
-paraphrase = "A configuration parameter shall exist to enable or disable error signalling; §6.6.21.4 defines the full behaviour when error signalling is disabled."
+paraphrase = "A configuration parameter shall exist to enable or disable error signalling. §6.6.21.4 defines the full behaviour when error signalling is disabled."
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"

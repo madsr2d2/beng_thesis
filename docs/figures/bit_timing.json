@@ -1,14 +1,25 @@
 { "signal": [
-    {                                                "node": ".A...C....." },
-  { "name": "CAN node A",  "wave": "x=.=.=.=.x", "data": ["Sync_Seg", "Prop_Seg", "Phase_Seg1", "Phase_Seg2"], "node": ".a...c", "phase": 0 },
-  {                                                "node": "........" },
-  { "name": "CAN node B",  "wave": "x=.=.=.=.x", "data": ["Sync_Seg", "Prop_Seg", "Phase_Seg1", "Phase_Seg2"], "node": ".b.....", "phase": -1 },
+  { "node": "FG......HI" },
 
+    { "node": ".AB.J.K.L" },
+  { "name": "Node A",  "wave": "===|=|=|=", "data": ["PS2","SS", "PS", "PS1", "PS2","SS"], "node": ".a..c.", "phase": 0 },
+  {},
+  { "name": "Node B",  "wave": "===|=|=|=", "data": ["PS2","SS", "PS", "PS1", "PS2","SS"], "node": ".b....d.", "phase": -1 },
+    {},
+  { "node": "......E.." , "phase": -1},
 ],
   "edge": [
-    "a~>b t_out(A) + t_bus + t_in(B)",
-    "b~>c t_out(B) + t_bus + t_in(A)",
-    'A+C t_prop',
+    "a~>b t_TRX + t_bus",
+    "b~>c t_TRX + t_bus",
+    'B+J t_prop',
+  	'J+K t_ps1',
+   	'K+L t_ps2',
+    'A+B TQ',
+    'F-G Bit N-1',
+  	'G+H Bit N',
+    'H-I Bit N+1',
+  	'E->d Sample Point'
+  
   ],
   "config": { "hscale": 2 }
 }
