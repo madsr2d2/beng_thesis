@@ -1,8 +1,8 @@
 { "signal": [
     {                                                "node": ".A...C....." },
-  { "name": "CAN node A",  "wave": "x2.3.4.5.x", "data": ["Sync_Seg", "Prop_Seg", "Phase_Seg1", "Phase_Seg2"], "node": ".a...c", "phase": 0 },
+  { "name": "CAN node A",  "wave": "x=.=.=.=.x", "data": ["Sync_Seg", "Prop_Seg", "Phase_Seg1", "Phase_Seg2"], "node": ".a...c", "phase": 0 },
   {                                                "node": "........" },
-  { "name": "CAN node B",  "wave": "x2.3.4.5.x", "data": ["Sync_Seg", "Prop_Seg", "Phase_Seg1", "Phase_Seg2"], "node": ".b.....", "phase": -1 },
+  { "name": "CAN node B",  "wave": "x=.=.=.=.x", "data": ["Sync_Seg", "Prop_Seg", "Phase_Seg1", "Phase_Seg2"], "node": ".b.....", "phase": -1 },
 
 ],
   "edge": [

@@ -268,16 +268,17 @@ status                = "in_progress"
 
 [[requirement]]
 id = "REQ-013"
-source_clause = "§6.6.8"
-original_wording = "SOF shall mark the beginning of DFs and RFs. It shall be dominant. ; A node shall send an SOF only when the bus is idle (see 6.6.7.3). ; If a node samples a dominant bit at the third bit of intermission, this node shall, if it has a pending transmission and if the node is error active or has been receiver of the previous frame, start transmitting its frame at the next bit with the first bit of its identifier and take part in arbitration, without first transmitting an SOF bit and without becoming receiver."
+source_clause = "§6.6.7.3, §6.6.8"
+original_wording = "SOF shall mark the beginning of DFs and RFs. It shall be dominant. ; A node shall send an SOF only when the bus is idle (see 6.6.7.3). ; If a node samples a dominant bit at the third bit of intermission, this node shall, if it has a pending transmission and if the node is error active or has been receiver of the previous frame, start transmitting its frame at the next bit with the first bit of its identifier and take part in arbitration, without first transmitting an SOF bit and without becoming receiver. ; The detection of a dominant bit on the bus during bus idle time shall be interpreted as SOF."
 paraphrase = """Frame initiation:
 1) SOF shall be a single dominant bit.
 2) A node shall send SOF only when the bus is idle.
-3) A dominant third intermission bit causes a node with a pending frame (if error-active or previous receiver) to skip the SOF and begin arbitration immediately."""
-side = "transmitter"
+3) A dominant third intermission bit causes a node with a pending frame (if error-active or previous receiver) to skip the SOF and begin arbitration immediately.
+4) A dominant bit detected during bus idle shall be interpreted as SOF by the receiving node."""
+side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-notes = "Sub-claim 1 (SOF dominant) is the first sentence of §6.6.8; sub-claim 2 follows from the same clause. Sub-claim 3 is the skip-SOF arbitration shortcut."
+notes = "Sub-claim 1 (SOF dominant) is the first sentence of §6.6.8; sub-claim 2 follows from the same clause. Sub-claim 3 is the skip-SOF arbitration shortcut. Sub-claim 4 (§6.6.7.3 last sentence) is the receiver-side SOF detection from idle; it is exercised by every test_normal run and confirmed by REQ-036 hard-sync at the SOF leading edge."
 label = "p_fsm:~451, test_normal"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
@@ -991,3 +992,19 @@ observability = "white_box"
 verification_method = "code_inspection"
 priority             = "P2"
 status                = "not_started"
+
+[[requirement]]
+id = "REQ-052"
+source_clause = "§6.6.21.1, §6.6.21.4"
+original_wording = "There shall be a configuration parameter to decide whether error signalling is enabled or is disabled."
+paraphrase = "A configuration parameter shall exist to enable or disable error signalling; §6.6.21.4 defines the full behaviour when error signalling is disabled."
+side = "both"
+layer = "MAC"
+format_applicability = "CB, CE, FB, FE"
+observability = "white_box"
+verification_method = "code_inspection"
+priority             = "P2"
+status                = "waived"
+notes = "The implementation always has error signalling enabled; no disable path is provided. §6.6.21.4 (disabled-mode behaviour: no EF/OF transmitted, alternative frame validation via §6.6.15.3, separate error-counting rules) is therefore out of scope. Waived by design scope decision."
+label = ""
+file = ""
