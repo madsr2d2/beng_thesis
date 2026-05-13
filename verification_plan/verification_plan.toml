@@ -45,17 +45,19 @@
 
 [[requirement]]
 id = "REQ-001"
-source_clause = "§6.4.5.2"
-original_wording = "In both cases, the LLC sub-layer shall notify the successful transmission or reception of a DF or RF to the LLC user."
-paraphrase = "LLC shall notify the LLC user of every successful DF transmission or reception (all formats), and every RF transmission or reception (CB, CE only)."
+source_clause = "§6.4.5.2, §6.5.7"
+original_wording = "In both cases, the LLC sub-layer shall notify the successful transmission or reception of a DF or RF to the LLC user. ; For the capturing of time stamps, the LLC may provide a cross-layer function interface to a time-base that is outside the DLL. The time-base and time-stamps shall have a length of 64 bit. When time-stamping is not supported, time-base and time-stamps shall be treated as constants with the value 0."
+paraphrase = """LLC notification and timestamping:
+1) LLC shall notify the LLC user of every successful DF transmission or reception (all formats), and every RF transmission or reception (CB, CE only).
+2) (P3) If timestamping is not implemented, the LLC shall return a constant 0 for all timestamp fields rather than leaving them undefined."""
 side = "both"
 layer = "LLC"
 format_applicability = "CB, CE, FB, FE"
-notes = ""
+notes = "Sub-claim 2 is P3 and verified by code_inspection: confirm that timestamp outputs are tied to 0 when the timestamping feature is absent."
 label = ""
 file = ""
 observability = "black_box"
-verification_method = "simulation"
+verification_method = "simulation, code_inspection"
 priority             = "P1"
 status                = "not_started"
 
@@ -859,17 +861,18 @@ status                = "in_progress"
 
 [[requirement]]
 id = "REQ-045"
-source_clause = "§8.1.4.3, §8.1.4.4"
-original_wording = "If the transmit error counter or the receive error counter of a node exceeds 127 (carry condition in case of a 7-bit receive error counter) then the supervisor shall request the MAC sub-layer to set the corresponding node into the error-passive state. ; An error-passive node shall become error-active again when both the transmit error counter and the receive error counter are less than or equal to 127 (see Figure 43). ; If the transmit error counter of a node is greater than 255 (carry condition in case of an 8-bit transmit error counter) then the supervisor shall request the PL to set the node into the bus-off state. A node which is in the bus-off state shall have no influence on the bus. It shall not send any frames nor acknowledge DFs or RFs. Whether or not such a node accepts DFs from the bus depends on the implementation. Upon a restart request, a node which is in the bus-off state shall be re-integrating to the CAN communication (see 6.6.7.5) and may become error-active (no longer bus-off) with its error counters both set to zero after having monitored 128 occurrences of the idle condition (see 3.34) on the bus."
+source_clause = "§8.1.4.3, §8.1.4.4, §8.1.3.2"
+original_wording = "If the transmit error counter or the receive error counter of a node exceeds 127 (carry condition in case of a 7-bit receive error counter) then the supervisor shall request the MAC sub-layer to set the corresponding node into the error-passive state. ; An error-passive node shall become error-active again when both the transmit error counter and the receive error counter are less than or equal to 127 (see Figure 43). ; If the transmit error counter of a node is greater than 255 (carry condition in case of an 8-bit transmit error counter) then the supervisor shall request the PL to set the node into the bus-off state. A node which is in the bus-off state shall have no influence on the bus. It shall not send any frames nor acknowledge DFs or RFs. Whether or not such a node accepts DFs from the bus depends on the implementation. Upon a restart request, a node which is in the bus-off state shall be re-integrating to the CAN communication (see 6.6.7.5) and may become error-active (no longer bus-off) with its error counters both set to zero after having monitored 128 occurrences of the idle condition (see 3.34) on the bus. ; Table 15: Bus_off — Indicates that the node is in the bus-off state (FCE-to-LLC service interface)."
 paraphrase = """Error confinement state transitions:
 1) Either counter exceeding 127 causes error-passive.
 2) Both counters at or below 127 restores error-active.
 3) TEC exceeding 255 causes bus-off.
-4) Bus-off recovery requires 128 idle conditions with both counters reset to zero."""
+4) Bus-off recovery requires 128 idle conditions with both counters reset to zero.
+5) FCE shall assert the Bus_off notification to the LLC on entering bus-off state (Table 15 FCE-to-LLC interface)."""
 side = "both"
 layer = "FCE"
 format_applicability = "CB, CE, FB, FE"
-notes = "test_bus_off covers sub-claims 1, 3, and 4; test_bus_off_recovery covers sub-claims 2 and 5."
+notes = "test_bus_off covers sub-claims 1, 3, 4, and 5; test_bus_off_recovery covers sub-claims 2 and 4."
 label = "test_bus_off, test_bus_off_recovery"
 file = "src/can_fce/hdl_tb/can_fce_tb.vhd"
 observability = "black_box"
@@ -964,3 +967,20 @@ status                = "not_started"
 notes = "Sub-claim 1 is an emergent property of REQ-012 (re-integration) and REQ-013 (SOF only when idle); the dedicated test here confirms the node does not transmit before integration completes. Sub-claim 2 requires a single-node scenario where ACK injection is permanently absent, verifying TEC rises to error-passive but does not exceed 255."
 label = ""
 file = ""
+
+[[requirement]]
+id = "REQ-051"
+source_clause = "§6.6.18"
+original_wording = "MAC frames may be stored in a shared memory. Data consistency of transmitted MAC frames from a shared memory shall be ensured by at least one of two methods. The MAC entity shall store the whole frame content to be transmitted in a temporary buffer that is filled before the transmission is started. The LLC entity shall check for data errors while the frame content to be transmitted is transferred to the MAC entity. If a data error is detected, the transmission shall not be started. If it is already started when the data error is detected, the node shall invalidate the frame by, e.g. switching to the restricted operation mode, see 6.6.19, or into bus monitoring mode, see 6.6.20."
+paraphrase = """MAC data consistency:
+1) Transmitted frame data shall be protected against corruption mid-transmission by at least one of: (a) buffering the entire frame before transmission starts, or (b) LLC data-error checking with frame invalidation on detection."""
+side = "transmitter"
+layer = "MAC"
+format_applicability = "CB, CE, FB, FE"
+notes = "Verify by code_inspection which method the implementation uses and confirm it is applied consistently. If method (a) - confirm the MAC FSM only begins serialisation after the full frame is loaded. If method (b) - confirm the LLC has an error-detection path and can abort or invalidate an in-progress frame."
+label = ""
+file = ""
+observability = "white_box"
+verification_method = "code_inspection"
+priority             = "P2"
+status                = "not_started"

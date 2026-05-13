@@ -1,0 +1,14 @@
+{signal: [
+  ['Dynamic',
+  { "name": "Stuffed frame fields",        "wave": "x....=x", "data": ["SB"]},
+  { "name": "Stuffed stream",	   "wave": "1....0x" },
+
+  { "name": "Stuffed stream",	   "wave": "0....1x" },
+  ],
+  {},
+  ['Static',
+  { "name": "Stuffed frame fields",        "wave": "=.==...==...==...==.|", "data": ["DATA","FSB","SBC","FSB", "CRC","FSB", "CRC","FSB", "CRC"] },
+  { "name": "Stuffed stream",    "wave": "x10xxx01x..10xxx10x.." },
+   { "name": "Stuffed stream",    "wave": "x01xxx10x..01xxx01x.." },
+  ],
+]}
