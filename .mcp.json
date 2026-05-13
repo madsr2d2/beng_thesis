@@ -2,10 +2,10 @@
   "mcpServers": {
     "verification_plan": {
       "type": "stdio",
-      "command": "python",
+      "command": "/usr/bin/python3",
       "args": ["-m", "mcp_tools.verification_plan_manager"],
       "env": {
-        "PYTHONPATH": "${PWD}"
+        "PYTHONPATH": "/home/madsr2d2/beng_thesis"
       }
     }
   }

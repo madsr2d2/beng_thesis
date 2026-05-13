@@ -47,6 +47,7 @@ def load_toml(path: str) -> list[dict]:
             "format":              fields.get("format_applicability", ""),
             "original_wording":    fields.get("original_wording", ""),
             "paraphrase":          fields.get("paraphrase", ""),
+            "group_title":         fields.get("group_title", ""),
             "observability":       fields.get("observability", ""),
             "verification_method": fields.get("verification_method", ""),
             "priority":            fields.get("priority", ""),
@@ -98,7 +99,7 @@ def _break_enumeration(text: str) -> str:
     Pandoc preserves raw inline nodes through its markdown round-trip and emits
     \\newline inside the p{} LaTeX column, producing a visible line break.
     """
-    return text.replace("\n", " `\\newline`{=latex}")
+    return text.replace("\n", " `\\newline`{=latex} ")
 
 
 def _to_report_row(row: dict) -> dict:
@@ -114,11 +115,14 @@ def _to_report_row(row: dict) -> dict:
 
 
 def _to_req_row(row: dict) -> dict:
+    paraphrase = row["paraphrase"]
+    if row.get("group_title"):
+        paraphrase = f"**{row['group_title']}**\n" + paraphrase
     return {
         "id":        row["id"],
         "iso_ref":   row["iso_ref"].replace("§", ""),
         "priority":  row["priority"],
-        "paraphrase": _break_enumeration(row["paraphrase"]),
+        "paraphrase": _break_enumeration(paraphrase),
     }
 
 

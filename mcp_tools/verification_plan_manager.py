@@ -60,9 +60,14 @@ class RequirementsManager:
         "label",
         "file",
         "original_wording",
+        "paraphrase",
+        "group_title",
         "source_clause",
         "format_applicability",
         "observability",
+        "verification_method",
+        "priority",
+        "status",
     }
 
     def __init__(self, toml_path: Path):
@@ -243,19 +248,16 @@ class RequirementsManager:
         raise KeyError(f"Requirement {req_id} not found")
 
     def renumber_requirements(self) -> dict:
-        """Renumber all requirement IDs sequentially within each layer."""
+        """Renumber all requirement IDs sequentially as REQ-NNN."""
         self._backup()
         data = self._load()
         requirements = data.get("requirement", [])
 
-        counters: dict[str, int] = {}
         id_map: dict[str, str] = {}
 
-        for req in requirements:
-            layer = req.get("layer", "UNK")
-            counters[layer] = counters.get(layer, 0) + 1
+        for i, req in enumerate(requirements, start=1):
             old_id = req.get("id", "")
-            new_id = f"REQ-{layer}-{counters[layer]:03d}"
+            new_id = f"REQ-{i:03d}"
             if old_id != new_id:
                 id_map[old_id] = new_id
             req["id"] = new_id
@@ -280,24 +282,28 @@ class RequirementsManager:
         layer = fields.get("layer", "LLC")
         max_num = 0
         for req in requirements:
-            if req.get("layer") == layer:
-                rid = req.get("id", "")
-                try:
-                    num = int(rid.split("-")[-1])
-                    max_num = max(max_num, num)
-                except (ValueError, IndexError):
-                    pass
-        new_id = f"REQ-{layer}-{max_num + 1:03d}"
+            rid = req.get("id", "")
+            try:
+                num = int(rid.split("-")[-1])
+                max_num = max(max_num, num)
+            except (ValueError, IndexError):
+                pass
+        new_id = f"REQ-{max_num + 1:03d}"
 
         new_req = tomlkit.table()
         new_req["id"] = new_id
         defaults = {
             "source_clause": "",
             "original_wording": "",
+            "paraphrase": "",
+            "group_title": "",
             "layer": layer,
             "side": "",
             "format_applicability": "",
             "observability": "",
+            "verification_method": "",
+            "priority": "",
+            "status": "not_started",
             "notes": "",
             "label": "",
             "file": "",
@@ -390,10 +396,15 @@ def get_requirement(req_id: str, toml_path: Optional[str] = None) -> str:
     lines.append(f"Side: {req.get('side', 'N/A')}")
     lines.append(f"Format: {req.get('format_applicability')}")
     lines.append(f"Observability: {req.get('observability', '[UNSET]')}")
+    lines.append(f"Priority: {req.get('priority', '[UNSET]')}")
+    lines.append(f"Status: {req.get('status', '[UNSET]')}")
+    lines.append(f"Verification method: {req.get('verification_method', '[UNSET]')}")
     lines.append(f"Label: {req.get('label', '[BLANK]')}")
     lines.append(f"File: {req.get('file', '[BLANK]')}")
     lines.append("")
     lines.append(f"Original wording:\n  {req.get('original_wording')}")
+    lines.append("")
+    lines.append(f"Paraphrase:\n  {req.get('paraphrase', '')}")
     lines.append("")
     lines.append(f"Notes:\n  {req.get('notes')}")
 
