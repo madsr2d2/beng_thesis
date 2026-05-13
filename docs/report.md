@@ -252,7 +252,20 @@ CAN defines two classes of frames: Classic CAN (CC) and CAN FD (FD). Within each
 
 A Classic CAN frame consists of: Start of Frame (SOF), Arbitration field (identifier, RTR, IDE), Control field (DLC), Data field, CRC field, ACK slot and delimiter, End of Frame, and Intermission. A CAN FD frame shares the same structure through the arbitration phase, then introduces the FDF bit (marking the frame as FD), followed by BRS (Bit Rate Switch) and ESI (Error State Indicator) control bits that govern the transition into the higher-speed data phase.
 
-![Classic CAN base frame (CB) and CAN FD base frame (FB) bit-field layouts. The FD frame extends the control field with FDF, res, BRS, and ESI between the IDE bit and the DLC; the data and CRC fields are transmitted at the data-phase bit rate when BRS is recessive.](figures/frame_format.png){#fig:can-frame-structure width=100%}
+| Format | Identifier | Width | Bit stuffing |
+| :--- | :--- | :--- | :--- | 
+| CB, CE, FB, FE | IDB | 11 Bits | Dynamic |
+| CE, FE | IEXT | 18 Bits | Dynamic |
+| CB, CE, FB, FE | DLC | 4 Bits | Dynamic |
+| FB, FE | DATA | 0-64 Bytes | Dynamic |
+| CB, CE | DATA | 0-8 Bytes | Dynamic |
+| FB, FE | CRC | 17 Bits (DLC <= 16), 21 Bits (DLC > 16) | Fixed |
+| CB, CE | CRC | 15 Bits | Dynamic |
+| FB, FE | SBC | 4 Bits | Fixed |
+
+: Field width and bit stuffing encoding for multi-bit fields in CB, CE, FB and FE frames. {#tbl:field_data}
+
+![Frame and error flag formats for CAN-CC Base, CAN-CC Extended, CAN-DF Base and CAN-DF Extended. Widths of truncated multi-bit fields are tabulated in @tbl:field_data.](figures/frame_format.png){#fig:can-frame-structure width=100%}
 
 ## Bit Timing and Flexible Data Rate {#sec:bit-timing}
 

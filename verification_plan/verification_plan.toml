@@ -166,11 +166,14 @@ status                = "in_progress"
 
 [[requirement]]
 id = "REQ-008"
-source_clause = "§6.6.5.3, §6.6.6.3"
-original_wording = "The error delimiter shall consist of eight recessive bits. After sending an error flag, each node shall monitor the bus until it detects a recessive bit. At this point in time, every node shall finish sending its error flag and all nodes shall start sending seven more recessive bits simultaneously, to complete the 8-bit error delimiter. ; The overload delimiter shall consist of eight recessive bits. After sending an overload flag, each node shall monitor the bus until it detects a recessive bit. At this point in time, every node shall finish sending its overload flag and all nodes shall start sending seven more recessive bits simultaneously, to complete the 8-bit overload delimiter."
-paraphrase = """Error/overload delimiter:
-1) Error and overload delimiters each consist of eight recessive bits.
-2) After the flag, all nodes monitor the bus and start their seven-bit delimiter simultaneously on detecting the first recessive bit."""
+source_clause = "§6.6.5.2, §6.6.5.3, §6.6.6.2, §6.6.6.3"
+original_wording = "the active error flag shall consist of six consecutive dominant bits, and the passive error flag shall consist of six consecutive recessive bits unless it is overwritten by dominant bits from other nodes. ; The error delimiter shall consist of eight recessive bits. After sending an error flag, each node shall monitor the bus until it detects a recessive bit. At this point in time, every node shall finish sending its error flag and all nodes shall start sending seven more recessive bits simultaneously, to complete the 8-bit error delimiter. ; The overload flag shall consist of six dominant bits. ; The overload delimiter shall consist of eight recessive bits. After sending an overload flag, each node shall monitor the bus until it detects a recessive bit. At this point in time, every node shall finish sending its overload flag and all nodes shall start sending seven more recessive bits simultaneously, to complete the 8-bit overload delimiter."
+paraphrase = """Error/Overload flag and delimiter:
+1) Active error flag: 6 consecutive dominant bits.
+2) Passive error flag: 6 consecutive recessive bits (unless overwritten by dominant bits from other nodes).
+3) Overload flag: 6 consecutive dominant bits.
+4) Error and overload delimiters each consist of eight recessive bits.
+5) After the flag, all nodes monitor the bus and start their seven-bit delimiter simultaneously on detecting the first recessive bit."""
 side = "both"
 layer = "system"
 format_applicability = "CB, CE, FB, FE"
