@@ -410,13 +410,15 @@ status                = "in_progress"
 
 [[requirement]]
 id = "REQ-021"
-source_clause = "§6.6.11.5"
-original_wording = "The CRC delimiter shall follow the FCRC sequence. In FD frames, the CRC delimiter may consist of one or two recessive bits. A transmitter shall send one recessive bit as CRC delimiter, but it shall accept two recessive bits before the edge from recessive to dominant that starts the acknowledge slot."
-paraphrase = "The transmitter shall send one recessive CRC delimiter bit; the 2-bit FD ACK window provides tolerance for a second recessive bit before the ACK slot, compensating for receiver phase differences."
+source_clause = "§6.6.10.5, §6.6.11.5"
+original_wording = "The CRC delimiter shall follow the FCRC sequence. In CC frames, the CRC delimiter is one single recessive bit. ; In FD frames, the CRC delimiter may consist of one or two recessive bits. A transmitter shall send one recessive bit as CRC delimiter, but it shall accept two recessive bits before the edge from recessive to dominant that starts the acknowledge slot."
+paraphrase = """CRC delimiter:
+1) CC frames: the transmitter shall send exactly one recessive CRC delimiter bit.
+2) FD frames: the transmitter shall send one recessive CRC delimiter bit; a second recessive bit is tolerated before the ACK slot to compensate for receiver phase differences."""
 side = "transmitter"
 layer = "MAC"
-format_applicability = "FB, FE"
-notes = "The second-recessive-bit tolerance is provided by the 2-bit FD ACK window in s_ack, not by waiting an extra bit in s_crc_delimiter."
+format_applicability = "CB, CE, FB, FE"
+notes = "The FD second-recessive-bit tolerance is provided by the 2-bit FD ACK window in s_ack, not by waiting an extra bit in s_crc_delimiter. The CC sub-claim (sub-claim 1) is a fixed-form bit; a dominant CC CRC delimiter is caught by REQ-028."
 label = "p_fsm:~768, p_fsm:~796, test_normal"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
@@ -887,12 +889,13 @@ file = ""
 
 [[requirement]]
 id = "REQ-047"
-source_clause = "§6.6.10.3, §6.6.11.3"
-original_wording = "The first two bits of the control field shall be transmitted dominant, followed by the DLC. ; The first bit of the control field is the IDE bit in CBFF, and it is r1 in CEFF, matching with the FDF bit in FEFF and a CAN FD tolerant CAN node shall detect a protocol exception event when this bit is received recessive. ; The second bit of the control field is r0 bit. In CBFF, this bit matches with the FDF bit in FBFF and a CAN FD tolerant CAN node shall detect a protocol exception event when this bit is received recessive. In CEFF, receivers shall accept it with recessive and with dominant state. ; This bit distinguishes between CC frames and FD or XL frames. It is recessive in FD and XL frames, and it is dominant in CC frames."
-paraphrase = """FDF bit and CC/FD format differentiation:
+source_clause = "§6.6.10.3, §6.6.11.2, §6.6.11.3"
+original_wording = "The first two bits of the control field shall be transmitted dominant, followed by the DLC. ; The first bit of the control field is the IDE bit in CBFF, and it is r1 in CEFF, matching with the FDF bit in FEFF and a CAN FD tolerant CAN node shall detect a protocol exception event when this bit is received recessive. ; The second bit of the control field is r0 bit. In CBFF, this bit matches with the FDF bit in FBFF and a CAN FD tolerant CAN node shall detect a protocol exception event when this bit is received recessive. In CEFF, receivers shall accept it with recessive and with dominant state. ; This bit distinguishes between CC frames and FD or XL frames. It is recessive in FD and XL frames, and it is dominant in CC frames. ; The only difference is the IDE bit, which distinguishes between the identifier formats and is part of the control field in FBFF and part of the arbitration field in FEFF."
+paraphrase = """FDF bit, CC/FD format differentiation, and FD identifier format:
 1) FDF shall be dominant in CC frames and recessive in FD frames.
 2) The first two CC control field bits (IDE in CBFF, r1/r0 in CEFF) shall be transmitted dominant.
-3) An FD-tolerant receiver that samples a recessive r0 (CBFF) or r1 (CEFF) bit shall detect a protocol exception event."""
+3) An FD-tolerant receiver that samples a recessive r0 (CBFF) or r1 (CEFF) bit shall detect a protocol exception event.
+4) In FBFF the IDE bit is the first control field bit (dominant); in FEFF the IDE bit is in the arbitration field (recessive, after SRR)."""
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
@@ -900,15 +903,17 @@ observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority             = "P1"
 status                = "not_started"
-notes = "Protocol exception handling is not implemented; a recessive r0/r1 in CC frames would be treated as the start of an FD frame. Sub-claim 3 is therefore not exercised in the implementation."
+notes = "Protocol exception handling is not implemented; a recessive r0/r1 in CC frames would be treated as the start of an FD frame. Sub-claim 3 is therefore not exercised in the implementation. Sub-claim 4 is structural: the MAC FSM must place the IDE bit at different field positions for FBFF vs FEFF."
 label = ""
 file = ""
 
 [[requirement]]
 id = "REQ-048"
-source_clause = "§6.4.3, Table 5"
-original_wording = "For DFs of all other formats the 4 LSB encode the number of data bytes as specified in Table 5."
-paraphrase = "FD DLC byte-count mapping: DLC 0-8 map linearly to 0-8 bytes for all formats; for FD frames DLC 9→12, 10→16, 11→20, 12→24, 13→32, 14→48, 15→64 bytes. CC frames treat DLC 9-15 as 8 bytes."
+source_clause = "§6.4.3, §6.4.4, Table 5"
+original_wording = "For DFs of all other formats the 4 LSB encode the number of data bytes as specified in Table 5. ; If the DLC indicates a higher number of data bytes, the data bytes beyond the restricted range shall be replaced in the LLC DF by bytes with the value of CCHEX ('padding') both for received and for transmitted frames."
+paraphrase = """DLC byte-count mapping and restricted-range padding:
+1) DLC 0-8 map linearly to 0-8 bytes for all formats; FD frames extend DLC 9→12, 10→16, 11→20, 12→24, 13→32, 14→48, 15→64 bytes; CC frames treat DLC 9-15 as 8 bytes.
+2) An LLC sub-layer restricted to fewer than the maximum data bytes shall replace data bytes beyond its restricted range with 0xCC padding in both transmitted and received frames."""
 side = "both"
 layer = "LLC"
 format_applicability = "CB, CE, FB, FE"
@@ -916,7 +921,7 @@ observability = "black_box"
 verification_method = "simulation, coverage"
 priority             = "P1"
 status                = "not_started"
-notes = "Coverage closure criterion: all four non-linear FD DLC values (9, 12, 14, 15 → 12, 24, 48, 64 bytes) plus DLC=8 (boundary) must each produce a correctly sized frame."
+notes = "Coverage closure criterion: all four non-linear FD DLC values (9, 12, 14, 15 → 12, 24, 48, 64 bytes) plus DLC=8 (boundary) must each produce a correctly sized frame. Sub-claim 2 (0xCC padding) is P3 and only applies if the implementation exposes a configurable maximum-data-byte restriction; verify only if that feature is implemented."
 label = ""
 file = ""
 
