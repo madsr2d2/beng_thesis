@@ -334,11 +334,12 @@ status                = "in_progress"
 [[requirement]]
 id = "REQ-017"
 source_clause = "§6.6.10.6, §6.6.11.6"
-original_wording = "All receivers check the consistency of the received DF or RF and shall acknowledge a consistent frame and shall flag an inconsistent frame by means of an EF (see 6.6.2). A DF or RF that is not acknowledged shall be regarded as corrupted and shall be flagged by the transmitting node with an EF. All nodes that receive the matching FCRC sequence shall send an ACK within the ACK slot by overwriting the recessive bit of the transmitter with a dominant bit (they send ACK). ; All receivers check the consistency of the received DF and shall acknowledge a consistent frame and shall flag an inconsistent frame by means of an EF (see 6.6.2). A DF that is not acknowledged shall be regarded as corrupted and shall be flagged by the transmitting node with an EF. Nodes that receive the matching FCRC sequence and the matching stuff count shall send an ACK within the ACK slot by overwriting the recessive bit of the transmitter with a dominant bit (they send ACK). In FD frames, all nodes shall accept an up to two bit long dominant phase of overlapping ACK slot bits as a valid ACK, to compensate for phase shifts between the receivers."
+original_wording = "All receivers check the consistency of the received DF or RF and shall acknowledge a consistent frame and shall flag an inconsistent frame by means of an EF (see 6.6.2). A DF or RF that is not acknowledged shall be regarded as corrupted and shall be flagged by the transmitting node with an EF. All nodes that receive the matching FCRC sequence shall send an ACK within the ACK slot by overwriting the recessive bit of the transmitter with a dominant bit (they send ACK). ; All receivers check the consistency of the received DF and shall acknowledge a consistent frame and shall flag an inconsistent frame by means of an EF (see 6.6.2). A DF that is not acknowledged shall be regarded as corrupted and shall be flagged by the transmitting node with an EF. Nodes that receive the matching FCRC sequence and the matching stuff count shall send an ACK within the ACK slot by overwriting the recessive bit of the transmitter with a dominant bit (they send ACK). In FD frames, all nodes shall accept an up to two bit long dominant phase of overlapping ACK slot bits as a valid ACK, to compensate for phase shifts between the receivers. ; The ACK delimiter, being the last bit of the ACK field, shall be a recessive bit. Consequently, the ACK slot is surrounded by recessive bits (CRC delimiter, ACK delimiter)."
 paraphrase = """ACK slot rules:
 1) Receivers shall ACK consistent frames and flag inconsistent frames with an EF.
 2) Transmitters shall flag unacknowledged frames with an EF.
-3) FD frames tolerate a two-bit dominant ACK overlap to compensate for receiver phase differences."""
+3) FD frames tolerate a two-bit dominant ACK overlap to compensate for receiver phase differences.
+4) The ACK delimiter shall be one recessive bit; the ACK slot is surrounded by recessive bits on both sides."""
 side = "both"
 layer = "system"
 format_applicability = "CB, CE, FB, FE"
@@ -354,11 +355,10 @@ status                = "in_progress"
 [[requirement]]
 id = "REQ-018"
 source_clause = "§6.6.11.3"
-original_wording = "In FD frames, the FDF bit shall be followed by the dominant res bit. ; When an FD enabled receiver detects the res bit to be recessive instead of the expected dominant it shall, when protocol exception handling is enabled, detect a protocol exception event; when protocol exception handling is disabled, it shall treat this as a form error. ; If the bit is detected recessive, the bit rate shall be switched from the nominal bit rate of the arbitration phase to the preconfigured FD data bit rate of the data phase."
+original_wording = "In FD frames, the FDF bit shall be followed by the dominant res bit. ; When an FD enabled receiver detects the res bit to be recessive instead of the expected dominant it shall, when protocol exception handling is enabled, detect a protocol exception event; when protocol exception handling is disabled, it shall treat this as a form error."
 paraphrase = """res bit (FB, FE):
 1) The res bit shall be dominant.
-2) A recessive res bit is a form error.
-3) The bit rate switches to the FD data rate at the res bit."""
+2) A recessive res bit is a form error."""
 side = "both"
 layer = "MAC"
 format_applicability = "FB, FE"
@@ -459,12 +459,13 @@ status                = "in_progress"
 
 [[requirement]]
 id = "REQ-024"
-source_clause = "§6.6.15.2"
-original_wording = "The frame shall be valid for receivers if there is no error until the last but one bit of EOF. The value of the last bit of EOF shall not inhibit frame validation and a dominant value shall not lead to a form error. A receiver that detects a dominant bit at the last bit of EOF shall respond with an OF (see 6.6.21). The frame shall be valid for a transmitter if there is no error until the end of EOF."
-paraphrase = """EOF validation:
-1) A receiver shall validate a frame after the sixth EOF bit.
-2) A dominant seventh EOF bit triggers an OF rather than a form error.
-3) A transmitter requires all seven EOF bits to be error-free."""
+source_clause = "§6.6.10.7, §6.6.11.7, §6.6.15.2"
+original_wording = "DFs and RFs shall be delimited by a flag sequence consisting of seven recessive bits forming the EOF. EOF is followed by inter-frame space, see 6.6.7. ; DFs shall be delimited by a flag sequence consisting of seven recessive bits forming the EOF. The inter-frame space follows the EOF (see 6.6.7). ; The frame shall be valid for receivers if there is no error until the last but one bit of EOF. The value of the last bit of EOF shall not inhibit frame validation and a dominant value shall not lead to a form error. A receiver that detects a dominant bit at the last bit of EOF shall respond with an OF (see 6.6.21). The frame shall be valid for a transmitter if there is no error until the end of EOF."
+paraphrase = """EOF structure and validation:
+1) EOF shall consist of exactly seven recessive bits.
+2) A receiver shall validate a frame after the sixth EOF bit.
+3) A dominant seventh EOF bit triggers an OF rather than a form error.
+4) A transmitter requires all seven EOF bits to be error-free."""
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
@@ -625,9 +626,13 @@ status                = "in_progress"
 
 [[requirement]]
 id = "REQ-033"
-source_clause = "§7.3.2"
-original_wording = "CAN nodes shall support three different bit rates, the nominal bit rate, the FD data bit rate and the XL data bit rate. There shall be separate configuration register sets for the definition of these bit rates. ; The time quantum (t_q) shall be a fixed unit of time derived from the node clock period. There shall exist a programmable prescaler, with integer values. The minimum time quantum (t_q,min) shall be one node clock period long. The length of t_q shall be an integer multiple m of the minimum time quantum t_q,min with m as the value of the prescaler."
-paraphrase = "Nodes shall support separate nominal and FD data bit rate configurations (XL excluded), each based on a programmable integer prescaler that derives the time quantum from the node clock period."
+source_clause = "§7.3.2, §7.3.3"
+original_wording = "CAN nodes shall support three different bit rates, the nominal bit rate, the FD data bit rate and the XL data bit rate. There shall be separate configuration register sets for the definition of these bit rates. ; The time quantum (t_q) shall be a fixed unit of time derived from the node clock period. There shall exist a programmable prescaler, with integer values. The minimum time quantum (t_q,min) shall be one node clock period long. The length of t_q shall be an integer multiple m of the minimum time quantum t_q,min with m as the value of the prescaler. ; The sample point shall be the point in time at which the bus level is read and interpreted as the value of that respective bit. Its location shall be at the end of Phase_Seg1. ; The synchronization segment shall be exactly one t_q long. ; The information processing time shall be less than or equal to 2 t_q long. ; In nominal bit time and in data bit time, SJW shall be less than or equal to the minimum of these two items: Phase_Seg1 and Phase_Seg2."
+paraphrase = """Bit time configuration (CB, CE, FB, FE):
+1) Nodes shall support separate nominal and FD data bit rate configurations (XL excluded), each based on a programmable integer prescaler.
+2) Sample point shall be at the end of Phase_Seg1.
+3) Sync_Seg shall be exactly one tq.
+4) Information processing time shall be ≤ 2 tq; SJW ≤ min(Phase_Seg1, Phase_Seg2) in both phases."""
 layer = "PCS"
 format_applicability = "CB, CE, FB, FE"
 notes = "XL data bit rate (third configuration set) is out of scope."
@@ -860,3 +865,70 @@ observability = "black_box"
 verification_method = "simulation"
 priority             = "P1"
 status                = "in_progress"
+
+[[requirement]]
+id = "REQ-046"
+source_clause = "§6.6.11.3"
+original_wording = "This bit indicates whether the bit rate is switched inside the FD frame. If the bit is detected recessive, the bit rate shall be switched from the nominal bit rate of the arbitration phase to the preconfigured FD data bit rate of the data phase. It is not required for the BRS bit to be the same in all FD frames in a single network. The value of the BRS bit is passed from the BRS bit of the LLC frame."
+paraphrase = "BRS bit rate switching (FB, FE): a recessive BRS bit shall cause the bit rate to switch from the nominal arbitration-phase rate to the preconfigured FD data-phase rate at the BRS sample point. A dominant BRS bit keeps the nominal rate for the entire frame."
+side = "both"
+layer = "MAC"
+format_applicability = "FB, FE"
+observability = "white_box"
+verification_method = "waveform_inspection"
+priority             = "P1"
+status                = "not_started"
+notes = "The actual rate switch is executed by the PCS on the use_data_rate signal driven by the MAC FSM. Verification confirms the FSM asserts use_data_rate at the correct bit position."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-047"
+source_clause = "§6.6.10.3, §6.6.11.3"
+original_wording = "The first two bits of the control field shall be transmitted dominant, followed by the DLC. ; The first bit of the control field is the IDE bit in CBFF, and it is r1 in CEFF, matching with the FDF bit in FEFF and a CAN FD tolerant CAN node shall detect a protocol exception event when this bit is received recessive. ; The second bit of the control field is r0 bit. In CBFF, this bit matches with the FDF bit in FBFF and a CAN FD tolerant CAN node shall detect a protocol exception event when this bit is received recessive. In CEFF, receivers shall accept it with recessive and with dominant state. ; This bit distinguishes between CC frames and FD or XL frames. It is recessive in FD and XL frames, and it is dominant in CC frames."
+paraphrase = """FDF bit and CC/FD format differentiation:
+1) FDF shall be dominant in CC frames and recessive in FD frames.
+2) The first two CC control field bits (IDE in CBFF, r1/r0 in CEFF) shall be transmitted dominant.
+3) An FD-tolerant receiver that samples a recessive r0 (CBFF) or r1 (CEFF) bit shall detect a protocol exception event."""
+side = "both"
+layer = "MAC"
+format_applicability = "CB, CE, FB, FE"
+observability = "white_box"
+verification_method = "code_inspection, waveform_inspection"
+priority             = "P1"
+status                = "not_started"
+notes = "Protocol exception handling is not implemented; a recessive r0/r1 in CC frames would be treated as the start of an FD frame. Sub-claim 3 is therefore not exercised in the implementation."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-048"
+source_clause = "§6.4.3, Table 5"
+original_wording = "For DFs of all other formats the 4 LSB encode the number of data bytes as specified in Table 5."
+paraphrase = "FD DLC byte-count mapping: DLC 0-8 map linearly to 0-8 bytes for all formats; for FD frames DLC 9→12, 10→16, 11→20, 12→24, 13→32, 14→48, 15→64 bytes. CC frames treat DLC 9-15 as 8 bytes."
+side = "both"
+layer = "LLC"
+format_applicability = "CB, CE, FB, FE"
+observability = "black_box"
+verification_method = "simulation, coverage"
+priority             = "P1"
+status                = "not_started"
+notes = "Coverage closure criterion: all four non-linear FD DLC values (9, 12, 14, 15 → 12, 24, 48, 64 bytes) plus DLC=8 (boundary) must each produce a correctly sized frame."
+label = ""
+file = ""
+
+[[requirement]]
+id = "REQ-049"
+source_clause = "§6.6.16"
+original_wording = "Within a field, the MSB is transmitted first. Within the data field, the bytes are transferred from byte 0 to the last byte (indicated by the DLC). Within each byte, the bits are transferred from bit(7) down to bit(0)."
+paraphrase = "Bit transmission order: within each field the MSB is transmitted first; within the data field byte 0 is sent first; within each byte bit(7) is sent first."
+side = "both"
+layer = "MAC"
+format_applicability = "CB, CE, FB, FE"
+observability = "black_box"
+verification_method = "simulation"
+priority             = "P3"
+status                = "not_started"
+notes = ""
+label = ""
+file = ""
