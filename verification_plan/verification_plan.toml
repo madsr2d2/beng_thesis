@@ -64,32 +64,17 @@ status                = "not_started"
 
 [[requirement]]
 id = "REQ-002"
-source_clause = "§6.4.5.5.2"
-original_wording = "Any L_Data.Request shall be processed not later than the second SOF after the request when there are no EFs present during this time."
-paraphrase = "Any transmission request shall be processed no later than the second SOF after the request when no EFs are present."
+source_clause = "§6.4.5.5.2, §6.4.5.5.3"
+original_wording = "Any L_Data.Request shall be processed not later than the second SOF after the request when there are no EFs present during this time. ; Receipt of this service shall cause the LLC sub-layer to abort the transfer of an LLC frame in the specified LLC storage unit. ; Pending transmissions, which are already passed to the MAC sub-layer, shall only be aborted if: an error in the MAC sub-layer during transmission occurs, or arbitration was lost in the MAC sub-layer, which causes the LLC frame to wait for another transmission attempt. ; This means that an abortion request shall be kept pending in the LLC layer until either one of the above situations occur, or until the transmission was completed. ; Any L_Data.AbortRequest shall be processed prior to the second SOF after the request when there are no EFs present during this time. ; Any L_Data.AbortRequest shall be processed prior to the third SOF after the request when there are EFs present during this time."
+paraphrase = """LLC transmission request and abort timing:
+1) Any transmission request shall be processed no later than the second SOF after the request when no EFs are present.
+2) Frames not yet passed to the MAC are aborted immediately on an abort request.
+3) Frames already at the MAC are only aborted on MAC error or arbitration loss.
+4) The abort is processed before the second SOF (no EFs) or third SOF (with EFs)."""
 side = "transmitter"
 layer = "LLC"
 format_applicability = "CB, CE, FB, FE"
-notes = "The timing bound ('second SOF') is bus-activity-dependent, not a fixed cycle count."
-label = ""
-file = ""
-observability = "white_box"
-verification_method = "code_inspection"
-priority             = "P2"
-status                = "not_started"
-
-[[requirement]]
-id = "REQ-003"
-source_clause = "§6.4.5.5.3"
-original_wording = "Receipt of this service shall cause the LLC sub-layer to abort the transfer of an LLC frame in the specified LLC storage unit. ; Pending transmissions, which are already passed to the MAC sub-layer, shall only be aborted if: an error in the MAC sub-layer during transmission occurs, or arbitration was lost in the MAC sub-layer, which causes the LLC frame to wait for another transmission attempt. ; This means that an abortion request shall be kept pending in the LLC layer until either one of the above situations occur, or until the transmission was completed. ; Any L_Data.AbortRequest shall be processed prior to the second SOF after the request when there are no EFs present during this time. ; Any L_Data.AbortRequest shall be processed prior to the third SOF after the request when there are EFs present during this time."
-paraphrase = """Abort request rules:
-1) Frames not yet passed to the MAC are aborted immediately.
-2) Frames already at the MAC are only aborted on MAC error or arbitration loss.
-3) The abort is processed before the second SOF (no EFs) or third SOF (with EFs)."""
-side = "transmitter"
-layer = "LLC"
-format_applicability = "CB, CE, FB, FE"
-notes = "The two-SOF and three-SOF deadlines govern the LLC-to-MAC handoff, not MAC transmission duration."
+notes = "The timing bounds ('second SOF', 'third SOF') are bus-activity-dependent, not fixed cycle counts. The two-SOF and three-SOF deadlines for abort requests govern the LLC-to-MAC handoff, not MAC transmission duration."
 label = ""
 file = ""
 observability = "white_box"
@@ -191,60 +176,25 @@ status                = "in_progress"
 
 [[requirement]]
 id = "REQ-009"
-source_clause = "§6.6.7.1, §6.6.7.2, §6.6.7.3"
-original_wording = "DFs and RFs shall be separated from preceding frames, whatever frame type the preceding frames are (DF, RF, EF, OF), by a time period called inter-frame space. In contrast to this, EFs and OFs shall not be preceded by inter-frame space, and multiple OFs shall not be separated by inter-frame space. ; The intermission field shall consist of three recessive bits. During intermission, a node shall not start transmission of DFs or RFs. An OF may be transmitted. The detection of a dominant bit at the third bit of intermission shall be interpreted as SOF (see 6.6.8). ; A frame pending for transmission during the transmission of another frame shall be started in the first bit following intermission."
-paraphrase = """Intermission rules:
+source_clause = "§6.6.7.1, §6.6.7.2, §6.6.7.3, §6.6.7.4"
+original_wording = "DFs and RFs shall be separated from preceding frames, whatever frame type the preceding frames are (DF, RF, EF, OF), by a time period called inter-frame space. In contrast to this, EFs and OFs shall not be preceded by inter-frame space, and multiple OFs shall not be separated by inter-frame space. ; The intermission field shall consist of three recessive bits. During intermission, a node shall not start transmission of DFs or RFs. An OF may be transmitted. The detection of a dominant bit at the third bit of intermission shall be interpreted as SOF (see 6.6.8). ; A frame pending for transmission during the transmission of another frame shall be started in the first bit following intermission. ; The bus shall be recognized to be idle by receivers and by error active transmitters when the third bit of intermission is seen recessive; by error passive transmitters when the eighth bit of suspend transmission time is seen recessive; or when the bus integrating state is left (see 6.6.7.5). ; An error-passive node, which has been transmitter of the previous frame, shall suspend the start of further frame transmissions for 8 bit times following intermission. ; If another node starts a transmission during that suspend transmission time, the node shall become a receiver of this DF or RF frame."
+paraphrase = """Inter-frame space:
 1) Intermission shall be exactly three recessive bits.
 2) No DF or RF may be started during intermission.
 3) A dominant bit at the third intermission bit shall be interpreted as SOF.
 4) EFs and OFs shall not be preceded by inter-frame space; consecutive OFs shall not be separated by inter-frame space.
-5) A frame pending for transmission during the transmission of another frame shall be started at the first bit following intermission, not deferred to a later idle bit."""
+5) A frame pending for transmission during the transmission of another frame shall be started at the first bit following intermission, not deferred to a later idle bit.
+6) Bus idle is recognised at the third recessive intermission bit (error-active nodes and receivers), at the eighth recessive suspend bit (error-passive transmitters), or on leaving bus-integration state (any node).
+7) An error-passive transmitter shall suspend for 8 bit times after intermission; if another node starts transmitting during the suspend window, the node shall become a receiver."""
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
 notes = ""
-label = "test_normal"
-file = "can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
-observability = "white_box"
-verification_method = "waveform_inspection"
-priority             = "P1"
-status                = "in_progress"
-
-[[requirement]]
-id = "REQ-010"
-source_clause = "§6.6.7.3"
-original_wording = "The bus shall be recognized to be idle by receivers and by error active transmitters when the third bit of intermission is seen recessive; by error passive transmitters when the eighth bit of suspend transmission time is seen recessive; or when the bus integrating state is left (see 6.6.7.5)."
-paraphrase = """Bus idle is recognised at:
-1) Third recessive bit of intermission - error-active nodes and receivers.
-2) Eighth recessive bit of suspend transmission - error-passive transmitters.
-3) Upon leaving the bus-integration state - any node."""
-side = "both"
-layer = "MAC"
-format_applicability = "CB, CE, FB, FE"
-notes = ""
-label = "test_bus_off"
-file = "can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
-observability = "white_box"
-verification_method = "waveform_inspection"
-priority             = "P1"
-status                = "in_progress"
-
-[[requirement]]
-id = "REQ-011"
-source_clause = "§6.6.7.4"
-original_wording = "An error-passive node, which has been transmitter of the previous frame, shall suspend the start of further frame transmissions for 8 bit times following intermission. ; If another node starts a transmission during that suspend transmission time, the node shall become a receiver of this DF or RF frame."
-paraphrase = """Suspend transmission:
-1) An error-passive transmitter shall suspend for 8 bit times after intermission.
-2) If another node starts transmitting during the suspend window, the node shall become a receiver."""
-side = "transmitter"
-layer = "MAC"
-format_applicability = "CB, CE, FB, FE"
-notes = ""
-label = "p_fsm:~486, test_bus_off"
+label = "p_fsm:~486, test_normal, test_bus_off"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
-priority             = "P2"
+priority             = "P1"
 status                = "in_progress"
 
 [[requirement]]
@@ -587,38 +537,21 @@ status                = "in_progress"
 [[requirement]]
 id = "REQ-030"
 source_clause = "§6.6.21.3.1"
-original_wording = "Whenever a bit error, a stuff error, a form error, a PCRC error, or an ACK error is detected by a node, the LLC sub-layer shall be informed, and the node shall start an error flag at the following bit. ; When error signalling is enabled and a node detects an error during the arbitration phase, the node shall send an EF. ; When a node detects an error while the data phase bit rate is used, the node shall switch from the data bit time back into the nominal bit time of the arbitration phase before it starts the error flag."
-paraphrase = """Error flag initiation:
+original_wording = "Whenever a bit error, a stuff error, a form error, a PCRC error, or an ACK error is detected by a node, the LLC sub-layer shall be informed, and the node shall start an error flag at the following bit. ; When error signalling is enabled and a node detects an error during the arbitration phase, the node shall send an EF. ; When a node detects an error while the data phase bit rate is used, the node shall switch from the data bit time back into the nominal bit time of the arbitration phase before it starts the error flag. ; When a receiver detects an FCRC error, it shall not send a dominant bit in the ACK slot of the received frame. A receiver receiving a CC frame or an XL frame and detecting an FCRC error shall send an EF starting with the first bit of EOF. A receiver receiving an FD frame and detecting an FCRC error shall send an EF after three bit-times following the CRC delimiter."
+paraphrase = """Error flag initiation and FCRC error receiver behaviour:
 1) On any detected error, start an EF at the immediately following bit and inform the LLC.
-2) Data-phase errors require a switch back to nominal bit rate before the EF starts."""
+2) Data-phase errors require a switch back to nominal bit rate before the EF starts.
+3) On an FCRC error, the receiver shall withhold ACK.
+4) The receiver shall send an EF at the first EOF bit (CC frames) or three bit-times after the CRC delimiter (FD frames)."""
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-notes = "PCRC error (XL-only) is out of scope."
-label = "p_fsm:~294, p_fsm:~283, test_bus_off"
+notes = "PCRC error (XL-only) is out of scope. Sub-claims 3 and 4 (FCRC error receiver behaviour) were previously P2; promoted to P1 on merge."
+label = "p_fsm:~283, p_fsm:~294, p_fsm:~357, test_bus_off"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority             = "P1"
-status                = "in_progress"
-
-[[requirement]]
-id = "REQ-031"
-source_clause = "§6.6.21.3.1"
-original_wording = "When a receiver detects an FCRC error, it shall not send a dominant bit in the ACK slot of the received frame. A receiver receiving a CC frame or an XL frame and detecting an FCRC error shall send an EF starting with the first bit of EOF. A receiver receiving an FD frame and detecting an FCRC error shall send an EF after three bit-times following the CRC delimiter."
-paraphrase = """On an FCRC error, a receiver shall:
-1) Withhold ACK.
-2) Send an EF starting at the first EOF bit (CC frames).
-3) Send an EF three bit-times after the CRC delimiter (FD frames)."""
-side = "receiver"
-layer = "MAC"
-format_applicability = "CB, CE, FB, FE"
-notes = ""
-label = "p_fsm:~357"
-file = "src/can_mac/hdl_src/can_mac_fsm.vhd"
-observability = "white_box"
-verification_method = "code_inspection"
-priority             = "P2"
 status                = "in_progress"
 
 
