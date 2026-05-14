@@ -1,10 +1,10 @@
 # verification_plan.toml — ISO 11898-1 CAN verification requirements
 #
-# Fields per  entry:
+# Fields per entry:
 #
 #   id                   REQ-NNN (sequential, managed by --renumber)
 #   source_clause        ISO 11898-1 section reference (e.g. §6.4.5.2)
-#   original_wording     Verbatim ISO text; use " ; " to separate sub-clauses
+#   original_wording     Verbatim ISO text. Sub-clauses separated by " ; "
 #   paraphrase           Concise restatement for the report table
 #   layer                LLC | MAC | PCS | FCE | system
 #   side                 transmitter | receiver | both
@@ -16,16 +16,16 @@
 #   verification_method  simulation | code_inspection | waveform_inspection |
 #                        coverage | or comma-separated combination
 #                          simulation          — automated TB assertion, fires every run
-#                          code_inspection     — RTL review; label/file point to RTL source
-#                          waveform_inspection — manual GTKWave review of simulation output;
+#                          code_inspection     — RTL review. label/file point to RTL source
+#                          waveform_inspection — manual GTKWave review of simulation output.
 #                                               label points to TB procedure, file points
 #                                               to the TB that generates the waveform
-#                          coverage            — coverage-driven sweep; label/file point to
+#                          coverage            — coverage-driven sweep. label/file point to
 #                                               coverage ID or bin set in the TB
 #   priority             P1 | P2 | P3
-#                          P1 — need-to-have; blocking ("shall" requirements, core correctness)
-#                          P2 — nice-to-have; verified in the normal verification cycle
-#                          P3 — optional; verified if schedule permits ("should" clauses)
+#                          P1 — need-to-have. blocking ("shall" requirements, core correctness)
+#                          P2 — nice-to-have. verified in the normal verification cycle
+#                          P3 — optional. verified if schedule permits ("should" clauses)
 #   status               not_started | in_progress | complete
 #                          not_started — no testbench work started (label/file blank)
 #                          in_progress — testbench exists but closure not confirmed
@@ -33,18 +33,18 @@
 #   label                PSL label, TB procedure name, coverage ID, or RTL tag
 #                        For code_inspection: process_name:~line (e.g. p_can_pcs:~177)
 #                        Comma-separated when multiple procedures cover distinct sub-claims
-#   file                 Target file — TB for simulation/coverage/waveform_inspection,
+#   file                 Target file. TB for simulation/coverage/waveform_inspection,
 #                        RTL for code_inspection (blank until linked)
 #                        Comma-separated when sub-claims span multiple files
 #   notes                Brief clarification of residual ambiguity not resolved by the paraphrase,
-#                        priority, or observability fields. Printed in the report — keep it short.
+#                        priority, or observability fields. Printed in the report. Keep it short.
 #   coverage_criteria    Coverage closure specifics: bins, stimulus conditions, and must-hit scenarios.
 #                        Printed in the verification plan table.
 #
 # Layer "system": requirements jointly owned by multiple sub-layers, or that
 # inherently require two nodes on the shared bus. Verified by integration TBs.
 #
-# XL frames are strictly OUT OF SCOPE — do not add XL-related requirements.
+# XL frames are strictly OUT OF SCOPE. Do not add XL-related requirements.
 
 [[requirement]]
 id = "REQ-001"
@@ -661,7 +661,7 @@ group_title = "Error confinement state transitions"
 id = "REQ-034"
 source_clause = "§6.6.11.3"
 original_wording = "This bit indicates whether the bit rate is switched inside the FD frame. If the bit is detected recessive, the bit rate shall be switched from the nominal bit rate of the arbitration phase to the preconfigured FD data bit rate of the data phase. It is not required for the BRS bit to be the same in all FD frames in a single network. The value of the BRS bit is passed from the BRS bit of the LLC frame."
-paraphrase = "1) A recessive BRS bit switches from nominal to FD data rate at the BRS sample point. A dominant BRS bit keeps nominal rate.\n2) The bit rate switches back to nominal at the sample point of the first CRC delimiter bit."
+paraphrase = "1) Recessive BRS: switch to FD data rate at the BRS sample point. Dominant BRS: keep nominal rate.\n2) Rate switches back to nominal at the first CRC delimiter sample point."
 side = "both"
 layer = "MAC"
 format_applicability = "FB, FE"
@@ -679,7 +679,7 @@ group_title = "BRS bit rate switching"
 id = "REQ-035"
 source_clause = "§6.4.3, §6.4.4, Table 5"
 original_wording = "For DFs of all other formats the 4 LSB encode the number of data bytes as specified in Table 5. ; If the DLC indicates a higher number of data bytes, the data bytes beyond the restricted range shall be replaced in the LLC DF by bytes with the value of CCHEX ('padding') both for received and for transmitted frames."
-paraphrase = "DLC 0-8 map linearly. FD extends DLC 9→12, 10→16, 11→20, 12→24, 13→32, 14→48, 15→64 bytes. CC treats DLC 9-15 as 8 bytes."
+paraphrase = "DLC 0-8: linear mapping. FD: DLC 9→12, 10→16, 11→20, 12→24, 13→32, 14→48, 15→64 bytes. CC: DLC 9-15 clamped to 8 bytes."
 side = "both"
 layer = "LLC"
 format_applicability = "CB, CE, FB, FE"
@@ -715,7 +715,7 @@ group_title = "Byte/Bit transmission order"
 id = "REQ-037"
 source_clause = "§8.1.5"
 original_wording = "If during network start-up only one node is online and if this node transmits any DF or RF, it does not get an ACK. In this case, it shall detect an error and repeat the frame. According to rule c) in 8.1.4.2, exception 1, it may become error-passive but shall not go bus-off. ; When a switched-off node is switched on again, it shall: synchronize with already available nodes to re-integrate into the bus communication (see 6.6.7.5) before starting to transmit. Synchronization is achieved when 11 recessive bits have been detected that are equivalent to ACK delimiter + EOF + intermission or Error/Overload delimiter + intermission; wait for other nodes if there is no other node available at the moment without becoming bus-off."
-paraphrase = "1) A node shall complete bus re-integration (11 consecutive recessive bits) before transmitting.\n2) A single node that receives no ACK shall become error-passive but shall never go bus-off."
+paraphrase = "1) A node shall complete bus re-integration (11 consecutive recessive bits) before transmitting.\n2) A single node receiving no ACK becomes error-passive but never bus-off."
 side = "both"
 layer = "system"
 format_applicability = "CB, CE, FB, FE"
@@ -733,7 +733,7 @@ group_title = "Node start-up"
 id = "REQ-038"
 source_clause = "§6.6.18"
 original_wording = "MAC frames may be stored in a shared memory. Data consistency of transmitted MAC frames from a shared memory shall be ensured by at least one of two methods. The MAC entity shall store the whole frame content to be transmitted in a temporary buffer that is filled before the transmission is started. The LLC entity shall check for data errors while the frame content to be transmitted is transferred to the MAC entity. If a data error is detected, the transmission shall not be started. If it is already started when the data error is detected, the node shall invalidate the frame by, e.g. switching to the restricted operation mode, see 6.6.19, or into bus monitoring mode, see 6.6.20."
-paraphrase = "Transmitted frames shall be protected against mid-transmission corruption by at least one of: (a) buffering the full frame before TX starts, or (b) LLC data-error checking with frame invalidation on detection."
+paraphrase = "Frames shall be fully buffered before TX starts, or the LLC shall detect and invalidate frames corrupted mid-transmission."
 side = "transmitter"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
@@ -758,7 +758,7 @@ format_applicability = "CB, CE, FB, FE"
 observability = "white_box"
 verification_method = "code_inspection"
 priority = "P2"
-status = "waived"
+status = "not_started"
 notes = ""
 coverage_criteria = ""
 label = ""

@@ -45,7 +45,7 @@ File: `verification_plan/verification_plan.toml`. 118 requirements, IDs `REQ-NNN
 Fields per entry: `id`, `source_clause`, `original_wording`, `layer` (LLC/MAC/PCS/FCE/system),
 `side` (transmitter/receiver/both), `format_applicability`, `observability` (black_box/white_box),
 `verification_method` (simulation/code_inspection/coverage or combo), `priority` (P1/P2/P3),
-`status` (not_started/in_progress/complete/waived), `notes`, `label`, `file`.
+`status` (not_started/in_progress/complete), `notes`, `label`, `file`.
 
 - `black_box`: verified at module ports only, no reference model needed.
 - `white_box`: requires internal FSM state, error counters, or non-trivial reference computation.
@@ -164,7 +164,7 @@ Config disables blank-line enforcement for types/subtypes/functions/case/loop an
 
 ## Writing Style
 
-- No semicolons where a period works. No em dashes (use `-`).
+- No semicolons in prose or comments. Use periods instead. No em dashes (use `-`).
 - Pandoc reports: heading IDs `{#sec:name}`, crossrefs `@sec:`, `@fig:`, `@tbl:`. Every figure/table referenced in body text.
 - Mermaid `stateDiagram-v2`: use `classDef reset stroke:#000,stroke-width:3px` + `class s0 reset` for initial state. No `:::` inline on `state` lines. No `[*] -->`.
 - `bibliography: references.bib`, `csl: ieee.csl`, `link-citations: true` in YAML front matter.
