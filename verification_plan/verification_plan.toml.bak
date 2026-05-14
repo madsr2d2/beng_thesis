@@ -1,10 +1,10 @@
 # verification_plan.toml — ISO 11898-1 CAN verification requirements
 #
-# Fields per  entry:
+# Fields per entry:
 #
 #   id                   REQ-NNN (sequential, managed by --renumber)
 #   source_clause        ISO 11898-1 section reference (e.g. §6.4.5.2)
-#   original_wording     Verbatim ISO text; use " ; " to separate sub-clauses
+#   original_wording     Verbatim ISO text. Sub-clauses separated by " ; "
 #   paraphrase           Concise restatement for the report table
 #   layer                LLC | MAC | PCS | FCE | system
 #   side                 transmitter | receiver | both
@@ -16,16 +16,16 @@
 #   verification_method  simulation | code_inspection | waveform_inspection |
 #                        coverage | or comma-separated combination
 #                          simulation          — automated TB assertion, fires every run
-#                          code_inspection     — RTL review; label/file point to RTL source
-#                          waveform_inspection — manual GTKWave review of simulation output;
+#                          code_inspection     — RTL review. label/file point to RTL source
+#                          waveform_inspection — manual GTKWave review of simulation output.
 #                                               label points to TB procedure, file points
 #                                               to the TB that generates the waveform
-#                          coverage            — coverage-driven sweep; label/file point to
+#                          coverage            — coverage-driven sweep. label/file point to
 #                                               coverage ID or bin set in the TB
 #   priority             P1 | P2 | P3
-#                          P1 — need-to-have; blocking ("shall" requirements, core correctness)
-#                          P2 — nice-to-have; verified in the normal verification cycle
-#                          P3 — optional; verified if schedule permits ("should" clauses)
+#                          P1 — need-to-have. blocking ("shall" requirements, core correctness)
+#                          P2 — nice-to-have. verified in the normal verification cycle
+#                          P3 — optional. verified if schedule permits ("should" clauses)
 #   status               not_started | in_progress | complete
 #                          not_started — no testbench work started (label/file blank)
 #                          in_progress — testbench exists but closure not confirmed
@@ -33,18 +33,18 @@
 #   label                PSL label, TB procedure name, coverage ID, or RTL tag
 #                        For code_inspection: process_name:~line (e.g. p_can_pcs:~177)
 #                        Comma-separated when multiple procedures cover distinct sub-claims
-#   file                 Target file — TB for simulation/coverage/waveform_inspection,
+#   file                 Target file. TB for simulation/coverage/waveform_inspection,
 #                        RTL for code_inspection (blank until linked)
 #                        Comma-separated when sub-claims span multiple files
 #   notes                Brief clarification of residual ambiguity not resolved by the paraphrase,
-#                        priority, or observability fields. Printed in the report — keep it short.
+#                        priority, or observability fields. Printed in the report. Keep it short.
 #   coverage_criteria    Coverage closure specifics: bins, stimulus conditions, and must-hit scenarios.
 #                        Printed in the verification plan table.
 #
 # Layer "system": requirements jointly owned by multiple sub-layers, or that
 # inherently require two nodes on the shared bus. Verified by integration TBs.
 #
-# XL frames are strictly OUT OF SCOPE — do not add XL-related requirements.
+# XL frames are strictly OUT OF SCOPE. Do not add XL-related requirements.
 
 [[requirement]]
 id = "REQ-001"
@@ -149,7 +149,7 @@ layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
 notes = ""
 coverage_criteria = "Three bins: (1) CB or CE frame (CRC_15), (2) FB or FE frame with data ≤ 16 B (DLC ≤ 10, CRC_17), (3) FB or FE frame with data > 16 B (DLC ≥ 11, CRC_21) - must each be hit."
-label = "p_output_vc, p_reset_checker"
+label = "crc_15, crc_17, crc_21"
 file = "src/can_mac_crc/hdl_tb/can_mac_crc_tb.vhd"
 observability = "white_box"
 verification_method = "simulation, coverage"
@@ -392,8 +392,8 @@ side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
 notes = ""
-coverage_criteria = "Dynamic stuffing - four bins: (1) CB with a stuff bit inserted, (2) CE with a stuff bit inserted, (3) FB with at least one dynamic stuff bit in the data region and no dynamic stuff bit in the CRC region, (4) FE with the same. Fixed stuffing (FB, FE only) - four format-by-CRC-length bins: (1) FB with CRC_17, (2) FE with CRC_17, (3) FB with CRC_21, (4) FE with CRC_21 - plus at least one frame exercising the no-double-stuffing rule."
-label = "p_stuff_bit_checker, p_fsb_checker"
+coverage_criteria = "Input Coverage (cov_input): idle, valid_dominant, valid_recessive, frame_rst, fsb_dominant, fsb_recessive - all bins must be hit. Output Coverage (cov_output): no_stuff_bit, stuff_dominant, stuff_recessive, fsb_dominant, fsb_recessive - all bins must be hit."
+label = "Input Coverage, Output Coverage"
 file = "src/can_mac_bs/hdl_tb/can_mac_bs_tb.vhd"
 observability = "white_box"
 verification_method = "simulation, coverage"
@@ -412,11 +412,11 @@ side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
 notes = ""
-coverage_criteria = "Two bins: (1) successful TX closure across all four formats, (2) successful RX validation across all four formats."
+coverage_criteria = ""
 label = "test_normal"
 file = "can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
-verification_method = "simulation, coverage"
+verification_method = "simulation"
 priority = "P1"
 status = "in_progress"
 group_title = "End of frame (EOF)"
@@ -487,9 +487,9 @@ format_applicability = "CB, CE, FB, FE"
 notes = ""
 coverage_criteria = ""
 label = "p_fsm:~370"
-file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
+file = "src/can_mac/hdl_src/can_mac_fsm.vhd"
 observability = "white_box"
-verification_method = "code_inspection, waveform_inspection"
+verification_method = "code_inspection"
 priority = "P2"
 status = "in_progress"
 group_title = "Overload frame"
@@ -595,7 +595,7 @@ layer = "PCS"
 format_applicability = "CB, CE, FB, FE"
 notes = ""
 coverage_criteria = ""
-label = "test_bus_off"
+label = "p_can_pcs:~280, p_can_pcs:~379, test_bus_off"
 file = "src/can_pcs/hdl_src/can_pcs.vhd, src/can_pcs/hdl_tb/can_pcs_tb.vhd, can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "simulation, code_inspection"
@@ -617,7 +617,7 @@ label = "test_reset, test_bus_off_recovery"
 file = "src/can_fce/hdl_tb/can_fce_tb.vhd"
 observability = "black_box"
 verification_method = "simulation"
-priority = "P2"
+priority = "P1"
 status = "in_progress"
 group_title = "FCE reset and response"
 
@@ -703,7 +703,7 @@ layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
 observability = "black_box"
 verification_method = "simulation"
-priority = "P3"
+priority = "P2"
 status = "not_started"
 notes = ""
 coverage_criteria = ""
@@ -737,8 +737,8 @@ paraphrase = "Frames shall be fully buffered before TX starts, or the LLC shall 
 side = "transmitter"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-notes = ""
-coverage_criteria = "Verify by code inspection which method the implementation uses and confirm it is applied consistently. If method (a) - confirm the MAC FSM only begins serialisation after the full frame is loaded. If method (b) - confirm the LLC has an error-detection path and can abort or invalidate an in-progress frame."
+notes = "Verify by code inspection which method the implementation uses and confirm it is applied consistently. If method (a) - confirm the MAC FSM only begins serialisation after the full frame is loaded. If method (b) - confirm the LLC has an error-detection path and can abort or invalidate an in-progress frame."
+coverage_criteria = ""
 label = ""
 file = ""
 observability = "white_box"
@@ -776,7 +776,7 @@ format_applicability = "CB, CE, FB, FE"
 observability = "black_box"
 verification_method = "simulation"
 priority = "P3"
-status = "waived"
+status = "not_started"
 notes = "Only applicable if the implementation exposes a configurable maximum-data-byte restriction. If not implemented, waive."
 coverage_criteria = ""
 label = ""
