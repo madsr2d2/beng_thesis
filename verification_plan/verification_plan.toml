@@ -570,7 +570,7 @@ group_title = "PCS synchronisation"
 id = "REQ-029"
 source_clause = "§7.3.6"
 original_wording = "The tolerance of a node clock oscillator frequency f_osc around the nominal frequency f_nom shall be given by the range (1-df)*f_nom <= f_osc <= (1+df)*f_nom. The maximum tolerance df of f_osc shall meet the following conditions: df < SJW(N) / (2 * 10 * tbit(N)) [Eq. 3]; df < min[Phase_Seg1(N), Phase_Seg2(N)] / (2 * [13 * tbit(N) - Phase_Seg2(N)]) [Eq. 4]. The conditions given in Formulae (3) and (4) shall be met for CC frames. All conditions of Formulae (3) to (7) shall be met for FD frames. The configured SJW shall not be larger than the smaller one of the Phase_Seg1 and Phase_Seg2."
-paraphrase = """1) df < SJW / (20 × tbit) and df < min(Phase_Seg1, Phase_Seg2) / (2 × (13 × tbit − Phase_Seg2)).
+paraphrase = """1) df < SJW / (20 × t_bit) and df < min(Phase_Seg1, Phase_Seg2) / (2 × (13 × t_bit − Phase_Seg2)).
 2) SJW shall not exceed min(Phase_Seg1, Phase_Seg2)."""
 side = "both"
 layer = "PCS"
