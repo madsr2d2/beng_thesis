@@ -1,16 +1,16 @@
 { "signal": [
-  { "node": "FG......HI" },
+  { "node": "FG.........HI" },
 
-    { "node": ".AB.J.K.L" },
-  { "name": "Node A",  "wave": "===|=|=|=", "data": ["PS2","SS", "PS", "PS1", "PS2","SS"], "node": ".a..c.", "phase": 0 },
+    { "node": ".AB..J..K..L" },
+  { "name": "Node A",  "wave": "345.|6.|3.|4", "data": ["PS2","SS", "PS", "PS1", "PS2","SS"], "node": ".T...Y.", "phase": 0 },
   {},
-  { "name": "Node B",  "wave": "===|=|=|=", "data": ["PS2","SS", "PS", "PS1", "PS2","SS"], "node": ".b....d.", "phase": -1 },
+  { "name": "Node B",  "wave": "345.|6.|3.|4.", "data": ["PS2","SS", "PS", "PS1", "PS2","SS"], "node": ".X......Z", "phase": -2 },
     {},
-  { "node": "......E.." , "phase": -1},
+  { "node": ".........E.." , "phase": -1},
 ],
   "edge": [
-    "a~>b t_TRX + t_bus",
-    "b~>c t_TRX + t_bus",
+    "T~>X t_TRX + t_bus",
+    "X~>Y t_TRX + t_bus",
     'B+J t_prop',
   	'J+K t_ps1',
    	'K+L t_ps2',
@@ -18,8 +18,8 @@
     'F-G Bit N-1',
   	'G+H Bit N',
     'H-I Bit N+1',
-  	'E->d Sample Point'
+  	'E->Z Sample Point'
   
   ],
-  "config": { "hscale": 2 }
+
 }

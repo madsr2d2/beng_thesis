@@ -4,38 +4,38 @@ config:
   layout: elk
 ---
 
-graph LR
-
-classDef dll fill:#,stroke:#
-classDef pcs fill:#,stroke:#
-classDef pma fill:#,stroke:#
-classDef fce fill:#,stroke:#
-classDef user fill:#,stroke:#
+graph TD
+classDef wd2 fill:#FFFFFF,stroke:#999999,color:#000000
+classDef wd3 fill:#FFFFB4,stroke:#999900,color:#000000
+classDef wd4 fill:#FFE0B9,stroke:#CC8833,color:#000000
+classDef wd5 fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef wd6 fill:#CCFDFE,stroke:#33AAAA,color:#000000
+classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
+classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
 
 subgraph dev1["`**Host Device**`"]
-  user1("`**CAN Bus
-  user process**`")
-  subgraph d1["`**CAN Node**`"]
-      LLC1("`**Logic Link Control
-      (LLC)**`") <==> MAC1("`**Medium Access Control
-      (MAC)**`")
-      PCS1("`**Physical Coding Sublayer
-      (PCS)**`")
-      FCE1("`**Fault Confinement Entity
-      (FCE)**`")
-      MAC1 <==> PCS1
-      FCE1 <==> MAC1
-      FCE1 <==> LLC1
-      FCE1 <==> PCS1
+  user("`**Application Process**`")
+  subgraph d1["`**CAN Protocol Controller**`"]
+      LLC("`**Logic Link Control (LLC)**`") 
+      MAC("`**Medium Access Control (MAC)**`")
+      PCS("`**Physical Coding Sub-layer (PCS)**`")
+      FCE("`**Fault Confinement Entity (FCE)**`")
+
+      LLC <==> MAC
+      MAC <==> PCS
+      FCE <==> MAC
+      FCE <==> LLC
+      FCE <==> PCS
   end
-  t1("`**Transceiver IC**`")
-  user1 <==> LLC1
-  PCS1 -->|TX| t1
-  t1 -->|RX| PCS1
+  t("`**Transceiver IC**`")
+  user <==> LLC
+  PCS -->|TX| t
+  t -->|RX| PCS
 end
 
-class LLC1,MAC1 dll
-class PCS1 pcs
-class t1,t2,t3 pma
-class FCE1 fce
-class user1 user
+class LLC,MAC wd5
+class PCS wd5
+class FCE wd9
+class user wd4
+class t wd4

@@ -1,19 +1,19 @@
 {signal: [
   ['Bit-stuffed streams',
    ['Dynamic',
-  { "name": "",        "wave": "=....6=..|", "data": ["Stuffed stream","SB","Stuffed stream"]},
-  ['Streams',
+  { "name": "",        "wave": "3....43..|", "data": ["Stuffed stream","SB","Stuffed stream"]},
+ 
   { "name": "",	   "wave": "1....0x..." },
 
   { "name": "",	   "wave": "0....1x..." },
-  ],
+ 
    ],
  
    ['Static',
-  { "name": "",        "wave": "7.67...67...67...67.|", "data": ["DATA","FSB","SBC","FSB", "CRC","FSB", "CRC","FSB", "CRC"] },
-  ['Streams',
+  { "name": "",        "wave": "5.67...68...68...68.|", "data": ["DATA","FSB","SBC","FSB", "CRC","FSB", "CRC","FSB", "CRC"] },
+  
   { "name": "",    "wave": "x10xxx01x..10xxx10x.." },
    { "name": "",    "wave": "x01xxx10x..01xxx01x.." },
-  ],
+  
    ],]
 ]}

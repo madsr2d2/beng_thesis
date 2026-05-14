@@ -1,0 +1,37 @@
+{signal: [
+
+  ["FD data phase",
+   {},
+      {name: 'TX',  wave: 'x3...4...5...6...7.', data: 'A B C D E'},
+  {},
+      {name: 'RX', wave: 'x.........3...4...5', data: 'A B C',"node": '............ID..FE'  },
+  {}],
+   { "node": ".G........H.JA..CB" },
+ 
+
+
+ ["FD Arbitration phase",
+    {},
+      {name: 'TX',  wave: 'x3...............4.', data: 'A B C D E',"node": '.............M' },
+  {},
+      {name: 'RX', wave: 'x.........3........', data: 'A B C' },
+     { "node": ".............L" },
+ ]
+
+
+],
+    "edge": [
+    "A->D SP(A)",
+    "J->I SSP(A)",
+  
+   "B->E SP(B)",
+    "C->F SSP(B)",
+    "L->M SP(A)",
+    "G+H Transmitter dealy",
+     "H+J SSP offset",
+
+
+  
+  ],
+  
+  }

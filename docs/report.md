@@ -210,6 +210,8 @@ This section covers the ISO 11898-1 layered reference model, frame types and fie
 
 ## Layered Reference Model {#sec:can-layered-model}
 
+![CAN node.](figures/can_node.png){#fig:can-node width=40%}
+
 ISO 11898-1 structures the CAN data link layer into three functional sub-layers and a cross-cutting Fault Confinement Entity (FCE):
 
 - **LLC (Logical Link Control)**: accepts frame requests from the host application, applies retransmission policy on error or lost arbitration, and supplies frames to the MAC in serialized form.
@@ -217,41 +219,19 @@ ISO 11898-1 structures the CAN data link layer into three functional sub-layers 
 - **PCS (Physical Coding Sub-layer)**: manages bit timing, clock synchronization (including Transmitter Delay Compensation for FD data phase), and the sample/drive interface to the physical transceiver.
 - **FCE (Fault Confinement Entity)**: maintains Transmit Error Counter (TEC) and Receive Error Counter (REC), escalating the node's error state from Error Active through Error Passive to Bus Off as error counts accumulate.
 
-![CAN node.](figures/can_node.png){#fig:can-node width=100%}
-
 In the implementation described in this report, each sub-layer maps to a dedicated VHDL module, and the sub-layer interfaces become the port records connecting those modules (@sec:design-architecture).
 
 ## Frame Types and Formats {#sec:frame-types}
 
 CAN defines two classes of frames: Classic CAN (CC) and CAN FD (FD). Within each class, frames may carry either an 11-bit base identifier or a 29-bit extended identifier, giving four in-scope formats (@tbl:frame-formats). Remote frames and CAN XL frames are out of scope for this project.
 
-| Format | Identifier | Max payload | CRC | Bit stuffing |
-| :--- | :--- | :--- | :--- | :--- |
-| CB (Classic Base) | 11-bit | 8 bytes | CRC-15 | Dynamic (5-in-a-row) |
-| CE (Classic Extended) | 29-bit | 8 bytes | CRC-15 | Dynamic (5-in-a-row) |
-| FB (FD Base) | 11-bit | 64 bytes | CRC-17 or CRC-21 | Dynamic + fixed |
-| FE (FD Extended) | 29-bit | 64 bytes | CRC-17 or CRC-21 | Dynamic + fixed |
-
-: In-scope frame formats and their key parameters. {#tbl:frame-formats}
-
 A Classic CAN frame consists of: Start of Frame (SOF), Arbitration field (identifier, RTR, IDE), Control field (DLC), Data field, CRC field, ACK slot and delimiter, End of Frame, and Intermission. A CAN FD frame shares the same structure through the arbitration phase, then introduces the FDF bit (marking the frame as FD), followed by BRS (Bit Rate Switch) and ESI (Error State Indicator) control bits that govern the transition into the higher-speed data phase.
 
-| Format | Identifier | Width | Bit stuffing |
-| :--- | :--- | :--- | :--- | 
-| CB, CE, FB, FE | IDB | 11 Bits | Dynamic |
-| CE, FE | IEXT | 18 Bits | Dynamic |
-| CB, CE, FB, FE | DLC | 4 Bits | Dynamic |
-| FB, FE | DATA | 0-64 Bytes | Dynamic |
-| CB, CE | DATA | 0-8 Bytes | Dynamic |
-| FB, FE | CRC | 17 Bits (DLC <= 16), 21 Bits (DLC > 16) | Fixed |
-| CB, CE | CRC | 15 Bits | Dynamic |
-| FB, FE | SBC | 4 Bits | Fixed |
-
-: Field width and bit stuffing encoding for multi-bit fields in CB, CE, FB and FE frames. {#tbl:field_data}
-
-![Frame and error flag formats for CAN-CC Base, CAN-CC Extended, CAN-DF Base and CAN-DF Extended. Widths of truncated multi-bit fields are tabulated in @tbl:field_data.](figures/frame_format.png){#fig:can-frame-structure width=100%}
+![Frame and error flag formats for CAN-CC Base, CAN-CC Extended, CAN-DF Base and CAN-DF Extended. Widths of truncated multi-bit fields are tabulated in @tbl:field_data.](figures/frame_format.png){#fig:can-frame-structure height=90%}
 
 ## Bit Timing and Flexible Data Rate {#sec:bit-timing}
+
+![CAN bit time structure. One bit consists of SYNC_SEG (SS) which is 1 Time Quantum (TQ) long, PROP_SEG (PS), PHASE_SEG1 (PS1), and PHASE_SEG2 (PS2). The sample point (SP) sits at the PHASE_SEG1/PHASE_SEG2 boundary. The figure illustrates a to-node synchronised bus with bus wire delay t_bus and transceiver delay t_TRX.](figures/bit_timing.png){#fig:can-bit-timing width=100%}
 
 Every CAN bit period is divided into four non-overlapping time segments measured in Time Quanta (TQ), where one TQ equals the period of the prescaled system clock:
 
@@ -266,15 +246,16 @@ The **sample point** falls at the PHASE_SEG1 / PHASE_SEG2 boundary. Every receiv
 
 **CAN FD and the flexible data rate.** CAN FD introduces a second, independently configured bit rate for the data phase. The BRS (Bit Rate Switch) bit in the FD control field (@tbl:frame-formats) controls this transition: when BRS is recessive, the bus switches to the data-phase bit rate immediately after the BRS sample point and returns to the nominal rate at the CRC delimiter. The nominal rate governs the arbitration phase (SOF through BRS) and the return path (CRC delimiter onward); the data rate governs the payload and CRC fields in between. Because the data phase operates at a much shorter bit time, the same physical propagation delay represents a larger fraction of the bit period. On electrically long buses at high data rates, the loop propagation delay can exceed a full data-phase bit time.
 
-**Transmitter Delay Compensation (TDC)** addresses this. A transmitter in the FD data phase cannot rely on immediate bus loopback for bit-error monitoring, because the echo of a driven bit arrives one or more bit times late. TDC measures the actual round-trip delay at the start of the data phase and configures a Secondary Sample Point (SSP) at the correct offset, so that each transmitted bit is still checked for loopback correctness. The TDC measurement and SSP configuration are PCS responsibilities and are a significant driver of PCS complexity in the implementation (@sec:can-pcs).
+**Transmitter Delay Compensation (TDC)** addresses this. A transmitter in the FD data phase cannot rely on immediate bus loopback for bit-error monitoring, because the echo of a driven bit arrives one or more bit times late. TDC measures the actual round-trip delay at the start of the data phase and configures a Secondary Sample Point (SSP) at the correct offset, so that each transmitted bit is still checked for loopback correctness. The TDC measurement and SSP configuration are PCS responsibilities and are a significant driver of PCS complexity in the implementation (@sec:can-pcs).]
 
-![CAN bit time structure. One bit consists of SYNC_SEG (SS) which is 1 Time Quantum (TQ) long, PROP_SEG (PS), PHASE_SEG1 (PS1), and PHASE_SEG2 (PS2). The sample point (SP) sits at the PHASE_SEG1/PHASE_SEG2 boundary. The figure illustrates a to-node synchronised bus with bus wire delay t_bus and transceiver delay t_TRX.](figures/bit_timing.png){#fig:can-bit-timing}
+![TDC.](figures/tdc.png){#fig:can-tdc width=100%}
+
 
 ## Bit Stuffing {#sec:bit-stuffing}
 
 Bit stuffing ensures sufficient transitions on the bus for receiver clock synchronization. Classic CAN applies dynamic stuffing throughout the frame: after five consecutive bits of the same polarity, the transmitter inserts one complement stuff bit and the receiver removes it before forwarding the data stream. CAN FD retains dynamic stuffing through the arbitration phase, then switches to a combined dynamic-plus-fixed scheme in the data phase. Fixed stuff bits are inserted at predetermined positions (every fourth bit in the CRC field, independent of the preceding bit pattern); they carry a parity-encoded Stuff Bit Count (SBC) field that allows receivers to independently verify the number of dynamic stuff bits seen in the frame - an additional error detection layer absent in Classic CAN.
 
-![Dynamically and statically bit-stuffed stream examples. In frame fields encoded with dynamic bit-stuffing an opposite polarity stuff bit (SB) is inserted after five consecutive same-polarity bits. In frame fields encoded with static bit-stuffing (SBC and CRC in FD frames) a fixed stuff bit (FSB) is inserted after each fourth bit. A FSB is also inserted before the first bit of the SBC field.](figures/bit_stuffing.png){#fig:can-bit-stuffing}
+![Dynamically and statically bit-stuffed stream examples. In frame fields encoded with dynamic bit-stuffing an opposite polarity stuff bit (SB) is inserted after five consecutive same-polarity bits. In frame fields encoded with static bit-stuffing (SBC and CRC in FD frames) a fixed stuff bit (FSB) is inserted after each fourth bit. A FSB is also inserted before the first bit of the SBC field.](figures/bit_stuffing.png){#fig:can-bit-stuffing width=100%}
 
 ## Cyclic Redundancy Check {#sec:crc-overview}
 
@@ -669,7 +650,7 @@ The unified FSM uses four explicit error-frame states rather than a single compr
 
 The complete FSM is shown in @fig:mac-fsm.
 
-```{.mermaid #fig:mac-fsm caption="can_mac_fsm state diagram with per-field granularity (24 states). TX mode is active when is_transmitter = true (latched at SOF drive); RX mode when is_transmitter = false. Frame-field states (s_sof through s_eof) each handle one protocol field with bit_count tracking position within the field. After a successful frame, arbitration loss, or error recovery, the FSM passes through s_intermission before returning to s_bus_idle. Detected errors branch to the four-state error-frame sequence (s_error_flag through s_error_delimiter). The s_bus_off state is entered when the FCE asserts bus_off and exits when bus_off clears. The dashed box groups the frame-field states for clarity."}
+```{.mermaid #fig:mac-fsm caption="can_mac_fsm state diagram (19 states). TX mode is active when is_transmitter = true (latched at SOF drive); RX mode when is_transmitter = false. s_arbitration handles the full arbitration field (SOF, ID-base, RTR/SRR/RRS, IDE, and for extended frames ID-ext and RTR-ext) with bit_count tracking position within the field. Remaining frame-field states each handle one protocol field. After a successful frame, arbitration loss, or error recovery, the FSM passes through s_intermission before returning to s_bus_idle. Detected errors branch to the two-state error-frame sequence (s_error_flag, s_error_delimiter); s_error_delimiter uses an internal phase flag to first await the bus going recessive before counting the 8-bit delimiter. FCE bus_off assertion causes a synchronous reset to s_bus_reintegration and is not shown as a state transition. The dashed boxes group interframe-space, frame-field, and error-frame states for clarity."}
 ---
 config:
   layout: elk
@@ -688,68 +669,63 @@ stateDiagram-v2
 
   classDef reset stroke:#000,stroke-width:3px
 
-  state "**s_bus_reintegration**<br/>─────────<br/>• Bus not driving<br/>• Await 11 recessive bits, or<br/>  128 x 11 recessive bits if bus-off" as s_bus_reintegration
+  state "**s_bus_reintegration**<br/>─────────<br/>• TX/RX: count 11 recessive bits" as s_bus_reintegration
   class s_bus_reintegration reset
-  state "**s_bus_off**<br/>─────────<br/>• Bus not driving<br/>• FCE bus_off asserted<br/>• Awaiting bus_off clearance" as s_bus_off
-  state "**s_bus_idle**<br/>─────────<br/>• Bus not driving<br/>• Await frame request (TX) or SOF (RX)" as s_bus_idle
-  state "**s_intermission**<br/>─────────<br/>• Bus not driving<br/>• 3-bit inter-frame spacing<br/>• RX: streaming llc_frame to LLC<br/>• Monitoring for overload" as s_intermission
-  state "**s_suspend_transmission**<br/>─────────<br/>• Bus not driving<br/>• Error-passive 8-bit hold-off" as s_suspend_transmission
+  state interframe_space {
+    state "**s_bus_idle**<br/>─────────<br/>• TX: drive SOF, latch frame params<br/>• RX: await dominant SOF" as s_bus_idle
+    state "**s_intermission**<br/>─────────<br/>• TX/RX: count 3-bit IFS<br/>• RX: stream frame to LLC" as s_intermission
+    state "**s_suspend_transmission**<br/>─────────<br/>• TX/RX: count 8 recessive bits" as s_suspend_transmission
+
+    s_intermission --> s_bus_idle : intermission complete
+    s_intermission --> s_suspend_transmission : error-passive TX
+    s_suspend_transmission --> s_bus_idle : suspend complete
+  }
 
   state error_frame {
-    state "**s_error_flag**<br/>─────────<br/>• Active: drive 6 dominant<br/>• Passive: drive 6 recessive<br/>• Signals error to FCE" as s_error_flag
-    state "**s_error_flag_check**<br/>─────────<br/>• Evaluate first bit after flag<br/>• Detect co-signalled errors<br/>  (ISO 8.1.4.2.b)" as s_error_flag_check
-    state "**s_error_dominant_delim**<br/>─────────<br/>• Count tolerated dominant bits<br/>  from other nodes<br/>  (ISO 8.1.4.2.f)" as s_error_dominant_delim
-    state "**s_error_delimiter**<br/>─────────<br/>• Count 8 recessive delimiter bits<br/>• Dominant here starts new error frame<br/>  (ISO 6.6.21.3.2)" as s_error_delimiter
+    state "**s_error_flag**<br/>─────────<br/>• TX/RX (active): drive 6 dominant<br/>• TX/RX (passive): drive 6 recessive" as s_error_flag
+    state "**s_error_delimiter**<br/>─────────<br/>• TX/RX: drive recessive<br/>• TX/RX: await recessive, count 8" as s_error_delimiter
 
-    s_error_flag --> s_error_flag_check : flag complete
-    s_error_flag_check --> s_error_dominant_delim : dominant observed
-    s_error_flag_check --> s_error_delimiter : recessive observed
-    s_error_dominant_delim --> s_error_delimiter : dominant run ends
+    s_error_flag --> s_error_delimiter : flag complete (6 bits)
     s_error_delimiter --> s_error_flag : dominant (new error frame)
   }
 
   state frame_fields {
-    state "**s_sof**" as s_sof
-    state "**s_id**" as s_id
-    state "**s_rtr_srr_rrs**" as s_rtr
-    state "**s_ide**" as s_ide
-    state "**s_fdf_r1_r0**" as s_fdf
-    state "**s_res_r0**" as s_res
-    state "**s_brs**" as s_brs
-    state "**s_esi**" as s_esi
-    state "**s_dlc**" as s_dlc
-    state "**s_data**" as s_data
-    state "**s_sbc**" as s_sbc
-    state "**s_crc**" as s_crc
-    state "**s_ack**" as s_ack
-    state "**s_ack_delimiter**" as s_ack_delim
-    state "**s_eof**" as s_eof
+    state "**s_arbitration**<br/>─────────<br/>• SOF → ID(11) → RTR/SRR/RRS → IDE<br/>• TX: drive from metadata<br/>• RX: capture into llc_frame" as s_arbitration
+    state "**s_fdf_r1_r0**<br/>─────────<br/>• TX: drive FDF/r1/r0<br/>• RX: capture" as s_fdf_r1_r0
+    state "**s_res_r0**<br/>─────────<br/>• TX: drive dominant<br/>• RX: capture" as s_res_r0
+    state "**s_brs**<br/>─────────<br/>• TX: drive BRS<br/>• TX/RX: set data phase if recessive" as s_brs
+    state "**s_esi**<br/>─────────<br/>• TX: recessive if error-passive<br/>• RX: capture" as s_esi
+    state "**s_dlc**<br/>─────────<br/>• TX: drive DLC<br/>• RX: derive data_len, crc_len" as s_dlc
+    state "**s_data**<br/>─────────<br/>• TX: drive from serializer<br/>• RX: capture (CC: 0-8 B, FD: 0-64 B)" as s_data
+    state "**s_sbc**<br/>─────────<br/>• TX: drive stuff-bit count<br/>• RX: compare (deferred to EOF)" as s_sbc
+    state "**s_crc**<br/>─────────<br/>• TX: drive CRC bits<br/>• RX: compare (deferred to EOF)" as s_crc
+    state "**s_crc_delimiter**<br/>─────────<br/>• TX/RX: recessive bit" as s_crc_delimiter
+    state "**s_ack**<br/>─────────<br/>• CC: 1 bit, FD: 2 bits<br/>• TX: listen, latch ack_success<br/>• RX: drive dominant" as s_ack
+    state "**s_ack_delimiter**<br/>─────────<br/>• TX/RX: recessive bit" as s_ack_delimiter
+    state "**s_eof**<br/>─────────<br/>• TX: drive recessive, signal complete<br/>• RX: trigger frame stream" as s_eof
 
-    s_sof --> s_id
-    s_id --> s_rtr
-    s_id --> s_ide : extended
-    s_rtr --> s_ide
-    s_ide --> s_fdf
-    s_fdf --> s_res : FD
-    s_fdf --> s_dlc : CC
-    s_res --> s_brs
+    s_arbitration --> s_fdf_r1_r0
+    s_fdf_r1_r0 --> s_res_r0 : FD or CC-ext
+    s_fdf_r1_r0 --> s_dlc : CC-base
+    s_res_r0 --> s_brs : FD
+    s_res_r0 --> s_dlc : CC-ext
     s_brs --> s_esi
     s_esi --> s_dlc
-    s_dlc --> s_data
+    s_dlc --> s_data : data_len > 0, not RTR
+    s_dlc --> s_sbc : FD, no data
+    s_dlc --> s_crc : CC, no data
     s_data --> s_sbc : FD
     s_data --> s_crc : CC
     s_sbc --> s_crc
-    s_crc --> s_ack
-    s_ack --> s_ack_delim
-    s_ack_delim --> s_eof
+    s_crc --> s_crc_delimiter
+    s_crc_delimiter --> s_ack
+    s_ack --> s_ack_delimiter
+    s_ack_delimiter --> s_eof
   }
 
 s_bus_reintegration --> s_bus_idle : 11 recessive bits
 
-s_bus_idle --> s_sof : frame pending (TX) or dominant SOF (RX)
-s_bus_idle --> s_bus_off : fce bus_off asserted
-
-s_bus_off --> s_bus_reintegration : bus_off cleared
+s_bus_idle --> s_arbitration : frame pending (TX) or dominant SOF (RX)
 
 s_eof --> s_intermission : frame complete
 
@@ -758,12 +734,8 @@ frame_fields --> s_error_flag : error detected
 
 s_error_delimiter --> s_intermission : delimiter complete
 
-s_intermission --> s_bus_idle : intermission complete
-s_intermission --> s_suspend_transmission : error-passive transmitter
-s_intermission --> s_error_flag : overload detected
-
-s_suspend_transmission --> s_bus_idle : suspend complete
-s_suspend_transmission --> s_error_flag : overload detected
+s_intermission --> s_arbitration : dominant at bit 2 (SOF)
+s_intermission --> s_error_flag : overload (bits 0-1)
 ```
 
 #### `can_mac_ser_tx` {#sec:can-mac-ser-tx}
