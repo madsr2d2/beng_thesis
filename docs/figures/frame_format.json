@@ -1,36 +1,70 @@
 {signal: [
-  ['CAN-FD',
-  ['Base',
-  { "name": "Bit name",        "wave": "===.|====.|=.|=.|====.|=", "data": ["IFS","SOF", "IDB", "RTR", "IDE", "r0", "DLC","DATA", "CRC", "CD", "ACK", "AD", "EOF", "IFS"]},
-  { "name": "Polarity",	   "wave": "10x...0.x........1x1...." },
-  ],
-  {},
-  ['Extended',
-  { "name": "Bit name",        "wave": "===.|===.|====.|=.|=.|====.|=", "data": ["IFS","SOF", "IDB", "SRR", "IDE", "IEXT","RTR", "r1", "r0", "DLC","DATA", "CRC", "CD", "ACK", "AD", "EOF", "IFS"] },
-  { "name": "Polarity",    "wave": "10x..1.x...0.x........1x1...." },
-  ]],
-  {},
-  {},
+  { "node": "..A..B.C..D..E..F..G..H..I..J" },
   ['CAN-CC',
+   
+  ['Extended',
+  { "name": "Bit name",        "wave": "437.|777.|7777.|7.|7.|7777.|4", "data": ["IFS","SOF", "IDB", "SRR", "IDE", "IEXT","RTR", "r1", "r0", "DLC","DATA", "CRC", "CD", "ACK", "AD", "EOF", "IFS"] },
+  { "name": "Bus value",    "wave": "10x..1.x...0.x........1x1...." },
+  ],
+  
+  {},
+     
   ['Base',
-  { "name": "Bit name",        "wave": "===.|=======.|=.|=.|=.|====.|=", "data": ["IFS","SOF", "IDB", "RRS", "IDE", "FDF", "res", "BRS", "ESI", "DLC","DATA", "SBC", "CRC", "CD", "ACK", "AD", "EOF","IFS"]},
-  { "name": "Polarity",    "wave": "10x..0.10x.............1x1...." },
+  { "name": "Bit name",        "wave": "437.|7777.|7.|7.|7777.|4", "data": ["IFS","SOF", "IDB", "RTR", "IDE", "r0", "DLC","DATA", "CRC", "CD", "ACK", "AD", "EOF", "IFS"]},
+  { "name": "Bus value",	   "wave": "10x...0.x........1x1...." },
+  ],
+
+  ],
+   
+  {},
+  { "node": "..................K..L..M..N" },
+   
+  ['CAN-FD',
+   
+  ['Extended',
+  { "name": "Bit name",        "wave": "437.|777.|777777.|7.|7.|7.|7777.|4", "data": ["IFS","SOF", "IDB", "SRR", "IDE", "IEXT","RRS", "FDF", "res", "BRS", "ESI", "DLC","DATA", "SBC", "CRC", "CD", "ACK", "AD", "EOF","IFS"] },
+  { "name": "Bus value",    "wave": "10x..1.x..010x.............1x1...." },
   ],
   {},
-  ['Extended',
-  { "name": "Bit name",        "wave": "===.|===.|======.|=.|=.|=.|====.|=", "data": ["IFS","SOF", "IDB", "SRR", "IDE", "IEXT","RRS", "FDF", "res", "BRS", "ESI", "DLC","DATA", "SBC", "CRC", "CD", "ACK", "AD", "EOF","IFS"] },
-  { "name": "Polarity",    "wave": "10x..1.x..010x.............1x1...." },
-  ]],
+  ['Base',
+  { "name": "Bit name",        "wave": "437.|7777777.|7.|7.|7.|7777.|4", "data": ["IFS","SOF", "IDB", "RRS", "IDE", "FDF", "res", "BRS", "ESI", "DLC","DATA", "SBC", "CRC", "CD", "ACK", "AD", "EOF","IFS"]},
+  { "name": "Bus value",    "wave": "10x..0.10x.............1x1...." },
+  ],
+   
+  ],
+  
   {},
-  {},
-  ['Error flags',
+  
+  { "node": ".O.....P.......Q" },
+  
+   ['Error flags',
   ['Active/Overload',
-  { "name": "Bit name",        "wave": "x=.....=.......x", "data": ["EF","ED"]},
-  { "name": "Polarity",    "wave": "x0.....1.......x" },
+  { "name": "Bit name",        "wave": "x9.....5.......x", "data": ["AEF / OF","ED / OD"]},
+  { "name": "Bus value",    "wave": "x0.....1.......x" },
   ],
   {},
   ['Passive',
-  { "name": "Bit name",        "wave": "x=.....=.......x", "data": ["EF","ED"]},
-  { "name": "Polarity",    "wave": "x1.............x" },
-  ]]
-]}
+  { "name": "Bit name",        "wave": "x9.....5.......x", "data": ["PEF","ED"]},
+  { "name": "Bus value",    "wave": "x1.............x" },
+  ]
+  ]
+]
+   ,
+  "edge": [
+
+  	'A+B 11 Bits',
+   'C+D 18 Bits',
+   'E+F 4 Bits',
+   'F+G 0-8 Bytes',
+   'G+H 15 Bits',
+   'I+J 7 Bits',
+   'K+L 0-64 Bytes',
+   'L+M 4 Bits',
+   'M+N 17 or 21 Bits',
+      'O+P 6 Bits',
+   'P+Q 8 Bits',
+   
+
+  
+  ]
+   }
