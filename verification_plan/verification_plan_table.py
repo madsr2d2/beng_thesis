@@ -55,6 +55,7 @@ def load_toml(path: str) -> list[dict]:
             "label":               fields.get("label", ""),
             "file":                fields.get("file", ""),
             "notes":               fields.get("notes", ""),
+            "coverage_criteria":   fields.get("coverage_criteria", ""),
         }
         for fields in raw["requirement"]
     ]
@@ -73,18 +74,18 @@ EXPORT_COLS = [
 REPORT_COLS    = ["id", "iso_ref", "layer", "paraphrase", "method", "label", "file"]
 REPORT_HEADERS = ["ID", "ISO ref", "Layer", "Requirement", "Method", "Label", "File"]
 
-# 4-column requirements appendix table (--req-md)
-REQ_COLS    = ["id", "iso_ref", "priority", "paraphrase"]
-REQ_HEADERS = ["ID", "ISO ref", "Priority", "Requirement"]
+# 5-column requirements appendix table (--req-md)
+REQ_COLS    = ["id", "iso_ref", "priority", "paraphrase", "notes"]
+REQ_HEADERS = ["ID", "ISO ref", "Priority", "Requirement", "Notes"]
 
-# 9-column verification plan appendix table (--vplan-md)
+# 10-column verification plan appendix table (--vplan-md)
 VPLAN_COLS = [
     "id", "layer", "side", "format", "observability",
-    "method", "status", "label", "file",
+    "method", "status", "label", "file", "coverage_criteria",
 ]
 VPLAN_HEADERS = [
     "ID", "Layer", "Side", "Format", "Observability",
-    "Method", "Status", "Label", "File",
+    "Method", "Status", "Label", "File", "Coverage criteria",
 ]
 
 # ---------------------------------------------------------------------------
@@ -110,7 +111,7 @@ def _to_report_row(row: dict) -> dict:
         "paraphrase": row["paraphrase"].replace("; ", " • "),
         "method":    row["verification_method"],
         "label":     row["label"],
-        "file":      Path(row["file"]).name if row["file"] else "",
+        "file":      Path(row["file"]).stem if row["file"] else "",
     }
 
 
@@ -123,6 +124,7 @@ def _to_req_row(row: dict) -> dict:
         "iso_ref":   row["iso_ref"].replace("§", ""),
         "priority":  row["priority"],
         "paraphrase": _break_enumeration(paraphrase),
+        "notes":     row["notes"],
     }
 
 
@@ -136,7 +138,8 @@ def _to_vplan_row(row: dict) -> dict:
         "method":       row["verification_method"],
         "status":       row["status"],
         "label":        row["label"],
-        "file":         Path(row["file"]).name if row["file"] else "",
+        "file":              Path(row["file"]).stem if row["file"] else "",
+        "coverage_criteria": row["coverage_criteria"],
     }
 
 # ---------------------------------------------------------------------------
@@ -185,7 +188,7 @@ def _html_cell(col: str, value: str) -> str:
     combined = (style + " " + nowrap).strip()
     value = value.replace("\n", "<br>")
     if col == "file" and value:
-        value = ", ".join(Path(p.strip()).name for p in value.split(","))
+        value = ", ".join(Path(p.strip()).stem for p in value.split(","))
     if combined:
         return f'<td style="{combined}">{value}</td>'
     return f"<td>{value}</td>"
@@ -307,13 +310,13 @@ def export_req_markdown(
     caption: str = "ISO 11898-1 extracted requirements.",
     label: str = "tbl:appendix-requirements",
 ):
-    """Export 4-column requirements table in landscape for the PDF appendix.
+    """Export 5-column requirements table in landscape for the PDF appendix.
 
-    Column widths: ID 6%, ISO ref 14%, Priority 9%, Requirement 71%, set via dash-count ratios.
+    Column widths: ID 6%, ISO ref 13%, Priority 8%, Requirement 57%, Notes 16%, set via dash-count ratios.
     Enumeration items in the Requirement column are separated by LaTeX line breaks.
     """
     req_rows = [_to_req_row(r) for r in rows]
-    separator = "| :----- | :------------- | :-------- | :" + "-" * 70 + " |"
+    separator = "| :----- | :------------ | :-------- | :" + "-" * 56 + " | :" + "-" * 15 + " |"
     _write_md(path, [
         "::: {.landscape-tables}",
         _md_row(REQ_HEADERS),
@@ -331,7 +334,7 @@ def export_vplan_markdown(
     caption: str = "ISO 11898-1 verification plan.",
     label: str = "tbl:appendix-vplan",
 ):
-    """Export 10-column verification plan table in landscape for the PDF appendix."""
+    """Export 10-column verification plan table (with coverage criteria) in landscape for the PDF appendix."""
     vplan_rows = [_to_vplan_row(r) for r in rows]
     _write_md(path, [
         "::: {.landscape-tables}",

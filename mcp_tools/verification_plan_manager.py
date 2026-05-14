@@ -14,9 +14,10 @@ Format structure:
   layer = "LLC" | "MAC" | "PCS" | "FCE"
   format_applicability = "CB, CE, FB, FE"
   observability = "black_box" | "white_box"
-  notes = ""
-  label = ""  # PSL assertion label or testbench procedure name
-  file = ""   # Target VHDL source file
+  notes = ""              # Residual clarifications not resolved by other fields
+  coverage_criteria = "" # Bins, stimulus conditions, and closure criteria
+  label = ""             # PSL assertion label or testbench procedure name
+  file = ""              # Target VHDL source file
 
 Usage:
     python -m mcp_tools.verification_plan_manager
@@ -57,6 +58,7 @@ class RequirementsManager:
         "layer",
         "side",
         "notes",
+        "coverage_criteria",
         "label",
         "file",
         "original_wording",
@@ -305,6 +307,7 @@ class RequirementsManager:
             "priority": "",
             "status": "not_started",
             "notes": "",
+            "coverage_criteria": "",
             "label": "",
             "file": "",
         }
@@ -407,6 +410,8 @@ def get_requirement(req_id: str, toml_path: Optional[str] = None) -> str:
     lines.append(f"Paraphrase:\n  {req.get('paraphrase', '')}")
     lines.append("")
     lines.append(f"Notes:\n  {req.get('notes')}")
+    lines.append("")
+    lines.append(f"Coverage criteria:\n  {req.get('coverage_criteria', '')}")
 
     return "\n".join(lines)
 
