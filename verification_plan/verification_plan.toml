@@ -461,10 +461,7 @@ group_title = "MAC error detection"
 id = "REQ-023"
 source_clause = "§6.6.21.3.1"
 original_wording = "Whenever a bit error, a stuff error, a form error, a PCRC error, or an ACK error is detected by a node, the LLC sub-layer shall be informed, and the node shall start an error flag at the following bit. ; When error signalling is enabled and a node detects an error during the arbitration phase, the node shall send an EF. ; When a node detects an error while the data phase bit rate is used, the node shall switch from the data bit time back into the nominal bit time of the arbitration phase before it starts the error flag. ; When a receiver detects an FCRC error, it shall not send a dominant bit in the ACK slot of the received frame. A receiver receiving a CC frame or an XL frame and detecting an FCRC error shall send an EF starting with the first bit of EOF. A receiver receiving an FD frame and detecting an FCRC error shall send an EF after three bit-times following the CRC delimiter."
-paraphrase = """1) On any detected error, start an EF at the immediately following bit and inform the LLC.
-2) Data-phase errors require a switch back to nominal bit rate before the EF starts.
-3) On an FCRC error, the receiver shall withhold ACK.
-4) On an FCRC error, the receiver sends an EF at the first EOF bit (CC) or 3 bit-times after the CRC delimiter (FD)."""
+paraphrase = "1) On any detected error, start an EF at the next bit and inform the LLC.\n2) Data-phase errors: switch to nominal bit rate before starting the EF.\n3) CRC error: receiver withholds ACK and sends an EF at the first EOF bit (CC) or 3 bit-times after the CRC delimiter (FD)."
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"

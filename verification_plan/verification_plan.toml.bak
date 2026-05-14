@@ -443,7 +443,7 @@ group_title = "Bus arbitration"
 id = "REQ-022"
 source_clause = "§6.6.21.2"
 original_wording = "A node sending a bit on the bus shall also monitor the bus. A bit error shall be detected at that bit time, when the bit value that is monitored differs from the bit value sent. ; Exception 1: A monitored dominant bit shall not lead to a bit error when a recessive bit, which is not a dynamic stuff bit, is sent during arbitration, or a recessive bit is sent during ACK slot. ; Exception 2: A node sending a passive error flag and detecting a dominant bit shall not interpret this as a bit error. ; A stuff error shall be detected at the bit time of the sixth consecutive equal bit level in a field that is coded by the method of dynamic bit stuffing. ; A form error shall be detected in the following cases: when a fixed form bit field contains one or more unexpected bit values, or when a fixed stuff bit in an XL frame or in an FD frame is not at its expected value. ; Exception 1: A receiver detecting a dominant bit at the last bit of EOF, or a node detecting a dominant bit at the last bit of the error delimiter or of the overload delimiter, shall not treat this as a form error. ; The receivers shall calculate the CRC in the same way as the transmitter. ; A receiver shall detect an FCRC error when the calculated frame FCRC sequence does not equal the received one, or when the SBC of an FD frame does not match to the number of the received dynamic stuff bits, or when the SBC parity does not match. ; A transmitter shall detect an ACK error whenever it does not detect a dominant bit during the ACK slot."
-paraphrase = "1) Bit error: any sent/monitored mismatch. Exceptions: recessive non-stuff bits during arbitration; any recessive bit during the ACK slot; dominant bits monitored while sending a passive error flag.\n2) Stuff error: detected at the sixth consecutive identical bit in any dynamically-stuffed field.\n3) Form error: any unexpected fixed-form bit value (all formats) or a fixed stuff bit not the inverse of the preceding bit (FB, FE). Exception: a dominant bit at the last EOF bit or last delimiter bit is not a form error.\n4) CRC error: FCRC mismatch. FD frames additionally require SBC match and correct SBC parity.\n5) ACK error: transmitter detects no dominant bit in the ACK slot."
+paraphrase = "1) Bit error: sent/monitored mismatch. Exceptions: recessive non-stuff bit during arbitration, recessive bit in ACK slot, dominant bit while sending a passive error flag.\n2) Stuff error: sixth consecutive identical bit in a dynamically-stuffed field.\n3) Form error: unexpected fixed-form bit value, or FSB not inverse of preceding bit (FB/FE). Exception: dominant last EOF bit or last delimiter bit is not a form error.\n4) CRC error: CRC mismatch. FD also requires SBC match and correct parity.\n5) ACK error: transmitter detects no dominant bit in the ACK slot."
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
@@ -476,7 +476,7 @@ observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority = "P1"
 status = "in_progress"
-group_title = "Error flag initiation and FCRC error behaviour"
+group_title = "Error flag initiation and CRC error behaviour"
 
 
 [[requirement]]
