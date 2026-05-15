@@ -1,0 +1,74 @@
+---
+config:
+  theme: neutral
+  layout: elk
+  flowchart:
+    curve: monotoneX
+  elk:
+    algorithm: layered
+    mergeEdges: false
+    nodePlacementStrategy: BRANDES_KOEPF
+    edgeRouting: SPLINES
+---
+
+flowchart TD
+
+classDef llc fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef mac fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef pcs fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef fce fill:#F5C2C0,stroke:#BB3333,stroke-width:4px,color:#000000
+
+LLC["`**can_llc**
+─────────
+LLC Sub-layer
+§6.4-6.5`"]
+
+PCS["`**can_pcs**
+─────────
+PCS Sub-layer
+§7.2-7.4`"]
+
+FCE["`**can_fce**
+─────────
+FCE
+§8.1.3-8.1.4`"]
+
+subgraph MAC["`**can_mac** — MAC Sub-layer §6.6`"]
+    SER["`**can_mac_ser_tx**
+    ─────────
+    LLC Frame Serializer`"]
+
+    FSM["`**can_mac_fsm**
+    ─────────
+    Unified TX/RX FSM
+    (24 states, is_transmitter)`"]
+
+    BS["`**can_mac_bs**
+    ─────────
+    Bit Stuffer / Destuffer`"]
+
+    CRC["`**can_mac_crc**
+    ─────────
+    CRC Engine`"]
+
+    SER <==>
+ FSM
+    FSM <==>
+ BS
+    FSM <==>
+ CRC
+end
+
+LLC <==>
+ SER
+LLC <==>
+ FSM
+FSM <==>
+ PCS
+FSM <==>
+ FCE
+
+class LLC llc
+class SER,FSM,BS,CRC mac
+class PCS pcs
+class FCE fce

@@ -54,11 +54,11 @@ subgraph MAC["`**can_mac** — MAC Sub-layer §6.6`"]
     %% SER -> FSM
     SER -->|"data"| FSM
     SER -->|"valid"| FSM
-    SER ==>|"llc_metadata"| FSM
+    SER ==>|"llc_metadata[8:0]"| FSM
 
     %% FSM -> SER
     FSM -->|"ready"| SER
-    FSM ==>|"transfer_status"| SER
+    FSM ==>|"transfer_status[2:0]"| SER
 
     %% FSM -> BS
     FSM -->|"data"| BS
@@ -69,14 +69,14 @@ subgraph MAC["`**can_mac** — MAC Sub-layer §6.6`"]
     %% BS -> FSM
     BS -->|"data"| FSM
     BS -->|"valid"| FSM
-    BS ==>|"stuff_bit_count"| FSM
+    BS ==>|"stuff_bit_count[3:0]"| FSM
 
     %% FSM -> CRC
     FSM -->|"data_cc"| CRC
     FSM -->|"valid_cc"| CRC
     FSM -->|"data_fd"| CRC
     FSM -->|"valid_fd"| CRC
-    FSM ==>|"crc_poly_select"| CRC
+    FSM ==>|"crc_poly_select[1:0]"| CRC
     FSM -->|"crc_rst"| CRC
 
     %% CRC -> FSM
@@ -86,7 +86,7 @@ end
 %% LLC TX path (LLC is Avalon-ST source)
 LLC ==>|"Avalon-ST source"| SER
 SER -->|"ready"| LLC
-SER ==>|"transfer_status"| LLC
+SER ==>|"transfer_status[2:0]"| LLC
 
 %% LLC RX path (FSM is Avalon-ST source)
 FSM ==>|"Avalon-ST source"| LLC
@@ -104,7 +104,7 @@ FSM -->|"do_hard_sync"| PCS
 PCS -->|"rx_data"| FSM
 PCS -->|"sample_point"| FSM
 PCS -->|"ssp"| FSM
-PCS ==>|"tdc_delay"| FSM
+PCS ==>|"tdc_delay[2:0]"| FSM
 
 %% FSM -> FCE
 FSM -->|"transmitting"| FCE
