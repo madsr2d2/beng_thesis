@@ -168,3 +168,19 @@ Config disables blank-line enforcement for types/subtypes/functions/case/loop an
 - Pandoc reports: heading IDs `{#sec:name}`, crossrefs `@sec:`, `@fig:`, `@tbl:`. Every figure/table referenced in body text.
 - Mermaid `stateDiagram-v2`: use `classDef reset stroke:#000,stroke-width:3px` + `class s0 reset` for initial state. No `:::` inline on `state` lines. No `[*] -->`.
 - `bibliography: references.bib`, `csl: ieee.csl`, `link-citations: true` in YAML front matter.
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for `madsr2d2/beng_thesis`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-role vocabulary (needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout - one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
