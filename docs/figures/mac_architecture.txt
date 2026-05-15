@@ -1,0 +1,125 @@
+---
+config:
+  theme: neutral
+  layout: elk
+  flowchart:
+    curve: monotoneX
+  elk:
+    algorithm: layered
+    mergeEdges: false
+    nodePlacementStrategy: BRANDES_KOEPF
+    edgeRouting: SPLINES
+---
+
+flowchart TD
+
+classDef llc fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef mac fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef pcs fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef fce fill:#F5C2C0,stroke:#BB3333,stroke-width:4px,color:#000000
+
+LLC["`**can_llc**
+─────────
+LLC Sub-layer
+§6.4-6.5`"]
+
+PCS["`**can_pcs**
+─────────
+PCS Sub-layer
+§7.2-7.4`"]
+
+FCE["`**can_fce**
+─────────
+FCE
+§8.1.3-8.1.4`"]
+
+subgraph MAC["`**can_mac** — MAC Sub-layer §6.6`"]
+    SER["`**can_mac_ser_tx**
+    ─────────
+    LLC Frame Serializer`"]
+
+    FSM["`**can_mac_fsm**
+    ─────────
+    Unified TX/RX FSM
+    (24 states, is_transmitter)`"]
+
+    BS["`**can_mac_bs**
+    ─────────
+    Bit Stuffer / Destuffer`"]
+
+    CRC["`**can_mac_crc**
+    ─────────
+    CRC Engine`"]
+
+    %% SER -> FSM
+    SER -->|"data"| FSM
+    SER -->|"valid"| FSM
+    SER ==>|"llc_metadata"| FSM
+
+    %% FSM -> SER
+    FSM -->|"ready"| SER
+    FSM ==>|"transfer_status"| SER
+
+    %% FSM -> BS
+    FSM -->|"data"| BS
+    FSM -->|"valid"| BS
+    FSM -->|"fsb_en"| BS
+    FSM -->|"bs_rst"| BS
+
+    %% BS -> FSM
+    BS -->|"data"| FSM
+    BS -->|"valid"| FSM
+    BS ==>|"stuff_bit_count"| FSM
+
+    %% FSM -> CRC
+    FSM -->|"data_cc"| CRC
+    FSM -->|"valid_cc"| CRC
+    FSM -->|"data_fd"| CRC
+    FSM -->|"valid_fd"| CRC
+    FSM ==>|"crc_poly_select"| CRC
+    FSM -->|"crc_rst"| CRC
+
+    %% CRC -> FSM
+    CRC ==>|"crc[20:0]"| FSM
+end
+
+%% LLC TX path (LLC is Avalon-ST source)
+LLC ==>|"Avalon-ST source"| SER
+SER -->|"ready"| LLC
+SER ==>|"transfer_status"| LLC
+
+%% LLC RX path (FSM is Avalon-ST source)
+FSM ==>|"Avalon-ST source"| LLC
+LLC -->|"ready"| FSM
+
+%% FSM -> PCS
+FSM -->|"tx_data"| PCS
+FSM -->|"transmitting"| PCS
+FSM -->|"next_bit_is_brs"| PCS
+FSM -->|"next_bit_is_res"| PCS
+FSM -->|"data_phase_stop"| PCS
+FSM -->|"do_hard_sync"| PCS
+
+%% PCS -> FSM
+PCS -->|"rx_data"| FSM
+PCS -->|"sample_point"| FSM
+PCS -->|"ssp"| FSM
+PCS ==>|"tdc_delay"| FSM
+
+%% FSM -> FCE
+FSM -->|"transmitting"| FCE
+FSM -->|"error"| FCE
+FSM -->|"primary_error"| FCE
+FSM -->|"sending_error_overload_flag"| FCE
+FSM -->|"passive_tx_ack_error_exempt_1"| FCE
+FSM -->|"error_delimiter_too_late"| FCE
+FSM -->|"successful_transfer"| FCE
+
+%% FCE -> FSM
+FCE -->|"error_active"| FSM
+FCE -->|"bus_off"| FSM
+
+class LLC llc
+class SER,FSM,BS,CRC mac
+class PCS pcs
+class FCE fce

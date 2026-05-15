@@ -572,44 +572,7 @@ The current design restructures these modules around the ISO 11898-1 [@iso11898_
 
 The `can_mac` sub-layer is built around a single unified FSM entity (`can_mac_fsm`, ~1100 lines) that handles both frame transmission and frame reception. The architecture is shown in @fig:mac-fsm-architecture.
 
-```{.mermaid #fig:mac-fsm-architecture fig-width=0.5 caption="can_mac architecture showing the unified can_mac_fsm and its internal submodules. The FSM instantiates one can_mac_ser_tx serializer, one can_mac_bs bit stuffer, and one can_mac_crc CRC engine, shared across TX and RX modes. Internal interface definitions are provided for can_mac_ser_fsm_if (@tbl:mac-fsm-ser-if), can_mac_fsm_bs_if (@tbl:mac-fsm-bs-if), and can_mac_fsm_crc_if (@tbl:mac-fsm-crc-if)."}
----
-config:
-  flowchart:
-    defaultRenderer: elk
-  elk:
-    algorithm: layered
-    mergeEdges: false
-    nodePlacementStrategy: SIMPLE
-  look: classic
-  theme: neutral
-  themeVariables:
-    fontFamily: "Libertinus Serif, Noto Serif, serif"
-    fontSize: "14px"
----
-flowchart TD
-    LLC_TX["**can_llc_tx**<br/>─────────<br/>LLC TX Sub-layer, §6.4-6.5"]
-    LLC_RX["**can_llc_rx**<br/>─────────<br/>LLC RX Sub-layer, §6.4-6.5"]
-    PCS["**can_pcs**<br/>─────────<br/>PCS Sub-layer, §7.2-7.4"]
-    FCE["**can_fce**<br/>─────────<br/>FCE, §8.1.3-8.1.4"]
-
-    subgraph MAC ["**can_mac**<br/>─────────<br/>MAC Sub-layer, §6.6"]
-        SER["**can_mac_ser_tx**<br/>─────────<br/>LLC Frame Serializer"]
-        FSM["**can_mac_fsm**<br/>─────────<br/>Unified TX/RX FSM<br/>(24 states, is_transmitter flag)"]
-        BS["**can_mac_bs**<br/>─────────<br/>Bit Stuffer / Destuffer"]
-        CRC["**can_mac_crc**<br/>─────────<br/>CRC Engine"]
-
-        SER <==>|can_mac_ser_fsm_if| FSM
-        FSM <==>|can_mac_fsm_bs_if| BS
-        FSM <==>|can_mac_fsm_crc_if| CRC
-    end
-
-    LLC_TX <==>|llc_mac_tx_if| SER
-    FSM <==>|llc_mac_rx_if| LLC_RX
-
-    FSM <==>|mac_pcs_if| PCS
-    FSM <==>|fce_mac_if| FCE
-```
+![\`can_mac\` architecture. Individual signals are shown on each directed edge, matching the signal names used in the sub-module diagrams. MAC-internal connections: \`can_mac_ser_tx\` feeds the serial bit stream and \`llc_metadata\` to \`can_mac_fsm\`; \`can_mac_bs\` accepts \`data/valid/fsb_en\` and returns stuffed \`data/valid\` plus the Gray-coded \`stuff_bit_count\` for the SBC field; \`can_mac_crc\` receives the dual CC/FD bit feeds and returns the running \`crc[20:0]\` digest. External connections: \`can_llc\` connects to the MAC on both TX (\`tx_llc_i/o\` via the serializer) and RX (\`rx_llc_i/o\` via the FSM); bit-level timing to \`can_pcs\` (\`tx_data\`, \`rx_data\`, sample-point strobes); fault-confinement events to/from \`can_fce\` (\`error_active\`, \`bus_off\`). Full interface definitions: can_mac_ser_fsm_if (@tbl:mac-fsm-ser-if), can_mac_fsm_bs_if (@tbl:mac-fsm-bs-if), can_mac_fsm_crc_if (@tbl:mac-fsm-crc-if).](figures/mac_architecture.png){#fig:mac-fsm-architecture width=100%}
 
 #### FSM structure and mode flag
 
