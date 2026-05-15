@@ -1,0 +1,56 @@
+---
+config:
+  theme: neutral
+  layout: elk
+  flowchart:
+    curve: monotoneX
+  elk:
+    algorithm: layered
+    mergeEdges: false
+    nodePlacementStrategy: BRANDES_KOEPF
+    edgeRouting: SPLINES
+---
+flowchart LR
+
+classDef reset fill:#F5C2C0,stroke:#BB3333,stroke-width:4px,color:#000000
+classDef ff    fill:#CDFDC5,stroke:#33AA33,color:#000000
+
+s_reset("`**s_reset**
+─────────
+• count = 0, last_polarity = recessive
+• stuff_count = 0, bs_o = reset`")
+
+subgraph dynamic["`**Dynamic mode (fsb_en = 0)**`"]
+s_dynamic("`**s_dynamic**
+─────────
+• On valid: update last_polarity
+• data != last_polarity: count = 1
+• data = last_polarity, count < 4: count + 1
+• data = last_polarity, count = 4:
+  bs_o.valid = 1, bs_o.data = ~last_polarity
+  stuff_count + 1, SBC = gray and parity
+  count = 0`")
+end
+
+subgraph fixed["`**Fixed mode (fsb_en = 1)**`"]
+s_fixed_entry("`**s_fixed_entry**
+─────────
+• Rising edge fsb_en
+• bs_o.valid = 1, bs_o.data = ~last_polarity
+• count = 0`")
+
+s_fixed("`**s_fixed**
+─────────
+• On valid, no pending FSB:
+• count < 3: count + 1
+• count = 3: bs_o.valid = 1, bs_o.data = ~data
+  count = 0`")
+end
+
+s_reset --> s_dynamic
+s_dynamic -->|rising edge fsb_en| s_fixed_entry
+s_fixed_entry --> s_fixed
+s_fixed -->|falling edge fsb_en| s_dynamic
+
+class s_reset reset
+class s_dynamic,s_fixed_entry,s_fixed ff

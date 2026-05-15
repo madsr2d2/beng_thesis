@@ -484,8 +484,25 @@ begin
             -- passive TX frame (ISO 6.6.7.4).
             -----------------------------------------------------------------
             when s_suspend_transmission =>
-              if pcs_i.sample_point = '1' and pcs_i.rx_data = c_recessive then
-                if bit_count = c_suspend_transmission_width - 1 then
+              if pcs_i.sample_point = '1' then
+                if pcs_i.rx_data = c_dominant then
+                  -- Another node started transmitting: become receiver (ISO 6.6.7.4).
+                  is_transmitter        <= false;
+                  was_previous_frame_tx <= false;
+                  bit_count             <= 0;
+                  byte_index            <= 0;
+                  bit_index             <= 0;
+                  llc_frame             <= (others => (others => '0'));
+                  bs_rst                <= '0';
+                  crc_rst               <= '0';
+                  bs_o.valid            <= '1';
+                  bs_o.data             <= c_dominant;
+                  crc_o.valid_cc        <= '1';
+                  crc_o.valid_fd        <= '1';
+                  crc_o.data_cc         <= c_dominant;
+                  crc_o.data_fd         <= c_dominant;
+                  state                 <= s_arbitration;
+                elsif bit_count = c_suspend_transmission_width - 1 then
                   state                 <= s_bus_idle;
                   is_transmitter        <= false;
                   was_previous_frame_tx <= false;

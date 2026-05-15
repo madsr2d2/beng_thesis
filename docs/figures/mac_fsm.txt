@@ -1,0 +1,145 @@
+---
+config:
+  theme: neutral
+  layout: elk
+  flowchart:
+    curve: monotoneX
+  elk:
+    algorithm: layered
+    mergeEdges: false
+    nodePlacementStrategy: BRANDES_KOEPF
+    edgeRouting: SPLINES
+---
+flowchart TD
+
+classDef reset fill:#F5C2C0,stroke:#BB3333,stroke-width:4px,color:#000000
+classDef ifs   fill:#,stroke:#,color:#000000
+classDef ff    fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef ef    fill:#FFE0B9,stroke:#CC8833,color:#000000
+
+s_bus_reintegration("`**s_bus_reintegration**`")
+
+subgraph interframe_space["`**Interframe space (IFS)**`"]
+  s_bus_idle("`**s_bus_idle**`")
+
+  s_intermission("`**s_intermission**`")
+
+  s_suspend_transmission("`**s_suspend_transmission**`")
+
+  s_intermission -->|counted 3 recessive bits| s_bus_idle
+  s_intermission -->|error-passive TX| s_suspend_transmission
+  s_suspend_transmission -->|counted 8 recessive bits| s_bus_idle
+end
+
+subgraph error_frame["`**Error / Overlaod flags**`"]
+  s_error_flag("`**s_error_flag**
+  ─────────
+  • Active/overload: drive 6 dominant
+  • Passive: drive 6 recessive`")
+
+  s_error_delimiter("`**s_error_delimiter**
+  ─────────
+  • Drive recessive
+  • Await first recessive and count 8`")
+
+  s_error_flag -->|"flag complete (6 bits)"| s_error_delimiter
+  s_error_delimiter -->|"dominant (error or overload)"| s_error_flag
+end
+
+subgraph frame_fields["`**Frame Transmission / Reception**`"]
+  s_arbitration("`**s_arbitration**
+  ─────────
+  • SOF → ID(11) → RTR/SRR/RRS → IDE → ID(18) → RTR-ext
+  • TX: drive bits
+  • TX/RX: capture into llc_frame`")
+
+  s_fdf_r1_r0("`**s_fdf_r1_r0**
+  ─────────
+  • TX: drive FDF/r1/r0 bit
+  • RX: capture into llc_frame`")
+
+  s_res_r0("`**s_res_r0**
+  ─────────
+  • TX: drive dominant`")
+
+  s_brs("`**s_brs**
+  ─────────
+  • TX: drive BRS bit
+  • TX/RX: set data phase if recessive`")
+
+  s_esi("`**s_esi**
+  ─────────
+  • TX: recessive if error-passive or ESI flag set
+  • RX: capture into llc_frame`")
+
+  s_dlc("`**s_dlc**
+  ─────────
+  • TX: drive DLC bits
+  • RX: capture into llc_frame and derive data_len and crc_len`")
+
+  s_data("`**s_data**
+  ─────────
+  • TX: drive data bits
+  • RX: capture into llc_frame`")
+
+  s_sbc("`**s_sbc**
+  ─────────
+  • TX: drive SBC bits
+  • RX: compare (error deferred to EOF)`")
+
+  s_crc("`**s_crc**
+  ─────────
+  • TX: drive CRC bits
+  • RX: compare (error deferred to EOF)`")
+
+  s_crc_delimiter("`**s_crc_delimiter**
+  ─────────
+  • TX: drive recessive bit`")
+
+  s_ack("`**s_ack**
+  ─────────
+  • TX: latch ack_success
+  • RX: drive dominant bit if no CRC error detected `")
+
+  s_ack_delimiter("`**s_ack_delimiter**
+  ─────────
+  • TX: drive recessive bit`")
+
+  s_eof("`**s_eof**
+  ─────────
+  • TX: drive recessive
+  • RX: trigger stream of llc_frame to LLC
+  • TX/RX: signal frame complete to FCE`")
+
+  s_arbitration --> s_fdf_r1_r0
+  s_fdf_r1_r0 -->|FD or CC-ext| s_res_r0
+  s_fdf_r1_r0 -->|CC-base| s_dlc
+  s_res_r0 -->|FD| s_brs
+  s_res_r0 -->|CC-ext| s_dlc
+  s_brs --> s_esi
+  s_esi --> s_dlc
+  s_dlc -->|"data_len > 0, not RTR"| s_data
+  s_dlc -->|FD, data_len = 0| s_sbc
+  s_dlc -->|CC, data_len = 0| s_crc
+  s_data -->|FD| s_sbc
+  s_data -->|CC| s_crc
+  s_sbc --> s_crc
+  s_crc --> s_crc_delimiter
+  s_crc_delimiter --> s_ack
+  s_ack --> s_ack_delimiter
+  s_ack_delimiter --> s_eof
+end
+
+s_bus_reintegration -->|counted 11 consecutive recessive bits| s_bus_idle
+s_bus_idle -->|"frame pending or SOF observed"| s_arbitration
+s_eof -->|counted 7 recessive bits| s_intermission
+frame_fields -->|error / overload detected| s_error_flag
+s_error_delimiter -->|counted 8 recessive bits| s_intermission
+s_intermission -->|"dominant at bit 2 (SOF)"| s_arbitration
+s_intermission -->|"dominant at bits 0-1 (overlaod)"| s_error_flag
+s_suspend_transmission -->|"SOF observed"| s_arbitration
+
+class s_bus_reintegration reset
+class s_bus_idle,s_intermission,s_suspend_transmission ifs
+class s_arbitration,s_fdf_r1_r0,s_res_r0,s_brs,s_esi,s_dlc,s_data,s_sbc,s_crc,s_crc_delimiter,s_ack,s_ack_delimiter,s_eof ff
+class s_error_flag,s_error_delimiter ef

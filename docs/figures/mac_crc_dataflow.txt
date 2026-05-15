@@ -1,0 +1,75 @@
+---
+config:
+  theme: neutral
+  layout: elk
+  flowchart:
+    curve: monotoneX
+  elk:
+    algorithm: layered
+    mergeEdges: false
+    nodePlacementStrategy: BRANDES_KOEPF
+    edgeRouting: SPLINES
+---
+flowchart LR
+
+classDef reset fill:#F5C2C0,stroke:#BB3333,stroke-width:4px,color:#000000
+classDef ff    fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef io    fill:#FFFFFF,stroke:#888888,color:#000000
+
+n_reset("`**reset_i**
+─────────
+• Reinitializes all three
+  gen_crc instances`")
+
+n_cc_in("`**data_cc / valid_cc**
+─────────
+• CC data feed
+• Excludes stuff bits`")
+
+n_fd_in("`**data_fd / valid_fd**
+─────────
+• FD data feed
+• Includes dynamic SBs
+  in arbitration region`")
+
+n_crc15("`**u_crc15**
+─────────
+• CRC-15 (15 bit)
+• CAN Classic frames`")
+
+n_crc17("`**u_crc17**
+─────────
+• CRC-17 (17 bit)
+• FD frames, data ≤ 16 B`")
+
+n_crc21("`**u_crc21**
+─────────
+• CRC-21 (21 bit)
+• FD frames, data > 16 B`")
+
+n_sel("`**crc_poly_select**`")
+
+n_mux("`**p_crc_mux**
+─────────
+• Combinatorial select
+• Zero-extends to 21 bits`")
+
+n_out("`**crc_o.crc**
+─────────
+• 21 bits`")
+
+n_reset --> n_crc15
+n_reset --> n_crc17
+n_reset --> n_crc21
+n_cc_in --> n_crc15
+n_fd_in --> n_crc17
+n_fd_in --> n_crc21
+n_crc15 --> n_mux
+n_crc17 --> n_mux
+n_crc21 --> n_mux
+n_sel --> n_mux
+n_mux --> n_out
+
+class n_reset reset
+class n_crc15,n_crc17,n_crc21,n_mux ff
+class n_cc_in,n_fd_in,n_sel,n_out io

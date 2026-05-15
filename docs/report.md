@@ -453,7 +453,7 @@ flowchart TD
         subgraph TX_Pipeline ["**TX Pipeline**"]
             LLC_TX["**can_llc_tx**<br/>─────────<br/>Frame buffering & retransmission<br/>(LLC Sub-layer, §6.4-6.5)"]
             MAC_TX["**can_mac (TX mode)**<br/>─────────<br/>Serialization, CRC & bit stuffing<br/>(MAC Sub-layer, §6.6)"]
-            PCS_TX["**can_pcs_tx**<br/>─────────<br/>Bit timing & TDC<br/>(PCS Sub-layer, §7.2-7.4)"]
+            PCS_TX["**can_pcs**<br/>─────────<br/>Bit timing, TDC & synchronization<br/>(PCS Sub-layer, §7.2-7.4)"]
 
             LLC_TX <==>|llc_mac_tx_if| MAC_TX <==>|mac_pcs_if| PCS_TX
         end
@@ -461,7 +461,7 @@ flowchart TD
         subgraph RX_Pipeline ["**RX Pipeline**"]
             LLC_RX["**can_llc_rx**<br/>─────────<br/>Frame delivery & filtering<br/>(LLC Sub-layer, §6.4-6.5)"]
             MAC_RX["**can_mac (RX mode)**<br/>─────────<br/>Deserialization, CRC & destuffing<br/>(MAC Sub-layer, §6.6)"]
-            PCS_RX["**can_pcs_rx**<br/>─────────<br/>Bit timing & synchronization<br/>(PCS Sub-layer, §7.2-7.4)"]
+            PCS_RX["**can_pcs**<br/>─────────<br/>Bit timing, TDC & synchronization<br/>(PCS Sub-layer, §7.2-7.4)"]
 
             LLC_RX <==>|llc_mac_rx_if| MAC_RX <==>|mac_pcs_if| PCS_RX
         end
@@ -566,7 +566,7 @@ The MAC sub-layer is the core of the protocol logic, responsible for bit seriali
 
 The earlier CAN bus controller concentrated TX, RX, MAC, and FCE logic in a single monolithic FSM (`can_fsm`), with the sub-functions - serialization (`can_ast_to_serial`), bit stuffing (`can_stuff_bit_gen`), and CRC (`gen_crc`) - implemented in satellite modules driven directly by it. PCS timing logic was implemented in `can_node_clock`, which fed sample-point and transmit pulses into `can_fsm` - a strategy retained in the current design.
 
-The current design restructures these modules around the ISO 11898-1 [@iso11898_1] layer boundaries: `can_ast_to_serial` becomes `can_mac_ser_tx` (@sec:can-mac-ser-tx), `can_stuff_bit_gen` becomes `can_mac_bs` (@sec:can-mac-bs), `gen_crc` becomes `can_mac_crc` (@sec:can-mac-crc), and `can_node_clock` becomes `can_pcs` (@sec:can-pcs-tx). A single unified `can_mac_fsm` entity handles both TX and RX roles, sharing one `can_mac_bs` and one `can_mac_crc` instance across both paths. The FSM stores received bits directly in an internal frame array and streams the completed frame to the LLC during intermission, eliminating the need for a separate deserializer module. Fault confinement, previously embedded in `can_fsm`, is separated into its own entity (`can_fce`) and wired through the `can_mac` wrapper (@sec:can-mac-wrapper).
+The current design restructures these modules around the ISO 11898-1 [@iso11898_1] layer boundaries: `can_ast_to_serial` becomes `can_mac_ser_tx` (@sec:can-mac-ser-tx), `can_stuff_bit_gen` becomes `can_mac_bs` (@sec:can-mac-bs), `gen_crc` becomes `can_mac_crc` (@sec:can-mac-crc), and `can_node_clock` becomes `can_pcs` (@sec:can-pcs). A single unified `can_mac_fsm` entity handles both TX and RX roles, sharing one `can_mac_bs` and one `can_mac_crc` instance across both paths. The FSM stores received bits directly in an internal frame array and streams the completed frame to the LLC during intermission, eliminating the need for a separate deserializer module. Fault confinement, previously embedded in `can_fsm`, is separated into its own entity (`can_fce`) and wired through the `can_mac` wrapper (@sec:can-mac-wrapper).
 
 ### `can_mac_fsm` {#sec:can-mac-fsm}
 
@@ -637,212 +637,24 @@ After the EOF field the FSM transitions through `s_intermission`. A dedicated st
 
 #### Error-frame states
 
-The unified FSM uses four explicit error-frame states rather than a single compressed state, following the structure of the reference `can_fsm` controller. The split makes the four ISO-defined error-frame phases directly visible as state names in GTKWave and eliminates an ambiguity that existed in a two-state predecessor: a dominant during the recessive delimiter (a form error per ISO 6.6.21.3.2) and a dominant from another node's late error flag (tolerated per ISO 8.1.4.2.f) previously shared one code path. The four states are:
+The FSM uses two explicit error-frame states. `s_error_flag` drives the 6-bit flag and `s_error_delimiter` counts the 8-bit recessive delimiter. The delimiter state manages an internal phase flag (`delim_found_first_recessive`) that separates two distinct sub-phases: first awaiting the bus to go recessive (other nodes may still be driving their own flags), then counting the remaining recessive bits. A dominant during the delimiter restarts the error-frame sequence - either as a new error or as an overload condition on the last delimiter bit (ISO 8.1.4.2.f). The two states are:
 
 | State | ISO reference | Role |
 |---|---|---|
-| `s_error_flag` | §6.6.13, §6.6.5.2 | Drive 6 dominant bits (active) or 6 recessive bits (passive). |
-| `s_error_flag_check` | §8.1.4.2.b | Evaluate the first bit after the flag; detect co-signalled errors. |
-| `s_error_dominant_delim` | §8.1.4.2.f | Count tolerated dominant bits from other nodes during the delimiter. |
-| `s_error_delimiter` | §6.6.5.3 | Count 8 recessive delimiter bits; a dominant here starts a fresh error frame. |
+| `s_error_flag` | §6.6.5.2, §6.6.13 | Drive 6 dominant bits (active/overload) or 6 recessive bits (passive). |
+| `s_error_delimiter` | §6.6.5.3, §8.1.4.2 | Await first recessive bit, then count 8-bit delimiter. A dominant restarts the error-frame sequence. |
 
-: Four explicit error-frame states of `can_mac_fsm`. {#tbl:error-frame-states}
+: Two explicit error-frame states of `can_mac_fsm`. {#tbl:error-frame-states}
 
 The complete FSM is shown in @fig:mac-fsm.
 
-```{.mermaid #fig:mac-fsm caption="can_mac_fsm state diagram (19 states). TX mode is active when is_transmitter = true (latched at SOF drive); RX mode when is_transmitter = false. s_arbitration handles the full arbitration field (SOF, ID-base, RTR/SRR/RRS, IDE, and for extended frames ID-ext and RTR-ext) with bit_count tracking position within the field. Arbitration loss is not a state transition: when the transmitted recessive bit is sampled dominant, is_transmitter is cleared and the node continues through the remaining frame states as a receiver. Remaining frame-field states each handle one protocol field. After a successful frame or error recovery, the FSM passes through s_intermission before returning to s_bus_idle. Detected errors branch to the two-state error-frame sequence (s_error_flag, s_error_delimiter); s_error_delimiter uses an internal phase flag to first await the bus going recessive before counting the 8-bit delimiter. FCE bus_off assertion causes a synchronous reset to s_bus_reintegration and is not shown as a state transition. The error-detected edge originates from the frame_fields subgraph to indicate that all frame-field states share this common error detection behavior."}
----
-config:
-  theme: neutral
-  layout: elk
-  elk:
-    algorithm: layered
-    mergeEdges: false
-    nodePlacementStrategy: LINEAR_SEGMENTS
----
-flowchart TD
-
-classDef reset fill:#FFFFFF,stroke:#000000,stroke-width:3px,color:#000000
-classDef ifs   fill:#B9E0FF,stroke:#4477BB,color:#000000
-classDef ff    fill:#CDFDC5,stroke:#33AA33,color:#000000
-classDef ef    fill:#F5C2C0,stroke:#BB3333,color:#000000
-
-s_bus_reintegration["`**s_bus_reintegration**
-─────────
-• TX/RX: count 11 recessive bits`"]
-
-subgraph interframe_space["`**interframe_space**`"]
-  s_bus_idle["`**s_bus_idle**
-  ─────────
-  • TX: drive SOF, latch frame params
-  • RX: await dominant SOF`"]
-
-  s_intermission["`**s_intermission**
-  ─────────
-  • TX/RX: count 3-bit IFS
-  • RX: stream frame to LLC`"]
-
-  s_suspend_transmission["`**s_suspend_transmission**
-  ─────────
-  • TX/RX: count 8 recessive bits`"]
-
-  s_intermission -->|intermission complete| s_bus_idle
-  s_intermission -->|error-passive TX| s_suspend_transmission
-  s_suspend_transmission -->|suspend complete| s_bus_idle
-end
-
-subgraph error_frame["`**error_frame**`"]
-  s_error_flag["`**s_error_flag**
-  ─────────
-  • TX/RX (active): drive 6 dominant
-  • TX/RX (passive): drive 6 recessive`"]
-
-  s_error_delimiter["`**s_error_delimiter**
-  ─────────
-  • TX/RX: drive recessive
-  • TX/RX: await recessive, count 8`"]
-
-  s_error_flag -->|"flag complete (6 bits)"| s_error_delimiter
-  s_error_delimiter -->|"dominant (new error frame)"| s_error_flag
-end
-
-subgraph frame_fields["`**frame_fields**`"]
-  s_arbitration["`**s_arbitration**
-  ─────────
-  • SOF → ID(11) → RTR/SRR/RRS → IDE → ID(18) → RTR-ext
-  • TX: drive from metadata
-  • RX: capture into llc_frame`"]
-
-  s_fdf_r1_r0["`**s_fdf_r1_r0**
-  ─────────
-  • TX: drive FDF/r1/r0
-  • RX: capture`"]
-
-  s_res_r0["`**s_res_r0**
-  ─────────
-  • TX: drive dominant
-  • RX: capture`"]
-
-  s_brs["`**s_brs**
-  ─────────
-  • TX: drive BRS
-  • TX/RX: set data phase if recessive`"]
-
-  s_esi["`**s_esi**
-  ─────────
-  • TX: recessive if error-passive
-  • RX: capture`"]
-
-  s_dlc["`**s_dlc**
-  ─────────
-  • TX: drive DLC
-  • RX: derive data_len, crc_len`"]
-
-  s_data["`**s_data**
-  ─────────
-  • TX: drive from serializer
-  • RX: capture (CC: 0-8 B, FD: 0-64 B)`"]
-
-  s_sbc["`**s_sbc**
-  ─────────
-  • TX: drive stuff-bit count
-  • RX: compare (deferred to EOF)`"]
-
-  s_crc["`**s_crc**
-  ─────────
-  • TX: drive CRC bits
-  • RX: compare (deferred to EOF)`"]
-
-  s_crc_delimiter["`**s_crc_delimiter**
-  ─────────
-  • TX/RX: recessive bit`"]
-
-  s_ack["`**s_ack**
-  ─────────
-  • CC: 1 bit, FD: 2 bits
-  • TX: listen, latch ack_success
-  • RX: drive dominant`"]
-
-  s_ack_delimiter["`**s_ack_delimiter**
-  ─────────
-  • TX/RX: recessive bit`"]
-
-  s_eof["`**s_eof**
-  ─────────
-  • TX: drive recessive, signal complete
-  • RX: trigger frame stream`"]
-
-  s_arbitration --> s_fdf_r1_r0
-  s_fdf_r1_r0 -->|FD or CC-ext| s_res_r0
-  s_fdf_r1_r0 -->|CC-base| s_dlc
-  s_res_r0 -->|FD| s_brs
-  s_res_r0 -->|CC-ext| s_dlc
-  s_brs --> s_esi
-  s_esi --> s_dlc
-  s_dlc -->|"data_len > 0, not RTR"| s_data
-  s_dlc -->|FD, no data| s_sbc
-  s_dlc -->|CC, no data| s_crc
-  s_data -->|FD| s_sbc
-  s_data -->|CC| s_crc
-  s_sbc --> s_crc
-  s_crc --> s_crc_delimiter
-  s_crc_delimiter --> s_ack
-  s_ack --> s_ack_delimiter
-  s_ack_delimiter --> s_eof
-end
-
-s_bus_reintegration -->|11 recessive bits| s_bus_idle
-s_bus_idle -->|"frame pending (TX) or dominant SOF (RX)"| s_arbitration
-s_eof -->|frame complete| s_intermission
-frame_fields -->|error detected| s_error_flag
-s_error_delimiter -->|delimiter complete| s_intermission
-s_intermission -->|"dominant at bit 2 (SOF)"| s_arbitration
-s_intermission -->|"overload (bits 0-1)"| s_error_flag
-
-class s_bus_reintegration reset
-class s_bus_idle,s_intermission,s_suspend_transmission ifs
-class s_arbitration,s_fdf_r1_r0,s_res_r0,s_brs,s_esi,s_dlc,s_data,s_sbc,s_crc,s_crc_delimiter,s_ack,s_ack_delimiter,s_eof ff
-class s_error_flag,s_error_delimiter ef
-```
+![`can_mac_fsm` (19 states). TX mode active when `is_transmitter` is latched at SOF drive; arbitration loss clears it without a state transition, and the node continues as receiver. Each frame-field state handles one protocol field. Errors branch to the `s_error_flag`/`s_error_delimiter` sequence; after recovery the FSM returns via `s_intermission` to `s_bus_idle`.](figures/mac_fsm.png){#fig:mac-fsm height=90%}
 
 #### `can_mac_ser_tx` {#sec:can-mac-ser-tx}
 
 `can_mac_ser_tx` converts the LLC byte stream into a serial polarity bit stream for the MAC FSM. Its four-state FSM (@fig:mac-ser-fsm-tx) manages the two-byte configuration handshake, byte fetching, and bit-by-bit serialization. The serializer extracts LLC metadata (IDE, FDF, DLC, FTYP, BRS, ESI) from the two config bytes and registers it in `t_llc_metadata`, which remains stable for the entire frame. The serializer also handles ID field padding - skipping unused bits in the 32-bit ID field for 11-bit base identifiers - and forwards `transfer_status` from the FSM back to the LLC to terminate serialization on error or completion.
 
-```{.mermaid #fig:mac-ser-fsm-tx fig-width=0.6 caption="can_mac_ser_tx FSM. The serializer accepts LLC frame bytes over a ready/valid handshake and shifts them out MSB-first to the MAC FSM one bit per ready pulse. LLC metadata is extracted from the two config bytes and registered in t_llc_metadata for use by the FSM throughout the frame."}
----
-config:
-  layout: elk
-  elk:
-    algorithm: layered
-    mergeEdges: false
-    nodePlacementStrategy: LINEAR_SEGMENTS
-  look: classic
-  theme: neutral
-  themeVariables:
-    fontFamily: "Libertinus Serif, Noto Serif, serif"
-    fontSize: "14px"
-    primaryTextColor: "#000"
----
-stateDiagram-v2
-
-  classDef reset stroke:#000,stroke-width:3px
-
-  state "**load_config_byte_0**<br/>─────────<br/>• Idle, awaiting new frame" as s0
-  class s0 reset
-  state "**load_config_byte_1**<br/>─────────<br/>• Awaiting config byte 1" as s1
-  state "**load_llc_frame_byte**<br/>─────────<br/>• Fetching next byte from LLC stream" as s2
-  state "**shift_out_bits**<br/>─────────<br/>• Shift out MSB on MAC FSM ready pulse" as s3
-
-  s0 --> s1 : config byte 0 received from LLC
-
-  s1 --> s2 : config byte 1 received from LLC, llc_metadata extracted
-
-  s2 --> s3 : data byte received from LLC
-
-  s3 --> s0 : transmission complete
-  s3 --> s2 : byte serialized
-```
+![`can_mac_ser` (4 states). Config bytes carry frame metadata (IDE, FDF, FTYP, BRS, ESI, DLC); these are latched once and held stable for the entire frame. In `s_shift_out_bits` real ID and data bits are driven one per MAC FSM ready pulse, while unused padding bits in the 32-bit ID field are skipped silently. Any `transfer_status /= ongoing` signal from the MAC FSM returns the serializer to `s_load_config_byte_0` from any state.](figures/mac_ser_fsm_timeline.png){#fig:mac-ser-fsm-tx width=75%}
 
 #### `can_mac_bs` {#sec:can-mac-bs}
 
@@ -850,48 +662,7 @@ stateDiagram-v2
 
 In **dynamic mode** (`fixed_bit_stuffing_en` = '0'), the stuffer monitors the polarity stream and inserts an inverse-polarity stuff bit after every five consecutive identical bits (ISO 6.6.13.2). In **fixed mode** (`fixed_bit_stuffing_en` = '1'), used for the FD CRC region, one fixed stuff bit (FSB) is inserted on the rising edge of `fixed_bit_stuffing_en`, then one every four real bits (ISO 6.6.13.3.1). Any dynamic stuff bit pending at the mode boundary is suppressed. The stuffer maintains a Gray-coded stuff bit count with parity for the SBC field via `f_to_gray()` and `f_calc_parity()`. The data path diagram is shown in @fig:mac-bs-dataflow.
 
-```{.mermaid #fig:mac-bs-dataflow fig-width=0.8 caption="can_mac_bs data path diagram. When valid and data = last_polarity, consecutive_count increments. Otherwise it restarts at 1 with last_polarity updated to data. When consecutive_count reaches stuff_width (5 in dynamic mode, 4 in fixed mode), valid and inverted data are driven and stuff_count increments. The to_gray() + calc_parity() block encodes stuff_count into the stuff_bit_count output. The external rst signal resets consecutive_count and stuff_count to zero. The fixed_bit_stuffing_en signal selects between dynamic and fixed modes. All outputs are registered."}
----
-config:
-  layout: elk
-  look: classic
-  theme: neutral
-  themeVariables:
-    fontFamily: "Libertinus Serif, Noto Serif, serif"
-    fontSize: "14px"
-    primaryTextColor: "#000"
----
-stateDiagram-v2
-  classDef reset stroke:#000,stroke-width:3px
-
-  state "consecutive_count <= 0<br/>stuff_count <= 0" as reset
-  class reset reset
-
-  state "Wait for valid_i" as wait
-
-  state "count ≠ stuff_width<br/>and data_i = last_polarity?" as compare
-  state "consecutive_count += 1" as inc
-  state "consecutive_count <= 1<br/>last_polarity <= data_i" as restart
-
-  state "consecutive_count ≥ stuff_width?" as thresh
-
-  state "valid_o <= true<br/>data_o <= ¬last_polarity<br/>stuff_count += 1<br/>sbc_o <= encode(stuff_count)" as stuff
-
-
-  reset --> wait
-  wait --> compare : valid
-
-  compare --> inc : yes
-  compare --> restart : no
-  restart --> wait
-
-  inc --> thresh
-
-  thresh --> stuff : yes
-  thresh --> wait : no
-
-  stuff --> wait
-```
+![`can_mac_bs` (2 modes). Dynamic mode counts consecutive identical bits and emits an inverse stuff bit on the 5th (`count = 4`), updating the Gray-coded SBC. Fixed mode is entered on the rising edge of `fsb_en`, which immediately emits the initial FSB; thereafter one FSB is emitted every 4 real bits (`count = 3`). The falling edge of `fsb_en` cancels any pending FSB and returns to dynamic mode. `stuff_count` and the SBC output are maintained continuously across both modes.](figures/mac_bs_dataflow.png){#fig:mac-bs-dataflow}
 
 #### `can_mac_crc` {#sec:can-mac-crc}
 
@@ -899,56 +670,7 @@ stateDiagram-v2
 
 Three parallel `gen_crc` instances run continuously on separate data feeds: `data_cc` drives CRC-15 via `valid_cc`, while `data_fd` drives both CRC-17 and CRC-21 via `valid_fd`. This dual-feed architecture is necessary because CC and FD frames compute CRC over different bit streams (CC excludes stuff bits; FD includes them in the arbitration region), and the RX path does not know which CRC engine to use until after the frame type has been determined. The output multiplexer selects the active engine's result based on `crc_poly_select` and left-aligns it to the common 21-bit output width.
 
-```{.mermaid #fig:mac-crc fig-width=0.8 caption="can_mac_crc data path diagram. Three parallel gen_crc instances accumulate continuously: data_cc drives CRC-15 via valid_cc, while data_fd drives both CRC-17 and CRC-21 via valid_fd. The output register selects the active engine result based on crc_poly_select and left-aligns it to 21 bits. The external rst signal reinitializes all three engines and the output register."}
----
-config:
-  layout: elk
-  look: classic
-  theme: neutral
-  themeVariables:
-    fontFamily: "Libertinus Serif, Noto Serif, serif"
-    fontSize: "14px"
-    primaryTextColor: "#000"
----
-stateDiagram-v2
-  classDef reset stroke:#000,stroke-width:3px
-
-  state "crc15 <= init_15<br/>crc17 <= init_17<br/>crc21 <= init_21<br/>crc_o <= (others => '0')" as reset
-  class reset reset
-
-  state "Wait for valid_cc or valid_fd" as wait
-
-  state "valid_cc?" as check_cc
-  state "u_crc15: accumulate data_cc<br/>(CRC-15, CAN Classic)" as acc_cc
-
-  state "valid_fd?" as check_fd
-  state "u_crc17: accumulate data_fd<br/>(CRC-17, FD ≤ 16B)<br/>u_crc21: accumulate data_fd<br/>(CRC-21, FD > 16B)" as acc_fd
-
-  state "crc_poly_select?" as sel
-
-  state "crc_o <= crc15 & 000000" as out15
-  state "crc_o <= crc17 & 0000" as out17
-  state "crc_o <= crc21" as out21
-
-  reset --> wait
-
-  wait --> check_cc : valid_cc
-  wait --> check_fd : valid_fd
-
-  check_cc --> acc_cc : yes
-  acc_cc --> sel
-
-  check_fd --> acc_fd : yes
-  acc_fd --> sel
-
-  sel --> out15 : "00" (CRC-15)
-  sel --> out17 : "01" (CRC-17)
-  sel --> out21 : "10" (CRC-21)
-
-  out15 --> wait
-  out17 --> wait
-  out21 --> wait
-```
+![`can_mac_crc` dataflow. Three `gen_crc` instances accumulate in parallel on every clock: `u_crc15` is fed by `data_cc`/`valid_cc` (CC bit stream, stuff bits excluded); `u_crc17` and `u_crc21` are both fed by `data_fd`/`valid_fd` (FD bit stream, dynamic stuff bits included in the arbitration region). The combinatorial mux `p_crc_mux` selects the active engine result based on `crc_poly_select` and zero-extends it to the common 21-bit output. `reset_i` reinitializes all three engines simultaneously.](figures/mac_crc_dataflow.png){#fig:mac-crc}
 
 ### `can_mac` Unified Wrapper {#sec:can-mac-wrapper}
 
@@ -960,89 +682,21 @@ The Fault Confinement Entity (`can_fce`) implements the error state machine and 
 
 Counter updates follow the ISO 8.1.4.2 rules: TEC increments by 8 on TX errors (unless `counters_unchanged` is asserted), decrements by 1 on successful TX. REC increments by 1 on RX errors during non-error-flag phases, by 8 on primary errors or error-flag-phase errors, and decrements by 1 or clamps to 127 on successful RX. The FCE state machine (@fig:fce-fsm) transitions between error-active, error-passive, and bus-off based on counter thresholds. Bus-off recovery requires counting 128 idle conditions (11 consecutive recessive bits each) from the PCS via the `idle_condition` signal, or a `normal_mode_request` from the LLC.
 
-```{.mermaid #fig:fce-fsm fig-width=0.6 caption="can_fce FSM (ISO 8.1.4.1, Figure 43). The s_error_active state is the normal operating mode. When either TEC or REC exceeds 127, the FCE transitions to s_error_passive and asserts error_passive_request to both MAC paths. If TEC exceeds 255, the node enters s_bus_off: the FCE issues bus_off_request to the PCS and bus_off to the LLC. Recovery from bus-off requires 128 idle conditions (each 11 consecutive recessive bits) counted from the PCS, or a normal_mode_request from the LLC, after which the counters are reset and the FCE returns to s_error_active."}
----
-config:
-  layout: elk
-  elk:
-    algorithm: layered
-    mergeEdges: false
-    nodePlacementStrategy: LINEAR_SEGMENTS
-  look: classic
-  theme: neutral
-  themeVariables:
-    fontFamily: "Libertinus Serif, Noto Serif, serif"
-    fontSize: "14px"
-    primaryTextColor: "#000"
----
-stateDiagram-v2
-
-  classDef reset stroke:#000,stroke-width:3px
-
-  state "**s_error_active**<br/>─────────<br/>• Normal operation<br/>• error_active_request = 1<br/>• TEC/REC updated per ISO 8.1.4.2" as s_error_active
-  class s_error_active reset
-  state "**s_error_passive**<br/>─────────<br/>• error_passive_request = 1<br/>• TEC/REC updated per ISO 8.1.4.2" as s_error_passive
-  state "**s_bus_off**<br/>─────────<br/>• bus_off = 1, bus_off_request = 1<br/>• Count idle_condition pulses<br/>• Await 128 idle conditions or<br/>  normal_mode_request" as s_bus_off
-
-s_error_active --> s_error_passive : TEC > 127 or REC > 127
-s_error_active --> s_bus_off : TEC > 255
-
-s_error_passive --> s_error_active : TEC ≤ 127 and REC ≤ 127
-s_error_passive --> s_bus_off : TEC > 255
-
-s_bus_off --> s_error_active : 128 idle conditions or normal_mode_request<br/>(TEC/REC reset to 0)
-```
+![`can_fce` FSM (ISO 11898-1 sec. 8.1.4.4, Figure 43). `s_error_active` is the initial state after `reset_i` or `llc_i.normal_mode`. When TEC exceeds 127 or REC exceeds 127 the FCE moves to `s_error_passive`, clearing `mac_o.error_active`. If TEC exceeds 255 from either active or passive state, the FCE enters `s_bus_off`, asserting `bus_off` to the MAC, LLC, and PCS. Recovery counts 128 `idle_condition` pulses from the PCS (each pulse represents 11 consecutive recessive bits); on the 128th pulse TEC and REC are reset to zero and the FSM returns to `s_error_active`.](figures/fce_fsm_timeline.png){#fig:fce-fsm}
 
 ## PCS Sub-layer {#sec:pcs-sub-layer}
 
 Handles bit timing and synchronization. It generates the sample point (SP) and secondary sample point (SSP) strobes. It provides bit-level monitoring data to the FCE to detect synchronization and timing errors.
 
-### `can_pcs_tx` {#sec:can-pcs-tx}
+### `can_pcs` {#sec:can-pcs}
 
-`can_pcs_tx` handles bit timing and Transmitter Delay Compensation (TDC) for the TX path [@iso11898_1, sec. 7.2-7.3]. It generates the sample point (SP) strobe used by the MAC FSM to advance frame state, and - when TDC is configured - a secondary sample point (SSP) strobe for data-phase bit monitoring. The FSM (@fig:can-pcs-tx) has four states reflecting the two bit rates and the TDC measurement window. The `measuring_delay` state determines the Transmitter Delay Compensation Value (TDCV, [@iso11898_1, sec. 7.3.4]) by observing the TX-to-RX propagation delay, which together with the configured TDCO offset defines the SSP position for subsequent data-phase bits.
+`can_pcs` handles bit timing, hard and soft synchronization, and Transmitter Delay Compensation (TDC) for both TX and RX paths in a single module [@iso11898_1, sec. 7.2-7.3]. It generates the sample point (SP) strobe used by the MAC FSM to advance frame state and, when TDC is active, a secondary sample point (SSP) strobe for data-phase bit-error monitoring.
 
-```{.mermaid #fig:can-pcs-tx fig-width=0.6 caption="can_pcs_tx FSM. The measuring_delay state is entered on the FDF sample point to measure TDCV (Transmitter Delay Compensation Value, [@iso11898_1, sec. 7.3.4]). The BRS bit boundary determines whether data-phase timing is used. All non-idle states return to idle when the frame becomes inactive."}
----
-config:
-  layout: elk
-  elk:
-    algorithm: layered
-    mergeEdges: false
-    nodePlacementStrategy: LINEAR_SEGMENTS
-  look: classic
-  theme: neutral
-  themeVariables:
-    fontFamily: "Libertinus Serif, Noto Serif, serif"
-    fontSize: "14px"
-    primaryTextColor: "#000"
----
-stateDiagram-v2
+The PCS is not a conventional named-state machine but a cyclic bit-timing engine. Its internal `t_segment` register cycles through four segments each bit time (@fig:can-pcs): `s_sync_seg` (1 TQ, fixed), `s_prop_seg`, `s_phase_seg1`, and `s_phase_seg2`. The SP strobe and `rx_data` latch fire at the end of `s_phase_seg1`; the TX bit is driven and the bit boundary is signalled at the end of `s_phase_seg2`. Hard synchronization restarts the bit time from `s_prop_seg` on a dominant edge in `s_sync_seg`. Soft synchronization extends `s_phase_seg1` or shortens `s_phase_seg2` by up to the configured SJW.
 
-  classDef reset stroke:#000,stroke-width:3px
+Data-phase timing activates at the BRS sample point when BRS is recessive: `active_prop_seg`, `active_phase_seg1`, and `active_phase_seg2` are switched to the data-phase generics. TDC measurement begins at the first data-phase bit boundary, counting TQ steps until the TX-to-RX echo edge is observed; the resulting delay positions the SSP one TQ before the next SP. `mac_i.data_phase_stop` (asserted at CRC delimiter or error flag) restores nominal timing and clears TDC state. When `fce_i.bus_off = '1'`, the SP slot counts consecutive recessive bits and pulses `fce_o.idle_condition` every 11 bits for FCE bus-off recovery.
 
-  state "**idle**<br/>─────────<br/>• Awaiting frame activation<br/>• Nominal timing<br/>• Latch first bit on frame activation" as idle_s
-  class idle_s reset
-  state "**transmitting_nominal**<br/>─────────<br/>• Nominal bit timing<br/>• Latch next bit at nominal bit boundary<br/>• SP strobe at end of Phase_Seg1" as nom_s
-  state "**measuring_delay**<br/>─────────<br/>• Nominal bit timing<br/>• Measure TDCV<br/>• Latch SSP position and FIFO index on RX edge" as meas_s
-  state "**transmitting_data**<br/>─────────<br/>• Data-phase bit timing<br/>• Latch next bit at data bit boundary<br/>• SP or SSP strobe per TDC configuration" as data_s
-
-  idle_s --> nom_s : frame active
-
-  nom_s --> idle_s : frame inactive
-  nom_s --> meas_s : FDF bit at SP
-
-  meas_s --> idle_s : frame inactive
-  meas_s --> data_s : BRS bit recessive
-  meas_s --> nom_s : BRS bit dominant
-
-  data_s --> idle_s : frame inactive
-  data_s --> nom_s : CRC delimiter
-  data_s --> nom_s : error flag
-```
-
-### `can_pcs_rx` {#sec:can-pcs-rx}
-
-`can_pcs_rx` implements bit timing and synchronization for the RX path. It performs hard and soft synchronization on the incoming bus signal and generates the sample point strobe used by the MAC RX layer to latch each received bit [@iso11898_1, sec. 7.2-7.3].
+![`can_pcs` bit-timing segment machine (ISO 11898-1 sec. 7.2-7.3). The four segments cycle continuously from reset. `s_sync_seg` is 1 TQ fixed; a dominant edge here triggers hard synchronization, restarting from `s_prop_seg`. Soft synchronization in `s_prop_seg` and `s_phase_seg1` extends `phase_seg1` by up to SJW TQs; in `s_phase_seg2` it shortens by up to SJW TQs. The SP strobe fires at the end of `s_phase_seg1`; the BRS recessive condition at that SP switches `active_prop_seg`, `active_phase_seg1`, and `active_phase_seg2` to data-phase generics. The SSP fires one TQ before the SP when `ssp_active` is set. The TX bit is driven and the bit boundary is signalled at the end of `s_phase_seg2`.](figures/pcs_fsm_timeline.png){#fig:can-pcs}
 
 ---
 
