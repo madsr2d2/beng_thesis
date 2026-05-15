@@ -18,50 +18,63 @@ classDef event fill:#FFF3CD,stroke:#CC9900,stroke-width:2px,color:#000000
 classDef ctrl  fill:#D6EAF8,stroke:#2E86C1,stroke-width:2px,color:#000000
 classDef tdc   fill:#EDE7F6,stroke:#7B1FA2,stroke-width:2px,color:#000000
 
-s_sync_seg("`**s_sync_seg**`")
+sync_eval("`**v_do_sync :=**
+  rx_bus_prev = recessive ∧
+  rx_i = dominant ∧
+  sync_applied = '0' ∧
+  transmitting = '0'`")
 
-s_prop_seg("`**s_prop_seg**
-─────────
-• extension ← SJW if
-  do_sync = '1' ∧
-  phase_error > SJW`")
+subgraph fsm_case["`**case segment is**`"]
+  s_sync_seg("`**s_sync_seg**`")
 
-s_phase_seg1("`**s_phase_seg1**
-─────────
-• extension ← SJW if
-  do_sync = '1' ∧
-  phase_error > SJW`")
+  s_prop_seg("`**s_prop_seg**
+  ─────────
+  • extension ← SJW if
+    do_sync = '1' ∧
+    phase_error > SJW`")
 
-s_phase_seg2("`**s_phase_seg2**
-─────────
-• shortening ← SJW if
-  do_sync = '1' ∧
-  phase_error > SJW`")
+  s_phase_seg1("`**s_phase_seg1**
+  ─────────
+  • extension ← SJW if
+    do_sync = '1' ∧
+    phase_error > SJW`")
 
-s_sync_seg -->|"sync_seg expired"| s_prop_seg
-s_prop_seg -->|"prop_seg expired"| s_phase_seg1
-s_prop_seg -->|"`do_sync = '1' ∧
-phase_error <= SJW`"| s_prop_seg
-s_phase_seg1 -->|"`do_sync = '1' ∧
-phase_error <= SJW`"| s_prop_seg
-s_phase_seg2 -->|"`do_sync = '1' ∧
-phase_error <= SJW`"| s_prop_seg
+  s_phase_seg2("`**s_phase_seg2**
+  ─────────
+  • shortening ← SJW if
+    do_sync = '1' ∧
+    phase_error > SJW`")
 
-ev_ssp("`**Secondary Sample Point**
-─────────
-• Strobe SSP and latch data from RX to MAC`")
+  ev_ssp("`**Secondary Sample Point**
+  ─────────
+  • Strobe SSP and latch data from RX to MAC`")
 
-ev_sp("`**Sample Point**
-─────────
-• Strobe SP and latch data from RX to MAC
-• BRS recessive → data-phase timing
-• data_phase_stop → nominal timing`")
+  ev_sp("`**Sample Point**
+  ─────────
+  • Strobe SP and latch data from RX to MAC
+  • BRS recessive → data-phase timing
+  • data_phase_stop → nominal timing`")
 
-ev_bb("`**Bit Boundary**
-─────────
-• Latch data from MAC to TX`")
+  ev_bb("`**Bit Boundary**
+  ─────────
+  • Latch data from MAC to TX`")
 
-ev_ssp --> ev_sp
+  s_sync_seg -->|"sync_seg expired"| s_prop_seg
+  s_prop_seg -->|"prop_seg expired"| s_phase_seg1
+  s_prop_seg -->|"`do_sync = '1' ∧
+  phase_error <= SJW`"| s_prop_seg
+  s_phase_seg1 -->|"`do_sync = '1' ∧
+  phase_error <= SJW`"| s_prop_seg
+  s_phase_seg2 -->|"`do_sync = '1' ∧
+  phase_error <= SJW`"| s_prop_seg
+
+  ev_ssp --> ev_sp
+  s_phase_seg1 -->|"ssp_active = 1 ∧ (phase_seg1 + extension - 1) expired"| ev_ssp
+  s_phase_seg1 -->|"(phase_seg1 + extension) expired"| ev_sp
+  ev_sp --> s_phase_seg2
+  s_phase_seg2 -->|"(phase_seg2 - shortening) expired"| ev_bb
+  ev_bb --> s_prop_seg
+end
 
 subgraph tdc_pipeline["`**TDC — concurrent per-TQ**`"]
   tdc_count("`**Count up delay**
@@ -79,16 +92,11 @@ subgraph tdc_pipeline["`**TDC — concurrent per-TQ**`"]
   tdc_wait -->|"ESI bit boundary"| tdc_down
 end
 
-s_phase_seg1 -->|"ssp_active = 1 ∧ (phase_seg1 + extension - 1) expired"| ev_ssp
-s_phase_seg1 -->|"(phase_seg1 + extension) expired"| ev_sp
-ev_sp --> s_phase_seg2
-s_phase_seg2 -->|"(phase_seg2 - shortening) expired"| ev_bb
-ev_bb -->|"next_bit_is_res = 1"| tdc_count
-ev_bb --> s_prop_seg
-
-
+ev_bb -.->|"next_bit_is_res = 1"| tdc_count
+tdc_down -.->|"delay = 0"| fsm_case
 
 class s_sync_seg reset
 class s_prop_seg,s_phase_seg1,s_phase_seg2 ff
 class ev_sp,ev_bb,ev_ssp event
 class tdc_count,tdc_wait,tdc_down tdc
+class sync_eval ctrl
