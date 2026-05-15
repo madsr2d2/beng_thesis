@@ -1,0 +1,52 @@
+---
+config:
+  theme: neutral
+  layout: elk
+  flowchart:
+    curve: monotoneX
+  elk:
+    algorithm: layered
+    mergeEdges: false
+    nodePlacementStrategy: BRANDES_KOEPF
+    edgeRouting: SPLINES
+---
+
+flowchart TD
+
+classDef ff fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef mux fill:#FFF3CD,stroke:#CC9900,stroke-width:2px,color:#000000
+
+u_crc15("`**u_crc15**  (gen_crc)
+─────────
+• CRC-15, 15-bit accumulator
+• Feed: data_cc / valid_cc
+• Stuff bits excluded from feed
+• Used for: CC frames (CBFF / CEFF)`")
+
+u_crc17("`**u_crc17**  (gen_crc)
+─────────
+• CRC-17, 17-bit accumulator
+• Feed: data_fd / valid_fd
+• Arb-region dynamic SBs included
+• Used for: FD frames, DLC ≤ 16 B`")
+
+u_crc21("`**u_crc21**  (gen_crc)
+─────────
+• CRC-21, 21-bit accumulator
+• Feed: data_fd / valid_fd
+• Arb-region dynamic SBs included
+• Used for: FD frames, DLC > 16 B`")
+
+p_crc_mux("`**p_crc_mux**
+─────────
+• Combinatorial (timing-critical)
+• Selected by crc_poly_select
+• Zero-extends CRC-15/17 to 21 bits
+• Output: crc_o.crc [20:0]`")
+
+u_crc15 -->|"crc15_out [14:0]"| p_crc_mux
+u_crc17 -->|"crc17_out [16:0]"| p_crc_mux
+u_crc21 -->|"crc21_out [20:0]"| p_crc_mux
+
+class u_crc15,u_crc17,u_crc21 ff
+class p_crc_mux mux
