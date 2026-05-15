@@ -650,92 +650,159 @@ The unified FSM uses four explicit error-frame states rather than a single compr
 
 The complete FSM is shown in @fig:mac-fsm.
 
-```{.mermaid #fig:mac-fsm caption="can_mac_fsm state diagram (19 states). TX mode is active when is_transmitter = true (latched at SOF drive); RX mode when is_transmitter = false. s_arbitration handles the full arbitration field (SOF, ID-base, RTR/SRR/RRS, IDE, and for extended frames ID-ext and RTR-ext) with bit_count tracking position within the field. Remaining frame-field states each handle one protocol field. After a successful frame, arbitration loss, or error recovery, the FSM passes through s_intermission before returning to s_bus_idle. Detected errors branch to the two-state error-frame sequence (s_error_flag, s_error_delimiter); s_error_delimiter uses an internal phase flag to first await the bus going recessive before counting the 8-bit delimiter. FCE bus_off assertion causes a synchronous reset to s_bus_reintegration and is not shown as a state transition. The dashed boxes group interframe-space, frame-field, and error-frame states for clarity."}
+```{.mermaid #fig:mac-fsm caption="can_mac_fsm state diagram (19 states). TX mode is active when is_transmitter = true (latched at SOF drive); RX mode when is_transmitter = false. s_arbitration handles the full arbitration field (SOF, ID-base, RTR/SRR/RRS, IDE, and for extended frames ID-ext and RTR-ext) with bit_count tracking position within the field. Arbitration loss is not a state transition: when the transmitted recessive bit is sampled dominant, is_transmitter is cleared and the node continues through the remaining frame states as a receiver. Remaining frame-field states each handle one protocol field. After a successful frame or error recovery, the FSM passes through s_intermission before returning to s_bus_idle. Detected errors branch to the two-state error-frame sequence (s_error_flag, s_error_delimiter); s_error_delimiter uses an internal phase flag to first await the bus going recessive before counting the 8-bit delimiter. FCE bus_off assertion causes a synchronous reset to s_bus_reintegration and is not shown as a state transition. The error-detected edge originates from the frame_fields subgraph to indicate that all frame-field states share this common error detection behavior."}
 ---
 config:
+  theme: neutral
   layout: elk
   elk:
     algorithm: layered
     mergeEdges: false
     nodePlacementStrategy: LINEAR_SEGMENTS
-  look: classic
-  theme: neutral
-  themeVariables:
-    fontFamily: "Libertinus Serif, Noto Serif, serif"
-    fontSize: "14px"
-    primaryTextColor: "#000"
 ---
-stateDiagram-v2
+flowchart TD
 
-  classDef reset stroke:#000,stroke-width:3px
+classDef reset fill:#FFFFFF,stroke:#000000,stroke-width:3px,color:#000000
+classDef ifs   fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef ff    fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef ef    fill:#F5C2C0,stroke:#BB3333,color:#000000
 
-  state "**s_bus_reintegration**<br/>─────────<br/>• TX/RX: count 11 recessive bits" as s_bus_reintegration
-  class s_bus_reintegration reset
-  state interframe_space {
-    state "**s_bus_idle**<br/>─────────<br/>• TX: drive SOF, latch frame params<br/>• RX: await dominant SOF" as s_bus_idle
-    state "**s_intermission**<br/>─────────<br/>• TX/RX: count 3-bit IFS<br/>• RX: stream frame to LLC" as s_intermission
-    state "**s_suspend_transmission**<br/>─────────<br/>• TX/RX: count 8 recessive bits" as s_suspend_transmission
+s_bus_reintegration["`**s_bus_reintegration**
+─────────
+• TX/RX: count 11 recessive bits`"]
 
-    s_intermission --> s_bus_idle : intermission complete
-    s_intermission --> s_suspend_transmission : error-passive TX
-    s_suspend_transmission --> s_bus_idle : suspend complete
-  }
+subgraph interframe_space["`**interframe_space**`"]
+  s_bus_idle["`**s_bus_idle**
+  ─────────
+  • TX: drive SOF, latch frame params
+  • RX: await dominant SOF`"]
 
-  state error_frame {
-    state "**s_error_flag**<br/>─────────<br/>• TX/RX (active): drive 6 dominant<br/>• TX/RX (passive): drive 6 recessive" as s_error_flag
-    state "**s_error_delimiter**<br/>─────────<br/>• TX/RX: drive recessive<br/>• TX/RX: await recessive, count 8" as s_error_delimiter
+  s_intermission["`**s_intermission**
+  ─────────
+  • TX/RX: count 3-bit IFS
+  • RX: stream frame to LLC`"]
 
-    s_error_flag --> s_error_delimiter : flag complete (6 bits)
-    s_error_delimiter --> s_error_flag : dominant (new error frame)
-  }
+  s_suspend_transmission["`**s_suspend_transmission**
+  ─────────
+  • TX/RX: count 8 recessive bits`"]
 
-  state frame_fields {
-    state "**s_arbitration**<br/>─────────<br/>• SOF → ID(11) → RTR/SRR/RRS → IDE<br/>• TX: drive from metadata<br/>• RX: capture into llc_frame" as s_arbitration
-    state "**s_fdf_r1_r0**<br/>─────────<br/>• TX: drive FDF/r1/r0<br/>• RX: capture" as s_fdf_r1_r0
-    state "**s_res_r0**<br/>─────────<br/>• TX: drive dominant<br/>• RX: capture" as s_res_r0
-    state "**s_brs**<br/>─────────<br/>• TX: drive BRS<br/>• TX/RX: set data phase if recessive" as s_brs
-    state "**s_esi**<br/>─────────<br/>• TX: recessive if error-passive<br/>• RX: capture" as s_esi
-    state "**s_dlc**<br/>─────────<br/>• TX: drive DLC<br/>• RX: derive data_len, crc_len" as s_dlc
-    state "**s_data**<br/>─────────<br/>• TX: drive from serializer<br/>• RX: capture (CC: 0-8 B, FD: 0-64 B)" as s_data
-    state "**s_sbc**<br/>─────────<br/>• TX: drive stuff-bit count<br/>• RX: compare (deferred to EOF)" as s_sbc
-    state "**s_crc**<br/>─────────<br/>• TX: drive CRC bits<br/>• RX: compare (deferred to EOF)" as s_crc
-    state "**s_crc_delimiter**<br/>─────────<br/>• TX/RX: recessive bit" as s_crc_delimiter
-    state "**s_ack**<br/>─────────<br/>• CC: 1 bit, FD: 2 bits<br/>• TX: listen, latch ack_success<br/>• RX: drive dominant" as s_ack
-    state "**s_ack_delimiter**<br/>─────────<br/>• TX/RX: recessive bit" as s_ack_delimiter
-    state "**s_eof**<br/>─────────<br/>• TX: drive recessive, signal complete<br/>• RX: trigger frame stream" as s_eof
+  s_intermission -->|intermission complete| s_bus_idle
+  s_intermission -->|error-passive TX| s_suspend_transmission
+  s_suspend_transmission -->|suspend complete| s_bus_idle
+end
 
-    s_arbitration --> s_fdf_r1_r0
-    s_fdf_r1_r0 --> s_res_r0 : FD or CC-ext
-    s_fdf_r1_r0 --> s_dlc : CC-base
-    s_res_r0 --> s_brs : FD
-    s_res_r0 --> s_dlc : CC-ext
-    s_brs --> s_esi
-    s_esi --> s_dlc
-    s_dlc --> s_data : data_len > 0, not RTR
-    s_dlc --> s_sbc : FD, no data
-    s_dlc --> s_crc : CC, no data
-    s_data --> s_sbc : FD
-    s_data --> s_crc : CC
-    s_sbc --> s_crc
-    s_crc --> s_crc_delimiter
-    s_crc_delimiter --> s_ack
-    s_ack --> s_ack_delimiter
-    s_ack_delimiter --> s_eof
-  }
+subgraph error_frame["`**error_frame**`"]
+  s_error_flag["`**s_error_flag**
+  ─────────
+  • TX/RX (active): drive 6 dominant
+  • TX/RX (passive): drive 6 recessive`"]
 
-s_bus_reintegration --> s_bus_idle : 11 recessive bits
+  s_error_delimiter["`**s_error_delimiter**
+  ─────────
+  • TX/RX: drive recessive
+  • TX/RX: await recessive, count 8`"]
 
-s_bus_idle --> s_arbitration : frame pending (TX) or dominant SOF (RX)
+  s_error_flag -->|"flag complete (6 bits)"| s_error_delimiter
+  s_error_delimiter -->|"dominant (new error frame)"| s_error_flag
+end
 
-s_eof --> s_intermission : frame complete
+subgraph frame_fields["`**frame_fields**`"]
+  s_arbitration["`**s_arbitration**
+  ─────────
+  • SOF → ID(11) → RTR/SRR/RRS → IDE → ID(18) → RTR-ext
+  • TX: drive from metadata
+  • RX: capture into llc_frame`"]
 
-frame_fields --> s_intermission : lost arbitration (TX)
-frame_fields --> s_error_flag : error detected
+  s_fdf_r1_r0["`**s_fdf_r1_r0**
+  ─────────
+  • TX: drive FDF/r1/r0
+  • RX: capture`"]
 
-s_error_delimiter --> s_intermission : delimiter complete
+  s_res_r0["`**s_res_r0**
+  ─────────
+  • TX: drive dominant
+  • RX: capture`"]
 
-s_intermission --> s_arbitration : dominant at bit 2 (SOF)
-s_intermission --> s_error_flag : overload (bits 0-1)
+  s_brs["`**s_brs**
+  ─────────
+  • TX: drive BRS
+  • TX/RX: set data phase if recessive`"]
+
+  s_esi["`**s_esi**
+  ─────────
+  • TX: recessive if error-passive
+  • RX: capture`"]
+
+  s_dlc["`**s_dlc**
+  ─────────
+  • TX: drive DLC
+  • RX: derive data_len, crc_len`"]
+
+  s_data["`**s_data**
+  ─────────
+  • TX: drive from serializer
+  • RX: capture (CC: 0-8 B, FD: 0-64 B)`"]
+
+  s_sbc["`**s_sbc**
+  ─────────
+  • TX: drive stuff-bit count
+  • RX: compare (deferred to EOF)`"]
+
+  s_crc["`**s_crc**
+  ─────────
+  • TX: drive CRC bits
+  • RX: compare (deferred to EOF)`"]
+
+  s_crc_delimiter["`**s_crc_delimiter**
+  ─────────
+  • TX/RX: recessive bit`"]
+
+  s_ack["`**s_ack**
+  ─────────
+  • CC: 1 bit, FD: 2 bits
+  • TX: listen, latch ack_success
+  • RX: drive dominant`"]
+
+  s_ack_delimiter["`**s_ack_delimiter**
+  ─────────
+  • TX/RX: recessive bit`"]
+
+  s_eof["`**s_eof**
+  ─────────
+  • TX: drive recessive, signal complete
+  • RX: trigger frame stream`"]
+
+  s_arbitration --> s_fdf_r1_r0
+  s_fdf_r1_r0 -->|FD or CC-ext| s_res_r0
+  s_fdf_r1_r0 -->|CC-base| s_dlc
+  s_res_r0 -->|FD| s_brs
+  s_res_r0 -->|CC-ext| s_dlc
+  s_brs --> s_esi
+  s_esi --> s_dlc
+  s_dlc -->|"data_len > 0, not RTR"| s_data
+  s_dlc -->|FD, no data| s_sbc
+  s_dlc -->|CC, no data| s_crc
+  s_data -->|FD| s_sbc
+  s_data -->|CC| s_crc
+  s_sbc --> s_crc
+  s_crc --> s_crc_delimiter
+  s_crc_delimiter --> s_ack
+  s_ack --> s_ack_delimiter
+  s_ack_delimiter --> s_eof
+end
+
+s_bus_reintegration -->|11 recessive bits| s_bus_idle
+s_bus_idle -->|"frame pending (TX) or dominant SOF (RX)"| s_arbitration
+s_eof -->|frame complete| s_intermission
+frame_fields -->|error detected| s_error_flag
+s_error_delimiter -->|delimiter complete| s_intermission
+s_intermission -->|"dominant at bit 2 (SOF)"| s_arbitration
+s_intermission -->|"overload (bits 0-1)"| s_error_flag
+
+class s_bus_reintegration reset
+class s_bus_idle,s_intermission,s_suspend_transmission ifs
+class s_arbitration,s_fdf_r1_r0,s_res_r0,s_brs,s_esi,s_dlc,s_data,s_sbc,s_crc,s_crc_delimiter,s_ack,s_ack_delimiter,s_eof ff
+class s_error_flag,s_error_delimiter ef
 ```
 
 #### `can_mac_ser_tx` {#sec:can-mac-ser-tx}
