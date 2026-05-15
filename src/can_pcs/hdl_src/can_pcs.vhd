@@ -351,9 +351,9 @@ begin
                 if v_do_sync then
                   sync_applied  <= '1';
                   v_phase_error := (active_phase_seg2 - 1) - seg_count;
-                  if v_phase_error > gc_nom_sjw then
+                  if v_phase_error > active_sjw then
                     -- If the magnitude of the phase error is larger than the SJW we shorten Phase_Seg2 by the SJW (ISO : 7.3.5.4)
-                    phase2_shortening <= gc_nom_sjw;
+                    phase2_shortening <= active_sjw;
                   -- Only 1 sync per bit time allowed, so inhibit further sync until next sample point (ISO : 7.3.5.1.a)
                   else
                     -- If the magnitude of the phase error is smaller that the SJW we do a hard sync on the edge (ISO : 7.3.5.3)
