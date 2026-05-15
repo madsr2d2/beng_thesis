@@ -16,40 +16,37 @@ flowchart TD
 classDef llc fill:#B9E0FF,stroke:#4477BB,color:#000000
 classDef mac fill:#CDFDC5,stroke:#33AA33,color:#000000
 classDef pcs fill:#B9E0FF,stroke:#4477BB,color:#000000
-classDef fce fill:#F5C2C0,stroke:#BB3333,stroke-width:4px,color:#000000
+classDef fce fill:#F5C2C0,stroke:#BB3333,color:#000000
 
-LLC["`**can_llc**
+LLC("`**can_llc**
 ─────────
-LLC Sub-layer
-§6.4-6.5`"]
+Implements Logic Link Control (LLC) Sub-layer`")
 
-PCS["`**can_pcs**
+PCS("`**can_pcs**
 ─────────
-PCS Sub-layer
-§7.2-7.4`"]
+Implements the Physical Coding Sub-layer (PCS)`")
 
-FCE["`**can_fce**
+FCE("`**can_fce**
 ─────────
-FCE
-§8.1.3-8.1.4`"]
+Implements the Fault Confinement Entity (FCE)`")
 
-subgraph MAC["`**can_mac** — MAC Sub-layer §6.6`"]
-    SER["`**can_mac_ser_tx**
+subgraph MAC["`**can_mac 
+(This module implements the MAC Sub-layer)**`"]
+    SER("`**can_mac_ser**
     ─────────
-    LLC Frame Serializer`"]
+    LLC Frame Serializer`")
 
-    FSM["`**can_mac_fsm**
+    FSM("`**can_mac_fsm**
     ─────────
-    Unified TX/RX FSM
-    (24 states, is_transmitter)`"]
+    FSM orchastratingthe the MAC Sub-layer`")
 
-    BS["`**can_mac_bs**
+    BS("`**can_mac_bs**
     ─────────
-    Bit Stuffer / Destuffer`"]
+    Bit Stuffer / Destuffer`")
 
-    CRC["`**can_mac_crc**
+    CRC("`**can_mac_crc**
     ─────────
-    CRC Engine`"]
+    CRC Engine`")
 
     %% SER -> FSM
     SER -->|"data"| FSM
