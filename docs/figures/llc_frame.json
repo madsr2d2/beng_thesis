@@ -1,0 +1,30 @@
+{signal: [
+
+
+   {"node": ".V..........................W" },
+   {name:"[Byte][Bit]", "node": ".A.......B.C..DE.F.G.H.I.J.TU" },
+   {name: "LLC frame",  wave: 'x3|3|3|3|x|4.|5.|xxxx6666x|6x', data: 'ID0 ID1 ID2 ID3 DLC DATA FDF BRS ESI IDE RTR'},
+   {name: "Value", wave: 'x........0.xxxxxx0...x...0.x.' },{},
+   {name: "Extended ID map", "node": "....K....L.M.O.P" },
+   {name: "ID Bytes", wave: 'x3.......3|3|3|x', data: 'ID0 ID1 ID2 ID3'},
+   {name: "Value", wave: 'x0..x...........' },{},
+   {name: "Base ID map", "node": "..........Q..R.S" },
+   {name: "ID Bytes", wave: 'x3|3|3.......3|x', data: 'ID0 ID1 ID2 ID3'},
+   {name: "Value", wave: 'x0........x.....' },{},
+],
+    "edge": [
+   "A+B [0:3]",
+   "B+C [4][7:4]",
+   "C+D [4][3:0]",
+   "D+F [5-68]",
+   "F+J [69]",
+   "J+T [70][7:1]",
+   "T+U [70][0]",
+  "V+W 71 Byte LLC Frame",
+   "K+L ID[28:24]",
+   "L+M ID[23:26]",
+     "M+O ID[15:8]",
+        "O+P ID[7:0]",
+   "Q+R ID[10:8]",
+   "R+S ID[7:0]",
+  ]}

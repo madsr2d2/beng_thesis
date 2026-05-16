@@ -8,7 +8,7 @@
 
    ],
  
-   ['Static',
+   ['Fixed',
   { "name": "",        "wave": "5.67...68...68...68.|", "data": ["DATA","FSB","SBC","FSB", "CRC","FSB", "CRC","FSB", "CRC"] },
   
   { "name": "",    "wave": "x10xxx01x..10xxx10x.." },
