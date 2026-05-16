@@ -317,7 +317,7 @@ def export_req_markdown(
     Enumeration items in the Requirement column are separated by LaTeX line breaks.
     """
     req_rows = [_to_req_row(r) for r in rows]
-    separator = "| :-- | :------------ | :-- | :" + "-" * 65 + " | :" + "-" * 15 + " |"
+    separator = "| :--- | :------------ | :-------- | :" + "-" * 56 + " | :" + "-" * 15 + " |"
     _write_md(path, [
         "::: {.landscape-tables}",
         _md_row(REQ_HEADERS),

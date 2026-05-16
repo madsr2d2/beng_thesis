@@ -66,6 +66,24 @@ function Table(el)
     return el
   end
 
+  -- Pin column widths for the 5-column requirements appendix table.
+  -- Separator-based proportions lose to unbreakable \href{} content; setting
+  -- colspecs here overrides them. Fractions must sum to 1.0.
+  -- ID(0.08): fits "REQ-001" on one line. Priority(0.08): fits "Priority" header.
+  if #el.colspecs == 5 then
+    local first_row = el.head and el.head.rows and el.head.rows[1]
+    if first_row and first_row.cells[1] then
+      if pandoc.utils.stringify(first_row.cells[1]) == "ID" then
+        local fractions = { 0.13, 0.11, 0.08, 0.43, 0.25 }
+        local new_specs = {}
+        for i, spec in ipairs(el.colspecs) do
+          new_specs[i] = { spec[1], fractions[i] }
+        end
+        el.colspecs = new_specs
+      end
+    end
+  end
+
   local table_style = (os.getenv("PANDOC_TABLE_STYLE") or "clean"):lower()
   if table_style ~= "enhanced" then
     return el
