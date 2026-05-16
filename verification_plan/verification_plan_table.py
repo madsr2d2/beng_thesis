@@ -119,8 +119,9 @@ def _to_req_row(row: dict) -> dict:
     paraphrase = row["paraphrase"]
     if row.get("group_title"):
         paraphrase = f"**{row['group_title']}**\n" + paraphrase
+    req_id = row["id"]
     return {
-        "id":        row["id"],
+        "id":        f"[{req_id}]{{#{req_id.lower()} .req-id}}",
         "iso_ref":   row["iso_ref"].replace("§", ""),
         "priority":  row["priority"],
         "paraphrase": _break_enumeration(paraphrase),

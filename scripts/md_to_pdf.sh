@@ -232,6 +232,7 @@ main() {
   PANDOC_SECTION_SELECT_FILTER="${PANDOC_SECTION_SELECT_FILTER:-$ROOT_DIR/scripts/filters/select_sections.lua}"
   PANDOC_MERMAID_WIDTH_FILTER="${PANDOC_MERMAID_WIDTH_FILTER:-$ROOT_DIR/scripts/filters/mermaid_width.lua}"
   PANDOC_CELL_BREAK_FILTER="${PANDOC_CELL_BREAK_FILTER:-$ROOT_DIR/scripts/filters/cell_break.lua}"
+  PANDOC_REQ_LINKS_FILTER="${PANDOC_REQ_LINKS_FILTER:-$ROOT_DIR/scripts/filters/req_links.lua}"
 
   case "$PANDOC_TABLE_STYLE" in
   clean | enhanced) ;;
@@ -289,6 +290,9 @@ main() {
   fi
   if [[ -f "$PANDOC_CELL_BREAK_FILTER" ]]; then
     LUA_FILTER_ARGS+=(--lua-filter "$PANDOC_CELL_BREAK_FILTER")
+  fi
+  if [[ -f "$PANDOC_REQ_LINKS_FILTER" ]]; then
+    LUA_FILTER_ARGS+=(--lua-filter "$PANDOC_REQ_LINKS_FILTER")
   fi
   if [[ -f "$PANDOC_MERMAID_WIDTH_FILTER" ]]; then
     LUA_FILTER_ARGS+=(--lua-filter "$PANDOC_MERMAID_WIDTH_FILTER")
