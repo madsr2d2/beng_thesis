@@ -403,6 +403,8 @@ The verification plan - 38 requirements each classified along five dimensions an
 
 # Design and Architecture {#sec:design-architecture}
 
+This section traces how the three design-facing dimensions of the verification plan - `layer`, `side`, and `format_applicability` - shaped the module decomposition, and identifies where following the requirements structure led to a design decision that had to be revised. The final architecture and its module interfaces are then described in enough detail to motivate the implementation choices covered in @sec:implementation.
+
 ## Ramifications of the Requirements Model on Initial Design Strategy {#sec:req-design-ramifications}
 
 The structure of the requirements model had direct consequences for the initial design strategy, in ways that were not fully anticipated at the outset.
@@ -413,9 +415,11 @@ The **TX/RX side dimension** had a subtler and more consequential effect. Organi
 
 This turned out to be a red herring. The pitfalls of the split-path approach were not at all apparent from the requirements table alone. The table made the split architecture look clean and well-motivated. The problems - design drift between separately implemented FSMs, integration complexity, and unnecessary hardware duplication - only surfaced later, during integration. This is an important general lesson: the structure of a requirements model can inadvertently bias architectural decisions in ways that are not immediately obvious, and the apparent naturalness of a design strategy that mirrors the requirements structure is not in itself a reliable signal that the strategy is sound.
 
+The **format_applicability dimension** had a more constructive effect. Requirements tagged with a specific format subset (CB, CE, FB, FE, or combinations) made explicit which frame variants each protocol mechanism must handle, which in turn shaped two concrete design decisions. First, the MAC FSM needed per-field state granularity rather than per-phase granularity: because different format subsets diverge at specific field boundaries (the IDE/FDF/RES sequence differs between Classic and FD, and between base and extended addressing), encoding those branches in per-field states keeps each state's logic narrow and format-specific transitions visible in the state graph. Second, the LLC-to-MAC streaming interface needed a front-loaded metadata layout - all format flags available before the first ID bit is needed - so that the MAC FSM could determine its branch path without buffering the entire frame. Both decisions are detailed in @sec:per-field-vs-per-phase and @sec:internal-llc-frame-format respectively.
+
 ## Architectural Design Decisions {#sec:architectural-design-decisions}
 
-Before settling on the final architecture, several design alternatives were evaluated. The exploration drew on three sources: the existing in-house CAN Classic controller (@sec:existing-controller), the open-source CTU CAN FD core [@ctucanfd; @jerabek2019], and the ISO 11898-1 standard's own layered reference model [@iso11898_1]. The protocol requirements and engineering constraints documented in @sec:requirements bound the feasible design space; this section documents the key decisions made within it.
+The ramifications identified above narrowed the design space early: a layered architecture was well-motivated by the requirements model, and a unified FSM proved necessary once the split-path approach was attempted. The decisions documented in this section concern what remained open within that narrowed space. The primary inputs were the existing in-house CAN Classic controller (@sec:existing-controller) and the ISO 11898-1 standard's own layered reference model [@iso11898_1]; CTU CAN FD [@ctucanfd; @jerabek2019] is noted as an existing open-source CAN FD implementation but was not studied in detail.
 
 ### Monolithic vs. Layered Architecture {#sec:monolithic-vs-layered}
 
@@ -427,7 +431,7 @@ CAN FD, however, introduces six bus frame variants (CB, CE, FB, FE data frames, 
 
 The alternative - and the approach adopted - is to follow the ISO 11898-1 reference model, which decomposes the data link layer into LLC, MAC, and PCS sub-layers with a separate FCE. Each sub-layer has a well-defined service interface (described in @sec:canonical-layer-interfaces), and each can be implemented and verified independently. This decomposition introduces inter-module interfaces and pipeline latency, but it confines format-specific complexity to the module where it belongs: the MAC FSM handles frame field sequencing, the bit stuffer handles stuff bit insertion and SBC generation, and the CRC engine handles polynomial computation. No module needs to know about all three concerns simultaneously.
 
-CTU CAN FD [@ctucanfd] takes a middle path: it separates protocol processing (in a `CAN Core` block) from buffer management and register access, but the protocol core itself remains a large monolithic unit. This is a reasonable trade-off for a general-purpose IP core that must support message filtering, multiple TX buffers, and DMA - features that require tight coupling between the protocol engine and the buffer subsystem. For the narrower scope of this project (protocol engine only, no message RAM or filtering), the full ISO layered decomposition is feasible and preferred because it directly maps each module to a testable subset of the standard's requirements.
+For the narrower scope of this project (protocol engine only, no message RAM or filtering), the full ISO layered decomposition is feasible and preferred because it directly maps each module to a testable subset of the standard's requirements.
 
 ### Combined vs. Separated TX/RX FSMs {#sec:combined-vs-separated-fsm}
 
@@ -453,20 +457,6 @@ The alternative is per-field states, where each protocol field (SOF, ID, SRR/RRS
 
 The per-field approach was chosen because it aligns with the verification plan: each field in the frame structure corresponds to a set of requirements in the verification plan, and each FSM state can be traced directly to those requirements. It also simplifies formal verification, since PSL assertions can reference state names rather than counter ranges.
 
-### Interface Record Design {#sec:interface-record-design}
-
-The company's `std_logic`-only port constraint does not preclude the use of VHDL record types on entity ports - records of `std_logic` and `std_logic_vector` fields satisfy the constraint. The design uses typed record interfaces (e.g., `t_can_mac_pcs_if_m2s`, `t_can_mac_fsm_bs_if_s2m`) to bundle related signals into a single port. Each record type has a corresponding reset constant (e.g., `c_can_mac_pcs_if_m2s_reset`), ensuring that every module can be reset to a known state without manually enumerating each field.
-
-The alternative - flat port lists with individual `std_logic` signals - was used in the existing controller, where the FSM entity has 20 individual ports for its various sub-module interfaces. This approach becomes unwieldy as the number of inter-module signals grows: the new design has over 60 inter-module signals across its interfaces, and bundling them into records reduces the port list from dozens of lines to six record-typed ports per FSM entity.
-
-The naming convention follows the data-flow direction: `m2s`/`s2m` (master-to-slave/slave-to-master) for control interfaces, and `s2d`/`d2s` (source-to-destination/destination-to-source) for Avalon-ST data-transfer interfaces. This convention is consistent with the company's existing interface naming and makes the direction of data flow explicit at every port.
-
-### Dual CRC Data Feeds {#sec:dual-crc-data-feeds}
-
-A non-obvious design decision concerns the CRC engine's data input. In CAN Classic, the CRC is computed over the raw bit stream excluding stuff bits. In CAN FD, the CRC is computed over the raw bit stream in most of the frame, but in the arbitration region the computation includes dynamic stuff bits - a difference from Classic that exists because the FD CRC must protect the stuff bit count as well as the data. This means that a single data feed to the CRC engine is insufficient: the Classic CRC needs the de-stuffed stream, while the FD CRC needs the stuffed stream during arbitration and the de-stuffed stream elsewhere.
-
-The chosen solution exposes two data inputs on the CRC interface: `data_cc` (Classic CAN data, always de-stuffed) and `data_fd` (FD data, which includes dynamic stuff bits during the arbitration region). The FSM drives both feeds, and the CRC wrapper routes `data_cc` to the CRC-15 engine and `data_fd` to the CRC-17 and CRC-21 engines. This avoids multiplexing logic inside the CRC module and keeps the CRC wrapper purely structural - it instantiates three `gen_crc` blocks and an output mux, with no protocol knowledge.
-
 ### Internal LLC Frame Format {#sec:internal-llc-frame-format}
 
 The user-facing LLC frame (shown in @fig:llc-frame) places all control flags at the end of the frame: FDF, BRS, and ESI occupy byte 69, and IDE and RTR occupy byte 70 - after up to 64 bytes of payload. A serializer that consumed the LLC frame in field order would need to buffer the entire 71-byte frame before it could begin transmitting, because IDE determines how many ID bits to drive (11 or 29), FDF determines which CRC polynomial and stuffing mode to use, and BRS determines whether to signal the PCS to switch bit rate at the BRS boundary. This buffering requirement conflicts with the streaming architecture.
@@ -489,7 +479,7 @@ With this layout, `can_mac_ser` extracts all frame metadata after receiving just
 
 ## System Overview {#sec:system-overview}
 
-@fig:can-node-architecture shows the complete module decomposition. The four protocol sub-layers map onto dedicated entities: `can_llc` (LLC), `can_mac` (MAC wrapper) containing `can_mac_fsm`, `can_mac_ser`, `can_mac_bs`, and `can_mac_crc` (MAC internals), `can_pcs` (PCS), and `can_fce` (FCE). A centralized types package (`can_types_pkg`) defines all protocol constants, interface records, and reset values shared across modules.
+@fig:can-node-architecture shows the complete module decomposition. The primary data path runs from `can_llc` through `can_mac` to `can_pcs`: the LLC receives frames from the host over an Avalon-ST interface and streams them byte-by-byte to the MAC serializer; the MAC FSM drives the serialized bit stream to the PCS, which applies bit timing and produces the sample-point and SSP strobes that the MAC uses to read and write the bus. Two modules connect transversally across this pipeline: `can_fce` receives error and success events from the MAC and feeds node-state signals (error active, bus off) back to both the MAC and PCS; `can_pcs` also signals idle conditions to `can_fce` to support bus-off recovery. A centralized types package (`can_types_pkg`) defines all protocol constants, interface records, and reset values shared across modules.
 
 ![Implementation module decomposition. `can_llc` provides the Avalon-ST host interface and manages retransmission and acceptance filtering. Inside `can_mac`, the unified `can_mac_fsm` handles both TX and RX roles via a single `is_transmitter` flag, sharing one `can_mac_bs` bit stuffer and one `can_mac_crc` engine. `can_pcs` generates sample-point and SSP strobes. `can_fce` maintains TEC/REC counters and governs node-state transitions.](figures/mac_overview.png){#fig:can-node-architecture width=80%}
 
@@ -508,15 +498,11 @@ On the TX path, `can_llc` buffers one LLC frame from the host, streams it byte-b
 
 On the RX path, `can_llc` receives completed LLC frames from `can_mac_fsm` over the Avalon-ST interface, applies acceptance filtering against the configured ID mask, and forwards accepted frames to the host [@iso11898_1, sec. 6.4.5]. Frames that do not pass the filter are silently dropped.
 
-`can_llc` is not yet implemented. The interface contracts it must satisfy are captured in REQ-001 through REQ-005 and REQ-033.
+The interface contracts `can_llc` must satisfy are captured in REQ-001 through REQ-005 and REQ-033; the module is not yet implemented.
 
 ## MAC Sub-layer {#sec:mac-sub-layer}
 
-The MAC sub-layer is the core of the protocol logic, responsible for bit serialization, CRC generation, bit stuffing, and frame-level error detection. It coordinates closely with the FCE (@sec:fce-sub-layer) for error counter management and node-state transitions (Error Active/Passive/Bus Off), and with the PCS (@sec:pcs-sub-layer) for sample-point-driven bit output.
-
-The earlier CAN bus controller concentrated TX, RX, MAC, and FCE logic in a single monolithic FSM (`can_fsm`), with the sub-functions - serialization (`can_ast_to_serial`), bit stuffing (`can_stuff_bit_gen`), and CRC (`gen_crc`) - implemented in satellite modules driven directly by it. PCS timing logic was implemented in `can_node_clock`, which fed sample-point and transmit pulses into `can_fsm` - a strategy retained in the current design.
-
-The current design restructures these modules around the ISO 11898-1 [@iso11898_1] layer boundaries: `can_ast_to_serial` becomes `can_mac_ser` (@sec:can-mac-ser), `can_stuff_bit_gen` becomes `can_mac_bs` (@sec:can-mac-bs), `gen_crc` becomes `can_mac_crc` (@sec:can-mac-crc), and `can_node_clock` becomes `can_pcs` (@sec:can-pcs). A single unified `can_mac_fsm` entity handles both TX and RX roles, sharing one `can_mac_bs` and one `can_mac_crc` instance across both paths. The FSM stores received bits directly in an internal frame array and streams the completed frame to the LLC during intermission, eliminating the need for a separate deserializer module. Fault confinement, previously embedded in `can_fsm`, is separated into its own entity (`can_fce`) and wired through the `can_mac` wrapper (@sec:can-mac-wrapper).
+The MAC sub-layer is the core of the protocol logic, responsible for bit serialization, CRC generation, bit stuffing, and frame-level error detection. It is implemented as a single unified `can_mac_fsm` entity, supported by three internal sub-modules (`can_mac_ser`, `can_mac_bs`, `can_mac_crc`) and wrapped by `can_mac`, which is a structural entity that instantiates the FSM alongside `can_fce` and exposes their combined LLC, PCS, and FCE interfaces. It coordinates closely with the FCE (@sec:fce-sub-layer) for error counter management and node-state transitions (Error Active/Passive/Bus Off), and with the PCS (@sec:pcs-sub-layer) for sample-point-driven bit output.
 
 ### `can_mac_fsm` {#sec:can-mac-fsm}
 
@@ -534,10 +520,6 @@ The current design restructures these modules around the ISO 11898-1 [@iso11898_
 
 `can_mac_crc` runs three parallel `gen_crc` instances - CRC-15, CRC-17, and CRC-21 - on two independent data feeds: `data_cc` (de-stuffed, for Classic frames) and `data_fd` (includes dynamic stuff bits in the arbitration region, for FD frames). The active engine is selected by `crc_poly_select` and its result is left-aligned to a common 21-bit output. Detailed implementation is described in @sec:impl-can-mac-crc.
 
-### `can_mac` Unified Wrapper {#sec:can-mac-wrapper}
-
-`can_mac` is a structural wrapper that instantiates `can_mac_fsm` and `can_fce` (@sec:fce-sub-layer). Because both TX and RX roles are handled by the single FSM entity, the wrapper requires no dominant-wins merge of separate PCS outputs and no multiplexing of separate FCE error records. The FSM drives one PCS interface and one FCE interface directly. The wrapper exposes LLC TX and RX interfaces, one `mac_pcs_if` interface, and the FCE's LLC and PCS interfaces.
-
 ## FCE Sub-layer {#sec:fce-sub-layer}
 
 `can_fce` implements the error state machine and counter management specified in ISO 11898-1 [@iso11898_1, sec. 8.1.3-8.1.4]. It maintains TEC and REC and transitions between three states: `s_error_active` (initial), `s_error_passive` (TEC or REC > 127), and `s_bus_off` (TEC > 255). Counter increment and decrement rules follow ISO 8.1.4.2. Bus-off recovery counts 128 `pcs_i.idle_condition` pulses from the PCS (11 consecutive recessive bits each), or responds to `llc_i.normal_mode` from the LLC. Detailed implementation is described in @sec:impl-can-fce.
@@ -546,11 +528,21 @@ The current design restructures these modules around the ISO 11898-1 [@iso11898_
 
 `can_pcs` handles bit timing, hard and soft synchronization, and Transmitter Delay Compensation (TDC) for both TX and RX paths [@iso11898_1, sec. 7.2-7.3]. It is a cyclic bit-timing engine: a `t_segment` register cycles through `s_sync_seg`, `s_prop_seg`, `s_phase_seg1`, and `s_phase_seg2` each bit time. The SP strobe fires at the end of `s_phase_seg1`. Hard synchronization restarts the cycle on a dominant edge in `s_sync_seg`; soft synchronization adjusts `s_phase_seg1` or `s_phase_seg2` by up to SJW. At the BRS sample point the PCS switches to the independently configured data-phase segment lengths. TDC measures the TX-to-RX echo delay at the first data-phase bit and positions the SSP accordingly. When bus-off is asserted, the PCS counts consecutive recessive bits and pulses `fce_o.idle_condition` every 11 bits for FCE recovery. Detailed implementation is described in @sec:impl-can-pcs.
 
+The decomposition described above yields five implemented entities - `can_mac_fsm`, `can_mac_ser`, `can_mac_bs`, `can_mac_crc`, `can_fce`, and `can_pcs` - plus `can_mac` and `can_mac_pcs_fce` as structural wrappers and `can_llc` as the one module not yet implemented. The following section covers the implementation of each entity in turn, ordered MAC-first.
+
 ---
 
 # Implementation {#sec:implementation}
 
 This section describes the implementation of the six modules that together constitute the CAN-FD controller: `can_mac_fsm`, `can_mac_ser`, `can_mac_bs`, `can_mac_crc`, `can_fce`, and `can_pcs`. `can_llc` is not yet implemented; its interface contracts are captured in the verification plan (REQ-001 through REQ-005, REQ-033). Subsections are ordered MAC-first: the central FSM and its internal submodules are described before the supporting FCE and PCS layers.
+
+## Interface Conventions {#sec:impl-interface-conventions}
+
+The company's `std_logic`-only port constraint does not preclude the use of VHDL record types on entity ports - records of `std_logic` and `std_logic_vector` fields satisfy the constraint. The design uses typed record interfaces (e.g., `t_can_mac_pcs_if_m2s`, `t_can_mac_fsm_bs_if_s2m`) to bundle related signals into a single port. Each record type has a corresponding reset constant (e.g., `c_can_mac_pcs_if_m2s_reset`), ensuring that every module can be reset to a known state without manually enumerating each field.
+
+The alternative - flat port lists with individual `std_logic` signals - was used in the existing controller, where the FSM entity has 20 individual ports for its various sub-module interfaces. This approach becomes unwieldy as the number of inter-module signals grows: the new design has over 60 inter-module signals across its interfaces, and bundling them into records reduces the port list from dozens of lines to six record-typed ports per FSM entity.
+
+The naming convention follows the data-flow direction: `m2s`/`s2m` (master-to-slave/slave-to-master) for control interfaces, and `s2d`/`d2s` (source-to-destination/destination-to-source) for Avalon-ST data-transfer interfaces. This convention is consistent with the company's existing interface naming and makes the direction of data flow explicit at every port.
 
 ## `can_mac_fsm` {#sec:impl-can-mac-fsm}
 
@@ -618,6 +610,8 @@ The transition from dynamic to fixed stuffing requires special handling when a d
 ![`can_mac_bs` (2 modes). Dynamic mode counts consecutive identical bits and emits an inverse stuff bit on the 5th (`count = 4`), updating the Gray-coded SBC. Fixed mode is entered on the rising edge of `fsb_en`, which immediately emits the initial FSB; thereafter one FSB is emitted every 4 real bits (`count = 3`). The falling edge of `fsb_en` cancels any pending FSB and returns to dynamic mode. `stuff_count` and the SBC output are maintained continuously across both modes.](figures/mac_bs_fsm.png){#fig:mac-bs-dataflow width=100%}
 
 ## `can_mac_crc` {#sec:impl-can-mac-crc}
+
+CAN Classic computes its CRC over the raw bit stream excluding stuff bits, while CAN FD includes dynamic stuff bits in the arbitration region - a difference that exists because the FD CRC must protect the stuff bit count as well as the data. A single data feed to the CRC engine is therefore insufficient: CC and FD frames require different input streams. The design exposes two feeds on the CRC interface (`data_cc` and `data_fd`) so the FSM can drive both simultaneously and the CRC module requires no protocol knowledge about which stream to select.
 
 `can_mac_crc` provides CRC generation and checking for both CAN Classic and CAN-FD frames. CAN Classic frames use CRC-15, while CAN-FD frames use CRC-17 (data payloads up to 16 bytes) or CRC-21 (data payloads above 16 bytes) [@iso11898_1, sec. 10.4.2.6]. The single entity is instantiated once inside `can_mac_fsm`, serving both TX (generation) and RX (checking). The FSM sets `crc_poly_select` from the DLC field in `llc_metadata` before the first frame bit is driven: because the internal LLC frame format (@sec:internal-llc-frame-format) delivers DLC in config byte 1, the polynomial is known upfront and requires no mid-frame switching.
 
