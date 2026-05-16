@@ -19,70 +19,43 @@ This thesis describes the design, implementation, and verification of a CAN (Con
 | Abbreviation | Meaning |
 | --- | ---------------------------------------: |
 | ACK | Acknowledgement |
-| AF | Acceptance Field |
-| AHB | Advanced High-performance Bus |
 | AI | Artificial Intelligence |
-| APB | Advanced Peripheral Bus |
-| ASIC | Application-Specific Integrated Circuit |
-| AXI | Advanced eXtensible Interface |
 | BRS | Bit Rate Switch |
 | CAN | Controller Area Network |
 | CB | Classic Base (frame format) |
-| CBFF | Classical Base Frame Format |
 | CC | CAN Classic |
 | CE | Classic Extended (frame format) |
-| CEFF | Classical Extended Frame Format |
 | CRC | Cyclic Redundancy Check |
-| DF | Data Frame |
 | DLC | Data Length Code |
-| DLL | Data Link Layer |
 | DMA | Direct Memory Access |
 | DUT | Device Under Test |
-| EF | Error Frame |
 | EOF | End of Frame |
 | ESI | Error State Indicator |
 | FB | FD Base (frame format) |
-| FBFF | FD Base Frame Format |
 | FCE | Fault Confinement Entity |
 | FD | Flexible Data rate |
 | FDF | FD Frame bit |
 | FE | FD Extended (frame format) |
-| FEFF | FD Extended Frame Format |
 | FPGA | Field-Programmable Gate Array |
 | FSB | Fixed Stuff Bit |
 | FSM | Finite State Machine |
 | FTYP | Frame Type |
-| GHDL | Open-source VHDL simulator |
 | HDL | Hardware Description Language |
 | IDE | Identifier Extension bit |
-| IEEE | Institute of Electrical and Electronics Engineers |
 | IP | Intellectual Property |
 | ISO | International Organization for Standardization |
-| LGPL | Lesser General Public License |
 | LLC | Logical Link Control |
 | LLM | Large Language Model |
-| LSB | Least Significant Bit |
-| LSDU | LLC Service Data Unit |
 | MAC | Medium Access Control |
-| MCP | Model Context Protocol |
 | MIT | Massachusetts Institute of Technology (license) |
 | MSB | Most Significant Bit |
-| NDA | Non-Disclosure Agreement |
-| OF | Overload Frame |
-| OSI | Open Systems Interconnection |
 | OSVVM | Open Source VHDL Verification Methodology |
 | PCS | Physical Coding Sublayer |
-| PDU | Protocol Data Unit |
-| PMA | Physical Medium Attachment |
 | PSL | Property Specification Language |
-| RAM | Random Access Memory |
-| RF | Remote Frame |
 | RTL | Register Transfer Level |
 | RTR | Remote Transmission Request |
 | RX | Receiver / Receive |
-| SAP | Service Access Point |
 | SBC | Stuff Bit Count |
-| SDU | Service Data Unit |
 | SJW | Synchronization Jump Width |
 | SOF | Start of Frame |
 | SP | Sample Point |
@@ -90,11 +63,8 @@ This thesis describes the design, implementation, and verification of a CAN (Con
 | SSP | Secondary Sample Point |
 | TDC | Transmitter Delay Compensation |
 | TEC/REC | Transmit Error Counter / Receive Error Counter |
-| TMR | Triple Modular Redundancy |
-| TOML | Tom's Obvious, Minimal Language |
 | TQ | Time Quantum |
 | TX | Transmitter / Transmit |
-| VCID | Virtual CAN Channel Identifier |
 | VHDL | VHSIC Hardware Description Language |
 
 : Abbreviations used in this report. {#tbl:abbreviations}
@@ -145,22 +115,22 @@ Before committing to an in-house redesign, the available CAN FD controller IP co
 
 **OpenCores CAN** [@opencores_can] is a Verilog controller modeled after the Philips SJA1000 register interface. It is one of the earliest open-source CAN cores and is widely cited in academic work. However, it supports only CAN 2.0B (Classic CAN) and has seen no active development since approximately 2010. It cannot serve as a starting point for CAN FD.
 
-**Canola** [@canola] is a VHDL CAN 2.0B controller with a clean VHDL-2008 codebase and a cocotb-based testbench. It includes a Triple Modular Redundancy (TMR) wrapper for radiation-tolerant applications. Like the OpenCores core, it does not support CAN FD.
+**Canola** [@canola] is a VHDL CAN 2.0B controller with a clean VHDL-2008 codebase and a cocotb-based testbench. It includes a triple modular redundancy wrapper for radiation-tolerant applications. Like the OpenCores core, it does not support CAN FD.
 
 ### Commercial Implementations {#sec:commercial-implementations}
 
-**Bosch M\_CAN** [@bosch_mcan; @hartwich2012] is the reference CAN FD controller, developed by the inventor of both CAN and CAN FD. M\_CAN is the IP core embedded in virtually every automotive microcontroller (NXP S32, Infineon AURIX, STM32, TI Jacinto, Renesas RH850). It is licensed under NDA with per-design royalty fees.
+**Bosch M\_CAN** [@bosch_mcan; @hartwich2012] is the reference CAN FD controller, developed by the inventor of both CAN and CAN FD. M\_CAN is the IP core embedded in virtually every automotive microcontroller (NXP S32, Infineon AURIX, STM32, TI Jacinto, Renesas RH850). It is licensed under a non-disclosure agreement with per-design royalty fees.
 
 **AMD/Xilinx CAN FD** [@xilinx_canfd] is a soft IP core included in the Vivado Design Suite. It provides an AXI4-Lite register interface with up to 32 acceptance filters, TX mailboxes, and RX FIFOs. It is device-locked to AMD/Xilinx FPGAs and cannot be ported to other targets.
 
-**CAST CAN FD** [@cast_canfd] is a technology-independent RTL core with AMBA APB/AHB bus interface options. It is licensed per-design with an upfront fee. Synopsys (DesignWare) and Cadence offer similar ASIC-targeted CAN FD cores under their respective IP licensing programs.
+**CAST CAN FD** [@cast_canfd] is a technology-independent RTL core with AMBA Advanced Peripheral Bus/Advanced High-performance Bus interface options. It is licensed per-design with an upfront fee. Synopsys (DesignWare) and Cadence offer similar application-specific integrated circuit-targeted CAN FD cores under their respective IP licensing programs.
 
 | Implementation | Language | CAN FD | License | Scope | Conformance Tested |
 |---|---|---|---|---|---|
 | CTU CAN FD [@ctucanfd] | VHDL | Yes | MIT | Full node (TX+RX, buffers, DMA) | ISO 16845-1 |
-| OpenCores CAN [@opencores_can] | Verilog | No | LGPL | Full node (CAN 2.0B only) | No |
-| Canola [@canola] | VHDL | No | MIT | Full node (CAN 2.0B, TMR) | No |
-| Bosch M\_CAN [@bosch_mcan] | HDL (NDA) | Yes | Per-design royalty | Full node | Yes (reference) |
+| OpenCores CAN [@opencores_can] | Verilog | No | Lesser General Public License | Full node (CAN 2.0B only) | No |
+| Canola [@canola] | VHDL | No | MIT | Full node (CAN 2.0B, triple modular redundancy) | No |
+| Bosch M\_CAN [@bosch_mcan] | HDL (non-disclosure agreement) | Yes | Per-design royalty | Full node | Yes (reference) |
 | AMD/Xilinx CAN FD [@xilinx_canfd] | HDL | Yes | Vivado-included | Full node | Yes |
 | CAST CAN FD [@cast_canfd] | RTL | Yes | Per-design fee | Full node | Yes |
 
@@ -175,11 +145,11 @@ Despite the availability of these solutions, none satisfies the combined require
 
 **Verification authority.** In safety-critical domains, the verification evidence must be traceable from standard requirements to RTL assertions and testbench results. Adopting a third-party core - even one conformance-tested against ISO 16845-1 - means inheriting its verification artifacts rather than producing them. The company's verification methodology requires full control over the verification plan, the testbench architecture, and the assertion coverage. Building the RTL in-house allows the verification plan (described in @sec:verification-planning) to drive the implementation, ensuring that every module is verified against the specific requirements extracted from the standard, using the company's own toolchain and conventions.
 
-**Architectural scope.** All available IP cores implement a complete CAN node: TX and RX pipelines, message RAM, acceptance filtering, buffer management, register interfaces, and in some cases DMA controllers. The company's application requires only the data link layer (LLC, MAC, FCE) and physical coding sublayer (PCS) - the protocol engine that converts between byte-level frame data and the serial bus. The higher-level buffering and filtering logic already exists in the company's FPGA infrastructure. Adopting a full-node IP core would introduce unnecessary complexity and area overhead, and the integration effort to bypass or disable the unused subsystems may approach the effort of a targeted implementation.
+**Architectural scope.** All available IP cores implement a complete CAN node: TX and RX pipelines, message memory, acceptance filtering, buffer management, register interfaces, and in some cases DMA controllers. The company's application requires only the data link layer (LLC, MAC, FCE) and physical coding sublayer (PCS) - the protocol engine that converts between byte-level frame data and the serial bus. The higher-level buffering and filtering logic already exists in the company's FPGA infrastructure. Adopting a full-node IP core would introduce unnecessary complexity and area overhead, and the integration effort to bypass or disable the unused subsystems may approach the effort of a targeted implementation.
 
-**Integration with existing infrastructure.** The company's FPGA designs use a specific Avalon-ST streaming interface for inter-module communication, a particular clock and reset architecture, and established conventions for signal naming and module boundaries. A third-party core would require an adaptation layer to bridge its native interface (AXI, APB, or custom register map) to the existing infrastructure. The in-house design uses the company's interface conventions natively, eliminating this integration overhead.
+**Integration with existing infrastructure.** The company's FPGA designs use a specific Avalon-ST streaming interface for inter-module communication, a particular clock and reset architecture, and established conventions for signal naming and module boundaries. A third-party core would require an adaptation layer to bridge its native interface (Advanced eXtensible Interface, Advanced Peripheral Bus, or custom register map) to the existing infrastructure. The in-house design uses the company's interface conventions natively, eliminating this integration overhead.
 
-**Platform independence.** The AMD/Xilinx CAN FD core is locked to Xilinx devices. The Bosch M\_CAN and other commercial cores are delivered as technology-specific netlists or encrypted RTL for a particular target. The in-house design is written in portable VHDL-2008, synthesizable on any FPGA platform or ASIC flow, ensuring that the IP remains usable if the company changes FPGA vendors.
+**Platform independence.** The AMD/Xilinx CAN FD core is locked to Xilinx devices. The Bosch M\_CAN and other commercial cores are delivered as technology-specific netlists or encrypted RTL for a particular target. The in-house design is written in portable VHDL-2008, synthesizable on any FPGA platform or application-specific integrated circuit process flow, ensuring that the IP remains usable if the company changes FPGA vendors.
 
 ## Problem Statement {#sec:problem-statement}
 
@@ -206,7 +176,7 @@ CAN's original data payload was capped at eight bytes per frame, limiting raw th
 
 ## VHDL-2008 and OSVVM {#sec:vhdl-osvvm}
 
-The implementation language for this project is VHDL-2008, the current revision of the IEEE VHDL standard. VHDL-2008 adds several features relevant to parameterized hardware design and verification: unconstrained record elements, enhanced generic lists, and improved support for the IEEE numeric packages. The GHDL open-source simulator [@ghdl] supports VHDL-2008 natively and is used for all simulation in this project.
+The implementation language for this project is VHDL-2008, the current revision of the VHDL standard. VHDL-2008 adds several features relevant to parameterized hardware design and verification: unconstrained record elements, enhanced generic lists, and improved support for the VHDL numeric packages. The GHDL open-source simulator [@ghdl] supports VHDL-2008 natively and is used for all simulation in this project.
 
 The verification framework is OSVVM (Open Source VHDL Verification Methodology) [@osvvm], a VHDL-native library providing test infrastructure including clock and reset generation, constrained-random stimulus, functional coverage, and a uniform pass/fail reporting framework. OSVVM procedures replace ad-hoc signal manipulation in testbenches, ensuring that timing relationships are expressed in terms of clock cycles rather than time literals and that pass/fail decisions are logged uniformly across all test scenarios.
 
@@ -249,7 +219,7 @@ The requirements set was constructed using the AI-assisted pipeline shown in @fi
 
 This process yielded a raw set of 168 normative statements linked to the ISO standard sections from which they were extracted. The normative set was then manually reviewed, consolidated, and distilled into a final set of 38 requirements (reproduced in @sec:appendix-vplan).
 
-The requirements set is stored as a TOML file (`verification_plan.toml`), one `[[requirement]]` block per entry. To support ongoing AI-assisted refinement without the risk of silent data corruption, a custom Model Context Protocol (MCP) server (`verification_plan_manager.py`) was developed alongside the plan. The server exposes query, update, insert, and statistics operations as tool calls that the AI coding agent can invoke directly within its development environment. Each write operation targets a single requirement entry and validates field values against the schema before committing. This makes it structurally impossible for the agent to silently drop entries, fabricate field values, or corrupt TOML syntax - failure modes that arise inevitably when an LLM is asked to rewrite a large structured file in one operation. During the requirements phase, the agent worked exclusively with the five fields relevant at this stage:
+The requirements set is stored as a configuration file (`verification_plan.toml`), one `[[requirement]]` block per entry. To support ongoing AI-assisted refinement without the risk of silent data corruption, a custom Model Context Protocol server (`verification_plan_manager.py`) was developed alongside the plan. The server exposes query, update, insert, and statistics operations as tool calls that the AI coding agent can invoke directly within its development environment. Each write operation targets a single requirement entry and validates field values against the schema before committing. This makes it structurally impossible for the agent to silently drop entries, fabricate field values, or corrupt the file syntax - failure modes that arise inevitably when an LLM is asked to rewrite a large structured file in one operation. During the requirements phase, the agent worked exclusively with the five fields relevant at this stage:
 
 - **`source_clause`**: The ISO 11898-1 section reference (e.g. §6.6.13.1). This is the traceability anchor - every requirement links back to the clause from which it was distilled, making it possible to verify the requirements set against the standard during review.
 - **`original_wording`**: Verbatim ISO text for the relevant clauses. Preserving the source wording prevents paraphrase drift and provides a fallback for resolving ambiguity during implementation.
@@ -281,7 +251,7 @@ This section covers the ISO 11898-1 layered reference model, frame types and fie
 
 ## Layered Reference Model {#sec:can-layered-model}
 
-![ISO 11898-1 CAN node reference model. The data link layer comprises three functional sub-layers - LLC, MAC, and PCS - and a cross-cutting Fault Confinement Entity (FCE). The LLC accepts service requests from the host application. The MAC encodes and decodes frames at the bit level, performing bit stuffing, CRC, and acknowledgement handling. The PCS generates sample-point timing and interfaces to the Physical Medium Attachment (PMA). The FCE maintains error counters and governs node-state transitions. Each sub-layer maps to a dedicated VHDL module in this implementation.](figures/can_node.png){#fig:can-node width=100%}
+![ISO 11898-1 CAN node reference model. The data link layer comprises three functional sub-layers - LLC, MAC, and PCS - and a cross-cutting Fault Confinement Entity (FCE). The LLC accepts service requests from the host application. The MAC encodes and decodes frames at the bit level, performing bit stuffing, CRC, and acknowledgement handling. The PCS generates sample-point timing and interfaces to the Physical Medium Attachment. The FCE maintains error counters and governs node-state transitions. Each sub-layer maps to a dedicated VHDL module in this implementation.](figures/can_node.png){#fig:can-node width=100%}
 
 ISO 11898-1 structures the CAN data link layer into three functional sub-layers and a cross-cutting Fault Confinement Entity (FCE):
 
@@ -354,7 +324,7 @@ With those mechanisms established - sub-layer boundaries, frame formats, bit tim
 
 The requirements set established what must be true about the implementation - 38 entries, each naming a protocol obligation and linking it to its ISO clause. But requirements in that form are not yet actionable as verification tasks: they say nothing about which module testbench should exercise them, what stimulus configurations are needed, whether internal signals must be observable, or how completion will be recognised. Turning the requirements set into a verification plan means answering those questions explicitly for each entry, before implementation begins.
 
-The plan was populated through the same MCP server introduced in @sec:requirements-engineering, which validated each field value against the schema before committing. The five classification dimensions fall into two groups. Three are design-facing - `layer`, `side`, and `format_applicability` - determining where each requirement belongs in the module decomposition and what stimulus configurations its testbench needs. Two are verification-facing - `observability` and `verification_method` - resolving whether a requirement can be checked through port signals or requires access to internal state, and specifying the verification technique. Priority spans both groups, driving implementation sequencing and determining which requirements must be closed before the design is considered complete. The dimensions are:
+The plan was populated through the same Model Context Protocol server introduced in @sec:requirements-engineering, which validated each field value against the schema before committing. The five classification dimensions fall into two groups. Three are design-facing - `layer`, `side`, and `format_applicability` - determining where each requirement belongs in the module decomposition and what stimulus configurations its testbench needs. Two are verification-facing - `observability` and `verification_method` - resolving whether a requirement can be checked through port signals or requires access to internal state, and specifying the verification technique. Priority spans both groups, driving implementation sequencing and determining which requirements must be closed before the design is considered complete. The dimensions are:
 
 - layer, @sec:vplan-layer
 - side, @sec:vplan-side
@@ -482,7 +452,7 @@ CAN FD, however, introduces six bus frame variants (CB, CE, FB, FE data frames, 
 
 The alternative - and the approach adopted - is to follow the ISO 11898-1 reference model, which decomposes the data link layer into LLC, MAC, and PCS sub-layers with a separate FCE. Each sub-layer has a well-defined service interface (described in @sec:canonical-layer-interfaces), and each can be implemented and verified independently. This decomposition introduces inter-module interfaces and pipeline latency, but it confines format-specific complexity to the module where it belongs: the MAC FSM handles frame field sequencing, the bit stuffer handles stuff bit insertion and SBC generation, and the CRC engine handles polynomial computation. No module needs to know about all three concerns simultaneously.
 
-For the narrower scope of this project (protocol engine only, no message RAM or filtering), the full ISO layered decomposition is feasible and preferred because it directly maps each module to a testable subset of the standard's requirements.
+For the narrower scope of this project (protocol engine only, no message memory or filtering), the full ISO layered decomposition is feasible and preferred because it directly maps each module to a testable subset of the standard's requirements.
 
 ### Combined vs. Separated TX/RX FSMs {#sec:combined-vs-separated-fsm}
 
@@ -672,7 +642,7 @@ CAN Classic computes its CRC over the raw bit stream excluding stuff bits, while
 
 `can_mac_crc` provides CRC generation and checking for both CAN Classic and CAN-FD frames. CAN Classic frames use CRC-15, while CAN-FD frames use CRC-17 (data payloads up to 16 bytes) or CRC-21 (data payloads above 16 bytes) [@iso11898_1, sec. 10.4.2.6]. The single entity is instantiated once inside `can_mac_fsm`, serving both TX (generation) and RX (checking). The FSM sets `crc_poly_select` from the DLC field in `llc_metadata` before the first frame bit is driven: because the internal LLC frame format (@sec:internal-llc-frame-format) delivers DLC in config byte 1, the polynomial is known upfront and requires no mid-frame switching.
 
-Three parallel `gen_crc` instances run continuously on separate data feeds: `data_cc` drives CRC-15 via `valid_cc`, while `data_fd` drives both CRC-17 and CRC-21 via `valid_fd`. This dual-feed architecture is necessary because CC and FD frames compute CRC over different bit streams - CC excludes stuff bits while FD includes them in the arbitration region - and the RX path does not know which CRC engine to use until after the frame type has been determined. The output multiplexer selects the active engine's result based on `crc_poly_select` and left-aligns it to the common 21-bit output width by zero-extending the shorter results at the LSB: CRC-15 occupies bits [20:6], CRC-17 occupies bits [20:4], and CRC-21 occupies the full width.
+Three parallel `gen_crc` instances run continuously on separate data feeds: `data_cc` drives CRC-15 via `valid_cc`, while `data_fd` drives both CRC-17 and CRC-21 via `valid_fd`. This dual-feed architecture is necessary because CC and FD frames compute CRC over different bit streams - CC excludes stuff bits while FD includes them in the arbitration region - and the RX path does not know which CRC engine to use until after the frame type has been determined. The output multiplexer selects the active engine's result based on `crc_poly_select` and left-aligns it to the common 21-bit output width by zero-extending the shorter results at the least significant bit: CRC-15 occupies bits [20:6], CRC-17 occupies bits [20:4], and CRC-21 occupies the full width.
 
 The output mux (`p_crc_mux`) is implemented combinatorially rather than as a registered stage. Each `gen_crc` instance registers its accumulator on the rising edge. A registered mux would add one cycle of latency, causing the FSM to read a stale digest on the cycle it drives the first CRC bit. The combinatorial mux ensures `crc_o.crc` reflects the fully accumulated result on the same cycle that the last data bit is registered, so the FSM can begin driving CRC bits immediately without an explicit wait state.
 
