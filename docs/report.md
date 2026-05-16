@@ -24,7 +24,6 @@ This thesis describes the design, implementation, and verification of a CAN (Con
 | AI | Artificial Intelligence |
 | APB | Advanced Peripheral Bus |
 | ASIC | Application-Specific Integrated Circuit |
-| AUI | Attachment Unit Interface |
 | AXI | Advanced eXtensible Interface |
 | BRS | Bit Rate Switch |
 | CAN | Controller Area Network |
