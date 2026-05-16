@@ -196,13 +196,35 @@ The requirements set was constructed using the AI-assisted pipeline shown in @fi
 
 ![Pipeline generating the `verification_plan.toml` artifact. 1) LLM agent extraction of normative statements from the ISO 11898-1 standard. 2) Manual grouping of related normative statements and requirement distillation. 3) Augmentation with additional requirement labels and verification specific fields.](figures/ver_plan_pipeline.png){#fig:ver_plan_pipeline width=100%}
 
-This process yielded a raw set of 168 normative statements linked to the ISO standard sections from which they were extracted. The normative set was then manually reviewed, consolidated, and distilled into a final set of 45 requirements (reproduced in @sec:appendix-vplan).
+This process yielded a raw set of 168 normative statements linked to the ISO standard sections from which they were extracted. The normative set was then manually reviewed, consolidated, and distilled into a final set of 40 requirements (reproduced in @sec:appendix-vplan).
+
+The requirements set is stored as a TOML file (`verification_plan.toml`), one `[[requirement]]` block per entry. To support ongoing AI-assisted refinement without the risk of silent data corruption, a custom Model Context Protocol (MCP) server (`verification_plan_manager.py`) was developed alongside the plan. The server exposes query, update, insert, and statistics operations as tool calls that the AI coding agent can invoke directly within its development environment. Each write operation targets a single requirement entry and validates field values against the schema before committing. This makes it structurally impossible for the agent to silently drop entries, fabricate field values, or corrupt TOML syntax - failure modes that arise inevitably when an LLM is asked to rewrite a large structured file in one operation. During the requirements phase, the agent worked exclusively with the five fields relevant at this stage:
+
+- **`source_clause`**: The ISO 11898-1 section reference (e.g. §6.6.13.1). This is the traceability anchor - every requirement links back to the clause from which it was distilled, making it possible to verify the requirements set against the standard during review.
+- **`original_wording`**: Verbatim ISO text for the relevant clauses. Preserving the source wording prevents paraphrase drift and provides a fallback for resolving ambiguity during implementation.
+- **`paraphrase`**: A concise, implementer-facing restatement of the requirement. Where the ISO prose bundles multiple obligations into a single clause, the paraphrase enumerates them as numbered sub-claims, each independently verifiable.
+- **`priority`**: A three-level rating - P1 (need-to-have, derived from "shall" obligations and core correctness), P2 (verified in the normal cycle), or P3 (optional, derived from "should" clauses or implementation-dependent features). Priority drives implementation sequencing and scope decisions when schedule is constrained. Of the 40 requirements, 31 are rated P1, 7 are P2, and 2 are P3. Every requirement not rated P1 was explicitly demoted; the rationale for each demotion is given in @tbl:priority-demotion.
+- **`notes`**: Residual clarifications not resolved by the paraphrase - implementation constraints, out-of-scope markers, or known ambiguities flagged for design review.
+
+| ID | Topic | Priority | Demotion rationale |
+| :--- | :--- | :---: | :--- |
+| REQ-002 | LLC TX request and abort timing | P2 | The 2-SOF processing window is a responsiveness guarantee, not a correctness constraint. A node that transmits eventually but outside this window sends valid frames. |
+| REQ-011 | Remote frame | P2 | A data-only node is a valid CAN implementation. Remote frame support is a distinct feature subset not required for basic interoperability. |
+| REQ-016 | ESI bit transmission | P2 | ESI communicates the node's error state as an informational signal. Incorrect ESI does not abort a frame or trigger a protocol error at any receiver. |
+| REQ-026 | Propagation segment sizing | P2 | This is a deployment configuration constraint on the system integrator. The RTL module accepts whatever value is programmed and has no distinct behavior to verify at this level. |
+| REQ-029 | Oscillator frequency tolerance | P2 | Oscillator tolerance is a physical hardware constraint. It cannot be directly verified in digital simulation and does not correspond to a programmable RTL behavior. |
+| REQ-038 | MAC data consistency | P2 | The requirement permits two ISO-approved buffering strategies. The choice is an implementation decision verified by code inspection; both methods produce correct frames at the bus boundary. |
+| REQ-039 | Error signalling enable | P2 | Error signalling itself is covered by P1 requirements. This requirement concerns only the existence of a configurable disable mode, which is an optional operational feature. |
+| REQ-004 | Frame acceptance filtering | P3 | ISO uses advisory "should" language. Acceptance filtering is also an application-layer concern above the LLC boundary verified here. |
+| REQ-040 | DLC padding | P3 | Padding with 0xCC applies only when the implementation exposes a configurable maximum-data-byte restriction. The feature may be waived entirely if that restriction is not implemented. |
+
+: Priority demotion rationale for all requirements not rated P1. {#tbl:priority-demotion}
 
 ## AI-Assisted Extraction: Utility and Limitations {#sec:ai-extraction}
 
 The LLM agent earned its keep by bootstrapping and linking the initial normative statement set. Having a fully populated and linked starting point - even one requiring substantial revision - gave the manual review process a concrete artifact to work from. That said, the overall time saving was likely marginal. The agent's output had to be reviewed statement by statement, which is functionally similar to extracting requirements manually in the first place. The primary benefit of the AI-assisted approach was therefore not efficiency, but rather the increased consistency associated with an automated extraction process.
 
-The 45-requirement set establishes the scope of the verification effort. Before the classification dimensions that structure the verification plan can be introduced, the following section presents the protocol in the detail those dimensions presuppose: the sub-layer model that the layer dimension maps onto, the frame formats the format dimension enumerates, the bit timing and dual-rate concepts that underlie several P1 requirements, and the error-handling model that drives the FCE module separation.
+The 40 requirements, each linked to its ISO source clause and assigned a priority, define the scope of what must be implemented and verified. They also function as a structured map to the protocol: every requirement points to a mechanism that must be understood before implementation can begin. The following section provides that understanding - covering the sub-layer model, frame formats, bit timing, bit stuffing, CRC, and error handling - so that the verification plan that follows can be grounded in full protocol context.
 
 # CAN and CAN-FD Protocol Overview {#sec:can-protocol-overview}
 
