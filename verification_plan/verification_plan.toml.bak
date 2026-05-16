@@ -498,7 +498,7 @@ group_title = "Overload frame"
 id = "REQ-025"
 source_clause = "§7.3.2, §7.3.3"
 original_wording = "CAN nodes shall support three different bit rates, the nominal bit rate, the FD data bit rate and the XL data bit rate. There shall be separate configuration register sets for the definition of these bit rates. ; The time quantum (t_q) shall be a fixed unit of time derived from the node clock period. There shall exist a programmable prescaler, with integer values. The minimum time quantum (t_q,min) shall be one node clock period long. The length of t_q shall be an integer multiple m of the minimum time quantum t_q,min with m as the value of the prescaler. ; The sample point shall be the point in time at which the bus level is read and interpreted as the value of that respective bit. Its location shall be at the end of Phase_Seg1. ; The synchronization segment shall be exactly one t_q long. ; The information processing time shall be less than or equal to 2 t_q long. ; In nominal bit time and in data bit time, SJW shall be less than or equal to the minimum of these two items: Phase_Seg1 and Phase_Seg2. ; In data bit time, Phase_Seg2 shall be greater than or equal to these two items: SJW and the maximum information processing time."
-paraphrase = "1) Separate nominal and FD data bit rate configurations, each based on a programmable integer prescaler.\n2) Sample point at end of Phase_Seg1. Sync_Seg = 1 tq.\n3) IPT ≤ 2 tq. SJW ≤ min(Phase_Seg1, Phase_Seg2) in both phases.\n4) FD data phase: Phase_Seg2 ≥ SJW and ≥ maximum IPT."
+paraphrase = "1) Separate nominal and FD data bit rate configurations, each based on a programmable integer prescaler.\n2) Sample point at end of Phase_Seg1. Sync_Seg = 1 tq.\n3) IPT ≤ 2 tq."
 side = "both"
 layer = "PCS"
 format_applicability = "CB, CE, FB, FE"
@@ -549,7 +549,7 @@ status = "in_progress"
 group_title = "PCS synchronisation"
 
 [[requirement]]
-id = "REQ-029"
+id = "REQ-028"
 source_clause = "§6.6.7.5, §7.4.2.2, §7.4.2.3, §8.1.4.4"
 original_wording = "A node which is in the bus-off state shall have no influence on the bus. It shall not send any frames nor acknowledge DFs or RFs. ; There shall be a bit counter that is reset when the bus re-integration state is started or when the CAN bus is detected dominant at the sample point. The bit counter shall be incremented when the CAN bus is detected recessive at the sample point. The idle condition shall be detected when this bit counter reaches the value 11. ; The PCS shall send a bus_off symbol to the PMA sub-layer, when it receives a bus_off_request from the supervisor (see 8.1.3.4). ; The PCS shall send a bus_off_release symbol to the PMA sub-layer when it receives a bus_off_release_request from the supervisor (see 8.1.3.4)."
 paraphrase = "1) During bus-off, the PCS shall not drive dominant bits.\n2) PCS enters bus-off on a supervisor request and exits on a release request."
@@ -567,7 +567,7 @@ status = "in_progress"
 group_title = "PCS bus-off isolation and signalling"
 
 [[requirement]]
-id = "REQ-030"
+id = "REQ-029"
 source_clause = "§8.1.3.2, Table 14, Table 15"
 original_wording = "Normal_mode_request: Resets FCE to initial state (the values of the transmit error counter and the receive error counter are set to zero when the FCE passes into its initial state). ; Normal_mode_response: Response to the Normal_mode_request."
 paraphrase = "1) TEC and REC shall both be reset to zero when the FCE enters its initial state."
@@ -585,7 +585,7 @@ status = "in_progress"
 group_title = "FCE reset and response"
 
 [[requirement]]
-id = "REQ-031"
+id = "REQ-030"
 source_clause = "§8.1.4.2 rule a), rule b), rule c), rule d), rule e), rule f), rule g), rule h)"
 original_wording = "When a receiver detects an error, the receive error counter shall be incremented by 1, except when the detected error is a bit error during the sending of an active error flag or an overload flag. ; When a receiver detects a dominant bit as the first bit after sending an error flag, the receive error counter shall be incremented by 8. ; If a receiver detects a bit error while sending an active error flag or an overload flag, the receive error counter shall be incremented by 8. ; After the successful reception of a frame (reception without error up to the ACK slot and the successful sending of the ACK bit), the receive error counter shall be decremented by 1 if it was between 1 and 127. If the receive error counter was 0, it shall stay at 0, and if it was greater than 127, then it shall be set to a value between 119 and 127. ; When a transmitter sends an error flag, the transmit error counter shall be incremented by 8. ; Exception 1: If the transmitter is error-passive and detects an ACK error because of not detecting a dominant ACK and does not detect a dominant bit while sending its passive error flag. ; Exception 2: If the transmitter sends an error flag because a stuff error occurred before the arbitration is decided, whereby the stuff bit should have been recessive, and after it is sent recessive but is monitored to be dominant. ; In exception 1 and in exception 2, the transmit error counter remains unchanged. ; If a transmitter detects a bit error while sending an active error flag or an overload flag, the transmit error counter shall be incremented by 8. ; After the successful transmission of a frame (getting ACK and no error has been detected until EOF is finished), the transmit error counter shall be decremented by 1 unless it was already 0. ; Any node shall tolerate up to 7 consecutive dominant bits after sending an active error flag, passive error flag, or overload flag. After detecting 14 consecutive dominant bits (in case of an active error flag or an overload flag) or after detecting 8 consecutive dominant bits following a passive error flag, and after each sequence of additional 8 consecutive dominant bits, every transmitter shall increment its transmit error counter by 8 and every receiver shall increment its receive error counter by 8."
 paraphrase = "1) REC +1 on any receiver-detected error (except bit errors during error/overload flag).\n2) REC +8: first dominant bit after sending an error flag, or bit error while sending an active error/overload flag.\n3) REC -1 on successful RX if 1-127. Stays 0 if already 0. Set to 119-127 if above 127.\n4) TEC +8 when sending an error flag. Exceptions: error-passive ACK error, pre-arbitration stuff error.\n5) TEC +8 on bit error while sending an active error or overload flag.\n6) TEC -1 on successful TX (floor 0).\n7) After 14 consecutive dominant bits post active error/overload flag (8 post passive error flag): both +8. Each additional 8 dominant bits: both +8."
@@ -603,7 +603,7 @@ status = "in_progress"
 group_title = "Error counter rules"
 
 [[requirement]]
-id = "REQ-032"
+id = "REQ-031"
 source_clause = "§8.1.4.3, §8.1.4.4, §8.1.3.2"
 original_wording = "If the transmit error counter or the receive error counter of a node exceeds 127 (carry condition in case of a 7-bit receive error counter) then the supervisor shall request the MAC sub-layer to set the corresponding node into the error-passive state. ; An error-passive node shall become error-active again when both the transmit error counter and the receive error counter are less than or equal to 127 (see Figure 43). ; If the transmit error counter of a node is greater than 255 (carry condition in case of an 8-bit transmit error counter) then the supervisor shall request the PL to set the node into the bus-off state. A node which is in the bus-off state shall have no influence on the bus. It shall not send any frames nor acknowledge DFs or RFs. Whether or not such a node accepts DFs from the bus depends on the implementation. Upon a restart request, a node which is in the bus-off state shall be re-integrating to the CAN communication (see 6.6.7.5) and may become error-active (no longer bus-off) with its error counters both set to zero after having monitored 128 occurrences of the idle condition (see 3.34) on the bus. ; Table 15: Bus_off — Indicates that the node is in the bus-off state (FCE-to-LLC service interface)."
 paraphrase = "1) Error-passive when either error counter > 127. Error-active restored when both ≤ 127.\n2) TEC > 255 causes bus-off.\n3) Bus-off recovery requires 128 idle conditions. Both counters reset to zero on recovery.\n4) FCE shall notify the LLC on entering bus-off state."
@@ -621,7 +621,7 @@ status = "in_progress"
 group_title = "Error confinement state transitions"
 
 [[requirement]]
-id = "REQ-033"
+id = "REQ-032"
 source_clause = "§6.6.11.3"
 original_wording = "This bit indicates whether the bit rate is switched inside the FD frame. If the bit is detected recessive, the bit rate shall be switched from the nominal bit rate of the arbitration phase to the preconfigured FD data bit rate of the data phase. It is not required for the BRS bit to be the same in all FD frames in a single network. The value of the BRS bit is passed from the BRS bit of the LLC frame."
 paraphrase = "1) Recessive BRS: switch to FD data rate at the BRS sample point. Dominant BRS: keep nominal rate.\n2) Rate switches back to nominal at the first CRC delimiter sample point."
@@ -639,7 +639,7 @@ file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_f
 group_title = "BRS bit rate switching"
 
 [[requirement]]
-id = "REQ-034"
+id = "REQ-033"
 source_clause = "§6.4.3, §6.4.4, Table 5"
 original_wording = "For DFs of all other formats the 4 LSB encode the number of data bytes as specified in Table 5. ; If the DLC indicates a higher number of data bytes, the data bytes beyond the restricted range shall be replaced in the LLC DF by bytes with the value of CCHEX ('padding') both for received and for transmitted frames."
 paraphrase = "DLC 0-8: linear mapping. FD: DLC 9→12, 10→16, 11→20, 12→24, 13→32, 14→48, 15→64 bytes. CC: DLC 9-15 clamped to 8 bytes."
@@ -657,7 +657,7 @@ file = ""
 group_title = "DLC byte-count mapping"
 
 [[requirement]]
-id = "REQ-035"
+id = "REQ-034"
 source_clause = "§6.6.16"
 original_wording = "Within a field, the MSB is transmitted first. Within the data field, the bytes are transferred from byte 0 to the last byte (indicated by the DLC). Within each byte, the bits are transferred from bit(7) down to bit(0)."
 paraphrase = "Within the data field byte 0 is sent first. Within each byte bit(7) is sent first."
@@ -675,7 +675,7 @@ file = ""
 group_title = "Byte/Bit transmission order"
 
 [[requirement]]
-id = "REQ-036"
+id = "REQ-035"
 source_clause = "§8.1.5"
 original_wording = "If during network start-up only one node is online and if this node transmits any DF or RF, it does not get an ACK. In this case, it shall detect an error and repeat the frame. According to rule c) in 8.1.4.2, exception 1, it may become error-passive but shall not go bus-off. ; When a switched-off node is switched on again, it shall: synchronize with already available nodes to re-integrate into the bus communication (see 6.6.7.5) before starting to transmit. Synchronization is achieved when 11 recessive bits have been detected that are equivalent to ACK delimiter + EOF + intermission or Error/Overload delimiter + intermission; wait for other nodes if there is no other node available at the moment without becoming bus-off."
 paraphrase = "1) A node shall complete bus re-integration (11 consecutive recessive bits) before transmitting.\n2) A single node receiving no ACK becomes error-passive but never bus-off."
@@ -693,7 +693,7 @@ file = ""
 group_title = "Node start-up"
 
 [[requirement]]
-id = "REQ-037"
+id = "REQ-036"
 source_clause = "§6.6.18"
 original_wording = "MAC frames may be stored in a shared memory. Data consistency of transmitted MAC frames from a shared memory shall be ensured by at least one of two methods. The MAC entity shall store the whole frame content to be transmitted in a temporary buffer that is filled before the transmission is started. The LLC entity shall check for data errors while the frame content to be transmitted is transferred to the MAC entity. If a data error is detected, the transmission shall not be started. If it is already started when the data error is detected, the node shall invalidate the frame by, e.g. switching to the restricted operation mode, see 6.6.19, or into bus monitoring mode, see 6.6.20."
 paraphrase = "Frames shall be fully buffered before TX starts, or the LLC shall detect and invalidate frames corrupted mid-transmission."
@@ -711,7 +711,7 @@ status = "not_started"
 group_title = "MAC data consistency"
 
 [[requirement]]
-id = "REQ-038"
+id = "REQ-037"
 source_clause = "§6.6.21.1, §6.6.21.4"
 original_wording = "There shall be a configuration parameter to decide whether error signalling is enabled or is disabled."
 paraphrase = "A configuration parameter shall exist to enable or disable error signalling."
@@ -729,7 +729,7 @@ file = ""
 group_title = "Error signalling enable"
 
 [[requirement]]
-id = "REQ-039"
+id = "REQ-038"
 source_clause = "§6.4.4"
 original_wording = "If the DLC indicates a higher number of data bytes, the data bytes beyond the restricted range shall be replaced in the LLC DF by bytes with the value of CCHEX ('padding') both for received and for transmitted frames."
 paraphrase = "An LLC restricted to fewer bytes shall replace excess bytes with 0xCC padding in both TX and RX directions."
