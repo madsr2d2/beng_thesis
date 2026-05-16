@@ -230,7 +230,7 @@ This section covers the ISO 11898-1 layered reference model, frame types and fie
 
 ## Layered Reference Model {#sec:can-layered-model}
 
-![ISO 11898-1 CAN node reference model. The data link layer comprises three functional sub-layers - LLC, MAC, and PCS - and a cross-cutting Fault Confinement Entity (FCE). The LLC accepts service requests from the host application; the MAC encodes and decodes frames at the bit level, performing bit stuffing, CRC, and acknowledgement handling; the PCS generates sample-point timing and interfaces to the Physical Medium Attachment (PMA); the FCE maintains error counters and governs node-state transitions. Each sub-layer maps to a dedicated VHDL module in this implementation.](figures/can_node.png){#fig:can-node width=40%}
+![ISO 11898-1 CAN node reference model. The data link layer comprises three functional sub-layers - LLC, MAC, and PCS - and a cross-cutting Fault Confinement Entity (FCE). The LLC accepts service requests from the host application; the MAC encodes and decodes frames at the bit level, performing bit stuffing, CRC, and acknowledgement handling; the PCS generates sample-point timing and interfaces to the Physical Medium Attachment (PMA); the FCE maintains error counters and governs node-state transitions. Each sub-layer maps to a dedicated VHDL module in this implementation.](figures/can_node.png){#fig:can-node width=100%}
 
 ISO 11898-1 structures the CAN data link layer into three functional sub-layers and a cross-cutting Fault Confinement Entity (FCE):
 

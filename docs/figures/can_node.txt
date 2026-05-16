@@ -2,9 +2,16 @@
 config:
   theme: neutral
   layout: elk
+  flowchart:
+    curve: monotoneX
+  elk:
+    algorithm: layered
+    mergeEdges: false
+    nodePlacementStrategy: BRANDES_KOEPF
+    edgeRouting: SPLINES
 ---
 
-graph TD
+graph LR
 classDef wd2 fill:#FFFFFF,stroke:#999999,color:#000000
 classDef wd3 fill:#FFFFB4,stroke:#999900,color:#000000
 classDef wd4 fill:#FFE0B9,stroke:#CC8833,color:#000000
@@ -17,10 +24,14 @@ classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
 subgraph dev1["`**Host Device**`"]
   user("`**Application Process**`")
   subgraph d1["`**CAN Protocol Controller**`"]
-      LLC("`**Logic Link Control (LLC)**`") 
-      MAC("`**Medium Access Control (MAC)**`")
-      PCS("`**Physical Coding Sub-layer (PCS)**`")
-      FCE("`**Fault Confinement Entity (FCE)**`")
+      LLC("`**Logic Link Control
+      (LLC)**`") 
+      MAC("`**Medium Access Control
+      (MAC)**`")
+      PCS("`**Physical Coding Sub-layer
+      (PCS)**`")
+      FCE("`**Fault Confinement Entity
+      (FCE)**`")
 
       LLC <==> MAC
       MAC <==> PCS
