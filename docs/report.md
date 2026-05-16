@@ -17,34 +17,87 @@ This thesis describes the design, implementation, and verification of a CAN (Con
 # Abbreviations {-}
 
 | Abbreviation | Meaning |
-| --- | --- |
+| --- | ---------------------------------------: |
 | ACK | Acknowledgement |
 | AF | Acceptance Field |
+| AHB | Advanced High-performance Bus |
+| AI | Artificial Intelligence |
+| APB | Advanced Peripheral Bus |
+| ASIC | Application-Specific Integrated Circuit |
 | AUI | Attachment Unit Interface |
+| AXI | Advanced eXtensible Interface |
+| BRS | Bit Rate Switch |
 | CAN | Controller Area Network |
+| CB | Classic Base (frame format) |
 | CBFF | Classical Base Frame Format |
+| CC | CAN Classic |
+| CE | Classic Extended (frame format) |
 | CEFF | Classical Extended Frame Format |
+| CRC | Cyclic Redundancy Check |
 | DF | Data Frame |
+| DLC | Data Length Code |
 | DLL | Data Link Layer |
+| DMA | Direct Memory Access |
+| DUT | Device Under Test |
+| ECU | Electronic Control Unit |
 | EF | Error Frame |
+| EOF | End of Frame |
+| ESI | Error State Indicator |
+| FB | FD Base (frame format) |
 | FBFF | FD Base Frame Format |
 | FCE | Fault Confinement Entity |
+| FD | Flexible Data rate |
+| FDF | FD Frame bit |
+| FE | FD Extended (frame format) |
 | FEFF | FD Extended Frame Format |
+| FPGA | Field-Programmable Gate Array |
+| FSB | Fixed Stuff Bit |
+| FSM | Finite State Machine |
 | FTYP | Frame Type |
+| GHDL | Open-source VHDL simulator |
+| HDL | Hardware Description Language |
+| IDE | Identifier Extension bit |
+| IEEE | Institute of Electrical and Electronics Engineers |
+| IP | Intellectual Property |
+| ISO | International Organization for Standardization |
+| LGPL | Lesser General Public License |
 | LLC | Logical Link Control |
+| LLM | Large Language Model |
+| LSB | Least Significant Bit |
 | LSDU | LLC Service Data Unit |
 | MAC | Medium Access Control |
+| MCP | Model Context Protocol |
+| MIT | Massachusetts Institute of Technology (license) |
+| MSB | Most Significant Bit |
+| NDA | Non-Disclosure Agreement |
 | OF | Overload Frame |
 | OSI | Open Systems Interconnection |
+| OSVVM | Open Source VHDL Verification Methodology |
 | PCS | Physical Coding Sublayer |
 | PDU | Protocol Data Unit |
 | PMA | Physical Medium Attachment |
+| PSL | Property Specification Language |
+| RAM | Random Access Memory |
 | RF | Remote Frame |
+| RTL | Register Transfer Level |
+| RTR | Remote Transmission Request |
+| RX | Receiver / Receive |
 | SAP | Service Access Point |
+| SBC | Stuff Bit Count |
 | SDU | Service Data Unit |
+| SJW | Synchronization Jump Width |
 | SOF | Start of Frame |
+| SP | Sample Point |
+| SRR | Substitute Remote Request |
+| SSP | Secondary Sample Point |
+| TDC | Transmitter Delay Compensation |
 | TEC/REC | Transmit Error Counter / Receive Error Counter |
+| TMR | Triple Modular Redundancy |
+| TOML | Tom's Obvious, Minimal Language |
+| TQ | Time Quantum |
+| TX | Transmitter / Transmit |
 | VCID | Virtual CAN Channel Identifier |
+| VHDL | VHSIC Hardware Description Language |
 
 : Abbreviations used in this report. {#tbl:abbreviations}
 
