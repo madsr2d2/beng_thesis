@@ -231,10 +231,6 @@ A CAN FD frame shares the same structure through the arbitration phase and then 
 
 ![Frame and error flag formats for all four in-scope frame types (CB, CE, FB, FE) and the active/passive error flags. Grey fields are fixed-polarity form fields; white fields carry data. Active and passive error flags each consist of six consecutive bits (dominant or recessive respectively), followed by an eight-bit recessive error delimiter (REQ-007). FD frames add BRS and ESI control bits and a longer payload and CRC sequence relative to Classic frames. Field widths follow ISO 11898-1 [@iso11898_1].](figures/frame_format.png){#fig:can-frame-structure height=90%}
 
-The four bus frame types are represented at the host-MAC boundary using the 71-byte LLC frame format shown in @fig:llc-frame. The LLC frame maps the four in-scope formats into a fixed-width structure compatible with the Avalon-ST streaming interface. The full field encoding is described in @sec:llc-frame-format.
-
-![LLC frame format (71 bytes) at the host-MAC interface. Bytes 0-3 encode the identifier; byte 4 carries the frame-type selector FMT in bits [7:4] and DLC in bits [3:0]; bytes 5-68 carry up to 64 data bytes; byte 69 carries the FDF, BRS, ESI, and IDE control flags; byte 70 carries RTR in bit 0. The lower rows show the identifier byte mapping: for extended identifiers ID[28:24] are packed into ID0, ID[23:16] into ID1, ID[15:8] into ID2, and ID[7:0] into ID3; for base identifiers ID0 and ID1 are all zeros, ID[10:8] occupies the lower three bits of ID2, and ID[7:0] fills ID3.](figures/llc_frame.png){#fig:llc-frame width=100%}
-
 ## Bit Timing and Flexible Data Rate {#sec:bit-timing}
 
 ![CAN bit time structure. One bit consists of SYNC_SEG (SS) which is 1 Time Quantum (TQ) long, PROP_SEG (PS), PHASE_SEG1 (PS1), and PHASE_SEG2 (PS2). The sample point (SP) sits at the PHASE_SEG1/PHASE_SEG2 boundary. The figure illustrates a to-node synchronised bus with bus wire delay t_bus and transceiver delay t_TRX.](figures/bit_timing.png){#fig:can-bit-timing width=100%}
@@ -436,123 +432,12 @@ The chosen solution exposes two data inputs on the CRC interface: `data_cc` (Cla
 
 A complete CAN node decomposes into a TX path and an RX path, coordinated by a shared Fault Confinement Entity (FCE) and Physical Medium Attachment (PMA) control, as shown in @fig:can-node-architecture. Each path spans three sub-layers - LLC (@sec:llc-sub-layer), MAC (@sec:mac-sub-layer), and PCS (@sec:pcs-sub-layer) - with the LLC frame format defined in @sec:llc-frame-format and interface bundles defined in @sec:interface-definition-tables. A centralized types package (@sec:protocol-driven-type-system) defines all protocol constants and interface records. Within the MAC sub-layer, a unified `can_mac` wrapper (@sec:can-mac-wrapper) instantiates `can_mac_fsm` and `can_fce`, so that the wrapper exposes only LLC and PCS interfaces plus the FCE's LLC and PCS interfaces.
 
-```{.mermaid #fig:can-node-architecture caption="CAN node decomposition across LLC, MAC, PCS, FCE, and PMA boundaries. Interface definitions are provided for llc_tx_if (@tbl:llc-tx-if), llc_rx_if (@tbl:llc-rx-if), llc_mac_tx_if (@tbl:llc-mac-tx-if), llc_mac_rx_if (@tbl:llc-mac-rx-if), mac_pcs_if (@tbl:mac-pcs-if), aui_if (@tbl:aui-if), fce_llc_if (@tbl:fce-llc-if), fce_mac_if (@tbl:fce-mac-if), and fce_pcs_if (@tbl:fce-pcs-if)."}
----
-config:
-  flowchart:
-    defaultRenderer: elk
-  elk:
-    algorithm: layered
-    mergeEdges: false
-    nodePlacementStrategy: SIMPLE
-  look: classic
-  theme: neutral
-  themeVariables:
-    fontFamily: "Libertinus Serif, Noto Serif, serif"
-    fontSize: "14px"
----
-flowchart TD
-    User["**User**"]
-    FCE["**can_fce**<br/>─────────<br/>Fault confinement<br/>(FCE, §8.1.3-8.1.4)"]
-    PMA["**PMA**<br/>─────────<br/>Physical medium attachment<br/>(§7.4)"]
-    subgraph Node ["**CAN Node**<br/>─────────<br/>DLL + PCS, §6.1-6.3"]
-        subgraph TX_Pipeline ["**TX Pipeline**"]
-            LLC_TX["**can_llc_tx**<br/>─────────<br/>Frame buffering & retransmission<br/>(LLC Sub-layer, §6.4-6.5)"]
-            MAC_TX["**can_mac (TX mode)**<br/>─────────<br/>Serialization, CRC & bit stuffing<br/>(MAC Sub-layer, §6.6)"]
-            PCS_TX["**can_pcs**<br/>─────────<br/>Bit timing, TDC & synchronization<br/>(PCS Sub-layer, §7.2-7.4)"]
-
-            LLC_TX <==>|llc_mac_tx_if| MAC_TX <==>|mac_pcs_if| PCS_TX
-        end
-
-        subgraph RX_Pipeline ["**RX Pipeline**"]
-            LLC_RX["**can_llc_rx**<br/>─────────<br/>Frame delivery & filtering<br/>(LLC Sub-layer, §6.4-6.5)"]
-            MAC_RX["**can_mac (RX mode)**<br/>─────────<br/>Deserialization, CRC & destuffing<br/>(MAC Sub-layer, §6.6)"]
-            PCS_RX["**can_pcs**<br/>─────────<br/>Bit timing, TDC & synchronization<br/>(PCS Sub-layer, §7.2-7.4)"]
-
-            LLC_RX <==>|llc_mac_rx_if| MAC_RX <==>|mac_pcs_if| PCS_RX
-        end
-
-        %% Control & Status paths
-        FCE <==>|fce_llc_if| LLC_TX
-        FCE <==>|fce_mac_if| MAC_TX
-        FCE <==>|fce_pcs_if| PCS_TX
-        FCE <==>|fce_llc_if| LLC_RX
-        FCE <==>|fce_mac_if| MAC_RX
-        FCE <==>|fce_pcs_if| PCS_RX
-    end
-
-    User <==>|llc_tx_if| LLC_TX
-    User <==>|llc_rx_if| LLC_RX
-    PCS_TX <==>|aui_if| PMA
-    PCS_RX <==>|aui_if| PMA
-```
 
 ## LLC Frame Format {#sec:llc-frame-format}
 
-The `LLC Frame` format used by the existing CAN-bus implementation (`can_bus_controller`) is depicted in @fig:llc-frame-current with the ID byte format depicted in @tbl:ID-bytes. A revised `LLC Frame` supporting FD is depicted in @fig:llc-frame-revised. The revised format adds a 3-bit `FMT` [@iso11898_1 Sec. 6.4.3] field to the DLC byte (`LLC Frame` byte 4), expands the data field to 64 bytes, and repurposes reserved bits in the last byte for BRS and ESI flags.
+The four bus frame types are represented at the host-MAC boundary using the 71-byte LLC frame format shown in @fig:llc-frame. The LLC frame maps the four in-scope formats into a fixed-width structure compatible with the Avalon-ST streaming interface. The full field encoding is described in @sec:llc-frame-format.
 
-The `FMT` encodes the supported frame formats as '`000`' = CB, '`100`' = CE, '`010`' = FB, '`110`' = FE. Accordingly, for the frame content to be self-consistent the IDE bit must be set to `0` for `FMT` = CB/FB and `1` for `FMT` = CE/FE. The revised format is designed to be backward compatible. An implementation that only supports Classic frames can simply ignore the `FMT` bits and treat all frames as Classic, while an implementation that supports FD can use the `FMT` field and the additional control bits (BRS and ESI) to distinguish frame types without affecting the existing ID and data field structure.
-
-```{.mermaid #fig:llc-frame-current caption="Current LLC frame format (15 bytes). ID byte encoding is defined in @tbl:ID-bytes."}
----
-look: classic
-config:
-  theme: neutral
-  themeVariables:
-    fontFamily: "Libertinus Serif, Noto Serif, serif"
-    fontSize: "14px"
-  packet:
-    bitsPerRow: 8
-    bitWidth: 100
-    rowHeight: 42
-    showBits: true
-    paddingX: 0
-    paddingY: 1
----
-packet
-+1: "ID0"
-+1: "ID1"
-+1: "ID2"
-+1: "ID3"
-+1: "0000,DLC(3:0)"
-+8: "Data(0-7)"
-+1: "0000000,IDE"
-+1: "0000000,RTR"
-```
-
-```{.mermaid #fig:llc-frame-revised caption="Revised LLC frame format with FD support, shown at maximum length (71 bytes). The FMT field selects frame type; BRS and ESI repurpose reserved bits in the final byte. ID byte encoding is defined in @tbl:ID-bytes."}
----
-look: classic
-config:
-  theme: neutral
-  themeVariables:
-    fontFamily: "Libertinus Serif, Noto Serif, serif"
-    fontSize: "14px"
-  packet:
-    bitsPerRow: 8
-    bitWidth: 100
-    rowHeight: 42
-    showBits: true
-    paddingX: 0
-    paddingY: 1
----
-packet
-+1: "ID0"
-+1: "ID1"
-+1: "ID2"
-+1: "ID3"
-+1: "0,FMT(2:0),DLC(3:0)"
-+64: "Data(0-63)"
-+1: "0000000,IDE"
-+1: "00000,BRS,ESI,RTR"
-```
-
-| Format     | Byte ID0 | Byte ID1 | Byte ID2 | Byte ID3 |
-| --- | --- | --- | --- | --- |
-| Basic | '`00000000`' | '`00000000`' | '`00000`' `&` '`ID(10-8)`' | '`ID(7-0)`' |
-| Extended | '`000`' `&` '`ID(28:24)`' | '`ID(23-16)`' | '`ID(15-8)`' | '`ID(7-0)`' |
-
-: ID byte encoding for the LLC frame formats shown in @fig:llc-frame-current and @fig:llc-frame-revised. {#tbl:ID-bytes}
+![LLC frame format (71 bytes) at the host-MAC interface. Bytes 0-3 encode the identifier; byte 4 carries the frame-type selector FMT in bits [7:4] and DLC in bits [3:0]; bytes 5-68 carry up to 64 data bytes; byte 69 carries the FDF, BRS, ESI, and IDE control flags; byte 70 carries RTR in bit 0. The lower rows show the identifier byte mapping: for extended identifiers ID[28:24] are packed into ID0, ID[23:16] into ID1, ID[15:8] into ID2, and ID[7:0] into ID3; for base identifiers ID0 and ID1 are all zeros, ID[10:8] occupies the lower three bits of ID2, and ID[7:0] fills ID3.](figures/llc_frame.png){#fig:llc-frame width=100%}
 
 ## LLC Sub-layer {#sec:llc-sub-layer}
 
