@@ -2,11 +2,17 @@
 config:
   theme: neutral
   layout: elk
+  flowchart:
+    curve: monotoneX
+  elk:
+    algorithm: layered
+    mergeEdges: false
+    nodePlacementStrategy: BRANDES_KOEPF
+    edgeRouting: SPLINES
 ---
-
-graph LR
-    iso_pdf("`ISO.pdf`")
-    iso_md("`ISO.md`")
+flowchart LR
+    iso_pdf("`PDF`")
+    iso_md("`MD`")
     
     norm_set("`**Normative set**
     (Size = 168)
@@ -15,23 +21,27 @@ graph LR
     + original_wording`")
     
     req_set("`**Requirement set**
-    (Size = 45)
+    (Size = 38)
     ─────────
     + id
     + paraphrase
+    + priority
+    + notes
+    `")
+
+    ver_plan("`**Verification plan**
+    ─────────
     + layer
     + side
     + format
     + observability
-    + priority`")
-
-    ver_plan("`**Verification plan**
-    (Size = 45)
-    ─────────
     + method
     + status
+    + coverage_criteria
     + label
     + file`")
 
-    iso_pdf ==> iso_md ==>|Search/extraction of normative statements by LLM agent| norm_set ==>|Manual requirement
+    iso_pdf ==> iso_md ==>|"`Search/extraction of 
+    normative statements by
+    LLM agent`"| norm_set ==>|Requirements
     destilation| req_set ==> ver_plan
