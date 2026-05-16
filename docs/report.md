@@ -534,7 +534,7 @@ The decomposition described above yields five implemented entities - `can_mac_fs
 
 # Implementation {#sec:implementation}
 
-This section describes the implementation of the six modules that together constitute the CAN-FD controller: `can_mac_fsm`, `can_mac_ser`, `can_mac_bs`, `can_mac_crc`, `can_fce`, and `can_pcs`. `can_llc` is not yet implemented; its interface contracts are captured in the verification plan (REQ-001 through REQ-005, REQ-033). Subsections are ordered MAC-first: the central FSM and its internal submodules are described before the supporting FCE and PCS layers.
+The Design section concluded that a unified `can_mac_fsm` - one state machine, one bit stuffer, one CRC engine - was the right architecture once the split-path approach was attempted and found unworkable. This section shows what that architecture looks like in practice. Two threads run through the module descriptions that follow. The first is the set of implementation decisions that were not derivable from the requirements table alone but were forced by protocol structure during implementation: the bit stuffer's handling of a pending dynamic stuff bit at the dynamic-to-fixed mode boundary, the CRC engine's combinatorial output mux and why a registered stage would have broken the frame timing, and the PCS synchronisation rules that the prior implementation violated. The second is the places where the unified FSM design decision pays off - where a protocol rule that applies equally to transmitter and receiver is expressed once in shared state rather than twice in parallel FSMs. Subsections are ordered MAC-first: the FSM and its internal submodules (`can_mac_ser`, `can_mac_bs`, `can_mac_crc`) are described before the supporting `can_fce` and `can_pcs` layers, so that the FSM's interface contracts are established before the modules that satisfy them. `can_llc` is not yet implemented; its interface contracts are captured in the verification plan (REQ-001 through REQ-005, REQ-033).
 
 ## Interface Conventions {#sec:impl-interface-conventions}
 
@@ -562,11 +562,11 @@ The per-field state granularity introduced in @sec:per-field-vs-per-phase is pre
 
 When `is_transmitter = true`, the FSM drives bits through `pcs_o.tx_data` at the bit-boundary strobe (`drive_bit`, generated internally by registering `pcs_i.sample_point` twice). On each sample-point strobe the FSM executes the following four-step sequence per frame-field state:
 
-1. **Monitor the bus.** The sampled bus polarity (`pcs_i.rx_data`) is compared against the previously transmitted bit (held in a 32-bit polarity history shift register, `transmitted_bits_shift_reg`) to detect bit errors, ACK, and arbitration loss. In the CAN-FD data phase, any pending SSP observation from the previous bit period is evaluated against this history before the current bit is checked [@iso11898_1, sec. 7.3.4]. A detected error triggers a transition to the error-frame sequence with the appropriate flag type based on FCE fault confinement status [@iso11898_1, sec. 8.1.3-8.1.4]. Arbitration loss causes `is_transmitter` to flip to `false` in-place, and the `s_arbitration` state then continues as an RX observer for the remaining bits.
+1. **Monitor the bus.** The sampled bus polarity (`pcs_i.rx_data`) is compared against the previously transmitted bit (held in a 32-bit polarity history shift register, `transmitted_bits_shift_reg`) to detect bit errors, ACK, and arbitration loss. In the CAN-FD data phase, any pending SSP observation from the previous bit period is evaluated against this history before the current bit is checked [@iso11898_1, sec. 7.3.4]. A detected error triggers a transition to the error-frame sequence with the appropriate flag type based on FCE fault confinement status [@iso11898_1, sec. 8.1.3-8.1.4]. Arbitration loss causes `is_transmitter` to flip to `false` in-place, and the `s_arbitration` state then continues as an RX observer for the remaining bits; the CRC accumulator and bit stuffer carry over without any inter-module handoff - a coordination problem the split-path design would have faced directly.
 
 2. **Determine the next bit.** If the bit stuffer has a pending stuff bit (`bs_i.valid`), that takes priority. Otherwise, the polarity is determined by the current state: form bits (SOF, IDE, FDF, reserved, delimiters, EOF) have fixed polarities, while ID, DLC, data, SBC, and CRC bits are sourced from the serializer, metadata, stuff bit count, or CRC register respectively.
 
-3. **Feed the CRC engine and bit stuffer.** The post-case feed source is `pcs_i.rx_data` in `s_arbitration` (where the bus is multi-master and the winning transmitter's echo matches its drive on the wire) and `transmitted_bits_shift_reg(0)` in all subsequent states - both nominal and data phase. Using the shift register post-arbitration ensures the feed is independent of any `rx_data` echo latency under TDC delay and keeps the source consistent across all non-arbitration states. The FSM asserts `bs_o.fixed_bit_stuffing_en` when entering the SBC field of FD frames to switch the bit stuffer from dynamic to fixed mode.
+3. **Feed the CRC engine and bit stuffer.** The feed source is less obvious than it appears. The post-case feed is `pcs_i.rx_data` in `s_arbitration` (where the bus is multi-master and the winning transmitter's echo matches its drive on the wire) and `transmitted_bits_shift_reg(0)` in all subsequent states - both nominal and data phase. Using the shift register post-arbitration ensures the feed is independent of any `rx_data` echo latency under TDC delay and keeps the source consistent across all non-arbitration states. The FSM asserts `bs_o.fixed_bit_stuffing_en` when entering the SBC field of FD frames to switch the bit stuffer from dynamic to fixed mode.
 
 4. **Present the bit at the PCS interface.** The resolved polarity is written to `pcs_o.tx_data` and becomes visible at `tx_o` when the bit-boundary latch fires. `pcs_o.next_bit_is_brs` is asserted one SP before the BRS bit, allowing the PCS to switch to data-phase timing at the BRS SP if BRS is sampled recessive. `pcs_o.next_bit_is_res` is asserted one SP before the FD reserved bit to arm TDC measurement at the subsequent bit boundary [@iso11898_1, sec. 7.3.4].
 
@@ -587,6 +587,8 @@ The FSM uses two explicit error-frame states. `s_error_flag` drives the 6-bit fl
 
 : Two explicit error-frame states of `can_mac_fsm`. {#tbl:error-frame-states}
 
+The three submodules the FSM depends on - the serializer for the TX bit stream, the bit stuffer for stuff bit insertion and SBC generation, and the CRC engine for parallel polynomial accumulation - are described in the following subsections.
+
 ## `can_mac_ser` {#sec:impl-can-mac-ser}
 
 `can_mac_ser` converts the LLC byte stream into a serial polarity bit stream for the MAC FSM. Its four-state FSM manages the two-byte configuration handshake, byte fetching, and bit-by-bit serialization. The serializer extracts LLC metadata (IDE, FDF, DLC, FTYP, BRS, ESI) from the two config bytes and registers it in `t_llc_metadata`, which remains stable for the entire frame. The internal frame format that makes this possible is described in @sec:internal-llc-frame-format. The serializer forwards `transfer_status` from the FSM back to the LLC, returning to `s_load_config_byte_0` on any non-ongoing status so that errors and aborts terminate serialization immediately.
@@ -596,6 +598,8 @@ The 32-bit ID field in the internal format is right-aligned: an extended identif
 Bit serialization uses a single-byte shift register. On entry to `s_shift_out_bits`, `llc_frame_buffer` holds the current byte with the MSB pre-loaded into `tx_mac_fsm_o.data`. The serializer holds `valid` high while a real bit is waiting; the FSM acknowledges by asserting `ready` for one cycle. On each accepted transfer the buffer is shifted left by one and the new MSB is presented as the next bit. When the final bit of the byte is consumed (`count = c_byte_width - 1`), `valid` is deasserted and the FSM returns to `s_load_llc_frame_byte` to fetch the next byte. The LLC's Avalon-ST `ready` signal is held low during `s_shift_out_bits`, preventing the LLC from advancing while a byte is being drained.
 
 ![`can_mac_ser` (4 states). Config bytes carry frame metadata (IDE, FDF, FTYP, BRS, ESI, DLC); these are latched once and held stable for the entire frame. In `s_shift_out_bits` real ID and data bits are driven one per MAC FSM ready pulse, while unused padding bits in the 32-bit ID field are skipped silently. Any `transfer_status /= ongoing` signal from the MAC FSM returns the serializer to `s_load_config_byte_0` from any state.](figures/mac_ser_fsm.png){#fig:mac-ser-fsm-tx width=100%}
+
+The bit stream it produces feeds the bit stuffer, which may insert additional stuff bits before the FSM drives each bit to the PCS interface.
 
 ## `can_mac_bs` {#sec:impl-can-mac-bs}
 
@@ -609,6 +613,8 @@ The transition from dynamic to fixed stuffing requires special handling when a d
 
 ![`can_mac_bs` (2 modes). Dynamic mode counts consecutive identical bits and emits an inverse stuff bit on the 5th (`count = 4`), updating the Gray-coded SBC. Fixed mode is entered on the rising edge of `fsb_en`, which immediately emits the initial FSB; thereafter one FSB is emitted every 4 real bits (`count = 3`). The falling edge of `fsb_en` cancels any pending FSB and returns to dynamic mode. `stuff_count` and the SBC output are maintained continuously across both modes.](figures/mac_bs_fsm.png){#fig:mac-bs-dataflow width=100%}
 
+Its `stuff_bit_count` output is the SBC value the FSM reads when transmitting the SBC field; the CRC engine, which consumes the pre-stuff and post-stuff streams simultaneously on two independent feeds, is described next.
+
 ## `can_mac_crc` {#sec:impl-can-mac-crc}
 
 CAN Classic computes its CRC over the raw bit stream excluding stuff bits, while CAN FD includes dynamic stuff bits in the arbitration region - a difference that exists because the FD CRC must protect the stuff bit count as well as the data. A single data feed to the CRC engine is therefore insufficient: CC and FD frames require different input streams. The design exposes two feeds on the CRC interface (`data_cc` and `data_fd`) so the FSM can drive both simultaneously and the CRC module requires no protocol knowledge about which stream to select.
@@ -621,13 +627,19 @@ The output mux (`p_crc_mux`) is implemented combinatorially rather than as a reg
 
 ![`can_mac_crc` dataflow. Three `gen_crc` instances accumulate in parallel on every clock: `u_crc15` is fed by `data_cc`/`valid_cc` (CC bit stream, stuff bits excluded); `u_crc17` and `u_crc21` are both fed by `data_fd`/`valid_fd` (FD bit stream, dynamic stuff bits included in the arbitration region). The combinatorial mux `p_crc_mux` selects the active engine result based on `crc_poly_select` and zero-extends it to the common 21-bit output. `reset_i` reinitializes all three engines simultaneously.](figures/mac_crc_fsm.png){#fig:mac-crc width=100%}
 
+With the MAC submodules established, the two remaining modules - the Fault Confinement Entity and the Physical Coding Sublayer - are described in the following subsections.
+
 ## `can_fce` {#sec:impl-can-fce}
 
 `can_fce` implements the error state machine and counter management specified in ISO 11898-1 [@iso11898_1, sec. 8.1.3-8.1.4]. It maintains TEC (Transmitter Error Counter) and REC (Receiver Error Counter) and transitions between three states: `s_error_active` (normal operation), `s_error_passive` (TEC or REC > 127), and `s_bus_off` (TEC > 255).
 
 Counter updates follow the ISO 8.1.4.2 rules: TEC increments by 8 on TX errors, with `mac_i.passive_tx_ack_error_exempt_1` suppressing the increment for the passive ACK error exemption (ISO 8.1.4.2.c, Exception 1); TEC decrements by 1 on successful TX. REC increments by 1 on RX errors during non-error-flag phases, by 8 on primary errors or error-flag-phase errors, and decrements by 1 or clamps to 127 on successful RX. Bus-off recovery requires counting 128 `pcs_i.idle_condition` pulses (11 consecutive recessive bits each) from the PCS, or assertion of `llc_i.normal_mode` by the LLC, either of which resets both counters and returns the FSM to `s_error_active`.
 
+The one counter rule that requires careful reading of the ISO prose is the passive ACK error exemption (ISO 8.1.4.2.c, Exception 1): an Error Passive node that transmits a frame and receives no dominant ACK bit shall not increment TEC, because the node's passive error flag is recessive and may itself prevent receivers from asserting the ACK slot. The FCE has no frame-level visibility - it receives event signals from the MAC, not raw bus bits - so the MAC must explicitly signal this case via `mac_i.passive_tx_ack_error_exempt_1`, asserted when the FSM detects an ACK error while `mac_o.error_active` is deasserted. Without this signal the FCE would treat an unacknowledged passive-node transmission identically to any other ACK error and escalate TEC unnecessarily.
+
 ![`can_fce` FSM (ISO 11898-1 sec. 8.1.4.4, Figure 43). `s_error_active` is the initial state after `reset_i` or `llc_i.normal_mode`. When TEC exceeds 127 or REC exceeds 127 the FCE moves to `s_error_passive`, clearing `mac_o.error_active`. If TEC exceeds 255 from either active or passive state, the FCE enters `s_bus_off`, asserting `bus_off` to the MAC, LLC, and PCS. Recovery counts 128 `idle_condition` pulses from the PCS (each pulse represents 11 consecutive recessive bits); on the 128th pulse TEC and REC are reset to zero and the FSM returns to `s_error_active`.](figures/fce_fsm.png){#fig:fce-fsm width=80%}
+
+The PCS layer, which supplies the bit-level timing strobes that drive every FSM state transition, is described next.
 
 ## `can_pcs` {#sec:impl-can-pcs}
 
@@ -637,7 +649,7 @@ Counter updates follow the ISO 8.1.4.2 rules: TEC increments by 8 on TX errors, 
 
 ### Resynchronisation {#sec:impl-can-pcs-resync}
 
-The prior implementation (`can_node_clock`) did not satisfy three of the four ISO 7.3.5.1 synchronisation rules: it had no sync-inhibit guard (rule a), no sampled-polarity check (rule b), and it contained a Sync_Seg skip defect in which Phase_Seg2 shortening caused the module to jump directly from `s_seg_2` to `s_seg_1`, dropping the mandatory 1-TQ Sync_Seg entirely. `can_pcs` corrects all three and enforces all four rules.
+The prior implementation (`can_node_clock`) missed three of the four ISO 7.3.5.1 synchronisation rules: it had no sync-inhibit guard (rule a), no sampled-polarity check (rule b), and a Phase_Seg2 shortening path that skipped the mandatory 1-TQ Sync_Seg (rule d). None of these caused observable failures on the deployed CAN Classic bus, but all three are protocol obligations; `can_pcs` enforces all four.
 
 **Rule a - one synchronisation per bit time.** A `sync_applied` signal is set on any synchronisation event (hard or soft) and cleared at the next bit boundary (end of `s_phase_seg2`). The TQ-boundary edge-qualify predicate `v_do_sync` includes `sync_applied = '0'` as a precondition, preventing a second synchronisation within the same bit time regardless of bus activity.
 
@@ -664,6 +676,8 @@ TDC is armed at the bit boundary when `mac_i.next_bit_is_res = '1'`, which sets 
 At the first data-phase bit boundary (`data_phase_active = '1'`, `first_data_bit_boundary_seen = '0'`, `ssp_seen = '0'`), `first_data_bit_boundary_seen` is latched and `ssp_standoff_active` is asserted. From that point `delay_count_tq` counts down one per TQ; when it reaches zero, `ssp_active` is set and `ssp_standoff_active` is cleared. With `ssp_active = '1'`, the SSP fires one TQ before the SP in each subsequent bit time (at `seg_count = active_phase_seg1 + phase1_extension - 2` within `s_phase_seg1`), latching `rx_i` and pulsing `mac_o.secondary_sample_point`. On the first SSP, `ssp_seen` is latched to prevent repeated SSP firing within the same data phase. At each data-phase bit boundary after the first (while `ssp_seen = '0'`), `tdc_delay` increments to count whole bit-period delays; the MAC reads `mac_o.tdc_delay` to index into `transmitted_bits_shift_reg` and identify the transmitted bit corresponding to the received bit observed at the SSP.
 
 `mac_i.data_phase_stop` at the SP clears `ssp_active`, `ssp_seen`, `tdc_count_active`, `delay_count_tq`, `tdc_delay`, `data_phase_active`, and `first_data_bit_boundary_seen`, restoring nominal SP-based monitoring for the CRC delimiter and subsequent fields.
+
+The six entities described above - `can_mac_fsm`, `can_mac_ser`, `can_mac_bs`, `can_mac_crc`, `can_fce`, and `can_pcs` - together with the structural wrappers `can_mac` and `can_mac_pcs_fce` constitute the implemented protocol engine. The two threads named at the start of this section were both borne out. Each module contained at least one implementation decision that was not visible in the requirements table and only became concrete under the full protocol constraints: the bit stuffer's mode-boundary promotion rule, the CRC engine's combinatorial mux, and the PCS synchronisation guard are the clearest examples. And in each case, the unified-FSM architecture simplified the fix - a single correction to a shared submodule propagated to both TX and RX paths automatically. With the implementation complete, the remaining question is whether the 38 requirements in the verification plan are in fact satisfied by what was built.
 
 # Verification and Results {#sec:verification-results}
 
