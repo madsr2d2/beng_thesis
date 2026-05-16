@@ -38,7 +38,6 @@ This thesis describes the design, implementation, and verification of a CAN (Con
 | DLL | Data Link Layer |
 | DMA | Direct Memory Access |
 | DUT | Device Under Test |
-| ECU | Electronic Control Unit |
 | EF | Error Frame |
 | EOF | End of Frame |
 | ESI | Error State Indicator |
@@ -197,7 +196,7 @@ The need for CAN FD support in the company's engine controller platform, combine
 
 ## CAN as a Communication Bus {#sec:can-as-bus}
 
-The Controller Area Network (CAN) is a serial communication bus developed by Bosch in 1986 [@bosch1991] to connect electronic control units (ECUs) in automotive environments without a central host computer. Where point-to-point wiring and star-switched architectures require a dedicated conductor between every communicating pair, CAN uses a shared two-wire differential bus on which all nodes broadcast simultaneously and arbitrate access without any designated bus master. Any node may initiate a transmission at any time. Contention is resolved by a non-destructive bitwise arbitration in which the transmitter with the lower-priority identifier detects the collision and silently withdraws, leaving the winner's frame intact. Differential signaling on a twisted pair (ISO 11898-2 physical layer) provides strong common-mode noise rejection - a practical necessity in the electrically harsh environment of an engine bay or industrial cabinet.
+The Controller Area Network (CAN) is a serial communication bus developed by Bosch in 1986 [@bosch1991] to connect electronic control units in automotive environments without a central host computer. Where point-to-point wiring and star-switched architectures require a dedicated conductor between every communicating pair, CAN uses a shared two-wire differential bus on which all nodes broadcast simultaneously and arbitrate access without any designated bus master. Any node may initiate a transmission at any time. Contention is resolved by a non-destructive bitwise arbitration in which the transmitter with the lower-priority identifier detects the collision and silently withdraws, leaving the winner's frame intact. Differential signaling on a twisted pair (ISO 11898-2 physical layer) provides strong common-mode noise rejection - a practical necessity in the electrically harsh environment of an engine bay or industrial cabinet.
 
 ![CAN bus consisting of three CAN nodes connected via a shared differential two-wire bus. Each node contains a CAN controller and transceiver. Termination resistors at each end of the bus prevent signal reflections.](figures/can_bus.png){#fig:can_bus width=60%}
 
