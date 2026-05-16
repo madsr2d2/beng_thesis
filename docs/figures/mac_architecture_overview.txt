@@ -41,7 +41,7 @@ subgraph MAC["`**can_mac** — MAC Sub-layer §6.6`"]
     FSM["`**can_mac_fsm**
     ─────────
     Unified TX/RX FSM
-    (24 states, is_transmitter)`"]
+    (19 states, is_transmitter)`"]
 
     BS["`**can_mac_bs**
     ─────────

@@ -194,7 +194,7 @@ Both objectives are complicated by the nature of the source material. Normative 
 
 The requirements set was constructed using the AI-assisted pipeline shown in @fig:ver_plan_pipeline. The first step was converting the ISO 11898-1 pdf to Markdown - a format which can be efficiently searched and ingested by LLM models. The resulting Markdown file was then fed to a Claude Sonnet 4.6 LLM agent, which was prompted to extract all normative statements - sentences containing words like "shall", "should", "must", and their corresponding negations.
 
-![Pipeline generating the `verification_plan.toml` artifact. 1) LLM agent extraction of normative statements from the ISO 11898-1 standard. 2) Manual grouping of related normative statements and requirement distillation. 3) Argumentation with additional requirement labels and verification specific fields.](figures/ver_plan_pipeline.png){#fig:ver_plan_pipeline width=100%}
+![Pipeline generating the `verification_plan.toml` artifact. 1) LLM agent extraction of normative statements from the ISO 11898-1 standard. 2) Manual grouping of related normative statements and requirement distillation. 3) Augmentation with additional requirement labels and verification specific fields.](figures/ver_plan_pipeline.png){#fig:ver_plan_pipeline width=100%}
 
 This process yielded a raw set of 168 normative statements linked to the ISO standard sections from which they were extracted. The normative set was then manually reviewed, consolidated, and distilled into a final set of 45 requirements (reproduced in @sec:appendix-vplan).
 
@@ -505,7 +505,7 @@ The `can_mac` sub-layer is built around a single unified FSM entity (`can_mac_fs
 
 The per-field state granularity introduced in @sec:per-field-vs-per-phase is preserved in the unified FSM. Each protocol field (SOF, ID, RTR/SRR/RRS, IDE, FDF, RES, BRS, ESI, DLC, Data, SBC, CRC, ACK, ACK Delimiter, EOF) has its own dedicated state, making field boundaries explicit in the state encoding without bit-counter conditionals. The complete FSM is shown in @fig:mac-fsm.
 
-![`can_mac_fsm` (24 states). TX mode active when `is_transmitter` is latched at SOF drive; arbitration loss clears it without a state transition, and the node continues as receiver. Each frame-field state handles one protocol field. Errors branch to the `s_error_flag`/`s_error_delimiter` sequence; after recovery the FSM returns via `s_intermission` to `s_bus_idle`.](figures/mac_fsm.png){#fig:mac-fsm height=90%}
+![`can_mac_fsm` (19 states). TX mode active when `is_transmitter` is latched at SOF drive; arbitration loss clears it without a state transition, and the node continues as receiver. Each frame-field state handles one protocol field. Errors branch to the `s_error_flag`/`s_error_delimiter` sequence; after recovery the FSM returns via `s_intermission` to `s_bus_idle`.](figures/mac_fsm.png){#fig:mac-fsm height=90%}
 
 ### TX Mode: Frame Transmission
 
@@ -570,7 +570,7 @@ Counter updates follow the ISO 8.1.4.2 rules: TEC increments by 8 on TX errors (
 
 `can_pcs` is a cyclic bit-timing engine: its internal `t_segment` register advances through `s_sync_seg` (1 TQ, fixed), `s_prop_seg`, `s_phase_seg1`, and `s_phase_seg2` on every TQ boundary. The SP strobe and `rx_data` latch fire at the end of `s_phase_seg1`; the TX bit is driven at the end of `s_phase_seg2`. When `fce_i.bus_off` is asserted, the SP slot counts consecutive recessive bits and pulses `fce_o.idle_condition` every 11 bits for FCE bus-off recovery. The full timing operation is shown in @fig:can-pcs.
 
-![`can_pcs` operation (ISO 11898-1 sec. 7.2-7.4). Two concurrent-per-TQ blocks are shown alongside the main bit time progression. The bit time progression (green, centre) cycles through `s_sync_seg` (1 TQ fixed), `s_prop_seg`, `s_phase_seg1`, and `s_phase_seg2`. A sync edge detected mid-segment triggers soft synchronization: with phase error at most SJW the bit time restarts from `s_prop_seg`; with larger error `s_phase_seg1` is extended or `s_phase_seg2` shortened by SJW. Three bus events (yellow) mark the IO moments within each bit time: SSP samples `rx_i` one TQ before the SP when `ssp_active` is set; the SP samples `rx_i`, switches to data-phase timing on a recessive BRS, or restores nominal timing on `data_phase_stop`, and pulses `idle_condition` when `bus_off` is asserted and 11 consecutive recessive bits have been seen; the bit boundary drives `tx_o`. The TDC pipeline (purple, right) runs concurrently per TQ, transmitting only. A dashed edge from the bit boundary activates it when `next_bit_is_res`: recessive TQs are counted until the TX-to-RX echo arrives, then at the ESI bit boundary a countdown begins and `ssp_active` is set when the count reaches zero.](figures/pcs_fsm_timeline.png){#fig:can-pcs width=100%}
+![`can_pcs` operation (ISO 11898-1 sec. 7.2-7.4). Two concurrent-per-TQ blocks are shown alongside the main bit time progression. The bit time progression (centre) cycles through `s_sync_seg` (1 TQ fixed, red reset state), `s_prop_seg`, `s_phase_seg1`, and `s_phase_seg2` (green). A sync edge detected mid-segment triggers soft synchronization: with phase error at most SJW the bit time restarts from `s_prop_seg`; with larger error `s_phase_seg1` is extended or `s_phase_seg2` shortened by SJW. Three bus events (orange) mark the IO moments within each bit time: SSP samples `rx_i` one TQ before the SP when `ssp_active` is set; the SP samples `rx_i`, switches to data-phase timing on a recessive BRS, or restores nominal timing on `data_phase_stop`, and pulses `idle_condition` when `bus_off` is asserted and 11 consecutive recessive bits have been seen; the bit boundary drives `tx_o`. The TDC pipeline (right) runs concurrently per TQ, transmitting only. A dashed edge from the bit boundary activates it when `next_bit_is_res`: recessive TQs are counted until the TX-to-RX echo arrives, then at the ESI bit boundary a countdown begins and `ssp_active` is set when the count reaches zero.](figures/pcs_fsm_timeline.png){#fig:can-pcs width=100%}
 
 ### Resynchronisation {#sec:impl-can-pcs-resync}
 
@@ -600,9 +600,9 @@ In the first stage (`s_tdc_armed`), the pipeline waits for the first data-phase 
 
 # Verification and Results {#sec:verification-results}
 
-![REQ-009.](figures/waveforms/full_fd_frame.pdf){#fig:full_fd_frame width=100%}
+![REQ-009. Two-node simulation of a complete FD frame. DUT 1 is the transmitter (`is_transmitter = true`), DUT 2 the receiver. `mac_fsm_state` traces show the full frame-field sequence from `s_arbitration` through `s_eof`; `secondary_sample_point` pulses on DUT 1 confirm TDC is active during the data phase; `sync_applied` pulses on DUT 2 show receiver soft-synchronisation events. After EOF both nodes traverse `s_intermission` and the sample-point counter accumulates 11 consecutive recessive bits, producing the idle condition and completing bus re-integration (REQ-009).](figures/waveforms/full_fd_frame.pdf){#fig:full_fd_frame width=100%}
 
-![REQ-010.](figures/waveforms/req_10_11.pdf){#fig:req_10 width=100%}
+![REQ-010/011. Error escalation waveform for DUT 1. `transmitter_error_count` (TEC) increments on successive error frames (13 → 128 → 136); when TEC exceeds 127, `error_active` deasserts and the node becomes error-passive. The `mac_fsm_state` trace shows `s_suspend_transmission` inserted after `s_intermission` once the node is error-passive, enforcing the mandatory 8-bit suspension period before the next transmission attempt (ISO 11898-1 §8.1.4.4).](figures/waveforms/req_10_11.pdf){#fig:req_10 width=100%}
 
 *Note: This section is currently being populated as the verification plan is executed.*
 
