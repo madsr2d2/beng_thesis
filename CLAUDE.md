@@ -80,7 +80,9 @@ constant c_foo_end   : integer := 5;  -- LSB
 
 ## Writing Style
 
-- No semicolons in prose or comments. Use periods. No em dashes (use `-`).
+> **CRITICAL: Never use semicolons (`;`) in prose or report comments. Use periods instead. This applies everywhere: report body text, figure captions, table captions, inline comments, and any other written English. Violations break the writing style consistency of the entire document. There are no exceptions.**
+
+- No em dashes (use `-`).
 - Pandoc: heading IDs `{#sec:name}`, crossrefs `@sec:`, `@fig:`, `@tbl:`. Every figure/table referenced in body text.
 - Mermaid `stateDiagram-v2`: `classDef reset stroke:#000,stroke-width:3px` + `class s0 reset`. No `:::` on `state` lines. No `[*] -->`.
 - `bibliography: references.bib`, `csl: ieee.csl`, `link-citations: true` in YAML front matter.
