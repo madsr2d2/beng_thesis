@@ -301,11 +301,13 @@ With those mechanisms established - sub-layer boundaries, frame formats, bit tim
 
 # Verification Plan {#sec:verification-plan}
 
-The 45 requirements from @sec:requirements-engineering were each classified along five dimensions. Each dimension draws directly on the protocol concepts presented in @sec:can-protocol-overview: the layer dimension maps onto the sub-layer model (@sec:can-layered-model); the format dimension maps onto the four structural frame formats of @fig:can-frame-structure (CB and CE implicitly cover their remote frame variants); the observability dimension reflects the distinction between externally visible behavior and internal protocol state that the error-model and CRC sections illustrate concretely. Together the dimensions make the required testbench configuration and evidence type explicit for each requirement, without leaving either to be inferred from the requirement text alone. The dimensions are:
+The requirements set established what must be true about the implementation - 38 entries, each naming a protocol obligation and linking it to its ISO clause. But requirements in that form are not yet actionable as verification tasks: they say nothing about which module testbench should exercise them, what stimulus configurations are needed, whether internal signals must be observable, or how completion will be recognised. Turning the requirements set into a verification plan means answering those questions explicitly for each entry, before implementation begins.
+
+The plan was populated through the same MCP server introduced in @sec:requirements-engineering, which validated each field value against the schema before committing. The five classification dimensions fall into two groups. Three are design-facing - `layer`, `side`, and `format_applicability` - determining where each requirement belongs in the module decomposition and what stimulus configurations its testbench needs. Two are verification-facing - `observability` and `verification_method` - resolving whether a requirement can be checked through port signals or requires access to internal state, and specifying the verification technique. Priority spans both groups, driving implementation sequencing and determining which requirements must be closed before the design is considered complete. The dimensions are:
 
 - layer, @sec:vplan-layer
 - side, @sec:vplan-side
-- format, @sec:vplan-format
+- format_applicability, @sec:vplan-format
 - observability, @sec:vplan-observability
 - priority, @sec:vplan-priority
 
@@ -343,11 +345,26 @@ The priority field classifies each requirement into one of three levels:
 - P2 requirements are nice-to-have - they are verified in the normal verification cycle but do not block closure.
 - P3 requirements are optional - addressed only if schedule permits.
 
-The final plan contains 31 P1, 13 P2, and 1 P3 requirements. The single P3 requirement covers optional transmitter delay compensation accuracy bounds that go beyond the ISO minimum; it was deferred because the core TDC mechanism is covered by P1 requirements and the accuracy bound can only be assessed against a hardware target.
+The final plan contains 31 P1, 5 P2, and 2 P3 requirements. The demotion rationale for each requirement not rated P1 is given in @tbl:priority-demotion. The plan is considered closed when all P1 requirements reach `complete` status; P2 and P3 requirements are addressed as schedule permits.
+
+## Requirement Distribution {#sec:vplan-distribution}
+
+@tbl:vplan-distribution shows the 38 requirements distributed across layer and observability. MAC dominates both in count and in white-box density, reflecting the breadth of frame-encoding logic that must be verified against internal bit-level state. FCE requirements are entirely black-box: fault-confinement state transitions are fully observable through the node's error-state output signals without needing access to internal counters. System requirements - those that require a multi-node or multi-module environment - split roughly evenly between the two observability classes.
+
+| Layer | Black-box | White-box | Total |
+| :---- | --------: | --------: | ----: |
+| MAC | 3 | 16 | 19 |
+| LLC | 4 | 3 | 7 |
+| System | 2 | 3 | 5 |
+| PCS | 1 | 3 | 4 |
+| FCE | 3 | 0 | 3 |
+| **Total** | **13** | **25** | **38** |
+
+: Requirement distribution by layer and observability. {#tbl:vplan-distribution}
 
 ## Verification Plan Data Structure {#sec:verification-plan-data-structure}
 
-The verification plan data structure (@tbl:vplan-metadata-fields) augments each requirement with the dimensions needed to answer not just *what* must be true, but *how* it will be verified, *where* the evidence lives, and *when* verification is complete. The plan evolved continuously throughout the project as implementation and verification work progressed. The following sub-sections detail the rationale and allowed values for each field in the verification plan. The complete verification plan is reproduced in @sec:appendix-vplan as two separate tables (linked by common ID's).
+The verification plan data structure (@tbl:vplan-metadata-fields) augments each requirement with the dimensions needed to answer not just *what* must be true, but *how* it will be verified, *where* the evidence lives, and *when* verification is complete. The plan evolved continuously as implementation and verification work progressed. Two dimensions were not part of the initial taxonomy: the `system` layer label was added when it became clear that some CAN behaviors emerge from multi-node interactions and cannot be attributed to any single module's testbench; the `observability` field was introduced when the distinction between black-box and white-box verification had direct consequences for testbench architecture that were not apparent from the requirement text alone. The following sub-sections detail the rationale and allowed values for each field in the verification plan. The complete verification plan is reproduced in @sec:appendix-vplan as two separate tables (linked by common ID's).
 
 
 | Field | Purpose |
@@ -382,7 +399,7 @@ Each requirement entry carries two dedicated traceability fields: a `file` field
 
 The status field (`not_started`, `in_progress`, `complete`) records requirement closure state explicitly, allowing partial progress to be tracked.
 
-The verification plan - 45 requirements each classified by layer, side, format, observability, and priority, and each linked to a testbench file and assertion label - constituted the principal set of architectural inputs for the design phase. How those inputs shaped the module decomposition, and where the apparent mapping from requirements structure to design structure broke down, is the subject of the next section.
+The verification plan - 38 requirements each classified along five dimensions and each linked to a testbench file and assertion label - served both roles in what followed. The design-facing dimensions (layer, side, format_applicability) constituted the primary architectural inputs for the design phase, mapping requirements to module boundaries and implementation scope. The verification-facing dimensions (observability, verification_method, label, file) defined the testbench architecture and evidence type for each requirement. How the design-facing dimensions shaped the module decomposition - and where the apparent mapping from requirements structure to design structure broke down - is the subject of the next section.
 
 # Design and Architecture {#sec:design-architecture}
 
