@@ -1,0 +1,23 @@
+{ "signal": [
+  { "node": "..H..I..." },
+  { "name": "Before sync",  "wave": "345.6.3.4", "data": 'PS2 SS PS PS1 PS2 SS PS PS1 PS2 SS PS PS1 PS2 SS', "node": ".....A"},
+  { "node": "..................JK..." },
+  { "name": "After sync 1",  "wave": "345.6...3.45.6.3.45.", "data": 'PS2 SS PS PS1 PS2 SS PS PS1 PS2 SS PS PS1 PS2 SS', "node": "........B..........C......L"},{},
+      { "name": "After sync 2",  "wave": "345.6...3.45.6.3.4.5.6.3.45", "data": 'PS2 SS PS PS1 PS2 SS PS PS1 PS2 SS PS PS1 PS2 SS PS', "node": "...................D......G"},
+     {name: "Bus value", wave: '1....0......1......0......1' , "node": ".....E.............F........"},
+  
+
+],
+  "edge": [
+  "A~>B Sync (PE > SJW): Lengthen PS1 by SJW",
+    "C~>D Sync (PE <= SJW): Restart bit timing with sync_seg complete (same as hard sync) ",
+     "H+I PE",
+     "J+K PE",
+     "E Sync edge",
+     "F Sync edge",
+     "L.G Fully synced",
+
+  
+  ],
+
+}
