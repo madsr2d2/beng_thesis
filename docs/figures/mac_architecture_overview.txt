@@ -34,7 +34,7 @@ FCE
 §8.1.3-8.1.4`"]
 
 subgraph MAC["`**can_mac** — MAC Sub-layer §6.6`"]
-    SER["`**can_mac_ser_tx**
+    SER["`**can_mac_ser**
     ─────────
     LLC Frame Serializer`"]
 
