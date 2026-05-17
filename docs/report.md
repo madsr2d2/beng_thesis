@@ -5,11 +5,10 @@ date: "May 17, 2026"
 bibliography: references.bib
 csl: ieee.csl
 link-citations: true
+lof: true
+abstract: |
+  This thesis describes the design, implementation, and verification of a CAN/CAN FD protocol controller in VHDL-2008, targeting high-reliability engine controller applications at Everllence. The controller complies with ISO 11898-1 and supports the CB, CE, FB, and FE frame formats with dual bit rate switching and Transmitter Delay Compensation (TDC) for the FD data phase. The design is structured around the ISO 11898-1 layered reference model, with the MAC, PCS, and FCE sub-layers implemented as independently testable modules and the LLC sub-layer specified but deferred. A unified `can_mac_fsm` - a single 19-state per-field FSM shared by transmitter and receiver roles via an `is_transmitter` flag - replaced an earlier split-path design after the split was found to introduce unnecessary coordination complexity at the arbitration loss boundary. Requirements were derived from ISO 11898-1 via an AI-assisted extraction pipeline producing a machine-readable verification plan managed through a custom Model Context Protocol server. Of the 38 requirements in the plan, 27 are closed against passing testbenches or code inspection. The remaining 11 are either LLC-layer requirements deferred pending `can_llc` implementation or documented known gaps, with the lone-node ACK exemption (REQ-035) the one open P1 item.
 ---
-
-# Abstract {-}
-
-This thesis describes the design, implementation, and verification of a CAN/CAN FD protocol controller in VHDL-2008, targeting high-reliability engine controller applications at Everllence. The controller complies with ISO 11898-1 [@iso11898_1] and supports the CB, CE, FB, and FE frame formats with dual bit rate switching and Transmitter Delay Compensation (TDC) for the FD data phase. The design is structured around the ISO 11898-1 layered reference model, with the MAC, PCS, and FCE sub-layers implemented as independently testable modules and the LLC sub-layer specified but deferred. A unified `can_mac_fsm` - a single 19-state per-field FSM shared by transmitter and receiver roles via an `is_transmitter` flag - replaced an earlier split-path design after the split was found to introduce unnecessary coordination complexity at the arbitration loss boundary. Requirements were derived from ISO 11898-1 via an AI-assisted extraction pipeline producing a machine-readable verification plan managed through a custom Model Context Protocol server. Of the 38 requirements in the plan, 27 are closed against passing testbenches or code inspection. The remaining 11 are either LLC-layer requirements deferred pending `can_llc` implementation or documented known gaps, with the lone-node ACK exemption (REQ-035) the one open P1 item.
 
 # Abbreviations {-}
 
