@@ -70,7 +70,7 @@ This thesis describes the design, implementation, and verification of a CAN/CAN-
 
 # Introduction {#sec:introduction}
 
-**TODO**: Add a section on the IO extender board (The board is on the test wall, get the name from Alex)
+Industrial control systems for large marine engines demand communication protocols that combine fault tolerance, multi-master arbitration, and multi-decade service reliability. The Controller Area Network has served that role at Everllence for the current generation of engine controllers, but as control system data requirements grow the constraints of CAN Classic have become a practical barrier. This chapter examines why that barrier cannot be addressed by extending the existing in-house controller, why available third-party CAN FD IP cores do not satisfy Everllence's specific requirements, and what those conclusions imply for the design approach taken in this thesis.
 
 ## Motivation {#sec:motivation}
 
