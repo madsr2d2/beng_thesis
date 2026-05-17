@@ -793,7 +793,7 @@ The 27/38 requirement closure rate warrants careful interpretation. The 11 open 
 
 The four objectives stated in @sec:objectives are assessed against the verification results.
 
-**CAN/CAN FD protocol controller in VHDL compliant with ISO 11898-1, supporting CB, CE, FB, and FE frames.** The unified `can_mac_fsm` handles all four in-scope frame formats in both transmission and reception, including dual bit rate switching with Transmitter Delay Compensation in the FD data phase (REQ-025, REQ-026). 27 of 38 requirements are closed. The remaining 11 are either LLC-layer requirements deferred pending `can_llc` implementation, or known P2 gaps and one P1 gap documented in @sec:future-work.
+**CAN/CAN FD protocol controller in VHDL compliant with ISO 11898-1, supporting CB, CE, FB, and FE frames.** The unified `can_mac_fsm` handles all four in-scope frame formats in both transmission and reception, including dual bit rate switching with Transmitter Delay Compensation in the FD data phase (REQ-025, REQ-026). 27 of 38 requirements are closed. The remaining 11 are either LLC-layer requirements deferred pending `can_llc` implementation, or known P2 gaps and one P1 requirement in progress, documented in @sec:future-work.
 
 **ISO 11898-1 sub-layer structure enabling independent module verification.** The layered decomposition was implemented as designed. Each module has a dedicated testbench and a disjoint requirement set. The five requirements labelled `system` correctly identified the scenarios requiring multi-module stimulus, confirming that the layer boundaries were drawn at the right points.
 
