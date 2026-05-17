@@ -61,45 +61,47 @@ function Meta(meta)
   return meta
 end
 
+-- Full-width column fractions keyed by "ncols:FirstHeaderCell".
+-- Every entry forces p{} columns that together fill \linewidth.
+-- Fractions in each row must sum to 1.0.
+local FULL_WIDTH_SPECS = {
+  -- 2-column tables
+  ["2:Abbreviation"]  = { 0.18, 0.82 },  -- tbl:abbreviations
+  ["2:Field"]         = { 0.20, 0.80 },  -- tbl:vplan-metadata-fields
+  -- 3-column tables
+  ["3:Byte"]          = { 0.12, 0.18, 0.70 },  -- internal LLC frame layout
+  ["3:Testbench"]     = { 0.25, 0.63, 0.12 },  -- tbl:testbench-results-summary
+  -- 4-column tables
+  ["4:ID"]            = { 0.08, 0.20, 0.08, 0.64 }, -- tbl:priority-demotion
+  ["4:Layer"]         = { 0.25, 0.25, 0.25, 0.25 }, -- tbl:vplan-distribution
+  -- 5-column tables
+  ["5:ID"]            = { 0.13, 0.11, 0.08, 0.43, 0.25 }, -- requirements appendix
+  ["5:Protocol"]      = { 0.18, 0.18, 0.14, 0.15, 0.35 }, -- tbl:protocol-comparison
+  -- 6-column tables
+  ["6:Implementation"] = { 0.20, 0.10, 0.08, 0.17, 0.27, 0.18 }, -- tbl:canfd-ip-survey
+}
+
+local function pin_colwidths(el)
+  local first_row = el.head and el.head.rows and el.head.rows[1]
+  if not first_row then return end
+  local first_cell = first_row.cells[1]
+  if not first_cell then return end
+  local key = #el.colspecs .. ":" .. pandoc.utils.stringify(first_cell)
+  local fractions = FULL_WIDTH_SPECS[key]
+  if not fractions then return end
+  local new_specs = {}
+  for i, spec in ipairs(el.colspecs) do
+    new_specs[i] = { spec[1], fractions[i] }
+  end
+  el.colspecs = new_specs
+end
+
 function Table(el)
   if not FORMAT:match("latex") then
     return el
   end
 
-  -- Pin column widths for the 2-column abbreviations table so it spans \linewidth.
-  -- Pandoc emits ColWidthDefault (natural l/r columns) when the separator is short;
-  -- explicit fractions force p{...} columns that together fill the line.
-  if #el.colspecs == 2 then
-    local first_row = el.head and el.head.rows and el.head.rows[1]
-    if first_row and first_row.cells[1] then
-      if pandoc.utils.stringify(first_row.cells[1]) == "Abbreviation" then
-        local fractions = { 0.18, 0.82 }
-        local new_specs = {}
-        for i, spec in ipairs(el.colspecs) do
-          new_specs[i] = { spec[1], fractions[i] }
-        end
-        el.colspecs = new_specs
-      end
-    end
-  end
-
-  -- Pin column widths for the 5-column requirements appendix table.
-  -- Separator-based proportions lose to unbreakable \href{} content; setting
-  -- colspecs here overrides them. Fractions must sum to 1.0.
-  -- ID(0.08): fits "REQ-001" on one line. Priority(0.08): fits "Priority" header.
-  if #el.colspecs == 5 then
-    local first_row = el.head and el.head.rows and el.head.rows[1]
-    if first_row and first_row.cells[1] then
-      if pandoc.utils.stringify(first_row.cells[1]) == "ID" then
-        local fractions = { 0.13, 0.11, 0.08, 0.43, 0.25 }
-        local new_specs = {}
-        for i, spec in ipairs(el.colspecs) do
-          new_specs[i] = { spec[1], fractions[i] }
-        end
-        el.colspecs = new_specs
-      end
-    end
-  end
+  pin_colwidths(el)
 
   local table_style = (os.getenv("PANDOC_TABLE_STYLE") or "clean"):lower()
   if table_style ~= "enhanced" then

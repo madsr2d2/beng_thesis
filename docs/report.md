@@ -620,13 +620,6 @@ After the EOF field the FSM transitions through `s_intermission`. A dedicated se
 
 The FSM uses two explicit error-frame states. `s_error_flag` drives the 6-bit flag and `s_error_delimiter` counts the 8-bit recessive delimiter. The delimiter state manages an internal phase flag (`delim_found_first_recessive`) that separates two distinct sub-phases: first awaiting the bus to go recessive (other nodes may still be driving their own flags), then counting the remaining recessive bits. A dominant during the delimiter restarts the error-frame sequence - either as a new error or as an overload condition on the last delimiter bit (ISO 8.1.4.2.f).
 
-| State | ISO reference | Role |
-|---|---|---|
-| `s_error_flag` | §6.6.5.2, §6.6.13 | Drive 6 dominant bits (active/overload) or 6 recessive bits (passive). |
-| `s_error_delimiter` | §6.6.5.3, §8.1.4.2 | Await first recessive bit, then count 8-bit delimiter. A dominant restarts the error-frame sequence. |
-
-: Two explicit error-frame states of `can_mac_fsm`. {#tbl:error-frame-states}
-
 The three submodules the FSM depends on - the serializer for the TX bit stream, the bit stuffer for stuff bit insertion and SBC generation, and the CRC engine for parallel polynomial accumulation - are described in the following subsections.
 
 ## `can_mac_ser` {#sec:impl-can-mac-ser}
