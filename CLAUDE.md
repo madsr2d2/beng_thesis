@@ -2,7 +2,7 @@
 
 B.Eng thesis: full CAN/CAN-FD node (TX+RX) in VHDL-2008 following ISO 11898-1:2015.
 Pipeline: `can_llc -> can_mac (can_mac_ser, can_mac_fsm, can_mac_bs, can_mac_crc) -> can_pcs`. Wrapper `can_mac_pcs_fce` adds FCE. Top-level `can_fd_controller` adds LLC.
-Standards ref: `docs/md_out/ISO_11898_1_CAN_bus_link/ISO_11898_1_CAN_bus_link.md`. Roadmap: `docs/roadmap_progress.md`.
+Standards ref: `docs/md_out/ISO_11898_1_CAN_bus_link/ISO_11898_1_CAN_bus_link.md`.
 
 ---
 
