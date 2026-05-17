@@ -59,9 +59,9 @@ The report tells a single continuous story. Each section picks up from the previ
 
 ### Requirements
 
-**What it establishes:** 38 structured requirements extracted from ISO 11898-1 via AI-assisted extraction + manual review. The AI bootstrapped the initial normative statement set (168 statements); manual review consolidated them. The primary benefit of AI assistance was consistency, not speed.
+**What it establishes:** 38 structured requirements extracted from ISO 11898-1 via AI-assisted extraction + manual review. The AI bootstrapped the initial normative statement set (168 statements); the manual distillation step - consolidating to 38 prioritised, independently verifiable requirements - was substantial and irreplaceable. The primary benefit of AI assistance in extraction was consistency, not speed. The MCP server interface was genuinely useful throughout design, implementation, and verification phases for safe incremental updates to the plan.
 
-**Key artifact:** `verification_plan.toml`, managed via MCP server to prevent silent data corruption.
+**Key artifact:** `verification_plan.toml`, managed via MCP server to prevent silent data corruption. Current state: 27 complete, 11 not_started (7 LLC deferred, REQ-011 P2, REQ-035 P1 gap, REQ-036 P2, REQ-037 P2).
 
 **Closes with:** "The 38 requirements... also function as a structured map to the protocol: every requirement points to a mechanism that must be understood before implementation can begin. The following section provides that understanding..."
 
@@ -92,7 +92,7 @@ Priority spans both groups.
 
 Final architecture: one unified `can_mac_fsm`, one `can_mac_bs`, one `can_mac_crc`, one `can_mac_ser` (TX only), plus `can_fce` and `can_pcs`.
 
-**Closes with:** "The decomposition described above yields five implemented entities... The following section covers the implementation of each entity in turn, ordered MAC-first."
+**Closes with:** "The decomposition described above yields six implemented entities... The following section covers the implementation of each entity in turn, ordered MAC-first."
 
 ### Implementation
 
@@ -113,11 +113,17 @@ Final architecture: one unified `can_mac_fsm`, one `can_mac_bs`, one `can_mac_cr
 
 ### Verification and Results
 
-**What it must establish:** Evidence that the 38 verification plan requirements are satisfied. This section is not yet written. When writing it, pick up the thread from the Implementation closing: the question posed there is the one this section answers.
+**What it establishes:** Evidence that the 38 verification plan requirements are satisfied, organised by testbench. Five testbenches cover 25 requirements via simulation/coverage; REQ-013 and REQ-024 are code inspection only. 27 of 38 requirements are complete. Eleven remain open: LLC deferred, REQ-035 the one open P1 item (lone-node ACK exemption - not implemented, deferred to future work).
+
+**Key figures:** Two waveform figures exist (`full_fd_frame.pdf`, `req_10_11.pdf`). Five additional waveform figures are pending placeholders (`pending_bs_dynamic.pdf`, `pending_bs_fixed.pdf`, `pending_pcs_tdc.pdf`, `pending_lost_arb.pdf`, `pending_error_frame.pdf`, `pending_bus_off_recovery.pdf`).
+
+**Closes with:** Reference to the full verification plan in @sec:appendix-vplan.
 
 ### Discussion and Conclusion
 
-Not yet written. Should reflect on the general lessons (requirements structure biasing design, unified FSM, layered verification) and assess the objectives stated in the Introduction.
+**Discussion establishes:** Three general lessons from the project: (1) requirements structure can inadvertently bias RTL architecture - the TX/RX side dimension made the split-path look natural but it was a red herring; (2) the unified FSM paid off most concretely at the arbitration loss boundary; (3) the layered architecture enabled module-by-module verification. Objectives Assessment (@sec:objectives-assessment) assesses each of the five objectives against delivered results. Future Work (@sec:future-work) names four items: `can_llc` implementation, REQ-035 lone-node ACK exemption, CRC/BS area optimisation, CAN XL support.
+
+**Conclusion establishes:** Two-paragraph close - what was delivered (27/38, MAC/PCS/FCE, REQ-035 as open P1), and two transferable lessons (requirements model structure is not RTL structure; layered architecture is a practical partitioning, not a documentary convenience).
 
 ---
 
