@@ -282,12 +282,12 @@ The constraints on this project come from two distinct sources. Two requirements
 
 ## From Specification to Structured Requirements {#sec:req-extraction}
 
-The requirements engineering process was aimed at tackling two key objectives:
+The requirements engineering process was aimed at tackling two key objectives [@bergeron2003ch3]:
 
 1. Extracting a clear and actionable set of requirements that could serve as a starting point for the design phase.
 2. Establishing a clear, traceable link between the ISO 11898-1 specification and the verification environment.
 
-Both objectives are complicated by the source material: normative requirements are distributed across subsections, often restated from different perspectives, and interspersed with explanatory text. [@bergeron2003ch3]
+Both objectives are complicated by the source material: normative requirements are distributed across subsections, often restated from different perspectives, and interspersed with explanatory text. The standard compounds this by bundling multiple obligations into single clauses, interspersing normative `shall` statements with informative rationale prose, and repeating equivalent obligations from both transmitter and receiver perspectives.
 
 The requirements set was constructed using the AI-assisted pipeline shown in @fig:ver_plan_pipeline. The first step was converting the ISO 11898-1 pdf to Markdown - a format which can be efficiently searched and ingested by LLM models. The resulting Markdown file was then fed to a Claude Sonnet 4.6 LLM agent, which was prompted to extract all normative statements - sentences containing words like "shall", "should", "must", and their corresponding negations.
 
