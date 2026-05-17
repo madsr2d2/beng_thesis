@@ -533,9 +533,9 @@ The design avoids this by defining a separate internal format for the MAC-facing
 
 ## LLC Frame Format {#sec:llc-frame-format}
 
-All six bus frame types (CB, CE, FB, FE data frames, and remote frames for CB and CE) are represented at the host-MAC boundary using the 71-byte LLC frame format shown in @fig:llc-frame. The LLC frame maps all in-scope variants into a fixed-width structure compatible with the Avalon-ST streaming interface, distinguishing remote frames via the FTYP bit in byte 70.
+All six bus frame types (CB, CE, FB, FE data frames, and remote frames for CB and CE) are represented at the host-LLC interface using the 71-byte LLC frame format shown in @fig:llc-frame. The LLC frame maps all in-scope variants into a fixed-width structure compatible with the Avalon-ST streaming interface, distinguishing remote frames via the FTYP bit in byte 70.
 
-![LLC frame format (71 bytes) at the host-MAC interface. Bytes 0-3 encode the identifier. Byte 4 carries the frame-type selector FTYP in bits [7:4] and DLC in bits [3:0]. Bytes 5-68 carry up to 64 data bytes. Byte 69 carries the FDF, BRS, ESI, and IDE control flags. Byte 70 carries RTR in bit 0. The lower rows show the identifier byte mapping: for extended identifiers ID[28:24] are packed into ID0, ID[23:16] into ID1, ID[15:8] into ID2, and ID[7:0] into ID3. For base identifiers ID0 and ID1 are all zeros, ID[10:8] occupies the lower three bits of ID2, and ID[7:0] fills ID3.](figures/llc_frame.png){#fig:llc-frame width=100%}
+![LLC frame format (71 bytes) at the host-LLC interface. Bytes 0-3 carry the identifier as four bytes ID0-ID3. Byte 4 bits [7:4] carry the frame-type selector FTYP and bits [3:0] carry DLC. Bytes 5-68 carry up to 64 data bytes. Byte 69 bits [3:0] carry the control flags FDF, BRS, ESI, and IDE, with bits [7:4] reserved. Byte 70 bit [0] carries RTR, with bits [7:1] reserved. The lower two rows show the identifier byte mapping: for extended 29-bit identifiers ID[28:24] is packed into the lower five bits of ID0, ID[23:16] into ID1, ID[15:8] into ID2, and ID[7:0] into ID3. For base 11-bit identifiers, ID0 and ID1 are all zeros, ID[10:8] occupies the lower three bits of ID2, and ID[7:0] fills ID3.](figures/llc_frame.png){#fig:llc-frame width=100%}
 
 ## LLC Sub-layer {#sec:llc-sub-layer}
 
