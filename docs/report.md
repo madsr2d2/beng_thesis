@@ -66,8 +66,6 @@ This thesis describes the design, implementation, and verification of a CAN/CAN-
 
 : Abbreviations used in this report. {#tbl:abbreviations}
 
----
-
 # Introduction {#sec:introduction}
 
 Industrial control systems for large marine engines demand communication protocols that combine fault tolerance, multi-master arbitration, and multi-decade service reliability. The Controller Area Network has served that role at Everllence for the current generation of engine controllers, but as control system data requirements grow the constraints of CAN Classic have become a practical barrier. This chapter examines why that barrier cannot be addressed by extending the existing in-house controller, why available third-party CAN FD IP cores do not satisfy Everllence's specific requirements, and what those conclusions imply for the design approach taken in this thesis.
@@ -570,8 +568,6 @@ The MAC sub-layer is the core of the protocol logic, responsible for bit seriali
 
 The decomposition described above yields six implemented entities - `can_mac_fsm`, `can_mac_ser`, `can_mac_bs`, `can_mac_crc`, `can_fce`, and `can_pcs` - plus `can_mac` and `can_mac_pcs_fce` as structural wrappers and `can_llc` as the one module not yet implemented. The following section covers the implementation of each entity in turn, ordered MAC-first.
 
----
-
 # Implementation {#sec:implementation}
 
 The Design section concluded that a unified `can_mac_fsm` - one state machine, one bit stuffer, one CRC engine - was the right architecture once the split-path approach was attempted and found unworkable. This section shows what that architecture looks like in practice. Two threads run through the module descriptions that follow. The first is the set of implementation decisions that were not derivable from the requirements table alone but were forced by protocol structure during implementation: the bit stuffer's handling of a pending dynamic stuff bit at the dynamic-to-fixed mode boundary, the CRC engine's combinatorial output mux and why a registered stage would have broken the frame timing, and the PCS synchronisation rules that the prior implementation violated. The second is the places where the unified FSM design decision pays off - where a protocol rule that applies equally to transmitter and receiver is expressed once in shared state rather than twice in parallel FSMs. Subsections are ordered MAC-first: the FSM and its internal submodules (`can_mac_ser`, `can_mac_bs`, `can_mac_crc`) are described before the supporting `can_fce` and `can_pcs` layers, so that the FSM's interface contracts are established before the modules that satisfy them. `can_llc` is not yet implemented. Its interface contracts are captured in the verification plan (REQ-001 through REQ-005, REQ-033).
@@ -748,8 +744,6 @@ Eleven requirements remain open. Seven are LLC requirements (REQ-001 through REQ
 
 : Testbench execution status and requirements coverage. {#tbl:testbench-results-summary}
 
----
-
 # Discussion {#sec:discussion}
 
 The three design-facing dimensions of the verification plan shaped the implementation in ways that were not uniformly constructive. The layer dimension and format_applicability dimension had straightforwardly positive effects: the layer dimension motivated the ISO 11898-1 layered decomposition, which proved to be the right architecture, and format_applicability made the per-field FSM granularity and front-loaded internal frame format obvious choices. The side dimension had a more instructive effect. It made a split TX/RX implementation look like the natural strategy, simply because the requirements table was organised along that axis. The split was attempted, created concrete problems, and was replaced by the unified `can_mac_fsm`. The general lesson - that the structure of a requirements model can inadvertently bias architectural decisions, and that apparent naturalness is not a reliable signal of soundness - applies beyond this project. Verification plan dimensions describe what must be tested and what stimulus is needed. They are not a template for RTL decomposition. RTL structure should follow the structure of the protocol.
@@ -799,16 +793,8 @@ The project yielded two transferable lessons. First, the structure of a requirem
 
 # Verification Plan {#sec:appendix-vplan}
 
-Both tables are regenerated automatically from `verification_plan/verification_plan.toml` on each PDF build. The ID field is the join key between them. See @sec:verification-plan-data-structure for the meaning of each field.
-
-## Extracted Requirements {#sec:appendix-requirements}
-
-The requirements table contains four fields: the identifier, the ISO 11898-1 source clause, the priority assignment, and the paraphrase. Placing priority here allows each assignment to be evaluated directly against the requirement text. The table corresponds to the requirements extraction and prioritisation phases described in @sec:req-extraction and @sec:vplan-priority.
+Both tables are regenerated automatically from `verification_plan/verification_plan.toml` on each PDF build. The ID field is the join key between them. See @sec:verification-plan-data-structure for the meaning of each field. The first table lists each requirement with its ISO source clause, priority, and paraphrase. The second table lists the verification metadata: layer, side, format applicability, observability, method, status, traceability label, file, and coverage criteria.
 
 <!-- generated:requirements-table -->
-
-## Verification Plan Fields {#sec:appendix-vplan-fields}
-
-The verification plan table contains the verification metadata fields added during the planning phase. Cross-reference to the requirements table above via the shared ID field.
 
 <!-- generated:verification-plan-table -->
