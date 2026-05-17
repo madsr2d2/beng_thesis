@@ -6,7 +6,7 @@ bibliography: references.bib
 csl: ieee.csl
 link-citations: true
 abstract: |
-  This thesis describes the design, implementation, and verification of a CAN/CAN FD protocol controller in VHDL-2008, targeting high-reliability engine controller applications at Everllence. The controller complies with ISO 11898-1 and supports the CB, CE, FB, and FE frame formats with dual bit rate switching and Transmitter Delay Compensation (TDC) for the FD data phase. The design is structured around the ISO 11898-1 layered reference model, with the MAC, PCS, and FCE sub-layers implemented as independently testable modules and the LLC sub-layer specified but deferred. A unified `can_mac_fsm` - a single 19-state per-field FSM shared by transmitter and receiver roles via an `is_transmitter` flag - replaced an earlier split-path design after the split was found to introduce unnecessary coordination complexity at the arbitration loss boundary. Requirements were derived from ISO 11898-1 via an AI-assisted extraction pipeline producing a machine-readable verification plan managed through a custom Model Context Protocol server. Of the 38 requirements in the plan, 27 are closed against passing testbenches or code inspection. The remaining 11 are either LLC-layer requirements deferred pending `can_llc` implementation or documented known gaps, with the lone-node ACK exemption (REQ-035) the one open P1 item.
+  This thesis describes the design, implementation, and verification of a CAN/CAN FD protocol controller in VHDL, targeting high-reliability engine controller applications at Everllence. The controller complies with ISO 11898-1 and supports the CB, CE, FB, and FE frame formats with dual bit rate switching and Transmitter Delay Compensation (TDC) for the FD data phase. The design is structured around the ISO 11898-1 layered reference model, with the MAC, PCS, and FCE sub-layers implemented as independently testable modules and the LLC sub-layer specified but deferred. Of 38 derived requirements, 27 are verified against passing testbenches or code inspection. The remaining 11 are deferred pending `can_llc` implementation or documented as known gaps.
 ---
 
 ```{=latex}
@@ -352,7 +352,7 @@ A CAN Classic frame consists of Start of Frame (SOF), Arbitration field (identif
 
 A CAN FD frame shares the same structure through the arbitration phase and then introduces FD-specific control fields. The FDF bit distinguishes an FD frame from a Classic frame. A recessive FDF triggers the FD control field sequence including reserved bits, BRS, and ESI (REQ-015). The BRS (Bit Rate Switch) bit controls the transition to the data-phase bit rate: when BRS is recessive the bus switches to the faster data rate immediately after the BRS sample point and returns to the nominal rate at the CRC delimiter (REQ-032). The ESI (Error State Indicator) bit reflects the transmitting node's fault-confinement state: a node in error passive state shall transmit ESI recessive (REQ-016).
 
-![Frame formats for the four in-scope frame types (CB, CE, FB, FE) and the error and overload flags. Field widths are annotated per ISO 11898-1.](figures/frame_format.png){#fig:can-frame-structure height=80%}
+![Frame formats for the four in-scope frame types (CB, CE, FB, FE) and the error and overload flags. Field widths are annotated per ISO 11898-1.](figures/frame_format.png){#fig:can-frame-structure height=95%}
 
 ## Bit Timing and Flexible Data Rate {#sec:bit-timing}
 
@@ -633,7 +633,7 @@ The naming convention follows the data-flow direction: `m2s`/`s2m` (master-to-sl
 
 The `can_mac` sub-layer is built around a single unified FSM entity (`can_mac_fsm`, ~1100 lines). The full per-signal interface is shown in @fig:mac-fsm-arch.
 
-![`can_mac` architecture with signal-level connections between the four internal entities and external interfaces.](figures/mac_arch.png){#fig:mac-fsm-arch height=80%}
+![`can_mac` architecture with signal-level connections between the four internal entities and external interfaces.](figures/mac_arch.png){#fig:mac-fsm-arch height=90%}
 
 ### FSM Structure and Mode Flag
 
@@ -723,7 +723,7 @@ The PCS layer, which supplies the bit-level timing strobes that drive every FSM 
 
 `can_pcs` is a cyclic bit-timing engine: its internal `t_segment` register advances through `s_sync_seg` (1 TQ, fixed), `s_prop_seg`, `s_phase_seg1`, and `s_phase_seg2` on every TQ boundary. The SP strobe and `rx_data` latch fire at the end of `s_phase_seg1`. The TX bit is driven at the end of `s_phase_seg2`. When `fce_i.bus_off` is asserted, the SP slot counts consecutive recessive bits and pulses `fce_o.idle_condition` every 11 bits for FCE bus-off recovery. The full timing operation is shown in @fig:can-pcs.
 
-![`can_pcs` bit-time FSM with concurrent resynchronization and TDC pipelines per ISO 11898-1 sec. 7.2-7.4.](figures/pcs_fsm.png){#fig:can-pcs height=80%}
+![`can_pcs` bit-time FSM with concurrent resynchronization and TDC pipelines per ISO 11898-1 sec. 7.2-7.4.](figures/pcs_fsm.png){#fig:can-pcs height=90%}
 
 ### Resynchronization {#sec:impl-can-pcs-resync}
 
