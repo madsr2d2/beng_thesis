@@ -321,7 +321,7 @@ The 38 requirements, each linked to its ISO source clause and assigned a priorit
 
 # CAN and CAN FD Protocol Overview {#sec:can-protocol-overview}
 
-Each requirement in @sec:requirements-engineering refers to a specific protocol mechanism. This section covers those mechanisms - the sub-layer model, frame formats, bit timing, stuffing, CRC, and error handling - with each cross-referenced to the relevant REQ-NNN entries. Readers familiar with ISO 11898-1 may skip to @sec:verification-plan.
+Each requirement in @sec:requirements-engineering refers to a specific protocol mechanism. This section covers those mechanisms - the sub-layer model, frame formats, bit timing, stuffing, CRC, and error handling - each cross-referenced to the relevant REQ-NNN entries. Readers familiar with ISO 11898-1 may skip to @sec:verification-plan.
 
 ## Layered Reference Model {#sec:can-layered-model}
 
