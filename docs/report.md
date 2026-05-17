@@ -13,7 +13,7 @@ abstract: |
 # Abbreviations {-}
 
 | Abbreviation | Meaning |
-| :--- | :--- |
+| :--- | ---: |
 | ACK | Acknowledgment |
 | AD | ACK Delimiter |
 | AEF | Active Error Flag |
