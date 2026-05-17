@@ -82,6 +82,7 @@ constant c_foo_end   : integer := 5;  -- LSB
 
 > **CRITICAL: Never use semicolons (`;`) in prose or report comments. Use periods instead. This applies everywhere: report body text, figure captions, table captions, inline comments, and any other written English. Violations break the writing style consistency of the entire document. There are no exceptions.**
 
+- American English spelling throughout (e.g. "acknowledgment" not "acknowledgement", "color" not "colour").
 - No em dashes (use `-`).
 - Pandoc: heading IDs `{#sec:name}`, crossrefs `@sec:`, `@fig:`, `@tbl:`. Every figure/table referenced in body text.
 - Mermaid `stateDiagram-v2`: `classDef reset stroke:#000,stroke-width:3px` + `class s0 reset`. No `:::` on `state` lines. No `[*] -->`.
