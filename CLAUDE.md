@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-B.Eng thesis: full CAN/CAN-FD node (TX+RX) in VHDL-2008 following ISO 11898-1:2015.
+B.Eng thesis: full CAN/CAN FD node (TX+RX) in VHDL-2008 following ISO 11898-1:2015.
 Pipeline: `can_llc -> can_mac (can_mac_ser, can_mac_fsm, can_mac_bs, can_mac_crc) -> can_pcs`. Wrapper `can_mac_pcs_fce` adds FCE. Top-level `can_fd_controller` adds LLC.
 Standards ref: `docs/md_out/ISO_11898_1_CAN_bus_link/ISO_11898_1_CAN_bus_link.md`.
 
@@ -29,7 +29,7 @@ Modifying `pk_can_types` requires re-analyzing the entire chain. See `docs/agent
 ## Verification
 
 Scope: CB, CE, FB, FE frames only. **CAN XL is strictly out of scope.**
-Plan: `verification_plan/verification_plan.toml` (118 reqs, IDs `REQ-NNN`). See `docs/agents/verification-plan.md`.
+Plan: `verification_plan/verification_plan.toml` (IDs `REQ-NNN`). See `docs/agents/verification-plan.md`.
 MCP tools: `query_requirements`, `get_requirement`, `update_requirement`, `bulk_update`, `insert_requirement`, `get_statistics`, `delete_requirement`, `renumber_requirements`.
 
 ---
@@ -80,40 +80,22 @@ constant c_foo_end   : integer := 5;  -- LSB
 
 ## Writing Style
 
-> **CRITICAL: Never use semicolons (`;`) in prose or report comments. Use periods instead. This applies everywhere: report body text, figure captions, table captions, inline comments, and any other written English. Violations break the writing style consistency of the entire document. There are no exceptions.**
+> **CRITICAL: No semicolons (`;`) in prose anywhere. Use periods. No exceptions.**
 
-- American English spelling throughout (e.g. "acknowledgment" not "acknowledgement", "color" not "colour").
+- American English: "acknowledgment", "color", etc.
 - No em dashes (use `-`).
-- Pandoc: heading IDs `{#sec:name}`, crossrefs `@sec:`, `@fig:`, `@tbl:`. Every figure/table referenced in body text. Use `@sec:` cross-references instead of vague "the following/next section" phrases.
+- Pandoc: `{#sec:name}` IDs, `@sec:/@fig:/@tbl:` crossrefs. Every figure/table referenced in body. Use `@sec:` not "the following/next section".
 - Mermaid `stateDiagram-v2`: `classDef reset stroke:#000,stroke-width:3px` + `class s0 reset`. No `:::` on `state` lines. No `[*] -->`.
 - `bibliography: references.bib`, `csl: ieee.csl`, `link-citations: true` in YAML front matter.
-
-### Terminology and Capitalization
-
-- **CAN FD** (no hyphen, not "CAN-FD"). Combined form: "CAN/CAN FD".
-- **CAN Classic** (not "Classic CAN"). Use "CAN Classic and CAN FD frame formats" (not "Classic and FD").
-- **FSM** consistently (not "state machine").
-- Node state names lower case in body text: "error active", "error passive", "bus off". Title case only in abbreviation table entries.
-- Error flag types lower case in body text: "error flag", "active error flag", "passive error flag".
-- No "soft sync" or "soft synchronization". Use "hard synchronization" and "resynchronization".
-
-### Spelling and Hyphenation
-
-- "testbench" (one word), "submodule" (no hyphen), "sub-layer" (hyphenated).
-- "destuffed"/"destuffing" (no hyphen).
-- Compound modifiers take a hyphen: "stuff-bit insertion", "bit-error monitoring", "data-phase bit rate", "in-scope", "out-of-scope".
-- Numbers below 10 spelled out in prose. Technical constants and identifiers use digits (e.g. "CRC-15", "by 8 on TX errors").
-- Title case for section headings. Lower case for protocol state names and frame element names in body text.
+- **Terminology:** "CAN FD" (no hyphen), "CAN Classic" (not "Classic CAN"), "FSM" (not "state machine"), "hard synchronization" and "resynchronization" (no "soft sync").
+- **Case:** Node states lower case in body text: "error active", "error passive", "bus off". Same for "error flag", "active error flag", "passive error flag". Title case in abbreviation table only.
+- **Hyphenation:** "sub-layer", "stuff-bit insertion", "bit-error monitoring", "data-phase bit rate", "in-scope", "out-of-scope". No hyphen: "testbench", "submodule", "destuffed".
+- **Numbers:** Spell out below 10 in prose. Digits for technical constants ("CRC-15", "by 8 on TX errors").
 
 ---
 
 ## Agent Skills
 
-### Issue tracker
-Issues live in GitHub Issues for `madsr2d2/beng_thesis`. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-Default five-role vocabulary (needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix). See `docs/agents/triage-labels.md`.
-
-### Domain docs
-Single-context layout - one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+- **Issue tracker:** GitHub Issues `madsr2d2/beng_thesis`. See `docs/agents/issue-tracker.md`.
+- **Triage labels:** needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix. See `docs/agents/triage-labels.md`.
+- **Domain docs:** Single-context layout - one `CONTEXT.md` + `docs/adr/` at root. See `docs/agents/domain.md`.
