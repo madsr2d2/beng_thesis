@@ -810,7 +810,7 @@ The four objectives stated in @sec:objectives are assessed against the verificat
 
 2. **REQ-035: lone-node ACK exemption.** A node transmitting with no other nodes present currently triggers an ACK error and increments TEC, eventually reaching bus off. ISO 11898-1 requires that a node which correctly validates its own transmitted frame shall not increment TEC in this case. Implementing the exemption requires the MAC to suppress the TEC increment when an ACK error occurs but the locally accumulated CRC matched the transmitted CRC field.
 
-3. **CRC and bit stuffer area optimization.** `can_mac_crc` runs three `gen_crc` instances in parallel and `can_mac_bs` maintains both dynamic and fixed mode counters continuously. In area-constrained FPGA targets, time-multiplexing the CRC engines and gating the fixed-mode counter when not in the FD CRC region would reduce LUT usage at the cost of modest additional control logic.
+3. **Hardware integration and bring-up.** The implemented RTL has been verified in simulation only. Integration into Everllence's IO-extender FPGA design and bring-up on a physical CAN FD bus - including interoperability testing against a known-good CAN FD node - would validate timing closure, transceiver compatibility, and bit timing calibration under real bus conditions.
 
 4. **CAN XL support.** CAN XL is explicitly out of scope for this project. The layered architecture and unified FSM are well-suited for extension: CAN XL adds a third bit rate phase and an XL-specific frame format, both of which map naturally onto additional PCS rate parameters and new `can_mac_fsm` states.
 
