@@ -190,7 +190,7 @@ Before committing to an in-house redesign, the available CAN FD controller IP co
 
 ### Rationale for In-House Development {#sec:rationale-in-house}
 
-None of these solutions satisfies Everllence's combined requirements for safety-critical marine engine control.
+None of these solutions satisfies Everllence's combined requirements for safety-critical marine engine control. The disqualifying factors span IP ownership, verification authority, architectural scope, interface compatibility, and platform independence - each addressed in turn below.
 
 **IP ownership and supply chain independence.** Everllence's engine controllers carry service commitments of up to thirty years. Commercial IP cores introduce a licensing dependency on an external vendor over that full horizon - vendors may discontinue support, change licensing terms, or be acquired. Owning the RTL outright eliminates this exposure and ensures that the design can be maintained, ported, and modified without third-party approval for the full product lifetime. The open-source CTU CAN FD avoids the licensing risk, but using it still means adopting a codebase whose architecture, naming conventions, and design decisions were made for a different context.
 
