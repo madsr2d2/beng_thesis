@@ -254,7 +254,7 @@ This section defines what must be implemented and verified. The Everllence codin
 
 ## VHDL Code Standard and Design Constraints {#sec:engineering-constraints}
 
-The constraints on this project come from two distinct sources. Two requirements are specific to this project's place within Everllence's existing CAN infrastructure while the remaining constraints come from Everllence's VHDL Code Standard and apply uniformly to all FPGA IP modules developed in-house.
+The constraints on this project come from two distinct sources. Two are specific to this project's integration context: the Avalon-ST host interface and the mandatory use of the IP library CRC block. The remainder are drawn from Everllence's VHDL Code Standard and apply uniformly to all in-house FPGA modules.
 
 ### Project-specific Infrastructure Requirements
 
