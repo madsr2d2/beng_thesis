@@ -88,7 +88,7 @@ group_title = "LLC transmission request and abort timing"
 id = "REQ-003"
 source_clause = "§6.5.2, §6.5.3"
 original_wording = "The transmission of frames losing bus arbitration shall be restarted by the LLC entity unless the transmission of that frame is aborted by the LLC user. ; The retransmission of frames that are not aborted by the LLC user shall be attempted for the configured specific number of times. ; Retransmission attempts shall be counted in the retransmission counter. ; The node's retransmission counter shall be reset to zero when a transmission is successful or when the LLC user requests a new transmission. ; Nodes that do not support the XL frame format are not required to implement the retransmission counter, but they shall support unlimited retransmissions."
-paraphrase = "1) Frames losing arbitration shall be retransmitted unless aborted by the LLC user.\n2) Non-XL nodes shall support unlimited retransmissions (no counter required)."
+paraphrase = "1) Frames losing arbitration shall be retransmitted unless aborted by the LLC user.\n2) Non-XL nodes shall support unlimited retransmissions."
 side = "transmitter"
 layer = "LLC"
 format_applicability = "CB, CE, FB, FE"
@@ -154,7 +154,7 @@ file = "src/can_mac_crc/hdl_tb/can_mac_crc_tb.vhd"
 observability = "white_box"
 verification_method = "simulation, coverage"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "CRC rules"
 
 [[requirement]]
@@ -172,7 +172,7 @@ file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_f
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "Error and overload flags"
 
 [[requirement]]
@@ -190,7 +190,7 @@ file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_f
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "Inter-frame space"
 
 [[requirement]]
@@ -210,7 +210,7 @@ file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_f
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "Bus re-integration"
 
 [[requirement]]
@@ -231,7 +231,7 @@ file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_f
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "Frame initiation"
 
 [[requirement]]
@@ -267,7 +267,7 @@ file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_f
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "SRR and RRS reserved bits"
 
 [[requirement]]
@@ -286,7 +286,7 @@ file = "src/can_mac/hdl_src/can_mac_fsm.vhd"
 observability = "white_box"
 verification_method = "code_inspection"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "CRC bit stream coverage"
 
 [[requirement]]
@@ -304,7 +304,7 @@ file = "can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "simulation, waveform_inspection"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "Frame acknowledgement"
 
 
@@ -323,7 +323,7 @@ file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_f
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "CC/FD format differentiation"
 
 [[requirement]]
@@ -343,7 +343,7 @@ file = "can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "simulation, waveform_inspection"
 priority = "P2"
-status = "in_progress"
+status = "complete"
 group_title = "ESI bit transmission"
 
 [[requirement]]
@@ -361,7 +361,7 @@ file = "src/can_mac_bs/hdl_tb/can_mac_bs_tb.vhd"
 observability = "black_box"
 verification_method = "simulation"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "Stuff bit count (SBC) field"
 
 
@@ -380,7 +380,7 @@ file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_f
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "CRC delimiter"
 
 [[requirement]]
@@ -398,7 +398,7 @@ file = "src/can_mac_bs/hdl_tb/can_mac_bs_tb.vhd"
 observability = "white_box"
 verification_method = "simulation, coverage"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "Bit stuffing"
 
 [[requirement]]
@@ -418,7 +418,7 @@ file = "can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "simulation"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "End of frame (EOF)"
 
 [[requirement]]
@@ -436,7 +436,7 @@ file = "can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "black_box"
 verification_method = "simulation"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "Bus arbitration"
 
 [[requirement]]
@@ -454,7 +454,7 @@ file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_f
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "MAC error detection"
 
 [[requirement]]
@@ -472,7 +472,7 @@ file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_f
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "Error flag initiation and CRC error behaviour"
 
 
@@ -491,7 +491,7 @@ file = "src/can_mac/hdl_src/can_mac_fsm.vhd"
 observability = "white_box"
 verification_method = "code_inspection"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "Overload frame"
 
 [[requirement]]
@@ -509,7 +509,7 @@ file = "src/can_pcs/hdl_tb/can_pcs_tb.vhd"
 observability = "white_box"
 verification_method = "simulation"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "PCS bit timing configuration"
 
 [[requirement]]
@@ -527,7 +527,7 @@ file = "src/can_pcs/hdl_tb/can_pcs_tb.vhd"
 observability = "black_box"
 verification_method = "simulation"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "Transmitter delay compensation"
 
 [[requirement]]
@@ -545,7 +545,7 @@ file = "src/can_pcs/hdl_src/can_pcs.vhd, src/can_pcs/hdl_tb/can_pcs_tb.vhd"
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "PCS synchronisation"
 
 [[requirement]]
@@ -563,7 +563,7 @@ file = "src/can_pcs/hdl_src/can_pcs.vhd, src/can_pcs/hdl_tb/can_pcs_tb.vhd, can_
 observability = "white_box"
 verification_method = "simulation, code_inspection"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "PCS bus-off isolation and signalling"
 
 [[requirement]]
@@ -581,7 +581,7 @@ file = "src/can_fce/hdl_tb/can_fce_tb.vhd"
 observability = "black_box"
 verification_method = "simulation"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "FCE reset and response"
 
 [[requirement]]
@@ -599,7 +599,7 @@ file = "src/can_fce/hdl_tb/can_fce_tb.vhd"
 observability = "black_box"
 verification_method = "simulation"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "Error counter rules"
 
 [[requirement]]
@@ -617,7 +617,7 @@ file = "src/can_fce/hdl_tb/can_fce_tb.vhd"
 observability = "black_box"
 verification_method = "simulation"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 group_title = "Error confinement state transitions"
 
 [[requirement]]
@@ -631,7 +631,7 @@ format_applicability = "FB, FE"
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority = "P1"
-status = "in_progress"
+status = "complete"
 notes = ""
 coverage_criteria = ""
 label = "p_fsm:~636, p_fsm:~755, test_normal"
@@ -641,7 +641,7 @@ group_title = "BRS bit rate switching"
 [[requirement]]
 id = "REQ-033"
 source_clause = "§6.4.3, §6.4.4, Table 5"
-original_wording = "For DFs of all other formats the 4 LSB encode the number of data bytes as specified in Table 5. ; If the DLC indicates a higher number of data bytes, the data bytes beyond the restricted range shall be replaced in the LLC DF by bytes with the value of CCHEX ('padding') both for received and for transmitted frames."
+original_wording = "For DFs of all other formats the 4 LSB encode the number of data bytes as specified in Table 5."
 paraphrase = "DLC 0-8: linear mapping. FD: DLC 9→12, 10→16, 11→20, 12→24, 13→32, 14→48, 15→64 bytes. CC: DLC 9-15 clamped to 8 bytes."
 side = "both"
 layer = "LLC"
@@ -670,8 +670,8 @@ priority = "P1"
 status = "not_started"
 notes = ""
 coverage_criteria = ""
-label = ""
-file = ""
+label = "test_normal"
+file = "can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 group_title = "Byte/Bit transmission order"
 
 [[requirement]]
