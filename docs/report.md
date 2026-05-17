@@ -215,7 +215,7 @@ The architectural limitations of the existing controller (@sec:existing-limitati
 
 # Background {#sec:background}
 
-The introduction established why a new CAN FD controller is needed at Everllence. Two bodies of knowledge bound the design choices that follow: the CAN and CAN FD protocol itself, and the VHDL-2008 and OSVVM toolchain in which it is implemented.
+This section covers the two technical foundations that the rest of the report builds on. The first is the CAN and CAN FD protocol at the level of motivation and architecture: its bus model, fault-confinement properties, and the bandwidth extensions introduced by CAN FD. The protocol mechanisms referenced by individual requirements - bit timing, stuffing, CRC, and error handling - are covered in depth in @sec:can-protocol-overview. The second foundation is the VHDL-2008 and OSVVM toolchain used for implementation and simulation. Readers already familiar with both may proceed directly to @sec:requirements-engineering.
 
 ## CAN as a Communication Bus {#sec:can-as-bus}
 
