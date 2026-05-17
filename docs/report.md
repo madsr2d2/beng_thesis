@@ -573,7 +573,7 @@ The interface contracts `can_llc` must satisfy are captured in REQ-001 through R
 
 ## MAC Sub-layer {#sec:mac-sub-layer}
 
-The MAC sub-layer is the core of the protocol logic, responsible for bit serialization, CRC generation, bit stuffing, and frame-level error detection. It is implemented as a single unified `can_mac_fsm` entity, supported by three internal submodules (`can_mac_ser`, `can_mac_bs`, `can_mac_crc`) and wrapped by `can_mac`, which is a structural entity that instantiates the FSM alongside `can_fce` and exposes their combined LLC, PCS, and FCE interfaces. It coordinates closely with the FCE (@sec:fce-sub-layer) for error counter management and node-state transitions (error active/error passive/bus off), and with the PCS (@sec:pcs-sub-layer) for sample-point-driven bit output.
+The MAC sub-layer is the core of the protocol logic, responsible for bit serialization, CRC generation, bit stuffing, and frame-level error detection. It is implemented as a single unified `can_mac_fsm` entity, supported by three internal submodules (`can_mac_ser`, `can_mac_bs`, `can_mac_crc`) and wrapped by `can_mac`, which is a structural entity exposing the LLC and PCS interfaces. `can_mac`, `can_fce`, and `can_pcs` are then combined in the `can_mac_pcs_fce` wrapper. It coordinates closely with the FCE (@sec:fce-sub-layer) for error counter management and node-state transitions (error active/error passive/bus off), and with the PCS (@sec:pcs-sub-layer) for sample-point-driven bit output.
 
 ### `can_mac_fsm` {#sec:can-mac-fsm}
 
