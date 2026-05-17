@@ -498,7 +498,7 @@ The verification plan - 38 requirements each classified along five dimensions an
 
 # Design and Architecture {#sec:design-architecture}
 
-The verification plan classified all 38 requirements along three design-facing dimensions: `layer`, `side`, and `format_applicability`. Two led directly to sound architectural choices. One pointed toward a split TX/RX architecture that was attempted, found unworkable, and replaced by the unified `can_mac_fsm`. This section traces those effects and describes the resulting module decomposition.
+The verification plan classified all 38 requirements along three design-facing dimensions: `layer`, `side`, and `format_applicability`. Two led directly to sound architectural choices. One pointed toward a split TX/RX architecture that was attempted, found unworkable, and replaced by the unified `can_mac_fsm`.
 
 ## Ramifications of the Requirements Model on Initial Design Strategy {#sec:req-design-ramifications}
 
