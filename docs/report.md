@@ -250,7 +250,7 @@ The verification framework is OSVVM (Open Source VHDL Verification Methodology) 
 
 # Requirements {#sec:requirements-engineering}
 
-This section defines what must be implemented and verified: 38 requirements derived from ISO 11898-1 normative obligations, and the Everllence coding constraints that frame the implementation. Together they bound the design space before any architectural decisions are made.
+This section defines what must be implemented and verified. The Everllence coding constraints establish the implementation framework - port type restrictions, naming conventions, and testbench structure - that applies uniformly to all in-house FPGA modules. The 38 protocol requirements are derived from ISO 11898-1 normative obligations through an AI-augmented extraction pipeline and distilled manually into independently verifiable entries, each carrying a source clause reference, a priority rating, and a verification method. Together they bound the design space before any architectural decisions are made.
 
 ## VHDL Code Standard and Design Constraints {#sec:engineering-constraints}
 
