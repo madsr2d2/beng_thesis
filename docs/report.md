@@ -161,7 +161,7 @@ While the existing controller is functional for CAN Classic, several areas of th
 
 ### Decision to Redesign {#sec:decision-to-redesign}
 
-The rework required across bit timing, bit stuffing, CRC, and frame format complexity - supporting four frame variants with FD-specific control fields across both TX and RX paths - is substantial enough that incremental extension would risk introducing the changes piecemeal without the sub-layer structure the ISO model calls for. A clean-slate redesign was chosen, structured around the ISO 11898-1 layered architecture (LLC, MAC, PCS, FCE) with independently testable subcomponents.
+The rework required across bit timing, bit stuffing, CRC, and frame format complexity - supporting four frame variants with FD-specific control fields across both TX and RX paths - is large enough to justify a clean-slate redesign structured around the ISO 11898-1 layered architecture (LLC, MAC, PCS, FCE) with independently testable subcomponents, rather than retrofitting FD support onto a design not originally built with those boundaries.
 
 ## Existing CAN FD IP Cores {#sec:existing-ip-cores}
 
@@ -169,28 +169,22 @@ Before committing to an in-house redesign, the available CAN FD controller IP co
 
 ### Open-Source Implementations {#sec:open-source-implementations}
 
-**CTU CAN FD** [@ctucanfd][@jerabek2019] is the only mature open-source CAN FD controller available as synthesizable HDL. Developed at the Czech Technical University in Prague, it is written in VHDL, licensed under MIT, and has been conformance-tested against ISO 16845-1 [@iso16845_1]. The controller includes a full TX and RX pipeline with up to four TX buffers, acceptance filtering, timestamping, and a register interface with DMA support. A mainline Linux kernel driver has been available since kernel version 5.12. CTU CAN FD represents a complete, production-oriented CAN node - a significantly broader scope than what is needed in this project.
-
-**OpenCores CAN** [@opencores_can] is a Verilog controller modeled after the Philips SJA1000 register interface. It is one of the earliest open-source CAN cores and is widely cited in academic work. However, it supports only CAN 2.0B (CAN Classic) and has seen no active development since approximately 2010. It cannot serve as a starting point for CAN FD.
-
-**Canola** [@canola] is a VHDL CAN 2.0B controller with a clean VHDL-2008 codebase and a cocotb-based testbench. It includes a triple modular redundancy wrapper for radiation-tolerant applications. Like the OpenCores core, it does not support CAN FD.
+**CTU CAN FD** [@ctucanfd] is the only mature open-source CAN FD controller available as synthesizable HDL. Developed at the Czech Technical University in Prague, it is written in VHDL, licensed under MIT, and has been conformance-tested against ISO 16845-1 [@iso16845_1]. The controller includes a full TX and RX pipeline with up to four TX buffers, acceptance filtering, timestamping, and a register interface with DMA support. A mainline Linux kernel driver has been available since kernel version 5.12. CTU CAN FD represents a complete, production-oriented CAN node - a significantly broader scope than what is needed in this project.
 
 ### Commercial Implementations {#sec:commercial-implementations}
 
-**Bosch M\_CAN** [@bosch_mcan][@hartwich2012] is the reference CAN FD controller, developed by the inventor of both CAN and CAN FD. M\_CAN is the IP core embedded in virtually every automotive microcontroller (NXP S32, Infineon AURIX, STM32, TI Jacinto, Renesas RH850). It is licensed under a non-disclosure agreement with per-design royalty fees.
+**Bosch M\_CAN** [@bosch_mcan] is the reference CAN FD controller, developed by the inventor of both CAN and CAN FD. M\_CAN is the IP core embedded in virtually every automotive microcontroller (NXP S32, Infineon AURIX, STM32, TI Jacinto, Renesas RH850). It is licensed under a non-disclosure agreement with per-design royalty fees.
 
 **AMD/Xilinx CAN FD** [@xilinx_canfd] is a soft IP core included in the Vivado Design Suite. It provides an AXI4-Lite register interface with up to 32 acceptance filters, TX mailboxes, and RX FIFOs. It is device-locked to AMD/Xilinx FPGAs and cannot be ported to other targets.
 
 **CAST CAN FD** [@cast_canfd] is a technology-independent RTL core with AMBA Advanced Peripheral Bus/Advanced High-performance Bus interface options. It is licensed per-design with an upfront fee. Synopsys (DesignWare) and Cadence offer similar application-specific integrated circuit-targeted CAN FD cores under their respective IP licensing programs.
 
-| Implementation | Language | CAN FD | License | Scope | Conformance Tested |
-|---|---|---|---|---|---|
-| CTU CAN FD [@ctucanfd] | VHDL | Yes | MIT | Full node (TX+RX, buffers, DMA) | ISO 16845-1 |
-| OpenCores CAN [@opencores_can] | Verilog | No | Lesser General Public License | Full node (CAN 2.0B only) | No |
-| Canola [@canola] | VHDL | No | MIT | Full node (CAN 2.0B, triple modular redundancy) | No |
-| Bosch M\_CAN [@bosch_mcan] | HDL (non-disclosure agreement) | Yes | Per-design royalty | Full node | Yes (reference) |
-| AMD/Xilinx CAN FD [@xilinx_canfd] | HDL | Yes | Vivado-included | Full node | Yes |
-| CAST CAN FD [@cast_canfd] | RTL | Yes | Per-design fee | Full node | Yes |
+| Implementation | Language | License | Scope | Conformance Tested |
+|---|---|---|---|---|
+| CTU CAN FD [@ctucanfd] | VHDL | MIT | Full node (TX+RX, buffers, DMA) | ISO 16845-1 |
+| Bosch M\_CAN [@bosch_mcan] | HDL (non-disclosure agreement) | Per-design royalty | Full node | Yes (reference) |
+| AMD/Xilinx CAN FD [@xilinx_canfd] | HDL | Vivado-included | Full node | Yes |
+| CAST CAN FD [@cast_canfd] | RTL | Per-design fee | Full node | Yes |
 
 : Survey of available CAN FD controller IP cores. {#tbl:canfd-ip-survey}
 
@@ -520,7 +514,7 @@ The **format_applicability dimension** had a more constructive effect. Requireme
 
 ## Architectural Design Decisions {#sec:architectural-design-decisions}
 
-The ramifications identified above narrowed the design space early: a layered architecture was well-motivated by the requirements model, and a unified FSM proved necessary once the split-path approach was attempted. The primary inputs were the existing in-house CAN Classic controller (@sec:existing-controller) and the ISO 11898-1 standard's own layered reference model [@iso11898_1]. CTU CAN FD [@ctucanfd][@jerabek2019] is noted as an existing open-source CAN FD implementation but was not studied in detail.
+The ramifications identified above narrowed the design space early: a layered architecture was well-motivated by the requirements model, and a unified FSM proved necessary once the split-path approach was attempted. The primary inputs were the existing in-house CAN Classic controller (@sec:existing-controller) and the ISO 11898-1 standard's own layered reference model [@iso11898_1]. CTU CAN FD [@ctucanfd] is noted as an existing open-source CAN FD implementation but was not studied in detail.
 
 ### Monolithic vs. Layered Architecture {#sec:monolithic-vs-layered}
 
