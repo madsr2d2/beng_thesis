@@ -796,17 +796,15 @@ The MCP server interface proved broadly applicable: targeted, schema-validated f
 
 ## Objectives Assessment {#sec:objectives-assessment}
 
-The five objectives stated in @sec:objectives are assessed against the verification results.
+The four objectives stated in @sec:objectives are assessed against the verification results.
 
-**CAN/CAN FD protocol controller in VHDL-2008 supporting CB, CE, FB, FE frames.** The unified `can_mac_fsm` handles all four in-scope frame formats in both transmission and reception. 27 of 38 requirements are closed. The remaining 11 are either LLC-layer requirements deferred pending `can_llc` implementation, or known P2 gaps and one P1 gap documented in @sec:future-work.
+**CAN/CAN FD protocol controller in VHDL compliant with ISO 11898-1, supporting CB, CE, FB, and FE frames.** The unified `can_mac_fsm` handles all four in-scope frame formats in both transmission and reception, including dual bit rate switching with Transmitter Delay Compensation in the FD data phase (REQ-025, REQ-026). 27 of 38 requirements are closed. The remaining 11 are either LLC-layer requirements deferred pending `can_llc` implementation, or known P2 gaps and one P1 gap documented in @sec:future-work.
 
 **ISO 11898-1 sub-layer structure enabling independent module verification.** The layered decomposition was implemented as designed. Each module has a dedicated testbench and a disjoint requirement set. The five requirements labelled `system` correctly identified the scenarios requiring multi-module stimulus, confirming that the layer boundaries were drawn at the right points.
 
-**Dual bit rate switching and TDC for the FD data phase.** Implemented in `can_pcs` and verified in `can_pcs_tb` (REQ-025, REQ-026). BRS-driven rate switching and SSP-based bit-error monitoring in the data phase are confirmed working.
+**Structured requirements with traceability from ISO 11898-1 to testbench results.** 38 requirements were derived from ISO 11898-1 normative clauses, each linked to its source section, verification method, testbench file, and assertion label. 27 are closed against passing testbenches or code inspection, establishing a direct traceable path from standard clause to verification artifact. The full plan is reproduced in @sec:appendix-vplan.
 
-**Machine-readable verification plan with traceability from standard clauses to testbench results.** The `verification_plan.toml` artifact links each requirement to its ISO source clause, verification method, testbench file, and assertion label. The full plan is reproduced in @sec:appendix-vplan.
-
-**Portable, platform-independent design with Avalon-ST integration.** The design is written in portable VHDL-2008 with no vendor primitives. The Avalon-ST host interface is the responsibility of `can_llc`, which is not yet implemented. Its interface contracts are fully specified in the verification plan.
+**RTL design integrated via Avalon-ST interfaces into Everllence's existing FPGA infrastructure.** The design is written in portable VHDL-2008 with no vendor primitives, synthesizable on any FPGA or ASIC flow. The Avalon-ST host interface is the responsibility of `can_llc`, which is not yet implemented. Its interface contracts are fully specified in the verification plan.
 
 ## Future Work {#sec:future-work}
 
