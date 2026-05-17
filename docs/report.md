@@ -6,7 +6,7 @@ bibliography: references.bib
 csl: ieee.csl
 link-citations: true
 abstract: |
-  This thesis describes the design, implementation, and verification of a CAN/CAN FD protocol controller in VHDL, targeting high-reliability engine controller applications at Everllence. The controller complies with ISO 11898-1 and supports the CB, CE, FB, and FE frame formats with dual bit rate switching and Transmitter Delay Compensation (TDC) for the FD data phase. The design is structured around the ISO 11898-1 layered reference model, with the MAC, PCS, and FCE sub-layers implemented as independently testable modules and the LLC sub-layer specified but deferred. Of 38 derived requirements, 27 are verified against passing testbenches or code inspection. The remaining 11 are deferred pending `can_llc` implementation or documented as known gaps.
+  This thesis describes the design, implementation, and verification of a CAN/CAN FD protocol controller in VHDL, targeting high-reliability engine controller applications at Everllence. The controller complies with ISO 11898-1 and supports the CB, CE, FB, and FE frame formats with dual bit rate switching and Transmitter Delay Compensation (TDC) for the FD data phase. The design is structured around the ISO 11898-1 layered reference model, with the MAC, PCS, and FCE sub-layers implemented as independently testable modules and the LLC sub-layer specified but deferred. Of 38 derived requirements, 27 are verified against passing testbenches or code inspection. Of the remaining 11, seven are deferred pending `can_llc` implementation, three are non-blocking P2 items, and one (REQ-035) is in progress with one sub-claim verified and one awaiting simulation.
 ---
 
 ```{=latex}
