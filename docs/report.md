@@ -149,7 +149,7 @@ The central component is an 18-state FSM that handles both transmission and rece
 
 ### Limitations {#sec:existing-limitations}
 
-While the existing controller is functional for CAN Classic, several architectural limitations prevent it from being extended to support CAN FD:
+While the existing controller is functional for CAN Classic, several areas of the existing design would require significant rework to support CAN FD. Readers unfamiliar with the protocol details referenced below are referred to @sec:can-protocol-overview.
 
 **Single bit rate domain.** The bit timing generator produces a single pair of timing strobes derived from a fixed set of bit timing parameters. CAN FD requires switching between a nominal bit rate (used during arbitration) and a faster data bit rate (used during the data phase), with Transmitter Delay Compensation (TDC) to account for the transceiver round-trip delay at the higher rate. Adding dual bit rate support and TDC would require a fundamental redesign of the timing architecture.
 
@@ -157,13 +157,11 @@ While the existing controller is functional for CAN Classic, several architectur
 
 **Single CRC polynomial.** The controller uses a single CRC-15 instance. CAN FD requires three CRC polynomials: CRC-15 for Classic frames, CRC-17 for FD frames with payloads up to 16 bytes, and CRC-21 for larger FD payloads. Furthermore, the CRC data feed differs between Classic and FD - in FD frames, dynamic stuff bits in the arbitration region are included in the CRC computation, requiring a dual data feed to the CRC engine.
 
-**Combined TX/RX FSM.** The monolithic FSM interleaves transmission and reception logic in every state. This coupling makes it difficult to add FD-specific states (such as BRS, ESI, and the SBC field) without increasing the already high cyclomatic complexity. A CAN FD frame has more control fields than a Classic frame, and handling both TX and RX paths for all six frame variants (CB, CE, FB, FE data frames, plus remote frames for CB and CE) in a single process would result in an unwieldy FSM.
-
-**Embedded error handling.** Error detection, error flag transmission, and error counter management are distributed across the main FSM process and its auxiliary processes. The ISO 11898-1 standard defines the Fault Confinement Entity (FCE) as a logically separate component with well-defined interfaces to the MAC and PCS sub-layers. Extracting the error handling into a reusable, independently testable FCE module - as required by the standard's layered architecture - would require significant refactoring of the existing FSM.
+**Coupled fault confinement.** Error counting (TEC/REC) and node state transitions are implemented in the same source file as the frame FSM, with no clean sub-layer boundary between them. ISO 11898-1 defines fault confinement as a distinct cross-cutting entity, and separating it as an independently testable module both conforms closer to the standard's reference model and simplifies verification - a fault confinement unit can be exercised in isolation without driving full frame sequences through the FSM.
 
 ### Decision to Redesign {#sec:decision-to-redesign}
 
-Given these limitations, extending the existing controller to CAN FD would require modifying nearly every submodule and fundamentally restructuring the FSM. The resulting design would carry the constraints of the original monolithic architecture while trying to support a significantly more complex protocol. Instead, a clean-slate redesign was chosen, structured around the ISO 11898-1 layered architecture (LLC, MAC, PCS, FCE) with reusable subcomponents (bit stuffer, CRC engine) and typed record interfaces.
+The rework required across bit timing, bit stuffing, and CRC is substantial enough that incremental extension would risk introducing the changes piecemeal without the sub-layer structure the ISO model calls for. A clean-slate redesign was chosen, structured around the ISO 11898-1 layered architecture (LLC, MAC, PCS, FCE) with independently testable subcomponents.
 
 ## Existing CAN FD IP Cores {#sec:existing-ip-cores}
 
