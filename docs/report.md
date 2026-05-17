@@ -428,7 +428,7 @@ The verification plan data structure (@tbl:vplan-metadata-fields) augments each 
 
 ### Verification Method {#sec:vplan-method}
 
-The verification_method field makes the path from requirement to verification artifact explicit and actionable. Four methods are used: `simulation` (automated assertion procedures in a test bench), `code_inspection`  (RTL source review), `waveform_inspection` (manual review of simulation output), and `coverage` (coverage bins a value range). Combinations are valid when multiple sub-claims within one requirement each call for a different method.
+The verification_method field makes the path from requirement to verification artifact explicit and actionable. Four methods are used: `simulation` (automated assertion procedures in a test bench), `code_inspection`  (RTL source review), `waveform_inspection` (manual review of simulation output), and `coverage` (a functional coverage bin that records whether a specific condition or value range was exercised during simulation). Combinations are valid when multiple sub-claims within one requirement each call for a different method.
 
 
 ### Traceability: Label and File {#sec:vplan-traceability}
