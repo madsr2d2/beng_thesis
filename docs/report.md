@@ -5,10 +5,47 @@ date: "May 17, 2026"
 bibliography: references.bib
 csl: ieee.csl
 link-citations: true
-lof: true
 abstract: |
   This thesis describes the design, implementation, and verification of a CAN/CAN FD protocol controller in VHDL-2008, targeting high-reliability engine controller applications at Everllence. The controller complies with ISO 11898-1 and supports the CB, CE, FB, and FE frame formats with dual bit rate switching and Transmitter Delay Compensation (TDC) for the FD data phase. The design is structured around the ISO 11898-1 layered reference model, with the MAC, PCS, and FCE sub-layers implemented as independently testable modules and the LLC sub-layer specified but deferred. A unified `can_mac_fsm` - a single 19-state per-field FSM shared by transmitter and receiver roles via an `is_transmitter` flag - replaced an earlier split-path design after the split was found to introduce unnecessary coordination complexity at the arbitration loss boundary. Requirements were derived from ISO 11898-1 via an AI-assisted extraction pipeline producing a machine-readable verification plan managed through a custom Model Context Protocol server. Of the 38 requirements in the plan, 27 are closed against passing testbenches or code inspection. The remaining 11 are either LLC-layer requirements deferred pending `can_llc` implementation or documented known gaps, with the lone-node ACK exemption (REQ-035) the one open P1 item.
 ---
+
+```{=latex}
+\clearpage
+```
+
+# Approval {-}
+
+This thesis was prepared at the Department of Applied Mathematics and Computer Science (DTU Compute), Technical University of Denmark, in partial fulfilment of the requirements for the degree of Bachelor of Science in Engineering. The work was carried out in collaboration with Everllence, where the controller is intended for use in high-reliability engine controller applications.
+
+It is assumed that the reader has a working knowledge of digital logic design and binary communication protocols. Familiarity with VHDL or a similar hardware description language is an advantage but is not strictly required to follow the architectural and verification discussions.
+
+```{=latex}
+\vspace{2cm}
+\begin{center}
+\begin{minipage}{8cm}
+\centering
+\rule{7cm}{0.4pt}\\[4pt]
+Mads Richardt (s224948)\\[2pt]
+{\small Kgs.\ Lyngby, May 2026}
+\end{minipage}
+\end{center}
+\clearpage
+```
+
+# Acknowledgements {-}
+
+**Edward Alexandru Todirica**, Associate Professor, DTU Compute.
+Thank you for supervision throughout the project and for valuable guidance on verification methodology and VHDL design practice.
+
+**Fredrik Kristensen**, Everllence.
+Thank you for framing the industrial requirements, providing access to the existing CAN controller as a reference, and for feedback on the design and implementation.
+
+```{=latex}
+\clearpage
+\setcounter{tocdepth}{4}
+\tableofcontents
+\clearpage
+```
 
 # Abbreviations {-}
 
@@ -85,6 +122,12 @@ abstract: |
 | VHDL | VHSIC Hardware Description Language |
 
 : Abbreviations used in this report. {#tbl:abbreviations}
+
+```{=latex}
+\clearpage
+\listoffigures
+\clearpage
+```
 
 # Introduction {#sec:introduction}
 
@@ -187,7 +230,7 @@ The introduction established why a new CAN FD controller is needed at Everllence
 
 The Controller Area Network (CAN) is a serial communication bus developed by Bosch in 1986 [@bosch1991] to connect electronic control units in automotive environments without a central host computer. Where point-to-point wiring and star-switched architectures require a dedicated conductor between every communicating pair, CAN uses a shared two-wire differential bus on which all nodes broadcast simultaneously and arbitrate access without any designated bus master. Any node may initiate a transmission at any time. Contention is resolved by a non-destructive bitwise arbitration in which the transmitter with the lower-priority identifier detects the collision and silently withdraws, leaving the winner's frame intact. Differential signaling on a twisted pair (ISO 11898-2 physical layer) provides strong common-mode noise rejection - a practical necessity in the electrically harsh environment of an engine bay or industrial cabinet (@fig:can_bus).
 
-![CAN bus consisting of four CAN nodes connected via a shared differential two-wire bus. Each node contains a CAN controller and transceiver. Termination resistors at each end of the bus prevent signal reflections.](figures/can_bus.png){#fig:can_bus width=60%}
+![CAN bus consisting of four CAN nodes connected via a shared differential two-wire bus. Each node contains a CAN protocol controller and transceiver IC. Termination resistors at each end of the bus prevent signal reflections.](figures/can_bus.png){#fig:can_bus width=60%}
 
 CAN's error-handling architecture is a distinguishing feature relative to simpler serial protocols. Five complementary error detection mechanisms operate concurrently on every transmitted frame: bit monitoring, frame format checking, cyclic redundancy checking, acknowledgment checking, and bit stuffing violation detection. Charzinski showed that under a two-state channel model the residual error probability for an eight-byte frame in a ten-node network is bounded by approximately $3.5 \times 10^{-9} \cdot q_\text{bad}$ per frame, where $q_\text{bad}$ is the probability of a frame being transmitted during a bad channel period [@charzinski1994]. This figure is several orders of magnitude lower than contemporary automotive bus alternatives such as VAN and SCP evaluated under the same model [@charzinski1994]. A fault confinement mechanism tracks each node's error history and automatically escalates from error active through error passive to bus off, electrically isolating a persistently faulty node from the bus without disrupting communication between healthy nodes. Together these properties made CAN the protocol of choice for safety-relevant in-vehicle networks. Adoption subsequently spread to industrial automation, medical devices, and aerospace ground support equipment.
 
@@ -326,7 +369,7 @@ The **sample point** falls at the PHASE_SEG1 / PHASE_SEG2 boundary. Every receiv
 
 **Resynchronization** corrects for accumulated phase error between a receiver's local oscillator and the transmitter's bus edges. Hard synchronization forces a full re-alignment on the SOF falling edge at the start of each frame. During the frame, resynchronization adjusts PHASE_SEG1 or PHASE_SEG2 by up to the configured Synchronization Jump Width (SJW) on each recessive-to-dominant edge, keeping the sample point aligned with the transmitter. Only one synchronization is permitted within a single bit time (REQ-027). The two resynchronization cases are illustrated in @fig:can-sync.
 
-![Resynchronization over two successive sync edges (REQ-027). The phase error (PE) is the displacement between the received recessive-to-dominant edge and the start of SYNC_SEG. When PE exceeds SJW, PHASE_SEG1 is lengthened by exactly SJW quanta (After sync 1), moving the sample point forward by SJW. When PE is at most SJW, bit timing is restarted from SYNC_SEG on the incoming edge - equivalent to a hard synchronization - absorbing the full phase error in one step (After sync 2). After two such corrections the node is fully synchronized to the transmitter.](figures/sync.png){#fig:can-sync width=100%}
+![Resynchronization over two successive sync edges (REQ-027). The phase error (PE) is the displacement between the received recessive-to-dominant edge and the start of SYNC_SEG. When PE exceeds SJW, PHASE_SEG1 is lengthened by exactly SJW quanta (After sync 1), moving the sample point forward by SJW. When PE is at most SJW, the FSM jumps to PROP_SEG at the incoming edge - treating SYNC_SEG as complete - absorbing the full phase error in one step (After sync 2). After two such corrections the node is fully synchronized to the transmitter.](figures/sync.png){#fig:can-sync width=100%}
 
 **CAN FD and the flexible data rate.** CAN FD introduces a second, independently configured bit rate for the data phase. The BRS (Bit Rate Switch) bit in the FD control field (@fig:can-frame-structure) controls this transition: when BRS is recessive, the bus switches to the data-phase bit rate immediately after the BRS sample point and returns to the nominal rate at the CRC delimiter. The nominal rate governs the arbitration phase (SOF through BRS) and the return path (CRC delimiter onward). The data rate governs the payload and CRC fields in between. Because the data phase operates at a much shorter bit time, the same physical propagation delay represents a larger fraction of the bit period. On electrically long buses at high data rates, the loop propagation delay can exceed a full data-phase bit time.
 
@@ -672,7 +715,7 @@ Counter updates follow the ISO 8.1.4.2 rules: TEC increments by 8 on TX errors, 
 
 The one counter rule that requires careful reading of the ISO prose is the passive ACK error exemption (ISO 8.1.4.2.c, Exception 1): an error passive node that transmits a frame and receives no dominant ACK bit shall not increment TEC, because the node's passive error flag is recessive and may itself prevent receivers from asserting the ACK slot. The FCE has no frame-level visibility - it receives event signals from the MAC, not raw bus bits - so the MAC must explicitly signal this case via `mac_i.passive_tx_ack_error_exempt_1`, asserted when the FSM detects an ACK error while `mac_o.error_active` is deasserted. Without this signal the FCE would treat an unacknowledged passive-node transmission identically to any other ACK error and escalate TEC unnecessarily.
 
-![`can_fce` FSM (ISO 11898-1 sec. 8.1.4.4, Figure 43). `s_error_active` is the initial state after `reset_i` or `llc_i.normal_mode`. When TEC exceeds 127 or REC exceeds 127 the FCE moves to `s_error_passive`, clearing `mac_o.error_active`. If TEC exceeds 255 from either active or passive state, the FCE enters `s_bus_off`, asserting `bus_off` to the MAC, LLC, and PCS. Recovery counts 128 `idle_condition` pulses from the PCS (each pulse represents 11 consecutive recessive bits). On the 128th pulse TEC and REC are reset to zero and the FSM returns to `s_error_active`.](figures/fce_fsm.png){#fig:fce-fsm width=80%}
+![`can_fce` FSM (ISO 11898-1 sec. 8.1.4.4, Figure 43). `s_error_active` is the initial state after `reset_i` or `llc_i.normal_mode`. When TEC exceeds 127 or REC exceeds 127 the FCE moves to `s_error_passive`, clearing `mac_o.error_active`. If TEC exceeds 255 from either active or passive state, the FCE enters `s_bus_off`, asserting `bus_off` to the MAC, LLC, and PCS. When TEC and REC both fall to 127 or below the FCE returns to `s_error_active` from `s_error_passive`. Recovery from bus off counts 128 `idle_condition` pulses from the PCS (each pulse represents 11 consecutive recessive bits). On the 128th pulse TEC and REC are reset to zero and the FSM returns to `s_error_active`.](figures/fce_fsm.png){#fig:fce-fsm width=80%}
 
 The PCS layer, which supplies the bit-level timing strobes that drive every FSM state transition, is described next.
 

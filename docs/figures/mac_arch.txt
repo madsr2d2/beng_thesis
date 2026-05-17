@@ -18,35 +18,20 @@ classDef mac fill:#CDFDC5,stroke:#33AA33,color:#000000
 classDef pcs fill:#B9E0FF,stroke:#4477BB,color:#000000
 classDef fce fill:#F5C2C0,stroke:#BB3333,color:#000000
 
-LLC("`**can_llc**
-─────────
-Implements Logic Link Control (LLC) Sub-layer`")
+LLC("`**can_llc**`")
 
-PCS("`**can_pcs**
-─────────
-Implements the Physical Coding Sub-layer (PCS)`")
+PCS("`**can_pcs**`")
 
-FCE("`**can_fce**
-─────────
-Implements the Fault Confinement Entity (FCE)`")
+FCE("`**can_fce**`")
 
-subgraph MAC["`**can_mac 
-(This module implements the MAC Sub-layer)**`"]
-    SER("`**can_mac_ser**
-    ─────────
-    LLC Frame Serializer`")
+subgraph MAC["`**can_mac**`"]
+    SER("`**can_mac_ser**`")
 
-    FSM("`**can_mac_fsm**
-    ─────────
-    FSM orchastratingthe the MAC Sub-layer`")
+    FSM("`**can_mac_fsm**`")
 
-    BS("`**can_mac_bs**
-    ─────────
-    Bit Stuffer / Destuffer`")
+    BS("`**can_mac_bs**`")
 
-    CRC("`**can_mac_crc**
-    ─────────
-    CRC Engine`")
+    CRC("`**can_mac_crc**`")
 
     %% SER -> FSM
     SER -->|"data"| FSM

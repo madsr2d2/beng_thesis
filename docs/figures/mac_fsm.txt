@@ -31,7 +31,7 @@ subgraph interframe_space["`**Interframe space (IFS)**`"]
   s_suspend_transmission -->|counted 8 recessive bits| s_bus_idle
 end
 
-subgraph error_frame["`**Error / Overlaod flags**`"]
+subgraph error_frame["`**Error / Overload flags**`"]
   s_error_flag("`**s_error_flag**
   ─────────
   • Active/overload: drive 6 dominant

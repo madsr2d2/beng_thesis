@@ -32,6 +32,7 @@ function Meta(meta)
   end
 
   local blocks = {
+    pandoc.RawBlock("latex", "\\usepackage[nottoc,notbib,notlot]{tocbibind}"),
     pandoc.RawBlock("latex", "\\usepackage{graphicx}"),
     pandoc.RawBlock("latex", "\\usepackage{pdflscape}"),
     pandoc.RawBlock("latex", "\\raggedbottom"),
@@ -40,7 +41,16 @@ function Meta(meta)
     pandoc.RawBlock("latex", "\\floatplacement{table}{htbp}"),
     pandoc.RawBlock("latex", "\\setcounter{topnumber}{3}"),
     pandoc.RawBlock("latex", "\\setcounter{bottomnumber}{0}"),
-    pandoc.RawBlock("latex", fig_setkeys)
+    pandoc.RawBlock("latex", fig_setkeys),
+    pandoc.RawBlock("latex", "\\usepackage{fancyhdr}"),
+    pandoc.RawBlock("latex", "\\usepackage{titling}"),
+    pandoc.RawBlock("latex", "\\pagestyle{fancy}"),
+    pandoc.RawBlock("latex", "\\fancyhf{}"),
+    pandoc.RawBlock("latex", "\\fancyfoot[L]{\\small\\thetitle}"),
+    pandoc.RawBlock("latex", "\\fancyfoot[R]{\\thepage}"),
+    pandoc.RawBlock("latex", "\\renewcommand{\\headrulewidth}{0pt}"),
+    pandoc.RawBlock("latex", "\\renewcommand{\\footrulewidth}{0.4pt}"),
+    pandoc.RawBlock("latex", "\\fancypagestyle{plain}{\\fancyhf{}\\fancyfoot[L]{\\small\\thetitle}\\fancyfoot[R]{\\thepage}\\renewcommand{\\headrulewidth}{0pt}\\renewcommand{\\footrulewidth}{0.4pt}}")
   }
 
   if table_style == "enhanced" then

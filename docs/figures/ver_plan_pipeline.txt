@@ -17,7 +17,7 @@ flowchart LR
     norm_set("`**Normative set**
     (Size = 168)
     ─────────
-    + source_caluse
+    + source_clause
     + original_wording`")
     
     req_set("`**Requirement set**

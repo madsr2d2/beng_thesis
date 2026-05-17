@@ -16,6 +16,15 @@ flowchart TD
 classDef ff fill:#CDFDC5,stroke:#33AA33,color:#000000
 classDef mux fill:#FFF3CD,stroke:#CC9900,stroke-width:2px,color:#000000
 
+classDef wd2 fill:#FFFFFF,stroke:#999999,color:#000000
+classDef wd3 fill:#FFFFB4,stroke:#999900,color:#000000
+classDef wd4 fill:#FFE0B9,stroke:#CC8833,color:#000000
+classDef wd5 fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef wd6 fill:#CCFDFE,stroke:#33AAAA,color:#000000
+classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
+classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
+
 u_crc15("`**u_crc15**  (gen_crc)
 ─────────
 • CRC-15, 15-bit accumulator
@@ -49,4 +58,4 @@ u_crc17 -->|"crc17_out [16:0]"| p_crc_mux
 u_crc21 -->|"crc21_out [20:0]"| p_crc_mux
 
 class u_crc15,u_crc17,u_crc21 ff
-class p_crc_mux mux
+class p_crc_mux wd4

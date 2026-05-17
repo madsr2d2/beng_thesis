@@ -11,64 +11,50 @@ config:
     edgeRouting: SPLINES
 ---
 
-flowchart TD
+flowchart LR
 
 classDef llc fill:#B9E0FF,stroke:#4477BB,color:#000000
 classDef mac fill:#CDFDC5,stroke:#33AA33,color:#000000
 classDef pcs fill:#B9E0FF,stroke:#4477BB,color:#000000
 classDef fce fill:#F5C2C0,stroke:#BB3333,stroke-width:4px,color:#000000
 
-LLC["`**can_llc**
-─────────
-LLC Sub-layer
-§6.4-6.5`"]
+classDef wd2 fill:#FFFFFF,stroke:#999999,color:#000000
+classDef wd3 fill:#FFFFB4,stroke:#999900,color:#000000
+classDef wd4 fill:#FFE0B9,stroke:#CC8833,color:#000000
+classDef wd5 fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef wd6 fill:#CCFDFE,stroke:#33AAAA,color:#000000
+classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
+classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
 
-PCS["`**can_pcs**
-─────────
-PCS Sub-layer
-§7.2-7.4`"]
+LLC("`**can_llc**`")
 
-FCE["`**can_fce**
-─────────
-FCE
-§8.1.3-8.1.4`"]
+PCS("`**can_pcs**`")
 
-subgraph MAC["`**can_mac** — MAC Sub-layer §6.6`"]
-    SER["`**can_mac_ser**
-    ─────────
-    LLC Frame Serializer`"]
+FCE("`**can_fce**`")
 
-    FSM["`**can_mac_fsm**
-    ─────────
-    Unified TX/RX FSM
-    (19 states, is_transmitter)`"]
+subgraph MAC["`**can_mac**`"]
+    SER("`**can_mac_ser**`")
 
-    BS["`**can_mac_bs**
-    ─────────
-    Bit Stuffer / Destuffer`"]
+    FSM("`**can_mac_fsm**`")
 
-    CRC["`**can_mac_crc**
-    ─────────
-    CRC Engine`"]
+    BS("`**can_mac_bs**`")
 
-    SER <==>
- FSM
-    FSM <==>
- BS
-    FSM <==>
- CRC
+    CRC("`**can_mac_crc**`")
+
+    SER <==> FSM
+    FSM <==> BS
+    FSM <==> CRC
 end
 
-LLC <==>
- SER
-LLC <==>
- FSM
-FSM <==>
- PCS
-FSM <==>
- FCE
+LLC <==> SER
+LLC <==> FSM
+FSM <==> PCS
+FSM <==> FCE
+FCE <==> PCS
+FCE <==> LLC
 
 class LLC llc
 class SER,FSM,BS,CRC mac
 class PCS pcs
-class FCE fce
+class FCE wd9
