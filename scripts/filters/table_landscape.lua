@@ -66,6 +66,23 @@ function Table(el)
     return el
   end
 
+  -- Pin column widths for the 2-column abbreviations table so it spans \linewidth.
+  -- Pandoc emits ColWidthDefault (natural l/r columns) when the separator is short;
+  -- explicit fractions force p{...} columns that together fill the line.
+  if #el.colspecs == 2 then
+    local first_row = el.head and el.head.rows and el.head.rows[1]
+    if first_row and first_row.cells[1] then
+      if pandoc.utils.stringify(first_row.cells[1]) == "Abbreviation" then
+        local fractions = { 0.18, 0.82 }
+        local new_specs = {}
+        for i, spec in ipairs(el.colspecs) do
+          new_specs[i] = { spec[1], fractions[i] }
+        end
+        el.colspecs = new_specs
+      end
+    end
+  end
+
   -- Pin column widths for the 5-column requirements appendix table.
   -- Separator-based proportions lose to unbreakable \href{} content; setting
   -- colspecs here overrides them. Fractions must sum to 1.0.
