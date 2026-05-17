@@ -1,7 +1,7 @@
 ---
 title: "Implementation and Verification of a CAN/CAN-FD Protocol Controller in VHDL"
 author: "Mads Richardt (s224948)"
-date: "February 28, 2026"
+date: "May 17, 2026"
 bibliography: references.bib
 csl: ieee.csl
 link-citations: true
