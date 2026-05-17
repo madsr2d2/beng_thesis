@@ -177,7 +177,7 @@ Before committing to an in-house redesign, the available CAN FD controller IP co
 
 **AMD/Xilinx CAN FD** [@xilinx_canfd] is a soft IP core included in the Vivado Design Suite. It provides an AXI4-Lite register interface with up to 32 acceptance filters, TX mailboxes, and RX FIFOs. It is device-locked to AMD/Xilinx FPGAs and cannot be ported to other targets.
 
-**CAST CAN FD** [@cast_canfd] is a technology-independent RTL core with AMBA Advanced Peripheral Bus/Advanced High-performance Bus interface options. It is licensed per-design with an upfront fee. Synopsys (DesignWare) and Cadence offer similar application-specific integrated circuit-targeted CAN FD cores under their respective IP licensing programs.
+**CAST CAN FD** [@cast_canfd] is a technology-independent RTL core with AMBA Advanced Peripheral Bus/Advanced High-performance Bus interface options. It is licensed per-design with an upfront fee. Synopsys (DesignWare) and Cadence offer similar ASIC-targeted CAN FD cores under their respective IP licensing programs.
 
 | Implementation | Language | License | Scope | Conformance Tested |
 |---|---|---|---|---|
@@ -200,7 +200,7 @@ None of these solutions satisfies Everllence's combined requirements for safety-
 
 **Integration with existing infrastructure.** Everllence's FPGA designs use a specific Avalon-ST streaming interface for inter-module communication, a particular clock and reset architecture, and established conventions for signal naming and module boundaries. A third-party core would require an adaptation layer to bridge its native interface (Advanced eXtensible Interface, Advanced Peripheral Bus, or custom register map) to the existing infrastructure. The in-house design uses Everllence's interface conventions natively, eliminating this integration overhead.
 
-**Platform independence.** The AMD/Xilinx CAN FD core is locked to Xilinx devices. The Bosch M\_CAN and other commercial cores are delivered as technology-specific netlists or encrypted RTL for a particular target. The in-house design is written in portable VHDL-2008, synthesizable on any FPGA platform or application-specific integrated circuit process flow, ensuring that the IP remains usable if Everllence changes FPGA vendors.
+**Platform independence.** The AMD/Xilinx CAN FD core is locked to Xilinx devices. The Bosch M\_CAN and other commercial cores are delivered as technology-specific netlists or encrypted RTL for a particular target. The in-house design is written in portable VHDL-2008, synthesizable on any FPGA platform or ASIC process flow, ensuring that the IP remains usable if Everllence changes FPGA vendors.
 
 ## Problem Statement {#sec:problem-statement}
 
