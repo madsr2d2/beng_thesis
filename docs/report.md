@@ -792,7 +792,8 @@ The project yielded two transferable lessons. First, the structure of a requirem
 
 # References {#sec:references}
 
-<!-- Generated automatically by Pandoc from docs/references.bib -->
+::: {#refs}
+:::
 
 `\appendix`{=latex}
 
