@@ -398,15 +398,7 @@ With those mechanisms established - sub-layer boundaries, frame formats, bit tim
 
 The requirements set established what must be true about the implementation - 38 entries, each naming a protocol obligation and linking it to its ISO clause. But requirements in that form are not yet actionable as verification tasks: they say nothing about which module testbench should exercise them, what stimulus configurations are needed, whether internal signals must be observable, or how completion will be recognized. Turning the requirements set into a verification plan means answering those questions explicitly for each entry, before implementation begins.
 
-The plan was populated through the same Model Context Protocol server introduced in @sec:requirements-engineering, which validated each field value against the schema before committing. The five classification dimensions fall into two groups. Three are design-facing - `layer`, `side`, and `format_applicability` - determining where each requirement belongs in the module decomposition and what stimulus configurations its testbench needs. Two are verification-facing - `observability` and `verification_method` - resolving whether a requirement can be checked through port signals or requires access to internal state, and specifying the verification technique. Priority spans both groups, driving implementation sequencing and determining which requirements must be closed before the design is considered complete. The dimensions are:
-
-- `layer`, @sec:vplan-layer
-- `side`, @sec:vplan-side
-- `format_applicability`, @sec:vplan-format
-- `observability`, @sec:vplan-observability
-- `priority`, @sec:vplan-priority
-
-The following subsections describe the rationale and allowed values for each dimension, followed by the full verification plan data structure and its traceability fields.
+The plan was populated through the same Model Context Protocol server introduced in @sec:requirements-engineering, which validated each field value against the schema before committing. The five classification dimensions fall into two groups. Three are design-facing - `layer`, `side`, and `format_applicability` - determining where each requirement belongs in the module decomposition and what stimulus configurations its testbench needs. Two are verification-facing - `observability` and `verification_method` - resolving whether a requirement can be checked through port signals or requires access to internal state, and specifying the verification technique. Priority spans both groups, driving implementation sequencing and determining which requirements must be closed before the design is considered complete. The following subsections describe the rationale and allowed values for each dimension, followed by the full verification plan data structure and its traceability fields.
 
 
 ## Layer {#sec:vplan-layer}
