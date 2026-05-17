@@ -10,6 +10,8 @@ Use these terms exactly. Do not drift to synonyms.
 
 | Term | Meaning | Avoid |
 |---|---|---|
+| CAN protocol controller | The digital logic block implemented in this project - sits between the host application and the physical transceiver IC, connected via CAN_TX/CAN_RX signals from the PCS | "CAN transceiver" (that is the physical layer IC, e.g. NXP TJA1040, which drives CANL/CANH) |
+| CAN transceiver | The physical layer IC driving CANL/CANH on the bus wire (e.g. NXP TJA1040). A separate component from the protocol controller | "transceiver" to mean the protocol controller |
 | CB, CE, FB, FE | Classic Base, Classic Extended, FD Base, FD Extended frame formats | "CAN Classic frame", "FD frame" without the letter code |
 | LLC, MAC, PCS, FCE | The four sub-layers per ISO 11898-1 | "link layer", "physical layer" (ambiguous) |
 | `can_mac_fsm` | The unified single-FSM MAC entity | "TX FSM", "RX FSM" (the split-path design was rejected) |
@@ -47,7 +49,13 @@ The report tells a single continuous story. Each section picks up from the previ
 
 ### Background
 
-**What it establishes:** VHDL-2008 and OSVVM as the implementation and verification toolchain. Brief - these are given constraints, not decisions.
+**What it establishes:** Two things in order:
+
+1. **Top-view story of the CAN protocol:** History and multi-master arbitration `[@bosch1991]`. Error detection performance: Charzinski 1994 showed residual error probability of $3.5 \times 10^{-9} \cdot q_\text{bad}$ per frame (10-node network), substantially better than VAN/SCP; FCE and fault confinement as the distinguishing feature vs. competing protocols. Protocol comparison table (LIN, CAN Classic, CAN FD, FlexRay, Automotive Ethernet) - none of the alternatives combine CAN's speed, fault confinement, and multi-master arbitration. CAN FD introduction `[@hartwich2012]`: 64-byte payload, dual bit rate, Hartwich's 2.5 Mbit/s measurement. Oscillator tolerance `[@mutter2013]`: data/arbitration ratio < ~9 keeps same tolerance as Classic CAN. CAN FD error detection improvements `[@mutter2015]`: CRC-17/21, dynamic-stuff-bit CRC weakness fixed via SBC field.
+
+2. **VHDL-2008 and OSVVM as the implementation and verification toolchain.** Brief - these are given constraints, not decisions.
+
+**Key citations:** `[@bosch1991]`, `[@charzinski1994]`, `[@hartwich2012]`, `[@mutter2013]`, `[@mutter2015]`.
 
 ### Requirements
 
