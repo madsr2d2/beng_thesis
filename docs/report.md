@@ -242,6 +242,7 @@ CAN's original data payload was capped at eight bytes per frame, limiting raw th
 CAN FD also strengthens the error detection architecture. The longer payloads require stronger CRC polynomials: a 17-bit BCH polynomial covers frames up to 16 data bytes and a 21-bit polynomial covers frames up to 64 bytes, both maintaining Hamming distance 6 [@hartwich2012]. A known weakness in CAN Classic, where two bit errors that generate and eliminate stuff conditions can pass undetected through the CRC [@charzinski1994], is addressed in CAN FD by including dynamic stuff bits in the CRC data feed and introducing the Stuff Bit Count (SBC) field. These improvements together reduce the residual error probability in the worst-case error class by several orders of magnitude compared to CAN Classic [@mutter2015]. The governing standard for this project is ISO 11898-1 [@iso11898_1], which specifies both CAN Classic and CAN FD data link layer and physical signaling requirements.
 
 ## VHDL-2008 and OSVVM {#sec:vhdl-osvvm}
+TODO: Needs work... Not really sure if I really need to go into into tool chain details...
 
 The implementation language is VHDL-2008. VHDL-2019 (IEEE 1076-2019) is the more recent standard revision, but synthesis tool support for 2019 remains limited; VHDL-2008 is fully supported by both GHDL and the major FPGA synthesis flows. The features relevant to this project are unconstrained record elements - used for the typed inter-module interface records - and enhanced generic lists for parameterized entities. GHDL [@ghdl] is used for all simulation.
 
@@ -249,7 +250,7 @@ The verification framework is OSVVM (Open Source VHDL Verification Methodology) 
 
 # Requirements {#sec:requirements-engineering}
 
-The introduction concluded that a clean-slate redesign is needed. This section establishes its scope: 38 requirements distilled from ISO 11898-1 normative obligations and the Everllence coding constraints that apply to all in-house FPGA modules.
+This section defines what must be implemented and verified: 38 requirements derived from ISO 11898-1 normative obligations, and the Everllence coding constraints that frame the implementation. Together they bound the design space before any architectural decisions are made.
 
 ## VHDL Code Standard and Design Constraints {#sec:engineering-constraints}
 
