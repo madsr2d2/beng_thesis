@@ -810,6 +810,12 @@ The four objectives stated in @sec:objectives are assessed against the verificat
 
 3. **CAN XL support.** CAN XL is explicitly out of scope for this project. The layered architecture and unified FSM are well-suited for extension: CAN XL adds a third bit rate phase and an XL-specific frame format, both of which map naturally onto additional PCS rate parameters and new `can_mac_fsm` states.
 
+4. Simulation against the ref-model Alex made.
+
+5. Synthesis...
+
+6. Simulation against the frame generator software thing Fredrik mentioned...
+
 # Conclusion {#sec:conclusion}
 
 This thesis presented the design, implementation, and verification of a CAN/CAN FD protocol controller in VHDL-2008, structured around the ISO 11898-1 layered reference model. The implemented design covers the MAC, PCS, and FCE sub-layers as independently testable modules, supports all four in-scope frame formats (CB, CE, FB, FE), implements dual bit rate switching with Transmitter Delay Compensation, and integrates into Everllence's existing FPGA infrastructure via Avalon-ST interfaces. Of the 38 requirements derived from ISO 11898-1, 28 are closed against passing testbenches or code inspection. Of the remaining 10, seven are deferred pending `can_llc` implementation and three are non-blocking P2 items.
