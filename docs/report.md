@@ -871,8 +871,6 @@ The zip file accompanying this document contains the complete source tree develo
 | `src/can_pcs/hdl_src/can_pcs.vhd` | Physical Coding Sublayer (bit timing, sync, TDC) |
 | `src/can_fce/hdl_src/can_fce.vhd` | Fault Confinement Entity |
 | `src/can_mac_pcs_fce/hdl_src/can_mac_pcs_fce.vhd` | MAC + PCS + FCE wrapper (synthesized top-level) |
-| `src/can_llc/hdl_src/can_llc.vhd` | LLC sub-layer (stub, deferred) |
-| `src/can_llc_mac_pcs_fce/hdl_src/can_llc_mac_pcs_fce.vhd` | Full controller wrapper |
 
 **Testbench files**
 
@@ -884,7 +882,6 @@ The zip file accompanying this document contains the complete source tree develo
 | `src/can_pcs/hdl_tb/can_pcs_tb.vhd` | PCS testbench |
 | `src/can_fce/hdl_tb/can_fce_tb.vhd` | FCE testbench |
 | `src/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd` | Integration testbench (MAC + PCS + FCE) |
-| `src/can_llc_mac_pcs_fce/hdl_tb/can_llc_mac_pcs_fce_tb.vhd` | Full controller testbench |
 
 **Verification plan and tooling**
 
