@@ -862,26 +862,26 @@ The zip file accompanying this document contains the complete source tree develo
 
 | File | Description |
 | :----------------------------------------- | :--- |
-| `can_types_p/can_types_p.vhd` | Shared types package |
-| `can_mac/can_mac_fsm.vhd` | Unified MAC FSM |
-| `can_mac/can_mac.vhd` | MAC wrapper |
-| `can_mac_ser/can_mac_ser.vhd` | TX serializer |
-| `can_mac_bs/can_mac_bs.vhd` | Bit stuffer/destuffer |
-| `can_mac_crc/can_mac_crc.vhd` | CRC engine |
-| `can_pcs/can_pcs.vhd` | PCS (bit timing, sync, TDC) |
-| `can_fce/can_fce.vhd` | Fault Confinement Entity |
-| `can_mac_pcs_fce/can_mac_pcs_fce.vhd` | Synthesized top-level wrapper |
+| `src/can_types_p/hdl_src/can_types_p.vhd` | Shared types package |
+| `src/can_mac/hdl_src/can_mac_fsm.vhd` | Unified MAC FSM |
+| `src/can_mac/hdl_src/can_mac.vhd` | MAC wrapper |
+| `src/can_mac_ser/hdl_src/can_mac_ser.vhd` | TX serializer |
+| `src/can_mac_bs/hdl_src/can_mac_bs.vhd` | Bit stuffer/destuffer |
+| `src/can_mac_crc/hdl_src/can_mac_crc.vhd` | CRC engine |
+| `src/can_pcs/hdl_src/can_pcs.vhd` | PCS (bit timing, sync, TDC) |
+| `src/can_fce/hdl_src/can_fce.vhd` | Fault Confinement Entity |
+| `src/can_mac_pcs_fce/hdl_src/can_mac_pcs_fce.vhd` | Synthesized top-level wrapper |
 
 **Testbench files**
 
 | File | Description |
 | :----------------------------------------- | :--- |
-| `can_mac_ser/can_mac_ser_tb.vhd` | Serializer |
-| `can_mac_bs/can_mac_bs_tb.vhd` | Bit stuffer |
-| `can_mac_crc/can_mac_crc_tb.vhd` | CRC engine |
-| `can_pcs/can_pcs_tb.vhd` | PCS |
-| `can_fce/can_fce_tb.vhd` | FCE |
-| `can_mac_pcs_fce/can_mac_pcs_fce_tb.vhd` | MAC + PCS + FCE integration |
+| `src/can_mac_ser/hdl_tb/can_mac_ser_tb.vhd` | Serializer |
+| `src/can_mac_bs/hdl_tb/can_mac_bs_tb.vhd` | Bit stuffer |
+| `src/can_mac_crc/hdl_tb/can_mac_crc_tb.vhd` | CRC engine |
+| `src/can_pcs/hdl_tb/can_pcs_tb.vhd` | PCS |
+| `src/can_fce/hdl_tb/can_fce_tb.vhd` | FCE |
+| `src/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd` | MAC + PCS + FCE integration |
 
 **Verification plan and tooling**
 
