@@ -53,7 +53,7 @@ The report tells a single continuous story. Each section picks up from the previ
 
 1. **Top-view story of the CAN protocol:** History and multi-master arbitration `[@bosch1991]`. Error detection performance: Charzinski 1994 showed residual error probability of $3.5 \times 10^{-9} \cdot q_\text{bad}$ per frame (10-node network), substantially better than VAN/SCP; FCE and fault confinement as the distinguishing feature vs. competing protocols. Protocol comparison table (LIN, CAN Classic, CAN FD, FlexRay, Automotive Ethernet) - none of the alternatives combine CAN's speed, fault confinement, and multi-master arbitration. CAN FD introduction `[@hartwich2012]`: 64-byte payload, dual bit rate, Hartwich's 2.5 Mbit/s measurement. Oscillator tolerance `[@mutter2013]`: data/arbitration ratio < ~9 keeps same tolerance as Classic CAN. CAN FD error detection improvements `[@mutter2015]`: CRC-17/21, dynamic-stuff-bit CRC weakness fixed via SBC field.
 
-2. **VHDL-2008 and OSVVM as the implementation and verification toolchain.** Brief - these are given constraints, not decisions.
+2. **VHDL-2008 and OSVVM as the implementation and verification toolchain.** Brief - these are given constraints (company code standard), not decisions. SystemVerilog/UVM acknowledged as the dominant alternative. PSL is NOT used in this project - do not mention PSL or formal verification anywhere in the report.
 
 **Key citations:** `[@bosch1991]`, `[@charzinski1994]`, `[@hartwich2012]`, `[@mutter2013]`, `[@mutter2015]`.
 
@@ -61,7 +61,7 @@ The report tells a single continuous story. Each section picks up from the previ
 
 **What it establishes:** 38 structured requirements extracted from ISO 11898-1 via AI-assisted extraction + manual review. The AI bootstrapped the initial normative statement set (168 statements); the manual distillation step - consolidating to 38 prioritised, independently verifiable requirements - was substantial and irreplaceable. The primary benefit of AI assistance in extraction was consistency, not speed. The MCP server interface was genuinely useful throughout design, implementation, and verification phases for safe incremental updates to the plan.
 
-**Key artifact:** `verification_plan.toml`, managed via MCP server to prevent silent data corruption. Current state: 27 complete, 11 not_started (7 LLC deferred, REQ-011 P2, REQ-035 P1 gap, REQ-036 P2, REQ-037 P2).
+**Key artifact:** `verification_plan.toml`, managed via MCP server to prevent silent data corruption. Current state: 28 complete, 10 open (7 LLC deferred: REQ-001, REQ-003, REQ-005, REQ-033, REQ-038 not_started; REQ-022 in_progress - bit error only; REQ-036 P2 not_started; REQ-037 P2 not_started). REQ-011 (remote frames) closed via FTYP coverage bin in `can_mac_pcs_fce_tb`. REQ-035 (lone-node ACK exemption) fully closed - both sub-claims verified.
 
 **Closes with:** "The 38 requirements... also function as a structured map to the protocol: every requirement points to a mechanism that must be understood before implementation can begin. The following section provides that understanding..."
 
@@ -105,25 +105,29 @@ Final architecture: one unified `can_mac_fsm`, one `can_mac_bs`, one `can_mac_cr
    - `can_fce` passive ACK exemption: ISO 8.1.4.2.c Exception 1 - an Error Passive transmitter that receives no ACK shall not increment TEC. FCE has no frame-level visibility, so the MAC must signal this via `mac_i.passive_tx_ack_error_exempt_1`.
    - `can_pcs` sync rules: the prior implementation (`can_node_clock`) missed three of the four ISO 7.3.5.1 rules (no sync-inhibit guard, no sampled-polarity check, Phase_Seg2 shortening skipped Sync_Seg). None caused observable failures on the deployed bus, but all are protocol obligations.
 
-2. **Unified FSM pays off in concrete ways:**
+2. **Unified FSM pays off in concrete ways (all 19 states shared - duplication applies to entire FSM, not just error states):**
    - Arbitration loss is handled in-place: `is_transmitter` flips to `false` inside `s_arbitration`, CRC accumulator and bit stuffer carry over without any inter-module handoff. The split-path design would have required explicit coordination at this boundary.
+   - Frame buffer continuity: `llc_frame` byte array is already populated from `pcs_i.rx_data` during arbitration, so arbitration-loss reception continues into the same buffer with no data to move.
    - A single fix to a shared submodule (`can_mac_bs`, `can_mac_crc`) propagates to both TX and RX paths automatically.
+   - Single `can_mac_bs` instance (TX stuffing and RX destuffing share logic); single `can_mac_crc` (3 engines instead of 6 in a split design).
+   - Single FCE interface - no arbitration logic needed between duplicate error/success signals.
+   - TX bus monitoring (bit error, arbitration loss) shares the same bus-observation loop as RX reception - no duplicate path needed.
 
 **Closes with:** "With the implementation complete, the remaining question is whether the 38 requirements in the verification plan are in fact satisfied by what was built."
 
 ### Verification and Results
 
-**What it establishes:** Evidence that the 38 verification plan requirements are satisfied, organised by testbench. Five testbenches cover 25 requirements via simulation/coverage; REQ-013 and REQ-024 are code inspection only. 27 of 38 requirements are complete. Eleven remain open: LLC deferred, REQ-035 the one open P1 item (lone-node ACK exemption - not implemented, deferred to future work).
+**What it establishes:** Evidence that the 38 verification plan requirements are satisfied, organised by testbench. `can_mac_pcs_fce_tb` covers 16 requirements (including REQ-011 via FTYP coverage). Five testbenches total; REQ-013 and REQ-024 are code inspection only. 28 of 38 requirements are closed. Ten remain open: 7 LLC deferred, REQ-022 in_progress, REQ-036 and REQ-037 P2 non-blocking.
 
-**Key figures:** Two waveform figures exist (`full_fd_frame.pdf`, `req_10_11.pdf`). Five additional waveform figures are pending placeholders (`pending_bs_dynamic.pdf`, `pending_bs_fixed.pdf`, `pending_pcs_tdc.pdf`, `pending_lost_arb.pdf`, `pending_error_frame.pdf`, `pending_bus_off_recovery.pdf`).
+**Key figures:** Two waveform figures exist (`full_fd_frame.pdf`, `req_30_31.pdf` - covers REQ-030/REQ-031 error escalation). Six additional waveform figures are pending placeholders (`pending_bs_dynamic.pdf`, `pending_bs_fixed.pdf`, `pending_pcs_tdc.pdf`, `pending_lost_arb.pdf`, `pending_error_frame.pdf`, `pending_bus_off_recovery.pdf`).
 
 **Closes with:** Reference to the full verification plan in @sec:appendix-vplan.
 
 ### Discussion and Conclusion
 
-**Discussion establishes:** Three general lessons from the project: (1) requirements structure can inadvertently bias RTL architecture - the TX/RX side dimension made the split-path look natural but it was a red herring; (2) the unified FSM paid off most concretely at the arbitration loss boundary; (3) the layered architecture enabled module-by-module verification. Objectives Assessment (@sec:objectives-assessment) assesses each of the five objectives against delivered results. Future Work (@sec:future-work) names four items: `can_llc` implementation, REQ-035 lone-node ACK exemption, CRC/BS area optimisation, CAN XL support.
+**Discussion establishes:** Three general lessons from the project: (1) requirements structure can inadvertently bias RTL architecture - the TX/RX side dimension made the split-path look natural but it was a red herring; (2) the unified FSM paid off most concretely at the arbitration loss boundary; (3) the layered architecture enabled module-by-module verification. Objectives Assessment (@sec:objectives-assessment) assesses each of the four objectives against delivered results. Future Work (@sec:future-work) has six items: `can_llc` implementation, hardware bring-up, CAN XL support, REQ-022 error-type-specific simulation coverage, plus two stubs (synthesis, simulation against frame generator software).
 
-**Conclusion establishes:** Two-paragraph close - what was delivered (27/38, MAC/PCS/FCE, REQ-035 as open P1), and two transferable lessons (requirements model structure is not RTL structure; layered architecture is a practical partitioning, not a documentary convenience).
+**Conclusion establishes:** Two-paragraph close - what was delivered (28/38, MAC/PCS/FCE), three transferable lessons (requirements model structure is not RTL structure; layered architecture is a practical partitioning; narrow MCP write interface makes AI-assisted artifact maintenance safe).
 
 ---
 
@@ -133,7 +137,7 @@ Final architecture: one unified `can_mac_fsm`, one `can_mac_bs`, one `can_mac_cr
 |---|---|---|---|
 | Architecture | Layered (LLC, MAC, PCS, FCE) | Monolithic extension of existing controller | CAN-FD complexity requires independent, verifiable sub-layers |
 | MAC FSM | Unified `can_mac_fsm` | Split `can_mac_fsm_tx` / `can_mac_fsm_rx` | Split caused code duplication and inter-FSM coordination problems; frame structure is the same regardless of role |
-| FSM granularity | Per-field states (19 states) | Per-phase states (fewer states, more counter logic) | Per-field aligns with verification plan; PSL assertions reference state names not counter ranges |
+| FSM granularity | Per-field states (19 states) | Per-phase states (fewer states, more counter logic) | Per-field aligns with verification plan; format-specific transitions become state graph edges rather than counter conditionals |
 | LLC-to-MAC stream | Front-loaded internal format (2 config bytes first) | Direct LLC frame order (flags at end) | MAC FSM needs format flags before first ID bit; front-loading enables pure pipeline operation |
 | CRC data feeds | Dual (`data_cc`, `data_fd`) | Single feed with mux | CC and FD compute CRC over different bit streams; single feed requires protocol knowledge in CRC module |
 | CRC output mux | Combinatorial | Registered | Registered mux adds one cycle latency; FSM reads CRC on the same cycle as last data bit |
