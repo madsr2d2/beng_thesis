@@ -643,7 +643,7 @@ After the EOF field the FSM transitions through `s_intermission`. A dedicated se
 
 The FSM uses two explicit error-frame states. `s_error_flag` drives the 6-bit flag and `s_error_delimiter` counts the 8-bit recessive delimiter. The delimiter state manages an internal phase flag (`delim_found_first_recessive`) that separates two distinct sub-phases: first awaiting the bus to go recessive (other nodes may still be driving their own flags), then counting the remaining recessive bits. A dominant during the delimiter restarts the error-frame sequence - either as a new error or as an overload condition on the last delimiter bit [@iso11898_1, sec. 8.1.4.2.f]. Both transmitter and receiver errors enter this same two-state sequence: the flag polarity is `not fce_i.error_active`, determined by the FCE node state rather than the TX/RX role, and `s_error_delimiter` is entirely role-independent.
 
-The three submodules the FSM depends on - the serializer for the TX bit stream, the bit stuffer for stuff-bit insertion and SBC generation, and the CRC engine for parallel polynomial accumulation - are described in the following subsections.
+The three submodules the FSM depends on - the serializer for the TX bit stream, the bit stuffer for stuff-bit insertion and SBC generation, and the CRC engine for parallel polynomial accumulation - are described in @sec:impl-can-mac-ser, @sec:impl-can-mac-bs, and @sec:impl-can-mac-crc.
 
 ## `can_mac_ser` {#sec:impl-can-mac-ser}
 
@@ -683,7 +683,7 @@ The output mux (`p_crc_mux`) is implemented combinatorially rather than as a reg
 
 ![`can_mac_crc` dataflow with three parallel CRC engines. The output mux is combinatorial to avoid one cycle of read latency at the FSM.](figures/mac_crc_fsm.png){#fig:mac-crc width=70%}
 
-With the MAC submodules established, the two remaining modules - the Fault Confinement Entity and the Physical Coding Sublayer - are described in the following subsections.
+With the MAC submodules established, the two remaining modules - the Fault Confinement Entity and the Physical Coding Sublayer - are described in @sec:impl-can-fce and @sec:impl-can-pcs.
 
 ## `can_fce` {#sec:impl-can-fce}
 
