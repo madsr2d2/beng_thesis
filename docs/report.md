@@ -766,7 +766,7 @@ Ten requirements remain open. Seven are LLC requirements (REQ-001 through REQ-00
 
 # Synthesis {#sec:synthesis}
 
-The implemented `can_mac_pcs_fce` stack was synthesized using Quartus Prime Standard Edition 21.1.1 targeting the Cyclone 10 LP device (10CL016YU256I7G) used in Everllence's IO-extender board. The synthesis used a standalone project with all record-typed ports flattened to individual `std_logic` and `std_logic_vector` signals and all I/O marked as `VIRTUAL_PIN`, isolating logic resource consumption from I/O buffer overhead. The clock constraint was set to 6 ns (166 MHz), deliberately overconstraining relative to any realistic CAN FD system clock to expose worst-case timing paths. Two constructs in the RTL source required substitution for Quartus compatibility prior to synthesis: conditional signal assignments in sequential processes were replaced with equivalent `if`/`else` forms, and the `sll` operator on `std_logic_vector` was replaced with concatenation shifts. Both substitutions are functionally equivalent and do not affect resource counts.
+The implemented `can_mac_pcs_fce` stack was synthesized using Quartus Prime Standard Edition 21.1.1 targeting the Cyclone 10 LP device (10CL016YU256I7G) used in Everllence's IO-extender board. The synthesis used a standalone project with all record-typed ports flattened to individual `std_logic` and `std_logic_vector` signals and all I/O marked as `VIRTUAL_PIN`, isolating logic resource consumption from I/O buffer overhead. The clock constraint was set to 6 ns (166 MHz), deliberately overconstraining relative to any realistic CAN FD system clock to expose worst-case timing paths.
 
 ## Resource Utilization {#sec:synthesis-resources}
 
