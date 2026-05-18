@@ -1,0 +1,16 @@
+Fitter Status : Successful - Mon May 18 15:02:03 2026
+Quartus Prime Version : 21.1.1 Build 850 06/23/2022 SJ Standard Edition
+Revision Name : can_mac_pcs_fce
+Top-level Entity Name : can_mac_pcs_fce_top
+Family : Cyclone 10 LP
+Device : 10CL016YU256I7G
+Timing Models : Final
+Total logic elements : 4,608 / 15,408 ( 30 % )
+    Total combinational functions : 4,600 / 15,408 ( 30 % )
+    Dedicated logic registers : 869 / 15,408 ( 6 % )
+Total registers : 869
+Total pins : 0 / 163 ( 0 % )
+Total virtual pins : 33
+Total memory bits : 0 / 516,096 ( 0 % )
+Embedded Multiplier 9-bit elements : 0 / 112 ( 0 % )
+Total PLLs : 0 / 4 ( 0 % )

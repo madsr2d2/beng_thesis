@@ -1,0 +1,137 @@
+{
+	"partitions" : [
+		{
+			"name" : "Top",
+			"pins" : [
+				{
+					"name" : "tx_llc_ready_o",
+					"strict" : false
+				},
+				{
+					"name" : "tx_llc_status_o[0]",
+					"strict" : false
+				},
+				{
+					"name" : "tx_llc_status_o[1]",
+					"strict" : false
+				},
+				{
+					"name" : "tx_llc_status_o[2]",
+					"strict" : false
+				},
+				{
+					"name" : "rx_llc_valid_o",
+					"strict" : false
+				},
+				{
+					"name" : "rx_llc_sop_o",
+					"strict" : false
+				},
+				{
+					"name" : "rx_llc_eop_o",
+					"strict" : false
+				},
+				{
+					"name" : "rx_llc_data_o[0]",
+					"strict" : false
+				},
+				{
+					"name" : "rx_llc_data_o[1]",
+					"strict" : false
+				},
+				{
+					"name" : "rx_llc_data_o[2]",
+					"strict" : false
+				},
+				{
+					"name" : "rx_llc_data_o[3]",
+					"strict" : false
+				},
+				{
+					"name" : "rx_llc_data_o[4]",
+					"strict" : false
+				},
+				{
+					"name" : "rx_llc_data_o[5]",
+					"strict" : false
+				},
+				{
+					"name" : "rx_llc_data_o[6]",
+					"strict" : false
+				},
+				{
+					"name" : "rx_llc_data_o[7]",
+					"strict" : false
+				},
+				{
+					"name" : "fce_bus_off_o",
+					"strict" : false
+				},
+				{
+					"name" : "tx_o",
+					"strict" : false
+				},
+				{
+					"name" : "clk_i",
+					"strict" : false
+				},
+				{
+					"name" : "tx_llc_valid_i",
+					"strict" : false
+				},
+				{
+					"name" : "reset_i",
+					"strict" : false
+				},
+				{
+					"name" : "fce_normal_mode_i",
+					"strict" : false
+				},
+				{
+					"name" : "rx_i",
+					"strict" : false
+				},
+				{
+					"name" : "tx_llc_sop_i",
+					"strict" : false
+				},
+				{
+					"name" : "rx_llc_ready_i",
+					"strict" : false
+				},
+				{
+					"name" : "tx_llc_data_i[5]",
+					"strict" : false
+				},
+				{
+					"name" : "tx_llc_data_i[6]",
+					"strict" : false
+				},
+				{
+					"name" : "tx_llc_data_i[7]",
+					"strict" : false
+				},
+				{
+					"name" : "tx_llc_data_i[4]",
+					"strict" : false
+				},
+				{
+					"name" : "tx_llc_data_i[3]",
+					"strict" : false
+				},
+				{
+					"name" : "tx_llc_data_i[2]",
+					"strict" : false
+				},
+				{
+					"name" : "tx_llc_data_i[1]",
+					"strict" : false
+				},
+				{
+					"name" : "tx_llc_data_i[0]",
+					"strict" : false
+				}
+			]
+		}
+	]
+}
