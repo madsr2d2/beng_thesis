@@ -579,7 +579,7 @@ The MAC sub-layer is the core of the protocol logic, responsible for bit seriali
 
 ### `can_mac_ser` {#sec:can-mac-ser}
 
-`can_mac_ser` converts the LLC byte stream into a serial polarity bit stream for the MAC FSM. It manages the two-byte configuration handshake (see @sec:internal-llc-frame-format), extracts LLC metadata (IDE, FDF, DLC, FTYP, BRS, ESI) from the config bytes, and serializes ID and data bits one per FSM ready pulse. Unused padding bits in the 32-bit ID field for 11-bit base identifiers are skipped silently. Detailed implementation is described in @sec:impl-can-mac-ser.
+`can_mac_ser` converts the LLC byte stream into a serial polarity bit stream for the MAC FSM. It manages the two-byte configuration handshake (see @sec:internal-llc-frame-format), extracts LLC metadata (IDE, FDF, DLC, FTYP, BRS, ESI) from the config bytes, and serializes ID and data bits one per FSM ready pulse. Detailed implementation is described in @sec:impl-can-mac-ser.
 
 ### `can_mac_bs` {#sec:can-mac-bs}
 
