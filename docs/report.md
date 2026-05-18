@@ -773,7 +773,7 @@ Ten requirements remain open. Seven are LLC requirements (REQ-001 through REQ-00
 | `can_mac_bs_tb` | REQ-017, REQ-019 | Pass |
 | `can_pcs_tb` | REQ-025, REQ-026, REQ-027, REQ-028 | Pass |
 | `can_fce_tb` | REQ-029, REQ-030, REQ-031, REQ-035 (sub-claim 2) | Pass |
-| `can_mac_pcs_fce_tb` | REQ-007, REQ-008, REQ-009, REQ-010, REQ-012, REQ-014, REQ-015, REQ-016, REQ-018, REQ-020, REQ-021, REQ-022 (bit/ACK errors), REQ-023, REQ-032, REQ-034 | Pass |
+| `can_mac_pcs_fce_tb` | REQ-007, REQ-008, REQ-009, REQ-010, REQ-012, REQ-014, REQ-015, REQ-016, REQ-018, REQ-020, REQ-021, REQ-022 (bit error only), REQ-023, REQ-032, REQ-034 | Pass |
 | `can_llc_mac_pcs_fce_tb` | REQ-035 (sub-claim 1, waveform) | Pass |
 
 : Testbench execution status and requirements coverage. {#tbl:testbench-results-summary}
@@ -810,7 +810,7 @@ The four objectives stated in @sec:objectives are assessed against the verificat
 
 3. **CAN XL support.** CAN XL is explicitly out of scope for this project. The layered architecture and unified FSM are well-suited for extension: CAN XL adds a third bit rate phase and an XL-specific frame format, both of which map naturally onto additional PCS rate parameters and new `can_mac_fsm` states.
 
-4. **Error-type-specific simulation coverage (REQ-022).** The current testbench exercises bit-error detection and ACK-error detection through recessive injection; stuff error, form error, and CRC error detection (ISO 6.6.21.2 sub-claims 2-4) are covered by code inspection only. An Everllence-internal CAN FD reference model with targeted error injection capability provides the vehicle to close this gap. Integrating it as a stimulus source in `can_mac_pcs_fce_tb` would allow dedicated simulation scenarios for each error type and complete simulation coverage of REQ-022.
+4. **Error-type-specific simulation coverage (REQ-022).** The current testbench verifies bit-error detection through recessive injection at frame start. Stuff error, form error, CRC error, and ACK error detection (ISO 6.6.21.2 sub-claims 2-5) are covered by code inspection only. ACK-error injection in particular requires a frame-aware stimulus source that can target the recessive override specifically to the ACK slot. An Everllence-internal CAN FD reference model with targeted error injection capability is available and provides the vehicle to close this gap, completing simulation coverage of REQ-022.
 
 5. Synthesis...
 
