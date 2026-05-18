@@ -856,6 +856,10 @@ The project yielded three transferable lessons. First, the structure of a requir
 ::: {#refs}
 :::
 
+```{=latex}
+\clearpage
+```
+
 `\appendix`{=latex}
 
 # Accompanying Digital Materials {#sec:appendix-artifacts}
