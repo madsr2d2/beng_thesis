@@ -503,7 +503,7 @@ The **format_applicability dimension** had a more constructive effect. Requireme
 
 ## Architectural Design Decisions {#sec:architectural-design-decisions}
 
-The ramifications identified above narrowed the design space early: a layered architecture was well-motivated by the requirements model, and a unified FSM proved necessary once the split-path approach was attempted. The primary inputs were the existing in-house CAN Classic controller (@sec:existing-controller) and the ISO 11898-1 standard's own layered reference model [@iso11898_1]. CTU CAN FD [@ctucanfd] is noted as an existing open-source CAN FD implementation but was not studied in detail.
+The ramifications identified above narrowed the design space early: a layered architecture was well-motivated by the requirements model, and a unified FSM proved necessary once the split-path approach was attempted. The primary inputs were the existing in-house CAN Classic controller (@sec:existing-controller) and the ISO 11898-1 standard's own layered reference model [@iso11898_1]. CTU CAN FD [@ctucanfd] is noted as an existing open-source CAN FD implementation but was not used as a design reference.
 
 ### Adopting the ISO 11898-1 Sub-layer Model {#sec:monolithic-vs-layered}
 
