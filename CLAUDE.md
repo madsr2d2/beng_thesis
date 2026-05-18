@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-B.Eng thesis: full CAN/CAN FD node (TX+RX) in VHDL-2008 following ISO 11898-1:2015.
+B.Eng thesis: full CAN/CAN FD node (TX+RX) in VHDL-93 (RTL) / VHDL-2008 (testbenches) following ISO 11898-1:2015.
 Pipeline: `can_llc -> can_mac (can_mac_ser, can_mac_fsm, can_mac_bs, can_mac_crc) -> can_pcs`. Wrapper `can_mac_pcs_fce` adds FCE. Top-level `can_fd_controller` adds LLC.
 Standards ref: `docs/md_out/ISO_11898_1_CAN_bus_link/ISO_11898_1_CAN_bus_link.md`.
 
@@ -8,7 +8,7 @@ Standards ref: `docs/md_out/ISO_11898_1_CAN_bus_link/ISO_11898_1_CAN_bus_link.md
 
 ## Interface Mandate
 
-**All entity ports: `std_logic` / `std_logic_vector` only.** Company advisor mandate for synthesis.
+**All entity ports: `std_logic`, `std_logic_vector`, or records/arrays containing only those types.** Company advisor mandate for synthesis.
 
 - `c_dominant = '0'`, `c_recessive = '1'`
 - FSM states: `std_logic_vector(2 downto 0)` constants
