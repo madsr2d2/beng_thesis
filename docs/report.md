@@ -861,34 +861,34 @@ The zip file accompanying this document contains the complete source tree develo
 **RTL source files**
 
 | File | Description |
-| :--- | :---------- |
-| `src/can_types_p/hdl_src/can_types_p.vhd` | Shared types and constants package (`pk_can_types`) |
-| `src/can_mac/hdl_src/can_mac_fsm.vhd` | Unified MAC FSM (19 states, TX and RX) |
-| `src/can_mac/hdl_src/can_mac.vhd` | MAC wrapper |
-| `src/can_mac_ser/hdl_src/can_mac_ser.vhd` | TX-only serializer |
-| `src/can_mac_bs/hdl_src/can_mac_bs.vhd` | Bit stuffer/destuffer |
-| `src/can_mac_crc/hdl_src/can_mac_crc.vhd` | CRC engine (CRC-15/17/21) |
-| `src/can_pcs/hdl_src/can_pcs.vhd` | Physical Coding Sublayer (bit timing, sync, TDC) |
-| `src/can_fce/hdl_src/can_fce.vhd` | Fault Confinement Entity |
-| `src/can_mac_pcs_fce/hdl_src/can_mac_pcs_fce.vhd` | MAC + PCS + FCE wrapper (synthesized top-level) |
+| :----------------------------------------- | :--- |
+| `can_types_p/can_types_p.vhd` | Shared types package |
+| `can_mac/can_mac_fsm.vhd` | Unified MAC FSM |
+| `can_mac/can_mac.vhd` | MAC wrapper |
+| `can_mac_ser/can_mac_ser.vhd` | TX serializer |
+| `can_mac_bs/can_mac_bs.vhd` | Bit stuffer/destuffer |
+| `can_mac_crc/can_mac_crc.vhd` | CRC engine |
+| `can_pcs/can_pcs.vhd` | PCS (bit timing, sync, TDC) |
+| `can_fce/can_fce.vhd` | Fault Confinement Entity |
+| `can_mac_pcs_fce/can_mac_pcs_fce.vhd` | Synthesized top-level wrapper |
 
 **Testbench files**
 
 | File | Description |
-| :--- | :---------- |
-| `src/can_mac_ser/hdl_tb/can_mac_ser_tb.vhd` | Serializer testbench |
-| `src/can_mac_bs/hdl_tb/can_mac_bs_tb.vhd` | Bit stuffer testbench |
-| `src/can_mac_crc/hdl_tb/can_mac_crc_tb.vhd` | CRC engine testbench |
-| `src/can_pcs/hdl_tb/can_pcs_tb.vhd` | PCS testbench |
-| `src/can_fce/hdl_tb/can_fce_tb.vhd` | FCE testbench |
-| `src/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd` | Integration testbench (MAC + PCS + FCE) |
+| :----------------------------------------- | :--- |
+| `can_mac_ser/can_mac_ser_tb.vhd` | Serializer |
+| `can_mac_bs/can_mac_bs_tb.vhd` | Bit stuffer |
+| `can_mac_crc/can_mac_crc_tb.vhd` | CRC engine |
+| `can_pcs/can_pcs_tb.vhd` | PCS |
+| `can_fce/can_fce_tb.vhd` | FCE |
+| `can_mac_pcs_fce/can_mac_pcs_fce_tb.vhd` | MAC + PCS + FCE integration |
 
 **Verification plan and tooling**
 
 | File | Description |
-| :--- | :---------- |
-| `verification_plan/verification_plan.toml` | Verification plan: 38 requirements with full traceability metadata |
-| `mcp_tools/verification_plan_manager.py` | MCP server for AI-assisted plan maintenance |
+| :----------------------------------------- | :--- |
+| `verification_plan/verification_plan.toml` | 38 requirements with traceability metadata |
+| `mcp_tools/verification_plan_manager.py` | MCP server for verification plan maintenance |
 
 # Verification Plan {#sec:appendix-vplan}
 
