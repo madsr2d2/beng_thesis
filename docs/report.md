@@ -212,6 +212,8 @@ The architectural limitations of the existing controller (@sec:existing-limitati
 - Derive and verify a structured set of requirements with traceability from ISO 11898-1 to testbench results.
 - Produce an RTL design integrated via Avalon-ST interfaces into Everllence's existing FPGA infrastructure.
 
+The source files, testbenches, verification plan, and tooling accompanying this document are listed in @sec:appendix-artifacts.
+
 # Background {#sec:background}
 
 This section covers the two technical foundations that the rest of the report builds on. The first is the CAN and CAN FD protocol at the level of motivation and architecture: its bus model, fault-confinement properties, and the bandwidth extensions introduced by CAN FD. The protocol mechanisms referenced by individual requirements - bit timing, stuffing, CRC, and error handling - are covered in depth in @sec:can-protocol-overview. The second foundation is the VHDL-93 and OSVVM toolchain used for RTL implementation and simulation. Readers already familiar with both may proceed directly to @sec:requirements-engineering.
@@ -851,6 +853,45 @@ The project yielded three transferable lessons. First, the structure of a requir
 :::
 
 `\appendix`{=latex}
+
+# Accompanying Digital Materials {#sec:appendix-artifacts}
+
+The zip file accompanying this document contains the complete source tree developed during this project. The tables below identify the key files by category.
+
+**RTL source files**
+
+| File | Description |
+| :--- | :---------- |
+| `src/can_types_p/hdl_src/can_types_p.vhd` | Shared types and constants package (`pk_can_types`) |
+| `src/can_mac/hdl_src/can_mac_fsm.vhd` | Unified MAC FSM (19 states, TX and RX) |
+| `src/can_mac/hdl_src/can_mac.vhd` | MAC wrapper |
+| `src/can_mac_ser/hdl_src/can_mac_ser.vhd` | TX-only serializer |
+| `src/can_mac_bs/hdl_src/can_mac_bs.vhd` | Bit stuffer/destuffer |
+| `src/can_mac_crc/hdl_src/can_mac_crc.vhd` | CRC engine (CRC-15/17/21) |
+| `src/can_pcs/hdl_src/can_pcs.vhd` | Physical Coding Sublayer (bit timing, sync, TDC) |
+| `src/can_fce/hdl_src/can_fce.vhd` | Fault Confinement Entity |
+| `src/can_mac_pcs_fce/hdl_src/can_mac_pcs_fce.vhd` | MAC + PCS + FCE wrapper (synthesized top-level) |
+| `src/can_llc/hdl_src/can_llc.vhd` | LLC sub-layer (stub, deferred) |
+| `src/can_llc_mac_pcs_fce/hdl_src/can_llc_mac_pcs_fce.vhd` | Full controller wrapper |
+
+**Testbench files**
+
+| File | Description |
+| :--- | :---------- |
+| `src/can_mac_ser/hdl_tb/can_mac_ser_tb.vhd` | Serializer testbench |
+| `src/can_mac_bs/hdl_tb/can_mac_bs_tb.vhd` | Bit stuffer testbench |
+| `src/can_mac_crc/hdl_tb/can_mac_crc_tb.vhd` | CRC engine testbench |
+| `src/can_pcs/hdl_tb/can_pcs_tb.vhd` | PCS testbench |
+| `src/can_fce/hdl_tb/can_fce_tb.vhd` | FCE testbench |
+| `src/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd` | Integration testbench (MAC + PCS + FCE) |
+| `src/can_llc_mac_pcs_fce/hdl_tb/can_llc_mac_pcs_fce_tb.vhd` | Full controller testbench |
+
+**Verification plan and tooling**
+
+| File | Description |
+| :--- | :---------- |
+| `verification_plan/verification_plan.toml` | Verification plan: 38 requirements with full traceability metadata |
+| `mcp_tools/verification_plan_manager.py` | MCP server for AI-assisted plan maintenance |
 
 # Verification Plan {#sec:appendix-vplan}
 
