@@ -429,7 +429,7 @@ The priority field classifies each requirement into one of three levels:
 - P2 requirements are nice-to-have - they are verified in the normal verification cycle but do not block closure.
 - P3 requirements are optional - addressed only if schedule permits.
 
-The final plan contains 31 P1, five P2, and two P3 requirements. The demotion rationale for each requirement not rated P1 is given in @tbl:priority-demotion. The plan is considered closed when all P1 requirements reach `complete` status. P2 and P3 requirements are addressed as schedule permits.
+The final plan contains 31 P1, five P2, and two P3 requirements. The demotion rationale for each requirement not rated P1 is given in @tbl:priority-demotion. Of the 31 P1 requirements, 26 are closed. Four (REQ-001, REQ-003, REQ-005, REQ-033) remain not started pending `can_llc` implementation, and REQ-022 is in progress with partial simulation coverage. P2 and P3 requirements are addressed as schedule permits.
 
 ## Requirement Distribution {#sec:vplan-distribution}
 
