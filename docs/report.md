@@ -749,7 +749,7 @@ The implementation described in @sec:implementation was exercised against the 38
 
 ![Two-node simulation of a complete FD frame, showing the full FSM field sequence on both transmitter and receiver from `s_arbitration` through bus re-integration.](figures/waveforms/full_fd_frame.pdf){#fig:full_fd_frame width=100%}
 
-![Error escalation waveform showing TEC increment across successive ACK errors, `error_active` deasserting at the 127 threshold, and the node transitioning to error passive (REQ-030, REQ-031).](figures/waveforms/req_10_11.pdf){#fig:req_30_31 width=100%}
+![Error escalation waveform showing TEC increment across successive ACK errors, `error_active` deasserting at the 127 threshold, and the node transitioning to error passive (REQ-030, REQ-031).](figures/waveforms/req_30_31.pdf){#fig:req_30_31 width=100%}
 
 ![Dynamic bit stuffing in `can_mac_bs_tb`, covering both a dominant-run and a recessive-run case.](figures/waveforms/pending_bs_dynamic.pdf){#fig:bs_dynamic width=100%}
 
