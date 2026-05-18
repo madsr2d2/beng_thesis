@@ -43,7 +43,7 @@ The report tells a single continuous story. Each section picks up from the previ
 
 ### Introduction
 
-**What it establishes:** The company needs CAN-FD. The existing in-house CAN Classic controller (`can_node_clock`, `can_fsm`) cannot be extended to CAN-FD due to five architectural limitations (single bit rate, dynamic-only stuffing, single CRC, combined TX/RX FSM, embedded error handling). Available third-party IP cores do not fit for five reasons (IP ownership, verification authority, architectural scope, integration conventions, platform independence). Therefore: clean-sheet redesign.
+**What it establishes:** The company needs CAN-FD. The existing in-house CAN Classic controller (`can_node_clock`, `can_fsm`) cannot be extended to CAN-FD due to four architectural limitations (single bit rate, dynamic-only stuffing, single CRC, coupled fault confinement). Available third-party IP cores do not fit for five reasons (IP ownership, verification authority, architectural scope, integration conventions, platform independence). Therefore: clean-sheet redesign.
 
 **Closes with:** The Problem Statement and Objectives.
 
