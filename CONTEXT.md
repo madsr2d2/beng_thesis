@@ -22,7 +22,7 @@ Use these terms exactly. Do not drift to synonyms.
 | `can_fce` | Fault Confinement Entity | "error counter module" |
 | `can_pcs` | Physical Coding Sublayer - bit timing, sync, TDC | "clock module", `can_node_clock` (the prior implementation) |
 | internal LLC frame format | The 2-config-byte + ID + data layout on the MAC-facing stream | "MAC frame", "internal format" |
-| `data_cc` / `data_fd` | The two CRC data feeds: CC (de-stuffed) and FD (includes dynamic stuff bits in arbitration region) | "CRC input A/B" |
+| `data_cc` / `data_fd` | The two CRC data feeds: CC (de-stuffed, excludes all stuff bits) and FD (includes dynamic stuff bits from `s_arbitration` through `s_data`; fixed stuff bits in `s_sbc`/`s_crc` are excluded from both feeds) | "CRC input A/B" |
 | dynamic stuffing | Insert inverse bit after five consecutive identical bits | "bit stuffing" alone (ambiguous - there is also fixed stuffing) |
 | fixed stuffing | Insert stuff bit at fixed intervals in FD CRC region, with SBC field | "static stuffing" |
 | SBC | Stuff Bit Count - Gray-coded, with parity, transmitted in FD CRC region | "stuff count" |
@@ -51,7 +51,7 @@ The report tells a single continuous story. Each section picks up from the previ
 
 **What it establishes:** Two things in order:
 
-1. **Top-view story of the CAN protocol:** History and multi-master arbitration `[@bosch1991]`. Error detection performance: Charzinski 1994 showed residual error probability of $3.5 \times 10^{-9} \cdot q_\text{bad}$ per frame (10-node network), substantially better than VAN/SCP; FCE and fault confinement as the distinguishing feature vs. competing protocols. Protocol comparison table (LIN, CAN Classic, CAN FD, FlexRay, Automotive Ethernet) - none of the alternatives combine CAN's speed, fault confinement, and multi-master arbitration. CAN FD introduction `[@hartwich2012]`: 64-byte payload, dual bit rate, Hartwich's 2.5 Mbit/s measurement. Oscillator tolerance `[@mutter2013]`: data/arbitration ratio < ~9 keeps same tolerance as Classic CAN. CAN FD error detection improvements `[@mutter2015]`: CRC-17/21, dynamic-stuff-bit CRC weakness fixed via SBC field.
+1. **Top-view story of the CAN protocol:** History and multi-master arbitration `[@bosch1991]`. Error detection performance: Charzinski 1994 showed residual error probability of $3.5 \times 10^{-9} \cdot q_\text{bad}$ per frame (10-node network), substantially better than VAN/SCP; FCE and fault confinement as the distinguishing feature vs. competing protocols. CAN FD introduction `[@hartwich2012]`: 64-byte payload, dual bit rate, Hartwich's 2.5 Mbit/s measurement. Oscillator tolerance `[@mutter2013]`: data/arbitration ratio < ~9 keeps same tolerance as Classic CAN. CAN FD error detection improvements `[@mutter2015]`: CRC-17/21, dynamic-stuff-bit CRC weakness fixed via SBC field.
 
 2. **VHDL-93 (RTL) and VHDL-2008/OSVVM (testbenches) as the implementation and verification toolchain.** RTL source is VHDL-93 - Quartus Prime does not fully support VHDL-2008 for synthesis, making VHDL-93 the practical upper bound for synthesizable RTL. Testbenches are VHDL-2008 (required by OSVVM). GHDL supports both. SystemVerilog/UVM acknowledged as the dominant alternative. PSL is NOT used in this project - do not mention PSL or formal verification anywhere in the report.
 
@@ -87,7 +87,7 @@ Priority spans both groups.
 **What it establishes:** How the three design-facing dimensions shaped the architecture, and where the mapping broke down.
 
 - `layer` → layered architecture (LLC, MAC, PCS, FCE). Sound conclusion. The observability dimension reinforced it.
-- `side` → appeared to motivate a split TX/RX FSM. **This was a red herring.** The split was attempted (separate `can_mac_fsm_tx` and `can_mac_fsm_rx`), caused code duplication, debugging complexity, and a concrete `c_disturbed` bug in `can_mac_pcs_fce_tb`. **General lesson: requirements structure can bias architectural decisions in ways that are not immediately obvious. Verification plan dimensions are inputs to testbench architecture, not RTL architecture.**
+- `side` → appeared to motivate a split TX/RX FSM. **This was a red herring.** The split was attempted (separate `can_mac_fsm_tx` and `can_mac_fsm_rx`), caused code duplication and debugging complexity. **General lesson: requirements structure can bias architectural decisions in ways that are not immediately obvious. Verification plan dimensions are inputs to testbench architecture, not RTL architecture.**
 - `format_applicability` → per-field FSM states (not per-phase), and front-loaded internal LLC frame format (2 config bytes before ID/data so the FSM knows format before the first ID bit).
 
 Final architecture: one unified `can_mac_fsm`, one `can_mac_bs`, one `can_mac_crc`, one `can_mac_ser` (TX only), plus `can_fce` and `can_pcs`.
@@ -125,13 +125,13 @@ Final architecture: one unified `can_mac_fsm`, one `can_mac_bs`, one `can_mac_cr
 
 ### Synthesis
 
-**What it establishes:** Synthesis results for `can_mac_pcs_fce` on Cyclone 10 LP (10CL016YU256I7G) using Quartus Prime 21.1.1. Two RTL constructs required substitution for Quartus compatibility before synthesis (conditional signal assignments and `sll` operator). Resource utilization: 4,608 LEs (30% of device), 869 registers, no memory or DSP blocks. Per-module breakdown: `can_mac_fsm` dominates at 4,109 LEs (89%) driven by the 560-bit RX frame buffer. Timing: worst-case fmax ~127 MHz on slow 100°C corner at 166 MHz overconstrain - passes at any realistic system clock (50-80 MHz range). Source: `docs/synthesis_resource_comparison.md`.
+**What it establishes:** Synthesis results for `can_mac_pcs_fce` on Cyclone 10 LP (10CL016YU256I7G) using Quartus Prime 21.1.1. RTL source is VHDL-93 throughout; no construct substitutions were required. Resource utilization: 4,608 LEs (30% of device), 869 registers, no memory or DSP blocks. Per-module breakdown: `can_mac_fsm` dominates at 4,109 LEs (89%) driven by the 560-bit RX frame buffer. Timing: worst-case fmax ~127 MHz on slow 100°C corner at 166 MHz overconstrain - comfortably exceeds the 40 MHz minimum required for 5 Mbit/s data-phase operation at the ISO-minimum 8 TQ/bit with prescaler 1. Source: `docs/synthesis_resource_comparison.md`.
 
 **Closes with:** Feeds the CC vs FD comparison in @sec:discussion.
 
 ### Discussion and Conclusion
 
-**Discussion establishes:** Four main points: (1) requirements structure can inadvertently bias RTL architecture - the TX/RX side dimension made the split-path look natural but it was a red herring; (2) the unified FSM paid off most concretely at the arbitration loss boundary; (3) the layered architecture enabled module-by-module verification; (4) synthesis comparison - CAN FD is 4.0× CAN CC in LEs, dominated by frame buffer scaling (4.7×), protocol logic itself only 2.9×, payload-normalised 72 vs 143 LEs/byte. Objectives Assessment (@sec:objectives-assessment) assesses each of the four objectives. Future Work (@sec:future-work) has four items: `can_llc` implementation, hardware bring-up (including PCAN interoperability), CAN XL support, REQ-022 error-type-specific simulation coverage.
+**Discussion establishes:** Four main points: (1) requirements structure can inadvertently bias RTL architecture - the TX/RX side dimension made the split-path look natural but it was a red herring; (2) the unified FSM paid off most concretely at the arbitration loss boundary; (3) the layered architecture enabled module-by-module verification; (4) synthesis comparison - CAN FD is 4.0× CAN CC in LEs, dominated by frame buffer scaling (4.7×), protocol logic itself only 2.9×, payload-normalised 72 vs 143 LEs/byte. Objectives Assessment (@sec:objectives-assessment) assesses each of the four objectives. Future Work (@sec:future-work) has five items: `can_llc` implementation, hardware bring-up (including PCAN interoperability), CAN XL support, BRAM migration for the RX frame buffer, REQ-022 error-type-specific simulation coverage (all four sub-claims require frame-aware stimulus - CRC error must target a non-fixed-form bit or a form error fires instead).
 
 **Conclusion establishes:** Two-paragraph close - what was delivered (28/38, MAC/PCS/FCE, 4608 LEs / ~127 MHz on Cyclone 10 LP), three transferable lessons (requirements model structure is not RTL structure; layered architecture is a practical partitioning; narrow MCP write interface makes AI-assisted artifact maintenance safe).
 
