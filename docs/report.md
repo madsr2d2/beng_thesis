@@ -101,7 +101,6 @@ Thank you for framing the industrial requirements, providing access to the exist
 | PS | Propagation Segment (PROP_SEG) |
 | PS1 | Phase Segment 1 (PHASE_SEG1) |
 | PS2 | Phase Segment 2 (PHASE_SEG2) |
-| PSL | Property Specification Language |
 | RRS | Reserved Remote Request Substitution bit (FD frames) |
 | RTL | Register Transfer Level |
 | RTR | Remote Transmission Request |
@@ -419,7 +418,7 @@ The observability field resolves each requirement as either black-box or white-b
 - **Black-box**: Can be verified purely through the module's observable port signals.
 - **White-box**: Verification requires direct observation of the module's internal state.
 
-This distinction has direct consequences for testbench architecture. Black-box requirements are verifiable with stimulus-and-observe testbenches that drive inputs and check outputs without any knowledge of internal implementation. White-box requirements - which include CRC polynomial correctness, bit counter arithmetic, error counter thresholds, and Gray-coded SBC encoding - require either PSL assertions on internal signals or a parallel reference model that re-computes the expected value independently. In the verification plan, white-box requirements are the primary driver for embedding PSL assertions directly in the RTL source files, where they have access to internal signals regardless of module hierarchy.
+This distinction has direct consequences for testbench architecture. Black-box requirements are verifiable with stimulus-and-observe testbenches that drive inputs and check outputs without any knowledge of internal implementation. White-box requirements - which include CRC polynomial correctness, bit counter arithmetic, error counter thresholds, and Gray-coded SBC encoding - require a parallel reference model that re-computes the expected value independently, or direct observation of internal signals via testbench signal access.
 
 ## Priority {#sec:vplan-priority}
 
@@ -493,7 +492,7 @@ The verification plan classified all 38 requirements along three design-facing d
 
 The structure of the requirements model had direct consequences for the initial design strategy, in ways that were not fully anticipated at the outset.
 
-The **layer dimension** mapped naturally onto the ISO standard's own layered reference model, making a layered module architecture the obvious implementation strategy. A dedicated hardware module for each layer - MAC, LLC, fault confinement, and PCS - would allow requirements pertaining to a given layer to be verified in isolation. The observability dimension reinforced this directly: black-box requirements mapped cleanly onto port-level stimulus and observation, while white-box requirements pointed toward the need for reference models or PSL assertions on internal signals, both of which are most tractable in a per-module testbench. This was a sound conclusion: the modular architecture proved to be the right design choice.
+The **layer dimension** mapped naturally onto the ISO standard's own layered reference model, making a layered module architecture the obvious implementation strategy. A dedicated hardware module for each layer - MAC, LLC, fault confinement, and PCS - would allow requirements pertaining to a given layer to be verified in isolation. The observability dimension reinforced this directly: black-box requirements mapped cleanly onto port-level stimulus and observation, while white-box requirements pointed toward the need for reference models or direct internal signal observation, both of which are most tractable in a per-module testbench. This was a sound conclusion: the modular architecture proved to be the right design choice.
 
 The **TX/RX side dimension** had a subtler and more consequential effect. Organizing requirements along the transmitter/receiver axis made intuitive sense from a specification perspective - the ISO standard itself frames many requirements in terms of transmitter behavior and receiver behavior - and it was genuinely useful for thinking through which requirements belonged where. However, it also made a split-path implementation architecture look like the natural design strategy, simply because the requirements were literally organized along that split. The implication appeared to be: implement a TX module, implement an RX module, and map the TX requirements to the former and the RX requirements to the latter.
 
@@ -533,7 +532,7 @@ The existing controller uses coarse-grained states that each cover multiple prot
 
 The new FSM largely shares this structure. `s_arbitration` and `s_data` retain counter-driven logic for the same reason: both cover multi-bit fields with no per-bit semantic distinction. The meaningful change is in how format-specific single-bit fields are handled. Rather than folding FDF, RES, BRS, ESI, and SBC into a shared control state dispatched by counter, each gets a dedicated state. The same split applies to delimiter fields: `s_crc_delimiter` and `s_ack_delimiter` are separated from `s_crc` and `s_ack`. Format-dependent transitions become state graph edges - `s_fdf_r1_r0` transitions to `s_dlc` for Classic frames or to `s_res_r0` then `s_brs` for FD frames - rather than counter conditionals inside a shared state. The error frame sequence is simplified from five states to two (`s_error_flag`, `s_error_delimiter`), with fault confinement logic moved to the standalone `can_fce` entity. The result is 19 states - one more than the prior implementation - with counter logic confined to the fields that genuinely require it.
 
-This structure aligns with the verification plan: FD-specific fields map directly to FSM states, and each state can be traced to its corresponding requirements. It also simplifies formal verification, since PSL assertions can reference state names rather than counter ranges.
+This structure aligns with the verification plan: FD-specific fields map directly to FSM states, and each state can be traced to its corresponding requirements. It also simplifies testbench assertions, since checks can reference named states rather than counter ranges.
 
 ### Internal LLC Frame Format {#sec:internal-llc-frame-format}
 
