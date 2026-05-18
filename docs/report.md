@@ -6,7 +6,7 @@ bibliography: references.bib
 csl: ieee.csl
 link-citations: true
 abstract: |
-  This thesis describes the design, implementation, and verification of a CAN/CAN FD protocol controller in VHDL, targeting high-reliability engine controller applications at Everllence. The controller complies with ISO 11898-1 and supports the CB, CE, FB, and FE frame formats with dual bit rate switching and Transmitter Delay Compensation (TDC) for the FD data phase. The design is structured around the ISO 11898-1 layered reference model, with the MAC, PCS, and FCE sub-layers implemented as independently testable modules and the LLC sub-layer specified but deferred. Of 38 derived requirements, 28 are verified against passing testbenches or code inspection. Of the remaining 10, seven are deferred pending `can_llc` implementation and three are non-blocking P2 items.
+  This thesis describes the design, implementation, and verification of a CAN/CAN FD protocol controller in VHDL, targeting high-reliability engine controller applications at Everllence. The controller complies with ISO 11898-1 and supports the CB, CE, FB, and FE frame formats with dual bit rate switching and Transmitter Delay Compensation (TDC) for the FD data phase. The design is structured around the ISO 11898-1 layered reference model, with the MAC, PCS, and FCE sub-layers implemented as independently testable modules and the LLC sub-layer specified but deferred. Of 38 derived requirements, 27 are verified against passing testbenches or code inspection. Of the remaining 11, seven are deferred pending `can_llc` implementation, three are non-blocking P2 items, and one (REQ-022) has partial simulation coverage with dedicated error-injection testing identified as future work.
 ---
 
 ```{=latex}
@@ -773,7 +773,7 @@ Ten requirements remain open. Seven are LLC requirements (REQ-001 through REQ-00
 | `can_mac_bs_tb` | REQ-017, REQ-019 | Pass |
 | `can_pcs_tb` | REQ-025, REQ-026, REQ-027, REQ-028 | Pass |
 | `can_fce_tb` | REQ-029, REQ-030, REQ-031, REQ-035 (sub-claim 2) | Pass |
-| `can_mac_pcs_fce_tb` | REQ-007, REQ-008, REQ-009, REQ-010, REQ-012, REQ-014, REQ-015, REQ-016, REQ-018, REQ-020, REQ-021, REQ-022, REQ-023, REQ-032, REQ-034 | Pass |
+| `can_mac_pcs_fce_tb` | REQ-007, REQ-008, REQ-009, REQ-010, REQ-012, REQ-014, REQ-015, REQ-016, REQ-018, REQ-020, REQ-021, REQ-022 (bit/ACK errors), REQ-023, REQ-032, REQ-034 | Pass |
 | `can_llc_mac_pcs_fce_tb` | REQ-035 (sub-claim 1, waveform) | Pass |
 
 : Testbench execution status and requirements coverage. {#tbl:testbench-results-summary}
@@ -794,7 +794,7 @@ The 27/38 requirement closure rate warrants careful interpretation. The 11 open 
 
 The four objectives stated in @sec:objectives are assessed against the verification results.
 
-**CAN/CAN FD protocol controller in VHDL compliant with ISO 11898-1, supporting CB, CE, FB, and FE frames.** The unified `can_mac_fsm` handles all four in-scope frame formats in both transmission and reception, including dual bit rate switching with Transmitter Delay Compensation in the FD data phase (REQ-025, REQ-026). 28 of 38 requirements are closed. The remaining 10 are either LLC-layer requirements deferred pending `can_llc` implementation, or known P2 gaps documented in @sec:future-work.
+**CAN/CAN FD protocol controller in VHDL compliant with ISO 11898-1, supporting CB, CE, FB, and FE frames.** The unified `can_mac_fsm` handles all four in-scope frame formats in both transmission and reception, including dual bit rate switching with Transmitter Delay Compensation in the FD data phase (REQ-025, REQ-026). 27 of 38 requirements are closed. The remaining 11 are LLC-layer requirements deferred pending `can_llc` implementation, known P2 gaps, or requirements with partial simulation coverage, all documented in @sec:future-work.
 
 **ISO 11898-1 sub-layer structure enabling independent module verification.** The layered decomposition was implemented as designed. Each module has a dedicated testbench and a disjoint requirement set. The five requirements labelled `system` correctly identified the scenarios requiring multi-module stimulus, confirming that the layer boundaries were drawn at the right points.
 
@@ -810,7 +810,7 @@ The four objectives stated in @sec:objectives are assessed against the verificat
 
 3. **CAN XL support.** CAN XL is explicitly out of scope for this project. The layered architecture and unified FSM are well-suited for extension: CAN XL adds a third bit rate phase and an XL-specific frame format, both of which map naturally onto additional PCS rate parameters and new `can_mac_fsm` states.
 
-4. Simulation against the ref-model Alex made.
+4. **Error-type-specific simulation coverage (REQ-022).** The current testbench exercises bit-error detection and ACK-error detection through recessive injection; stuff error, form error, and CRC error detection (ISO 6.6.21.2 sub-claims 2-4) are covered by code inspection only. An Everllence-internal CAN FD reference model with targeted error injection capability provides the vehicle to close this gap. Integrating it as a stimulus source in `can_mac_pcs_fce_tb` would allow dedicated simulation scenarios for each error type and complete simulation coverage of REQ-022.
 
 5. Synthesis...
 
@@ -818,7 +818,7 @@ The four objectives stated in @sec:objectives are assessed against the verificat
 
 # Conclusion {#sec:conclusion}
 
-This thesis presented the design, implementation, and verification of a CAN/CAN FD protocol controller in VHDL-2008, structured around the ISO 11898-1 layered reference model. The implemented design covers the MAC, PCS, and FCE sub-layers as independently testable modules, supports all four in-scope frame formats (CB, CE, FB, FE), implements dual bit rate switching with Transmitter Delay Compensation, and integrates into Everllence's existing FPGA infrastructure via Avalon-ST interfaces. Of the 38 requirements derived from ISO 11898-1, 28 are closed against passing testbenches or code inspection. Of the remaining 10, seven are deferred pending `can_llc` implementation and three are non-blocking P2 items.
+This thesis presented the design, implementation, and verification of a CAN/CAN FD protocol controller in VHDL-2008, structured around the ISO 11898-1 layered reference model. The implemented design covers the MAC, PCS, and FCE sub-layers as independently testable modules, supports all four in-scope frame formats (CB, CE, FB, FE), implements dual bit rate switching with Transmitter Delay Compensation, and integrates into Everllence's existing FPGA infrastructure via Avalon-ST interfaces. Of the 38 requirements derived from ISO 11898-1, 27 are closed against passing testbenches or code inspection. Of the remaining 11, seven are deferred pending `can_llc` implementation, three are non-blocking P2 items, and one (REQ-022) has partial simulation coverage with dedicated error-injection testing identified as future work.
 
 The project yielded three transferable lessons. First, the structure of a requirements model can inadvertently bias RTL architecture: the TX/RX side dimension of the verification plan made a split-path implementation appear well-motivated, but the frame structure of the CAN protocol is the same regardless of which node is driving, and cutting the natural code unit at an artificial seam added coordination complexity without reducing protocol complexity. Verification plan dimensions are inputs to testbench architecture, not to RTL decomposition. Second, the ISO 11898-1 layered architecture is not merely a documentary convenience - it is a practical partitioning of protocol complexity that, when followed in the implementation, enables each sub-layer to be implemented, verified, and debugged independently. The modular design produced here is maintainable over the long product lifecycles that motivate Everllence's decision to develop the protocol controller in-house. Third, targeted, schema-validated field updates to a structured artifact are safe for an LLM to perform incrementally; full-file rewrites are not (@sec:ai-extraction). The narrow MCP write interface made AI-assisted maintenance of the verification plan safe and practical across all three project phases. The result is an IP core that Everllence owns outright - maintainable, verifiable, and extensible over the multi-decade service commitments that motivated the redesign.
 

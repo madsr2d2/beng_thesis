@@ -447,14 +447,14 @@ paraphrase = "1) Bit error: sent/monitored mismatch. Exceptions: recessive non-s
 side = "both"
 layer = "MAC"
 format_applicability = "CB, CE, FB, FE"
-notes = ""
+notes = "Sub-claim 1 (bit error) and sub-claim 5 (ACK error) are simulation-verified via recessive injection in test_bus_off (can_mac_pcs_fce_tb). Sub-claims 2 (stuff error), 3 (form error), and 4 (CRC/SBC error) are covered by code inspection only; dedicated error-injection simulation is outstanding. An Everllence-internal CAN FD reference model with targeted error injection capability is available and identified as the vehicle for closing this gap."
 coverage_criteria = ""
 label = "p_fsm:~283, p_fsm:~336, p_fsm:~343, p_fsm:~415, test_bus_off"
 file = "src/can_mac/hdl_src/can_mac_fsm.vhd, can_bus_controller_fd/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd"
 observability = "white_box"
 verification_method = "code_inspection, waveform_inspection"
 priority = "P1"
-status = "complete"
+status = "in_progress"
 group_title = "MAC error detection"
 
 [[requirement]]
