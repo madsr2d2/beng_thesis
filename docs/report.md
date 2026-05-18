@@ -453,17 +453,17 @@ The verification plan data structure (@tbl:vplan-metadata-fields) augments each 
 | Field | Purpose |
 | :--- | :--- |
 | `id` | Sequential identifier REQ-NNN. |
-| `source_clause` | ISO 11898-1:2024 section reference. |
+| `source_clause` | ISO 11898-1:2015 section reference. |
 | `original_wording` | Verbatim normative text excerpts from the ISO standard.|
 | `paraphrase` | Concise paraphrase of the `original_wording` field (this is the actual requirement) |
 | `layer` | Sub-layer owner: LLC, MAC, PCS, FCE, or system (@sec:vplan-layer). |
-| `side` |  transmitter, receiver, or both (@sec:vplan-side). |
+| `side` | transmitter, receiver, or both (@sec:vplan-side). |
 | `format_applicability` | Applicable frame formats: CB, CE, FB, FE (@sec:vplan-format). |
 | `observability` | `black_box` or `white_box` (@sec:vplan-observability). |
 | `verification_method` | Method(s) used to verify the requirement (@sec:vplan-method). |
 | `priority` | P1 (need-to-have), P2 (nice-to-have), or P3 (optional) (@sec:vplan-priority). |
 | `status` | `not_started`, `in_progress` or `complete` (@sec:vplan-status). |
-| `notes` | The field is intended to clarify residual ambiguity left over from the other fields |
+| `notes` | Residual clarifications not resolved by the paraphrase - implementation constraints, out-of-scope markers, or known ambiguities flagged for design review. |
 | `label` | Assertion label, TB procedure name, coverage ID, or RTL tag. Comma-separated when multiple procedures cover distinct sub-claims (@sec:vplan-traceability). |
 | `file` | Target file: TB for simulation/coverage, RTL for code inspection. Comma-separated when sub-claims span multiple files (@sec:vplan-traceability). |
 
@@ -471,7 +471,7 @@ The verification plan data structure (@tbl:vplan-metadata-fields) augments each 
 
 ### Verification Method {#sec:vplan-method}
 
-The verification_method field makes the path from requirement to verification artifact explicit and actionable. Four methods are used: `simulation` (automated assertion procedures in a testbench), `code_inspection`  (RTL source review), `waveform_inspection` (manual review of simulation output), and `coverage` (a functional coverage bin that records whether a specific condition or value range was exercised during simulation). Combinations are valid when multiple sub-claims within one requirement each call for a different method.
+The verification_method field makes the path from requirement to verification artifact explicit and actionable. Four methods are used: `simulation` (automated assertion procedures in a testbench), `code_inspection` (RTL source review), `waveform_inspection` (manual review of simulation output), and `coverage` (a functional coverage bin that records whether a specific condition or value range was exercised during simulation). Combinations are valid when multiple sub-claims within one requirement each call for a different method.
 
 
 ### Traceability: Label and File {#sec:vplan-traceability}
