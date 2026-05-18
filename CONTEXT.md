@@ -53,7 +53,7 @@ The report tells a single continuous story. Each section picks up from the previ
 
 1. **Top-view story of the CAN protocol:** History and multi-master arbitration `[@bosch1991]`. Error detection performance: Charzinski 1994 showed residual error probability of $3.5 \times 10^{-9} \cdot q_\text{bad}$ per frame (10-node network), substantially better than VAN/SCP; FCE and fault confinement as the distinguishing feature vs. competing protocols. Protocol comparison table (LIN, CAN Classic, CAN FD, FlexRay, Automotive Ethernet) - none of the alternatives combine CAN's speed, fault confinement, and multi-master arbitration. CAN FD introduction `[@hartwich2012]`: 64-byte payload, dual bit rate, Hartwich's 2.5 Mbit/s measurement. Oscillator tolerance `[@mutter2013]`: data/arbitration ratio < ~9 keeps same tolerance as Classic CAN. CAN FD error detection improvements `[@mutter2015]`: CRC-17/21, dynamic-stuff-bit CRC weakness fixed via SBC field.
 
-2. **VHDL-2008 and OSVVM as the implementation and verification toolchain.** Brief - these are given constraints (company code standard), not decisions. SystemVerilog/UVM acknowledged as the dominant alternative. PSL is NOT used in this project - do not mention PSL or formal verification anywhere in the report.
+2. **VHDL-93 (RTL) and VHDL-2008/OSVVM (testbenches) as the implementation and verification toolchain.** RTL source is VHDL-93 - Quartus Prime does not fully support VHDL-2008 for synthesis, making VHDL-93 the practical upper bound for synthesizable RTL. Testbenches are VHDL-2008 (required by OSVVM). GHDL supports both. SystemVerilog/UVM acknowledged as the dominant alternative. PSL is NOT used in this project - do not mention PSL or formal verification anywhere in the report.
 
 **Key citations:** `[@bosch1991]`, `[@charzinski1994]`, `[@hartwich2012]`, `[@mutter2013]`, `[@mutter2015]`.
 
@@ -63,7 +63,7 @@ The report tells a single continuous story. Each section picks up from the previ
 
 **Key artifact:** `verification_plan.toml`, managed via MCP server to prevent silent data corruption. Current state: 28 complete, 10 open (7 LLC deferred: REQ-001, REQ-003, REQ-005, REQ-033, REQ-038 not_started; REQ-022 in_progress - bit error only; REQ-036 P2 not_started; REQ-037 P2 not_started). REQ-011 (remote frames) closed via FTYP coverage bin in `can_mac_pcs_fce_tb`. REQ-035 (lone-node ACK exemption) fully closed - both sub-claims verified.
 
-**Closes with:** "The 38 requirements... also function as a structured map to the protocol: every requirement points to a mechanism that must be understood before implementation can begin. The following section provides that understanding..."
+**Closes with:** "@sec:can-protocol-overview provides that understanding - covering the sub-layer model, frame formats, bit timing, bit stuffing, CRC, and error handling."
 
 ### CAN and CAN-FD Protocol Overview
 
@@ -80,7 +80,7 @@ The report tells a single continuous story. Each section picks up from the previ
 
 Priority spans both groups.
 
-**Closes with:** "How the design-facing dimensions shaped the module decomposition - and where the apparent mapping from requirements structure to design structure broke down - is the subject of the next section."
+**Closes with:** "How the design-facing dimensions shaped the module decomposition - and where the apparent mapping from requirements structure to design structure broke down - is the subject of @sec:design-architecture."
 
 ### Design and Architecture
 
@@ -113,7 +113,7 @@ Final architecture: one unified `can_mac_fsm`, one `can_mac_bs`, one `can_mac_cr
    - Single FCE interface - no arbitration logic needed between duplicate error/success signals.
    - TX bus monitoring (bit error, arbitration loss) shares the same bus-observation loop as RX reception - no duplicate path needed.
 
-**Closes with:** "With the implementation complete, the remaining question is whether the 38 requirements in the verification plan are in fact satisfied by what was built."
+**Closes with:** "With the implementation complete, the remaining question is whether the 38 requirements in the verification plan are in fact satisfied by what was built - the subject of @sec:verification-results."
 
 ### Verification and Results
 
@@ -123,11 +123,17 @@ Final architecture: one unified `can_mac_fsm`, one `can_mac_bs`, one `can_mac_cr
 
 **Closes with:** Reference to the full verification plan in @sec:appendix-vplan.
 
+### Synthesis
+
+**What it establishes:** Synthesis results for `can_mac_pcs_fce` on Cyclone 10 LP (10CL016YU256I7G) using Quartus Prime 21.1.1. Two RTL constructs required substitution for Quartus compatibility before synthesis (conditional signal assignments and `sll` operator). Resource utilization: 4,608 LEs (30% of device), 869 registers, no memory or DSP blocks. Per-module breakdown: `can_mac_fsm` dominates at 4,109 LEs (89%) driven by the 560-bit RX frame buffer. Timing: worst-case fmax ~127 MHz on slow 100°C corner at 166 MHz overconstrain - passes at any realistic system clock (50-80 MHz range). Source: `docs/synthesis_resource_comparison.md`.
+
+**Closes with:** Feeds the CC vs FD comparison in @sec:discussion.
+
 ### Discussion and Conclusion
 
-**Discussion establishes:** Three general lessons from the project: (1) requirements structure can inadvertently bias RTL architecture - the TX/RX side dimension made the split-path look natural but it was a red herring; (2) the unified FSM paid off most concretely at the arbitration loss boundary; (3) the layered architecture enabled module-by-module verification. Objectives Assessment (@sec:objectives-assessment) assesses each of the four objectives against delivered results. Future Work (@sec:future-work) has six items: `can_llc` implementation, hardware bring-up, CAN XL support, REQ-022 error-type-specific simulation coverage, plus two stubs (synthesis, simulation against frame generator software).
+**Discussion establishes:** Four main points: (1) requirements structure can inadvertently bias RTL architecture - the TX/RX side dimension made the split-path look natural but it was a red herring; (2) the unified FSM paid off most concretely at the arbitration loss boundary; (3) the layered architecture enabled module-by-module verification; (4) synthesis comparison - CAN FD is 4.0× CAN CC in LEs, dominated by frame buffer scaling (4.7×), protocol logic itself only 2.9×, payload-normalised 72 vs 143 LEs/byte. Objectives Assessment (@sec:objectives-assessment) assesses each of the four objectives. Future Work (@sec:future-work) has four items: `can_llc` implementation, hardware bring-up (including PCAN interoperability), CAN XL support, REQ-022 error-type-specific simulation coverage.
 
-**Conclusion establishes:** Two-paragraph close - what was delivered (28/38, MAC/PCS/FCE), three transferable lessons (requirements model structure is not RTL structure; layered architecture is a practical partitioning; narrow MCP write interface makes AI-assisted artifact maintenance safe).
+**Conclusion establishes:** Two-paragraph close - what was delivered (28/38, MAC/PCS/FCE, 4608 LEs / ~127 MHz on Cyclone 10 LP), three transferable lessons (requirements model structure is not RTL structure; layered architecture is a practical partitioning; narrow MCP write interface makes AI-assisted artifact maintenance safe).
 
 ---
 
