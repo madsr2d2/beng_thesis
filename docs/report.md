@@ -711,7 +711,7 @@ The PCS layer, which supplies the bit-level timing strobes that drive every FSM 
 
 ### Resynchronization {#sec:impl-can-pcs-resync}
 
-The prior implementation (the prior implementation) missed three of the four ISO 7.3.5.1 synchronization rules: it had no sync-inhibit guard (rule a), no sampled-polarity check (rule b), and a Phase_Seg2 shortening path that skipped the mandatory 1-TQ Sync_Seg (rule d). None of these caused observable failures on the deployed CAN Classic bus, but all three are protocol obligations. `can_pcs` enforces all four.
+The prior implementation missed three of the four ISO 7.3.5.1 synchronization rules: it had no sync-inhibit guard (rule a), no sampled-polarity check (rule b), and a Phase_Seg2 shortening path that skipped the mandatory 1-TQ Sync_Seg (rule d). None of these caused observable failures on the deployed CAN Classic bus, but all three are protocol obligations. `can_pcs` enforces all four.
 
 **Rule a - one synchronization per bit time.** A `sync_applied` signal is set on any synchronization event (hard synchronization or resynchronization) and cleared at the next bit boundary (end of `s_phase_seg2`). The TQ-boundary edge-qualify predicate `v_do_sync` includes `sync_applied = '0'` as a precondition, preventing a second synchronization within the same bit time regardless of bus activity.
 
@@ -763,7 +763,7 @@ The implementation described in @sec:implementation was exercised against the 38
 
 ![Bus-off recovery in `can_fce_tb`, showing the 128 idle-condition pulses required before TEC/REC reset and return to error active.](figures/waveforms/pending_bus_off_recovery.pdf){#fig:bus_off_recovery width=100%}
 
-Ten requirements remain open. Seven are LLC requirements (REQ-001 through REQ-005, REQ-033, REQ-038) deferred pending implementation of `can_llc`. Three P2 requirements - REQ-011 (remote frames), REQ-036 (MAC data consistency), and REQ-037 (error signaling enable) - are deferred as non-blocking. REQ-035 (lone-node ACK exemption, P1) is fully verified across two testbenches. Sub-claim 2 (lone node never reaches bus-off) is covered by `test_rule_c_exception` in `can_fce_tb` via the ISO 8.1.4.2.c Exception 1 mechanism implemented in `passive_tx_ack_error_exempt_1`. Sub-claim 1 (bus re-integration before TX) is verified by waveform inspection of `normal_test` and `test_bus_off` in `can_llc_mac_pcs_fce_tb`.
+Eleven requirements remain open. Seven are LLC requirements (REQ-001 through REQ-005, REQ-033, REQ-038) deferred pending implementation of `can_llc`. Three P2 requirements - REQ-011 (remote frames), REQ-036 (MAC data consistency), and REQ-037 (error signaling enable) - are deferred as non-blocking. REQ-022 (error detection, P1) has partial simulation coverage: bit-error detection is exercised via recessive injection in `test_bus_off`, but stuff, form, CRC, and ACK error detection are covered by code inspection only, as each requires a frame-aware stimulus source to inject the error at the correct field boundary (@sec:future-work).
 
 ## Testbench Results Summary {#sec:testbench-results-summary}
 
