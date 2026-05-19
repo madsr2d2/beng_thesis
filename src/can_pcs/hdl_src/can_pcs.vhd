@@ -317,6 +317,7 @@ begin
                       ssp_active                   <= '0';
                       delay_count_tq               <= 0;
                       tdc_count_active             <= '0';
+                      mac_o.tdc_delay <= std_logic_vector(to_unsigned(0, mac_o.tdc_delay'length));
                     end if;
 
                   else

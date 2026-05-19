@@ -1,0 +1,50 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Tue May 19 09:14:47 2026
+[*]
+[dumpfile] "/home/madsr2d2/beng_thesis/sim/can_mac_pcs_fce_tb.ghw"
+[dumpfile_mtime] "Tue May 19 08:43:44 2026"
+[dumpfile_size] 405753963
+[savefile] "/home/madsr2d2/beng_thesis/docs/figures/waveforms/bs.gtkw"
+[timestart] 77341047000000
+[size] 3072 319
+[pos] -7 -4
+*-29.961027 -1 77344100000000 77345900000000 77348300000000 77352090000000 77358490000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.can_mac_pcs_fce_tb.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.fsm_to_ser.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.ser_to_fsm.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_bs.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_bs.bs_o.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.bs_i.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.mac_ser_i.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.mac_ser_o.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_ser_tx.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.mac_o.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_crc.crc_o.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame.
+[sst_width] 43
+[signals_width] 279
+[sst_expanded] 0
+[sst_vpaned_height] 671
+@800200
+-Transmitting DUT
+@420
++{MAC frame field} top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.state
+@28
++{SB valid} top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_bs.bs_o.valid
++{TX data} top.can_mac_pcs_fce_tb.u_dut_1.mac_to_pcs.tx_data
++{Sample point} top.can_mac_pcs_fce_tb.u_dut_1.pcs_to_mac.sample_point
+top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_bs.bs_i.fixed_bit_stuffing_en
+@29
++{SBC} #{top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_bs.bs_o.stuff_bit_count[3:0]} top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_bs.bs_o.stuff_bit_count[3] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_bs.bs_o.stuff_bit_count[2] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_bs.bs_o.stuff_bit_count[1] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_bs.bs_o.stuff_bit_count[0]
+@420
+top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_bs.count
+@1000200
+-Transmitting DUT
+[pattern_trace] 1
+[pattern_trace] 0

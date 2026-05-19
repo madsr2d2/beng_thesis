@@ -876,6 +876,10 @@ begin
                     mac_ser_o.transfer_status <= c_disturbed;
                     was_previous_frame_tx     <= true;
                   end if;
+                  -- ISO 8.1.3.3 rule (c): bit error during active error flag or overload flag.
+                  if (overload or fce_i.error_active = '1') and pcs_i.rx_data /= c_dominant then
+                    fce_o.error <= '1';
+                  end if;
                   if bit_count < c_error_flag_width - 1 then
                     if not overload and fce_i.error_active = '0' and pcs_i.rx_data = c_dominant then
                       saw_dominant_during_flag <= true;

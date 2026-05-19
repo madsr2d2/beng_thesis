@@ -1,0 +1,63 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Tue May 19 14:42:38 2026
+[*]
+[dumpfile] "/home/madsr2d2/beng_thesis/sim/can_mac_pcs_fce_tb.ghw"
+[dumpfile_mtime] "Tue May 19 14:14:21 2026"
+[dumpfile_size] 33750624
+[savefile] "/home/madsr2d2/beng_thesis/docs/figures/waveforms/bus_off.gtkw"
+[timestart] 140618000000000
+[size] 1447 437
+[pos] -1 -1
+*-39.438030 -1 140818490000000 140892510000000 141722510000000 144538420000000 144675180000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.can_mac_pcs_fce_tb.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.pcs_to_mac.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_fce.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.fsm_to_ser.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.ser_to_fsm.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_bs.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.bs_i.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.mac_ser_i.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.mac_ser_o.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_ser_tx.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.mac_o.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_2.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_crc.crc_o.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_2.u_pcs.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_2.u_pcs.mac_o.
+[sst_width] 43
+[signals_width] 198
+[sst_expanded] 0
+[sst_vpaned_height] 58
+@800200
+-DUT 1
+@420
++{MAC frame field} top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.state
+@28
++{TX data} top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.tx_o
++{RX data} top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.rx_i
+@420
++{TEC} top.can_mac_pcs_fce_tb.u_dut_1.u_fce.transmitter_error_count
++{Node error state} top.can_mac_pcs_fce_tb.u_dut_1.u_fce.fce_state
+@28
++{Idle condition strobe} top.can_mac_pcs_fce_tb.u_dut_1.pcs_to_fce.idle_condition
+@1000200
+-DUT 1
+@800200
+-DUT 2
+@420
+top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.state
+@28
++{TX data} top.can_mac_pcs_fce_tb.u_dut_2.u_pcs.tx_o
+@1000200
+-DUT 2
+[pattern_trace] 1
+[pattern_trace] 0

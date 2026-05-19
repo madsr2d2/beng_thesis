@@ -1,0 +1,60 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Tue May 19 11:20:52 2026
+[*]
+[dumpfile] "/home/madsr2d2/beng_thesis/sim/can_mac_pcs_fce_tb.ghw"
+[dumpfile_mtime] "Tue May 19 10:47:04 2026"
+[dumpfile_size] 405755002
+[savefile] "/home/madsr2d2/beng_thesis/docs/figures/waveforms/pcs.gtkw"
+[timestart] 1063616000000
+[size] 3072 1681
+[pos] -27 -24
+*-30.442080 1072460000000 1068280000000 1068680000000 1071920000000 1072460000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.can_mac_pcs_fce_tb.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.pcs_to_mac.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.fsm_to_ser.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.ser_to_fsm.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_bs.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.bs_i.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.mac_ser_i.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.mac_ser_o.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_ser_tx.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_crc.crc_o.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame.
+[sst_width] 43
+[signals_width] 440
+[sst_expanded] 0
+[sst_vpaned_height] 671
+@800200
+-Transmitting DUT
+@420
++{MAC frame field} top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.state
+@28
++{TX data} top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.tx_o
++{RX data} top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.rx_i
+@420
++{TDC delay (in TQ)} top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.delay_count_tq
+@28
++{Sample point} top.can_mac_pcs_fce_tb.u_dut_1.pcs_to_mac.sample_point
++{Secondary sample point} top.can_mac_pcs_fce_tb.u_dut_1.pcs_to_mac.secondary_sample_point
++{Bit boundary} top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.bit_boundary
+@24
++{TDC dealy} #{top.can_mac_pcs_fce_tb.u_dut_1.pcs_to_mac.tdc_delay[4:0]} top.can_mac_pcs_fce_tb.u_dut_1.pcs_to_mac.tdc_delay[2] top.can_mac_pcs_fce_tb.u_dut_1.pcs_to_mac.tdc_delay[1] top.can_mac_pcs_fce_tb.u_dut_1.pcs_to_mac.tdc_delay[0]
+@29
+top.can_mac_pcs_fce_tb.u_dut_1.mac_to_pcs.next_bit_is_res
+@28
+top.can_mac_pcs_fce_tb.u_dut_1.mac_to_pcs.next_bit_is_brs
+top.can_mac_pcs_fce_tb.u_dut_1.mac_to_pcs.data_phase_stop
+@420
++{Bit time segment} top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.segment
+@1000200
+-Transmitting DUT
+[pattern_trace] 1
+[pattern_trace] 0

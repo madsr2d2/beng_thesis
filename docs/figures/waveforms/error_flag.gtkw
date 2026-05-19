@@ -1,0 +1,50 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Tue May 19 14:06:58 2026
+[*]
+[dumpfile] "/home/madsr2d2/beng_thesis/sim/can_mac_pcs_fce_tb.ghw"
+[dumpfile_mtime] "Tue May 19 13:51:46 2026"
+[dumpfile_size] 403721061
+[savefile] "/home/madsr2d2/beng_thesis/docs/figures/waveforms/error_flag.gtkw"
+[timestart] 140810440000000
+[size] 1832 291
+[pos] -1 -1
+*-33.438030 -1 140818500000000 140854500000000 140892500000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.can_mac_pcs_fce_tb.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.pcs_to_mac.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_fce.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.fsm_to_ser.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.ser_to_fsm.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_bs.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_crc.crc_o.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.bs_i.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.llc_frame.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.mac_ser_i.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.mac_ser_o.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_ser_tx.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.mac_o.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_crc.crc_o.
+[treeopen] top.can_mac_pcs_fce_tb.u_dut_2.u_mac.u_can_mac_fsm.llc_frame.
+[sst_width] 43
+[signals_width] 176
+[sst_expanded] 0
+[sst_vpaned_height] 671
+@800200
+-DUT 1
+@420
++{MAC frame field} top.can_mac_pcs_fce_tb.u_dut_1.u_mac.u_can_mac_fsm.state
+@28
++{TX data} top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.tx_o
++{RX data} top.can_mac_pcs_fce_tb.u_dut_1.u_pcs.rx_i
+@421
++{TEC} top.can_mac_pcs_fce_tb.u_dut_1.u_fce.transmitter_error_count
+@420
++{Node error state} top.can_mac_pcs_fce_tb.u_dut_1.u_fce.fce_state
+@1000200
+-DUT 1
+[pattern_trace] 1
+[pattern_trace] 0

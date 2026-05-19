@@ -68,7 +68,8 @@ architecture tb of can_mac_pcs_fce_tb is
   --        transmitter_delay = 2 x transceiver_d <= 95 x t_q.min
   --     With t_q.min = gc_TbClkPeriod = 10 ns: limit = 95 x 10 ns = 950 ns -> (1) is the binding constraint
   constant c_nom_prop_seg_time : time := 800 ns;
-  constant c_transceiver_d     : time := 50 ns;   -- 100 ns round-trip matches then TCAN1042 CAN transceiver (~110 ns TXD-to-RXD)
+  -- constant c_transceiver_d     : time := 50 ns;   -- 100 ns round-trip matches then TCAN1042 CAN transceiver (~110 ns TXD-to-RXD)
+  constant c_transceiver_d     : time := 200 ns;   -- 100 ns round-trip matches then TCAN1042 CAN transceiver (~110 ns TXD-to-RXD)
   constant c_bus_delay_max     : time := (c_nom_prop_seg_time - 4 * c_transceiver_d) / 2;
   type t_delay_cfg is record
     transceiver_d : time;
