@@ -84,6 +84,8 @@ local FULL_WIDTH_SPECS = {
   -- 4-column tables
   ["4:ID"]            = { 0.08, 0.20, 0.08, 0.64 }, -- tbl:priority-demotion
   ["4:Layer"]         = { 0.25, 0.25, 0.25, 0.25 }, -- tbl:vplan-distribution
+  ["4:Module"]        = { 0.22, 0.12, 0.14, 0.52 }, -- tbl:synthesis-resources
+  ["4:Corner"]        = { 0.30, 0.25, 0.22, 0.23 }, -- tbl:synthesis-timing
   -- 5-column tables
   ["5:ID"]            = { 0.13, 0.11, 0.08, 0.43, 0.25 }, -- requirements appendix
   ["5:Protocol"]      = { 0.18, 0.18, 0.14, 0.15, 0.35 }, -- tbl:protocol-comparison
