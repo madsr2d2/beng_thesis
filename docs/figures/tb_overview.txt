@@ -11,7 +11,7 @@ config:
     edgeRouting: SPLINES
 ---
 
-flowchart LR
+flowchart TD
 
 classDef llc fill:#B9E0FF,stroke:#4477BB,color:#000000
 classDef mac fill:#CDFDC5,stroke:#33AA33,color:#000000
@@ -39,7 +39,7 @@ TX status monitor`")
 BUS_OFF_MON("`**p_bus_off_latch**
 bus-off monitor`")
 
-subgraph DUT1["`**DUT 1 · can_mac_pcs_fce**`"]
+subgraph DUT1["`**DUT 1**`"]
     MAC1("`**can_mac**`")
     PCS1("`**can_pcs**`")
     FCE1("`**can_fce**`")
@@ -49,14 +49,14 @@ subgraph DUT1["`**DUT 1 · can_mac_pcs_fce**`"]
     FCE1 <==> PCS1
 end
 
-subgraph BUS["`**Bus Model · dominant-wins**`"]
+subgraph BUS["`**Bus Model**`"]
     B1("`bus_dut1`")
     B2("`bus_dut2`")
     B1 -- bus_delay --> B2
     B2 -- bus_delay --> B1
 end
 
-subgraph DUT2["`**DUT 2 · can_mac_pcs_fce**`"]
+subgraph DUT2["`**DUT 2**`"]
     MAC2("`**can_mac**`")
     PCS2("`**can_pcs**`")
     FCE2("`**can_fce**`")
@@ -78,7 +78,7 @@ TX status monitor`")
 TEST_CTRL == TX frame ==> TX_VC_1
 TEST_CTRL == TX frame ==> TX_VC_2
 TEST_CTRL == expected frame ==> RX_VC_2
-TEST_CTRL -- dut_1_rx_recessive --> B1
+TEST_CTRL -- error injection --> B1
 
 TX_VC_1 <==> MAC1
 MAC1 -- transfer_status --> MON_1
@@ -103,4 +103,4 @@ class TEST_CTRL,TX_VC_1,MON_1,BUS_OFF_MON,TX_VC_2,RX_VC_2,MON_2 wd3
 class MAC1,MAC2 mac
 class PCS1,PCS2 pcs
 class FCE1,FCE2 wd9
-class B1,B2 wd6
+class B1,B2 wd8
