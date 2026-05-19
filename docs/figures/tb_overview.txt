@@ -1,0 +1,106 @@
+---
+config:
+  theme: neutral
+  layout: elk
+  flowchart:
+    curve: monotoneX
+  elk:
+    algorithm: layered
+    mergeEdges: false
+    nodePlacementStrategy: BRANDES_KOEPF
+    edgeRouting: SPLINES
+---
+
+flowchart LR
+
+classDef llc fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef mac fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef pcs fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef fce fill:#F5C2C0,stroke:#BB3333,stroke-width:4px,color:#000000
+
+classDef wd2 fill:#FFFFFF,stroke:#999999,color:#000000
+classDef wd3 fill:#FFFFB4,stroke:#999900,color:#000000
+classDef wd4 fill:#FFE0B9,stroke:#CC8833,color:#000000
+classDef wd5 fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef wd6 fill:#CCFDFE,stroke:#33AAAA,color:#000000
+classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
+classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
+
+TEST_CTRL("`**p_test_ctrl**
+coverage-driven sequencer`")
+
+TX_VC_1("`**p_tx_llc_vc_dut_1**
+Avalon-ST source`")
+
+MON_1("`**p_status_latch_dut_1**
+TX status monitor`")
+
+BUS_OFF_MON("`**p_bus_off_latch**
+bus-off monitor`")
+
+subgraph DUT1["`**DUT 1 · can_mac_pcs_fce**`"]
+    MAC1("`**can_mac**`")
+    PCS1("`**can_pcs**`")
+    FCE1("`**can_fce**`")
+
+    MAC1 <==> PCS1
+    MAC1 <==> FCE1
+    FCE1 <==> PCS1
+end
+
+subgraph BUS["`**Bus Model · dominant-wins**`"]
+    B1("`bus_dut1`")
+    B2("`bus_dut2`")
+    B1 -- bus_delay --> B2
+    B2 -- bus_delay --> B1
+end
+
+subgraph DUT2["`**DUT 2 · can_mac_pcs_fce**`"]
+    MAC2("`**can_mac**`")
+    PCS2("`**can_pcs**`")
+    FCE2("`**can_fce**`")
+
+    MAC2 <==> PCS2
+    MAC2 <==> FCE2
+    FCE2 <==> PCS2
+end
+
+TX_VC_2("`**p_tx_llc_vc_dut_2**
+Avalon-ST source`")
+
+RX_VC_2("`**p_rx_llc_vc_dut_2**
+Avalon-ST sink · frame checker`")
+
+MON_2("`**p_status_latch_dut_2**
+TX status monitor`")
+
+TEST_CTRL == TX frame ==> TX_VC_1
+TEST_CTRL == TX frame ==> TX_VC_2
+TEST_CTRL == expected frame ==> RX_VC_2
+TEST_CTRL -- dut_1_rx_recessive --> B1
+
+TX_VC_1 <==> MAC1
+MAC1 -- transfer_status --> MON_1
+TEST_CTRL -- clear --> MON_1
+MON_1 -- status --> TEST_CTRL
+FCE1 -- bus_off --> BUS_OFF_MON
+TEST_CTRL -- clear --> BUS_OFF_MON
+BUS_OFF_MON -- status --> TEST_CTRL
+
+PCS1 -- dut1_tx --> B1
+B1 -- dut1_rx --> PCS1
+PCS2 -- dut2_tx --> B2
+B2 -- dut2_rx --> PCS2
+
+TX_VC_2 <==> MAC2
+RX_VC_2 <==> MAC2
+MAC2 -- transfer_status --> MON_2
+TEST_CTRL -- clear --> MON_2
+MON_2 -- status --> TEST_CTRL
+
+class TEST_CTRL,TX_VC_1,MON_1,BUS_OFF_MON,TX_VC_2,RX_VC_2,MON_2 wd3
+class MAC1,MAC2 mac
+class PCS1,PCS2 pcs
+class FCE1,FCE2 wd9
+class B1,B2 wd6
