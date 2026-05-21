@@ -46,9 +46,9 @@ end
 
 subgraph DUT["`**DUT's**`"]
     subgraph DUT1["`**u_dut_1**`"]
-        MAC1("`**can_mac**`")
-        PCS1("`**can_pcs**`")
-        FCE1("`**can_fce**`")
+        MAC1("`**u_can_mac**`")
+        PCS1("`**u_can_pcs**`")
+        FCE1("`**u_can_fce**`")
 
         MAC1 <==> PCS1
         MAC1 <==> FCE1
@@ -56,9 +56,9 @@ subgraph DUT["`**DUT's**`"]
     end
 
     subgraph DUT2["`**u_dut_2**`"]
-        MAC2("`**can_mac**`")
-        PCS2("`**can_pcs**`")
-        FCE2("`**can_fce**`")
+        MAC2("`**u_can_mac**`")
+        PCS2("`**u_can_pcs**`")
+        FCE2("`**u_can_fce**`")
 
         MAC2 <==> PCS2
         MAC2 <==> FCE2

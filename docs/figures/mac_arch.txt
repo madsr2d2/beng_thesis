@@ -11,58 +11,63 @@ config:
     edgeRouting: SPLINES
 ---
 
-flowchart TD
+flowchart LR
 
 classDef llc fill:#B9E0FF,stroke:#4477BB,color:#000000
 classDef mac fill:#CDFDC5,stroke:#33AA33,color:#000000
 classDef pcs fill:#B9E0FF,stroke:#4477BB,color:#000000
 classDef fce fill:#F5C2C0,stroke:#BB3333,color:#000000
+classDef ext fill:#FFE0B9,stroke:#CC8833,color:#000000
 
-LLC("`**can_llc**`")
+subgraph HOST["`**Host Device**`"]
+    APP("`**User Application**`")
 
-PCS("`**can_pcs**`")
+    subgraph CTRL["`**CAN Protocol Controller**`"]
+        LLC("`**LLC interface**`")
 
-FCE("`**can_fce**`")
+        subgraph MAC["`**can_mac**`"]
+            SER("`**can_mac_ser**`")
+            FSM("`**can_mac_fsm**`")
+            BS("`**can_mac_bs**`")
+            CRC("`**can_mac_crc**`")
 
-subgraph MAC["`**can_mac**`"]
-    SER("`**can_mac_ser**`")
+            %% SER -> FSM
+            SER -->|"data"| FSM
+            SER -->|"valid"| FSM
+            SER ==>|"llc_metadata[8:0]"| FSM
 
-    FSM("`**can_mac_fsm**`")
+            %% FSM -> SER
+            FSM -->|"ready"| SER
+            FSM ==>|"transfer_status[2:0]"| SER
 
-    BS("`**can_mac_bs**`")
+            %% FSM -> BS
+            FSM -->|"data"| BS
+            FSM -->|"valid"| BS
+            FSM -->|"fsb_en"| BS
+            FSM -->|"bs_rst"| BS
 
-    CRC("`**can_mac_crc**`")
+            %% BS -> FSM
+            BS -->|"data"| FSM
+            BS -->|"valid"| FSM
+            BS ==>|"stuff_bit_count[3:0]"| FSM
 
-    %% SER -> FSM
-    SER -->|"data"| FSM
-    SER -->|"valid"| FSM
-    SER ==>|"llc_metadata[8:0]"| FSM
+            %% FSM -> CRC
+            FSM -->|"data_cc"| CRC
+            FSM -->|"valid_cc"| CRC
+            FSM -->|"data_fd"| CRC
+            FSM -->|"valid_fd"| CRC
+            FSM ==>|"crc_poly_select[1:0]"| CRC
+            FSM -->|"crc_rst"| CRC
 
-    %% FSM -> SER
-    FSM -->|"ready"| SER
-    FSM ==>|"transfer_status[2:0]"| SER
+            %% CRC -> FSM
+            CRC ==>|"crc[20:0]"| FSM
+        end
 
-    %% FSM -> BS
-    FSM -->|"data"| BS
-    FSM -->|"valid"| BS
-    FSM -->|"fsb_en"| BS
-    FSM -->|"bs_rst"| BS
+        PCS("`**can_pcs**`")
+        FCE("`**can_fce**`")
+    end
 
-    %% BS -> FSM
-    BS -->|"data"| FSM
-    BS -->|"valid"| FSM
-    BS ==>|"stuff_bit_count[3:0]"| FSM
-
-    %% FSM -> CRC
-    FSM -->|"data_cc"| CRC
-    FSM -->|"valid_cc"| CRC
-    FSM -->|"data_fd"| CRC
-    FSM -->|"valid_fd"| CRC
-    FSM ==>|"crc_poly_select[1:0]"| CRC
-    FSM -->|"crc_rst"| CRC
-
-    %% CRC -> FSM
-    CRC ==>|"crc[20:0]"| FSM
+    XCVR("`**Transceiver IC**`")
 end
 
 %% LLC TX path (LLC is Avalon-ST source)
@@ -101,7 +106,29 @@ FSM -->|"successful_transfer"| FCE
 FCE -->|"error_active"| FSM
 FCE -->|"bus_off"| FSM
 
+%% FCE <-> PCS
+FCE -->|"bus_off"| PCS
+PCS -->|"idle_condition"| FCE
+
+%% FCE <-> LLC interface
+FCE -->|"bus_off"| LLC
+LLC -->|"normal_mode"| FCE
+
+%% PCS <-> Transceiver
+PCS -->|"tx"| XCVR
+XCVR -->|"rx"| PCS
+
+%% User Application <-> LLC interface (TX path)
+APP ==>|"Avalon-ST source (TX)"| LLC
+LLC -->|"ready"| APP
+LLC ==>|"transfer_status[2:0]"| APP
+
+%% LLC interface <-> User Application (RX path)
+LLC ==>|"Avalon-ST source (RX)"| APP
+APP -->|"ready"| LLC
+
 class LLC llc
 class SER,FSM,BS,CRC mac
 class PCS pcs
 class FCE fce
+class XCVR,APP ext

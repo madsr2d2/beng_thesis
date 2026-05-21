@@ -359,17 +359,27 @@ ISO 11898-1 structures the CAN data link layer into three functional sub-layers 
 - **PCS (Physical Coding Sublayer)**: manages bit timing, clock synchronization (including Transmitter Delay Compensation for FD data phase), and the sample/drive interface to the physical transceiver.
 - **FCE (Fault Confinement Entity)**: maintains Transmit Error Counter (TEC) and Receive Error Counter (REC), escalating the node's error state from error active through error passive to bus off as error counts accumulate.
 
-In the implementation described in this report, each sub-layer maps to a dedicated VHDL module, and the sub-layer interfaces become the port records connecting those modules (@sec:design-architecture). LLC service obligations are captured in REQ-001 through REQ-005 and REQ-033. MAC frame-encoding rules are in REQ-006 through REQ-024 and REQ-032 through REQ-038. PCS timing constraints are in REQ-025 through REQ-028. FCE counter and state-transition rules are in REQ-029 through REQ-031 and REQ-037.
+In the implementation described in this report, each sub-layer maps to a dedicated VHDL module, and the sub-layer interfaces become the port records connecting those modules (@sec:design-architecture). @tbl:req-layer-map shows the requirement-to-layer assignment for all 38 requirements.
+
+| Sub-layer | Requirements |
+|:---|:-------------|
+| LLC | REQ-001–005, REQ-033, REQ-038 |
+| MAC | REQ-006, REQ-008, REQ-010–013, REQ-015–020, REQ-022–024, REQ-032, REQ-034, REQ-036–037 |
+| PCS | REQ-025–028 |
+| FCE | REQ-029–031 |
+| System | REQ-007, REQ-009, REQ-014, REQ-021, REQ-035 |
+
+: Requirement-to-layer assignment. {#tbl:req-layer-map}
 
 ## Frame Types and Formats {#sec:frame-types}
 
 CAN defines two classes of frames: CAN Classic (CC) and CAN FD (FD). Within each class, frames may carry either an 11-bit base identifier or a 29-bit extended identifier, giving four frame formats: CB (Classic Base), CE (Classic Extended), FB (FD Base), and FE (FD Extended), as shown in @fig:can-frame-structure. Classic frames (CB and CE) additionally support remote frame variants (RTR=1, no data field), giving six bus frame types in total. CAN XL frames are out of scope for this project.
 
+![Frame formats for the four in-scope frame types (CB, CE, FB, FE) and the error and overload flags. Field widths are annotated per ISO 11898-1.](figures/frame_format.png){#fig:can-frame-structure height=95%}
+
 A CAN Classic frame consists of Start of Frame (SOF), Arbitration field (identifier, RTR, IDE), Control field (DLC), Data field, CRC field, ACK slot and delimiter, End of Frame (EOF), and Intermission. SOF is a single dominant bit that marks the beginning of a frame and triggers hard synchronization in all receiving nodes (REQ-010). Within the arbitration field, bits are transmitted MSB first (REQ-034). The RTR bit distinguishes data frames from remote frames, being dominant for data frames and recessive for remote frames (REQ-011). In extended frames, an SRR placeholder bit transmitted recessive precedes the IDE bit (REQ-012). The DLC encodes the number of data bytes using the four-bit mapping defined in ISO 11898-1 (REQ-033, REQ-038). After the data and CRC fields, the ACK slot carries a dominant bit driven by every receiver that has successfully validated the frame CRC - the transmitter monitors this slot and reports an acknowledgment error if no dominant bit is received (REQ-014). The frame is delimited by seven recessive EOF bits followed by three recessive intermission bits (REQ-020, REQ-008).
 
 A CAN FD frame shares the same structure through the arbitration phase and then introduces FD-specific control fields. The FDF bit distinguishes an FD frame from a Classic frame. A recessive FDF triggers the FD control field sequence including reserved bits, BRS, and ESI (REQ-015). The BRS (Bit Rate Switch) bit controls the transition to the data-phase bit rate: when BRS is recessive the bus switches to the faster data rate immediately after the BRS sample point and returns to the nominal rate at the CRC delimiter (REQ-032). The ESI (Error State Indicator) bit reflects the transmitting node's fault-confinement state: a node in error passive state shall transmit ESI recessive (REQ-016).
-
-![Frame formats for the four in-scope frame types (CB, CE, FB, FE) and the error and overload flags. Field widths are annotated per ISO 11898-1.](figures/frame_format.png){#fig:can-frame-structure height=95%}
 
 ## Bit Timing and Flexible Data Rate {#sec:bit-timing}
 
@@ -390,7 +400,7 @@ The **sample point** falls at the PHASE_SEG1 / PHASE_SEG2 boundary. Every receiv
 
 **CAN FD and the flexible data rate.** CAN FD introduces a second, independently configured bit rate for the data phase. The BRS (Bit Rate Switch) bit in the FD control field (@fig:can-frame-structure) controls this transition: when BRS is recessive, the bus switches to the data-phase bit rate immediately after the BRS sample point and returns to the nominal rate at the CRC delimiter. The nominal rate governs the arbitration phase (SOF through BRS) and the return path (CRC delimiter onward). The data rate governs the payload and CRC fields in between. Because the data phase operates at a much shorter bit time, the same physical propagation delay represents a larger fraction of the bit period. On electrically long buses at high data rates, the loop propagation delay can exceed a full data-phase bit time.
 
-**Transmitter Delay Compensation (TDC)** addresses this. A transmitter in the FD data phase cannot rely on immediate bus loopback for bit-error monitoring, because the echo of a driven bit arrives one or more bit times late. TDC measures the actual round-trip delay at the start of the data phase and configures a Secondary Sample Point (SSP) at the correct offset, so that each transmitted bit is still checked for loopback correctness. The TDC measurement and SSP configuration are PCS responsibilities and are a significant driver of PCS complexity in the implementation (@sec:impl-can-pcs, @fig:can-tdc).
+**Transmitter Delay Compensation (TDC)** addresses this. A transmitter in the FD data phase cannot rely on immediate bus loopback for bit-error monitoring, because the echo of a driven bit arrives one or more bit times late. TDC measures the actual round-trip delay at the start of the data phase and configures a Secondary Sample Point (SSP) at the correct offset, so that each transmitted bit is still checked for loopback correctness. The TDC measurement and SSP configuration are PCS responsibilities and are a significant driver of PCS complexity in the implementation (@sec:impl-can-pcs).
 
 ![Transmitter Delay Compensation (TDC). The loop delay $t_\text{loop}$ is measured on the first data-phase bit and used to position the SSP at $t_\text{SSP} = t_{\text{TDC\_offset}} + t_\text{measured}$.](figures/tdc.png){#fig:can-tdc width=100%}
 
@@ -399,7 +409,7 @@ The **sample point** falls at the PHASE_SEG1 / PHASE_SEG2 boundary. Every receiv
 
 Bit stuffing ensures sufficient transitions on the bus for receiver clock synchronization. CAN Classic applies dynamic stuffing throughout the frame: after five consecutive bits of the same polarity, the transmitter inserts one complement stuff bit and the receiver removes it before forwarding the data stream (REQ-019). CAN FD retains dynamic stuffing through the arbitration phase, then switches to a combined dynamic-plus-fixed scheme in the data phase. Fixed stuff bits are inserted at predetermined positions (every fourth bit in the CRC field, independent of the preceding bit pattern). They carry a parity-encoded Stuff Bit Count (SBC) field that allows receivers to independently verify the number of dynamic stuff bits seen in the frame - an additional error detection layer absent in CAN Classic (REQ-017, @fig:can-bit-stuffing).
 
-![Dynamic and fixed bit-stuffing examples showing stuff bit placement for both encoding modes.](figures/bit_stuffing.png){#fig:can-bit-stuffing width=100%}
+![Dynamic and fixed bit-stuffing examples showing stuff bit placement for both encoding modes. The waveform below each row shows the resulting bus signal.](figures/bit_stuffing.png){#fig:can-bit-stuffing width=100%}
 
 ## Cyclic Redundancy Check {#sec:crc-overview}
 
@@ -638,9 +648,7 @@ The naming convention follows the data-flow direction: `m2s`/`s2m` (master-to-sl
 
 ## `can_mac_fsm` {#sec:impl-can-mac-fsm}
 
-The `can_mac` sub-layer is built around a single unified FSM entity (`can_mac_fsm`). The full per-signal interface is shown in @fig:mac-fsm-arch.
-
-![`can_mac` architecture with signal-level connections between the four internal entities and external interfaces.](figures/mac_arch.png){#fig:mac-fsm-arch height=90%}
+The `can_mac` sub-layer is built around a single unified FSM entity (`can_mac_fsm`). The complete signal-level interface is reproduced in @sec:appendix-mac-arch.
 
 ### FSM Structure and Mode Flag
 
@@ -762,7 +770,7 @@ At the first data-phase bit boundary, `first_data_bit_boundary_seen` is latched 
 
 `mac_i.data_phase_stop` at the SP clears `ssp_active`, `ssp_seen`, `tdc_count_active`, `delay_count_tq`, `tdc_delay`, `data_phase_active`, and `first_data_bit_boundary_seen`, restoring nominal SP-based monitoring for the CRC delimiter and subsequent fields.
 
-The six entities described above - `can_mac_fsm`, `can_mac_ser`, `can_mac_bs`, `can_mac_crc`, `can_fce`, and `can_pcs` - together with the structural wrappers `can_mac` and `can_mac_pcs_fce` constitute the implemented protocol engine. The two threads named at the start of this section were both borne out. Each module contained at least one implementation decision that was not visible in the requirements table and only became concrete under the full protocol constraints: the bit stuffer's mode-boundary promotion rule, the CRC engine's combinatorial mux, and the PCS synchronization guard are the clearest examples. And in each case, the unified-FSM architecture simplified the fix - a single correction to a shared submodule propagated to both TX and RX paths automatically. With the implementation complete, the remaining question is whether the 38 requirements in the verification plan are in fact satisfied by what was built - the subject of @sec:verification-results.
+The six entities described above - `can_mac_fsm`, `can_mac_ser`, `can_mac_bs`, `can_mac_crc`, `can_fce`, and `can_pcs` - together with the structural wrappers `can_mac` and `can_mac_pcs_fce` constitute the implemented protocol engine. The complete signal-level connectivity of the wired node, with the MAC expanded to show its internal submodules, is reproduced in @sec:appendix-mac-arch. The two threads named at the start of this section were both borne out. Each module contained at least one implementation decision that was not visible in the requirements table and only became concrete under the full protocol constraints: the bit stuffer's mode-boundary promotion rule, the CRC engine's combinatorial mux, and the PCS synchronization guard are the clearest examples. And in each case, the unified-FSM architecture simplified the fix - a single correction to a shared submodule propagated to both TX and RX paths automatically. With the implementation complete, the remaining question is whether the 38 requirements in the verification plan are in fact satisfied by what was built - the subject of @sec:verification-results.
 
 # Verification and Results {#sec:verification-results}
 
@@ -931,6 +939,16 @@ The zip file accompanying this document contains the complete source tree develo
 | :----------------------------------------- | :--- |
 | `verification_plan/verification_plan.toml` | 38 requirements with traceability metadata |
 | `mcp_tools/verification_plan_manager.py` | MCP server for verification plan maintenance |
+
+# Complete CAN Node Signal Interface {#sec:appendix-mac-arch}
+
+Complete signal-level connectivity of the implemented CAN node. The MAC sub-layer is expanded to show its four constituent entities (`can_mac_fsm`, `can_mac_bs`, `can_mac_ser`, `can_mac_crc`). PCS and FCE appear as external module boundaries. The LLC interface block represents the Avalon-ST boundary to the LLC sub-layer, which is not implemented in this project.
+
+::: {.landscape-tables}
+
+![Complete CAN node signal-level connectivity. The MAC sub-layer is expanded to show its four internal entities. The LLC interface block is the Avalon-ST boundary to the pending LLC implementation.](figures/mac_arch.png){#fig:mac-fsm-arch width=100%}
+
+:::
 
 # Verification Plan {#sec:appendix-vplan}
 
