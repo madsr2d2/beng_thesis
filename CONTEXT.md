@@ -21,7 +21,7 @@ Use these terms exactly. Do not drift to synonyms.
 | `can_mac_crc` | CRC engine - single instance, three parallel `gen_crc` instances | "CRC module", "CRC generator" |
 | `can_fce` | Fault Confinement Entity | "error counter module" |
 | `can_pcs` | Physical Coding Sublayer - bit timing, sync, TDC | "clock module", `can_node_clock` (the prior implementation) |
-| internal LLC frame format | The 2-config-byte + ID + data layout on the MAC-facing stream | "MAC frame", "internal format" |
+| internal LLC frame format | The 2-config-byte + ID + data layout on the MAC-facing stream. The 32-bit ID field is **left-aligned**: base ID occupies bits [31:21] (11 bits, 21 trailing unused), extended ID occupies bits [31:3] (29 bits, 3 trailing unused). `can_mac_ser` skips trailing unused bits without asserting valid. | "MAC frame", "internal format" |
 | `data_cc` / `data_fd` | The two CRC data feeds: CC (de-stuffed, excludes all stuff bits) and FD (includes dynamic stuff bits from `s_arbitration` through `s_data`; fixed stuff bits in `s_sbc`/`s_crc` are excluded from both feeds) | "CRC input A/B" |
 | dynamic stuffing | Insert inverse bit after five consecutive identical bits | "bit stuffing" alone (ambiguous - there is also fixed stuffing) |
 | fixed stuffing | Insert stuff bit at fixed intervals in FD CRC region, with SBC field | "static stuffing" |
