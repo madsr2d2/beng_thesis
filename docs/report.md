@@ -121,7 +121,7 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 | TEC/REC | Transmit Error Counter / Receive Error Counter |
 | TQ | Time Quantum |
 | TX | Transmitter / Transmit |
-| VHDL | VHSIC Hardware Description Language |
+| VHDL | Hardware Description Language |
 
 : Abbreviations used in this report. {#tbl:abbreviations}
 
@@ -223,7 +223,7 @@ This section covers the two technical foundations that the rest of the report bu
 
 ## CAN Classic {#sec:can-classic}
 
-The Controller Area Network (CAN) is a serial communication bus developed by Bosch in 1986 [@bosch1991] to connect electronic control units in automotive environments without a central host computer. Where point-to-point wiring and star-switched architectures require a dedicated conductor between every communicating pair, CAN uses a shared two-wire differential bus on which all nodes broadcast simultaneously and arbitrate access without any designated bus master. Any node may initiate a transmission at any time. Contention is resolved by a non-destructive bitwise arbitration in which the transmitter with the lower-priority identifier detects the collision and silently withdraws, leaving the winner's frame intact. Differential signaling on a twisted pair (ISO 11898-2 physical layer) provides strong common-mode noise rejection - a practical necessity in the electrically harsh environment of an engine bay or industrial cabinet (@fig:can_bus).
+The Controller Area Network (CAN) is a serial communication bus developed by Bosch in 1986 [@bosch1991] to connect electronic control units in automotive environments without a central host computer. Where point-to-point wiring and star-switched architectures require a dedicated conductor between every communicating pair, CAN uses a shared two-wire differential bus on which all nodes broadcast simultaneously and arbitrate access without any designated bus master (see @fig:can_bus). Any node may initiate a transmission at any time. Contention is resolved by a non-destructive bitwise arbitration in which the transmitter with the lower-priority identifier detects the collision and silently withdraws, leaving the winner's frame intact. Differential signaling on a twisted pair (ISO 11898-2 physical layer) provides strong common-mode noise rejection - a practical necessity in the electrically harsh environment of an engine bay or industrial cabinet.
 
 ![CAN bus with four nodes on a shared differential two-wire bus.](figures/can_bus.png){#fig:can_bus width=60%}
 
@@ -239,7 +239,7 @@ CAN FD also strengthens the error detection architecture. The longer payloads re
 
 ## Tools and Language {#sec:vhdl-osvvm}
 
-The RTL source is implemented in VHDL-93. Everllence's synthesis toolchain uses Quartus Prime, which does not fully support VHDL-2008 constructs in synthesis, making VHDL-93 the practical upper bound for synthesizable RTL. Testbenches are written in VHDL-2008 to support the OSVVM verification framework [@osvvm], which requires VHDL-2008 language features. SystemVerilog with UVM is the dominant industry alternative for RTL implementation and verification at this scale. The choice here follows company convention rather than a project-level technical comparison. GHDL [@ghdl] is used for simulation and supports both language revisions.
+The RTL source is implemented in VHDL-93. Everllence's synthesis toolchain uses Quartus Prime, which does not fully support VHDL-2008 constructs in synthesis, making VHDL-93 the practical upper bound for synthesizable RTL. Testbenches are written in VHDL-2008 to support the OSVVM verification framework [@osvvm], which requires VHDL-2008 language features. SystemVerilog with UVM is the dominant industry alternative for RTL implementation and verification at this scale. The choice here follows company convention rather than a project-level technical comparison. Riviera-PRO is used for simulation. Sigasi is used for linting and language-aware editing. Waveform figures are captured in GTKWave, timing diagrams are drawn in WaveDrom, and architecture diagrams in Mermaid.
 
 # Requirements {#sec:requirements-engineering}
 
@@ -307,6 +307,36 @@ The AI-assisted workflow delivered value in two distinct phases of the project, 
 In the extraction phase, the LLM agent earned its keep by bootstrapping and linking the initial normative statement set. Having a fully populated and linked starting point - even one requiring substantial revision - gave the manual review process a concrete artifact to work from. The time saving from the extraction itself was, however, marginal. The agent's output had to be reviewed statement by statement, which is functionally similar to extracting requirements manually in the first place. The primary benefit of the AI-assisted approach in this phase was therefore not efficiency, but rather the increased consistency of an automated pass over the full standard text.
 
 The distillation step that followed - consolidating 168 raw normative statements into 38 prioritized, independently verifiable requirements - required substantial manual effort that the AI could not replace. Deciding which statements address the same underlying obligation, how to bound each requirement so that it is independently verifiable, and how to assign priority in a way that is defensible against the standard text are judgment calls that depend on understanding the protocol at an implementation level.
+
+REQ-027 (PCS synchronization, §7.3.5.1–7.3.5.4) illustrates the challenge well.
+
+**Extracted normative statements (§7.3.5.1–7.3.5.4):**
+
+1. *"Only one synchronization within one bit time (between two sample points) shall be allowed. After an edge is detected, synchronizations shall be disabled until the next time the bus state detected at the sample point is recessive."*
+2. *"An edge shall cause synchronization only if the bus state detected at the previous sample point was recessive. If a transmitter uses transmitter delay compensation, also the first detected edge from recessive to dominant after the sample point of the CRC delimiter shall cause synchronization. An edge with a positive phase error shall not cause synchronization in a node sending a dominant bit."*
+3. *"Hard synchronization shall be performed: on edges during inter-frame space (with the exception of the first bit of intermission); when a node is in bus-integration state; at the edge between the FDF bit and the following dominant res bit inside an FD frame; when a node is a receiver of an XL frame, at the edge between the XLF bit and the following dominant resXL bit; at the edge between the DH1 and DH2 bits and the DL1 bit; at the edge between the DAH or AH1 bit and the AL1 bit."*
+4. *"All other recessive-to-dominant edges fulfilling rules a) and b) shall be used for resynchronization with one exception: a node transmitting an FD frame or an XL frame shall not synchronize while it transmits the data phase of that frame."*
+5. *"After a hard synchronization, the bit time shall be restarted with Sync_Seg completed. Hard synchronization shall not be limited by the synchronization jump width."*
+6. *"When the magnitude of the phase error is less than or equal to the synchronization jump width, the effect of a resynchronization shall be the same as a hard synchronization."*
+7. *"When the magnitude of the phase error is larger than the synchronization jump width: if positive, Phase_Seg1 shall be lengthened by the synchronization jump width; if negative, Phase_Seg2 shall be shortened by the synchronization jump width."*
+
+Statements 3 and 4 each embed CAN XL conditions within otherwise in-scope obligations. Statement 3 lists XL-specific hard-sync trigger points - XLF, DH1/DH2/DL1, and DAH/AH1 frame boundaries - alongside the FDF trigger that applies here. Statement 4 suppresses resync during the data phase of both FD and XL frames, but only the FD clause is in scope. These sub-clauses must be identified and excluded without dropping the surrounding obligations that apply to CB, CE, FB, and FE frames. Statement 4 also contains a dangling cross-reference: "fulfilling rules a) and b)" refers to labeled items defined within §7.3.5.2, but the extraction captured only the prose sentences, discarding the letter identifiers. The extracted set contains no entry labeled "rule a)" or "rule b)", so the reference cannot be resolved without returning to the original ISO clause - an omission that the AI extraction did not flag. The remaining five statements interleave hard sync and resync rules across four sub-clauses, requiring the two mechanisms to be separated and their interaction - phase error not exceeding SJW collapses resync to the same effect as hard sync - made explicit. The resulting requirement entry is shown in @tbl:req027-example.
+
+**Paraphrase:**
+
+1. One synchronization per bit time, re-enabled after the next recessive sample point.
+2. An edge qualifies only if the previous sample point was recessive and no positive phase error exists while sending dominant. The first recessive-to-dominant edge after the CRC delimiter also qualifies when TDC is active.
+3. Hard synchronization: IFS edges (except the first intermission bit), bus-integration state, and the FDF-to-res transition. Bit time restarts with Sync_Seg completed, unconstrained by SJW.
+4. All other qualifying edges cause resynchronization, except for the FD data-phase transmitter. Positive error: Phase_Seg1 += SJW. Negative error: Phase_Seg2 -= SJW. Error not exceeding SJW: same effect as hard synchronization.
+
+| Field | Value |
+| :--- | :----------------------------------------------- |
+| ID | REQ-027 |
+| Source | §7.3.5.1, §7.3.5.2, §7.3.5.3, §7.3.5.4 |
+| Priority | P1 |
+| Notes | The implementation is stricter than ISO: `mac_i.transmitting` suppresses all synchronization unconditionally, not just resync on positive phase error. This is safe since a transmitter is the timing reference for all receivers. |
+
+: REQ-027 distilled from seven extracted normative statements. {#tbl:req027-example}
 
 The MCP server interface proved genuinely useful throughout the design, implementation, and verification phases that followed extraction. As implementation decisions were made, requirements were refined - paraphrases sharpened, notes extended, observability classifications updated, and traceability fields populated. The AI coding agent performed these updates directly through the MCP tool calls, targeting individual requirement fields against a schema-validated store. The alternative - asking an agent to rewrite the full TOML file each time a requirement changed - would have introduced silent data corruption risks at every edit. The narrow, validated write interface made incremental AI-assisted maintenance of the verification plan safe and practical across all three project phases.
 
