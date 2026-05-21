@@ -351,7 +351,7 @@ Each requirement in @sec:requirements-engineering refers to a specific protocol 
 
 ![ISO 11898-1 CAN node reference model showing the LLC, MAC, PCS sub-layers and cross-cutting FCE.](figures/can_node.png){#fig:can-node width=100%}
 
-ISO 11898-1 structures the CAN data link layer into three functional sub-layers and a cross-cutting Fault Confinement Entity (FCE) (@fig:can-node):
+ISO 11898-1 structures the CAN data link layer into three functional sub-layers and a cross-cutting Fault Confinement Entity (FCE) (see @fig:can-node):
 
 - **LLC (Logical Link Control)**: accepts frame requests from the host application, applies retransmission policy on error or lost arbitration, and supplies frames to the MAC in serialized form.
 - **MAC (Medium Access Control)**: encodes and decodes the frame bit-by-bit - performing bit stuffing and destuffing, CRC generation and checking, and acknowledgment handling - and governs bus access arbitration.
@@ -384,7 +384,7 @@ A CAN FD frame shares the same structure through the arbitration phase and then 
 
 ![CAN bit time structure showing the four segments (SS, PS, PS1, PS2), the sample point, and propagation delays on a two-node bus.](figures/bit_timing.png){#fig:can-bit-timing width=85%}
 
-Every CAN bit period is divided into four non-overlapping time segments measured in Time Quanta (TQ), where one TQ equals the period of the prescaled system clock (@fig:can-bit-timing). CAN FD extends CAN Classic with an independently configured data-phase bit rate. A CAN FD node therefore maintains two independent sets of segment parameters, one for the nominal rate and one for the data rate (REQ-025):
+Every CAN bit period is divided into four non-overlapping time segments measured in Time Quanta (TQ), where one TQ equals the period of the prescaled system clock (see @fig:can-bit-timing). CAN FD extends CAN Classic with an independently configured data-phase bit rate. A CAN FD node therefore maintains two independent sets of segment parameters, one for the nominal rate and one for the data rate (REQ-025):
 
 - **Sync Segment (SYNC_SEG)**: one TQ. The point at which the bus is expected to produce a recessive-to-dominant edge after synchronization.
 - **Propagation Segment (PROP_SEG)**: compensates for round-trip signal propagation delay on the bus and in the transceiver. It shall be programmed to be at least as long as twice the maximum bus propagation delay.
@@ -397,7 +397,7 @@ The **sample point** falls at the PHASE_SEG1 / PHASE_SEG2 boundary. Every receiv
 
 ![Resynchronization over two successive sync edges. PE is the phase error relative to SYNC_SEG. SJW is the Synchronization Jump Width.](figures/sync.png){#fig:can-sync width=100%}
 
-**CAN FD and the flexible data rate.** CAN FD introduces a second, independently configured bit rate for the data phase. The BRS (Bit Rate Switch) bit in the FD control field (@fig:can-frame-structure) controls this transition: when BRS is recessive, the bus switches to the data-phase bit rate immediately after the BRS sample point and returns to the nominal rate at the CRC delimiter. The nominal rate governs the arbitration phase (SOF through BRS) and the return path (CRC delimiter onward). The data rate governs the payload and CRC fields in between. Because the data phase operates at a much shorter bit time, the same physical propagation delay represents a larger fraction of the bit period. On electrically long buses at high data rates, the loop propagation delay can exceed a full data-phase bit time.
+**CAN FD and the flexible data rate.** CAN FD introduces a second, independently configured bit rate for the data phase. The BRS (Bit Rate Switch) bit in the FD control field (see @fig:can-frame-structure) controls this transition: when BRS is recessive, the bus switches to the data-phase bit rate immediately after the BRS sample point and returns to the nominal rate at the CRC delimiter. The nominal rate governs the arbitration phase (SOF through BRS) and the return path (CRC delimiter onward). The data rate governs the payload and CRC fields in between. Because the data phase operates at a much shorter bit time, the same physical propagation delay represents a larger fraction of the bit period. On electrically long buses at high data rates, the loop propagation delay can exceed a full data-phase bit time.
 
 **Transmitter Delay Compensation (TDC)** addresses this. A transmitter in the FD data phase cannot rely on immediate bus loopback for bit-error monitoring, because the echo of a driven bit arrives one or more bit times late. TDC measures the actual round-trip delay at the start of the data phase and configures a Secondary Sample Point (SSP) at the correct offset, so that each transmitted bit is still checked for loopback correctness. The TDC measurement and SSP configuration are PCS responsibilities and are a significant driver of PCS complexity in the implementation (@sec:impl-can-pcs).
 
@@ -701,7 +701,7 @@ CAN Classic computes its CRC over the raw bit stream excluding stuff bits, while
 
 Three parallel `gen_crc` instances run continuously on separate data feeds: `data_cc` drives CRC-15 via `valid_cc`, while `data_fd` drives both CRC-17 and CRC-21 via `valid_fd`. The output multiplexer selects the active engine's result based on `crc_poly_select` and left-aligns it to the common 21-bit output width by zero-extending the shorter results at the least significant bit: CRC-15 occupies bits [20:6], CRC-17 occupies bits [20:4], and CRC-21 occupies the full width.
 
-The output mux (`p_crc_mux`) is combinatorial rather than registered. Each `gen_crc` instance registers its accumulator on the rising edge, so the mux selects over three stable registered values - the rationale for registering module outputs is satisfied one level down. Omitting the register keeps IPT at 2 system clocks: SP+1 for the final accumulator update, SP+2 for the mux read. ISO 11898-1 §7.3.3 mandates IPT ≤ 2 t_q (REQ-025), and at minimum prescaler (m=1, t_q = 1 system clock) that leaves exactly 2 system clocks. A registered mux would require 3 system clocks, violating this bound at m=1 (@fig:mac-crc).
+The output mux (`p_crc_mux`) is combinatorial rather than registered. Each `gen_crc` instance registers its accumulator on the rising edge, so the mux selects over three curre registered values - the rationale for registering module outputs is satisfied one level down. Omitting the register keeps IPT at 2 system clocks: SP+1 for the final accumulator update, SP+2 for the mux read. ISO 11898-1 §7.3.3 mandates IPT ≤ 2 t_q (REQ-025), and at minimum prescaler (m=1, t_q = 1 system clock) that leaves exactly 2 system clocks. A registered mux would require 3 system clocks, violating this bound at m=1 (see @fig:mac-crc).
 
 ![`can_mac_crc` dataflow with three parallel CRC engines. The output mux is combinatorial to satisfy the ISO IPT ≤ 2 t_q constraint at minimum prescaler.](figures/mac_crc_fsm.png){#fig:mac-crc width=70%}
 
@@ -735,7 +735,7 @@ This interface design keeps protocol knowledge in the MAC layer and timing knowl
 
 ### Transmitter Delay Compensation {#sec:impl-can-pcs-tdc}
 
-The motivation and principle of TDC are described in @sec:bit-timing. The implementation uses a three-stage pipeline within `p_can_pcs`: count up from the FD reserved bit boundary until the TX-to-RX echo arrives, wait for the first data-phase bit boundary, then count down the measured delay to arm the SSP. Once armed, the SSP fires at a fixed offset within `s_phase_seg1` every data-phase bit time. The measured round-trip delay is supplied to the MAC as `mac_o.tdc_delay` for indexing into the transmitted-bit shift register (@sec:impl-can-mac-fsm). The full TDC pipeline is shown in @fig:can-pcs.
+The motivation and principle of TDC are described in @sec:bit-timing. The implementation uses a three-stage pipeline within `p_can_pcs`: count up from the FD reserved bit boundary until the TX-to-RX echo arrives, wait for the first data-phase bit boundary, then count down the measured delay to arm the SSP. Once armed, current_temp SSP fires at a fixed offset within `s_phase_seg1` every data-phase bit time. The measured round-trip delay is supplied to the MAC as `mac_o.tdc_delay` for indexing into the transmitted-bit shift register (@sec:impl-can-mac-fsm). The full TDC pipeline is shown in @fig:can-pcs.
 
 # Verification and Results {#sec:verification-results}
 
