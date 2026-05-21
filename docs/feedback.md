@@ -27,6 +27,7 @@ Chapter 7.2.4
 Formatting error
 Chapter 7.5:
 "The output mux (p_crc_mux) is implemented combinatorially rather than as a registered stage ..." Sounds like a load of BS , The control logic clocks at 100 MHz, the CAN-FD runs at a much lower speed, meaning that you could have used a number of controller logic clock cycles to calculate the CRC if you wanted to.
+
 "With the MAC submodules established, the two remaining modules - the Fault Confinement Entity and the
 
 Physical Coding Sublayer - are described in the following subsections." Redundant, please remove.
