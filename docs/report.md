@@ -720,8 +720,6 @@ The output mux (`p_crc_mux`) is combinatorial rather than registered. Each `gen_
 
 ![`can_mac_crc` dataflow with three parallel CRC engines. The output mux is combinatorial to satisfy the ISO IPT ≤ 2 t_q constraint at minimum prescaler.](figures/mac_crc_fsm.png){#fig:mac-crc width=70%}
 
-With the MAC submodules established, the two remaining modules - the Fault Confinement Entity and the Physical Coding Sublayer - are described in @sec:impl-can-fce and @sec:impl-can-pcs.
-
 ## `can_fce` {#sec:impl-can-fce}
 
 `can_fce` implements the error FSM and counter management specified in ISO 11898-1 [@iso11898_1, sec. 8.1.3-8.1.4]. It maintains TEC (Transmitter Error Counter) and REC (Receiver Error Counter) and transitions between three states: `s_error_active` (normal operation), `s_error_passive` (TEC or REC > 127), and `s_bus_off` (TEC > 255), as shown in @fig:fce-fsm.
@@ -730,9 +728,7 @@ Counter updates follow the rules in [@iso11898_1, sec. 8.1.4.2]: TEC increments 
 
 The one counter rule that requires careful reading of the ISO prose is the passive ACK error exemption (ISO 8.1.4.2.c, Exception 1): an error passive node that transmits a frame and receives no dominant ACK bit shall not increment TEC, because the node's passive error flag is recessive and may itself prevent receivers from asserting the ACK slot. The FCE has no frame-level visibility - it receives event signals from the MAC, not raw bus bits - so the MAC must explicitly signal this case via `mac_i.passive_tx_ack_error_exempt_1`, asserted when the FSM detects an ACK error while `mac_o.error_active` is deasserted. Without this signal the FCE would treat an unacknowledged passive-node transmission identically to any other ACK error and escalate TEC unnecessarily.
 
-![`can_fce` FSM governing the error active, error passive, and bus off node states per ISO 11898-1 sec. 8.1.4.4.](figures/fce_fsm.png){#fig:fce-fsm width=80%}
-
-The PCS layer, which supplies the bit-level timing strobes that drive every FSM state transition, is described next.
+![`can_fce` FSM governing the error active, error passive, and bus off node states per ISO 11898-1 sec. 8.1.4.4.](figures/fce_fsm.png){#fig:fce-fsm width=100%}
 
 ## `can_pcs` {#sec:impl-can-pcs}
 
