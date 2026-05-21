@@ -6,7 +6,7 @@ bibliography: references.bib
 csl: ieee.csl
 link-citations: true
 abstract: |
-  This thesis describes the design, implementation, and verification of a CAN/CAN FD protocol controller in VHDL, targeting high-reliability engine controller applications at Everllence. The controller complies with ISO 11898-1 and supports the CB, CE, FB, and FE frame formats with dual bit rate switching and Transmitter Delay Compensation (TDC) for the FD data phase. The design is structured around the ISO 11898-1 layered reference model, with the MAC, PCS, and FCE sub-layers implemented as independently testable modules and the LLC sub-layer specified but deferred. Of 38 derived requirements, 28 are verified against passing testbenches or code inspection. Of the remaining 10, seven are deferred pending `can_llc` implementation, two are non-blocking P2 items, and one (REQ-022) has partial simulation coverage with dedicated error-injection testing identified as future work. The design was synthesized on a Cyclone 10 LP FPGA target, using 4,608 logic elements (30% of device) with a worst-case fmax of approximately 127 MHz.
+  This thesis describes the design, implementation, and verification of a CAN/CAN FD protocol controller in VHDL, targeting high-reliability engine controller applications at Everllence. The controller complies with ISO 11898-1 and supports the CB, CE, FB, and FE frame formats with dual bit rate switching and Transmitter Delay Compensation (TDC) for the FD data phase. The design is structured around the ISO 11898-1 layered reference model, with the MAC, PCS, and FCE sub-layers implemented as independently testable modules and the LLC sub-layer specified but deferred. Of 38 derived requirements, 28 are verified against passing testbenches or code inspection. Of the remaining 10, seven fall outside the current scope pending `can_llc` integration, two are lower-priority optional features, and one (REQ-022, error-injection under passive error conditions) represents identified future work. The design was synthesized on a Cyclone 10 LP FPGA target, using 4,608 logic elements (30% of device) with a worst-case fmax of approximately 127 MHz.
 ---
 
 ```{=latex}
@@ -35,10 +35,13 @@ Mads Richardt (s224948)\\[2pt]
 # Acknowledgements {-}
 
 **Edward Alexandru Todirica**, Associate Professor, DTU Compute.
-Thank you for supervision throughout the project and for valuable guidance on verification methodology and VHDL design practice.
+Thank you for supervision throughout the project and for valuable guidance and feedback.
 
 **Fredrik Kristensen**, Everllence.
-Thank you for framing the industrial requirements, providing access to the existing CAN controller as a reference, and for feedback on the design and implementation.
+Thank you for guidance throughout the project, code and report review, and feedback on the design and implementation.
+
+**Alex Fihl Hedegaard Nielsen**, Everllence.
+Thank you for the sparring and advice, good company - and the many coffee machine trips that kept the work moving.
 
 ```{=latex}
 \clearpage
@@ -844,7 +847,7 @@ The four objectives stated in @sec:objectives are assessed against the verificat
 
 # Conclusion {#sec:conclusion}
 
-This thesis presented the design, implementation, and verification of a CAN/CAN FD protocol controller in VHDL-93, structured around the ISO 11898-1 layered reference model. The implemented design covers the MAC, PCS, and FCE sub-layers as independently testable modules, supports all four in-scope frame formats (CB, CE, FB, FE), implements dual bit rate switching with Transmitter Delay Compensation, and integrates into Everllence's existing FPGA infrastructure via Avalon-ST interfaces. Of the 38 requirements derived from ISO 11898-1, 28 are closed against passing testbenches or code inspection. Of the remaining 10, seven are deferred pending `can_llc` implementation, two are non-blocking P2 items, and one (REQ-022) has partial simulation coverage with dedicated error-injection testing identified as future work. The design was synthesized on a Cyclone 10 LP FPGA target using 4,608 logic elements (30% of device) with a worst-case fmax of approximately 127 MHz, confirming timing closure at realistic system clock frequencies.
+This thesis presented the design, implementation, and verification of a CAN/CAN FD protocol controller in VHDL-93, structured around the ISO 11898-1 layered reference model. The implemented design covers the MAC, PCS, and FCE sub-layers as independently testable modules, supports all four in-scope frame formats (CB, CE, FB, FE), implements dual bit rate switching with Transmitter Delay Compensation, and integrates into Everllence's existing FPGA infrastructure via Avalon-ST interfaces. Of the 38 requirements derived from ISO 11898-1, 28 are closed against passing testbenches or code inspection. Of the remaining 10, seven fall outside the current scope pending `can_llc` integration, two are lower-priority optional features, and one (REQ-022, error-injection under passive error conditions) represents identified future work. The design was synthesized on a Cyclone 10 LP FPGA target using 4,608 logic elements (30% of device) with a worst-case fmax of approximately 127 MHz, confirming timing closure at realistic system clock frequencies.
 
 The project yielded three transferable lessons. First, the structure of a requirements model can inadvertently bias RTL architecture: the TX/RX side dimension of the verification plan made a split-path implementation appear well-motivated, but the frame structure of the CAN protocol is the same regardless of which node is driving, and cutting the natural code unit at an artificial seam added coordination complexity without reducing protocol complexity. Verification plan dimensions are inputs to testbench architecture, not to RTL decomposition. Second, the ISO 11898-1 layered architecture is not merely a documentary convenience - it is a practical partitioning of protocol complexity that, when followed in the implementation, enables each sub-layer to be implemented, verified, and debugged independently. The modular design produced here is maintainable over the long product lifecycles that motivate Everllence's decision to develop the protocol controller in-house. Third, targeted, schema-validated field updates to a structured artifact are safe for an LLM to perform incrementally. Full-file rewrites are not (@sec:ai-extraction). The narrow MCP write interface made AI-assisted maintenance of the verification plan safe and practical across all three project phases. The result is an IP core that Everllence owns outright - maintainable, verifiable, and extensible over the multi-decade service commitments that motivated the redesign.
 
