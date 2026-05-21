@@ -746,13 +746,7 @@ This interface design keeps protocol knowledge in the MAC layer and timing knowl
 
 ### Transmitter Delay Compensation {#sec:impl-can-pcs-tdc}
 
-The motivation and principle of TDC are described in @sec:bit-timing. The implementation in `can_pcs` is flag-based logic within the single `p_can_pcs` process, not a separate FSM. The relevant signals are `tdc_count_active`, `delay_count_tq`, `ssp_standoff_active`, `first_data_bit_boundary_seen`, `ssp_active`, `ssp_seen`, and `tdc_delay`.
-
-TDC is armed at the bit boundary when `mac_i.next_bit_is_res = '1'`, which sets `tdc_count_active`. While set, `delay_count_tq` increments by one per recessive TQ at each TQ boundary. On the first dominant TQ - the TX-to-RX echo of the data-phase preamble - `tdc_count_active` is cleared, leaving `delay_count_tq` holding the measured round-trip delay in TQs.
-
-At the first data-phase bit boundary, `first_data_bit_boundary_seen` is latched and `ssp_standoff_active` is asserted. `delay_count_tq` then counts down one per TQ from its measured value. In parallel, `tdc_delay` increments once at each subsequent bit boundary while `ssp_seen = '0'`, counting how many whole bit periods the standoff spans. When `delay_count_tq` reaches zero, `ssp_active` is set and `ssp_standoff_active` is cleared. With `ssp_active = '1'`, the SSP strobe fires at a fixed offset before the SP within `s_phase_seg1` every data-phase bit time, latching `rx_i` and pulsing `mac_o.secondary_sample_point`. On the first SSP fire, `ssp_seen` is latched and `mac_o.tdc_delay` is captured at the current `tdc_delay` value. The MAC reads the stable `mac_o.tdc_delay` to index into `transmitted_bits_shift_reg`, identifying the transmitted bit whose loopback echo is being observed at the SSP.
-
-`mac_i.data_phase_stop` at the SP clears `ssp_active`, `ssp_seen`, `tdc_count_active`, `delay_count_tq`, `tdc_delay`, `data_phase_active`, and `first_data_bit_boundary_seen`, restoring nominal SP-based monitoring for the CRC delimiter and subsequent fields.
+The motivation and principle of TDC are described in @sec:bit-timing. The implementation uses a three-stage pipeline within `p_can_pcs`: count up from the FD reserved bit boundary until the TX-to-RX echo arrives, wait for the first data-phase bit boundary, then count down the measured delay to arm the SSP. Once armed, the SSP fires at a fixed offset within `s_phase_seg1` every data-phase bit time. The measured round-trip delay is supplied to the MAC as `mac_o.tdc_delay` for indexing into the transmitted-bit shift register (@sec:impl-can-mac-fsm). The full TDC pipeline is shown in @fig:can-pcs.
 
 # Verification and Results {#sec:verification-results}
 
