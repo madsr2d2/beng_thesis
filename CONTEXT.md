@@ -34,6 +34,7 @@ Use these terms exactly. Do not drift to synonyms.
 | Error Active / Error Passive / Bus Off | FCE node states | "error state 1/2/3" |
 | `can_node_clock` | The prior CAN Classic PCS implementation (do not confuse with `can_pcs`) | - |
 | split-path design | The rejected architecture with separate `can_mac_fsm_tx` and `can_mac_fsm_rx` | "dual FSM", "TX/RX split" |
+| LLC interface | The Avalon-ST port boundary in `mac_arch.png` where the (unimplemented) LLC sub-layer would connect. Not an implemented module - it is the interface point only. Labelled explicitly in the figure to distinguish it from the LLC sub-layer concept. | "can_llc", "LLC module" |
 
 ---
 
@@ -68,6 +69,8 @@ The report tells a single continuous story. Each section picks up from the previ
 ### CAN and CAN-FD Protocol Overview
 
 **What it establishes:** The protocol mechanisms the requirements refer to: sub-layer model, frame formats (CB/CE/FB/FE), bit timing and dual rate, bit stuffing (dynamic + fixed), CRC (CRC-15/17/21, dual data feed), error detection and fault confinement. Every mechanism is cross-referenced to REQ-NNN.
+
+**Key artifact:** `@tbl:req-layer-map` in `sec:can-layered-model` is the authoritative requirement-to-layer assignment for all 38 requirements (LLC, MAC, PCS, FCE, System). Do not use the old prose ranges — the table replaced them.
 
 **Closes with:** "With those mechanisms established... the following section introduces the five classification dimensions of the verification plan and shows how each one connects back to the protocol concepts described here."
 
@@ -113,7 +116,9 @@ Final architecture: one unified `can_mac_fsm`, one `can_mac_bs`, one `can_mac_cr
    - Single FCE interface - no arbitration logic needed between duplicate error/success signals.
    - TX bus monitoring (bit error, arbitration loss) shares the same bus-observation loop as RX reception - no duplicate path needed.
 
-**Closes with:** "With the implementation complete, the remaining question is whether the 38 requirements in the verification plan are in fact satisfied by what was built - the subject of @sec:verification-results."
+**Closes with:** A sentence pointing to `@sec:appendix-mac-arch` for the complete signal-level wiring diagram, then: "With the implementation complete, the remaining question is whether the 38 requirements in the verification plan are in fact satisfied by what was built - the subject of @sec:verification-results."
+
+**Key figure:** `@fig:mac-fsm-arch` (`docs/figures/mac_arch.png`) lives in `@sec:appendix-mac-arch` (appendix, landscape page). It is the signal-level expansion of `@fig:can-node` (`can_node.png`): same Host Device / CAN Protocol Controller / Transceiver IC / User Application structure, but with every inter-module signal named. The MAC subgraph is expanded to show `can_mac_fsm`, `can_mac_bs`, `can_mac_ser`, `can_mac_crc`. The LLC block is labelled "LLC interface" (see glossary). Source: `docs/figures/mac_arch.txt` (Mermaid, regenerate with `mmdc -i mac_arch.txt -o mac_arch.png -b white -w 2400 -H 1400`).
 
 ### Verification and Results
 
