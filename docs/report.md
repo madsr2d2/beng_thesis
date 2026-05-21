@@ -818,9 +818,10 @@ The synthesized design uses 4,608 logic elements (30% of the 15,408 available on
 | `can_mac_crc` | 84 | 53 | Three parallel CRC engines |
 | `can_mac_ser` | 84 | 40 | TX serializer |
 | `can_mac_bs` | 31 | 12 | Bit stuffer (dynamic and fixed mode) |
-| **Total** | **4,608** | **869** | |
+| **CAN FD total** | **4,608** | **869** | |
+| **CAN Classic** (`can_bus_controller`) | **1,146** | **334** | Existing controller, see @sec:existing-controller |
 
-: `can_mac_pcs_fce` resource utilization on Cyclone 10 LP (10CL016YU256I7G). {#tbl:synthesis-resources}
+: Resource utilization on Cyclone 10 LP (10CL016YU256I7G): CAN FD module breakdown and CAN Classic baseline. {#tbl:synthesis-resources}
 
 `can_mac_fsm` dominates at 89% of total logic elements. The primary driver is the RX frame buffer: the FSM accumulates received frames into a 70-byte (560-bit) internal byte array, and each buffer register drives combinatorial decode and mux logic. The five remaining modules together consume 506 LEs, confirming that the PCS, FCE, CRC, serializer, and bit stuffer layers add modest overhead relative to the frame buffer cost.
 
