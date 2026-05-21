@@ -723,15 +723,7 @@ The one counter rule that requires careful reading of the ISO prose is the passi
 
 ### Resynchronization {#sec:impl-can-pcs-resync}
 
-The prior implementation missed three of the four ISO 7.3.5.1 synchronization rules: it had no sync-inhibit guard (rule a), no sampled-polarity check (rule b), and a Phase_Seg2 shortening path that skipped the mandatory 1-TQ Sync_Seg (rule d). None of these caused observable failures on the deployed CAN Classic bus, but all three are protocol obligations. `can_pcs` enforces all four.
-
-**Rule a - one synchronization per bit time.** A `sync_applied` signal is set on any synchronization event (hard synchronization or resynchronization) and cleared at the next bit boundary (end of `s_phase_seg2`). The TQ-boundary edge-qualify predicate `v_do_sync` includes `sync_applied = '0'` as a precondition, preventing a second synchronization within the same bit time regardless of bus activity.
-
-**Rule b - sync only on a recessive-to-dominant transition.** The edge-qualify predicate requires `rx_bus_prev = c_recessive` (the bus value latched at the preceding TQ boundary) together with `rx_i = c_dominant`, making synchronization conditional on an actual recessive-to-dominant edge. This prevents spurious synchronization on a dominant-to-recessive-to-dominant glitch within a dominant bit. A further guard, `mac_i.transmitting = '0'`, disables synchronization entirely while the local node is driving the bus.
-
-**Rule c - hard synchronization on demand.** Rather than triggering hard synchronization on the first dominant edge following reset (as the prior implementation did), `can_pcs` accepts a MAC-driven `mac_i.do_hard_sync` signal. When asserted, any qualifying edge triggers a full bit-time restart from `s_prop_seg` with the prescaler and segment counter cleared. This allows the MAC to switch synchronization mode at any point - including at the FDF-to-res transition required by ISO 7.3.5.1(c) - without resetting PCS timing state.
-
-**Rule d - Sync_Seg always traversed.** `s_sync_seg` is an unconditional stop in the segment FSM: `s_phase_seg2` always transitions to `s_sync_seg` at the bit boundary, and `s_sync_seg` always transitions to `s_prop_seg` after 1 TQ. No shortcut paths exist.
+`can_pcs` implements all four sub-claims of REQ-027. Sub-claim 1 (one synchronisation per bit time) is enforced by a `sync_applied` flag that gates the edge-qualify predicate and clears at each sample point. Sub-claim 2 (only R→D edges qualify, previous SP must be recessive, no sync while transmitting) is enforced by `sync_applied` gating sync to the post-SP window, where `rx_bus_prev` holds the SP-sampled value, making the R→D check simultaneously a check on SP polarity. A transmitter guard suppresses sync during TX. Sub-claim 3 (hard sync) is MAC-controlled via `do_hard_sync`, allowing the MAC to select hard sync at the FDF-to-res transition without disturbing PCS timing state. Sub-claim 4 (resync by segment adjustment) adjusts Phase_Seg1 or Phase_Seg2 by up to SJW; errors not exceeding SJW produce the same effect as a hard synchronisation.
 
 ### Dual Bit Rate Switching {#sec:impl-can-pcs-dual-rate}
 
