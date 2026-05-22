@@ -186,7 +186,7 @@ Before committing to an in-house redesign, the available CAN FD controller IP co
 
 **AMD/Xilinx CAN FD** [@xilinx_canfd] is a soft IP core included in the Vivado Design Suite. It provides an AXI4-Lite register interface with up to 32 acceptance filters, TX mailboxes, and RX FIFOs. It is device-locked to AMD/Xilinx FPGAs and cannot be ported to other targets.
 
-**CAST CAN FD** [@cast_canfd] is a technology-independent RTL core licensed per-design with an upfront fee. Synopsys (DesignWare) and Cadence offer similar ASIC-targeted CAN FD cores under their respective IP licensing programs.
+**Technology-independent RTL cores.** CAST CAN FD [@cast_canfd] is a technology-independent CAN FD IP core licensed per-design with an upfront fee. Major EDA vendors including Synopsys (DesignWare) and Cadence offer similar ASIC-targeted cores under commercial licensing programs.
 
 | Implementation | Language | License | Scope | Conformance Tested |
 |---|---|---|---|---|
