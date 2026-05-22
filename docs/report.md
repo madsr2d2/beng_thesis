@@ -209,7 +209,7 @@ None of these solutions satisfies Everllence's combined requirements for safety-
 
 **Integration with existing infrastructure.** Everllence's FPGA designs use a specific Avalon-ST streaming interface for inter-module communication and established conventions for signal naming and module boundaries. A third-party core would require an adaptation layer to bridge its native interface to the existing infrastructure. The in-house design uses Everllence's interface conventions natively, eliminating this integration overhead.
 
-**Platform independence.** The AMD/Xilinx CAN FD core is locked to Xilinx devices. The Bosch M\_CAN and other commercial cores are delivered as technology-specific netlists or encrypted HDL for a particular target. The in-house design is written in portable VHDL-93, synthesizable on any FPGA platform or ASIC process flow, ensuring that the IP remains usable if Everllence changes FPGA vendors.
+**Platform independence.** The AMD/Xilinx CAN FD core is locked to Xilinx devices. The Bosch M\_CAN and other commercial cores are delivered as technology-specific netlists or encrypted HDL for a particular target. The in-house design is written in portable VHDL-93, synthesizable on any FPGA platform ensuring that the IP remains usable if Everllence changes FPGA vendors.
 
 ## Problem Statement {#sec:problem-statement}
 
