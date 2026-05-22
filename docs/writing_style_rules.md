@@ -1,6 +1,8 @@
 # Writing Style Rules
 
 > **CRITICAL: No semicolons (`;`) in prose anywhere. Use periods. No exceptions.**
+>
+> **CRITICAL: No colons (`:`) inside paragraphs. Colons are only warranted before enumerations or bullet lists. Use a period, dash, or restructured clause instead.**
 
 - American English: "acknowledgment", "color", etc.
 - No em dashes (use `-`).

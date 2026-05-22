@@ -38,6 +38,10 @@ Use these terms exactly. Do not drift to synonyms.
 
 ---
 
+## Writing Style
+
+All prose rules are in `docs/writing_style_rules.md`. Read it before editing the report. Critical rules: no semicolons in prose, no colons inside paragraphs (periods, dashes, or restructured clauses instead), American English, no em dashes.
+
 ## Narrative Arc
 
 The report tells a single continuous story. Each section picks up from the previous one's closing promise. Do not break this continuity when editing.
