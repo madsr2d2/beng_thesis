@@ -531,51 +531,37 @@ The verification plan - 38 requirements each classified along five dimensions an
 
 The verification plan classified all 38 requirements along three design-facing dimensions: `layer`, `side`, and `format_applicability`. Two led directly to sound architectural choices. One pointed toward a split TX/RX architecture that was attempted but created more problems than it solved, and was replaced by the unified `can_mac_fsm`.
 
-## Ramifications of the Requirements Model on Initial Design Strategy {#sec:req-design-ramifications}
+## Adopting the ISO 11898-1 Sub-layer Model {#sec:monolithic-vs-layered}
 
-The structure of the requirements model had direct consequences for the initial design strategy, in ways that were not fully anticipated at the outset.
+The `layer` dimension of the verification plan assigns every requirement to a specific ISO 11898-1 sub-layer. Mapping each sub-layer to a dedicated module is therefore the natural decomposition: module boundaries align directly with verification targets, each requirement points unambiguously to the responsible implementation unit, and each module can be exercised in isolation without driving frame-level stimulus through unrelated sub-layers.
 
-The **layer dimension** mapped naturally onto the ISO standard's own layered reference model, making a layered module architecture the obvious implementation strategy. A dedicated hardware module for each layer - MAC, LLC, fault confinement, and PCS - would allow requirements pertaining to a given layer to be verified in isolation. The observability dimension reinforced this directly: black-box requirements mapped cleanly onto port-level stimulus and observation, while white-box requirements pointed toward the need for reference models or direct internal signal observation, both of which are most tractable in a per-module testbench. This was a sound conclusion: the modular architecture proved to be the right design choice.
+## Combined vs. Separated TX/RX Paths {#sec:combined-vs-separated-fsm}
 
-The **format_applicability dimension** had a more constructive effect. Requirements tagged with a specific format subset (CB, CE, FB, FE, or combinations) made explicit which frame variants each protocol mechanism must handle, which in turn shaped two concrete design decisions. First, the MAC FSM needed per-field state granularity rather than per-phase granularity: because different format subsets diverge at specific field boundaries (the IDE/FDF/RES sequence differs between Classic and FD, and between base and extended addressing), encoding those branches in per-field states keeps each state's logic narrow and format-specific transitions visible in the state graph. Second, the LLC-to-MAC streaming interface needed a front-loaded metadata layout - all format flags available before the first ID bit is needed - so that the MAC FSM could determine its branch path without buffering the entire frame. Both decisions are detailed in @sec:per-field-vs-per-phase and @sec:internal-llc-frame-format respectively.
+The `side` dimension of the verification plan classifies each requirement as TX-only, RX-only, or both. Splitting into separate TX and RX paths appeared elegant: TX-side requirements could be verified by exercising `can_mac_tx` in isolation, RX-side requirements by exercising `can_mac_rx` in isolation. The separation also appeared to offer independence - a bug in one path could not corrupt the other's state.
 
-## Architectural Design Decisions {#sec:architectural-design-decisions}
+In practice the split created more problems than it solved. Frame structure is identical regardless of which node is driving - both roles traverse the same sequence of states, with `is_transmitter` changing only a few lines of behavior per state. Any fix to shared behavior must be replicated in both paths with no compiler enforcement that the copies stay in sync.
 
-The ramifications identified above narrowed the design space early: a layered architecture was well-motivated by the requirements model, and a unified FSM proved necessary once the split-path approach was attempted. The primary inputs were the existing in-house CAN Classic controller (@sec:existing-controller) and the ISO 11898-1 standard's own layered reference model [@iso11898_1]. CTU CAN FD [@ctucanfd] is noted as an existing open-source CAN FD implementation but was not used as a design reference.
+A split path also requires a complete set of protocol hardware per side: each path needs its own bit stuffer and CRC engine, putting two instances of `can_mac_bs` and `can_mac_crc` on the device where one of each suffices. As shown in @fig:can-node-architecture, the unified design shares a single instance of each.
 
-### Adopting the ISO 11898-1 Sub-layer Model {#sec:monolithic-vs-layered}
+A further cost is debugging complexity. Single-bit-time bugs require a single-bit-time view of the frame position - but with two parallel paths, tracing any discrepancy requires correlating TX state, TX bit count, RX state, RX bit count, bit stuffer state on both sides, and CRC state on both sides simultaneously.
 
-The existing controller already has a modular structure: a coordinating frame FSM, a bit stuffer, a CRC engine, a serializer, and a PCS equivalent for bit timing. The functional decomposition is sound. What it lacks is alignment with the ISO 11898-1 sub-layer model - specifically, fault confinement logic (TEC/REC management and node state transitions) is implemented within the main frame FSM process rather than as an independently testable entity.
+The unified TX/RX path - `can_mac_fsm` with a single `is_transmitter` flag and shared `can_mac_bs` and `can_mac_crc` instances - eliminates all three costs. The `side` dimension maps onto testbench configuration, not hardware boundaries: TX-only requirements are verified with `is_transmitter = true` stimulus, RX-only with `is_transmitter = false`.
 
-For CAN Classic with a single bit rate and two addressing variants, this coupling is workable. CAN FD changes the picture: dual bit rates, three CRC polynomials, fixed bit stuffing with SBC encoding, and FD-specific control fields across six bus frame types substantially increase the complexity of every FSM state. With fault confinement embedded in that FSM, isolating and verifying the TEC/REC counter rules becomes difficult - any fault confinement test must also drive a full frame sequence through the FSM to exercise it.
+## Per-Field FSM Granularity {#sec:per-field-vs-per-phase}
 
-The approach adopted here is to follow the ISO 11898-1 sub-layer model explicitly, mapping each sub-layer to a dedicated module with a well-defined interface. The FCE becomes a standalone entity that receives error and success events from the MAC and can be exercised in isolation - `can_fce_tb` drives all counter-update rules directly without any frame-level stimulus. The explicit sub-layer boundaries also give the design direct traceability from module to standard: requirements assigned to a given layer (@sec:req-design-ramifications) point unambiguously to the corresponding module as the responsible implementation unit. This decomposition introduces inter-module interfaces and pipeline latency, but confines each concern to the sub-layer where it belongs.
+The `format_applicability` dimension of the verification plan expresses requirements at the level of individual protocol fields: a requirement applies to a specific field in a specific set of frame formats. The natural FSM granularity is therefore one state per protocol field. With this structure, format-dependent transitions become state graph edges rather than counter conditionals inside a shared state, each requirement maps directly to a named FSM state, and testbench assertions can reference states rather than bit-count ranges. The detailed state graph is described in @sec:impl-can-mac-fsm.
 
-### Combined vs. Separated TX/RX FSMs {#sec:combined-vs-separated-fsm}
+## LLC Frame Format {#sec:llc-frame-format}
 
-The initial design for the new MAC used **separate TX and RX FSMs**: `can_mac_fsm_tx` (~700 lines, 21 states) wrapped inside `can_mac_tx`, and `can_mac_fsm_rx` (~640 lines, 19 states) wrapped inside `can_mac_rx`. Each wrapper instantiated its own `can_mac_bs` and `can_mac_crc`. The two FSMs shared no state. The only coupling was a `transmitting_i` flag passed from TX to RX, and a dominant-wins OR-merge of their respective PCS outputs at the `can_mac` wrapper level.
+### Host-LLC Interface Format {#sec:host-llc-frame-format}
 
-The argument for the split was grounded in the verification plan structure. The AI-assisted extraction described in @sec:ai-extraction had classified each requirement by side (TX, RX, both), layer, and frame format. Mapping that classification onto separate entities looked elegant: TX-side requirements would be verified by exercising `can_mac_tx` in isolation, RX-side requirements by exercising `can_mac_rx` in isolation, with no cross-path stimulus needed. The separation also appeared to offer independence - a bug in one path could not corrupt the other's state.
+All six bus frame types (CB, CE, FB, FE data frames, and remote frames for CB and CE) are represented at the host-LLC interface using the 71-byte LLC frame format shown in @fig:llc-frame. The layout extends the existing CAN Classic controller's LLC frame format: bytes 0-3 carry the identifier, byte 4 carries frame type and DLC, and data begins at byte 5 - matching the field positions used by the prior implementation. The extension adds 56 additional data bytes (bytes 5-68, zero-padded to 64 bytes) and two trailing flag bytes (bytes 69-70) carrying IDE, BRS, ESI, and RTR, so host software requires no change to the fields it already uses.
 
-In practice the split created more problems than it solved. Frame structure - the field ordering, the bit stuffing rules, and the CRC polynomials - is identical regardless of which node is driving. Both roles traverse the same sequence of states. `is_transmitter` changes only a few lines of behavior within each state. In a split design all 19 states must therefore be present in both entities, and a fix to any shared behavior - FD CRC delimiter handling, error-flag polarity, bit count initialization - must be replicated in both FSMs with no compiler enforcement that the copies stay in sync. The doubled submodule footprint similarly doubled investigation surface: every "is the bit stuffer handling fixed stuffing correctly?" question had to be answered for two independent instances. Two further structural costs compound the duplication. A transmitter must monitor the bus for bit errors and arbitration loss - nearly the same observation logic the receiver uses - so the TX FSM would have duplicated the RX FSM's core bus-observation loop regardless of how the rest of the logic was split. And both FSMs can raise errors to the FCE simultaneously, requiring the FCE interface to arbitrate between duplicate error and success signals to avoid double-counting counter updates.
-
-A further cost is debugging complexity. Single-bit-time bugs require a single-bit-time view of the frame position - but with two parallel FSMs, tracing any discrepancy requires correlating TX FSM state, TX bit count, RX FSM state, RX bit count, bit stuffer state on both sides, and CRC state on both sides simultaneously. Two independent state vectors that re-derive the same frame position independently double the investigation surface for every bug, with no compiler enforcement that the two derivations stay in sync.
-
-The deeper lesson concerns the relationship between verification plan structure and RTL structure. Verification plan dimensions - TX/RX side, layer, frame format - are inputs to **testbench architecture**, not to RTL architecture. They describe what must be tested and what stimulus configuration is needed to test it. RTL architecture should follow the structure of the protocol itself.
-
-The **final design** uses a single unified `can_mac_fsm` entity: one main FSM process (`p_fsm`), one `t_fsm_state` enum (19 states), one shared `can_mac_bs`, one shared `can_mac_crc`, and one `is_transmitter` mode flag latched at Start-of-Frame. TX-only requirements are verified with `is_transmitter = true` stimulus, RX-only with `is_transmitter = false` - the verification plan dimensions map cleanly onto testbench configurations rather than onto separate RTL entities.
-
-### Per-Field vs. Per-Phase FSM Granularity {#sec:per-field-vs-per-phase}
-
-The existing controller uses coarse-grained states that each cover multiple protocol fields: `s_arbitration` covers all ID bits, SRR, IDE, and RTR. `s_control` covers the reserved bit and DLC. `s_data` covers all data bytes. Within each state, a bit counter and conditional logic dispatch the correct action for each bit position. The FSM has 18 states.
-
-The new FSM largely shares this structure. `s_arbitration` and `s_data` retain counter-driven logic for the same reason: both cover multi-bit fields with no per-bit semantic distinction. The meaningful change is in how format-specific single-bit fields are handled. Rather than folding FDF, RES, BRS, ESI, and SBC into a shared control state dispatched by counter, each gets a dedicated state. The same split applies to delimiter fields: `s_crc_delimiter` and `s_ack_delimiter` are separated from `s_crc` and `s_ack`. Format-dependent transitions become state graph edges - `s_fdf_r1_r0` transitions to `s_dlc` for Classic frames or to `s_res_r0` then `s_brs` for FD frames - rather than counter conditionals inside a shared state. The error frame sequence is simplified from five states to two (`s_error_flag`, `s_error_delimiter`), with fault confinement logic moved to the standalone `can_fce` entity. The result is 19 states - one more than the prior implementation - with counter logic confined to the fields that genuinely require it.
-
-This structure aligns with the verification plan: FD-specific fields map directly to FSM states, and each state can be traced to its corresponding requirements. It also simplifies testbench assertions, since checks can reference named states rather than counter ranges.
+![LLC frame format (71 bytes) at the host-LLC interface, with identifier byte mapping for base and extended IDs.](figures/llc_frame.png){#fig:llc-frame width=100%}
 
 ### Internal LLC Frame Format {#sec:internal-llc-frame-format}
 
-The user-facing LLC frame (shown in @fig:llc-frame) places all control flags at the end of the frame: FDF, BRS, and ESI occupy byte 69, and IDE and RTR occupy byte 70 - after up to 64 bytes of payload. A serializer that consumed the LLC frame in field order would need to buffer the entire 71-byte frame before it could begin transmitting, because IDE determines how many ID bits to drive (11 or 29), FDF determines which CRC polynomial and stuffing mode to use, and BRS determines whether to signal the PCS to switch bit rate at the BRS boundary. This buffering requirement conflicts with the streaming architecture.
+The host-LLC format places all control flags at the end of the frame: FDF, BRS, and ESI occupy byte 69, and IDE and RTR occupy byte 70 - after up to 64 bytes of payload. A serializer that consumed this stream in field order would need to buffer the entire 71-byte frame before it could begin transmitting, because IDE determines how many ID bits to drive (11 or 29), FDF determines which CRC polynomial and stuffing mode to use, and BRS determines whether to signal the PCS to switch bit rate at the BRS boundary. This buffering requirement conflicts with the streaming architecture.
 
 The design avoids this by defining a separate internal format for the MAC-facing stream, shown in @fig:llc-frame-int. All frame metadata is packed into two leading config bytes, followed by the ID and data bytes. With this layout, `can_mac_ser` extracts all frame metadata after receiving just two bytes and can begin streaming ID bits from the third byte onward. No frame buffering is needed: the MAC FSM receives each metadata field before it is required in the frame field sequence.
 
@@ -586,53 +572,6 @@ The design avoids this by defining a separate internal format for the MAC-facing
 @fig:can-node-architecture shows the complete module decomposition. The primary data path runs from `can_llc` through `can_mac` to `can_pcs`: the LLC receives frames from the host over an Avalon-ST interface and streams them byte-by-byte to the MAC serializer. The MAC FSM drives the serialized bit stream to the PCS, which applies bit timing and produces the sample-point and SSP strobes that the MAC uses to read and write the bus. `can_fce` sits outside the primary data path, receiving error and success events from the MAC and feeding node-state signals (error active, bus off) back to both the MAC and PCS. The PCS additionally pulses `can_fce` with idle conditions to drive bus-off recovery. A centralized types package (`pk_can_types`) defines all protocol constants, interface records, and reset values shared across modules.
 
 ![Implementation module decomposition showing the five entities and their inter-module connections.](figures/mac_overview.png){#fig:can-node-architecture height=45%}
-
-
-## LLC Frame Format {#sec:llc-frame-format}
-
-All six bus frame types (CB, CE, FB, FE data frames, and remote frames for CB and CE) are represented at the host-LLC interface using the 71-byte LLC frame format shown in @fig:llc-frame. The LLC frame maps all in-scope variants into a fixed-width structure compatible with the Avalon-ST streaming interface, distinguishing remote frames via the FTYP bit in byte 70.
-
-![LLC frame format (71 bytes) at the host-LLC interface, with identifier byte mapping for base and extended IDs.](figures/llc_frame.png){#fig:llc-frame width=100%}
-
-## LLC Sub-layer {#sec:llc-sub-layer}
-
-`can_llc` provides the Avalon-ST host interface and owns two protocol responsibilities above the MAC layer: retransmission management and acceptance filtering.
-
-On the TX path, `can_llc` buffers one LLC frame from the host, streams it byte-by-byte to `can_mac_ser`, and monitors the transfer status returned by the MAC. On disturbance or lost arbitration, it retries transmission before reporting failure to the host [@iso11898_1, sec. 6.4.5 and 6.5]. The MAC reports each outcome (transmitted, aborted, lost arbitration, disturbed). `can_llc` owns the retry counter and policy - the MAC is stateless with respect to retry.
-
-On the RX path, `can_llc` receives completed LLC frames from `can_mac_fsm` over the Avalon-ST interface, applies acceptance filtering against the configured ID mask, and forwards accepted frames to the host [@iso11898_1, sec. 6.4.5]. Frames that do not pass the filter are silently dropped.
-
-The interface contracts `can_llc` must satisfy are captured in REQ-001 through REQ-005 and REQ-032. The module is not yet implemented.
-
-## MAC Sub-layer {#sec:mac-sub-layer}
-
-The MAC sub-layer is the core of the protocol logic, responsible for bit serialization, CRC generation, bit stuffing, and frame-level error detection. It is implemented as a single unified `can_mac_fsm` entity, supported by three internal submodules (`can_mac_ser`, `can_mac_bs`, `can_mac_crc`) and wrapped by `can_mac`, which is a structural entity exposing the LLC and PCS interfaces. `can_mac`, `can_fce`, and `can_pcs` are then combined in the `can_mac_pcs_fce` wrapper. It coordinates closely with the FCE (@sec:fce-sub-layer) for error counter management and node-state transitions (error active/error passive/bus off), and with the PCS (@sec:pcs-sub-layer) for sample-point-driven bit output.
-
-### `can_mac_fsm` {#sec:can-mac-fsm}
-
-`can_mac_fsm` is a 19-state per-field FSM that handles both frame transmission and frame reception. An `is_transmitter` flag latched at SOF partitions per-state logic into TX and RX branches without duplicating the state graph. In TX mode, the FSM drives bits through the PCS at each bit-boundary strobe, monitors the bus echo for bit errors and arbitration loss, and feeds the bit stuffer and CRC engine. In RX mode, it observes sampled bus bits, performs destuffing, accumulates the CRC, validates form fields, drives the ACK slot, and streams the completed frame to the LLC during intermission. Errors in either mode branch to a two-state error-frame sequence (`s_error_flag`, `s_error_delimiter`). Detailed implementation is described in @sec:impl-can-mac-fsm.
-
-### `can_mac_ser` {#sec:can-mac-ser}
-
-`can_mac_ser` converts the LLC byte stream into a serial polarity bit stream for the MAC FSM. It manages the two-byte configuration handshake (see @sec:internal-llc-frame-format), extracts LLC metadata (IDE, FDF, DLC, FTYP, BRS, ESI) from the config bytes, and serializes ID and data bits one per FSM ready pulse. Detailed implementation is described in @sec:impl-can-mac-ser.
-
-### `can_mac_bs` {#sec:can-mac-bs}
-
-`can_mac_bs` implements both dynamic and fixed bit stuffing for CAN Classic and CAN FD frames [@iso11898_1, sec. 10.6], used for both TX stuffing and RX destuffing via the FSM's `is_transmitter` mode. In dynamic mode, it inserts an inverse-polarity bit after five consecutive identical bits. In fixed mode (FD CRC region), it inserts one bit on entry then one every four bits, and maintains a Gray-coded stuff-bit count with parity for the SBC field. Detailed implementation is described in @sec:impl-can-mac-bs.
-
-### `can_mac_crc` {#sec:can-mac-crc}
-
-`can_mac_crc` runs three parallel `gen_crc` instances - CRC-15, CRC-17, and CRC-21 - on two independent data feeds: `data_cc` (destuffed, for Classic frames) and `data_fd` (includes dynamic stuff bits up to and including the data field, for FD frames). The active engine is selected by `crc_poly_select` and its result is left-aligned to a common 21-bit output. Detailed implementation is described in @sec:impl-can-mac-crc.
-
-## FCE Sub-layer {#sec:fce-sub-layer}
-
-`can_fce` implements the error FSM and counter management specified in ISO 11898-1 [@iso11898_1, sec. 8.1.3-8.1.4]. It maintains TEC and REC and transitions between three states: `s_error_active` (initial), `s_error_passive` (TEC or REC > 127), and `s_bus_off` (TEC > 255). Counter increment and decrement rules follow [@iso11898_1, sec. 8.1.4.2]. Bus-off recovery counts 128 `pcs_i.idle_condition` pulses from the PCS (11 consecutive recessive bits each). `llc_i.normal_mode` is a supervisory reset per ISO 11898-1 that the LLC may assert from any node state to immediately reset TEC, REC, and the FCE FSM to their initial values. Detailed implementation is described in @sec:impl-can-fce.
-
-## PCS Sub-layer {#sec:pcs-sub-layer}
-
-`can_pcs` handles bit timing, hard synchronization and resynchronization, and Transmitter Delay Compensation (TDC) for both TX and RX paths [@iso11898_1, sec. 7.2-7.3]. It is a cyclic bit-timing engine: a `t_segment` register cycles through `s_sync_seg`, `s_prop_seg`, `s_phase_seg1`, and `s_phase_seg2` each bit time. The SP strobe fires at the end of `s_phase_seg1`. Hard synchronization restarts the cycle on a dominant edge in `s_sync_seg`. Resynchronization adjusts `s_phase_seg1` or `s_phase_seg2` by up to SJW. At the BRS sample point the PCS switches to the independently configured data-phase segment lengths. TDC measures the TX-to-RX echo delay at the first data-phase bit and positions the SSP accordingly. When bus-off is asserted, the PCS counts consecutive recessive bits and pulses `fce_o.idle_condition` every 11 bits for FCE recovery. Detailed implementation is described in @sec:impl-can-pcs.
-
-The decomposition described above yields six implemented entities - `can_mac_fsm`, `can_mac_ser`, `can_mac_bs`, `can_mac_crc`, `can_fce`, and `can_pcs` - plus `can_mac` and `can_mac_pcs_fce` as structural wrappers and `can_llc` as the one module not yet implemented. @sec:implementation covers the implementation of each entity in turn, ordered MAC-first.
 
 # Implementation {#sec:implementation}
 
