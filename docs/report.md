@@ -218,8 +218,8 @@ The architectural limitations of the existing controller (@sec:existing-limitati
 ## Objectives {#sec:objectives}
 
 - Implement a CAN/CAN FD protocol controller in VHDL, compliant with ISO 11898-1 [@iso11898_1] and supporting the CB, CE, FB, and FE frame formats.
-- Structure the design around the ISO 11898-1 sub-layer model (LLC, MAC, PCS, FCE) to enable independent module-level verification.
-- Derive and verify a structured set of requirements with traceability from ISO 11898-1 to testbench results.
+- Achieve independent module-level verifiability by decomposing the design along ISO 11898-1 sub-layer boundaries (LLC, MAC, PCS, FCE).
+- Establish a structured requirements framework with traceability from ISO 11898-1 to testbench evidence, covering all implemented modules.
 - Produce an RTL design integrated via Avalon-ST interfaces into Everllence's existing FPGA infrastructure.
 
 The source files, testbenches, verification plan, and tooling accompanying this document are listed in @sec:appendix-artifacts.
