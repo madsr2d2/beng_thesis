@@ -27,6 +27,7 @@ Use these terms exactly. Do not drift to synonyms.
 | fixed stuffing | Insert stuff bit at fixed intervals in FD CRC region, with SBC field | "static stuffing" |
 | SBC | Stuff Bit Count - Gray-coded, with parity, transmitted in FD CRC region | "stuff count" |
 | TDC | Transmitter Delay Compensation - PCS measures TX-to-RX echo delay, positions SSP | "delay compensation" |
+| transceiver loop delay | The delay from the transmitter driving a bit through the transceiver and bus back to the receiver input - the quantity TDC measures and compensates | "round-trip delay", "loop-back delay", "propagation delay" |
 | SSP | Secondary Sample Point - used instead of SP for bit-error monitoring in FD data phase | "secondary sample" |
 | SP | Sample point - fires at end of PHASE_SEG1 | "sample strobe" |
 | REQ-NNN | Requirement identifier in `verification_plan/verification_plan.toml` | "requirement N", "req N" |
