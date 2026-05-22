@@ -479,7 +479,7 @@ paraphrase = "1) Separate nominal and FD data bit rate configurations, each base
 side = "both"
 layer = "PCS"
 format_applicability = "CB, CE, FB, FE"
-notes = "Deployment constraints on the system (not RTL behaviors): prop_seg shall be programmed ≥ t_node(A) + t_node(B) + 2 × t_busline (§7.3.2). SJW shall not exceed min(Phase_Seg1, Phase_Seg2) in either phase (§7.3.2). FD data phase: Phase_Seg2 shall be programmed ≥ SJW and ≥ maximum IPT (§7.3.3). Oscillator tolerance df shall satisfy df < SJW / (20 × t_bit) and df < min(Phase_Seg1, Phase_Seg2) / (2 × (13 × t_bit − Phase_Seg2)) (§7.3.6). Minimum configuration ranges (Table 13, §7.3.3): prescaler m = 1 to 32 (shared). Sync_Seg = 1 tq. Prop_Seg = 1 to 384 tq (nominal), 0 to 128 tq (FD). Phase_Seg1 = 1 to 128 tq. Phase_Seg2 = 2 to 128 tq. SJW = 1 to 128 tq. SSP offset = not applicable (nominal), 1 to 160 tq,min (FD). At minimum prescaler m=1, t_q = t_q,min = 1 system clock period, so IPT ≤ 2 tq = 2 system clock cycles."
+notes = "Deployment constraints on the system, not RTL behaviors: prop_seg, SJW, Phase_Seg2, and oscillator tolerance must be programmed to meet the bounds in §7.3.2, §7.3.3, and §7.3.6. Minimum configuration ranges are given in Table 13 (§7.3.3)."
 coverage_criteria = ""
 label = "test_normal"
 file = "src/can_pcs/hdl_tb/can_pcs_tb.vhd"
