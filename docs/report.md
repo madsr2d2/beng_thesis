@@ -144,6 +144,8 @@ Readers familiar with CAN and CAN FD may skip @sec:can-classic, @sec:can-fd-back
 
 Source files, testbenches, verification plan, and tooling accompanying this document are listed in @sec:appendix-artifacts.
 
+\clearpage
+
 # Introduction {#sec:introduction}
 
 Industrial control systems for large marine engines demand communication protocols that combine fault tolerance, multi-master arbitration, and multi-decade service reliability. The Controller Area Network meets these demands, but as control system data requirements grow the bandwidth and payload limits of CAN Classic have become a bottleneck.
