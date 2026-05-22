@@ -138,7 +138,7 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 
 # Introduction {#sec:introduction}
 
-Industrial control systems for large marine engines demand communication protocols that combine fault tolerance, multi-master arbitration, and multi-decade service reliability. The Controller Area Network has served that role at Everllence for the current generation of engine controllers, but as control system data requirements grow the bandwidth and payload limits of CAN Classic have become a bottleneck.
+Industrial control systems for large marine engines demand communication protocols that combine fault tolerance, multi-master arbitration, and multi-decade service reliability. The Controller Area Network meets these demands, but as control system data requirements grow the bandwidth and payload limits of CAN Classic have become a bottleneck.
 
 ## Motivation {#sec:motivation}
 
