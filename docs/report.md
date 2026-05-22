@@ -164,13 +164,13 @@ While the existing controller is functional for CAN Classic, several areas of th
 
 **Single CRC engine.** The controller has a single CRC engine. CAN FD requires three polynomials - CRC-15 for Classic frames, CRC-17 for FD frames with payloads up to 16 bytes, and CRC-21 for larger payloads (@sec:crc-overview). A compliant receiver must run all three engines in parallel, since the correct polynomial depends on DLC and is not known until the control field is decoded. The data feed also differs between Classic and FD frames, requiring separate accumulation paths.
 
-**Coupled fault confinement.** Error counting (TEC/REC) and node state transitions are implemented in the same source file as the frame FSM, with no clean sub-layer boundary between them (@sec:error-model). ISO 11898-1 defines fault confinement as a distinct cross-cutting entity, and separating it as an independently testable module both conforms closer to the standard's reference model and simplifies verification.
+**Coupled fault confinement.** Error counting (TEC/REC) and node state transitions are implemented in the same source file as the frame FSM, with no clean sub-layer boundary between them (@sec:error-model). ISO 11898-1 defines fault confinement as a distinct cross-cutting entity, and separating it as an independently testable module both conforms closer to the standard's reference model (@sec:can-layered-model) and simplifies verification.
 
 **Format-dependent frame structure.** CAN Classic and CAN FD frames diverge in the control and data phases, where FD introduces format-specific fields with no Classic equivalent (@sec:frame-types). The existing FSM has no clean mechanism to handle this divergence across four frame variants.
 
 ### Decision to Redesign {#sec:decision-to-redesign}
 
-The rework required across bit timing, bit stuffing, CRC, and frame format complexity - supporting four frame variants with FD-specific control fields across both TX and RX paths - is large enough to justify a clean-slate redesign structured around the ISO 11898-1 layered architecture (LLC, MAC, PCS, FCE) with independently testable subcomponents, rather than retrofitting FD support onto a design not originally built with those boundaries.
+The rework required across bit timing, bit stuffing, CRC, and frame format complexity is large enough to justify a clean-slate redesign structured around the ISO 11898-1 layered architecture (LLC, MAC, PCS, FCE) with independently testable subcomponents, rather than retrofitting FD support onto a design not originally built with those boundaries.
 
 ## Existing CAN FD IP Cores {#sec:existing-ip-cores}
 
