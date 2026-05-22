@@ -63,10 +63,13 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 | CANH | CAN High bus wire |
 | CANL | CAN Low bus wire |
 | CB | Classic Base (frame format) |
+| CBFF | Classic Base Frame Format |
 | CC | CAN Classic |
 | CD | CRC Delimiter |
 | CE | Classic Extended (frame format) |
+| CEFF | Classic Extended Frame Format |
 | CRC | Cyclic Redundancy Check |
+| DF | Data Frame |
 | DLC | Data Length Code |
 | DMA | Direct Memory Access |
 | DUT | Device Under Test |
@@ -74,10 +77,12 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 | EOF | End of Frame |
 | ESI | Error State Indicator |
 | FB | FD Base (frame format) |
+| FBFF | FD Base Frame Format |
 | FCE | Fault Confinement Entity |
 | FD | Flexible Data Rate |
 | FDF | FD Frame bit |
 | FE | FD Extended (frame format) |
+| FEFF | FD Extended Frame Format |
 | FPGA | Field-Programmable Gate Array |
 | FSB | Fixed Stuff Bit |
 | FSM | Finite State Machine |
@@ -104,6 +109,7 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 | PS | Propagation Segment (PROP_SEG) |
 | PS1 | Phase Segment 1 (PHASE_SEG1) |
 | PS2 | Phase Segment 2 (PHASE_SEG2) |
+| RF | Remote Frame |
 | RRS | Reserved Remote Request Substitution bit (FD frames) |
 | RTL | Register Transfer Level |
 | RTR | Remote Transmission Request |
