@@ -193,7 +193,7 @@ Before committing to an in-house redesign, the available CAN FD controller IP co
 | CTU CAN FD [@ctucanfd] | VHDL | MIT | Full node (TX+RX, buffers, DMA) | ISO 16845-1 |
 | Bosch M\_CAN [@bosch_mcan] | HDL (non-disclosure agreement) | Per-design royalty | Full node | Yes (reference) |
 | AMD/Xilinx CAN FD [@xilinx_canfd] | HDL | Vivado-included | Full node | Yes |
-| CAST CAN FD [@cast_canfd] | RTL | Per-design fee | Full node | Yes |
+| CAST CAN FD [@cast_canfd] | HDL | Per-design fee | Full node | Yes |
 
 : Survey of available CAN FD controller IP cores. {#tbl:canfd-ip-survey}
 
