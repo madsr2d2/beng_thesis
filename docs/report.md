@@ -537,13 +537,13 @@ The `layer` dimension of the verification plan assigns every requirement to a sp
 
 ## Combined vs. Separated TX/RX Paths {#sec:combined-vs-separated-fsm}
 
-The `side` dimension of the verification plan classifies each requirement as TX-only, RX-only, or both. Splitting into separate TX and RX paths appeared elegant: TX-side requirements could be verified by exercising `can_mac_tx` in isolation, RX-side requirements by exercising `can_mac_rx` in isolation. In practice the split created more problems than it solved. Frame structure is identical regardless of which node is driving - both TX and RX nodes traverse the same sequence of frame-derived states. In addition, any fix to shared behavior must be replicated in both paths.
+The `side` dimension classifies each requirement as TX-only, RX-only, or both - making separate TX and RX paths appear natural: each could be exercised independently. In practice the split created more problems than it solved.
 
-A split path also requires a complete set of protocol hardware per side: each path needs its own bit stuffer and CRC engine, putting two instances of `can_mac_bs` and `can_mac_crc` on the device where one of each suffices. As shown in @fig:can-node-architecture, the unified design shares a single instance of each.
+A split path duplicates both code and hardware. Shared protocol logic must exist in both paths, and each path needs its own bit stuffer and CRC engine - putting two instances of `can_mac_bs` and `can_mac_crc` on the device where one of each suffices. As shown in @fig:can-node-architecture, the unified design shares a single instance of each.
 
-A further cost is debugging complexity. Single-bit-time bugs require a single-bit-time view of the frame position - but with two parallel paths, tracing any discrepancy requires correlating TX state, TX bit count, RX state, RX bit count, bit stuffer state on both sides, and CRC state on both sides simultaneously.
+A further cost is implementation and debugging complexity. Developing the two paths sequentially, solutions to shared protocol logic tended to diverge between implementations with no protocol justification. Debugging similarly doubles the investigation surface - tracing a bug requires reading two independent sets of waveforms.
 
-The unified TX/RX path - `can_mac_fsm` with a single `is_transmitter` flag and shared `can_mac_bs` and `can_mac_crc` instances - eliminates all three costs. The `side` dimension maps onto testbench configuration, not hardware boundaries: TX-only requirements are verified with `is_transmitter = true` stimulus, RX-only with `is_transmitter = false`.
+The unified TX/RX path - a single `can_mac_fsm` with shared `can_mac_bs` and `can_mac_crc` instances - eliminates all three costs. Shared protocol logic exists once, preventing implementation drift. Debugging involves a single FSM and a single set of waveforms.
 
 ## Per-Field FSM Granularity {#sec:per-field-vs-per-phase}
 
