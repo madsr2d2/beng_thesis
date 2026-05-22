@@ -683,7 +683,7 @@ label = ""
 file = ""
 observability = "white_box"
 verification_method = "code_inspection"
-priority = "P2"
+priority = "P1"
 status = "not_started"
 group_title = "MAC data consistency"
 
