@@ -158,7 +158,7 @@ The central component is the orchestrating FSM that handles both transmission an
 
 While the existing controller is functional for CAN Classic, several areas of the existing design would require significant rework to support CAN FD. Readers unfamiliar with the protocol details referenced below are referred to @sec:can-protocol-overview.
 
-**Single bit rate domain.** The bit timing generator produces a single pair of timing strobes derived from a fixed set of bit timing parameters. CAN FD requires switching between a nominal bit rate (used during arbitration) and a faster data bit rate (used during the data phase), with Transmitter Delay Compensation (TDC) to account for the transceiver round-trip delay at the higher rate. Adding dual bit rate support and TDC would require a fundamental redesign of the timing architecture.
+**Single bit rate domain.** The bit timing generator produces a single pair of timing strobes derived from a fixed set of bit timing parameters. CAN FD requires switching between a nominal bit rate (used during arbitration) and a faster data bit rate (used during the data phase), with Transmitter Delay Compensation (TDC) to account for the transceiver loop delay at the higher rate. Adding dual bit rate support and TDC would require a fundamental redesign of the timing architecture.
 
 **Dynamic bit stuffing only.** The bit stuffer implements the CAN Classic rule of inserting an inverse bit after five consecutive identical bits. CAN FD introduces a second stuffing mode - fixed bit stuffing - where a stuff bit is inserted at fixed intervals during the CRC field, and a Stuff Bit Count (SBC) field with Gray-coded parity is appended. The existing stuffer has no mechanism for mode switching or SBC generation.
 
