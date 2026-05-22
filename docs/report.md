@@ -170,7 +170,7 @@ While the existing controller is functional for CAN Classic, several areas of th
 
 ### Decision to Redesign {#sec:decision-to-redesign}
 
-The rework required across bit timing, bit stuffing, CRC, and frame format complexity is large enough to justify a clean-slate redesign structured around the ISO 11898-1 layered architecture (LLC, MAC, PCS, FCE) with independently testable subcomponents, rather than retrofitting FD support onto a design not originally built with those boundaries.
+The rework required across bit timing, bit stuffing, CRC, and frame format complexity is large enough to justify a clean-slate redesign structured around the ISO 11898-1 layered architecture (LLC, MAC, PCS, FCE, @sec:can-layered-model) with independently testable subcomponents, rather than retrofitting FD support onto a design not originally built with those boundaries.
 
 ## Existing CAN FD IP Cores {#sec:existing-ip-cores}
 
