@@ -156,17 +156,17 @@ The central component is the orchestrating FSM that handles both transmission an
 
 ### Limitations {#sec:existing-limitations}
 
-While the existing controller is functional for CAN Classic, several areas of the existing design would require significant rework to support CAN FD. Readers unfamiliar with the protocol details referenced below are referred to @sec:can-protocol-overview.
+While the existing controller is functional for CAN Classic, several areas of the existing design would require significant rework to support CAN FD.
 
-**Single bit rate domain.** CAN FD requires switching between a nominal bit rate (used during the arbitration phase) and a faster data bit rate (used during the data phase), with Transmitter Delay Compensation (TDC) to account for the transceiver loop delay at the higher rate. Adding dual bit rate support and TDC would require a fundamental redesign of the timing architecture.
+**Single bit rate domain.** CAN FD requires switching between a nominal bit rate (used during the arbitration phase) and a faster data bit rate (used during the data phase), with Transmitter Delay Compensation (TDC) to account for the transceiver loop delay at the higher rate (@sec:bit-timing). Adding dual bit rate support and TDC would require a fundamental redesign of the timing architecture.
 
-**Dynamic bit stuffing only.** The bit stuffer implements the CAN Classic rule of inserting an inverse bit after five consecutive identical bits. CAN FD introduces a second stuffing mode - fixed bit stuffing - where a stuff bit is inserted at fixed intervals during the CRC field, and a Stuff Bit Count (SBC) field with Gray-coded parity is appended. The existing stuffer has no mechanism for mode switching or SBC generation.
+**Dynamic bit stuffing only.** The bit stuffer implements the CAN Classic rule of inserting an inverse bit after five consecutive identical bits. CAN FD introduces a second stuffing mode - fixed bit stuffing - where a stuff bit is inserted at fixed intervals during the CRC field, and a Stuff Bit Count (SBC) field with Gray-coded parity is appended (@sec:bit-stuffing). The existing stuffer has no mechanism for mode switching or SBC generation.
 
-**Single CRC engine.** The controller has a single CRC engine. CAN FD requires three polynomials - CRC-15 for Classic frames, CRC-17 for FD frames with payloads up to 16 bytes, and CRC-21 for larger payloads. A compliant receiver must run all three engines in parallel, since the correct polynomial depends on DLC and is not known until the control field is decoded. The data feed also differs between Classic and FD frames, requiring separate accumulation paths.
+**Single CRC engine.** The controller has a single CRC engine. CAN FD requires three polynomials - CRC-15 for Classic frames, CRC-17 for FD frames with payloads up to 16 bytes, and CRC-21 for larger payloads (@sec:crc-overview). A compliant receiver must run all three engines in parallel, since the correct polynomial depends on DLC and is not known until the control field is decoded. The data feed also differs between Classic and FD frames, requiring separate accumulation paths.
 
-**Coupled fault confinement.** Error counting (TEC/REC) and node state transitions are implemented in the same source file as the frame FSM, with no clean sub-layer boundary between them. ISO 11898-1 defines fault confinement as a distinct cross-cutting entity, and separating it as an independently testable module both conforms closer to the standard's reference model and simplifies verification.
+**Coupled fault confinement.** Error counting (TEC/REC) and node state transitions are implemented in the same source file as the frame FSM, with no clean sub-layer boundary between them (@sec:error-model). ISO 11898-1 defines fault confinement as a distinct cross-cutting entity, and separating it as an independently testable module both conforms closer to the standard's reference model and simplifies verification.
 
-**Format-dependent frame structure.** CAN Classic and CAN FD frames diverge in the control and data phases, where FD introduces format-specific fields with no Classic equivalent. The existing FSM has no clean mechanism to handle this divergence across four frame variants.
+**Format-dependent frame structure.** CAN Classic and CAN FD frames diverge in the control and data phases, where FD introduces format-specific fields with no Classic equivalent (@sec:frame-types). The existing FSM has no clean mechanism to handle this divergence across four frame variants.
 
 ### Decision to Redesign {#sec:decision-to-redesign}
 
