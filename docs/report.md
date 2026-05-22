@@ -136,6 +136,14 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 \clearpage
 ```
 
+# Reading Guide {-}
+
+The report is structured in two parts. The first establishes context: the Introduction motivates the project and states the objectives; the Background (@sec:background) and Protocol Overview (@sec:can-protocol-overview) provide technical foundations on CAN, CAN FD, and the VHDL/OSVVM toolchain. The second part is the technical contribution: Requirements, Verification Plan, Design and Architecture, Implementation, Verification and Results, and Synthesis form the core chapters, followed by Discussion and Conclusion.
+
+Readers familiar with CAN and CAN FD may skip @sec:can-classic, @sec:can-fd-background, and @sec:can-protocol-overview. Readers familiar with VHDL and OSVVM may skip @sec:vhdl-osvvm.
+
+Source files, testbenches, verification plan, and tooling accompanying this document are listed in @sec:appendix-artifacts.
+
 # Introduction {#sec:introduction}
 
 Industrial control systems for large marine engines demand communication protocols that combine fault tolerance, multi-master arbitration, and multi-decade service reliability. The Controller Area Network meets these demands, but as control system data requirements grow the bandwidth and payload limits of CAN Classic have become a bottleneck.
@@ -220,8 +228,6 @@ The architectural limitations of the existing controller (@sec:existing-limitati
 1. Implement a CAN/CAN FD protocol controller in VHDL, compliant with ISO 11898-1 [@iso11898_1] and supporting the CB, CE, FB, and FE frame formats.
 2. Establish a structured requirements framework with traceability from ISO 11898-1 to testbench evidence, covering all implemented modules.
 3. Produce an RTL design integrated via Avalon-ST interfaces into Everllence's existing FPGA infrastructure.
-
-The source files, testbenches, verification plan, and tooling accompanying this document are listed in @sec:appendix-artifacts.
 
 # Background {#sec:background}
 
