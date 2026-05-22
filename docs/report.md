@@ -537,9 +537,7 @@ The `layer` dimension of the verification plan assigns every requirement to a sp
 
 ## Combined vs. Separated TX/RX Paths {#sec:combined-vs-separated-fsm}
 
-The `side` dimension of the verification plan classifies each requirement as TX-only, RX-only, or both. Splitting into separate TX and RX paths appeared elegant: TX-side requirements could be verified by exercising `can_mac_tx` in isolation, RX-side requirements by exercising `can_mac_rx` in isolation. The separation also appeared to offer independence - a bug in one path could not corrupt the other's state.
-
-In practice the split created more problems than it solved. Frame structure is identical regardless of which node is driving - both roles traverse the same sequence of states, with `is_transmitter` changing only a few lines of behavior per state. Any fix to shared behavior must be replicated in both paths with no compiler enforcement that the copies stay in sync.
+The `side` dimension of the verification plan classifies each requirement as TX-only, RX-only, or both. Splitting into separate TX and RX paths appeared elegant: TX-side requirements could be verified by exercising `can_mac_tx` in isolation, RX-side requirements by exercising `can_mac_rx` in isolation. In practice the split created more problems than it solved. Frame structure is identical regardless of which node is driving - both TX and RX nodes traverse the same sequence of frame-derived states. In addition, any fix to shared behavior must be replicated in both paths.
 
 A split path also requires a complete set of protocol hardware per side: each path needs its own bit stuffer and CRC engine, putting two instances of `can_mac_bs` and `can_mac_crc` on the device where one of each suffices. As shown in @fig:can-node-architecture, the unified design shares a single instance of each.
 
