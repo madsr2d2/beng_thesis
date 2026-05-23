@@ -435,8 +435,6 @@ Detection of any error causes the detecting node to transmit an error flag, abor
 
 The FCE tracks each node's error history through TEC and REC. Counter increments and decrements follow the rules defined in REQ-029. A node begins in error active and transitions to error passive when either counter exceeds 127 (REQ-030), then to bus off when TEC exceeds 255. In bus off the node ceases all bus activity and shall not influence the bus (REQ-027) until 128 sequences of 11 consecutive recessive bits are observed, after which TEC and REC are reset and the node returns to error active (REQ-030). A host-initiated supervisory reset also returns the FCE to its initial state immediately (REQ-028). Whether error signaling is enabled at all is a run-time configuration parameter (REQ-036).
 
-With those mechanisms established - sub-layer boundaries, frame formats, bit timing and the dual data rate, stuffing rules, CRC polynomials, and the fault confinement escalation model - @sec:verification-plan introduces the five classification dimensions of the verification plan and shows how each one connects back to the protocol concepts described here.
-
 # Verification Plan {#sec:verification-plan}
 
 The requirements set established what must be true about the implementation - 38 entries, each naming a protocol obligation and linking it to its ISO clause. But requirements in that form are not yet actionable as verification tasks: they say nothing about which module testbench should exercise them, what stimulus configurations are needed, whether internal signals must be observable, or how completion will be recognized. Turning the requirements set into a verification plan means answering those questions explicitly for each entry, before implementation begins.
