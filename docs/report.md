@@ -400,9 +400,9 @@ In a synchronized receiving node, edges arrive within SS. An edge outside SS car
 
 ### Transmitter Delay Compensation {#sec:tdc}
 
-At high data-phase bit rates, the loop propagation delay can exceed a full data-phase bit time. A transmitter in the FD data phase cannot rely on immediate bus loopback for bit-error monitoring, because the echo of a driven bit arrives one or more bit times late. TDC measures the actual round-trip delay at the start of the data phase and configures a Secondary Sample Point (SSP) at the correct offset, so that each transmitted bit is still checked for loopback correctness. The TDC measurement and SSP configuration are PCS responsibilities and are a significant driver of PCS complexity in the implementation (@sec:impl-can-pcs).
+When the FD data phase begins, the transceiver loopback delay may span multiple data-phase bit times, necessitating a delay before sampling to compensate for in-flight bits. TDC measures this delay in the nominal-rate control field: from when the res bit goes dominant on TX to when the edge arrives on RX. The Secondary Sample Point (SSP) is then placed at the measured delay plus a programmable offset, firing before the SP in each bit time so that errors can be reacted upon at the SP. For the initial bits where the loopback has not yet returned, the SSP is suppressed (Invalid SSP in @fig:can-tdc). From the first valid SSP onward, SSP monitoring replaces SP monitoring for the remainder of the data phase (REQ-025).
 
-![Transmitter Delay Compensation (TDC). The loop delay $t_\text{loop}$ is measured on the first data-phase bit and used to position the SSP at $t_\text{SSP} = t_{\text{TDC\_offset}} + t_\text{measured}$.](figures/tdc.png){#fig:can-tdc width=100%}
+![Transmitter Delay Compensation (TDC). Top: the first data-phase bits have no valid SSP while the loopback is still in transit; once the loopback returns, the SSP is placed at the measured transceiver delay plus a programmable offset, firing before the SP in each bit time. Bottom: the transceiver delay is measured from when the res bit goes dominant on TX to when the edge arrives on RX.](figures/tdc.png){#fig:can-tdc width=100%}
 
 
 ## Bit Stuffing {#sec:bit-stuffing}
