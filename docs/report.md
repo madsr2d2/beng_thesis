@@ -355,7 +355,7 @@ The MCP server interface proved genuinely useful throughout the design, implemen
 
 # CAN and CAN FD Protocol Overview {#sec:can-protocol-overview}
 
-The 38 requirements in @sec:requirements-engineering define what must be implemented and verified - but they also function as a structured map to the protocol, since every requirement points to a mechanism that must be understood before implementation can begin. The sub-layer model, frame formats, bit timing, stuffing, CRC, and error handling are covered here, each cross-referenced to the relevant REQ-NNN entries. Readers familiar with ISO 11898-1 may skip to @sec:verification-plan.
+The 38 requirements distilled in @sec:requirements-engineering define what must be implemented and verified - but they also function as a structured map to the protocol, since every requirement points to a mechanism that must be understood before implementation can begin. Those mechanisms - the sub-layer model, frame formats, bit timing, stuffing, CRC, and error handling - are covered here, each cross-referenced to the relevant REQ-NNN entries. Readers familiar with ISO 11898-1 may skip to @sec:verification-plan.
 
 ## Layered Reference Model {#sec:can-layered-model}
 
