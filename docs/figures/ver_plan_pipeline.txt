@@ -41,7 +41,7 @@ flowchart LR
     + label
     + file`")
 
-    iso_pdf ==> iso_md ==>|"`Search/extraction of 
+    iso_pdf ==> iso_md ==>|"`Extraction of 
     normative statements by
     LLM agent`"| norm_set ==>|Requirements
     destilation| req_set ==> ver_plan
