@@ -481,7 +481,7 @@ This distinction has direct consequences for testbench architecture. Black-box r
 
 ## Verification Plan Data Structure {#sec:verification-plan-data-structure}
 
-The verification plan data structure (@tbl:vplan-metadata-fields) augments each requirement with the dimensions needed to answer not just *what* must be true, but *how* it will be verified, *where* the evidence lives, and *when* verification is complete. The plan evolved continuously as implementation and verification work progressed. Two dimensions were not part of the initial taxonomy: the `system` layer label was added when it became clear that some CAN behaviors emerge from multi-node interactions and cannot be attributed to any single module's testbench. The `observability` field was introduced when the distinction between black-box and white-box verification had direct consequences for testbench architecture that were not apparent from the requirement text alone. The following sub-sections cover the remaining fields - `verification_method`, `label`, `file`, and `status` - which were not introduced as standalone classification dimensions above. The complete verification plan is reproduced in @sec:appendix-vplan as two separate tables (linked by common IDs).
+The verification plan data structure (@tbl:vplan-metadata-fields) augments each requirement with the dimensions needed to answer not just *what* must be true, but *how* it will be verified, *where* the evidence lives, and *when* verification is complete. The following sub-sections cover the remaining fields - `verification_method`, `label`, `file`, and `status` - which were not introduced as standalone classification dimensions above. The complete verification plan is reproduced in @sec:appendix-vplan as two separate tables (linked by common IDs).
 
 
 | Field | Purpose |
@@ -505,7 +505,7 @@ The verification plan data structure (@tbl:vplan-metadata-fields) augments each 
 
 ### Verification Method {#sec:vplan-method}
 
-The verification_method field makes the path from requirement to verification artifact explicit and actionable. Four methods are used: `simulation` (automated assertion procedures in a testbench), `code_inspection` (RTL source review), `waveform_inspection` (manual review of simulation output), and `coverage` (a functional coverage bin that records whether a specific condition or value range was exercised during simulation). Combinations are valid when multiple sub-claims within one requirement each call for a different method.
+Four methods are used: `simulation` (automated assertion procedures in a testbench), `code_inspection` (RTL source review), `waveform_inspection` (manual review of simulation output), and `coverage` (a functional coverage bin that records whether a specific condition or value range was exercised during simulation). Combinations are valid when multiple sub-claims within one requirement each call for a different method.
 
 
 ### Traceability: Label and File {#sec:vplan-traceability}
