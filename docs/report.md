@@ -138,11 +138,15 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 
 # Reading Guide {-}
 
-The report is structured in two parts. The first establishes context: the Introduction motivates the project and states the objectives; the Background (@sec:background) and Protocol Overview (@sec:can-protocol-overview) provide technical foundations on CAN, CAN FD, and the VHDL/OSVVM toolchain. The second part is the technical contribution: Requirements, Verification Plan, Design and Architecture, Implementation, Verification and Results, and Synthesis form the core chapters, followed by Discussion and Conclusion.
+The report is structured in two parts. The first establishes context: the Introduction motivates the project and states the objectives; the Background (@sec:background) and Protocol Overview (@sec:can-protocol-overview) provide technical foundations on CAN and CAN FD. The second part is the technical contribution: Requirements, Verification Plan, Design and Architecture, Implementation, Verification and Results, and Synthesis form the core chapters, followed by Discussion and Conclusion.
 
-Readers familiar with CAN and CAN FD may skip @sec:can-classic, @sec:can-fd-background, and @sec:can-protocol-overview. Readers familiar with VHDL and OSVVM may skip @sec:vhdl-osvvm.
+Readers familiar with CAN and CAN FD may skip @sec:can-classic, @sec:can-fd-background, and @sec:can-protocol-overview.
 
 Source files, testbenches, verification plan, and tooling accompanying this document are listed in @sec:appendix-artifacts.
+
+## Tools and Language {#sec:vhdl-osvvm}
+
+The RTL source is implemented in VHDL-93. Everllence's synthesis toolchain uses Quartus Prime, which does not fully support VHDL-2008 constructs in synthesis, making VHDL-93 the practical upper bound for synthesizable RTL. Testbenches are written in VHDL-2008 to support the OSVVM verification framework [@osvvm], which requires VHDL-2008 language features. SystemVerilog with UVM is the dominant industry alternative for RTL implementation and verification at this scale. The choice here follows company convention rather than a project-level technical comparison. Riviera-PRO is used for simulation. Sigasi is used for linting and language-aware editing. Waveform figures are captured in GTKWave, timing diagrams are drawn in WaveDrom, and architecture diagrams in Mermaid.
 
 \clearpage
 
@@ -198,12 +202,12 @@ Before committing to an in-house redesign, the available CAN FD controller IP co
 
 **Technology-independent RTL cores.** CAST CAN FD [@cast_canfd] is a technology-independent CAN FD IP core licensed per-design with an upfront fee. Major EDA vendors including Synopsys (DesignWare) and Cadence offer similar ASIC-targeted cores under commercial licensing programs.
 
-| Implementation | Language | License | Scope | Conformance Tested |
+| Implementation | Source | License | Scope | Conformance Tested |
 |---|---|---|---|---|
-| CTU CAN FD [@ctucanfd] | VHDL | MIT | Full node (TX+RX, buffers, DMA) | ISO 16845-1 |
-| Bosch M\_CAN [@bosch_mcan] | HDL (non-disclosure agreement) | Per-design royalty | Full node | Yes (reference) |
-| AMD CAN FD [@xilinx_canfd] | HDL | Vivado-included | Full node | Yes |
-| CAST CAN FD [@cast_canfd] | HDL | Per-design fee | Full node | Yes |
+| CTU CAN FD [@ctucanfd] | VHDL (MIT) | MIT | Full node | Yes |
+| Bosch M\_CAN [@bosch_mcan] | Closed | Per-design royalty | Full node | Yes (reference) |
+| AMD CAN FD [@xilinx_canfd] | Closed | Vivado-included | Full node | Yes |
+| CAST CAN FD [@cast_canfd] | Closed | Per-design fee | Full node | Yes |
 
 : Survey of available CAN FD controller IP cores. {#tbl:canfd-ip-survey}
 
@@ -233,7 +237,7 @@ The architectural limitations of the existing controller (@sec:existing-limitati
 
 # Background {#sec:background}
 
-This section covers the two technical foundations that the rest of the report builds on. The first is the CAN and CAN FD protocol at the level of motivation and architecture: its bus model, fault-confinement properties, and the bandwidth extensions introduced by CAN FD. The protocol mechanisms referenced by individual requirements - bit timing, stuffing, CRC, and error handling - are covered in depth in @sec:can-protocol-overview. The second foundation is the VHDL-93 and OSVVM toolchain used for RTL implementation and simulation. Readers already familiar with both may proceed directly to @sec:requirements-engineering.
+This section covers the CAN and CAN FD protocol at the level of motivation and architecture - the bus model, fault-confinement properties, and the bandwidth extensions introduced by CAN FD. The protocol mechanisms referenced by individual requirements - bit timing, stuffing, CRC, and error handling - are covered in depth in @sec:can-protocol-overview.
 
 ## CAN Classic {#sec:can-classic}
 
@@ -250,10 +254,6 @@ The fault-confinement and multi-master properties that distinguished CAN from it
 CAN's original data payload was capped at eight bytes per frame, limiting raw throughput to around 1 Mbit/s. As embedded control applications became more data-intensive, this ceiling became a practical constraint. CAN FD (Flexible Data Rate), introduced by Bosch in 2012 [@hartwich2012] and incorporated into ISO 11898-1 in 2015, extends the maximum payload to 64 bytes and introduces a separate higher-speed data phase with bit rates of 8 Mbit/s or beyond, while preserving the CAN Classic arbitration phase and the fault-confinement architecture unchanged. The bandwidth constraint imposed by arbitration - where signal propagation time between all nodes limits the bit rate - applies only during the arbitration phase when multiple nodes may simultaneously drive the bus. Once arbitration is resolved and a single transmitter controls the bus, the bit rate can be increased freely, limited only by transceiver slew rate and oscillator stability [@hartwich2012]. Hartwich demonstrated average data rates of 2.5 Mbit/s achievable with standard CAN transceivers, matching the effective payload of a low-speed FlexRay network [@hartwich2012]. At high data-phase bit rates the transceiver's TX-to-RX loop delay (approximately 100 ns for a typical CAN FD transceiver such as the TCAN1042 [@tcan1042]) may exceed one bit time, requiring Transmitter Delay Compensation (TDC) to correctly position the secondary sample point used for bit-error monitoring. Mutter showed that for data-phase to arbitration-phase bit rate ratios below approximately 9, CAN FD accepts the same oscillator tolerance as CAN Classic, preserving compatibility with commodity crystal oscillators [@mutter2013].
 
 CAN FD also strengthens the error detection architecture. The longer payloads require stronger CRC polynomials: a 17-bit BCH polynomial covers frames up to 16 data bytes and a 21-bit polynomial covers frames up to 64 bytes, both maintaining Hamming distance 6 [@hartwich2012]. A known weakness in CAN Classic, where two bit errors that generate and eliminate stuff conditions can pass undetected through the CRC [@charzinski1994], is addressed in CAN FD by including dynamic stuff bits in the CRC data feed and introducing the Stuff Bit Count (SBC) field. These improvements together reduce the residual error probability in the worst-case error class by several orders of magnitude compared to CAN Classic [@mutter2015]. The governing standard for this project is ISO 11898-1 [@iso11898_1], which specifies both CAN Classic and CAN FD data link layer and physical signaling requirements.
-
-## Tools and Language {#sec:vhdl-osvvm}
-
-The RTL source is implemented in VHDL-93. Everllence's synthesis toolchain uses Quartus Prime, which does not fully support VHDL-2008 constructs in synthesis, making VHDL-93 the practical upper bound for synthesizable RTL. Testbenches are written in VHDL-2008 to support the OSVVM verification framework [@osvvm], which requires VHDL-2008 language features. SystemVerilog with UVM is the dominant industry alternative for RTL implementation and verification at this scale. The choice here follows company convention rather than a project-level technical comparison. Riviera-PRO is used for simulation. Sigasi is used for linting and language-aware editing. Waveform figures are captured in GTKWave, timing diagrams are drawn in WaveDrom, and architecture diagrams in Mermaid.
 
 # Requirements {#sec:requirements-engineering}
 
