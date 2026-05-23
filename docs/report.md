@@ -353,11 +353,9 @@ Statements 3 and 4 each embed CAN XL elements within otherwise in-scope obligati
 
 The MCP server interface proved genuinely useful throughout the design, implementation, and verification phases that followed extraction. As implementation decisions were made, requirements were refined - paraphrases sharpened, notes extended, observability classifications updated, and traceability fields populated. All updates were applied using the AI agent through dedicated schema-validated MCP tool calls, each targeting an individual requirement field. The narrow, validated interface made incremental AI-assisted maintenance of the verification plan safe and practical across all three project phases.
 
-The 38 requirements, each linked to its ISO source clause and assigned a priority, define the scope of what must be implemented and verified. They also function as a structured map to the protocol: every requirement points to a mechanism that must be understood before implementation can begin. @sec:can-protocol-overview provides that understanding - covering the sub-layer model, frame formats, bit timing, bit stuffing, CRC, and error handling.
-
 # CAN and CAN FD Protocol Overview {#sec:can-protocol-overview}
 
-Each requirement in @sec:requirements-engineering refers to a specific protocol mechanism. The sub-layer model, frame formats, bit timing, stuffing, CRC, and error handling are covered here, each cross-referenced to the relevant REQ-NNN entries. Readers familiar with ISO 11898-1 may skip to @sec:verification-plan.
+The 38 requirements in @sec:requirements-engineering define what must be implemented and verified - but they also function as a structured map to the protocol, since every requirement points to a mechanism that must be understood before implementation can begin. The sub-layer model, frame formats, bit timing, stuffing, CRC, and error handling are covered here, each cross-referenced to the relevant REQ-NNN entries. Readers familiar with ISO 11898-1 may skip to @sec:verification-plan.
 
 ## Layered Reference Model {#sec:can-layered-model}
 
