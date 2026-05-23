@@ -446,7 +446,7 @@ The plan was populated through the same MCP server introduced in @sec:requiremen
 
 The layer field assigns each requirement to the protocol sub-layer that owns it (LLC, MAC, PCS, or FCE - see @sec:can-layered-model), determining the verification boundary at which the requirement must be exercised. A fifth label - **system** - classifies requirements that are inherently multi-layer or multi-node in character. Some CAN behaviors cannot be attributed to a single layer of a single node: they emerge from interactions between multiple nodes on the bus, or span the layer boundary within a single node. The system label flags these requirements as ones that require either an integrated multi-module testbench or a multi-node simulation environment.
 
-At design time, this classification directly motivated the layered module architecture: requirements assigned to a given layer pointed to the corresponding module as the responsible implementation unit and to that module's testbench as the primary verification environment. The consequence of the system label is described further in @sec:combined-vs-separated-fsm.
+At design time, this classification directly motivated the layered module architecture: requirements assigned to a given layer pointed to the corresponding module as the responsible implementation unit and to that module's testbench as the primary verification environment.
 
 ## Side {#sec:vplan-side}
 
@@ -454,8 +454,7 @@ The side field records whether a requirement pertains to the transmitter path, t
 
 ## Format Applicability {#sec:vplan-format}
 
-The format_applicability field records which of the in-scope frame formats (CB, CE, FB, FE - see @fig:can-frame-structure, where CB and CE implicitly cover remote frame variants) each requirement applies to. Because the formats differ in stuffing mode, CRC polynomial, and control field structure (@sec:can-protocol-overview), a requirement that applies only to FD frames implies stimulus configurations with FDF=1 and DLC values spanning both the CRC-17 and CRC-21 threshold, while a requirement that applies to all four formats must be exercised across all format-specific configurations. The field makes those implications explicit rather than leaving them to be inferred from the requirement text.
-
+The format_applicability field records which of the in-scope frame formats (CB, CE, FB, FE - see @fig:can-frame-structure, where CB and CE implicitly cover remote frame variants) each requirement applies to. Because the formats differ in stuffing mode, CRC polynomial, and control field structure (@sec:can-protocol-overview), a requirement that applies only to FD frames implies stimulus configurations with FDF=1 and DLC values spanning both the CRC-17 and CRC-21 threshold, while a requirement that applies to all four formats must be exercised across all format-specific configurations.
 ## Observability {#sec:vplan-observability}
 
 The observability field resolves each requirement as either black-box or white-box, relative to the module boundary of the owning layer:
@@ -463,17 +462,7 @@ The observability field resolves each requirement as either black-box or white-b
 - **Black-box**: Can be verified purely through the module's observable port signals.
 - **White-box**: Verification requires direct observation of the module's internal state.
 
-This distinction has direct consequences for testbench architecture. Black-box requirements are verifiable with stimulus-and-observe testbenches that drive inputs and check outputs without any knowledge of internal implementation. White-box requirements - which include CRC polynomial correctness, bit counter arithmetic, error counter thresholds, and Gray-coded SBC encoding - require a parallel reference model that re-computes the expected value independently, or direct observation of internal signals via testbench signal access.
-
-## Priority {#sec:vplan-priority}
-
-The priority field classifies each requirement into one of three levels:
-
-- P1 requirements are need-to-have - they must be verified before the design can be considered complete.
-- P2 requirements are nice-to-have - they are verified in the normal verification cycle but do not block closure.
-- P3 requirements are optional - addressed only if schedule permits.
-
-The final plan contains 32 P1, four P2, and two P3 requirements. The demotion rationale for each requirement not rated P1 is given in @tbl:priority-demotion. Of the 32 P1 requirements, 25 are closed. Five (REQ-001, REQ-003, REQ-005, REQ-032, REQ-035) remain not started pending `can_llc` implementation, REQ-021 is in progress with partial simulation coverage, and REQ-034 is in progress with sub-claim 2 verified but sub-claim 1 open. P2 and P3 requirements are addressed as schedule permits.
+This distinction has direct consequences for testbench architecture. Black-box requirements are verifiable with stimulus-and-observe testbenches that drive inputs and check outputs. White-box requirements - which include CRC polynomial correctness, bit counter arithmetic, error counter thresholds, and Gray-coded SBC encoding - require a parallel reference model that re-computes the expected value independently, or direct observation of internal signals via testbench signal access.
 
 ## Requirement Distribution {#sec:vplan-distribution}
 
@@ -506,7 +495,7 @@ The verification plan data structure (@tbl:vplan-metadata-fields) augments each 
 | `format_applicability` | Applicable frame formats: CB, CE, FB, FE (@sec:vplan-format). |
 | `observability` | `black_box` or `white_box` (@sec:vplan-observability). |
 | `verification_method` | Method(s) used to verify the requirement (@sec:vplan-method). |
-| `priority` | P1 (need-to-have), P2 (nice-to-have), or P3 (optional) (@sec:vplan-priority). |
+| `priority` | P1 (need-to-have), P2 (nice-to-have), or P3 (optional). |
 | `status` | `not_started`, `in_progress` or `complete` (@sec:vplan-status). |
 | `notes` | Residual clarifications not resolved by the paraphrase - implementation constraints, out-of-scope markers, or known ambiguities flagged for design review. |
 | `label` | Assertion label, TB procedure name, coverage ID, or RTL tag. Comma-separated when multiple procedures cover distinct sub-claims (@sec:vplan-traceability). |
