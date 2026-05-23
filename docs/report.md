@@ -384,8 +384,8 @@ A CAN FD frame shares the same arbitration phase structure, with the FDF bit sig
 
 Every CAN bit period is divided into four non-overlapping time segments measured in Time Quanta (TQ), where one TQ equals the period of the prescaled system clock (see @fig:can-bit-timing). CAN FD extends CAN Classic with an independently configured data-phase bit rate. A CAN FD node therefore maintains two independent sets of segment parameters, one for the nominal rate and one for the data rate (REQ-024):
 
-- **Sync Segment (SS)**: one TQ. The point at which the bus is expected to produce a recessive-to-dominant edge after synchronization.
-- **Propagation Segment (PS)**: compensates for round-trip signal propagation delay on the bus and in the transceiver. It shall be programmed to be at least as long as twice the maximum bus propagation delay.
+- **Sync Segment (SS)**: one TQ. The segment at which a recessive-to-dominant edge is expected when the node is synchronized.
+- **Propagation Segment (PS)**: compensates for round-trip signal propagation delay on the bus and in the transceiver. PS shall be programmed to be at least as long as twice the maximum bus propagation delay.
 - **Phase Segment 1 (PS1)**: immediately precedes the sample point. Can be lengthened by the resynchronization mechanism to absorb positive phase errors.
 - **Phase Segment 2 (PS2)**: follows the sample point to the end of the bit. Can be shortened to absorb negative phase errors.
 
@@ -400,9 +400,9 @@ In a synchronized receiving node, edges arrive within SS. An edge outside SS car
 
 ### Transmitter Delay Compensation {#sec:tdc}
 
-When the FD data phase begins, the transceiver loopback delay may span multiple data-phase bit times, necessitating a delay before sampling to compensate for in-flight bits. TDC measures this delay in the nominal-rate control field: from when the res bit goes dominant on TX to when the edge arrives on RX. The Secondary Sample Point (SSP) is then placed at the measured delay plus a programmable offset, firing before the SP in each bit time so that errors can be reacted upon at the SP. For the initial bits where the loopback has not yet returned, the SSP is suppressed (Invalid SSP in @fig:can-tdc). From the first valid SSP onward, SSP monitoring replaces SP monitoring for the remainder of the data phase (REQ-025).
+When the FD data phase begins, the transceiver loopback delay may span multiple data-phase bit times, necessitating a delay before sampling to compensate for in-flight bits (REQ-025). TDC measures this delay in the nominal-rate control field: from when the res bit goes dominant on TX to when the edge arrives on RX. The Secondary Sample Point (SSP) is then placed at the measured delay plus a programmable offset, firing before the SP in each bit time so that errors can be reacted upon at the SP. For the initial bits where the loopback has not yet returned, the SSP is suppressed. From the first valid SSP onward, SSP monitoring replaces SP monitoring for the remainder of the data phase, see @fig:can-tdc.
 
-![Transmitter Delay Compensation (TDC). Top: the first data-phase bits have no valid SSP while the loopback is still in transit. Once the loopback returns, the SSP is placed at the measured transceiver delay plus a programmable offset, firing before the SP in each bit time. Bottom: the transceiver delay is measured from when the res bit goes dominant on TX to when the edge arrives on RX.](figures/tdc.png){#fig:can-tdc width=100%}
+![Transmitter Delay Compensation. Top: the first data-phase bits have no valid SSP while the loopback is still in transit. Once the loopback returns, the SSP is placed at the measured transceiver delay plus a programmable offset, firing before the SP in each bit time. Bottom: the transceiver delay is measured from when the res bit goes dominant on TX to when the edge arrives on RX.](figures/tdc.png){#fig:can-tdc width=100%}
 
 
 ## Bit Stuffing {#sec:bit-stuffing}
