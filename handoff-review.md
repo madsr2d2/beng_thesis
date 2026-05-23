@@ -1,80 +1,84 @@
 # Handoff: Report Review Continuation
 
 ## Session Skill
-Use `/grill-with-docs` - the current session was a prose review pass through `docs/report.md`, working section by section, one question per turn, proposing before applying, committing after each logical batch.
+Use `/grill-with-docs` - systematic prose review of `docs/report.md`, one question per turn, propose before applying, commit after each logical batch.
 
 ## What Was Done This Session
 
-A systematic prose review pass through `docs/report.md` from the Reading Guide through the AI-Assisted Extraction section. All changes are committed to `main`. See `git log --oneline` for the full list - the last 15 commits cover this session's work.
+A full prose review pass from **`## AI-Assisted Extraction`** through **`## Error Detection and Fault Confinement`** (end of `# CAN and CAN FD Protocol Overview`). All changes are committed to `main`. See `git log --oneline -40` for the full list.
 
 Key changes made:
-- Reading Guide: moved Tools and Language subsection into Requirements > Code Standard section
-- Background (CAN Classic, CAN FD): improved prose, citations, terminology, figure caption
-- IP survey table: Language → Source column, standardised Scope/Conformance columns
-- Requirements opening paragraph: rewritten, removed premature requirement count
-- Code Standard section: restructured into three subsections (Tools, Integration Requirements, VHDL Code Standard); tool citations added; Claude Code disclosure moved here
-- AI Extraction section: MCP paragraph restructured (problem-first), REQ-026 walkthrough tightened, paraphrase and table corrected to match TOML exactly
+
+**Requirements Engineering section:**
+- MCP paragraph: removed redundant source-clause augmentation example; tightened sentence voice ("using the agent", "schema-validated MCP tool calls", removed "write" from "validated interface")
+- Folded requirements bridge paragraph into protocol overview opener; rewrote opener to call back "those mechanisms" explicitly
+
+**Layered Reference Model:**
+- Fixed layer model description: two OSI layers (data link + physical), not one; added ISO Fig. 4 citation
+- Aligned all four sub-layer bullets with ISO Fig. 4 responsibilities; added LLC acceptance filtering and overload notification with scope brackets; MAC: flat participial list including error signalling; PCS: "bit timing and bus sampling" + TX/RX interface; removed implementation-specific sentence
+- Merged `@tbl:req-layer-map` into expanded `@tbl:vplan-distribution`; shortened column headers (n, FS, BB, WB); moved System row last; removed table from theory section
+
+**Frame Types and Formats:**
+- Rewrote Classic frame paragraph: IDE explanation, DLC, form bits (SRR/r0/r1), interframe space (INT/ST/IDLE), REQ refs anchored at opener
+- Added FD DLC non-linear mapping sentence; added SBC field to FD frame paragraph; named reserved form bit (res)
+- REQ-038 anchored once in section opener; field-level refs (REQ-032, REQ-008, REQ-031, REQ-015) on individual sentences
+- Updated figure captions (frame format waveform notation, bit timing two-node layout)
+
+**Bit Timing:**
+- Fixed TQ definition (prescaler × system clock period)
+- Rewrote PS bullet: arbitration constraint PS ≥ 2×(t_TRX+t_bus) with figure ref
+- Fixed SS bullet: "when the node is synchronized"
+- Added `### Synchronization {#sec:bit-sync}` subsection; rewrote sync paragraph with SS/PE/SJW anchoring, hard sync triggers (SOF + FDF→res), segment adjustment direction
+- Removed redundant CAN FD flexible data rate paragraph from TDC section
+- Rewrote TDC paragraph (5 sentences): SSP before SP, invalid SSPs during TDC delay, res bit measurement, offset; updated figure caption
+
+**Bit Stuffing:**
+- Accurate stuffing ranges (CC: SOF–CRC; FD: SOF–data field then fixed in CRC)
+- Introduced SB and FSB abbreviations to match figure; Gray-coded SBC; dropped "absent in CAN Classic" (covered in FD frame section)
+
+**CRC:**
+- Tightened CRC-15 bullet; removed self-referential and implementation sentences; moved CRC mismatch error sentence to error section
+
+**Error Detection and Fault Confinement:**
+- Converted five error types to bullet points; moved REQ-014 to acknowledgment error bullet; pooled REQ-029 and REQ-030 (one ref each); added error-passive ACK error TEC exemption; spelled out TEC/REC; replaced `llc_i.normal_mode` with generic description; removed implementation commentary and fluff bridge paragraph
 
 ## Where We Left Off
 
-In `## AI-Assisted Extraction: Utility and Limitations` (`{#sec:ai-extraction}`), around **L318–L355** of `docs/report.md`.
+At the start of `# Verification Plan {#sec:verification-plan}`, specifically **L438** of `docs/report.md`. The protocol overview chapter is complete and clean.
 
-### Immediately pending: figure link issue
+## Next Section to Review
 
-**The problem:** The initial AI extraction was text-only - it captured prose sentences but missed technical content encoded in ISO figures. 16 of 38 requirements have figure references in their `source_clause` field (e.g. REQ-026 has `Figure 33`, REQ-008 has `Figure 6, Figure 7`). These were added manually during the iterative refinement phase, not by the initial extraction.
+`# Verification Plan {#sec:verification-plan}` starting at L438, covering:
 
-**What to add:** A sentence or two in the AI extraction section noting this limitation and framing it as part of the iterative refinement story - source clauses were extended with figure links after the initial text-only extraction pass. The REQ-026 table already shows `Figure 33` in the Source row, which provides a natural hook.
-
-Good place to insert: at the end of the extraction phase paragraph (L322) or as a dedicated sentence in the limitations framing.
-
-To verify which requirements have figure references:
-```python
-python3 -c "
-import tomllib
-with open('verification_plan/verification_plan.toml', 'rb') as f:
-    data = tomllib.load(f)
-for r in data['requirement']:
-    sc = r.get('source_clause', '')
-    if 'fig' in sc.lower() or 'Figure' in sc:
-        print(r['id'], '|', sc[:120])
-"
 ```
-
-### Also pending (do after figure issue):
-
-**Anchor typo:** The table at L352 has `{#tbl:req027-example}` but the requirement is REQ-026. Should be `{#tbl:req026-example}`. Check if the anchor is cross-referenced anywhere before changing it.
-
-```bash
-grep -n "req027-example\|req026-example" docs/report.md
+## Layer {#sec:vplan-layer}           L445
+## Side {#sec:vplan-side}             L451
+## Format Applicability               L460
+## Observability                      L464
+## Priority                           L473
+## Requirement Distribution           L481  ← expanded table already done this session
+## Verification Plan Data Structure   L486
 ```
 
 ## Writing Style Rules (critical)
 
 - **No semicolons (`;`) in prose. No exceptions.**
-- **No colons (`:`) inside paragraphs.** Only before enumerations/bullet lists.
-- No em dashes - use ` - ` (spaced hyphen).
+- **No em dashes** - use ` - ` (spaced hyphen).
+- **Colons inside paragraphs are acceptable** (user confirmed this session - do NOT flag them).
 - American English: "acknowledgment", "color", etc.
-- No author attributions ("X showed that") - state claims directly with citations.
-- Always Read the exact lines immediately before every Edit - never use cached reads.
+- No author attributions - state claims directly with citations.
+- Pandoc crossrefs: `@sec:`, `@fig:`, `@tbl:`. Never "Figure @fig:X" (doubles the prefix).
+- Always Read exact lines immediately before every Edit.
 
 Full rules: `docs/writing_style_rules.md`
 
-## Section Structure Context
+## Key Decisions Made This Session
 
-The section being reviewed is:
-```
-## AI-Assisted Extraction: Utility and Limitations {#sec:ai-extraction}
-  [extraction phase paragraph - L322]
-  [distillation paragraph + REQ-026 intro - L324]
-  [7 extracted statements - L326-333]
-  [analysis paragraph - L334]
-  [paraphrase - L336-343]
-  [table - L345-352]
-  [MCP server paragraph - L354]
-  [bridge to protocol overview - L356]
-```
-
-After this section, the next chapter is `# CAN and CAN FD Protocol Overview {#sec:can-protocol-overview}` which has not yet been reviewed this session.
+- Colons inside paragraphs are acceptable - do not flag (user reverted all colon removals)
+- Implementation details belong in design/architecture sections, not protocol theory sections
+- REQ refs should be anchored once per topic (e.g. REQ-038 once for overall frame structure) with field-level refs for individual obligations
+- Figure captions should describe what notation means (hatching = variable content, fixed-polarity = protocol-defined bits)
+- `System` layer row goes last in the distribution table (it's not an ISO layer)
 
 ## Project Context
 
