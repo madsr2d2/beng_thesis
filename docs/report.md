@@ -419,7 +419,7 @@ The CRC polynomial and field length depend on frame type and data payload length
 - **CRC-17**: used for FD frames with data payloads up to 16 bytes (DLC 0-10).
 - **CRC-21**: used for FD frames with data payloads from 20 to 64 bytes (DLC 11-15).
 
-The key asymmetry between CC and FD concerns the CRC data feed. For FD frames, dynamic stuff bits up to and including the data field are included in the CRC computation, along with the SBC field itself. Fixed stuff bits are excluded from the CRC computation in both CC and FD frames (REQ-013). This asymmetry has concrete consequences for the MAC implementation described in @sec:impl-can-mac-crc. The CRC field is terminated by a recessive CRC delimiter bit (REQ-017). A received frame with a CRC mismatch causes the detecting node to transmit an error flag.
+The key asymmetry between CC and FD concerns the CRC data feed. For FD frames, dynamic stuff bits up to and including the data field are included in the CRC computation, along with the SBC field itself. Fixed stuff bits are excluded from the CRC computation in both CC and FD frames (REQ-013). The CRC field is terminated by a recessive CRC delimiter bit (REQ-017). A received frame with a CRC mismatch causes the detecting node to transmit an error flag.
 
 ## Error Detection and Fault Confinement {#sec:error-model}
 
