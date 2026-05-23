@@ -370,7 +370,7 @@ ISO 11898-1 structures the CAN node reference model into three functional sub-la
 
 ## Frame Types and Formats {#sec:frame-types}
 
-CAN defines two classes of frames: CAN Classic (CC) and CAN FD (FD). Within each class, frames may carry either an 11-bit base identifier or a 29-bit extended identifier, giving four frame formats: CB (Classic Base), CE (Classic Extended), FB (FD Base), and FE (FD Extended), as shown in @fig:can-frame-structure (REQ-038). Classic frames (CB and CE) additionally support remote frame variants (RTR=1, no data field), giving six bus frame types in total. CAN XL frames are out of scope for this project.
+CAN defines two classes of frames: CAN Classic (CC) and CAN FD (FD). Within each class, frames may carry either an 11-bit base identifier or a 29-bit extended identifier, giving four frame formats: CB (Classic Base), CE (Classic Extended), FB (FD Base), and FE (FD Extended), as shown in @fig:can-frame-structure (REQ-038). Classic frames (CB and CE) additionally support remote frame variants (RTR=1, no data field), giving six bus frame types in total.
 
 ![Frame formats for the four in-scope frame types (CB, CE, FB, FE) and the error and overload flags. Field widths are annotated per ISO 11898-1.](figures/frame_format.png){#fig:can-frame-structure height=95%}
 
