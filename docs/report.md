@@ -378,26 +378,31 @@ A CAN Classic frame opens with a dominant SOF bit that triggers hard synchroniza
 
 A CAN FD frame shares the same arbitration phase structure, with the FDF bit signalling the FD format when recessive. The FD control field contains a reserved form bit (res) alongside BRS and ESI. The DLC retains its 4-bit width but uses a non-linear mapping above 8 bytes, extending the maximum payload to 64 bytes (REQ-032). The BRS (Bit Rate Switch) bit controls the transition to the data-phase bit rate: when BRS is recessive the bus switches to the faster data rate immediately after the BRS sample point and returns to the nominal rate at the CRC delimiter (REQ-031). The ESI (Error State Indicator) bit reflects the transmitting node's fault-confinement state: a node in error passive state shall transmit ESI recessive (REQ-015).
 
-## Bit Timing and Flexible Data Rate {#sec:bit-timing}
+## Bit Timing {#sec:bit-timing}
 
 ![CAN bit time structure showing the four segments (SS, PS, PS1, PS2), the sample point, and propagation delays on a two-node bus.](figures/bit_timing.png){#fig:can-bit-timing width=85%}
 
 Every CAN bit period is divided into four non-overlapping time segments measured in Time Quanta (TQ), where one TQ equals the period of the prescaled system clock (see @fig:can-bit-timing). CAN FD extends CAN Classic with an independently configured data-phase bit rate. A CAN FD node therefore maintains two independent sets of segment parameters, one for the nominal rate and one for the data rate (REQ-024):
 
-- **Sync Segment (SYNC_SEG)**: one TQ. The point at which the bus is expected to produce a recessive-to-dominant edge after synchronization.
-- **Propagation Segment (PROP_SEG)**: compensates for round-trip signal propagation delay on the bus and in the transceiver. It shall be programmed to be at least as long as twice the maximum bus propagation delay.
-- **Phase Segment 1 (PHASE_SEG1)**: immediately precedes the sample point. Can be lengthened by the resynchronization mechanism to absorb positive phase errors.
-- **Phase Segment 2 (PHASE_SEG2)**: follows the sample point to the end of the bit. Can be shortened to absorb negative phase errors.
+- **Sync Segment (SS)**: one TQ. The point at which the bus is expected to produce a recessive-to-dominant edge after synchronization.
+- **Propagation Segment (PS)**: compensates for round-trip signal propagation delay on the bus and in the transceiver. It shall be programmed to be at least as long as twice the maximum bus propagation delay.
+- **Phase Segment 1 (PS1)**: immediately precedes the sample point. Can be lengthened by the resynchronization mechanism to absorb positive phase errors.
+- **Phase Segment 2 (PS2)**: follows the sample point to the end of the bit. Can be shortened to absorb negative phase errors.
 
-The **sample point** falls at the PHASE_SEG1 / PHASE_SEG2 boundary. Every receiver samples the bus exactly once per bit at this point. The sample point position - expressed as a percentage of the total bit time - is a configuration parameter traded off against bus length, node count, and oscillator tolerance.
+The **sample point** falls at the PS1 / PS2 boundary. Every receiver samples the bus exactly once per bit at this point. The sample point position - expressed as a percentage of the total bit time - is a configuration parameter traded off against bus length, node count, and oscillator tolerance.
 
-In a synchronized node, recessive-to-dominant edges arrive within SYNC_SEG. An edge outside SYNC_SEG carries phase error and triggers synchronization to realign the sample point. Hard synchronization restarts the bit time with Sync_Seg completed, triggered by the SOF dominant edge and, in FD frames, the FDF-to-res dominant edge. During the frame, resynchronization on each qualifying recessive-to-dominant edge adjusts the bit time based on the phase error (PE) relative to SYNC_SEG: a positive PE lengthens PHASE_SEG1 by up to the Synchronization Jump Width (SJW), and a negative PE shortens PHASE_SEG2 by up to SJW. Only one synchronization is permitted per bit time (REQ-026), as shown in @fig:can-sync.
+### Synchronization {#sec:bit-sync}
 
-![Resynchronization over two successive sync edges. PE is the phase error relative to SYNC_SEG. SJW is the Synchronization Jump Width.](figures/sync.png){#fig:can-sync width=100%}
+In a synchronized receiving node, edges arrive within SS. An edge outside SS carries Phase Error (PE) and triggers synchronization to realign the sample point at the PS1/PS2 boundary. During the frame, resynchronization on each qualifying recessive-to-dominant edge adjusts the bit time based on the PE relative to SS: a positive PE lengthens PS1 by up to the Synchronization Jump Width (SJW), and a negative PE shortens PS2 by up to SJW. Hard synchronization, triggered by the SOF dominant edge and the FDF-to-res dominant edge, restarts the bit time with SS completed. Only one synchronization is permitted per bit time (REQ-026). @fig:can-sync illustrates how two consecutive mid-frame synchronization events align an unsynchronized receiving node to the transmitter on the bus.
+
+![Resynchronization over two successive sync edges. PE is the phase error relative to SS. SJW is the Synchronization Jump Width.](figures/sync.png){#fig:can-sync width=100%}
+
+
+### Transmitter Delay Compensation {#sec:tdc}
 
 **CAN FD and the flexible data rate.** CAN FD introduces a second, independently configured bit rate for the data phase. The BRS (Bit Rate Switch) bit in the FD control field (see @fig:can-frame-structure) controls this transition: when BRS is recessive, the bus switches to the data-phase bit rate immediately after the BRS sample point and returns to the nominal rate at the CRC delimiter. The nominal rate governs the arbitration phase (SOF through BRS) and the return path (CRC delimiter onward). The data rate governs the payload and CRC fields in between. Because the data phase operates at a much shorter bit time, the same physical propagation delay represents a larger fraction of the bit period. On electrically long buses at high data rates, the loop propagation delay can exceed a full data-phase bit time.
 
-**Transmitter Delay Compensation (TDC)** addresses this. A transmitter in the FD data phase cannot rely on immediate bus loopback for bit-error monitoring, because the echo of a driven bit arrives one or more bit times late. TDC measures the actual round-trip delay at the start of the data phase and configures a Secondary Sample Point (SSP) at the correct offset, so that each transmitted bit is still checked for loopback correctness. The TDC measurement and SSP configuration are PCS responsibilities and are a significant driver of PCS complexity in the implementation (@sec:impl-can-pcs).
+Transmitter Delay Compensation (TDC) addresses this. A transmitter in the FD data phase cannot rely on immediate bus loopback for bit-error monitoring, because the echo of a driven bit arrives one or more bit times late. TDC measures the actual round-trip delay at the start of the data phase and configures a Secondary Sample Point (SSP) at the correct offset, so that each transmitted bit is still checked for loopback correctness. The TDC measurement and SSP configuration are PCS responsibilities and are a significant driver of PCS complexity in the implementation (@sec:impl-can-pcs).
 
 ![Transmitter Delay Compensation (TDC). The loop delay $t_\text{loop}$ is measured on the first data-phase bit and used to position the SSP at $t_\text{SSP} = t_{\text{TDC\_offset}} + t_\text{measured}$.](figures/tdc.png){#fig:can-tdc width=100%}
 
