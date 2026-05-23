@@ -144,10 +144,6 @@ Readers familiar with CAN and CAN FD may skip @sec:can-classic, @sec:can-fd-back
 
 Source files, testbenches, verification plan, and tooling accompanying this document are listed in @sec:appendix-artifacts.
 
-## Tools and Language {#sec:vhdl-osvvm}
-
-The RTL source is implemented in VHDL-93. Everllence's synthesis toolchain uses Quartus Prime, which does not fully support VHDL-2008 constructs in synthesis, making VHDL-93 the practical upper bound for synthesizable RTL. Testbenches are written in VHDL-2008 to support the OSVVM verification framework [@osvvm], which requires VHDL-2008 language features. SystemVerilog with UVM is the dominant industry alternative for RTL implementation and verification at this scale. The choice here follows company convention rather than a project-level technical comparison. Riviera-PRO is used for simulation. Sigasi is used for linting and language-aware editing. Waveform figures are captured in GTKWave, timing diagrams are drawn in WaveDrom, and architecture diagrams in Mermaid.
-
 \clearpage
 
 # Introduction {#sec:introduction}
@@ -259,11 +255,15 @@ CAN FD also strengthens the error detection architecture. A CRC polynomial's Ham
 
 # Requirements {#sec:requirements-engineering}
 
-The Everllence coding constraints establish the implementation framework - port type restrictions, naming conventions, and testbench structure - that applies uniformly to all in-house FPGA modules. The 38 protocol requirements are derived from ISO 11898-1 normative obligations through an AI-augmented extraction pipeline and distilled manually into independently verifiable entries, each carrying a source clause reference, a priority rating, and a verification method. Together they bound the design space before any architectural decisions are made.
+This section establishes the constraints that bound the design before any architectural decisions are made. Everllence's coding standard, tooling, and existing FPGA infrastructure set the implementation framework, while the protocol requirements derived from ISO 11898-1 define the functional obligations of the controller.
 
-## VHDL Code Standard and Design Constraints {#sec:engineering-constraints}
+## Code Standard, Tooling, and Design Constraints {#sec:engineering-constraints}
 
-The constraints on this project come from two distinct sources. Two are specific to this project's integration context: the Avalon-ST host interface and the mandatory use of the IP library CRC block. The remainder are drawn from Everllence's VHDL Code Standard and apply uniformly to all in-house FPGA modules.
+The controller must integrate into Everllence's existing FPGA infrastructure - specifically the Avalon-ST streaming interface used for inter-module communication and the shared IP library CRC block. Beyond these integration constraints, Everllence's VHDL Code Standard and toolchain apply uniformly to all in-house FPGA modules.
+
+### Tools and Language {#sec:vhdl-osvvm}
+
+The RTL source is implemented in VHDL-93. Everllence's synthesis toolchain uses Quartus Prime, which does not fully support VHDL-2008 constructs in synthesis, making VHDL-93 the practical upper bound for synthesizable RTL. Testbenches are written in VHDL-2008 to support the OSVVM verification framework [@osvvm], which requires VHDL-2008 language features. SystemVerilog with UVM is the dominant industry alternative for RTL implementation and verification at this scale. The choice here follows company convention rather than a project-level technical comparison. Riviera-PRO is used for simulation. Sigasi is used for linting and language-aware editing. Waveform figures are captured in GTKWave, timing diagrams are drawn in WaveDrom, and architecture diagrams in Mermaid.
 
 ### Project-specific Infrastructure Requirements
 
