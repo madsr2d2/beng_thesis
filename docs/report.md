@@ -263,7 +263,9 @@ These constraints fall into three categories: the tools and language dictated by
 
 ### Tools and Language {#sec:vhdl-osvvm}
 
-The RTL source is implemented in VHDL-93. Everllence's synthesis toolchain uses Quartus Prime, which does not fully support VHDL-2008 constructs in synthesis, making VHDL-93 the practical upper bound for synthesizable RTL. Testbenches are written in VHDL-2008 to support the OSVVM verification framework [@osvvm], which requires VHDL-2008 language features. SystemVerilog with UVM is the dominant industry alternative for RTL implementation and verification at this scale. The choice here follows company convention rather than a project-level technical comparison. Riviera-PRO is used for simulation. Sigasi is used for linting and language-aware editing. Waveform figures are captured in GTKWave, timing diagrams are drawn in WaveDrom, and architecture diagrams in Mermaid.
+The RTL source is implemented in VHDL-93. Everllence's synthesis toolchain uses Quartus Prime [@quartus], which does not fully support VHDL-2008 constructs in synthesis, making VHDL-93 the practical upper bound for synthesizable RTL. Testbenches are written in VHDL-2008 to support the OSVVM verification framework [@osvvm], which requires VHDL-2008 language features. SystemVerilog with UVM is the dominant industry alternative for RTL implementation and verification at this scale. The choice here follows company convention rather than a project-level technical comparison. Riviera-PRO [@riviera_pro] is used for simulation. Sigasi [@sigasi] is used for linting and language-aware editing. Waveform figures are captured in GTKWave [@gtkwave], timing diagrams are drawn in WaveDrom [@wavedrom], and architecture diagrams in Mermaid [@mermaid].
+
+Claude Code [@claudecode] was used for prose editing and VHDL review. Technical content, design decisions, and all source files are the author's own work.
 
 ### Integration Requirements
 
@@ -352,8 +354,6 @@ Statements 3 and 4 each embed CAN XL conditions within otherwise in-scope obliga
 The MCP server interface proved genuinely useful throughout the design, implementation, and verification phases that followed extraction. As implementation decisions were made, requirements were refined - paraphrases sharpened, notes extended, observability classifications updated, and traceability fields populated. The AI coding agent performed these updates directly through the MCP tool calls, targeting individual requirement fields against a schema-validated store. The alternative - asking an agent to rewrite the full TOML file each time a requirement changed - would have introduced silent data corruption risks at every edit. The narrow, validated write interface made incremental AI-assisted maintenance of the verification plan safe and practical across all three project phases.
 
 The 38 requirements, each linked to its ISO source clause and assigned a priority, define the scope of what must be implemented and verified. They also function as a structured map to the protocol: every requirement points to a mechanism that must be understood before implementation can begin. @sec:can-protocol-overview provides that understanding - covering the sub-layer model, frame formats, bit timing, bit stuffing, CRC, and error handling.
-
-Generative AI was also used during the preparation of this report. Claude Code (Anthropic) was used as a writing aid throughout: reviewing phrasing and tightening prose. All edits proposed by the tool were only applied after explicit author approval. Technical content, judgments, and decisions are the author's own. Claude Code was additionally used as a coding aid during implementation and verification: reviewing VHDL for correctness and assisting with debugging. All design decisions, architectural choices, and VHDL source files are the author's own work.
 
 # CAN and CAN FD Protocol Overview {#sec:can-protocol-overview}
 
