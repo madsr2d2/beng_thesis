@@ -368,17 +368,7 @@ ISO 11898-1 structures the CAN data link layer into three functional sub-layers 
 - **PCS (Physical Coding Sublayer)**: manages bit timing, clock synchronization (including Transmitter Delay Compensation for FD data phase), and the sample/drive interface to the physical transceiver.
 - **FCE (Fault Confinement Entity)**: maintains Transmit Error Counter (TEC) and Receive Error Counter (REC), escalating the node's error state from error active through error passive to bus off as error counts accumulate.
 
-In the implementation described in this report, each sub-layer maps to a dedicated VHDL module, and the sub-layer interfaces become the port records connecting those modules (@sec:design-architecture). @tbl:req-layer-map shows the requirement-to-layer assignment for all 38 requirements.
-
-| Sub-layer | Requirements |
-|:---|:-------------|
-| LLC | REQ-001–005, REQ-032, REQ-037 |
-| MAC | REQ-006, REQ-008, REQ-010–013, REQ-015–019, REQ-021–023, REQ-031, REQ-033, REQ-035–036, REQ-038 |
-| PCS | REQ-024–027 |
-| FCE | REQ-028–030 |
-| System | REQ-007, REQ-009, REQ-014, REQ-020, REQ-034 |
-
-: Requirement-to-layer assignment. {#tbl:req-layer-map}
+In this implementation, each sub-layer maps to a dedicated VHDL module, and the sub-layer interfaces become the port records connecting those modules (@sec:design-architecture).
 
 ## Frame Types and Formats {#sec:frame-types}
 
@@ -480,18 +470,18 @@ The final plan contains 32 P1, four P2, and two P3 requirements. The demotion ra
 
 ## Requirement Distribution {#sec:vplan-distribution}
 
-@tbl:vplan-distribution shows the 38 requirements distributed across layer and observability. MAC dominates both in count and in white-box density, reflecting the breadth of frame-encoding logic that must be verified against internal bit-level state. FCE requirements are entirely black-box: fault-confinement state transitions are fully observable through the node's error-state output signals without needing access to internal counters. System requirements - those that require a multi-node or multi-module environment - split roughly evenly between the two observability classes.
+@tbl:vplan-distribution shows the 38 requirements distributed across layer, side, format scope, and observability. MAC dominates in count and white-box density, reflecting the breadth of frame-encoding logic that must be verified against internal bit-level state. FCE requirements are entirely black-box: fault-confinement state transitions are fully observable through the node's error-state output signals without needing access to internal counters. Most requirements cover both transmitter and receiver roles (29 of 38); the eight TX-only requirements are concentrated in LLC and MAC. Six requirements do not apply to all four frame formats and require format-specific test configurations - five in MAC and one in PCS.
 
-| Layer | Black-box | White-box | Total |
-| :---- | --------: | --------: | ----: |
-| MAC | 3 | 16 | 19 |
-| LLC | 4 | 3 | 7 |
-| System | 2 | 3 | 5 |
-| PCS | 1 | 3 | 4 |
-| FCE | 3 | 0 | 3 |
-| **Total** | **13** | **25** | **38** |
+| Layer | Requirements | Total | TX | RX | Both | Format-specific | Black-box | White-box |
+| :---- | :----------- | ----: | -: | -: | ---: | --------------: | --------: | --------: |
+| MAC | REQ-006, REQ-008, REQ-010–013, REQ-015–019, REQ-021–023, REQ-031, REQ-033, REQ-035–036, REQ-038 | 19 | 3 | 0 | 16 | 5 | 3 | 16 |
+| LLC | REQ-001–005, REQ-032, REQ-037 | 7 | 3 | 1 | 3 | 0 | 4 | 3 |
+| System | REQ-007, REQ-009, REQ-014, REQ-020, REQ-034 | 5 | 1 | 0 | 4 | 0 | 2 | 3 |
+| PCS | REQ-024–027 | 4 | 1 | 0 | 3 | 1 | 1 | 3 |
+| FCE | REQ-028–030 | 3 | 0 | 0 | 3 | 0 | 3 | 0 |
+| **Total** | | **38** | **8** | **1** | **29** | **6** | **13** | **25** |
 
-: Requirement distribution by layer and observability. {#tbl:vplan-distribution}
+: Requirement distribution by layer, side, format scope, and observability. Format-specific = not applicable to all four frame formats. {#tbl:vplan-distribution}
 
 ## Verification Plan Data Structure {#sec:verification-plan-data-structure}
 
