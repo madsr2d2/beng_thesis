@@ -233,7 +233,7 @@ group_title = "Frame initiation"
 
 [[requirement]]
 id = "REQ-011"
-source_clause = "§6.6.10.1, §6.6.10.4, Figure 10, Figure 11"
+source_clause = "§6.6.10.1, §6.6.10.4, Figure 10, Figure 11, Figure 12, Figure 13"
 original_wording = "The value of the RTR bit shall be dominant for DFs and recessive for RFs. ; Remote frames shall not have a data field. ; The data length code of a remote frame shall indicate the number of data bytes in the corresponding data frame."
 paraphrase = "RF DLC indicates the requested data length of the corresponding DF."
 side = "both"
@@ -251,7 +251,7 @@ group_title = "Remote frame"
 
 [[requirement]]
 id = "REQ-012"
-source_clause = "§6.6.10.2, §6.6.11.2, Figure 18, Figure 19"
+source_clause = "§6.6.10.2, §6.6.11.2, Figure 12, Figure 13, Figure 18, Figure 19"
 original_wording = "The SRR bit shall be transmitted recessive, but receivers shall accept recessive and dominant SRR bits. ; The RRS bit shall be transmitted dominant, but receivers shall accept recessive and dominant RRS bits."
 paraphrase = "1) Receivers shall accept recessive and dominant SRR bits without form error.\n2) Receivers shall accept recessive and dominant RRS bits without form error."
 side = "both"
@@ -327,7 +327,7 @@ group_title = "ESI bit transmission"
 
 [[requirement]]
 id = "REQ-016"
-source_clause = "§6.6.11.5"
+source_clause = "§6.6.11.5, Table 8"
 original_wording = "In FD frames, the stuff count shall be at the beginning of the CRC field. It shall represent a number in the range from 0 to 7d (Gray-coded in SBC3, SBC2, and SBC1; followed by the parity bit SBC0) as specified in Table 8. ; Both transmitter and receivers of a frame shall count the number of stuff bits before the first fixed stuff bit in the frame. The transmitter shall transmit its stuff bit count, coded as stuff count, at the beginning of the CRC field, before the FCRC sequence. Receivers shall check whether the received stuff count matches with the value calculated from their own stuff bit count."
 paraphrase = "1) SBC: 3-bit Gray-coded count of dynamic stuff bits (0-7) plus parity bit, placed before the CRC field.\n2) TX shall transmit its dynamic stuff-bit count (up to the first FSB) as the SBC field.\n3) RX shall verify the received SBC against its own count."
 side = "both"
@@ -346,7 +346,7 @@ group_title = "Stuff bit count (SBC) field"
 
 [[requirement]]
 id = "REQ-017"
-source_clause = "§6.6.10.5, §6.6.11.5"
+source_clause = "§6.6.10.5, §6.6.11.5, Figure 16, Figure 22, Figure 23"
 original_wording = "The CRC delimiter shall follow the FCRC sequence. In CC frames, the CRC delimiter is one single recessive bit. ; In FD frames, the CRC delimiter may consist of one or two recessive bits. A transmitter shall send one recessive bit as CRC delimiter, but it shall accept two recessive bits before the edge from recessive to dominant that starts the acknowledge slot."
 paraphrase = "1) CC frames: exactly one recessive CRC delimiter bit.\n2) FD frames: transmitter sends one recessive bit. A second recessive bit is tolerated before the ACK slot."
 side = "transmitter"
@@ -364,7 +364,7 @@ group_title = "CRC delimiter"
 
 [[requirement]]
 id = "REQ-018"
-source_clause = "§6.6.13.1, §6.6.13.2, §6.6.13.3.1"
+source_clause = "§6.6.13.1, §6.6.13.2, §6.6.13.3.1, Table 10"
 original_wording = "The frame segments from SOF to the frame FCRC sequence shall be coded by the method of the bit stuffing. The remaining bit fields of the frame (ACK field, EOF) shall not be stuffed. ; Dynamic bit stuffing shall be used in CC frames from the SOF up to and including the FCRC sequence. Dynamic bit stuffing shall be used in FD frames from the SOF up to and including the data field. ; Whenever a transmitter detects five consecutive bits (including dynamic stuff bits) of the identical value in the bit stream to be transmitted, it shall insert a complementary bit (called dynamic stuff bit) into the actual transmitted bit stream. The receiver shall recognize a sequence of five consecutive bits of identical value and shall discard the following dynamic stuff bit. ; In the CRC field of FD frames, the stuff bits shall be inserted at fixed positions; they are called fixed stuff bits. There shall be a fixed stuff bit before the first bit of the stuff count, even if the last bits of the preceding field are not a sequence of five consecutive bits of identical value. If the last bits of the preceding field are a sequence of five consecutive bits of identical value, there shall be only the fixed stuff bit, there shall not be two consecutive stuff bits. A further fixed stuff bit shall be inserted after each fourth bit of the CRC field. The value of such a fixed stuff bit shall be the inverse value of the bit preceding the fixed stuff bit. ; A receiver shall discard the fixed stuff bits from the bit stream for the CRC check. It shall detect a form error if the fixed stuff bit has the same value as its preceding bit."
 paraphrase = "1) After 5 consecutive identical bits, insert a complementary dynamic stuff bit. RX discards it.\n2) CC: dynamic stuffing spans SOF to FCRC. FD: SOF to end of data field. ACK and EOF are not stuffed.\n3) FD CRC field: a fixed stuff bit precedes the SBC field and follows every fourth CRC bit, each the inverse of the preceding bit. No double stuffing.\n4) RX discards FSBs and flags a form error if an FSB matches the preceding bit."
 side = "both"
@@ -400,7 +400,7 @@ group_title = "End of frame (EOF)"
 
 [[requirement]]
 id = "REQ-020"
-source_clause = "§6.6.10.2, §6.6.11.2, §6.6.17.4, §6.6.17.5, Figure 10, Figure 11, Figure 18, Figure 19"
+source_clause = "§6.6.10.2, §6.6.11.2, §6.6.17.4, §6.6.17.5, Figure 10, Figure 11, Figure 12, Figure 13, Figure 18, Figure 19"
 original_wording = "During arbitration, every transmitter shall compare the level of the bit transmitted with the level monitored on the bus. If these levels are equal, the transmitter may continue to send. When a CAN node sends a recessive level and monitors a dominant level, the CAN node loses arbitration and shall withdraw from transmitting any more bits, and it shall become receiver of this frame. ; When a dominant level is sent and a recessive level is monitored, the node shall detect a bit error. ; Identifier based arbitration shall be performed in CBFF from the first bit of the identifier up to the IDE bit, in CEFF from the first bit of the identifier up to the RTR bit, and in FBFF, FEFF, as well as in XLFF from the first bit of the identifier up to the bit following the FDF bit. ; Among two or more frames with different identifiers, the identifier-based arbitration assigns the higher priority to the identifier containing the lower binary value. If one DF in CBFF, one DF in FBFF, and one DF in XLFF with the same identifier are initiated at the same time, the DF in FBFF has a lower priority than the DF in CBFF, and the DF in XLFF has a lower priority than the DF in FBFF and the DF in CBFF. ; The recessive values of SRR and IDE bit ensure that collisions between a frame in CBFF or FBFF and a frame in CEFF or FEFF, with both frames having the same base identifier, are resolved such that the frame in CBFF or FBFF prevails over the frame in CEFF or FEFF. ; The recessive value of the RTR bit in RFs ensure that collisions between a DF and an RF having the same identifier and format are resolved such that the DF prevails over the RF."
 paraphrase = "Recessive-sent, dominant-monitored: lose arbitration and become a receiver."
 side = "transmitter"
@@ -436,7 +436,7 @@ group_title = "MAC error detection"
 
 [[requirement]]
 id = "REQ-022"
-source_clause = "§6.6.21.3.1, Figure 28, Figure 29"
+source_clause = "§6.6.21.3.1, Figure 28, Figure 29, Figure 30, Figure 31"
 original_wording = "Whenever a bit error, a stuff error, a form error, a PCRC error, or an ACK error is detected by a node, the LLC sub-layer shall be informed, and the node shall start an error flag at the following bit. ; When error signalling is enabled and a node detects an error during the arbitration phase, the node shall send an EF. ; When a node detects an error while the data phase bit rate is used, the node shall switch from the data bit time back into the nominal bit time of the arbitration phase before it starts the error flag. ; When a receiver detects an FCRC error, it shall not send a dominant bit in the ACK slot of the received frame. A receiver receiving a CC frame or an XL frame and detecting an FCRC error shall send an EF starting with the first bit of EOF. A receiver receiving an FD frame and detecting an FCRC error shall send an EF after three bit-times following the CRC delimiter."
 paraphrase = "1) On any detected error, start an EF at the next bit and inform the LLC.\n2) Data-phase errors: switch to nominal bit rate before starting the EF.\n3) CRC error: receiver withholds ACK and sends an EF at the first EOF bit (CC) or 3 bit-times after the CRC delimiter (FD)."
 side = "both"
@@ -473,9 +473,9 @@ group_title = "Overload frame"
 
 [[requirement]]
 id = "REQ-024"
-source_clause = "§7.3.2, §7.3.3, Figure 32"
+source_clause = "§7.3.2, §7.3.3, Table 13, Figure 32"
 original_wording = "CAN nodes shall support three different bit rates, the nominal bit rate, the FD data bit rate and the XL data bit rate. There shall be separate configuration register sets for the definition of these bit rates. ; The time quantum (t_q) shall be a fixed unit of time derived from the node clock period. There shall exist a programmable prescaler, with integer values. The minimum time quantum (t_q,min) shall be one node clock period long. The length of t_q shall be an integer multiple m of the minimum time quantum t_q,min with m as the value of the prescaler. ; The sample point shall be the point in time at which the bus level is read and interpreted as the value of that respective bit. Its location shall be at the end of Phase_Seg1. ; The synchronization segment shall be exactly one t_q long. ; The information processing time shall be less than or equal to 2 t_q long. ; In nominal bit time and in data bit time, SJW shall be less than or equal to the minimum of these two items: Phase_Seg1 and Phase_Seg2. ; In data bit time, Phase_Seg2 shall be greater than or equal to these two items: SJW and the maximum information processing time."
-paraphrase = "1) TQ is a fixed time unit derived from the node clock period. TQ = m × t_q,min where m is a programmable integer prescaler and t_q,min = one clock period.\n2) Separate nominal and FD data bit rate configurations, each based on a programmable integer prescaler.\n3) Sample point at end of Phase_Seg1. Sync_Seg = 1 TQ.\n4) IPT ≤ 2 TQ."
+paraphrase = "1) TQ is a fixed time unit derived from the node clock period. TQ = m × t_q,min where m is a programmable integer prescaler and t_q,min = one clock period.\n2) A bit time consists of four segments: Sync_Seg (1 TQ), Prop_Seg (compensates for bus propagation and node delays), Phase_Seg1, and Phase_Seg2. The sample point falls at the end of Phase_Seg1.\n3) IPT (Information Processing Time): the time a node requires to determine the bit value after sampling. IPT ≤ 2 TQ.\n4) Separate nominal and FD data bit rate configurations, each based on a programmable integer prescaler."
 side = "both"
 layer = "PCS"
 format_applicability = "CB, CE, FB, FE"
