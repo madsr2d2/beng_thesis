@@ -472,8 +472,8 @@ The final plan contains 32 P1, four P2, and two P3 requirements. The demotion ra
 
 @tbl:vplan-distribution shows the 38 requirements distributed across layer, side, format scope, and observability. MAC dominates in count and white-box density, reflecting the breadth of frame-encoding logic that must be verified against internal bit-level state. FCE requirements are entirely black-box: fault-confinement state transitions are fully observable through the node's error-state output signals without needing access to internal counters. Most requirements cover both transmitter and receiver roles (29 of 38); the eight TX-only requirements are concentrated in LLC and MAC. Six requirements do not apply to all four frame formats and require format-specific test configurations - five in MAC and one in PCS.
 
-| Layer | Requirements | Total | TX | RX | Both | Format-specific | Black-box | White-box |
-| :---- | :----------- | ----: | -: | -: | ---: | --------------: | --------: | --------: |
+| Layer | Requirements | n | TX | RX | Both | FS | BB | WB |
+| :---- | :----------- | -: | -: | -: | ---: | -: | -: | -: |
 | MAC | REQ-006, REQ-008, REQ-010–013, REQ-015–019, REQ-021–023, REQ-031, REQ-033, REQ-035–036, REQ-038 | 19 | 3 | 0 | 16 | 5 | 3 | 16 |
 | LLC | REQ-001–005, REQ-032, REQ-037 | 7 | 3 | 1 | 3 | 0 | 4 | 3 |
 | System | REQ-007, REQ-009, REQ-014, REQ-020, REQ-034 | 5 | 1 | 0 | 4 | 0 | 2 | 3 |
@@ -481,7 +481,7 @@ The final plan contains 32 P1, four P2, and two P3 requirements. The demotion ra
 | FCE | REQ-028–030 | 3 | 0 | 0 | 3 | 0 | 3 | 0 |
 | **Total** | | **38** | **8** | **1** | **29** | **6** | **13** | **25** |
 
-: Requirement distribution by layer, side, format scope, and observability. Format-specific = not applicable to all four frame formats. {#tbl:vplan-distribution}
+: Requirement distribution by layer, side, format scope, and observability. n = total. FS = format-specific (not applicable to all four frame formats). BB = black-box. WB = white-box. {#tbl:vplan-distribution}
 
 ## Verification Plan Data Structure {#sec:verification-plan-data-structure}
 
