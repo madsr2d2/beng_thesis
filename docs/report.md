@@ -425,15 +425,15 @@ The key asymmetry between CC and FD concerns the CRC data feed. For FD frames, d
 
 Every CAN node monitors the bus for five categories of error (REQ-021):
 
-- **Bit error**: a transmitter reads back a polarity different from what it drove. Exceptions: a recessive non-stuff bit overridden during arbitration and a recessive bit in the ACK slot (REQ-014).
+- **Bit error**: a transmitter reads back a polarity different from what it drove. Exceptions: a recessive non-stuff bit overridden during arbitration and a recessive bit in the ACK slot.
 - **Stuff error**: six consecutive bits of the same polarity where the stuffing rule prohibits it.
 - **CRC error**: received checksum does not match the locally recomputed value.
 - **Form error**: a fixed-format field contains an illegal bit value.
-- **Acknowledgment error**: a transmitter receives no dominant ACK bit from any receiver.
+- **Acknowledgment error**: a transmitter receives no dominant ACK bit from any receiver (REQ-014).
 
 Detection of any error causes the detecting node to transmit an error flag, aborting the frame (REQ-022). An error active node transmits an active error flag of six consecutive dominant bits. An error passive node transmits a passive error flag of six consecutive recessive bits instead (REQ-007). Both are followed by an eight-bit recessive error delimiter.
 
-The FCE tracks each node's error history through the Transmit Error Counter (TEC) and Receive Error Counter (REC). Counter increments and decrements follow the rules defined in REQ-029. A node begins in error active and transitions to error passive when either counter exceeds 127 (REQ-030), then to bus off when TEC exceeds 255. An error-passive transmitter is exempt from the TEC increment on an ACK error (REQ-029), preventing an isolated node from escalating to bus-off through failed acknowledgments alone. In bus off the node ceases all bus activity and shall not influence the bus (REQ-027) until 128 sequences of 11 consecutive recessive bits are observed, after which TEC and REC are reset and the node returns to error active (REQ-030). A host-initiated supervisory reset also returns the FCE to its initial state immediately (REQ-028). Whether error signaling is enabled at all is a run-time configuration parameter (REQ-036).
+The FCE tracks each node's error history through the Transmit Error Counter (TEC) and Receive Error Counter (REC). Counter increments and decrements follow the rules defined in REQ-029. A node begins in error active, transitions to error passive when either counter exceeds 127, and to bus off when TEC exceeds 255 (REQ-030). An error-passive transmitter is exempt from the TEC increment on an ACK error, preventing an isolated node from escalating to bus-off through failed acknowledgments alone. In bus off the node ceases all bus activity and shall not influence the bus (REQ-027) until 128 sequences of 11 consecutive recessive bits are observed, after which TEC and REC are reset and the node returns to error active. A host-initiated supervisory reset also returns the FCE to its initial state immediately (REQ-028). Whether error signaling is enabled at all is a run-time configuration parameter (REQ-036).
 
 # Verification Plan {#sec:verification-plan}
 
