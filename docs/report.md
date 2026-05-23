@@ -294,7 +294,7 @@ The AI-augmented pipeline shown in @fig:ver_plan_pipeline was designed to addres
 
 This process yielded a raw set of 168 normative statements linked to the ISO standard sections from which they were extracted. The normative set was then manually reviewed, consolidated, and distilled into a final set of 38 requirements (reproduced in @sec:appendix-vplan).
 
-The requirements set is stored as a structured configuration file, one entry per requirement. Direct LLM editing of large structured files is unreliable - prone to silent entry deletion, field hallucination, and syntax corruption. To make iterative AI-assisted refinement of the plan viable, a custom Model Context Protocol (MCP) server was developed alongside it. The server exposes query, insert, update, and delete operations, together with bulk update and statistics utilities, as structured tool calls. Each write operation targets a single requirement entry and validates field values against the schema before committing. This bounds any model error to one requirement and prevents malformed data from reaching the file. Each requirement entry contains the following fields:
+The requirements set is stored as a TOML file, one entry per requirement. Direct LLM editing of large structured files is unreliable - prone to silent entry deletion, field hallucination, and syntax corruption. To make iterative AI-assisted refinement of the plan viable, a custom Model Context Protocol (MCP) server was developed alongside it. The server exposes query, insert, update, and delete operations, together with bulk update and statistics utilities, as structured tool calls. Each write operation targets a single requirement entry and validates field values against the schema before committing. This bounds any model error to one requirement and prevents malformed data from reaching the file. Each requirement entry contains the following fields:
 
 - **`source_clause`**: Links every requirement back to the ISO 11898-1 clause from which it was distilled, enabling the requirements set to be audited against the standard.
 - **`original_wording`**: Verbatim ISO text for the relevant clauses. Preserving the source wording prevents paraphrase drift and provides a fallback for resolving ambiguity during implementation.
@@ -321,11 +321,7 @@ The AI-assisted workflow delivered value in two distinct phases of the project, 
 
 In the extraction phase, the LLM agent earned its keep by bootstrapping and linking the initial normative statement set. Having a fully populated and linked starting point - even one requiring substantial revision - gave the manual review process a concrete artifact to work from. The time saving from the extraction itself was, however, marginal. The agent's output had to be reviewed statement by statement, which is functionally similar to extracting requirements manually in the first place. The primary benefit of the AI-assisted approach in this phase was therefore not efficiency, but rather the increased consistency of an automated pass over the full standard text.
 
-The distillation step that followed - consolidating 168 raw normative statements into 38 prioritized, independently verifiable requirements - required substantial manual effort that the AI could not replace. Deciding which statements address the same underlying obligation, how to bound each requirement so that it is independently verifiable, and how to assign priority in a way that is defensible against the standard text are judgment calls that depend on understanding the protocol at an implementation level.
-
-REQ-026 (PCS synchronization, §7.3.5.1–7.3.5.4) illustrates the challenge well.
-
-**Extracted normative statements (§7.3.5.1–7.3.5.4):**
+The distillation step that followed - consolidating 168 raw normative statements into 38 prioritized, independently verifiable requirements - required substantial manual effort that the AI could not replace. Deciding which statements address the same underlying obligation, how to bound each requirement so that it is independently verifiable, and how to assign priority in a way that is defensible against the standard text are judgment calls that depend on understanding the protocol at an implementation level. REQ-026 illustrates the challenge well - the corresponding extracted normative statements are:
 
 1. *"Only one synchronization within one bit time (between two sample points) shall be allowed. After an edge is detected, synchronizations shall be disabled until the next time the bus state detected at the sample point is recessive."*
 2. *"An edge shall cause synchronization only if the bus state detected at the previous sample point was recessive. If a transmitter uses transmitter delay compensation, also the first detected edge from recessive to dominant after the sample point of the CRC delimiter shall cause synchronization. An edge with a positive phase error shall not cause synchronization in a node sending a dominant bit."*
@@ -335,25 +331,27 @@ REQ-026 (PCS synchronization, §7.3.5.1–7.3.5.4) illustrates the challenge wel
 6. *"When the magnitude of the phase error is less than or equal to the synchronization jump width, the effect of a resynchronization shall be the same as a hard synchronization."*
 7. *"When the magnitude of the phase error is larger than the synchronization jump width: if positive, Phase_Seg1 shall be lengthened by the synchronization jump width; if negative, Phase_Seg2 shall be shortened by the synchronization jump width."*
 
-Statements 3 and 4 each embed CAN XL elements within otherwise in-scope obligations, which must be excluded without dropping the surrounding CB, CE, FB, and FE rules. The remaining statements interleave hard sync and resync rules across four sub-clauses, requiring the two mechanisms to be separated and their interaction made explicit. The resulting paraphrase is presented below, with the remaining requirement fields in @tbl:req027-example.
+Statements 3 and 4 each embed CAN XL elements within otherwise in-scope obligations, which must be excluded without dropping the surrounding CB, CE, FB, and FE rules. The remaining statements interleave hard sync and resync rules across four sub-clauses, requiring the two mechanisms to be separated and their interaction made explicit. The resulting paraphrase is presented below, with the remaining requirement fields in @tbl:req026-example.
 
 **Paraphrase:**
 
-1. One synchronization per bit time, re-enabled after the next recessive sample point.
-2. An edge qualifies only if the previous sample point was recessive and no positive phase error exists while sending dominant. The first recessive-to-dominant edge after the CRC delimiter also qualifies when TDC is active.
-3. Hard synchronization: IFS edges (except the first intermission bit), bus-integration state, and the FDF-to-res transition. Bit time restarts with Sync_Seg completed, unconstrained by SJW.
-4. All other qualifying edges cause resynchronization, except for the FD data-phase transmitter. Positive error: Phase_Seg1 += SJW. Negative error: Phase_Seg2 -= SJW. Error not exceeding SJW: same effect as hard synchronization.
+1. Phase error: the time interval between a recessive-to-dominant edge and the Sync_Seg boundary of the current bit time. Positive when the edge falls after Sync_Seg (late), negative when before (early).
+2. SJW (Synchronization Jump Width): the maximum amount by which Phase_Seg1 or Phase_Seg2 may be adjusted per resynchronization.
+3. One synchronization per bit time, re-enabled after the next recessive sample point.
+4. An edge qualifies only if the previous sample point was recessive and no positive phase error exists while sending dominant. The first recessive-to-dominant edge after the CRC delimiter also qualifies when TDC is active.
+5. Hard synchronization: IFS edges (except the first intermission bit), bus-integration state, and the FDF-to-res transition. Bit time restarts with Sync_Seg completed, unconstrained by SJW.
+6. All other qualifying edges cause resynchronization, except for the FD data-phase transmitter. Positive error: Phase_Seg1 += SJW. Negative error: Phase_Seg2 -= SJW. Error ≤ SJW: same effect as hard synchronization.
 
 | Field | Value |
 | :--- | :----------------------------------------------- |
 | ID | REQ-026 |
-| Source | §7.3.5.1, §7.3.5.2, §7.3.5.3, §7.3.5.4 |
+| Source | §7.3.5.1, §7.3.5.2, §7.3.5.3, §7.3.5.4, Figure 33 |
 | Priority | P1 |
-| Notes | The implementation is stricter than ISO: `mac_i.transmitting` suppresses all synchronization unconditionally, not just resync on positive phase error. This is safe since a transmitter is the timing reference for all receivers. |
+| Notes | RTL is stricter than ISO: `mac_i.transmitting` suppresses all sync unconditionally, not just resync on positive phase error. Safe since the transmitter is the timing source. |
 
-: REQ-026 distilled from seven extracted normative statements. {#tbl:req027-example}
+: REQ-026 distilled from seven extracted normative statements. {#tbl:req026-example}
 
-The MCP server interface proved genuinely useful throughout the design, implementation, and verification phases that followed extraction. As implementation decisions were made, requirements were refined - paraphrases sharpened, notes extended, observability classifications updated, and traceability fields populated. The AI coding agent performed these updates directly through the MCP tool calls, targeting individual requirement fields against a schema-validated store. The alternative - asking an agent to rewrite the full TOML file each time a requirement changed - would have introduced silent data corruption risks at every edit. The narrow, validated write interface made incremental AI-assisted maintenance of the verification plan safe and practical across all three project phases.
+The MCP server interface proved genuinely useful throughout the design, implementation, and verification phases that followed extraction. As implementation decisions were made, requirements were refined - paraphrases sharpened, notes extended, observability classifications updated, and traceability fields populated. Source clause augmentation illustrates the point directly - the initial extraction was text-only, and figure and table references were added to 18 source clauses through targeted MCP updates that left all other fields untouched. The AI coding agent performed these updates directly through the MCP tool calls, targeting individual requirement fields against a schema-validated store. The alternative - asking an agent to rewrite the full TOML file each time a requirement changed - would have introduced silent data corruption risks at every edit. The narrow, validated write interface made incremental AI-assisted maintenance of the verification plan safe and practical across all three project phases.
 
 The 38 requirements, each linked to its ISO source clause and assigned a priority, define the scope of what must be implemented and verified. They also function as a structured map to the protocol: every requirement points to a mechanism that must be understood before implementation can begin. @sec:can-protocol-overview provides that understanding - covering the sub-layer model, frame formats, bit timing, bit stuffing, CRC, and error handling.
 
