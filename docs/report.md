@@ -439,8 +439,7 @@ The FCE tracks each node's error history through the Transmit Error Counter (TEC
 
 The 38 requirements name protocol obligations and link each to its ISO clause, but say nothing about which module testbench should exercise them, what stimulus configurations are needed, whether internal signals must be observable, or how completion will be recognized. The verification plan answers those questions explicitly for each entry.
 
-The plan was populated through the same MCP server introduced in @sec:requirements-engineering. Each field value was schema-validated before being written. The five classification dimensions fall into two groups. Three are design-facing - `layer`, `side`, and `format_applicability` - determining where each requirement belongs in the module decomposition and what stimulus configurations its testbench needs. Two are verification-facing - `observability` and `verification_method` - resolving whether a requirement can be checked through port signals or requires access to internal state, and specifying the verification technique. Priority is orthogonal to both groups, driving implementation sequencing and determining which requirements block design closure. The rationale and allowed values for each dimension are described in @sec:vplan-layer through @sec:vplan-status, followed by the full verification plan data structure and its traceability fields in @sec:verification-plan-data-structure.
-
+The plan was populated through the same MCP server introduced in @sec:requirements-engineering. Each field value was schema-validated before being written. The five classification dimensions fall into two groups. Three are design-facing - `layer`, `side`, and `format_applicability` - determining where each requirement belongs in the module decomposition and what stimulus configurations its testbench needs. Two are verification-facing - `observability` and `verification_method` - resolving whether a requirement can be checked through port signals or requires access to internal state, and specifying the verification technique. Priority is orthogonal to both groups, driving implementation sequencing and determining which requirements block design closure.
 
 ## Layer {#sec:vplan-layer}
 
@@ -455,6 +454,7 @@ The side field records whether a requirement pertains to the transmitter path, t
 ## Format Applicability {#sec:vplan-format}
 
 The format_applicability field records which of the in-scope frame formats (CB, CE, FB, FE - see @fig:can-frame-structure, where CB and CE implicitly cover remote frame variants) each requirement applies to. Because the formats differ in stuffing mode, CRC polynomial, and control field structure (@sec:can-protocol-overview), a requirement that applies only to FD frames implies stimulus configurations with FDF=1 and DLC values spanning both the CRC-17 and CRC-21 threshold, while a requirement that applies to all four formats must be exercised across all format-specific configurations.
+
 ## Observability {#sec:vplan-observability}
 
 The observability field resolves each requirement as either black-box or white-box, relative to the module boundary of the owning layer:
@@ -483,13 +483,12 @@ This distinction has direct consequences for testbench architecture. Black-box r
 
 The verification plan data structure (@tbl:vplan-metadata-fields) augments each requirement with the dimensions needed to answer not just *what* must be true, but *how* it will be verified, *where* the evidence lives, and *when* verification is complete. The following sub-sections cover the remaining fields - `verification_method`, `label`, `file`, and `status` - which were not introduced as standalone classification dimensions above. The complete verification plan is reproduced in @sec:appendix-vplan as two separate tables (linked by common IDs).
 
-
 | Field | Purpose |
 | :--- | :--- |
 | `id` | Sequential identifier REQ-NNN. |
 | `source_clause` | ISO 11898-1:2015 section reference. |
-| `original_wording` | Verbatim normative text excerpts from the ISO standard.|
-| `paraphrase` | Concise paraphrase of the `original_wording` field (this is the actual requirement) |
+| `original_wording` | Verbatim normative text excerpts from the ISO standard. |
+| `paraphrase` | Concise paraphrase of the `original_wording` field - the operative requirement statement. |
 | `layer` | Sub-layer owner: LLC, MAC, PCS, FCE, or system (@sec:vplan-layer). |
 | `side` | transmitter, receiver, or both (@sec:vplan-side). |
 | `format_applicability` | Applicable frame formats: CB, CE, FB, FE (@sec:vplan-format). |
@@ -532,7 +531,7 @@ The `side` dimension classifies each requirement as TX-only, RX-only, or both - 
 
 A split path duplicates both code and hardware. Shared protocol logic must exist in both paths, and each path needs its own bit stuffer and CRC engine - putting two instances of `can_mac_bs` and `can_mac_crc` on the device where one of each suffices. As shown in @fig:can-node-architecture, the unified design shares a single instance of each.
 
-A further cost is implementation and debugging complexity. Developing the two paths sequentially, solutions to shared protocol logic tended to diverge between implementations with no protocol justification. Debugging similarly doubles the investigation surface - tracing a bug requires reading two independent sets of waveforms.
+A further cost is implementation and debugging complexity. When the two paths are developed sequentially, shared protocol logic tends to diverge between implementations with no protocol justification. Debugging similarly doubles the investigation surface - tracing a bug requires reading two independent sets of waveforms.
 
 The unified TX/RX path - a single `can_mac_fsm` with shared `can_mac_bs` and `can_mac_crc` instances - eliminates all three costs. Shared protocol logic exists once, preventing implementation drift. Debugging involves a single FSM and a single set of waveforms.
 
