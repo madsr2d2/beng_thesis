@@ -365,7 +365,7 @@ ISO 11898-1 structures the CAN node reference model into three functional sub-la
 
 - **LLC (Logical Link Control)**: acceptance filtering [P3, not implemented], overload notification [LLC-requested variant, optional per ISO], and recovery management - retransmission on error or lost arbitration, and supplying frames to the MAC.
 - **MAC (Medium Access Control)**: encodes and decodes the frame bit-by-bit, performing bit stuffing and destuffing, CRC generation and checking, error detection and signalling, acknowledgment handling, and medium access arbitration.
-- **PCS (Physical Coding Sublayer)**: manages bit timing, clock synchronization (including Transmitter Delay Compensation for FD data phase), and the TX/RX interface to the physical transceiver.
+- **PCS (Physical Coding Sublayer)**: bit timing and bus sampling, clock synchronization (including Transmitter Delay Compensation for the FD data phase), and the TX/RX interface to the physical transceiver.
 - **FCE (Fault Confinement Entity)**: maintains Transmit Error Counter (TEC) and Receive Error Counter (REC), escalating the node's error state from error active through error passive to bus off as error counts accumulate.
 
 In this implementation, each sub-layer maps to a dedicated VHDL module, and the sub-layer interfaces become the port records connecting those modules (@sec:design-architecture).
