@@ -476,9 +476,9 @@ The final plan contains 32 P1, four P2, and two P3 requirements. The demotion ra
 | :---- | :----------- | -: | -: | -: | ---: | -: | -: | -: |
 | MAC | REQ-006, REQ-008, REQ-010–013, REQ-015–019, REQ-021–023, REQ-031, REQ-033, REQ-035–036, REQ-038 | 19 | 3 | 0 | 16 | 5 | 3 | 16 |
 | LLC | REQ-001–005, REQ-032, REQ-037 | 7 | 3 | 1 | 3 | 0 | 4 | 3 |
-| System | REQ-007, REQ-009, REQ-014, REQ-020, REQ-034 | 5 | 1 | 0 | 4 | 0 | 2 | 3 |
 | PCS | REQ-024–027 | 4 | 1 | 0 | 3 | 1 | 1 | 3 |
 | FCE | REQ-028–030 | 3 | 0 | 0 | 3 | 0 | 3 | 0 |
+| System | REQ-007, REQ-009, REQ-014, REQ-020, REQ-034 | 5 | 1 | 0 | 4 | 0 | 2 | 3 |
 | **Total** | | **38** | **8** | **1** | **29** | **6** | **13** | **25** |
 
 : Requirement distribution by layer, side, format scope, and observability. n = total. FS = format-specific (not applicable to all four frame formats). BB = black-box. WB = white-box. {#tbl:vplan-distribution}
