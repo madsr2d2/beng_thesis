@@ -415,11 +415,11 @@ Bit stuffing ensures sufficient transitions on the bus for receiver clock synchr
 
 The CRC polynomial and field length depend on frame type and data payload length (REQ-006):
 
-- **CRC-15**: used for all CAN Classic frames. Dynamic stuff bits are excluded from the CC CRC computation - the CRC accumulates over the destuffed bit stream from SOF through the end of the data field (REQ-013).
+- **CRC-15**: used for all CAN Classic frames. The CRC accumulates over SOF, arbitration, control, and data fields with SBs excluded (REQ-013).
 - **CRC-17**: used for FD frames with data payloads up to 16 bytes (DLC 0-10).
 - **CRC-21**: used for FD frames with data payloads from 20 to 64 bytes (DLC 11-15).
 
-The key asymmetry between CC and FD concerns the CRC data feed. For FD frames, dynamic stuff bits up to and including the data field are included in the CRC computation, along with the SBC field itself. Fixed stuff bits are excluded from the CRC computation in both CC and FD frames (REQ-013). This dual data-feed requirement is a direct consequence of REQ-013 and has concrete consequences for the MAC implementation described in @sec:impl-can-mac-crc. The CRC field is terminated by a recessive CRC delimiter bit (REQ-017). A received frame with a CRC mismatch causes the detecting node to transmit an error flag.
+The key asymmetry between CC and FD concerns the CRC data feed. For FD frames, dynamic stuff bits up to and including the data field are included in the CRC computation, along with the SBC field itself. Fixed stuff bits are excluded from the CRC computation in both CC and FD frames (REQ-013). This asymmetry has concrete consequences for the MAC implementation described in @sec:impl-can-mac-crc. The CRC field is terminated by a recessive CRC delimiter bit (REQ-017). A received frame with a CRC mismatch causes the detecting node to transmit an error flag.
 
 ## Error Detection and Fault Confinement {#sec:error-model}
 
