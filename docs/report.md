@@ -368,8 +368,6 @@ ISO 11898-1 structures the CAN node reference model into three functional sub-la
 - **PCS (Physical Coding Sublayer)**: bit timing and bus sampling, clock synchronization (including Transmitter Delay Compensation for the FD data phase), and the TX/RX interface to the physical transceiver.
 - **FCE (Fault Confinement Entity)**: maintains Transmit Error Counter (TEC) and Receive Error Counter (REC), escalating the node's error state from error active through error passive to bus off as error counts accumulate.
 
-In this implementation, each sub-layer maps to a dedicated VHDL module, and the sub-layer interfaces become the port records connecting those modules (@sec:design-architecture).
-
 ## Frame Types and Formats {#sec:frame-types}
 
 CAN defines two classes of frames: CAN Classic (CC) and CAN FD (FD). Within each class, frames may carry either an 11-bit base identifier or a 29-bit extended identifier, giving four frame formats: CB (Classic Base), CE (Classic Extended), FB (FD Base), and FE (FD Extended), as shown in @fig:can-frame-structure (REQ-038). Classic frames (CB and CE) additionally support remote frame variants (RTR=1, no data field), giving six bus frame types in total. CAN XL frames are out of scope for this project.
