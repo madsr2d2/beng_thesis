@@ -385,7 +385,7 @@ A CAN FD frame shares the same arbitration phase structure, with the FDF bit sig
 Every CAN bit period is divided into four non-overlapping time segments measured in Time Quanta (TQ), where one TQ equals the period of the prescaled system clock, see @fig:can-bit-timing. CAN FD extends CAN Classic with an independently configured data-phase bit rate. A CAN FD node therefore maintains two independent sets of segment parameters, one for the nominal rate and one for the data rate (REQ-024):
 
 - **Sync Segment (SS)**: one TQ. The segment at which a recessive-to-dominant edge is expected when the node is synchronized.
-- **Propagation Segment (PS)**: compensates for round-trip signal propagation delay on the bus and in the transceiver. PS shall be programmed to be at least as long as twice the maximum bus propagation delay.
+- **Propagation Segment (PS)**: guarantees that a bit driven by any node reaches all others before the sample point, enabling correct arbitration. PS shall be programmed to at least twice the one-way propagation delay: 2 × (t_TRX + t_bus) (see @fig:can-bit-timing).
 - **Phase Segment 1 (PS1)**: immediately precedes the sample point. Can be lengthened by the resynchronization mechanism to absorb positive phase errors.
 - **Phase Segment 2 (PS2)**: follows the sample point to the end of the bit. Can be shortened to absorb negative phase errors.
 
