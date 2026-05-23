@@ -237,11 +237,11 @@ The architectural limitations of the existing controller (@sec:existing-limitati
 
 # Background {#sec:background}
 
-This section covers the CAN and CAN FD protocol at the level of motivation and architecture - the bus model, fault-confinement properties, and the bandwidth extensions introduced by CAN FD. The protocol mechanisms referenced by individual requirements - bit timing, stuffing, CRC, and error handling - are covered in depth in @sec:can-protocol-overview.
+This section covers the CAN and CAN FD protocol at the level of motivation and architecture - the bus model, fault-confinement properties, and the bandwidth extensions introduced by CAN FD.
 
 ## CAN Classic {#sec:can-classic}
 
-The Controller Area Network (CAN) is a serial communication bus developed by Bosch in 1986 [@bosch1991] to connect electronic control units in automotive environments without a central host computer. Where point-to-point wiring and star-switched architectures require a dedicated conductor between every communicating pair, CAN uses a shared two-wire differential bus on which all nodes broadcast simultaneously and arbitrate access without any designated bus master (see @fig:can_bus). Any node may initiate a transmission at any time. Contention is resolved by a non-destructive bitwise arbitration in which the transmitter with the lower-priority identifier detects the collision and silently withdraws, leaving the winner's frame intact. Differential signaling on a twisted pair (ISO 11898-2 physical layer) provides strong common-mode noise rejection - a practical necessity in the electrically harsh environment of an engine bay or industrial cabinet.
+The Controller Area Network (CAN) is a serial communication bus developed by Bosch in 1986 [@bosch1991] to connect electronic control units in automotive environments without a central host computer. CAN uses a shared two-wire differential bus on which all nodes broadcast simultaneously and arbitrate access without any designated bus master (see @fig:can_bus). Any node may initiate a transmission at any time. Contention is resolved by a non-destructive bitwise arbitration in which the transmitter with the lower-priority identifier detects the collision and silently withdraws, leaving the winner's frame intact. The bus uses two conductors, CANH and CANL (see @fig:can_bus), whose voltage difference encodes the bit value. Twisting the conductors ensures that external electromagnetic interference couples equally onto both wires. Because the receiver measures only the differential voltage, this common-mode noise cancels - a practical necessity in the electrically harsh environment.
 
 ![CAN bus with four nodes on a shared differential two-wire bus.](figures/can_bus.png){#fig:can_bus width=60%}
 
