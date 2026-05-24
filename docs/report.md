@@ -541,7 +541,7 @@ The host-LLC format places all control flags after the payload, requiring a full
 
 # Implementation {#sec:implementation}
 
-All inter-module interfaces use typed record types (e.g., `t_can_mac_pcs_if_m2s`, `t_can_mac_fsm_bs_if_s2m`), each paired with a reset constant (e.g., `c_can_mac_pcs_if_m2s_reset`) so every module can be reset without enumerating individual fields. Port direction follows `m2s`/`s2m` (master-to-slave/slave-to-master) for control interfaces and `s2d`/`d2s` (source-to-destination/destination-to-source) for Avalon-ST data interfaces. `pk_can_types` (`can_types_pkg.vhd`) is the single shared package all modules depend on: it defines every interface record type, protocol constant, frame format byte layout, and utility function used across the design.
+All inter-module interfaces use typed record types (e.g., `t_can_mac_pcs_if_m2s`, `t_can_mac_fsm_bs_if_s2m`), each paired with a reset constant (e.g., `c_can_mac_pcs_if_m2s_reset`) so every module can be reset without enumerating individual fields. Port direction follows `m2s`/`s2m` (master-to-slave/slave-to-master) for control interfaces and `s2d`/`d2s` (source-to-destination/destination-to-source) for Avalon-ST data interfaces. `pk_can_types` (`can_types_pkg.vhd`) is the single shared package all modules depend on: it defines every interface record type, protocol constant, frame format byte layout, and utility function used across the design. `can_llc` was not implemented within the project schedule. Its interface contracts are fully specified in the verification plan (REQ-001 through REQ-005, REQ-032, REQ-035, REQ-037), and the implementation path is described in @sec:future-work.
 
 ## Module Overview {#sec:impl-module-overview}
 
