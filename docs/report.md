@@ -549,7 +549,7 @@ All inter-module interfaces use typed record types (e.g., `t_can_mac_pcs_if_m2s`
 
 ## `can_mac_fsm` {#sec:impl-can-mac-fsm}
 
-The `can_mac` sub-layer is built around a single unified FSM entity (`can_mac_fsm`). Received frames are accumulated into a 70-byte internal byte array (`llc_frame`), matching the approach used in `can_bus_controller` for CAN Classic. At 15 bytes the array overhead is acceptable. At 70 bytes it becomes the primary driver of logic element consumption (@sec:synthesis-resources), and a block RAM implementation is the correct fix (@sec:future-work). Bus-off state is owned entirely by `can_fce`: `can_mac_fsm` treats `fce_i.bus_off` as a secondary reset alongside the hardware reset, suppressing all bus activity without managing the counter rules itself. The complete signal-level interface is reproduced in @sec:appendix-mac-arch.
+The `can_mac` sub-layer is built around a single unified FSM entity (`can_mac_fsm`). Received frames are accumulated into a 70-byte internal byte array (`llc_frame`), deliberately reusing `can_bus_controller`'s register-array approach as a proof-of-concept baseline. The resource overhead is negligible at 15 bytes but becomes the dominant logic element cost at 70 bytes (@sec:synthesis-resources). A block RAM migration is the identified upgrade path (@sec:future-work). Bus-off state is owned entirely by `can_fce`: `can_mac_fsm` treats `fce_i.bus_off` as a secondary reset alongside the hardware reset, suppressing all bus activity without managing the counter rules itself. The complete signal-level interface is reproduced in @sec:appendix-mac-arch.
 
 ### FSM Structure and Mode Flag
 
