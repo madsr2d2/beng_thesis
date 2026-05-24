@@ -499,8 +499,6 @@ The `status` field (`not_started`, `in_progress`, `complete`) records requiremen
 
 The complete verification plan is reproduced in @sec:appendix-vplan as two separate tables linked by common IDs.
 
-How the design-facing dimensions shaped the module decomposition - and where the apparent mapping from requirements structure to design structure broke down - is the subject of @sec:design-architecture.
-
 # Design and Architecture {#sec:design-architecture}
 
 The verification plan classified all 38 requirements along three design-facing dimensions - `layer`, `side`, and `format_applicability`. Two led directly to sound architectural choices. One pointed toward a split TX/RX architecture that was attempted but created more problems than it solved, and was replaced by the unified `can_mac_fsm`.
