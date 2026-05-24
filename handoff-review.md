@@ -5,66 +5,57 @@ Use `/grill-with-docs` - systematic prose review of `docs/report.md`, one questi
 
 ## What Was Done This Session
 
-A full prose review pass from **`## AI-Assisted Extraction`** through **`## Error Detection and Fault Confinement`** (end of `# CAN and CAN FD Protocol Overview`). All changes are committed to `main`. See `git log --oneline -40` for the full list.
+Full prose review pass of **`# Verification Plan`** and **`# Design and Architecture`**. All changes committed to `main`. See `git log --oneline -30` for the full list.
 
-Key changes made:
+**Verification Plan chapter (major restructure):**
+- Opener rewritten: direct statement of five dimensions driving architecture and testbench design; two bullet points (design-facing / verification-facing) with bridge sentence to field sections
+- Deleted Verification Plan Data Structure section and table; promoted Verification Method, Traceability, Status from `###` to `##`
+- Deleted Priority section (already covered in Requirements section); removed priority content from Summary
+- Moved Requirement Distribution to last position; renamed to "Verification Plan Summary"; expanded with priority/status breakdown; later trimmed to two substantive observations (MAC white-box density, FCE all-black-box)
+- All field section openers: added backtick formatting to field names
+- Each field section: added illustrative requirement example (Layer: REQ-020 system label; Side: REQ-025 TDC TX-only; Format Applicability: REQ-015 FB/FE only; Observability: REQ-006 CRC polynomial; Verification Method: REQ-018 simulation+coverage combo)
+- Observability: bullets for black-box/white-box values; replaced "stimulus-and-observe" with direct language
+- Verification Method: bullets for all four method values
+- Layer: cut redundant middle sentence; REQ-020 example clarified as both multi-module and multi-node
+- Closing bridge sentence cut from Summary (D&A opener covers the same ground)
 
-**Requirements Engineering section:**
-- MCP paragraph: removed redundant source-clause augmentation example; tightened sentence voice ("using the agent", "schema-validated MCP tool calls", removed "write" from "validated interface")
-- Folded requirements bridge paragraph into protocol overview opener; rewrote opener to call back "those mechanisms" explicitly
-
-**Layered Reference Model:**
-- Fixed layer model description: two OSI layers (data link + physical), not one; added ISO Fig. 4 citation
-- Aligned all four sub-layer bullets with ISO Fig. 4 responsibilities; added LLC acceptance filtering and overload notification with scope brackets; MAC: flat participial list including error signalling; PCS: "bit timing and bus sampling" + TX/RX interface; removed implementation-specific sentence
-- Merged `@tbl:req-layer-map` into expanded `@tbl:vplan-distribution`; shortened column headers (n, FS, BB, WB); moved System row last; removed table from theory section
-
-**Frame Types and Formats:**
-- Rewrote Classic frame paragraph: IDE explanation, DLC, form bits (SRR/r0/r1), interframe space (INT/ST/IDLE), REQ refs anchored at opener
-- Added FD DLC non-linear mapping sentence; added SBC field to FD frame paragraph; named reserved form bit (res)
-- REQ-038 anchored once in section opener; field-level refs (REQ-032, REQ-008, REQ-031, REQ-015) on individual sentences
-- Updated figure captions (frame format waveform notation, bit timing two-node layout)
-
-**Bit Timing:**
-- Fixed TQ definition (prescaler × system clock period)
-- Rewrote PS bullet: arbitration constraint PS ≥ 2×(t_TRX+t_bus) with figure ref
-- Fixed SS bullet: "when the node is synchronized"
-- Added `### Synchronization {#sec:bit-sync}` subsection; rewrote sync paragraph with SS/PE/SJW anchoring, hard sync triggers (SOF + FDF→res), segment adjustment direction
-- Removed redundant CAN FD flexible data rate paragraph from TDC section
-- Rewrote TDC paragraph (5 sentences): SSP before SP, invalid SSPs during TDC delay, res bit measurement, offset; updated figure caption
-
-**Bit Stuffing:**
-- Accurate stuffing ranges (CC: SOF–CRC; FD: SOF–data field then fixed in CRC)
-- Introduced SB and FSB abbreviations to match figure; Gray-coded SBC; dropped "absent in CAN Classic" (covered in FD frame section)
-
-**CRC:**
-- Tightened CRC-15 bullet; removed self-referential and implementation sentences; moved CRC mismatch error sentence to error section
-
-**Error Detection and Fault Confinement:**
-- Converted five error types to bullet points; moved REQ-014 to acknowledgment error bullet; pooled REQ-029 and REQ-030 (one ref each); added error-passive ACK error TEC exemption; spelled out TEC/REC; replaced `llc_i.normal_mode` with generic description; removed implementation commentary and fluff bridge paragraph
+**Design and Architecture chapter:**
+- System Overview moved to first subsection (introduces all module names before they are used)
+- Chapter opener rewritten: introduces module hierarchy (`can_llc`, `can_mac` wrapper, submodules); `can_bus_controller` introduced here as the existing controller
+- "Internal LLC Frame Format" renamed to "LLC-MAC Interface Format"
+- Consistent naming: replaced all "existing CAN Classic controller", "existing controller", "prior implementation" with `can_bus_controller`
+- Adopting ISO sub-layer model: dropped VP `layer`-dimension reference; states rationale directly
+- Combined vs. Separated TX/RX: rewritten as narrative ("tried X, observed Y, concluded Z")
+- Per-Field FSM Granularity: reframed around REQ-038 defining the frame field sequence; FSM naturally progresses through that structure; removed forward-ref to implementation section
+- LLC Frame Format: added intro paragraph naming purpose of each sub-format; Host-LLC simplified (extends `can_bus_controller`, 8→64 bytes, FD flags added to existing control bytes); LLC-MAC simplified (full 71-byte buffer vs. 2-byte config prefix)
 
 ## Where We Left Off
 
-At the start of `# Verification Plan {#sec:verification-plan}`, specifically **L438** of `docs/report.md`. The protocol overview chapter is complete and clean.
+At the start of `# Implementation {#sec:implementation}`, specifically **L542** of `docs/report.md`. Design and Architecture chapter is complete and clean.
 
 ## Next Section to Review
 
-`# Verification Plan {#sec:verification-plan}` starting at L438, covering:
+`# Implementation {#sec:implementation}` starting at L542, covering:
 
 ```
-## Layer {#sec:vplan-layer}           L445
-## Side {#sec:vplan-side}             L451
-## Format Applicability               L460
-## Observability                      L464
-## Priority                           L473
-## Requirement Distribution           L481  ← expanded table already done this session
-## Verification Plan Data Structure   L486
+## Interface Conventions        L546
+## can_mac_fsm                  L556
+   ### FSM Structure and Mode Flag
+   ### TX Mode: Frame Transmission
+   ### RX Mode: Frame Reception
+   ### Error-Frame States
+## can_mac_ser
+## can_mac_bs
+## can_mac_crc
+## can_fce
+## can_pcs
 ```
 
 ## Writing Style Rules (critical)
 
 - **No semicolons (`;`) in prose. No exceptions.**
 - **No em dashes** - use ` - ` (spaced hyphen).
-- **Colons inside paragraphs are acceptable** (user confirmed this session - do NOT flag them).
+- **Colons inside paragraphs are acceptable** - do NOT flag them.
 - American English: "acknowledgment", "color", etc.
 - No author attributions - state claims directly with citations.
 - Pandoc crossrefs: `@sec:`, `@fig:`, `@tbl:`. Never "Figure @fig:X" (doubles the prefix).
@@ -74,11 +65,13 @@ Full rules: `docs/writing_style_rules.md`
 
 ## Key Decisions Made This Session
 
-- Colons inside paragraphs are acceptable - do not flag (user reverted all colon removals)
-- Implementation details belong in design/architecture sections, not protocol theory sections
-- REQ refs should be anchored once per topic (e.g. REQ-038 once for overall frame structure) with field-level refs for individual obligations
-- Figure captions should describe what notation means (hatching = variable content, fixed-polarity = protocol-defined bits)
-- `System` layer row goes last in the distribution table (it's not an ISO layer)
+- Priority belongs in the Requirements section, not the Verification Plan section - do not re-introduce it there
+- `format_applicability` is design-facing (not verification-facing) because it informed per-field FSM granularity; describe it as such, not as "testbench stimulus scope"
+- `can_bus_controller` is the name for the existing CAN Classic controller - use it consistently; do NOT use "existing controller", "prior implementation", "old implementation"
+- Design and Architecture sections should not forward-reference implementation details (no refs to `@sec:impl-*` from D&A)
+- System Overview belongs first in D&A so module names are established before they are used
+- LLC is not yet implemented - do NOT mention this in the Design section; it belongs in the Implementation section only
+- Narrative style for "tried and rejected" architectural decisions: "tried X, observed Y, concluded Z"
 
 ## Project Context
 
