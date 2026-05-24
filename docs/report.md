@@ -573,7 +573,7 @@ When `is_transmitter = true`, the FSM writes `pcs_o.tx_data` two clock cycles af
 
 The FSM samples the bus at each sample point to detect bit errors, ACK, and arbitration loss. In the CAN FD data phase, the SSP strobe replaces the SP for bit-error monitoring. The MAC compares `pcs_i.rx_data` against `transmitted_bits_shift_reg(tdc_delay)` - where `tdc_delay` is supplied alongside the SSP strobe by the PCS - to check the bit that was transmitted `tdc_delay` bit times earlier. Arbitration loss clears `is_transmitter` in `s_arbitration` and the node continues as an receiver.
 
-During `s_arbitration` multiple nodes may be transmitting, so both TX and RX feed `pcs_i.rx_data` into the CRC and BS engines - the bus is the only authoritative source. A transmitter that loses arbitration therefore needs no handoff: its accumulators already match a pure receiver's. From `s_fdf_r1_r0` onward the transmitter switches to `transmitted_bits_shift_reg(0)`, avoiding echo latency once TDC is active.
+During `s_arbitration` multiple nodes may be transmitting, so both TX and RX feed `pcs_i.rx_data` into the CRC and BS engines - the bus is the only authoritative source. A transmitter that loses arbitration therefore needs no handoff: its accumulators already match a pure receiver's. From `s_fdf_r1_r0` onward the transmitter switches to `transmitted_bits_shift_reg(tdc_delay)`, enabling TDC in the data-phase.
 
 ### RX Mode: Frame Reception
 
