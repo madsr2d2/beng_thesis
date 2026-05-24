@@ -525,6 +525,8 @@ The `format_applicability` dimension expresses requirements at the level of indi
 
 ## LLC Frame Format {#sec:llc-frame-format}
 
+The LLC layer defines two frame formats: a host-facing format that maintains compatibility with `can_bus_controller`, and a MAC-facing format designed to efficiently facilitate frame streaming.
+
 ### Host-LLC Interface Format {#sec:host-llc-frame-format}
 
 All six bus frame types (CB, CE, FB, FE data frames, and remote frames for CB and CE) are represented at the host-LLC interface using the 71-byte LLC frame format shown in @fig:llc-frame. The layout extends the `can_bus_controller` LLC frame format, with bytes 0-3 carrying the identifier, byte 4 carrying frame type and DLC, and data beginning at byte 5. The extension adds 56 additional data bytes (bytes 5-68, zero-padded to 64 bytes) and two trailing flag bytes (bytes 69-70) carrying IDE, BRS, ESI, and RTR, so host software requires no change to the fields it already uses.
