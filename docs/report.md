@@ -437,7 +437,7 @@ The FCE tracks each node's error history through the Transmit Error Counter (TEC
 
 # Verification Plan {#sec:verification-plan}
 
-The verification plan adds five classification dimensions to each of the 38 requirements, driving both the module architecture and the testbench design. The plan was populated using MCP introduced in @sec:requirements-engineering. The five classification dimensions fall into two groups: design-facing dimensions inform the module architecture; verification-facing dimensions inform the verification strategy and testbench design.
+The verification plan adds five classification dimensions to each of the 38 requirements, driving both the module architecture and the testbench design. The plan was populated using MCP introduced in @sec:requirements-engineering. The five classification dimensions fall into two groups. Design-facing dimensions inform the module architecture. Verification-facing dimensions inform the verification strategy and testbench design. Each field is summarized in the bullets below and described in detail in the following sections.
 
 - **Design-facing**: `layer`, `side`, and `format_applicability` - determining module ownership, TX/RX path decomposition, and which frame formats each requirement applies to.
 - **Verification-facing**: `observability` and `verification_method` - determining whether internal state is required and specifying the verification technique.
