@@ -553,7 +553,7 @@ The `can_mac` sub-layer is built around a single unified FSM entity (`can_mac_fs
 
 ### FSM Structure and Mode Flag
 
-`can_mac_fsm` contains two synchronous processes (`p_fsm` and `p_stream_to_LLC`) and one `t_fsm_state` enum covering 19 states. An `is_transmitter` flag is latched when the FSM drives the SOF dominant bit at the start of a new frame transmission and cleared at arbitration loss or at the end of the EOF field. The `is_transmitter` flag partitions per-state logic into a TX branch and an RX branch.
+`can_mac_fsm` contains two synchronous processes (`p_fsm` and `p_stream_to_LLC`) and one `t_fsm_state` enum covering 19 states. An `is_transmitter` flag is latched when the FSM drives the SOF dominant bit at the start of a new frame transmission and cleared at arbitration loss or at the end of the EOF field. The `is_transmitter` flag partitions per-state logic into a TX branch and an RX branch. The error-frame states (`s_error_flag`, `s_error_delimiter`) are an exception: both transmitter and receiver errors enter the same two-state sequence, with flag polarity driven by `fce_i.error_active` rather than `is_transmitter`.
 
 `p_fsm` organizes each sample-point cycle as three phases:
 
@@ -578,10 +578,6 @@ The CRC and bit-stuffer feed source requires special handling at the arbitration
 When `is_transmitter = false`, the FSM observes `pcs_i.rx_data` at each sample-point strobe and stores received bits directly into an internal `llc_frame` byte array. The bit stuffer is driven from `pcs_i.rx_data` to perform destuffing, and the CRC engine accumulates the received bit stream in parallel. The FSM validates the SBC field (FD frames), compares the received CRC against the locally accumulated result, and checks form bits (reserved bits, CRC delimiter, ACK delimiter, EOF) for required polarities. A mismatch in any of these fields triggers a transition to the error-frame sequence. During the ACK slot the FSM drives `pcs_o.tx_data = c_dominant` for one bit (`bit_count = 0`) regardless of frame format. The FD ACK slot spans two bits but the receiver asserts dominant only during the first.
 
 During `s_intermission`, the completed frame is streamed byte-by-byte to the LLC RX sink over the Avalon-ST interface by `p_stream_to_LLC`, a dedicated process running concurrently with `p_fsm`.
-
-### Error-Frame States
-
-The FSM uses two explicit error-frame states. `s_error_flag` drives the 6-bit flag and `s_error_delimiter` counts the 8-bit recessive delimiter. The delimiter state has two sub-phases: first awaiting the bus to go recessive (other nodes may still be driving their own flags), then counting the remaining recessive bits. A dominant during the delimiter restarts the error-frame sequence - either as a new error or as an overload condition on the last delimiter bit [@iso11898_1, sec. 8.1.4.2.f]. Both transmitter and receiver errors enter this same two-state sequence: the flag polarity is `not fce_i.error_active`, determined by the FCE node state rather than the TX/RX role, and `s_error_delimiter` is entirely role-independent.
 
 ## `can_mac_ser` {#sec:impl-can-mac-ser}
 
