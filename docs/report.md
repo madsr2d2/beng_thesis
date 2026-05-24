@@ -521,7 +521,7 @@ The split path was replaced by a single `can_mac_fsm` with shared `can_mac_bs` a
 
 ## Per-Field FSM Granularity {#sec:per-field-vs-per-phase}
 
-The `format_applicability` dimension of the verification plan expresses requirements at the level of individual protocol fields. A requirement applies to a specific field in a specific set of frame formats. The natural FSM granularity is therefore one state per protocol field. With this structure, format-dependent transitions become state graph edges rather than counter conditionals inside a shared state, each requirement maps directly to a named FSM state, and testbench assertions can reference states rather than bit-count ranges. The detailed state graph is described in @sec:impl-can-mac-fsm.
+The `format_applicability` dimension expresses requirements at the level of individual protocol fields. REQ-038 defines the complete MAC frame field sequence and fixed-polarity bits for all in-scope formats. With one FSM state per protocol field, the FSM naturally progresses through that structure: format-dependent transitions - such as the divergence between CC and FD at the FDF field - become state graph edges rather than counter conditionals inside a shared state, and each requirement maps directly to a named FSM state.
 
 ## LLC Frame Format {#sec:llc-frame-format}
 
