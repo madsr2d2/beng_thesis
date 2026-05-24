@@ -499,7 +499,7 @@ The `status` field (`not_started`, `in_progress`, `complete`) records requiremen
 
 # Design and Architecture {#sec:design-architecture}
 
-The design maps each ISO 11898-1 sub-layer to a dedicated module: `can_llc`, `can_mac`, `can_pcs`, and `can_fce`. `can_mac` is a wrapper around the MAC FSM and its shared submodules (`can_mac_fsm`, `can_mac_ser`, `can_mac_bs`, `can_mac_crc`). The key architectural decisions that shaped this decomposition are described in the sections below.
+The design maps each ISO 11898-1 sub-layer to a dedicated module: `can_llc`, `can_mac`, `can_pcs`, and `can_fce`. `can_mac` is the top-level MAC sub-layer wrapper, containing the submodules `can_mac_fsm`, `can_mac_ser`, `can_mac_bs`, and `can_mac_crc`. The key architectural decisions that shaped this decomposition are described in the sections below.
 
 ## System Overview {#sec:system-overview}
 
