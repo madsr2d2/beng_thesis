@@ -513,13 +513,11 @@ The `layer` dimension of the verification plan assigns every requirement to a sp
 
 ## Combined vs. Separated TX/RX Paths {#sec:combined-vs-separated-fsm}
 
-The `side` dimension classifies each requirement as TX-only, RX-only, or both - making separate TX and RX paths appear natural, since each could be exercised independently. In practice the split created more problems than it solved.
+The `side` dimension classifies each requirement as TX-only, RX-only, or both - making separate TX and RX paths appear natural, since each could be exercised independently. A split-path implementation was attempted first.
 
-A split path duplicates both code and hardware. Shared protocol logic must exist in both paths, and each path needs its own bit stuffer and CRC engine - putting two instances of `can_mac_bs` and `can_mac_crc` on the device where one of each suffices. As shown in @fig:can-node-architecture, the unified design shares a single instance of each.
+In practice, the split duplicated both code and hardware: each path required its own `can_mac_bs` and `can_mac_crc` instance, putting two of each on the device where one suffices. Developing the two paths sequentially, shared protocol logic tended to diverge between implementations with no protocol justification. Debugging doubled the investigation surface - two independent FSMs, two sets of waveforms per bug.
 
-A further cost is implementation and debugging complexity. When the two paths are developed sequentially, shared protocol logic tends to diverge between implementations with no protocol justification. Debugging similarly doubles the investigation surface - tracing a bug requires reading two independent sets of waveforms.
-
-The unified TX/RX path - a single `can_mac_fsm` with shared `can_mac_bs` and `can_mac_crc` instances - eliminates all three costs. Shared protocol logic exists once, preventing implementation drift. Debugging involves a single FSM and a single set of waveforms.
+The split path was replaced by a single `can_mac_fsm` with shared `can_mac_bs` and `can_mac_crc` instances, as shown in @fig:can-node-architecture. Shared protocol logic exists once, implementation drift is prevented, and debugging involves a single FSM and a single set of waveforms.
 
 ## Per-Field FSM Granularity {#sec:per-field-vs-per-phase}
 
