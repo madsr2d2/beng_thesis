@@ -509,7 +509,7 @@ The design maps each ISO 11898-1 sub-layer to a dedicated module: `can_llc`, `ca
 
 ## Adopting the ISO 11898-1 Sub-layer Model {#sec:monolithic-vs-layered}
 
-The `layer` dimension of the verification plan assigns every requirement to a specific ISO 11898-1 sub-layer. Mapping each sub-layer to a dedicated module is therefore the natural decomposition. Module boundaries align directly with verification targets, each requirement points unambiguously to the responsible implementation unit, and each module can be exercised in isolation without driving frame-level stimulus through unrelated sub-layers.
+Mapping each ISO 11898-1 sub-layer to a dedicated module is the natural decomposition. Module boundaries align directly with verification targets, each requirement points unambiguously to the responsible implementation unit, and each module can be exercised in isolation without driving frame-level stimulus through unrelated sub-layers.
 
 ## Combined vs. Separated TX/RX Paths {#sec:combined-vs-separated-fsm}
 
