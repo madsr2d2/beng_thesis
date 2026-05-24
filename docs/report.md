@@ -577,7 +577,7 @@ The CRC and bit-stuffer feed source requires special handling at the arbitration
 
 When `is_transmitter = false`, the FSM observes `pcs_i.rx_data` at each sample-point strobe and stores received bits directly into an internal `llc_frame` byte array. The bit stuffer is driven from `pcs_i.rx_data` to perform destuffing, and the CRC engine accumulates the received bit stream in parallel. The FSM validates the SBC field (FD frames), compares the received CRC against the locally accumulated result, and checks form bits (reserved bits, CRC delimiter, ACK delimiter, EOF) for required polarities. A mismatch in any of these fields triggers a transition to the error-frame sequence. During the ACK slot the FSM drives `pcs_o.tx_data = c_dominant` for one bit (`bit_count = 0`) regardless of frame format. The FD ACK slot spans two bits but the receiver asserts dominant only during the first.
 
-During `s_intermission`, the completed frame is streamed byte-by-byte to the LLC RX sink over the Avalon-ST interface, and successful reception is signaled to the FCE. This design eliminates the need for a separate deserializer entity on the RX path - the frame buffer is populated and streamed entirely within `can_mac_fsm`.
+During `s_intermission`, the completed frame is streamed byte-by-byte to the LLC RX sink over the Avalon-ST interface by `p_stream_to_LLC`, a dedicated process running concurrently with `p_fsm`.
 
 ### Error-Frame States
 
