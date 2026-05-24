@@ -27,12 +27,13 @@ classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
 classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
 classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
 
-LLC("`**can_llc**`")
+LLC("`**LLC Interface**`")
 
-PCS("`**can_pcs**`")
 
-FCE("`**can_fce**`")
 
+
+
+subgraph mac_pcs_fce["`**can_mac_pcs_fce**`"]
 subgraph MAC["`**can_mac**`"]
     SER("`**can_mac_ser**`")
 
@@ -41,18 +42,23 @@ subgraph MAC["`**can_mac**`"]
     BS("`**can_mac_bs**`")
 
     CRC("`**can_mac_crc**`")
-
-    SER <==> FSM
-    FSM <==> BS
-    FSM <==> CRC
+end
+PCS("`**can_pcs**`")
+FCE("`**can_fce**`")
 end
 
-LLC <==> SER
-LLC <==> FSM
+LLC <==>|"`Avalon-ST
+(LLC is source)`"| SER
+LLC <==>|"`Avalon-ST
+(can_mac_fsm is source)`"| FSM
+
 FSM <==> PCS
 FSM <==> FCE
 FCE <==> PCS
 FCE <==> LLC
+SER <==> FSM
+FSM <==> BS
+FSM <==> CRC
 
 class LLC llc
 class SER,FSM,BS,CRC mac
