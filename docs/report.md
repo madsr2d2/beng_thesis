@@ -465,7 +465,14 @@ This classification drives the testbench architecture. Black-box requirements ca
 
 ## Verification Method {#sec:vplan-method}
 
-The `verification_method` field specifies how each requirement will be checked. Four methods are used: `simulation` (assertion procedures in a testbench), `code_inspection` (RTL source review), `waveform_inspection` (manual review of simulation output), and `coverage` (a functional coverage bin confirming a specific condition was exercised). Combinations are valid when multiple sub-claims within one requirement each call for a different method. REQ-018 (bit stuffing) illustrates this: `simulation` assertions verify that stuff bits are inserted and removed at the correct positions, while `coverage` bins confirm that the edge case of five consecutive identical bits landing at a field boundary was exercised at least once.
+The `verification_method` field specifies how each requirement will be checked. Four methods are used:
+
+- **`simulation`**: Assertion procedures in a testbench.
+- **`code_inspection`**: RTL source review.
+- **`waveform_inspection`**: Manual review of simulation output.
+- **`coverage`**: A functional coverage bin confirming a specific condition was exercised.
+
+Combinations are valid when multiple sub-claims within one requirement each call for a different method. REQ-018 (bit stuffing) illustrates this: `simulation` assertions verify that stuff bits are inserted and removed at the correct positions, while `coverage` bins confirm that the edge case of five consecutive identical bits landing at a field boundary was exercised at least once.
 
 ## Traceability: Label and File {#sec:vplan-traceability}
 
