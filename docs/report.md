@@ -499,7 +499,7 @@ The `status` field (`not_started`, `in_progress`, `complete`) records requiremen
 
 # Design and Architecture {#sec:design-architecture}
 
-The verification plan classified all 38 requirements along three design-facing dimensions - `layer`, `side`, and `format_applicability`. Two led directly to sound architectural choices. One pointed toward a split TX/RX architecture that was attempted but created more problems than it solved, and was replaced by the unified `can_mac_fsm`.
+The design maps each ISO 11898-1 sub-layer to a dedicated module: `can_llc`, `can_mac`, `can_pcs`, and `can_fce`. `can_mac` is a wrapper around the MAC FSM and its shared submodules (`can_mac_fsm`, `can_mac_ser`, `can_mac_bs`, `can_mac_crc`). The key architectural decisions that shaped this decomposition are described in the sections below.
 
 ## System Overview {#sec:system-overview}
 
@@ -533,7 +533,7 @@ All six bus frame types (CB, CE, FB, FE data frames, and remote frames for CB an
 
 ![LLC frame format (71 bytes) at the host-LLC interface, with identifier byte mapping for base and extended IDs. Hatched regions indicate variable-value bits.](figures/llc_frame.png){#fig:llc-frame width=100%}
 
-### Internal LLC Frame Format {#sec:internal-llc-frame-format}
+### LLC-MAC Interface Format {#sec:internal-llc-frame-format}
 
 The host-LLC format places all control flags at the end of the frame. FDF, BRS, and ESI occupy byte 69, and IDE and RTR occupy byte 70 - after up to 64 bytes of payload. A serializer that consumed this stream in field order would need to buffer the entire 71-byte frame before it could begin transmitting, because IDE determines how many ID bits to drive (11 or 29), FDF determines which CRC polynomial and stuffing mode to use, and BRS determines whether to signal the PCS to switch bit rate at the BRS boundary. This buffering requirement conflicts with the streaming architecture.
 
