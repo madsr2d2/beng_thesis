@@ -529,15 +529,13 @@ The LLC layer defines two frame formats: a host-facing format that maintains com
 
 ### Host-LLC Interface Format {#sec:host-llc-frame-format}
 
-All six bus frame types (CB, CE, FB, FE data frames, and remote frames for CB and CE) are represented at the host-LLC interface using the 71-byte LLC frame format shown in @fig:llc-frame. The layout extends the `can_bus_controller` LLC frame format, with bytes 0-3 carrying the identifier, byte 4 carrying frame type and DLC, and data beginning at byte 5. The extension adds 56 additional data bytes (bytes 5-68, zero-padded to 64 bytes) and two trailing flag bytes (bytes 69-70) carrying IDE, BRS, ESI, and RTR, so host software requires no change to the fields it already uses.
+The host-LLC format shown in @fig:llc-frame extends the `can_bus_controller` LLC frame format, expanding the data field from 8 to 64 bytes and adding FDF, BRS, and ESI to the existing trailing control bytes alongside IDE and RTR. The field layout and byte positions are otherwise unchanged, so host software requires no change to the fields it already uses.
 
 ![LLC frame format (71 bytes) at the host-LLC interface, with identifier byte mapping for base and extended IDs. Hatched regions indicate variable-value bits.](figures/llc_frame.png){#fig:llc-frame width=100%}
 
 ### LLC-MAC Interface Format {#sec:internal-llc-frame-format}
 
-The host-LLC format places all control flags at the end of the frame. FDF, BRS, and ESI occupy byte 69, and IDE and RTR occupy byte 70 - after up to 64 bytes of payload. A serializer that consumed this stream in field order would need to buffer the entire 71-byte frame before it could begin transmitting, because IDE determines how many ID bits to drive (11 or 29), FDF determines which CRC polynomial and stuffing mode to use, and BRS determines whether to signal the PCS to switch bit rate at the BRS boundary. This buffering requirement conflicts with the streaming architecture.
-
-The design avoids this by defining a separate internal format for the MAC-facing stream, shown in @fig:llc-frame-int. All frame metadata is packed into two leading config bytes, followed by the ID and data bytes. With this layout, `can_mac_ser` extracts all frame metadata after receiving just two bytes and can begin streaming ID bits from the third byte onward.
+The host-LLC format places all control flags after the payload, requiring a full 71-byte frame buffer before serialization can begin. The LLC-MAC format (@fig:llc-frame-int) avoids this by packing all metadata into two leading config bytes: `can_mac_ser` receives these first, then streams the ID and data bytes immediately.
 
 ![Internal LLC frame format at the `can_mac_ser` input, with identifier byte mapping for base and extended IDs. Hatched regions indicate variable-value bits.](figures/llc_frame_int.png){#fig:llc-frame-int width=100%}
 
