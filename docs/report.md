@@ -553,7 +553,7 @@ The `can_mac` sub-layer is built around a single unified FSM entity (`can_mac_fs
 
 ### FSM Structure and Mode Flag
 
-`can_mac_fsm` contains two synchronous processes (`p_fsm` and `p_stream_to_LLC`) and one `t_fsm_state` enum covering 19 states. An `is_transmitter` boolean signal is latched to `true` when the FSM drives the SOF dominant bit at the start of a new frame transmission and cleared at arbitration loss or at the end of the EOF field. Once latched, `is_transmitter` remains stable for the rest of the frame, partitioning per-state logic into a TX branch and an RX branch. The state transitions at the sample point are shared between TX and RX in most states. Only `s_ack` and `s_eof` carry role-specific logic on the sample-point path (ACK success latching, receiver dominant assertion, and frame-completion signaling respectively).
+`can_mac_fsm` contains two synchronous processes (`p_fsm` and `p_stream_to_LLC`) and one `t_fsm_state` enum covering 19 states. An `is_transmitter` boolean signal is latched to `true` when the FSM drives the SOF dominant bit at the start of a new frame transmission and cleared at arbitration loss or at the end of the EOF field. Once latched, `is_transmitter` remains stable for the rest of the frame, partitioning per-state logic into a TX branch and an RX branch.
 
 `p_fsm` organizes each sample-point cycle as three phases:
 
@@ -563,7 +563,7 @@ The `can_mac` sub-layer is built around a single unified FSM entity (`can_mac_fs
 
 The structure trades per-state locality for non-duplication of cross-cutting logic. Placing stuff-bit handling inside each state would duplicate identical detection and feed logic across the seven dynamic-stuffing states (`s_arbitration` through `s_data`). Centralizing it in the pre-case handles it once, and `v_skip_case` provides a single auditable guarantee that the state machine does not advance when it should not. For logic that is genuinely per-state - DLC parsing, ACK success latching, EOF completion - the case block handles it directly. The pre-case structure is worth the locality cost here because the exception logic it contains is cross-cutting by nature.
 
-The per-field state granularity introduced in @sec:per-field-vs-per-phase is preserved in the unified FSM. The arbitration region uses two states: SOF is driven in `s_bus_idle`, and the ID bits, RTR/SRR/RRS, and IDE share `s_arbitration` with `bit_count` indexing into the 32-bit ID field. Each post-arbitration protocol field (FDF, RES, BRS, ESI, DLC, Data, SBC, CRC, CRC Delimiter, ACK, ACK Delimiter, EOF) has a dedicated state, making field boundaries explicit in the state encoding. The complete FSM is shown in @fig:mac-fsm.
+The per-field state granularity introduced in @sec:per-field-vs-per-phase is preserved in the unified FSM: each post-arbitration field has a dedicated state, with the arbitration region sharing `s_arbitration` across ID bits, RTR/SRR/RRS, and IDE via `bit_count`. The complete FSM is shown in @fig:mac-fsm.
 
 ![`can_mac_fsm` (19 states) controlling TX and RX for all in-scope frame formats. Arbitration loss clears `is_transmitter` in place without a state transition.](figures/mac_fsm.png){#fig:mac-fsm height=90%}
 
