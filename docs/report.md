@@ -437,34 +437,45 @@ The FCE tracks each node's error history through the Transmit Error Counter (TEC
 
 # Verification Plan {#sec:verification-plan}
 
-The 38 requirements name protocol obligations and link each to its ISO clause, but say nothing about which module testbench should exercise them, what stimulus configurations are needed, whether internal signals must be observable, or how completion will be recognized. The verification plan answers those questions explicitly for each entry.
-
-The plan was populated through the same MCP server introduced in @sec:requirements-engineering. Each field value was schema-validated before being written. The five classification dimensions fall into two groups. Three are design-facing - `layer`, `side`, and `format_applicability` - determining where each requirement belongs in the module decomposition and what stimulus configurations its testbench needs. Two are verification-facing - `observability` and `verification_method` - resolving whether a requirement can be checked through port signals or requires access to internal state, and specifying the verification technique. Priority is orthogonal to both groups, driving implementation sequencing and determining which requirements block design closure.
+The verification plan augments each of the 38 requirements with the dimensions needed to answer not just *what* must be true, but *how* it will be verified, *where* the evidence lives, and *when* verification is complete - serving both as architectural input and as verification guide. The plan was populated through the same MCP server introduced in @sec:requirements-engineering, with each field value schema-validated before being written. The five classification dimensions fall into two groups. Three are design-facing - `layer`, `side`, and `format_applicability` - determining module ownership and testbench stimulus scope. Two are verification-facing - `observability` and `verification_method` - resolving how each requirement will be checked. Priority is orthogonal to both groups, driving implementation sequencing and determining which requirements block design closure.
 
 ## Layer {#sec:vplan-layer}
 
-The layer field assigns each requirement to the protocol sub-layer that owns it (LLC, MAC, PCS, or FCE - see @sec:can-layered-model), determining the verification boundary at which the requirement must be exercised. A fifth label - **system** - classifies requirements that are inherently multi-layer or multi-node in character. Some CAN behaviors cannot be attributed to a single layer of a single node: they emerge from interactions between multiple nodes on the bus, or span the layer boundary within a single node. The system label flags these requirements as ones that require either an integrated multi-module testbench or a multi-node simulation environment.
+The `layer` field assigns each requirement to the protocol sub-layer that owns it (LLC, MAC, PCS, or FCE), determining the verification boundary at which the requirement must be exercised. A fifth label - `system` - classifies requirements that are inherently multi-layer or multi-node in character. Some CAN behaviors cannot be attributed to a single layer of a single node: they emerge from interactions between multiple nodes on the bus, or span the layer boundary within a single node. The system label flags these requirements as ones that require either an integrated multi-module testbench or a multi-node simulation environment.
 
-At design time, this classification directly motivated the layered module architecture: requirements assigned to a given layer pointed to the corresponding module as the responsible implementation unit and to that module's testbench as the primary verification environment.
+At design time, this classification directly motivated the layered module architecture: requirements assigned to a given layer pointed to the corresponding module as the responsible implementation unit and to that module's testbench as the primary verification environment. REQ-020 (arbitration loss) illustrates the `system` label: arbitration requires a second node simultaneously driving dominant while the DUT drives recessive - a condition no single-module testbench can produce. It is covered in the multi-node `can_mac_pcs_fce_tb.vhd`.
 
 ## Side {#sec:vplan-side}
 
-The side field records whether a requirement pertains to the transmitter path, the receiver path, or both roles simultaneously. This dimension reflects the ISO standard's own framing, which frequently specifies transmitter and receiver obligations separately. In the verification environment, the side field determines whether a testbench drives the DUT in transmitter mode, receiver mode, or both roles in succession within a single test scenario. The design consequences of this dimension - and why it appeared to motivate a split-path architecture but did not - are discussed in @sec:combined-vs-separated-fsm.
+The `side` field records whether a requirement pertains to the transmitter path, the receiver path, or both roles simultaneously. This dimension reflects the ISO standard's own framing, which frequently specifies transmitter and receiver obligations separately. In the verification environment, the `side` field determines whether a testbench drives the DUT in transmitter mode, receiver mode, or both roles in succession within a single test scenario. REQ-025 (TDC) illustrates a TX-only classification: measuring the bus loop delay and positioning the SSP is a transmitter concern. Receivers sample at the nominal SP and have no delay compensation obligation, so `side=transmitter` confines the testbench to TX-mode stimulus.
 
 ## Format Applicability {#sec:vplan-format}
 
-The format_applicability field records which of the in-scope frame formats (CB, CE, FB, FE - see @fig:can-frame-structure, where CB and CE implicitly cover remote frame variants) each requirement applies to. Because the formats differ in stuffing mode, CRC polynomial, and control field structure (@sec:can-protocol-overview), a requirement that applies only to FD frames implies stimulus configurations with FDF=1 and DLC values spanning both the CRC-17 and CRC-21 threshold, while a requirement that applies to all four formats must be exercised across all format-specific configurations.
+The `format_applicability` field records which of the in-scope frame formats (CB, CE, FB, FE) each requirement applies to. Because the formats differ in stuffing mode, CRC polynomial, and control field structure (@sec:can-protocol-overview), a requirement that applies only to FD frames implies stimulus configurations with FDF=1 and DLC values spanning both the CRC-17 and CRC-21 threshold, while a requirement that applies to all four formats must be exercised across all format-specific configurations. REQ-015 (ESI bit generation) applies only to `{FB, FE}`: the ESI field does not exist in CC frames, so CB and CE stimulus configurations are meaningless for this requirement.
 
 ## Observability {#sec:vplan-observability}
 
-The observability field resolves each requirement as either black-box or white-box, relative to the module boundary of the owning layer:
+The `observability` field resolves each requirement as either black-box or white-box, relative to the module boundary of the owning layer:
 
 - **Black-box**: Can be verified purely through the module's observable port signals.
 - **White-box**: Verification requires direct observation of the module's internal state.
 
-This distinction has direct consequences for testbench architecture. Black-box requirements are verifiable with stimulus-and-observe testbenches that drive inputs and check outputs. White-box requirements - which include CRC polynomial correctness, bit counter arithmetic, error counter thresholds, and Gray-coded SBC encoding - require a parallel reference model that re-computes the expected value independently, or direct observation of internal signals via testbench signal access.
+This distinction has direct consequences for testbench architecture. Black-box requirements are verifiable with stimulus-and-observe testbenches that drive inputs and check outputs. White-box requirements - which include CRC polynomial correctness, bit counter arithmetic, error counter thresholds, and Gray-coded SBC encoding - require a parallel reference model that re-computes the expected value independently, or direct observation of internal signals via testbench signal access. REQ-006 (CRC polynomial selection) is representative: the polynomial in use - CRC_15, CRC_17, or CRC_21 - is configured inside `can_mac_crc` and never exposed at the module boundary. Verification uses a reference model that independently computes the expected CRC for each format and DLC combination and compares it against the transmitted sequence.
 
-## Requirement Distribution {#sec:vplan-distribution}
+## Verification Method {#sec:vplan-method}
+
+The `verification_method` field specifies how each requirement will be checked. Four methods are used: `simulation` (assertion procedures in a testbench), `code_inspection` (RTL source review), `waveform_inspection` (manual review of simulation output), and `coverage` (a functional coverage bin that records whether a specific condition or value range was exercised during simulation). Combinations are valid when multiple sub-claims within one requirement each call for a different method. REQ-018 (bit stuffing) illustrates this: `simulation` assertions verify that stuff bits are inserted and removed at the correct positions, while `coverage` bins confirm that the edge case of five consecutive identical bits landing at a field boundary was exercised at least once.
+
+
+## Traceability: Label and File {#sec:vplan-traceability}
+
+The `label` and `file` fields establish a direct, navigable link from each requirement to its verification artifact. `file` identifies the testbench or RTL source file responsible for covering the requirement. `label` identifies a specific named procedure, assertion, or coverage ID within that file.
+
+## Status {#sec:vplan-status}
+
+The `status` field (`not_started`, `in_progress`, `complete`) records requirement closure state explicitly, allowing partial progress to be tracked.
+
+## Verification Plan Summary {#sec:vplan-summary}
 
 @tbl:vplan-distribution shows the 38 requirements distributed across layer, side, format scope, and observability. MAC dominates in count and white-box density, reflecting the breadth of frame-encoding logic that must be verified against internal bit-level state. FCE requirements are entirely black-box: fault-confinement state transitions are fully observable through the node's error-state output signals without needing access to internal counters. Most requirements cover both transmitter and receiver roles (29 of 38); the eight TX-only requirements are concentrated in LLC and MAC. Six requirements do not apply to all four frame formats and require format-specific test configurations - five in MAC and one in PCS.
 
@@ -479,43 +490,7 @@ This distinction has direct consequences for testbench architecture. Black-box r
 
 : Requirement distribution by layer, side, format scope, and observability. n = total. FS = format-specific (not applicable to all four frame formats). BB = black-box. WB = white-box. {#tbl:vplan-distribution}
 
-## Verification Plan Data Structure {#sec:verification-plan-data-structure}
-
-The verification plan data structure (@tbl:vplan-metadata-fields) augments each requirement with the dimensions needed to answer not just *what* must be true, but *how* it will be verified, *where* the evidence lives, and *when* verification is complete. The following sub-sections cover the remaining fields - `verification_method`, `label`, `file`, and `status` - which were not introduced as standalone classification dimensions above. The complete verification plan is reproduced in @sec:appendix-vplan as two separate tables (linked by common IDs).
-
-| Field | Purpose |
-| :--- | :--- |
-| `id` | Sequential identifier REQ-NNN. |
-| `source_clause` | ISO 11898-1:2015 section reference. |
-| `original_wording` | Verbatim normative text excerpts from the ISO standard. |
-| `paraphrase` | Concise paraphrase of the `original_wording` field - the operative requirement statement. |
-| `layer` | Sub-layer owner: LLC, MAC, PCS, FCE, or system (@sec:vplan-layer). |
-| `side` | transmitter, receiver, or both (@sec:vplan-side). |
-| `format_applicability` | Applicable frame formats: CB, CE, FB, FE (@sec:vplan-format). |
-| `observability` | `black_box` or `white_box` (@sec:vplan-observability). |
-| `verification_method` | Method(s) used to verify the requirement (@sec:vplan-method). |
-| `priority` | P1 (need-to-have), P2 (nice-to-have), or P3 (optional). |
-| `status` | `not_started`, `in_progress` or `complete` (@sec:vplan-status). |
-| `notes` | Residual clarifications not resolved by the paraphrase - implementation constraints, out-of-scope markers, or known ambiguities flagged for design review. |
-| `label` | Assertion label, TB procedure name, coverage ID, or RTL tag. Comma-separated when multiple procedures cover distinct sub-claims (@sec:vplan-traceability). |
-| `file` | Target file: TB for simulation/coverage, RTL for code inspection. Comma-separated when sub-claims span multiple files (@sec:vplan-traceability). |
-
-: Verification-plan data structure fields. {#tbl:vplan-metadata-fields}
-
-### Verification Method {#sec:vplan-method}
-
-Four methods are used: `simulation` (automated assertion procedures in a testbench), `code_inspection` (RTL source review), `waveform_inspection` (manual review of simulation output), and `coverage` (a functional coverage bin that records whether a specific condition or value range was exercised during simulation). Combinations are valid when multiple sub-claims within one requirement each call for a different method.
-
-
-### Traceability: Label and File {#sec:vplan-traceability}
-
-Each requirement entry carries two dedicated traceability fields: a `file` field identifying the testbench or RTL source file responsible for covering the requirement, and a `label` field identifying a specific named procedure, assertion, or coverage ID within that file. Together they establish a direct, navigable link from each requirement to its verification artifact.
-
-### Status {#sec:vplan-status}
-
-The status field (`not_started`, `in_progress`, `complete`) records requirement closure state explicitly, allowing partial progress to be tracked.
-
-The verification plan - 38 requirements each classified along five dimensions and each linked to a testbench file and assertion label - served both as architectural input and as verification guide in what followed. The design-facing dimensions (layer, side, format_applicability) constituted the primary architectural inputs for the design phase, mapping requirements to module boundaries and implementation scope. The verification-facing dimensions (observability, verification_method, label, file) defined the testbench architecture and evidence type for each requirement. How the design-facing dimensions shaped the module decomposition - and where the apparent mapping from requirements structure to design structure broke down - is the subject of @sec:design-architecture.
+By priority, the plan contains 32 P1 (need-to-have), four P2 (nice-to-have), and two P3 (optional) requirements. The demotion rationale for requirements not rated P1 is given in @tbl:priority-demotion. Of the 32 P1 requirements, 25 are closed. Five (REQ-001, REQ-003, REQ-005, REQ-032, REQ-035) remain not started pending `can_llc` implementation, REQ-021 is in progress with partial simulation coverage, and REQ-034 is in progress with sub-claim 2 verified but sub-claim 1 open. The complete verification plan is reproduced in @sec:appendix-vplan as two separate tables linked by common IDs. How the design-facing dimensions shaped the module decomposition - and where the apparent mapping from requirements structure to design structure broke down - is the subject of @sec:design-architecture.
 
 # Design and Architecture {#sec:design-architecture}
 
