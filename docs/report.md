@@ -484,7 +484,7 @@ The `status` field (`not_started`, `in_progress`, `complete`) records requiremen
 
 ## Verification Plan Summary {#sec:vplan-summary}
 
-@tbl:vplan-distribution shows the 38 requirements distributed across layer, side, format scope, and observability. MAC carries 19 of the 38, with 16 white-box, reflecting the breadth of frame-encoding logic that requires bit-level state access to verify. FCE is the opposite: all three requirements are black-box, since fault-confinement state transitions are fully observable through the node's error-state output signals.
+@tbl:vplan-distribution shows the 38 requirements distributed across layer, side, format scope, and observability. MAC carries 19 of the 38, with 16 white-box, reflecting the breadth of frame-encoding logic that requires bit-level state access to verify. FCE is the opposite: all three requirements are black-box, since fault-confinement state transitions are fully observable through the node's error-state output signals. The complete verification plan is reproduced in @sec:appendix-vplan as two separate tables linked by common IDs.
 
 | Layer | Requirements | n | TX | RX | Both | FS | BB | WB |
 | :---- | :----------- | -: | -: | -: | ---: | -: | -: | -: |
@@ -496,8 +496,6 @@ The `status` field (`not_started`, `in_progress`, `complete`) records requiremen
 | **Total** | | **38** | **8** | **1** | **29** | **6** | **13** | **25** |
 
 : Requirement distribution by layer, side, format scope, and observability. n = total. FS = format-specific (not applicable to all four frame formats). BB = black-box. WB = white-box. {#tbl:vplan-distribution}
-
-The complete verification plan is reproduced in @sec:appendix-vplan as two separate tables linked by common IDs.
 
 # Design and Architecture {#sec:design-architecture}
 
