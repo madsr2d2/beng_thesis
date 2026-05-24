@@ -444,7 +444,7 @@ The verification plan adds five classification dimensions to each of the 38 requ
 
 ## Layer {#sec:vplan-layer}
 
-The `layer` field assigns each requirement to the protocol sub-layer that owns it (LLC, MAC, PCS, or FCE), determining the verification boundary at which the requirement must be exercised. A fifth label - `system` - classifies requirements that are inherently multi-layer or multi-node in character. Some CAN behaviors cannot be attributed to a single layer of a single node: they emerge from interactions between multiple nodes on the bus, or span the layer boundary within a single node. The system label flags these requirements as ones that require either an integrated multi-module testbench or a multi-node simulation environment. REQ-020 (arbitration loss) illustrates this: arbitration requires a second node simultaneously driving dominant while the DUT drives recessive - a condition no single-module testbench can produce. It is covered in the multi-node `can_mac_pcs_fce_tb.vhd`.
+The `layer` field assigns each requirement to the protocol sub-layer that owns it (LLC, MAC, PCS, or FCE), determining which module testbench must exercise it. A fifth label - `system` - classifies requirements that are inherently multi-layer or multi-node in nature. The `system` label flags requirements that need either an integrated multi-module testbench or a multi-node simulation environment. REQ-020 (arbitration loss) illustrates both: verifying arbitration requires a full node - MAC, PCS, and FCE cooperating - to drive and monitor the bus, and a second node simultaneously driving dominant while the DUT drives recessive. It is covered in the multi-node `can_mac_pcs_fce_tb.vhd`.
 
 ## Side {#sec:vplan-side}
 
@@ -452,20 +452,20 @@ The `side` field records whether a requirement pertains to the transmitter path,
 
 ## Format Applicability {#sec:vplan-format}
 
-The `format_applicability` field records which of the in-scope frame formats (CB, CE, FB, FE) each requirement applies to. Because the formats differ in stuffing mode, CRC polynomial, and control field structure (@sec:can-protocol-overview), a requirement that applies only to FD frames implies stimulus configurations with FDF=1 and DLC values spanning both the CRC-17 and CRC-21 threshold, while a requirement that applies to all four formats must be exercised in all four format configurations. REQ-015 (ESI bit generation) applies only to FB and FE frames: the ESI field does not exist in CC frames, so CB and CE stimulus configurations are meaningless for this requirement.
+The `format_applicability` field records which of the in-scope frame formats (CB, CE, FB, FE) each requirement applies to. Because the formats differ in stuffing mode, CRC polynomial, and control field structure (@sec:can-protocol-overview), a requirement that applies only to FD frames implies stimulus with FDF=1 and DLC values covering both sides of the CRC-17/CRC-21 boundary, while one that applies to all four formats requires a configuration for each. REQ-015 (ESI bit generation) is a good example: it applies only to FB and FE frames, since the ESI field does not exist in CC frames and CB and CE stimulus configurations are therefore meaningless for this requirement.
 
 ## Observability {#sec:vplan-observability}
 
-The `observability` field resolves each requirement as either black-box or white-box, relative to the module boundary of the owning layer:
+The `observability` field classifies each requirement as either black-box or white-box, relative to the module boundary of the owning layer:
 
 - **Black-box**: Can be verified purely through the module's observable port signals.
 - **White-box**: Verification requires direct observation of the module's internal state.
 
-This distinction has direct consequences for testbench architecture. Black-box requirements are verifiable with stimulus-and-observe testbenches that drive inputs and check outputs. White-box requirements require a parallel reference model or direct observation of internal signals. REQ-006 (CRC polynomial selection) is representative: the polynomial in use - CRC_15, CRC_17, or CRC_21 - is configured inside `can_mac_crc` and never exposed at the module boundary. Verification uses a reference model that independently computes the expected CRC for each format and DLC combination and compares it against the transmitted sequence.
+This classification drives the testbench architecture. Black-box requirements can be verified by driving the module inputs and checking the output signals. White-box requirements require a parallel reference model or direct observation of internal signals. REQ-006 (CRC polynomial selection) is representative: the polynomial in use - CRC_15, CRC_17, or CRC_21 - is configured inside `can_mac_crc` and never exposed at the module boundary. Verification uses a reference model that independently computes the expected CRC for each format and DLC combination and compares it against the transmitted sequence.
 
 ## Verification Method {#sec:vplan-method}
 
-The `verification_method` field specifies how each requirement will be checked. Four methods are used: `simulation` (assertion procedures in a testbench), `code_inspection` (RTL source review), `waveform_inspection` (manual review of simulation output), and `coverage` (a functional coverage bin that records whether a specific condition or value range was exercised during simulation). Combinations are valid when multiple sub-claims within one requirement each call for a different method. REQ-018 (bit stuffing) illustrates this: `simulation` assertions verify that stuff bits are inserted and removed at the correct positions, while `coverage` bins confirm that the edge case of five consecutive identical bits landing at a field boundary was exercised at least once.
+The `verification_method` field specifies how each requirement will be checked. Four methods are used: `simulation` (assertion procedures in a testbench), `code_inspection` (RTL source review), `waveform_inspection` (manual review of simulation output), and `coverage` (a functional coverage bin confirming a specific condition was exercised). Combinations are valid when multiple sub-claims within one requirement each call for a different method. REQ-018 (bit stuffing) illustrates this: `simulation` assertions verify that stuff bits are inserted and removed at the correct positions, while `coverage` bins confirm that the edge case of five consecutive identical bits landing at a field boundary was exercised at least once.
 
 ## Traceability: Label and File {#sec:vplan-traceability}
 
