@@ -501,6 +501,12 @@ The `status` field (`not_started`, `in_progress`, `complete`) records requiremen
 
 The verification plan classified all 38 requirements along three design-facing dimensions - `layer`, `side`, and `format_applicability`. Two led directly to sound architectural choices. One pointed toward a split TX/RX architecture that was attempted but created more problems than it solved, and was replaced by the unified `can_mac_fsm`.
 
+## System Overview {#sec:system-overview}
+
+@fig:can-node-architecture shows the complete module decomposition. The primary data path runs from `can_llc` through `can_mac` to `can_pcs`. The LLC receives frames from the host over an Avalon-ST interface and streams them byte-by-byte to the MAC serializer. The MAC FSM drives the serialized bit stream to the PCS, which applies bit timing and produces the sample-point and SSP strobes that the MAC uses to read and write the bus. `can_fce` sits outside the primary data path, receiving error and success events from the MAC and feeding node-state signals (error active, bus off) back to both the MAC and PCS. The PCS additionally pulses `can_fce` with idle conditions to drive bus-off recovery. A centralized types package (`pk_can_types`) defines all protocol constants, interface records, and reset values shared across modules.
+
+![Implementation module decomposition showing the five entities and their inter-module connections.](figures/mac_overview.png){#fig:can-node-architecture height=45%}
+
 ## Adopting the ISO 11898-1 Sub-layer Model {#sec:monolithic-vs-layered}
 
 The `layer` dimension of the verification plan assigns every requirement to a specific ISO 11898-1 sub-layer. Mapping each sub-layer to a dedicated module is therefore the natural decomposition. Module boundaries align directly with verification targets, each requirement points unambiguously to the responsible implementation unit, and each module can be exercised in isolation without driving frame-level stimulus through unrelated sub-layers.
@@ -523,23 +529,17 @@ The `format_applicability` dimension of the verification plan expresses requirem
 
 ### Host-LLC Interface Format {#sec:host-llc-frame-format}
 
-All six bus frame types (CB, CE, FB, FE data frames, and remote frames for CB and CE) are represented at the host-LLC interface using the 71-byte LLC frame format shown in @fig:llc-frame. The layout extends the existing CAN Classic controller's LLC frame format, with bytes 0-3 carrying the identifier, byte 4 carrying frame type and DLC, and data beginning at byte 5 - matching the field positions used by the prior implementation. The extension adds 56 additional data bytes (bytes 5-68, zero-padded to 64 bytes) and two trailing flag bytes (bytes 69-70) carrying IDE, BRS, ESI, and RTR, so host software requires no change to the fields it already uses.
+All six bus frame types (CB, CE, FB, FE data frames, and remote frames for CB and CE) are represented at the host-LLC interface using the 71-byte LLC frame format shown in @fig:llc-frame. The layout extends the existing CAN Classic controller's LLC frame format, with bytes 0-3 carrying the identifier, byte 4 carrying frame type and DLC, and data beginning at byte 5. The extension adds 56 additional data bytes (bytes 5-68, zero-padded to 64 bytes) and two trailing flag bytes (bytes 69-70) carrying IDE, BRS, ESI, and RTR, so host software requires no change to the fields it already uses.
 
-![LLC frame format (71 bytes) at the host-LLC interface, with identifier byte mapping for base and extended IDs.](figures/llc_frame.png){#fig:llc-frame width=100%}
+![LLC frame format (71 bytes) at the host-LLC interface, with identifier byte mapping for base and extended IDs. Hatched regions indicate variable-value bits.](figures/llc_frame.png){#fig:llc-frame width=100%}
 
 ### Internal LLC Frame Format {#sec:internal-llc-frame-format}
 
 The host-LLC format places all control flags at the end of the frame. FDF, BRS, and ESI occupy byte 69, and IDE and RTR occupy byte 70 - after up to 64 bytes of payload. A serializer that consumed this stream in field order would need to buffer the entire 71-byte frame before it could begin transmitting, because IDE determines how many ID bits to drive (11 or 29), FDF determines which CRC polynomial and stuffing mode to use, and BRS determines whether to signal the PCS to switch bit rate at the BRS boundary. This buffering requirement conflicts with the streaming architecture.
 
-The design avoids this by defining a separate internal format for the MAC-facing stream, shown in @fig:llc-frame-int. All frame metadata is packed into two leading config bytes, followed by the ID and data bytes. With this layout, `can_mac_ser` extracts all frame metadata after receiving just two bytes and can begin streaming ID bits from the third byte onward. No frame buffering is needed - the MAC FSM receives each metadata field before it is required in the frame field sequence.
+The design avoids this by defining a separate internal format for the MAC-facing stream, shown in @fig:llc-frame-int. All frame metadata is packed into two leading config bytes, followed by the ID and data bytes. With this layout, `can_mac_ser` extracts all frame metadata after receiving just two bytes and can begin streaming ID bits from the third byte onward.
 
-![Internal LLC frame format at the `can_mac_ser` input, with identifier byte mapping for base and extended IDs.](figures/llc_frame_int.png){#fig:llc-frame-int width=100%}
-
-## System Overview {#sec:system-overview}
-
-@fig:can-node-architecture shows the complete module decomposition. The primary data path runs from `can_llc` through `can_mac` to `can_pcs`. The LLC receives frames from the host over an Avalon-ST interface and streams them byte-by-byte to the MAC serializer. The MAC FSM drives the serialized bit stream to the PCS, which applies bit timing and produces the sample-point and SSP strobes that the MAC uses to read and write the bus. `can_fce` sits outside the primary data path, receiving error and success events from the MAC and feeding node-state signals (error active, bus off) back to both the MAC and PCS. The PCS additionally pulses `can_fce` with idle conditions to drive bus-off recovery. A centralized types package (`pk_can_types`) defines all protocol constants, interface records, and reset values shared across modules.
-
-![Implementation module decomposition showing the five entities and their inter-module connections.](figures/mac_overview.png){#fig:can-node-architecture height=45%}
+![Internal LLC frame format at the `can_mac_ser` input, with identifier byte mapping for base and extended IDs. Hatched regions indicate variable-value bits.](figures/llc_frame_int.png){#fig:llc-frame-int width=100%}
 
 # Implementation {#sec:implementation}
 
