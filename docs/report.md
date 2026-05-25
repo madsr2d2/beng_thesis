@@ -665,7 +665,7 @@ Code inspection also provides evidence for sub-claims in several requirements co
 
 The five unit testbenches target individual submodules with focused stimulus.
 
-1. **`can_mac_crc_tb`**: closes REQ-006 via three coverage bins (CRC-15 for CB/CE frames, CRC-17 for FD frames with payload up to 16 bytes, CRC-21 for FD frames with payload greater than 16 bytes), A pure VHDL reference model (`f_calc_can_crc`) computes the expected CRC for each polynomial and checks DUT output on every frame. Additional checkers verify that the output resets to the correct polynomial init vector and holds stable when `valid` is deasserted between frames.
+1. **`can_mac_crc_tb`**: closes REQ-006 via three coverage bins (CRC-15 for CB/CE frames, CRC-17 for FD frames with payload up to 16 bytes, CRC-21 for FD frames with payload greater than 16 bytes), a pure VHDL reference model (`f_calc_can_crc`) computes the expected CRC for each polynomial and checks DUT output on every frame. Additional checkers verify that the output resets to the correct polynomial init vector and holds stable when `valid` is deasserted between frames.
 2. **`can_mac_bs_tb`**: closes REQ-016 and REQ-018 via a two-phase stimulus: six directed FSB test cases followed by random dynamic bits. Three concurrent reference models check the DUT output. `p_stuff_bit_checker` independently tracks consecutive same-polarity bits and verifies a complement stuff bit appears after every five. `p_sbc_checker` independently tracks the SBC value and verifies Gray-code parity on every cycle, increments on dynamic stuff bits, and holds on FSBs. `p_fsb_checker` independently tracks FSB timing and verifies initial and periodic FSB polarity. Input and output functional coverage bins are all hit.
 3. **`can_pcs_tb`**: provides simulation evidence for REQ-024, REQ-025, REQ-026 (combined with code inspection), and REQ-027. Two `can_pcs` instances run on independent mismatched clocks through a physical bus model with transceiver and propagation delays. Three test sequences are run: reset verification, 100 random FD frames with alternating clock leadership to stress resynchronization, and a bus-off isolation test. `p_polarity_history` shadows TX-committed bits into a shift register. `p_check_tdc_delay` verifies at each SSP that `polarity_history(tdc_delay)` matches the sampled bus value. `p_rx_mac_vc` collects RX-sampled bits and compares them against the TX sequence bit by bit.
 4. **`can_fce_tb`**: closes REQ-028, REQ-029, and REQ-033 (sub-claim 2) using directed stimulus only - counter update rules are deterministic. Reset verification confirms outputs clear on reset and that `llc_i.normal_mode` returns the FSM to error-active from any state. All counter update rules in REQ-028 are exercised by driving TEC or REC to the error-active/error-passive boundary. The ACK error exemption (REQ-033 sub-claim 2) is verified by confirming bus-off is not entered when `passive_tx_ack_error_exempt_1` is set while error-passive. Bus-off entry and recovery (REQ-029) include a boundary check: 64 `idle_condition` strobes confirm no premature release. 128 confirm clearance and error-active restoration.
@@ -677,7 +677,7 @@ The five unit testbenches target individual submodules with focused stimulus.
 
 ### Frame Encoding and Synchronization {#sec:tb-frame-encoding}
 
-@fig:full_fd_frame shows the two-node integration scenario: a complete FD frame transmitted by DUT 1 and received by DUT 2, with SSP pulses confirming TDC is active during the data phase and resynchronization events visible on DUT 2 (REQ-010, REQ-012, REQ-014, REQ-017, REQ-026).
+@fig:full_fd_frame shows the two-node integration scenario: a complete FD frame transmitted by DUT 1 and received by DUT 2, with SSP pulses confirming TDC is active during the data phase and resynchronization events visible on DUT 2 (REQ-010, REQ-011, REQ-012, REQ-014, REQ-017, REQ-019, REQ-026, REQ-032).
 
 ![Two-node simulation of a complete FD frame in `can_mac_pcs_fce_tb`, showing the full field sequence from `s_arbitration` through `s_eof` on both transmitter and receiver. Secondary sample point pulses confirm TDC is active during the data phase. Resynchronization events are visible on DUT 2 via `sync_applied`.](figures/waveforms/full_fd_frame.pdf){#fig:full_fd_frame width=100%}
 
@@ -701,7 +701,7 @@ The five unit testbenches target individual submodules with focused stimulus.
 
 ### Error Handling and Bus-off Recovery {#sec:tb-error-handling}
 
-@fig:error_frame shows error frame escalation and @fig:bus_off_recovery shows bus-off recovery, together covering REQ-007, REQ-008, REQ-009, REQ-021, REQ-022, REQ-028, and REQ-029.
+@fig:error_frame shows error frame escalation and @fig:bus_off_recovery shows bus-off recovery, together covering REQ-007, REQ-008, REQ-009, REQ-021, REQ-022, REQ-028, REQ-029, and REQ-033 (sub-claim 1).
 
 ![Error frame escalation in `can_mac_pcs_fce_tb`. A bit error on the SOF bit triggers the first error flag at A, incrementing TEC to 8. Each dominant bit of the error flag is also sampled as a bit error (bus held recessive), rapidly escalating TEC. At B, TEC reaches 128 and `fce_state` transitions to `s_error_passive`. At C, the node enters `s_suspend_transmission` after `s_intermission`.](figures/waveforms/error_flag.pdf){#fig:error_frame width=100%}
 
@@ -713,15 +713,15 @@ Ten requirements remain open. Seven are LLC requirements (REQ-001 through REQ-00
 
 ## Testbench Results Summary {#sec:testbench-results-summary}
 
-Of the 37 requirements, 27 are closed across the five testbenches. @tbl:testbench-results-summary lists each testbench and its requirement coverage.
+Of the 37 requirements, 27 are closed: 25 via testbench simulation (@tbl:testbench-results-summary) and two (REQ-013, REQ-023) via code inspection (@sec:code-inspection).
 
 | Testbench | Requirements covered | Status |
 | :--- | :--- | :--- |
 | `can_mac_crc_tb` | REQ-006 | Pass |
 | `can_mac_bs_tb` | REQ-016, REQ-018 | Pass |
 | `can_pcs_tb` | REQ-024, REQ-025, REQ-026, REQ-027 | Pass |
-| `can_fce_tb` | REQ-028, REQ-029, REQ-033 (sub-claim 2 only) | Pass |
-| `can_mac_pcs_fce_tb` | REQ-007, REQ-008, REQ-009, REQ-010, REQ-011, REQ-012, REQ-014, REQ-015, REQ-017, REQ-019, REQ-020, REQ-021 (bit error only), REQ-022, REQ-030, REQ-032 | Pass |
+| `can_fce_tb` | REQ-028, REQ-029, REQ-033 (sub-claim 2) | Pass |
+| `can_mac_pcs_fce_tb` | REQ-007, REQ-008, REQ-009, REQ-010, REQ-011, REQ-012, REQ-014, REQ-015, REQ-017, REQ-019, REQ-020, REQ-021 (bit error only), REQ-022, REQ-030, REQ-032, REQ-033 (sub-claim 1) | Pass |
 
 : Testbench execution status and requirements coverage. {#tbl:testbench-results-summary}
 
