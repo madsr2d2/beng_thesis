@@ -620,34 +620,30 @@ Counter updates follow REQ-028. Bus-off recovery requires 128 separate `pcs_i.id
 
 ## `can_pcs` {#sec:impl-can-pcs}
 
-`can_pcs` implements bit timing as a single process `p_can_pcs` with a 4-state segment FSM and a concurrent TDC pipeline, as shown in @fig:can-pcs. The segment FSM advances through `s_sync_seg` (1 TQ, fixed), `s_prop_seg`, `s_phase_seg1`, and `s_phase_seg2` on every TQ boundary. The SP strobe and `rx_data` latch fire at the end of `s_phase_seg1`. The TX bit is driven at the end of `s_phase_seg2`. TDC measurement runs at TQ granularity above the segment case statement. When `fce_i.bus_off` is asserted, the SP slot counts consecutive recessive bits and pulses `fce_o.idle_condition` every 11 bits for bus-off recovery.
+`can_pcs` implements bit timing as a 4-state FSM and a concurrent TDC pipeline (REQ-026, REQ-027), see @fig:can-pcs. The FSM advances through `s_sync_seg` (1 TQ, fixed), `s_prop_seg`, `s_phase_seg1`, and `s_phase_seg2` as each segment's TQ count expires. The SP strobe and `rx_data` latch fire at the end of `s_phase_seg1`. The TX bit is driven at the end of `s_phase_seg2`. TDC measurement runs at TQ granularity above the segment case statement. When `fce_i.bus_off` is asserted, consecutive recessive bits are counted and `fce_o.idle_condition` is pulsed every 11 bits - enabling FCE bus-off recovery (REQ-029).
 
 ![`can_pcs` bit-time FSM with concurrent resynchronization and TDC pipelines per ISO 11898-1 sec. 7.2-7.4.](figures/pcs_fsm.png){#fig:can-pcs height=90%}
 
 ### Synchronization {#sec:impl-can-pcs-resync}
 
-`can_pcs` implements all four sub-claims of REQ-026.
-
-- **Hard synchronization** (sub-claim 3): MAC-controlled via `mac_i.do_hard_sync`, which restarts the bit time at the sync segment boundary. Used at SOF and at the FDF-to-res transition.
-- **Resynchronization** (sub-claims 1, 2, 4): `sync_applied` enforces one sync per bit time, clearing at SP. `rx_bus_prev` gates sync to R→D edges. A transmitter guard suppresses sync during TX. Phase_Seg1 or Phase_Seg2 is adjusted by up to SJW. Phase errors not exceeding SJW produce the same result as a hard synchronization.
+- **Hard synchronization**: Controlled by `can_mac_fsm` via `do_hard_sync`, which restarts the bit time at the sync segment boundary. Used at SOF and at the FDF-to-res transition.
+- **Resynchronization**: The `sync_applied` flag enforces one sync per bit time. `rx_bus_prev` gates sync to recessive → dominant edges. The `transmitting` signal from `can_mac_fsm` suppresses sync during TX. Phase_Seg1 or Phase_Seg2 is adjusted by up to SJW. Phase errors not exceeding SJW produce the same result as a hard synchronization.
 
 ### Dual Bit Rate Switching {#sec:impl-can-pcs-dual-rate}
 
-`can_pcs` holds no frame-format knowledge, as shown in @fig:can-pcs. Rate switching is entirely MAC-driven through three dedicated control signals on the MAC-PCS interface.
+`can_pcs` holds no frame-format knowledge. Rate switching is entirely driven by `can_mac_fsm` through three dedicated control signals.
 
-- `mac_i.next_bit_is_brs`: at the BRS sample point, `can_pcs` reads BRS polarity and, if recessive, replaces the active segment lengths and SJW with their data-phase counterparts for the remainder of the data phase.
-- `mac_i.next_bit_is_res`: arms TDC measurement at the FD reserved bit boundary (@sec:impl-can-pcs-tdc).
-- `mac_i.data_phase_stop`: asserted by the MAC at the CRC delimiter SP or on error-frame entry. Restores nominal timing and clears all TDC state.
-
-`can_pcs` is independently testable against any timing configuration without frame-level stimulus.
+- `next_bit_is_brs`: At the BRS sample point, `can_pcs` reads BRS polarity and, if recessive, replaces the active segment lengths and SJW with their data-phase counterparts.
+- `next_bit_is_res`: Arms TDC measurement at the FD res bit boundary.
+- `data_phase_stop`: Asserted by the `can_mac_fsm` at the CRC delimiter SP or on error-frame entry. Restores nominal timing and clears all TDC state.
 
 ### Transmitter Delay Compensation {#sec:impl-can-pcs-tdc}
 
-The motivation and principle of TDC are described in @sec:bit-timing. The implementation is a three-stage pipeline within `p_can_pcs`, shown in @fig:can-pcs.
+TDC is implemented as a three-stage pipeline:
 
-1. **Measure**: from the FD reserved bit boundary, `delay_count_tq` increments each TQ until the TX-to-RX echo arrives on RX.
-2. **Arm**: at the first data-phase bit boundary, the measured delay is counted down each TQ until zero, setting `ssp_active`.
-3. **Fire**: once armed, the SSP fires one TQ before the SP on every data-phase bit time. `mac_o.tdc_delay` is updated on each SSP strobe for the MAC to index into the transmitted-bit shift register (@sec:impl-can-mac-fsm).
+1. **Measure**: From the FD res bit boundary, `delay_count_tq` increments each TQ until the TX-to-RX dominant edge arrives on RX.
+2. **Count down**: At the first data-phase bit boundary, the measured delay is counted down each TQ until zero, setting `ssp_active`.
+3. **Fire**: With `ssp_active` set, the SSP fires one TQ before the SP on every data-phase bit time. `can_mac_fsm` uses `tdc_delay` to index into the transmitted-bit shift register for bit error detection.
 
 # Verification and Results {#sec:verification-results}
 
