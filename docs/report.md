@@ -620,25 +620,34 @@ Counter updates follow REQ-028. Bus-off recovery requires 128 separate `pcs_i.id
 
 ## `can_pcs` {#sec:impl-can-pcs}
 
-`can_pcs` is a cyclic bit-timing engine: its internal `t_segment` register advances through `s_sync_seg` (1 TQ, fixed), `s_prop_seg`, `s_phase_seg1`, and `s_phase_seg2` on every TQ boundary. The SP strobe and `rx_data` latch fire at the end of `s_phase_seg1`. The TX bit is driven at the end of `s_phase_seg2`. When `fce_i.bus_off` is asserted, the SP slot counts consecutive recessive bits and pulses `fce_o.idle_condition` every 11 bits for FCE bus-off recovery. The full timing operation is shown in @fig:can-pcs.
+`can_pcs` implements bit timing as a single process `p_can_pcs` with a 4-state segment FSM and a concurrent TDC pipeline, as shown in @fig:can-pcs. The segment FSM advances through `s_sync_seg` (1 TQ, fixed), `s_prop_seg`, `s_phase_seg1`, and `s_phase_seg2` on every TQ boundary. The SP strobe and `rx_data` latch fire at the end of `s_phase_seg1`. The TX bit is driven at the end of `s_phase_seg2`. TDC measurement runs at TQ granularity above the segment case statement. When `fce_i.bus_off` is asserted, the SP slot counts consecutive recessive bits and pulses `fce_o.idle_condition` every 11 bits for bus-off recovery.
 
 ![`can_pcs` bit-time FSM with concurrent resynchronization and TDC pipelines per ISO 11898-1 sec. 7.2-7.4.](figures/pcs_fsm.png){#fig:can-pcs height=90%}
 
-### Resynchronization {#sec:impl-can-pcs-resync}
+### Synchronization {#sec:impl-can-pcs-resync}
 
-`can_pcs` implements all four sub-claims of REQ-026. Sub-claim 1 (one synchronisation per bit time) is enforced by a `sync_applied` flag that gates the edge-qualify predicate and clears at each sample point. Sub-claim 2 (only R→D edges qualify, previous SP must be recessive, no sync while transmitting) is enforced by `sync_applied` gating sync to the post-SP window, where `rx_bus_prev` holds the SP-sampled value, making the R→D check simultaneously a check on SP polarity. A transmitter guard suppresses sync during TX. Sub-claim 3 (hard sync) is MAC-controlled via `do_hard_sync`, allowing the MAC to select hard sync at the FDF-to-res transition without disturbing PCS timing state. Sub-claim 4 (resync by segment adjustment) adjusts Phase_Seg1 or Phase_Seg2 by up to SJW. Errors not exceeding SJW produce the same effect as a hard synchronisation.
+`can_pcs` implements all four sub-claims of REQ-026.
+
+- **Hard synchronization** (sub-claim 3): MAC-controlled via `mac_i.do_hard_sync`, which restarts the bit time at the sync segment boundary. Used at SOF and at the FDF-to-res transition.
+- **Resynchronization** (sub-claims 1, 2, 4): `sync_applied` enforces one sync per bit time, clearing at SP. `rx_bus_prev` gates sync to R→D edges. A transmitter guard suppresses sync during TX. Phase_Seg1 or Phase_Seg2 is adjusted by up to SJW. Phase errors not exceeding SJW produce the same result as a hard synchronization.
 
 ### Dual Bit Rate Switching {#sec:impl-can-pcs-dual-rate}
 
-`can_pcs` holds no frame-format knowledge. Rate switching is entirely MAC-driven through three dedicated control signals on the MAC-PCS interface.
+`can_pcs` holds no frame-format knowledge, as shown in @fig:can-pcs. Rate switching is entirely MAC-driven through three dedicated control signals on the MAC-PCS interface.
 
-At the BRS sample point, `can_pcs` reads BRS polarity and, if recessive, replaces the active segment lengths and SJW with their data-phase counterparts for the remainder of the data phase (see @fig:can-pcs). TDC measurement is armed at the FD reserved bit boundary (@sec:impl-can-pcs-tdc). `mac_i.data_phase_stop`, asserted by the MAC at the CRC delimiter SP or on error-frame entry, restores nominal timing and clears all TDC state.
+- `mac_i.next_bit_is_brs`: at the BRS sample point, `can_pcs` reads BRS polarity and, if recessive, replaces the active segment lengths and SJW with their data-phase counterparts for the remainder of the data phase.
+- `mac_i.next_bit_is_res`: arms TDC measurement at the FD reserved bit boundary (@sec:impl-can-pcs-tdc).
+- `mac_i.data_phase_stop`: asserted by the MAC at the CRC delimiter SP or on error-frame entry. Restores nominal timing and clears all TDC state.
 
-This interface design keeps protocol knowledge in the MAC layer and timing knowledge in the PCS layer, following the ISO 11898-1 layered architecture. `can_pcs` does not inspect DLC or frame format - the only frame-level observation it makes is reading the BRS bit polarity when `mac_i.next_bit_is_brs` is set, making it independently testable against any timing configuration without frame-level stimulus.
+`can_pcs` is independently testable against any timing configuration without frame-level stimulus.
 
 ### Transmitter Delay Compensation {#sec:impl-can-pcs-tdc}
 
-The motivation and principle of TDC are described in @sec:bit-timing. The implementation uses a three-stage pipeline within `p_can_pcs`: count up from the FD reserved bit boundary until the TX-to-RX echo arrives, wait for the first data-phase bit boundary, then count down the measured delay to arm the SSP. Once armed, current_temp SSP fires at a fixed offset within `s_phase_seg1` every data-phase bit time. The measured round-trip delay is supplied to the MAC as `mac_o.tdc_delay` for indexing into the transmitted-bit shift register (@sec:impl-can-mac-fsm). The full TDC pipeline is shown in @fig:can-pcs.
+The motivation and principle of TDC are described in @sec:bit-timing. The implementation is a three-stage pipeline within `p_can_pcs`, shown in @fig:can-pcs.
+
+1. **Measure**: from the FD reserved bit boundary, `delay_count_tq` increments each TQ until the TX-to-RX echo arrives on RX.
+2. **Arm**: at the first data-phase bit boundary, the measured delay is counted down each TQ until zero, setting `ssp_active`.
+3. **Fire**: once armed, the SSP fires one TQ before the SP on every data-phase bit time. `mac_o.tdc_delay` is updated on each SSP strobe for the MAC to index into the transmitted-bit shift register (@sec:impl-can-mac-fsm).
 
 # Verification and Results {#sec:verification-results}
 
