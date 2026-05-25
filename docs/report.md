@@ -647,30 +647,61 @@ TDC is implemented as a three-stage pipeline:
 
 # Verification and Results {#sec:verification-results}
 
-The implementation described in @sec:implementation was exercised against the 38-requirement verification plan (@sec:verification-plan) using five dedicated testbenches, each aligned to a module boundary established by the layered architecture. `can_mac_pcs_fce_tb` is the primary integration testbench, exercising two `can_mac_pcs_fce` instances connected through a dominant-wins bus model and covering 16 requirements spanning MAC frame encoding, PCS bus-off recovery, and FCE-driven error flag generation. The four unit testbenches - `can_mac_crc_tb`, `can_mac_bs_tb`, `can_pcs_tb`, and `can_fce_tb` - target individual submodules with focused stimulus. `can_mac_ser_tb` exercises the serializer but has no standalone requirement entries in the verification plan. Of the 38 requirements, 27 are closed. @tbl:testbench-results-summary lists the five testbenches and their coverage. @fig:tb-overview shows the testbench architecture.
-
-REQ-013 (dual CRC data feed: CC excludes dynamic stuff bits, FD includes them) and REQ-023 (overload frame conditions) are verified by code inspection against `can_mac_fsm.vhd` rather than simulation. `can_mac_crc_tb` closes REQ-006 via three coverage bins: CB and CE frames (CRC-15), FD frames with payload up to 16 bytes (CRC-17), and FD frames with payload greater than 16 bytes (CRC-21), all hit. `can_mac_bs_tb` closes REQ-016 via the `p_sbc_checker` assertion and REQ-018 via input and output coverage bins, all bins hit. `can_pcs_tb` closes REQ-025 via the `p_check_tdc_delay` assertion.
+The implementation described in @sec:implementation was exercised against the 38-requirement verification plan (@sec:verification-plan) using five dedicated testbenches, each aligned to a module boundary established by the layered architecture. @fig:tb-overview shows the testbench architecture.
 
 ![`can_mac_pcs_fce_tb` integration testbench. Two `can_mac_pcs_fce` instances connect through a dominant-wins bus model. Avalon-ST VCs drive and sample the MAC interfaces. `p_test_ctrl` sequences test stimuli, injects bit errors via `dut_1_rx_recessive`, and reads pass/fail status from the TX-status and bus-off monitors.](figures/tb_overview.png){#fig:tb-overview width=100%}
 
-@fig:full_fd_frame shows the two-node integration scenario from `can_mac_pcs_fce_tb`: a complete FD frame transmitted by DUT 1 and received by DUT 2, with SSP pulses confirming TDC is active during the data phase and resynchronization events visible on DUT 2 (REQ-010, REQ-012, REQ-014, REQ-017, REQ-026). @fig:bs shows the bit stuffer's dynamic and fixed mode behavior from `can_mac_pcs_fce_tb` (REQ-016, REQ-018). @fig:pcs shows dual bit rate switching and TDC measurement from `can_mac_pcs_fce_tb`: the PCS replaces nominal segment lengths at the BRS sample point and positions the SSP once the transceiver loopback delay is measured (REQ-015, REQ-024, REQ-025, REQ-030). @fig:arb shows the arbitration loss scenario from `can_mac_pcs_fce_tb`: the losing node clears `is_transmitter` in-place at `s_arbitration` and continues as receiver without a state transition (REQ-020). @fig:error_frame shows the error frame escalation: a bit error on the SOF bit triggers the first error flag, and subsequent bit errors on each dominant error flag bit escalate TEC to 128, transitioning the node to error passive and inserting `s_suspend_transmission` after `s_intermission` (REQ-007, REQ-008, REQ-021, REQ-022, REQ-028). @fig:bus_off_recovery shows bus-off recovery from `can_mac_pcs_fce_tb`: 128 idle condition strobes from the PCS reset TEC and REC to zero and return the node to `s_error_active` (REQ-009, REQ-029).
+## Code Inspection {#sec:code-inspection}
+
+REQ-013 (dual CRC data feed: CC excludes dynamic stuff bits, FD includes them) and REQ-023 (overload frame conditions) are verified by code inspection against `can_mac_fsm.vhd` rather than simulation.
+
+## Unit Testbench Simulation {#sec:unit-testbenches}
+
+The four unit testbenches target individual submodules with focused stimulus. `can_mac_crc_tb` closes REQ-006 via three coverage bins: CB and CE frames (CRC-15), FD frames with payload up to 16 bytes (CRC-17), and FD frames with payload greater than 16 bytes (CRC-21), all hit. `can_mac_bs_tb` closes REQ-016 via the `p_sbc_checker` assertion and REQ-018 via input and output coverage bins, all bins hit. `can_pcs_tb` closes REQ-025 via the `p_check_tdc_delay` assertion. `can_fce_tb` closes REQ-028, REQ-029, and REQ-033 (sub-claim 2). `can_mac_ser_tb` exercises the serializer but has no standalone requirement entries in the verification plan.
+
+## Integration Testbench Simulation {#sec:integration-testbench}
+
+`can_mac_pcs_fce_tb` is the primary integration testbench, exercising two `can_mac_pcs_fce` instances connected through a dominant-wins bus model and covering 16 requirements spanning MAC frame encoding, PCS bus-off recovery, and FCE-driven error flag generation.
+
+### Frame Encoding and Synchronization {#sec:tb-frame-encoding}
+
+@fig:full_fd_frame shows the two-node integration scenario: a complete FD frame transmitted by DUT 1 and received by DUT 2, with SSP pulses confirming TDC is active during the data phase and resynchronization events visible on DUT 2 (REQ-010, REQ-012, REQ-014, REQ-017, REQ-026).
 
 ![Two-node simulation of a complete FD frame in `can_mac_pcs_fce_tb`, showing the full field sequence from `s_arbitration` through `s_eof` on both transmitter and receiver. Secondary sample point pulses confirm TDC is active during the data phase. Resynchronization events are visible on DUT 2 via `sync_applied`.](figures/waveforms/full_fd_frame.pdf){#fig:full_fd_frame width=100%}
 
+### Bit Stuffing {#sec:tb-bit-stuffing}
+
+@fig:bs shows the bit stuffer's dynamic and fixed mode behavior (REQ-016, REQ-018).
+
 ![Dynamic and fixed bit stuffing in `can_mac_pcs_fce_tb`. Dynamic stuff bits are inserted at A, B, and C in the `s_data` region. At D, `fixed_bit_stuffing_en` asserts and the stuffer switches to fixed mode for `s_sbc` and `s_crc`. Seven fixed stuff bits are inserted between D and E.](figures/waveforms/bs.pdf){#fig:bs width=100%}
 
+### Bit Rate Switching and TDC {#sec:tb-bit-rate}
+
+@fig:pcs shows dual bit rate switching and TDC measurement: the PCS replaces nominal segment lengths at the BRS sample point and positions the SSP once the transceiver loopback delay is measured (REQ-015, REQ-024, REQ-025, REQ-030).
 
 ![Dual bit rate switching and TDC measurement in `can_mac_pcs_fce_tb`. At A, the PCS begins counting the transceiver loopback delay in TQ increments. At B, the transmitted bit arrives on RX and the count stops at 19 TQ. At C, the first data-phase bit (ESI) is transmitted and the measured delay is counted down. When the countdown terminates at D, the SSP strobe activates and the TDC delay of 2 is signaled to the MAC. `next_bit_is_res` and `next_bit_is_brs` control the measurement window. `data_phase_stop` signals the end of the data phase.](figures/waveforms/pcs.pdf){#fig:pcs width=100%}
 
+### Arbitration {#sec:tb-arbitration}
+
+@fig:arb shows arbitration loss: the losing node clears `is_transmitter` in-place at `s_arbitration` and continues as receiver without a state transition (REQ-020).
+
 ![Arbitration loss in `can_mac_pcs_fce_tb`. Both nodes enter `s_arbitration` as transmitters at A. DUT 1 loses arbitration at B after transmitting recessive and sampling dominant, and continues as receiver with `is_transmitter` cleared.](figures/waveforms/arb.pdf){#fig:arb width=100%}
+
+### Error Handling and Bus-off Recovery {#sec:tb-error-handling}
+
+@fig:error_frame shows error frame escalation and @fig:bus_off_recovery shows bus-off recovery, together covering REQ-007, REQ-008, REQ-009, REQ-021, REQ-022, REQ-028, and REQ-029.
 
 ![Error frame escalation in `can_mac_pcs_fce_tb`. A bit error on the SOF bit triggers the first error flag at A, incrementing TEC to 8. Each dominant bit of the error flag is also sampled as a bit error (bus held recessive), rapidly escalating TEC. At B, TEC reaches 128 and `fce_state` transitions to `s_error_passive`. At C, the node enters `s_suspend_transmission` after `s_intermission`.](figures/waveforms/error_flag.pdf){#fig:error_frame width=100%}
 
 ![Bus-off recovery in `can_mac_pcs_fce_tb`. DUT 1 transmits the first active error flag at A. At B, TEC reaches 128 and the node transitions to error passive. At C, TEC reaches 256 and the node enters bus off. The FCE counts 128 idle condition strobes from the PCS and restores `s_error_active` at D. At E and F, DUT 2 acknowledges the first two frames transmitted after recovery.](figures/waveforms/bus_off.pdf){#fig:bus_off_recovery width=100%}
 
+## Open Requirements {#sec:open-requirements}
+
 Eleven requirements remain open. Eight are LLC requirements (REQ-001 through REQ-005, REQ-031, REQ-034, REQ-036) deferred pending implementation of `can_llc`. One P2 requirement - REQ-035 (error signaling enable) - is deferred as non-blocking. REQ-021 (error detection, P1) has partial simulation coverage: bit-error detection is exercised via recessive injection in `test_bus_off`, but stuff, form, CRC, and ACK error detection are covered by code inspection only, as each requires a frame-aware stimulus source to inject the error at the correct field boundary (@sec:future-work). REQ-033 sub-claim 1 (bus re-integration before TX) remains open pending a full-stack testbench.
 
 ## Testbench Results Summary {#sec:testbench-results-summary}
+
+Of the 38 requirements, 27 are closed across the five testbenches. @tbl:testbench-results-summary lists each testbench and its requirement coverage.
 
 | Testbench | Requirements covered | Status |
 | :--- | :--- | :--- |
