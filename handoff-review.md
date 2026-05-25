@@ -5,50 +5,39 @@ Use `/grill-with-docs` - systematic prose review of `docs/report.md`, one questi
 
 ## What Was Done This Session
 
-Full prose review pass of **`# Verification Plan`** and **`# Design and Architecture`**. All changes committed to `main`. See `git log --oneline -30` for the full list.
+Full prose review pass of **`# Implementation`** up to and including `## can_mac_ser`. All changes committed to `main`. See `git log --oneline -20` for the full list.
 
-**Verification Plan chapter (major restructure):**
-- Opener rewritten: direct statement of five dimensions driving architecture and testbench design; two bullet points (design-facing / verification-facing) with bridge sentence to field sections
-- Deleted Verification Plan Data Structure section and table; promoted Verification Method, Traceability, Status from `###` to `##`
-- Deleted Priority section (already covered in Requirements section); removed priority content from Summary
-- Moved Requirement Distribution to last position; renamed to "Verification Plan Summary"; expanded with priority/status breakdown; later trimmed to two substantive observations (MAC white-box density, FCE all-black-box)
-- All field section openers: added backtick formatting to field names
-- Each field section: added illustrative requirement example (Layer: REQ-020 system label; Side: REQ-025 TDC TX-only; Format Applicability: REQ-015 FB/FE only; Observability: REQ-006 CRC polynomial; Verification Method: REQ-018 simulation+coverage combo)
-- Observability: bullets for black-box/white-box values; replaced "stimulus-and-observe" with direct language
-- Verification Method: bullets for all four method values
-- Layer: cut redundant middle sentence; REQ-020 example clarified as both multi-module and multi-node
-- Closing bridge sentence cut from Summary (D&A opener covers the same ground)
+**Implementation chapter opener (L542-548):**
+- Folded Interface Conventions section content into chapter opener; deleted the section
+- Added Module Overview subsection listing `can_mac_pcs_fce` hierarchy
+- Added `pk_can_types` (`can_types_pkg.vhd`) description: single shared package for all interface records, protocol constants, frame format byte layouts, and utility functions
+- Added `can_llc` scope note: not implemented within project schedule, interface contracts in verification plan, implementation path in future-work section
 
-**Design and Architecture chapter:**
-- System Overview moved to first subsection (introduces all module names before they are used)
-- Chapter opener rewritten: introduces module hierarchy (`can_llc`, `can_mac` wrapper, submodules); `can_bus_controller` introduced here as the existing controller
-- "Internal LLC Frame Format" renamed to "LLC-MAC Interface Format"
-- Consistent naming: replaced all "existing CAN Classic controller", "existing controller", "prior implementation" with `can_bus_controller`
-- Adopting ISO sub-layer model: dropped VP `layer`-dimension reference; states rationale directly
-- Combined vs. Separated TX/RX: rewritten as narrative ("tried X, observed Y, concluded Z")
-- Per-Field FSM Granularity: reframed around REQ-038 defining the frame field sequence; FSM naturally progresses through that structure; removed forward-ref to implementation section
-- LLC Frame Format: added intro paragraph naming purpose of each sub-format; Host-LLC simplified (extends `can_bus_controller`, 8→64 bytes, FD flags added to existing control bytes); LLC-MAC simplified (full 71-byte buffer vs. 2-byte config prefix)
+**`## can_mac_fsm` (L550-582):**
+- Expanded opener: `llc_frame` byte array reframed as deliberate proof-of-concept baseline (reusing `can_bus_controller` approach); block RAM migration as identified upgrade path; bus-off owned by `can_fce`, `fce_i.bus_off` treated as secondary reset
+- FSM Structure: merged `is_transmitter` sentences; added pre-case/case/post-case three-phase decomposition as bullet points with tradeoff discussion (locality cost vs. cross-cutting logic); added error-frame role-independence note (`s_error_flag`/`s_error_delimiter` driven by `fce_i.error_active` not `is_transmitter`); cut state enumeration list (diagram covers it); cut incorrect "only `s_ack` and `s_eof` carry role-specific logic" claim
+- TX Mode: added `drive_bit` two-cycle pipeline explanation (BS and CRC take two clocks to present valid outputs); split paragraph; replaced "bus echo" with "samples the bus"; reframed arbitration CRC/BS source paragraph (multi-node bus is the reason, not just arbitration-loss handoff)
+- RX Mode: named `p_stream_to_LLC`; cut "eliminates the need for deserializer" sentence; fixed passive voice and notation issues
+- Cut `### Error-Frame States` subsection entirely; role-independence note folded into FSM Structure
+- Added REQ-NNN traceability throughout: REQ-006, REQ-007, REQ-013, REQ-014, REQ-016, REQ-018, REQ-020, REQ-021, REQ-022, REQ-023, REQ-025
+
+**`## can_mac_ser` (L584-590):**
+- Section reviewed and accepted as-is (user prefers the cleaner existing version)
+- No changes made
 
 ## Where We Left Off
 
-At the start of `# Implementation {#sec:implementation}`, specifically **L542** of `docs/report.md`. Design and Architecture chapter is complete and clean.
+At `## can_mac_bs` starting at **L592** of `docs/report.md`. The `can_mac_ser` section is complete.
 
 ## Next Section to Review
 
-`# Implementation {#sec:implementation}` starting at L542, covering:
+`## can_mac_bs` starting at L592, then continuing through:
 
 ```
-## Interface Conventions        L546
-## can_mac_fsm                  L556
-   ### FSM Structure and Mode Flag
-   ### TX Mode: Frame Transmission
-   ### RX Mode: Frame Reception
-   ### Error-Frame States
-## can_mac_ser
-## can_mac_bs
-## can_mac_crc
-## can_fce
-## can_pcs
+## can_mac_bs     L592
+## can_mac_crc    L604
+## can_fce        L616
+## can_pcs        L626
 ```
 
 ## Writing Style Rules (critical)
@@ -65,13 +54,22 @@ Full rules: `docs/writing_style_rules.md`
 
 ## Key Decisions Made This Session
 
-- Priority belongs in the Requirements section, not the Verification Plan section - do not re-introduce it there
-- `format_applicability` is design-facing (not verification-facing) because it informed per-field FSM granularity; describe it as such, not as "testbench stimulus scope"
-- `can_bus_controller` is the name for the existing CAN Classic controller - use it consistently; do NOT use "existing controller", "prior implementation", "old implementation"
-- Design and Architecture sections should not forward-reference implementation details (no refs to `@sec:impl-*` from D&A)
-- System Overview belongs first in D&A so module names are established before they are used
-- LLC is not yet implemented - do NOT mention this in the Design section; it belongs in the Implementation section only
-- Narrative style for "tried and rejected" architectural decisions: "tried X, observed Y, concluded Z"
+- `can_llc` not implemented due to schedule constraints - mention this in Implementation opener, not D&A
+- `pk_can_types` is the single shared package all modules depend on - describe it as such
+- `llc_frame` byte array is a deliberate proof-of-concept choice, not a mistake - block RAM is the upgrade path
+- Pre-case/case/post-case FSM cycle structure is worth the locality cost because the exception logic is cross-cutting
+- Error-frame states are role-independent (driven by `fce_i.error_active`) - this is worth calling out explicitly
+- During `s_arbitration` both TX and RX feed `pcs_i.rx_data` because multiple nodes may be transmitting simultaneously - the bus is the authoritative source; the clean arbitration-loss handoff is a consequence, not the cause
+- `drive_bit` two-cycle delay is about BS and CRC needing two clocks to present valid outputs - not about state/bit_count settling
+- The PCS owns the bit-boundary timing; the MAC simply needs valid data in `pcs_o.tx_data` ready in time
+- Add REQ-NNN references to implementation details to make requirement traceability explicit
+- Do not over-explain what the FSM diagram already shows; reference the figure instead
+
+## Key Decisions Carried Over from Previous Session
+
+- `can_bus_controller` is the name for the existing CAN Classic controller - use it consistently
+- D&A sections should not forward-reference implementation details
+- Narrative style for "tried and rejected" decisions: "tried X, observed Y, concluded Z"
 
 ## Project Context
 
