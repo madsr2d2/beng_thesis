@@ -591,17 +591,13 @@ The 32-bit ID field in the internal format is left-aligned: a base identifier (1
 
 ## `can_mac_bs` {#sec:impl-can-mac-bs}
 
-`can_mac_bs` implements both dynamic and fixed bit stuffing for CAN Classic and CAN FD frames [@iso11898_1, sec. 10.6]. The single entity is instantiated once inside `can_mac_fsm` and serves both TX stuffing and RX destuffing via the same logic - the FSM drives the same `bs_i` interface regardless of role, and the stuffer's output is either inserted into the TX bit stream or used by the FSM to discard a received destuff bit.
+`can_mac_bs` implements both dynamic and fixed bit stuffing for CC and FD frames (REQ-018). The entity is instantiated inside `can_mac` and serves both TX stuffing and RX destuffing via the same logic: `can_mac_fsm` drives the `can_mac_bs` interface, and the stuffer's output is either inserted into the TX bit stream or used by `can_mac_fsm` to discard SBs and FSBs from the received stream.
 
-In **dynamic mode** (`fixed_bit_stuffing_en` = '0'), the stuffer counts consecutive bits of identical polarity and emits an inverse-polarity stuff bit after every five (REQ-018). A binary `stuff_count` counter is incremented on each dynamic stuff bit. Its value is Gray-coded and parity-encoded into the `stuff_bit_count` output, which the FSM reads when transmitting the SBC field (REQ-016).
+In dynamic mode (`fixed_bit_stuffing_en` = '0'), the stuffer counts consecutive bits of identical polarity and emits an inverse-polarity SB after every five. A counter is incremented on each dynamic SB. Its value is Gray-coded and parity bit is added, generating the `stuff_bit_count` output. This value is read by `can_mac_fsm` when transmitting the SBC field (REQ-016).
 
-In **fixed mode** (`fixed_bit_stuffing_en` = '1'), used for the FD CRC region, one fixed stuff bit (FSB) is emitted immediately on the rising edge of `fixed_bit_stuffing_en`, then one FSB every four real bits (REQ-018). The FSB polarity is always the inverse of the preceding bit, so a receiver can detect a form error if the FSB matches its predecessor.
+In fixed mode (`fixed_bit_stuffing_en` = '1'), used for the FD CRC region, a FSB is emitted immediately on the rising edge of `fixed_bit_stuffing_en`, then one FSB every four real bits. If a dynamic SB is already pending when `fixed_bit_stuffing_en` rises, the initial FSB emission is skipped - preventing double stuffing.
 
-The transition from dynamic to fixed stuffing requires special handling when a dynamic stuff bit is already pending at the rising edge of `fixed_bit_stuffing_en`. Suppressing the pending dynamic SB would cause a TX/RX divergence: the transmitter and receiver would derive different `stuff_count` values from the same bit stream, causing SBC mismatch. The implementation instead promotes the pending dynamic SB to the initial FSB - the two coincide and both requirements are satisfied simultaneously (see @fig:mac-bs-dataflow, REQ-016, REQ-018). On the falling edge of `fixed_bit_stuffing_en`, any pending FSB is cancelled immediately. The MAC FSM exits fixed stuffing at the last CRC bit without providing a slot to drain a still-pending FSB.
-
-![`can_mac_bs` operating in dynamic and fixed stuffing modes. A pending dynamic stuff bit at the rising edge of `fsb_en` is promoted to the initial FSB rather than suppressed.](figures/mac_bs_fsm.png){#fig:mac-bs-dataflow width=100%}
-
-Its `stuff_bit_count` output is the SBC value the FSM reads when transmitting the SBC field.
+![`can_mac_bs` bit stuffing logic.](figures/mac_bs_fsm.png){#fig:mac-bs-dataflow width=100%}
 
 ## `can_mac_crc` {#sec:impl-can-mac-crc}
 
