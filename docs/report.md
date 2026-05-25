@@ -647,9 +647,9 @@ TDC is implemented as a three-stage pipeline:
 
 # Verification and Results {#sec:verification-results}
 
-The implementation described in @sec:implementation was exercised against the 37-requirement verification plan (@sec:verification-plan) using five dedicated testbenches, each aligned to a module boundary established by the layered architecture. @fig:tb-overview shows the testbench architecture.
+The implementation described in @sec:implementation was exercised against the 37-requirement verification plan (@sec:verification-plan) using four unit testbenches targeting individual submodules and one integration testbench, `can_mac_pcs_fce_tb`, connecting two `can_mac_pcs_fce` instances through a dominant-wins bus model. @fig:tb-overview shows the integration testbench architecture.
 
-![`can_mac_pcs_fce_tb` integration testbench. Two `can_mac_pcs_fce` instances connect through a dominant-wins bus model. Avalon-ST VCs drive and sample the MAC interfaces. `p_test_ctrl` sequences test stimuli, injects bit errors via `dut_1_rx_recessive`, and reads pass/fail status from the TX-status and bus-off monitors.](figures/tb_overview.png){#fig:tb-overview width=100%}
+![`can_mac_pcs_fce_tb` integration testbench. Two `can_mac_pcs_fce` instances connect through a dominant-wins bus model. Avalon-ST VCs drive and sample the MAC interfaces. `p_test_ctrl` sequences test stimuli, injects bit errors, reads transfer status, and monitors bus-off status.](figures/tb_overview.png){#fig:tb-overview width=100%}
 
 ## Code Inspection {#sec:code-inspection}
 
