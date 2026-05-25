@@ -616,7 +616,7 @@ Counter updates follow REQ-028. Bus-off recovery requires 128 separate `pcs_i.id
 
 `can_mac_fsm` asserts `mac_i.passive_tx_ack_error_exempt_1` when it detects an ACK error while the node is error passive and transmitting, signaling `can_fce` to suppress the TEC increment in accordance with REQ-028.
 
-![`can_fce` FSM governing the error active, error passive, and bus off node states per ISO 11898-1 sec. 8.1.4.4.](figures/fce_fsm.png){#fig:fce-fsm width=100%}
+![`can_fce` FSM governing the error active, error passive, and bus off node states.](figures/fce_fsm.png){#fig:fce-fsm width=100%}
 
 ## `can_pcs` {#sec:impl-can-pcs}
 
