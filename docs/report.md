@@ -434,7 +434,7 @@ Every CAN node monitors the bus for five categories of error (REQ-021):
 
 Detection of any error causes the detecting node to transmit an error flag, aborting the frame (REQ-022). An error active node transmits an active error flag of six consecutive dominant bits. An error passive node transmits a passive error flag of six consecutive recessive bits instead (REQ-007). Both are followed by an eight-bit recessive error delimiter.
 
-The FCE tracks each node's error history through the Transmit Error Counter (TEC) and Receive Error Counter (REC). Counter increments and decrements follow the rules defined in REQ-029. A node begins in error active, transitions to error passive when either counter exceeds 127, and to bus off when TEC exceeds 255 (REQ-030). An error-passive transmitter is exempt from the TEC increment on an ACK error, preventing an isolated node from escalating to bus-off through failed acknowledgments alone. In bus off the node ceases all bus activity and shall not influence the bus (REQ-027) until 128 sequences of 11 consecutive recessive bits are observed, after which TEC and REC are reset and the node returns to error active. A host-initiated supervisory reset also returns the FCE to its initial state immediately (REQ-028). Whether error signaling is enabled at all is a run-time configuration parameter (REQ-036).
+The FCE tracks each node's error history through the Transmit Error Counter (TEC) and Receive Error Counter (REC). Counter increments and decrements follow the rules defined in REQ-029. A node begins in error active, transitions to error passive when either counter exceeds 127, and to bus off when TEC exceeds 255 (REQ-030). An error-passive transmitter is exempt from the TEC increment on an ACK error, preventing an isolated node from escalating to bus-off through failed acknowledgments alone. In bus off the node ceases all bus activity and shall not influence the bus (REQ-027) until 128 sequences of 11 consecutive recessive bits are observed, after which TEC and REC are reset and the node returns to error active. A host-initiated supervisory reset also returns the FCE to its initial state immediately (REQ-030). Whether error signaling is enabled at all is a run-time configuration parameter (REQ-036).
 
 # Verification Plan {#sec:verification-plan}
 
@@ -492,7 +492,7 @@ The `status` field (`not_started`, `in_progress`, `complete`) records requiremen
 | MAC | REQ-006, REQ-008, REQ-010–013, REQ-015–019, REQ-021–023, REQ-031, REQ-033, REQ-035–036, REQ-038 | 19 | 3 | 0 | 16 | 5 | 3 | 16 |
 | LLC | REQ-001–005, REQ-032, REQ-037 | 7 | 3 | 1 | 3 | 0 | 4 | 3 |
 | PCS | REQ-024–027 | 4 | 1 | 0 | 3 | 1 | 1 | 3 |
-| FCE | REQ-028–030 | 3 | 0 | 0 | 3 | 0 | 3 | 0 |
+| FCE | REQ-029–030 | 2 | 0 | 0 | 2 | 0 | 2 | 0 |
 | System | REQ-007, REQ-009, REQ-014, REQ-020, REQ-034 | 5 | 1 | 0 | 4 | 0 | 2 | 3 |
 | **Total** | | **38** | **8** | **1** | **29** | **6** | **13** | **25** |
 
@@ -612,7 +612,7 @@ The output mux is kept combinatorial - each `gen_crc` instance registers its out
 
 `can_fce` implements the error state and counter management specified in REQ-030. It maintains TEC and REC and transitions between three states: `s_error_active`, `s_error_passive` (TEC or REC > 127), and `s_bus_off` (TEC > 255), as shown in @fig:fce-fsm.
 
-Counter updates follow REQ-029. Bus-off recovery requires 128 separate `pcs_i.idle_condition` pulses, after which both counters reset to zero and the FSM returns to `s_error_active`. `llc_i.normal_mode` resets both counters and returns the FSM to `s_error_active` from any state (REQ-028).
+Counter updates follow REQ-029. Bus-off recovery requires 128 separate `pcs_i.idle_condition` pulses, after which both counters reset to zero and the FSM returns to `s_error_active`. `llc_i.normal_mode` resets both counters and returns the FSM to `s_error_active` from any state (REQ-030).
 
 `can_mac_fsm` asserts `mac_i.passive_tx_ack_error_exempt_1` when it detects an ACK error while the node is error passive and transmitting, signaling `can_fce` to suppress the TEC increment in accordance with REQ-029.
 
@@ -672,7 +672,7 @@ Eleven requirements remain open. Eight are LLC requirements (REQ-001 through REQ
 | `can_mac_crc_tb` | REQ-006 | Pass |
 | `can_mac_bs_tb` | REQ-016, REQ-018 | Pass |
 | `can_pcs_tb` | REQ-024, REQ-025, REQ-026, REQ-027 | Pass |
-| `can_fce_tb` | REQ-028, REQ-029, REQ-030, REQ-034 (sub-claim 2 only) | Pass |
+| `can_fce_tb` | REQ-029, REQ-030, REQ-034 (sub-claim 2 only) | Pass |
 | `can_mac_pcs_fce_tb` | REQ-007, REQ-008, REQ-009, REQ-010, REQ-011, REQ-012, REQ-014, REQ-015, REQ-017, REQ-019, REQ-020, REQ-021 (bit error only), REQ-022, REQ-031, REQ-033 | Pass |
 
 : Testbench execution status and requirements coverage. {#tbl:testbench-results-summary}
