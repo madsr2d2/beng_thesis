@@ -13,7 +13,7 @@ config:
 
 flowchart LR
 
-classDef reset fill:#F5C2C0,stroke:#BB3333,stroke-width:4px,color:#000000
+classDef reset fill:#CDFDC5,stroke:#33AA33,color:#000000,stroke-width:4px,color:#000000
 classDef ff    fill:#CDFDC5,stroke:#33AA33,color:#000000
 classDef event fill:#FFF3CD,stroke:#CC9900,stroke-width:2px,color:#000000
 
@@ -26,50 +26,33 @@ classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
 classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
 classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
 
-s_reset("`**s_reset**
+s_dynamic("`**Dynamic bit stuffing**
 ─────────
-• count = 0, last_polarity = recessive
-• stuff_count = 0, bs_o = reset`")
+• count <= count + 1 : last_polarity = bs_i.data 
+• count <= 0 : last_polarity ≠ bs_i.data 
+• bs_o.data <= ~bs_i.data : count = 5
+• bs_o.valid <= '1' : count = 5
+• stuff_bit_count <= Gray(count) & parity`")
 
 
-s_dynamic("`**s_dynamic**
+ev_fsb_rise("`
+• Emit SB and skip first FSB if SB pending`")
+
+
+s_fixed("`**Fixed bit stuffing**
 ─────────
-• On valid: update last_polarity
-• data ≠ last_polarity: count = 1
-• data = last_polarity, count < 4: count + 1
-• 5th identical bit (count = 4):
-  insert ~last_polarity, count = 0
-  stuff_count + 1
-  SBC = Gray(stuff_count + 1) & parity`")
+• count <= count + 1 : count < 5
+• count <= 0 : count = 5 
+• bs_o.data <= ~bs_i.data : count = 4
+• bs_o.valid <= '1' : count = 4`")
 
 
-ev_fsb_rise("`**fsb_en rising edge**
-─────────
-• Emit ~last_polarity as initial FSB
-• Pending SB reused if available
-  (keeps TX/RX stuff_count aligned)
-• count = 0`")
 
-
-s_fixed("`**s_fixed**
-─────────
-• On valid, no pending FSB:
-• count < 3: count + 1
-• count = 3 (every 4 real bits):
-  insert ~data, count = 0`")
-
-
-ev_fsb_fall("`**fsb_en falling edge**
-─────────
-• Cancel pending FSB (bs_o.valid = 0)
-• Resume dynamic stuffing`")
-
-s_reset --> s_dynamic
-s_dynamic -->|"rising edge fsb_en"| ev_fsb_rise
+s_dynamic -->|"fixed_bit_stuffing_en = '1'"| ev_fsb_rise
 ev_fsb_rise --> s_fixed
-s_fixed -->|"falling edge fsb_en"| ev_fsb_fall
-ev_fsb_fall --> s_dynamic
+s_fixed -->|"fixed_bit_stuffing_en = '0'"| s_dynamic
 
-class s_reset reset
-class s_dynamic,s_fixed ff
+
+class s_dynamic reset
+class s_fixed ff
 class ev_fsb_rise,ev_fsb_fall wd4
