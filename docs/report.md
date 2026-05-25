@@ -653,7 +653,7 @@ The implementation described in @sec:implementation was exercised against the 37
 
 ## Code Inspection {#sec:code-inspection}
 
-REQ-013 (dual CRC data feed: CC excludes dynamic stuff bits, FD includes them) and REQ-023 (overload frame conditions) are verified by code inspection against `can_mac_fsm.vhd` rather than simulation.
+REQ-013 (CRC data feed differs by format: CC excludes stuff bits, FD includes dynamic stuff bits and the SBC field) is verified by code inspection against `can_mac_fsm.vhd` - the FSM controls which frame fields are gated into the CRC engines, and the per-field feed logic is directly readable from the state transitions. REQ-023 (overload frame conditions) requires triggering an overload frame by injecting a dominant bit at specific field boundaries (last EOF bit, first two intermission bits, last error/overload delimiter bit), which requires a frame-aware bit injector not present in the current testbench.
 
 ## Unit Testbench Simulation {#sec:unit-testbenches}
 
