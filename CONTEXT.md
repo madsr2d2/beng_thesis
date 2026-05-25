@@ -65,9 +65,9 @@ The report tells a single continuous story. Each section picks up from the previ
 
 ### Requirements
 
-**What it establishes:** 38 structured requirements extracted from ISO 11898-1 via AI-assisted extraction + manual review. The AI bootstrapped the initial normative statement set (168 statements); the manual distillation step - consolidating to 38 prioritised, independently verifiable requirements - was substantial and irreplaceable. The primary benefit of AI assistance in extraction was consistency, not speed. The MCP server interface was genuinely useful throughout design, implementation, and verification phases for safe incremental updates to the plan.
+**What it establishes:** 37 structured requirements extracted from ISO 11898-1 via AI-assisted extraction + manual review. The AI bootstrapped the initial normative statement set (168 statements); the manual distillation step - consolidating to 37 prioritised, independently verifiable requirements - was substantial and irreplaceable. The primary benefit of AI assistance in extraction was consistency, not speed. The MCP server interface was genuinely useful throughout design, implementation, and verification phases for safe incremental updates to the plan.
 
-**Key artifact:** `verification_plan.toml`, managed via MCP server to prevent silent data corruption. Current state: 28 complete, 10 open (7 LLC deferred: REQ-001, REQ-003, REQ-005, REQ-033, REQ-038 not_started; REQ-022 in_progress - bit error only; REQ-036 P2 not_started; REQ-037 P2 not_started). REQ-011 (remote frames) closed via FTYP coverage bin in `can_mac_pcs_fce_tb`. REQ-035 (lone-node ACK exemption) fully closed - both sub-claims verified.
+**Key artifact:** `verification_plan.toml`, managed via MCP server to prevent silent data corruption. Current state: 27 complete, 1 in_progress (REQ-021, bit error only), 9 not_started (REQ-001–005 LLC deferred, REQ-031 LLC deferred, REQ-034 MAC deferred, REQ-035 P2 non-blocking, REQ-036 LLC deferred).
 
 **Closes with:** "@sec:can-protocol-overview provides that understanding - covering the sub-layer model, frame formats, bit timing, bit stuffing, CRC, and error handling."
 
@@ -75,13 +75,13 @@ The report tells a single continuous story. Each section picks up from the previ
 
 **What it establishes:** The protocol mechanisms the requirements refer to: sub-layer model, frame formats (CB/CE/FB/FE), bit timing and dual rate, bit stuffing (dynamic + fixed), CRC (CRC-15/17/21, dual data feed), error detection and fault confinement. Every mechanism is cross-referenced to REQ-NNN.
 
-**Key artifact:** `@tbl:req-layer-map` in `sec:can-layered-model` is the authoritative requirement-to-layer assignment for all 38 requirements (LLC, MAC, PCS, FCE, System). Do not use the old prose ranges — the table replaced them.
+**Key artifact:** `@tbl:req-layer-map` in `sec:can-layered-model` is the authoritative requirement-to-layer assignment for all 37 requirements (LLC, MAC, PCS, FCE, System). Do not use the old prose ranges — the table replaced them.
 
 **Closes with:** "With those mechanisms established... the following section introduces the five classification dimensions of the verification plan and shows how each one connects back to the protocol concepts described here."
 
 ### Verification Plan
 
-**What it establishes:** Five classification dimensions for the 38 requirements, split into two groups:
+**What it establishes:** Five classification dimensions for the 37 requirements, split into two groups:
 
 - Design-facing (determine module decomposition and stimulus configuration): `layer`, `side`, `format_applicability`
 - Verification-facing (determine testbench architecture): `observability`, `verification_method`
@@ -121,13 +121,13 @@ Final architecture: one unified `can_mac_fsm`, one `can_mac_bs`, one `can_mac_cr
    - Single FCE interface - no arbitration logic needed between duplicate error/success signals.
    - TX bus monitoring (bit error, arbitration loss) shares the same bus-observation loop as RX reception - no duplicate path needed.
 
-**Closes with:** A sentence pointing to `@sec:appendix-mac-arch` for the complete signal-level wiring diagram, then: "With the implementation complete, the remaining question is whether the 38 requirements in the verification plan are in fact satisfied by what was built - the subject of @sec:verification-results."
+**Closes with:** A sentence pointing to `@sec:appendix-mac-arch` for the complete signal-level wiring diagram, then: "With the implementation complete, the remaining question is whether the 37 requirements in the verification plan are in fact satisfied by what was built - the subject of @sec:verification-results."
 
 **Key figure:** `@fig:mac-fsm-arch` (`docs/figures/mac_arch.png`) lives in `@sec:appendix-mac-arch` (appendix, landscape page). It is the signal-level expansion of `@fig:can-node` (`can_node.png`): same Host Device / CAN Protocol Controller / Transceiver IC / User Application structure, but with every inter-module signal named. The MAC subgraph is expanded to show `can_mac_fsm`, `can_mac_bs`, `can_mac_ser`, `can_mac_crc`. The LLC block is labelled "LLC interface" (see glossary). Source: `docs/figures/mac_arch.txt` (Mermaid, regenerate with `mmdc -i mac_arch.txt -o mac_arch.png -b white -w 2400 -H 1400`).
 
 ### Verification and Results
 
-**What it establishes:** Evidence that the 38 verification plan requirements are satisfied, organised by testbench. `can_mac_pcs_fce_tb` covers 16 requirements (including REQ-011 via FTYP coverage). Five testbenches total. Non-waveform evidence is explicitly stated in the body text: REQ-013 and REQ-024 are code inspection only (`can_mac_fsm.vhd`). REQ-006 is closed via three coverage bins in `can_mac_crc_tb` (CB/CE → CRC-15, FD ≤16 B → CRC-17, FD >16 B → CRC-21), all hit. REQ-017 is closed via the `p_sbc_checker` assertion and REQ-019 via input/output coverage bins in `can_mac_bs_tb`, all bins hit. REQ-026 is closed via the `p_check_tdc_delay` assertion in `can_pcs_tb`. 28 of 38 requirements are closed. Ten remain open: 7 LLC deferred, REQ-022 in_progress, REQ-036 and REQ-037 P2 non-blocking.
+**What it establishes:** Evidence that the 37 verification plan requirements are satisfied, organised by testbench. `can_mac_pcs_fce_tb` covers 16 requirements (including REQ-011 via FTYP coverage). Five testbenches total. Non-waveform evidence is explicitly stated in the body text: REQ-013 and REQ-023 are code inspection only (`can_mac_fsm.vhd`). REQ-006 is closed via three coverage bins in `can_mac_crc_tb` (CB/CE → CRC-15, FD ≤16 B → CRC-17, FD >16 B → CRC-21), all hit. REQ-016 is closed via the `p_sbc_checker` assertion and REQ-018 via input/output coverage bins in `can_mac_bs_tb`, all bins hit. REQ-025 is closed via the `p_check_tdc_delay` assertion in `can_pcs_tb`. 27 of 37 requirements are closed. Ten remain open: 7 LLC deferred, REQ-021 in_progress, REQ-034 and REQ-035 non-blocking.
 
 **Key figures:** All six waveform figures are complete. All are captured from `can_mac_pcs_fce_tb` (integrated testbench preferred over unit testbenches - submodule-specific signals are observed from the DUT hierarchy). `full_fd_frame.pdf` (`#fig:full_fd_frame`): integration overview, complete FD frame on both nodes, SSP pulses and `sync_applied` visible (REQ-010, REQ-012, REQ-014, REQ-018, REQ-027). `bs.pdf` (`#fig:bs`): dynamic stuffing points A-C in `s_data`, fixed stuffing D-E from `s_sbc` onward (REQ-017, REQ-019). `pcs.pdf` (`#fig:pcs`): TDC count-up A→B (transceiver loopback delay, 19 TQ), countdown C→D (from ESI bit, SSP fires at D, TDC delay=2 to MAC); FDF/res bits visible in MAC frame field, BRS switching via `next_bit_is_brs` (REQ-015, REQ-016, REQ-025, REQ-026, REQ-032). `arb.pdf` (`#fig:arb`): both nodes enter `s_arbitration` at A, DUT 1 loses at B (REQ-021). `error_flag.pdf` (`#fig:error_frame`): SOF bit error at A (TEC=8), each error flag bit also a bit error (bus held recessive) rapidly escalating TEC; at B TEC=128 and `fce_state` transitions to `s_error_passive`; at C node enters `s_suspend_transmission` after `s_intermission` (REQ-007, REQ-008, REQ-022, REQ-023, REQ-030). `bus_off.pdf` (`#fig:bus_off_recovery`): error passive at B (TEC=128), bus off at C (TEC=256), 128 idle condition strobes, `s_error_active` at D, DUT 2 acknowledges at E and F (REQ-009, REQ-031).
 
@@ -143,7 +143,7 @@ Final architecture: one unified `can_mac_fsm`, one `can_mac_bs`, one `can_mac_cr
 
 **Discussion establishes:** Four main points: (1) requirements structure can inadvertently bias RTL architecture - the TX/RX side dimension made the split-path look natural but it was a red herring; (2) the unified FSM paid off most concretely at the arbitration loss boundary; (3) the layered architecture enabled module-by-module verification; (4) synthesis comparison - CAN FD is 4.0× CAN CC in LEs, dominated by frame buffer scaling (4.7×), protocol logic itself only 2.9×, payload-normalised 72 vs 143 LEs/byte. Objectives Assessment (@sec:objectives-assessment) assesses each of the four objectives. Future Work (@sec:future-work) has five items: `can_llc` implementation, hardware bring-up (including PCAN interoperability), CAN XL support, BRAM migration for the RX frame buffer, REQ-022 error-type-specific simulation coverage (all four sub-claims require frame-aware stimulus - CRC error must target a non-fixed-form bit or a form error fires instead).
 
-**Conclusion establishes:** Two-paragraph close - what was delivered (28/38, MAC/PCS/FCE, 4608 LEs / ~127 MHz on Cyclone 10 LP), three transferable lessons (requirements model structure is not RTL structure; layered architecture is a practical partitioning; narrow MCP write interface makes AI-assisted artifact maintenance safe).
+**Conclusion establishes:** Two-paragraph close - what was delivered (27/37, MAC/PCS/FCE, 4608 LEs / ~127 MHz on Cyclone 10 LP), three transferable lessons (requirements model structure is not RTL structure; layered architecture is a practical partitioning; narrow MCP write interface makes AI-assisted artifact maintenance safe).
 
 ---
 
