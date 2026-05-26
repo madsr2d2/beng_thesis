@@ -758,7 +758,7 @@ The three objectives stated in @sec:objectives are assessed against the verifica
 
 2. **Structured requirements with traceability from ISO 11898-1 to testbench results.** 37 requirements were derived from ISO 11898-1, each linked to its source section, verification method, testbench file, and assertion label. 28 are closed against passing testbenches or code inspection. The full plan is in @sec:appendix-vplan.
 
-3. **RTL design integrated via Avalon-ST interfaces into Everllence's existing FPGA infrastructure.** The RTL is written in portable VHDL-93 with no vendor primitives. Synthesis confirmed a worst-case fmax of 127 MHz, exceeding the highest recommended CAN FD system clock by more than 1.5× at 30% device utilization (@sec:synthesis). The Avalon-ST host interface is the responsibility of `can_llc`, which is not yet implemented.
+3. **RTL design integrated via Avalon-ST interfaces into Everllence's existing FPGA infrastructure.** The RTL is written in portable VHDL-93 with no vendor primitives. Synthesis confirmed a worst-case fmax of 127 MHz, exceeding the highest recommended CAN FD system clock by more than 1.5× at 30% device utilization (@sec:synthesis). `can_mac_pcs_fce` exposes a fully functional Avalon-ST TX/RX interface and can be driven directly by the host, following the same integration model as `can_bus_controller`.
 
 ## Future Work {#sec:future-work}
 
