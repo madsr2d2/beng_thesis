@@ -762,13 +762,13 @@ The three objectives stated in @sec:objectives are assessed against the verifica
 
 ## Future Work {#sec:future-work}
 
-1. **`can_llc` implementation.** The LLC sub-layer is the one unimplemented module. Its interface contracts are fully specified in REQ-001 through REQ-005 and REQ-036. Implementing it adds ISO-specified frame buffering and retransmission, completing the full ISO 11898-1 CAN node.
+1. **`can_llc` implementation.** The LLC sub-layer is the one unimplemented module; interface contracts are specified in REQ-001 through REQ-005 and REQ-036. Implementing it adds ISO-specified frame buffering and retransmission, completing the full ISO 11898-1 CAN node.
 
-2. **Hardware integration and bring-up.** The implemented RTL has been verified in simulation only. Integration into Everllence's IO-extender FPGA design and bring-up on a physical CAN FD bus - including interoperability testing against a known-good CAN FD node - would validate timing closure, transceiver compatibility, and bit timing calibration under real bus conditions.
+2. **Hardware integration and bring-up.** The RTL has been verified in simulation only. Bring-up on a physical CAN FD bus would validate timing closure, transceiver compatibility, and bit timing calibration under real bus conditions.
 
-3. **CAN XL support.** CAN XL is explicitly out of scope for this project. The layered architecture and unified FSM are well-suited for extension: CAN XL adds a third bit rate phase and an XL-specific frame format, both of which map naturally onto additional PCS rate parameters and new `can_mac_fsm` states.
+3. **CAN XL support.** CAN XL is out of scope. The layered architecture and unified FSM are well-suited for extension: a third bit rate phase and XL-specific frame format map naturally onto additional PCS rate parameters and new `can_mac_fsm` states.
 
-4. **Frame buffer block RAM migration.** Migrating the 70-byte RX frame buffer from a flip-flop array to a single M9K block RAM instance would reduce `can_mac_fsm` from 4,109 LEs to approximately the protocol-logic-only cost. Both access patterns (sequential write during reception, sequential read in `p_stream_to_LLC`) map directly to single-port BRAM without structural changes to the surrounding FSM logic. See @sec:discussion for the full analysis.
+4. **Frame buffer block RAM migration.** Migrating the 70-byte RX frame buffer to a single M9K block RAM instance would reduce `can_mac_fsm` from 4,109 LEs to protocol-logic-only cost. See @sec:discussion for the analysis.
 
 5. **Error-type-specific simulation coverage (REQ-021).** Sub-claims 2-5 require a frame-aware reference model running in parallel with the integrated testbench to track the stuffed bit stream and target injections to the correct frame region.
 
