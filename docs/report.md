@@ -677,7 +677,7 @@ The five unit testbenches target individual submodules with focused stimulus.
 
 ### Frame Encoding and Synchronization {#sec:tb-frame-encoding}
 
-@fig:full_fd_frame shows a complete FD frame transmitted by DUT 1 and received by DUT 2, with SSP pulses confirming TDC is active during the data phase and resynchronization events visible on DUT 2 (REQ-010, REQ-011, REQ-012, REQ-014, REQ-017, REQ-019, REQ-026, REQ-032).
+@fig:full_fd_frame shows a complete FD frame transmitted by DUT 1 and received by DUT 2, with SSP pulses confirming TDC is active during the data phase and resynchronization events visible on DUT 2 (REQ-010, REQ-011, REQ-012, REQ-014, REQ-015, REQ-017, REQ-019, REQ-026, REQ-032).
 
 ![Two-node simulation of a complete FD frame in `can_mac_pcs_fce_tb`, showing the full field sequence from `s_arbitration` through `s_eof` on both transmitter and receiver. Secondary sample point pulses confirm TDC is active during the data phase. Resynchronization events are visible on DUT 2 via `sync_applied`.](figures/waveforms/full_fd_frame.pdf){#fig:full_fd_frame width=100%}
 
@@ -689,7 +689,7 @@ The five unit testbenches target individual submodules with focused stimulus.
 
 ### Bit Rate Switching and TDC {#sec:tb-bit-rate}
 
-@fig:pcs shows dual bit rate switching and TDC measurement: the PCS switches to data-phase bit timing at the BRS sample point and positions the SSP once the transceiver loopback delay is measured (REQ-015, REQ-024, REQ-025, REQ-030).
+@fig:pcs shows dual bit rate switching and TDC measurement: the PCS switches to data-phase bit timing at the BRS sample point and positions the SSP once the transceiver loopback delay is measured (REQ-024, REQ-025, REQ-030).
 
 ![Dual bit rate switching and TDC measurement in `can_mac_pcs_fce_tb`. At A, the PCS begins counting the transceiver loopback delay in TQ increments. At B, the transmitted bit arrives on RX and the count stops at 19 TQ. At C, the first data-phase bit (ESI) is transmitted and the measured delay is counted down. When the countdown terminates at D, the SSP strobe activates and the TDC delay of 2 is signaled to the MAC. `next_bit_is_res` and `next_bit_is_brs` control the measurement window. `data_phase_stop` signals the end of the data phase.](figures/waveforms/pcs.pdf){#fig:pcs width=100%}
 
