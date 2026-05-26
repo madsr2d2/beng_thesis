@@ -692,7 +692,7 @@ The five unit testbenches target individual submodules with focused stimulus.
 
 @fig:pcs shows dual bit rate switching and TDC measurement: the PCS switches to data-phase bit timing at the BRS sample point and positions the SSP once the transceiver loopback delay is measured (REQ-024, REQ-025, REQ-030).
 
-![Dual bit rate switching and TDC measurement in `can_mac_pcs_fce_tb`. At A, the PCS begins counting the transceiver loopback delay in TQ increments. At B, the transmitted bit arrives on RX and the count stops at 19 TQ. At C, the first data-phase bit (ESI) is transmitted and the measured delay is counted down. When the countdown terminates at D, the SSP strobe activates and the TDC delay of 2 is signaled to the MAC. `next_bit_is_res` and `next_bit_is_brs` control the measurement window. `data_phase_stop` signals the end of the data phase.](figures/waveforms/pcs.pdf){#fig:pcs width=100%}
+![Dual bit rate switching and TDC measurement in `can_mac_pcs_fce_tb`. At A, the PCS begins counting the transceiver loopback delay in TQ increments. At B, the transmitted bit arrives on RX and the count stops at 19 TQ. At C, the first data-phase bit (ESI) is transmitted and the measured delay is counted down. When the countdown terminates at D, the SSP strobe activates and the TDC delay of 2 TQ is reported to the MAC. `next_bit_is_res` and `next_bit_is_brs` mark the measurement window boundaries. `data_phase_stop` signals the end of the data phase.](figures/waveforms/pcs.pdf){#fig:pcs width=100%}
 
 ### Arbitration {#sec:tb-arbitration}
 
@@ -704,7 +704,7 @@ The five unit testbenches target individual submodules with focused stimulus.
 
 @fig:error_frame shows error frame escalation and @fig:bus_off_recovery shows bus-off recovery, together covering REQ-007, REQ-008, REQ-009, REQ-021, REQ-022, REQ-028, REQ-029, and REQ-033 (sub-claim 1).
 
-![Error frame escalation in `can_mac_pcs_fce_tb`. A bit error on the SOF bit triggers the first error flag at A, incrementing TEC to 8. Each dominant bit of the error flag is also sampled as a bit error (bus held recessive), rapidly escalating TEC. At B, TEC reaches 128 and `fce_state` transitions to `s_error_passive`. At C, the node enters `s_suspend_transmission` after `s_intermission`.](figures/waveforms/error_flag.pdf){#fig:error_frame width=100%}
+![Error frame escalation in `can_mac_pcs_fce_tb`. A bit error on the SOF bit triggers the first error flag at A, incrementing TEC to 8. Each dominant bit of the error flag is sampled as a bit error because the bus is held recessive, rapidly escalating TEC. At B, TEC reaches 128 and `fce_state` transitions to `s_error_passive`. At C, the node enters `s_suspend_transmission` after `s_intermission`.](figures/waveforms/error_flag.pdf){#fig:error_frame width=100%}
 
 ![Bus-off recovery in `can_mac_pcs_fce_tb`. DUT 1 transmits the first active error flag at A. At B, TEC reaches 128 and the node transitions to error passive. At C, TEC reaches 256 and the node enters bus off. The FCE counts 128 idle condition strobes from the PCS and restores `s_error_active` at D. At E and F, DUT 2 acknowledges the first two frames transmitted after recovery.](figures/waveforms/bus_off.pdf){#fig:bus_off_recovery width=100%}
 
