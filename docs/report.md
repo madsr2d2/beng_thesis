@@ -762,7 +762,7 @@ The three objectives stated in @sec:objectives are assessed against the verifica
 
 ## Future Work {#sec:future-work}
 
-1. **`can_llc` implementation.** The LLC sub-layer is the one unimplemented module. Its interface contracts are fully specified in REQ-001 through REQ-005 and REQ-036. Implementing it closes the Avalon-ST host interface and completes the full CAN node.
+1. **`can_llc` implementation.** The LLC sub-layer is the one unimplemented module. Its interface contracts are fully specified in REQ-001 through REQ-005 and REQ-036. Implementing it adds ISO-specified frame buffering and retransmission, completing the full ISO 11898-1 CAN node.
 
 2. **Hardware integration and bring-up.** The implemented RTL has been verified in simulation only. Integration into Everllence's IO-extender FPGA design and bring-up on a physical CAN FD bus - including interoperability testing against a known-good CAN FD node - would validate timing closure, transceiver compatibility, and bit timing calibration under real bus conditions.
 
