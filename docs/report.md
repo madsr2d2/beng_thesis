@@ -676,23 +676,19 @@ The five unit testbenches target individual submodules with focused stimulus.
 
 `can_mac_pcs_fce_tb` is the primary integration testbench, exercising two `can_mac_pcs_fce` instances connected through a dominant-wins bus model and covering 17 requirements spanning MAC frame encoding, arbitration, and error handling. The following waveforms are selected excerpts from the test run. Many requirements are verified by waveform inspection across all test scenarios. Reproducing a dedicated figure for each requirement would be impractical, so only representative scenarios are shown.
 
-**Complete FD Frame Transmission.** @fig:full_fd_frame shows a complete FD frame transmitted by DUT 1 and received by DUT 2, showing hard synchronization on SOF, TDC loopback delay measurement, dual bit rate switching at the BRS sample point, SSP pulses during the data phase, and ACK confirmation (REQ-010, REQ-012, REQ-014, REQ-015, REQ-017, REQ-026).
+- **Complete FD Frame Transmission** (@fig:full_fd_frame): a complete FD frame transmitted by DUT 1 and received by DUT 2, showing hard synchronization on SOF, TDC loopback delay measurement, dual bit rate switching at the BRS sample point, SSP pulses during the data phase, and ACK confirmation (REQ-010, REQ-012, REQ-014, REQ-015, REQ-017, REQ-026).
+- **Bit Stuffing** (@fig:bs): dynamic and fixed mode behavior (REQ-016, REQ-018).
+- **Bit Rate Switching and TDC** (@fig:pcs): the PCS switches to data-phase bit timing at the BRS sample point and positions the SSP once the transceiver loopback delay is measured (REQ-025, REQ-030).
+- **Arbitration** (@fig:arb): the losing node clears `is_transmitter` in-place at `s_arbitration` and continues as receiver without a state transition (REQ-020).
+- **Error Handling and Bus-off Recovery** (@fig:error_frame, @fig:bus_off_recovery): error frame escalation and bus-off recovery (REQ-007, REQ-008, REQ-009, REQ-021, REQ-022, REQ-028, REQ-029, REQ-033 sub-claim 1).
 
 ![Two-node simulation of a complete FD frame transmission in `can_mac_pcs_fce_tb`. DUT 2 hard-synchronizes on SOF at A. DUT 1 measures the TDC loopback delay between B and C. Both nodes switch to data-phase bit timing at the BRS sample point at D. DUT 1 switches back to nominal bit timing at the CRC delimiter sample point at E. DUT 2 drives the ACK slot dominant at F, DUT 1 samples the dominant ACK at G and latches `ack_success_seen`. Transmission ends at H.](figures/waveforms/full_fd_frame.pdf){#fig:full_fd_frame width=100%}
 
-**Bit Stuffing.** @fig:bs shows the bit stuffer's dynamic and fixed mode behavior (REQ-016, REQ-018).
-
 ![Dynamic and fixed bit stuffing in `can_mac_pcs_fce_tb`. Dynamic stuff bits are inserted at A, B, and C in the `s_data` region. At D, `fixed_bit_stuffing_en` asserts and the stuffer switches to fixed mode for `s_sbc` and `s_crc`. Seven fixed stuff bits are inserted between D and E.](figures/waveforms/bs.pdf){#fig:bs width=100%}
-
-**Bit Rate Switching and TDC.** @fig:pcs shows dual bit rate switching and TDC measurement: the PCS switches to data-phase bit timing at the BRS sample point and positions the SSP once the transceiver loopback delay is measured (REQ-025, REQ-030).
 
 ![Dual bit rate switching and TDC measurement in `can_mac_pcs_fce_tb`. At A, the PCS begins counting the transceiver loopback delay in TQ increments. At B, the transmitted bit arrives on RX and the count stops at 19 TQ. At C, the first data-phase bit (ESI) is transmitted and the measured delay is counted down. When the countdown terminates at D, the SSP strobe activates and the TDC delay of 2 TQ is reported to the MAC. `next_bit_is_res` and `next_bit_is_brs` mark the measurement window boundaries. `data_phase_stop` signals the end of the data phase.](figures/waveforms/pcs.pdf){#fig:pcs width=100%}
 
-**Arbitration.** @fig:arb shows arbitration loss: the losing node clears `is_transmitter` in-place at `s_arbitration` and continues as receiver without a state transition (REQ-020).
-
 ![Arbitration loss in `can_mac_pcs_fce_tb`. Both nodes enter `s_arbitration` as transmitters at A. DUT 1 loses arbitration at B after transmitting recessive and sampling dominant, and continues as receiver with `is_transmitter` cleared.](figures/waveforms/arb.pdf){#fig:arb width=100%}
-
-**Error Handling and Bus-off Recovery.** @fig:error_frame shows error frame escalation and @fig:bus_off_recovery shows bus-off recovery, together covering REQ-007, REQ-008, REQ-009, REQ-021, REQ-022, REQ-028, REQ-029, and REQ-033 (sub-claim 1).
 
 ![Error frame escalation in `can_mac_pcs_fce_tb`. A bit error on the SOF bit triggers the first error flag at A, incrementing TEC to 8. Each dominant bit of the error flag is sampled as a bit error because the bus is held recessive, rapidly escalating TEC. At B, TEC reaches 128 and `fce_state` transitions to `s_error_passive`. At C, the node enters `s_suspend_transmission` after `s_intermission`.](figures/waveforms/error_flag.pdf){#fig:error_frame width=100%}
 
