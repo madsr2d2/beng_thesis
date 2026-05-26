@@ -754,11 +754,11 @@ The CAN FD stack uses 4,608 logic elements on the Cyclone 10 LP target - 4.0× t
 
 The three objectives stated in @sec:objectives are assessed against the verification results.
 
-**CAN/CAN FD protocol controller in VHDL compliant with ISO 11898-1, supporting CB, CE, FB, and FE frames.** The unified `can_mac_fsm` handles all four in-scope frame formats in both transmission and reception, including dual bit rate switching with Transmitter Delay Compensation in the FD data phase (REQ-024, REQ-025). 28 of 37 requirements are closed. The remaining nine are LLC-layer requirements deferred pending `can_llc` implementation, requirements not applicable to this architecture or optional by design, or requirements with partial simulation coverage, all documented in @sec:future-work.
+1. **CAN/CAN FD protocol controller in VHDL compliant with ISO 11898-1.** The unified `can_mac_fsm` handles all four in-scope frame formats (CB, CE, FB, FE) in both TX and RX, including dual bit rate switching with TDC (REQ-024, REQ-025). 28 of 37 requirements are closed; the nine open cases are documented in @sec:future-work.
 
-**Structured requirements with traceability from ISO 11898-1 to testbench results.** 37 requirements were derived from ISO 11898-1 normative clauses, each linked to its source section, verification method, testbench file, and assertion label. 28 are closed against passing testbenches or code inspection, establishing a direct traceable path from standard clause to verification artifact. The full plan is reproduced in @sec:appendix-vplan.
+2. **Structured requirements with traceability from ISO 11898-1 to testbench results.** 37 requirements were derived from ISO 11898-1, each linked to its source section, verification method, testbench file, and assertion label. 28 are closed against passing testbenches or code inspection. The full plan is in @sec:appendix-vplan.
 
-**RTL design integrated via Avalon-ST interfaces into Everllence's existing FPGA infrastructure.** The RTL source is written in portable VHDL-93 with no vendor primitives. Synthesis on a Cyclone 10 LP target confirmed a worst-case fmax of 127 MHz, exceeding the highest recommended CAN FD system clock by more than 1.5×, at 30% device utilization (@sec:synthesis). The Avalon-ST host interface is the responsibility of `can_llc`, which is not yet implemented. Its interface contracts are fully specified in the verification plan.
+3. **RTL design integrated via Avalon-ST interfaces into Everllence's existing FPGA infrastructure.** The RTL is written in portable VHDL-93 with no vendor primitives. Synthesis confirmed a worst-case fmax of 127 MHz, exceeding the highest recommended CAN FD system clock by more than 1.5× at 30% device utilization (@sec:synthesis). The Avalon-ST host interface is the responsibility of `can_llc`, which is not yet implemented.
 
 ## Future Work {#sec:future-work}
 
