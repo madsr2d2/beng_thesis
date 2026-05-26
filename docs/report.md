@@ -676,7 +676,7 @@ The five unit testbenches target individual submodules with focused stimulus.
 
 `can_mac_pcs_fce_tb` is the primary integration testbench, exercising two `can_mac_pcs_fce` instances connected through a dominant-wins bus model and covering 17 requirements spanning MAC frame encoding, arbitration, and error handling.
 
-### Frame Encoding and Synchronization {#sec:tb-frame-encoding}
+### Complete FD Frame Transmission {#sec:tb-frame-encoding}
 
 @fig:full_fd_frame shows a complete FD frame transmitted by DUT 1 and received by DUT 2, showing hard synchronization on SOF, TDC loopback delay measurement, dual bit rate switching at the BRS sample point, SSP pulses during the data phase, and ACK confirmation (REQ-010, REQ-011, REQ-012, REQ-014, REQ-015, REQ-017, REQ-019, REQ-026, REQ-032).
 
