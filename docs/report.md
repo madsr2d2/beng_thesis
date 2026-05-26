@@ -690,7 +690,7 @@ The five unit testbenches target individual submodules with focused stimulus.
 
 ### Bit Rate Switching and TDC {#sec:tb-bit-rate}
 
-@fig:pcs shows dual bit rate switching and TDC measurement: the PCS switches to data-phase bit timing at the BRS sample point and positions the SSP once the transceiver loopback delay is measured (REQ-024, REQ-025, REQ-030).
+@fig:pcs shows dual bit rate switching and TDC measurement: the PCS switches to data-phase bit timing at the BRS sample point and positions the SSP once the transceiver loopback delay is measured (REQ-025, REQ-030).
 
 ![Dual bit rate switching and TDC measurement in `can_mac_pcs_fce_tb`. At A, the PCS begins counting the transceiver loopback delay in TQ increments. At B, the transmitted bit arrives on RX and the count stops at 19 TQ. At C, the first data-phase bit (ESI) is transmitted and the measured delay is counted down. When the countdown terminates at D, the SSP strobe activates and the TDC delay of 2 TQ is reported to the MAC. `next_bit_is_res` and `next_bit_is_brs` mark the measurement window boundaries. `data_phase_stop` signals the end of the data phase.](figures/waveforms/pcs.pdf){#fig:pcs width=100%}
 
