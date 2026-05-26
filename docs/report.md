@@ -752,11 +752,9 @@ The CAN FD stack uses 4,608 logic elements on the Cyclone 10 LP target - 4.0× t
 
 ## Objectives Assessment {#sec:objectives-assessment}
 
-The four objectives stated in @sec:objectives are assessed against the verification results.
+The three objectives stated in @sec:objectives are assessed against the verification results.
 
 **CAN/CAN FD protocol controller in VHDL compliant with ISO 11898-1, supporting CB, CE, FB, and FE frames.** The unified `can_mac_fsm` handles all four in-scope frame formats in both transmission and reception, including dual bit rate switching with Transmitter Delay Compensation in the FD data phase (REQ-024, REQ-025). 28 of 37 requirements are closed. The remaining nine are LLC-layer requirements deferred pending `can_llc` implementation, requirements not applicable to this architecture or optional by design, or requirements with partial simulation coverage, all documented in @sec:future-work.
-
-**ISO 11898-1 sub-layer structure enabling independent module verification.** The layered decomposition was implemented as designed. Each module has a dedicated testbench and a disjoint requirement set. The five requirements labelled `system` correctly identified the scenarios requiring multi-module stimulus, confirming that the layer boundaries were drawn at the right points.
 
 **Structured requirements with traceability from ISO 11898-1 to testbench results.** 37 requirements were derived from ISO 11898-1 normative clauses, each linked to its source section, verification method, testbench file, and assertion label. 28 are closed against passing testbenches or code inspection, establishing a direct traceable path from standard clause to verification artifact. The full plan is reproduced in @sec:appendix-vplan.
 
