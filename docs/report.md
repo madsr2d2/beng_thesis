@@ -694,13 +694,9 @@ The five unit testbenches target individual submodules with focused stimulus.
 
 ![Bus-off recovery in `can_mac_pcs_fce_tb`. DUT 1 transmits the first active error flag at A. At B, TEC reaches 128 and the node transitions to error passive. At C, TEC reaches 256 and the node enters bus off. The FCE counts 128 idle condition strobes from the PCS and restores `s_error_active` at D. At E and F, DUT 2 acknowledges the first two frames transmitted after recovery.](figures/waveforms/bus_off.pdf){#fig:bus_off_recovery width=100%}
 
-## Open Requirements {#sec:open-requirements}
-
-Nine requirements remain open. Six are LLC requirements (REQ-001 through REQ-005, REQ-036) deferred pending implementation of `can_llc`. REQ-034 (conditional shared memory consistency, P3) and REQ-035 (error signaling enable, P2) are deferred as non-blocking. REQ-021 (error detection, P1) has partial simulation coverage: bit-error detection is exercised via recessive injection in `test_bus_off`. The remaining sub-claims (stuff, form, CRC, ACK) require frame-aware error injection not available in the current testbench (@sec:future-work).
-
 ## Testbench Results Summary {#sec:testbench-results-summary}
 
-Of the 37 requirements, 28 are closed: 26 via testbench simulation (@tbl:testbench-results-summary) and two (REQ-013, REQ-023) via code inspection (@sec:code-inspection).
+Of the 37 requirements, 28 are closed: 26 via testbench simulation (@tbl:testbench-results-summary) and two (REQ-013, REQ-023) via code inspection (@sec:code-inspection). Nine remain open: six are LLC requirements (REQ-001 through REQ-005, REQ-036) deferred pending `can_llc` implementation, REQ-034 (P3) and REQ-035 (P2) are non-blocking, and REQ-021 (P1) is partially covered - bit-error detection is verified in `test_bus_off`, while the remaining sub-claims (stuff, form, CRC, ACK) require frame-aware error injection not available in the current testbench (@sec:future-work).
 
 | Testbench | Requirements covered | Status |
 | :--- | :--- | :--- |
