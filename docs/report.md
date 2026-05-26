@@ -754,7 +754,7 @@ The CAN FD stack uses 4,608 logic elements on the Cyclone 10 LP target - 4.0× t
 
 The three objectives stated in @sec:objectives are assessed against the verification results.
 
-1. **CAN/CAN FD protocol controller in VHDL compliant with ISO 11898-1.** The unified `can_mac_fsm` handles all four in-scope frame formats (CB, CE, FB, FE) in both TX and RX, including dual bit rate switching with TDC (REQ-024, REQ-025). 28 of 37 requirements are closed; the nine open cases are documented in @sec:future-work.
+1. **CAN/CAN FD protocol controller in VHDL compliant with ISO 11898-1.** The unified `can_mac_fsm` handles all four in-scope frame formats (CB, CE, FB, FE) in both TX and RX, including dual bit rate switching with TDC (REQ-024, REQ-025). 28 of 37 requirements are closed. The nine open cases are documented in @sec:future-work.
 
 2. **Structured requirements with traceability from ISO 11898-1 to testbench results.** 37 requirements were derived from ISO 11898-1, each linked to its source section, verification method, testbench file, and assertion label. 28 are closed against passing testbenches or code inspection. The full plan is in @sec:appendix-vplan.
 
