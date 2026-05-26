@@ -10,7 +10,7 @@ abstract: |
 
   37 requirements were derived from ISO 11898-1, each linked to its source clause, verification method, and testbench assertion. 28 are closed against passing testbenches or code inspection. The nine open requirements comprise six LLC-layer requirements deferred pending LLC sub-layer implementation, one not applicable to this architecture, one optional operational feature, and one requiring a frame-aware reference model for error-type-specific injection coverage.
 
-  The design was synthesized on a Cyclone 10 LP FPGA target using 4,608 logic elements at 30% device utilization - 4.0× the existing CAN Classic controller. The worst-case fmax of approximately 127 MHz exceeds the highest recommended CAN FD system clock of 80 MHz by more than 1.5×.
+  The design was synthesized on a Cyclone 10 LP FPGA target using 4,608 logic elements at 30% device utilization - 4.0× the existing CAN Classic controller. The worst-case fmax of approximately 127 MHz exceeds the highest recommended CAN FD system clock of 80 MHz by more than a factor of 1.5.
 ---
 
 ```{=latex}
@@ -141,14 +141,6 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 \listoffigures
 \clearpage
 ```
-
-# Reading Guide {-}
-
-The report is structured in two parts. The first establishes context: the Introduction motivates the project and states the objectives; the Background (@sec:background) and Protocol Overview (@sec:can-protocol-overview) provide technical foundations on CAN and CAN FD. The second part is the technical contribution: Requirements, Verification Plan, Design and Architecture, Implementation, Verification and Results, and Synthesis form the core chapters, followed by Discussion and Conclusion.
-
-Readers familiar with CAN and CAN FD may skip @sec:can-classic, @sec:can-fd-background, and @sec:can-protocol-overview.
-
-Source files, testbenches, verification plan, and tooling accompanying this document are listed in @sec:appendix-artifacts.
 
 \clearpage
 
