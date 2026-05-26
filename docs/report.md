@@ -674,7 +674,7 @@ The five unit testbenches target individual submodules with focused stimulus.
 
 ## Integration Testbench Simulation {#sec:integration-testbench}
 
-`can_mac_pcs_fce_tb` is the primary integration testbench, exercising two `can_mac_pcs_fce` instances connected through a dominant-wins bus model and covering 17 requirements spanning MAC frame encoding, arbitration, and error handling.
+`can_mac_pcs_fce_tb` is the primary integration testbench, exercising two `can_mac_pcs_fce` instances connected through a dominant-wins bus model and covering 17 requirements spanning MAC frame encoding, arbitration, and error handling. The following waveforms are selected excerpts from the test run. Many requirements are verified by waveform inspection across all test scenarios. Reproducing a dedicated figure for each requirement would be impractical, so only representative scenarios are shown.
 
 ### Complete FD Frame Transmission {#sec:tb-frame-encoding}
 
