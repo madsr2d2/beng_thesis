@@ -303,7 +303,7 @@ The requirements set is stored as a TOML file, one entry per requirement. Direct
 - **`priority`**: A three-level rating - P1 (need-to-have, derived from "shall" obligations and core correctness), P2 (verified in the normal cycle), or P3 (optional, derived from "should" clauses or implementation-dependent features). The priority drove the implementation sequence and scope decisions when the schedule was constrained.
 - **`notes`**: Any residual clarifications not captured by the paraphrase - implementation constraints, out-of-scope markers, or known ambiguities. May be empty.
 
-Of the 37 requirements, 31 are rated P1, four are P2, and two are P3. Each non-P1 rating reflects a deliberate scoping decision - the rationale for each is given in @tbl:priority-demotion.
+Of the 37 requirements, 30 are rated P1, four are P2, and three are P3. Each non-P1 rating reflects a deliberate scoping decision - the rationale for each is given in @tbl:priority-demotion.
 
 | ID | Topic | Priority | Demotion rationale |
 | :- | :---- | :- | :------------------------------------------------------------------------- |
@@ -312,6 +312,7 @@ Of the 37 requirements, 31 are rated P1, four are P2, and two are P3. Each non-P
 | REQ-015 | ESI bit transmission | P2 | ESI communicates the node's error state as an informational signal. Incorrect ESI does not abort a frame or trigger a protocol error at any receiver. |
 | REQ-035 | Error signaling enable | P2 | Error signaling itself is covered by P1 requirements. This requirement concerns only the existence of a configurable disable mode, which is an optional operational feature. |
 | REQ-004 | Frame acceptance filtering | P3 | ISO uses advisory "should" language. Also, acceptance filtering is absent from the existing controller, so no regression concerns. The only protocol-relevant filter - suppressing loopback of transmitted frames - is covered by the design. |
+| REQ-034 | Shared memory consistency | P3 | The "may" language makes shared memory use optional. This implementation streams frames directly from LLC to MAC with no shared memory; the LLC is responsible for buffering and retransmission. Not applicable to this architecture. |
 | REQ-036 | DLC padding | P3 | Padding with 0xCC applies only when the implementation exposes a configurable maximum-data-byte restriction. The feature may be waived entirely if that restriction is not implemented. |
 
 : Priority demotion rationale for all requirements not rated P1. {#tbl:priority-demotion}
@@ -709,7 +710,7 @@ The five unit testbenches target individual submodules with focused stimulus.
 
 ## Open Requirements {#sec:open-requirements}
 
-Nine requirements remain open. Six are LLC requirements (REQ-001 through REQ-005, REQ-036) deferred pending implementation of `can_llc`. REQ-034 (MAC frame storage in shared memory) and REQ-035 (error signaling enable, P2) are deferred as non-blocking. REQ-021 (error detection, P1) has partial simulation coverage: bit-error detection is exercised via recessive injection in `test_bus_off`. The remaining sub-claims (stuff, form, CRC, ACK) require frame-aware error injection not available in the current testbench (@sec:future-work).
+Nine requirements remain open. Six are LLC requirements (REQ-001 through REQ-005, REQ-036) deferred pending implementation of `can_llc`. REQ-034 (conditional shared memory consistency, P3) and REQ-035 (error signaling enable, P2) are deferred as non-blocking. REQ-021 (error detection, P1) has partial simulation coverage: bit-error detection is exercised via recessive injection in `test_bus_off`. The remaining sub-claims (stuff, form, CRC, ACK) require frame-aware error injection not available in the current testbench (@sec:future-work).
 
 ## Testbench Results Summary {#sec:testbench-results-summary}
 
