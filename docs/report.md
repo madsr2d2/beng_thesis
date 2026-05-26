@@ -647,7 +647,7 @@ TDC is implemented as a three-stage pipeline:
 
 # Verification and Results {#sec:verification-results}
 
-The implementation described in @sec:implementation was exercised against the 37-requirement verification plan (@sec:verification-plan) using five unit testbenches targeting individual submodules and one integration testbench, `can_mac_pcs_fce_tb`, connecting two `can_mac_pcs_fce` instances through a dominant-wins bus model. @fig:tb-overview shows the integration testbench architecture.
+The implementation described in @sec:implementation was exercised against the 37-requirement verification plan (@sec:verification-plan) using five unit testbenches and one integration testbench, `can_mac_pcs_fce_tb`. @fig:tb-overview shows the integration testbench architecture.
 
 ![`can_mac_pcs_fce_tb` integration testbench. Two `can_mac_pcs_fce` instances connect through a dominant-wins bus model. Avalon-ST VCs drive and sample the MAC interfaces. `p_test_ctrl` sequences test stimuli, injects bit errors, reads transfer status, and monitors bus-off status.](figures/tb_overview.png){#fig:tb-overview width=100%}
 
@@ -665,19 +665,19 @@ Code inspection also provides evidence for sub-claims in several requirements co
 
 The five unit testbenches target individual submodules with focused stimulus.
 
-1. **`can_mac_crc_tb`**: closes REQ-006 via three coverage bins (CRC-15 for CB/CE frames, CRC-17 for FD frames with payload up to 16 bytes, CRC-21 for FD frames with payload greater than 16 bytes), a pure VHDL reference model (`f_calc_can_crc`) computes the expected CRC for each polynomial and checks DUT output on every frame. Additional checkers verify that the output resets to the correct polynomial init vector and holds stable when `valid` is deasserted between frames.
+1. **`can_mac_crc_tb`**: closes REQ-006 via three coverage bins (CRC-15 for CB/CE frames, CRC-17 for FD frames with payload up to 16 bytes, CRC-21 for FD frames with payload greater than 16 bytes). A pure VHDL reference model (`f_calc_can_crc`) computes the expected CRC for each polynomial and checks DUT output on every frame. Additional checkers verify that the output resets to the correct polynomial init vector and holds stable when `valid` is deasserted between frames.
 2. **`can_mac_bs_tb`**: closes REQ-016 and REQ-018 via a two-phase stimulus: six directed FSB test cases followed by random dynamic bits. Three concurrent reference models check the DUT output. `p_stuff_bit_checker` independently tracks consecutive same-polarity bits and verifies a complement stuff bit appears after every five. `p_sbc_checker` independently tracks the SBC value and verifies Gray-code parity on every cycle, increments on dynamic stuff bits, and holds on FSBs. `p_fsb_checker` independently tracks FSB timing and verifies initial and periodic FSB polarity. Input and output functional coverage bins are all hit.
 3. **`can_pcs_tb`**: provides simulation evidence for REQ-024, REQ-025, REQ-026 (combined with code inspection), and REQ-027. Two `can_pcs` instances run on independent mismatched clocks through a physical bus model with transceiver and propagation delays. Three test sequences are run: reset verification, 100 random FD frames with alternating clock leadership to stress resynchronization, and a bus-off isolation test. `p_polarity_history` shadows TX-committed bits into a shift register. `p_check_tdc_delay` verifies at each SSP that `polarity_history(tdc_delay)` matches the sampled bus value. `p_rx_mac_vc` collects RX-sampled bits and compares them against the TX sequence bit by bit.
 4. **`can_fce_tb`**: closes REQ-028, REQ-029, and REQ-033 (sub-claim 2) using directed stimulus only - counter update rules are deterministic. Reset verification confirms outputs clear on reset and that `llc_i.normal_mode` returns the FSM to error-active from any state. All counter update rules in REQ-028 are exercised by driving TEC or REC to the error-active/error-passive boundary. The ACK error exemption (REQ-033 sub-claim 2) is verified by confirming bus-off is not entered when `passive_tx_ack_error_exempt_1` is set while error-passive. Bus-off entry and recovery (REQ-029) include a boundary check: 64 `idle_condition` strobes confirm no premature release. 128 confirm clearance and error-active restoration.
-5. **`can_mac_ser_tb`**: closes REQ-031 (DLC encoding: linear mapping for DLC 0-8, FD non-linear mapping for DLC 9-15) and provides supporting evidence for higher-level requirements. Coverage-driven random frames are recorded across three dimensions: IDE (base/extended), FDF (CC/FD), and DLC (0-15). For each frame, `p_mac_fsm_vc` performs two checks: all six metadata fields (IDE, FDF, DLC, FTYP, BRS, ESI) are verified against the LLC packet, and the output bit stream is compared byte by byte against expected bits, accounting for base vs extended ID width, ID padding, and DLC-derived data length for CC vs FD frames. Random back pressure is applied on the MAC FSM ready signal each cycle. A 2% mid-frame abort rate exercises the `c_disturbed` abort path. `p_transfer_status_checker` verifies `transfer_status` forwarding on every clock cycle.
+5. **`can_mac_ser_tb`**: closes REQ-031 (DLC encoding: linear mapping for DLC 0-8, FD non-linear mapping for DLC 9-15) and provides supporting evidence for higher-level requirements. Three coverage dimensions drive frame selection: IDE (base/extended), FDF (CC/FD), and DLC (0-15). For each frame, `p_mac_fsm_vc` performs two checks: all six metadata fields (IDE, FDF, DLC, FTYP, BRS, ESI) are verified against the LLC packet, and the output bit stream is compared byte by byte against expected bits, accounting for base vs extended ID width, ID padding, and DLC-derived data length for CC vs FD frames. Random back pressure is applied on the MAC FSM ready signal each cycle. A 2% mid-frame abort rate exercises the `c_disturbed` abort path. `p_transfer_status_checker` verifies `transfer_status` forwarding on every clock cycle.
 
 ## Integration Testbench Simulation {#sec:integration-testbench}
 
-`can_mac_pcs_fce_tb` is the primary integration testbench, exercising two `can_mac_pcs_fce` instances connected through a dominant-wins bus model and covering 17 requirements spanning MAC frame encoding, PCS bus-off recovery, and FCE-driven error flag generation.
+`can_mac_pcs_fce_tb` is the primary integration testbench, exercising two `can_mac_pcs_fce` instances connected through a dominant-wins bus model and covering 17 requirements spanning MAC frame encoding, arbitration, and error handling.
 
 ### Frame Encoding and Synchronization {#sec:tb-frame-encoding}
 
-@fig:full_fd_frame shows the two-node integration scenario: a complete FD frame transmitted by DUT 1 and received by DUT 2, with SSP pulses confirming TDC is active during the data phase and resynchronization events visible on DUT 2 (REQ-010, REQ-011, REQ-012, REQ-014, REQ-017, REQ-019, REQ-026, REQ-032).
+@fig:full_fd_frame shows a complete FD frame transmitted by DUT 1 and received by DUT 2, with SSP pulses confirming TDC is active during the data phase and resynchronization events visible on DUT 2 (REQ-010, REQ-011, REQ-012, REQ-014, REQ-017, REQ-019, REQ-026, REQ-032).
 
 ![Two-node simulation of a complete FD frame in `can_mac_pcs_fce_tb`, showing the full field sequence from `s_arbitration` through `s_eof` on both transmitter and receiver. Secondary sample point pulses confirm TDC is active during the data phase. Resynchronization events are visible on DUT 2 via `sync_applied`.](figures/waveforms/full_fd_frame.pdf){#fig:full_fd_frame width=100%}
 
@@ -689,7 +689,7 @@ The five unit testbenches target individual submodules with focused stimulus.
 
 ### Bit Rate Switching and TDC {#sec:tb-bit-rate}
 
-@fig:pcs shows dual bit rate switching and TDC measurement: the PCS replaces nominal segment lengths at the BRS sample point and positions the SSP once the transceiver loopback delay is measured (REQ-015, REQ-024, REQ-025, REQ-030).
+@fig:pcs shows dual bit rate switching and TDC measurement: the PCS switches to data-phase bit timing at the BRS sample point and positions the SSP once the transceiver loopback delay is measured (REQ-015, REQ-024, REQ-025, REQ-030).
 
 ![Dual bit rate switching and TDC measurement in `can_mac_pcs_fce_tb`. At A, the PCS begins counting the transceiver loopback delay in TQ increments. At B, the transmitted bit arrives on RX and the count stops at 19 TQ. At C, the first data-phase bit (ESI) is transmitted and the measured delay is counted down. When the countdown terminates at D, the SSP strobe activates and the TDC delay of 2 is signaled to the MAC. `next_bit_is_res` and `next_bit_is_brs` control the measurement window. `data_phase_stop` signals the end of the data phase.](figures/waveforms/pcs.pdf){#fig:pcs width=100%}
 
@@ -709,7 +709,7 @@ The five unit testbenches target individual submodules with focused stimulus.
 
 ## Open Requirements {#sec:open-requirements}
 
-Nine requirements remain open. Six are LLC requirements (REQ-001 through REQ-005, REQ-036) deferred pending implementation of `can_llc`. REQ-034 (MAC frame storage in shared memory) and REQ-035 (error signaling enable, P2) are deferred as non-blocking. REQ-021 (error detection, P1) has partial simulation coverage: bit-error detection is exercised via recessive injection in `test_bus_off`, but stuff, form, CRC, and ACK error detection are covered by code inspection only, as each requires a frame-aware stimulus source to inject the error at the correct field boundary (@sec:future-work).
+Nine requirements remain open. Six are LLC requirements (REQ-001 through REQ-005, REQ-036) deferred pending implementation of `can_llc`. REQ-034 (MAC frame storage in shared memory) and REQ-035 (error signaling enable, P2) are deferred as non-blocking. REQ-021 (error detection, P1) has partial simulation coverage: bit-error detection is exercised via recessive injection in `test_bus_off`. The remaining sub-claims (stuff, form, CRC, ACK) require frame-aware error injection not available in the current testbench (@sec:future-work).
 
 ## Testbench Results Summary {#sec:testbench-results-summary}
 
