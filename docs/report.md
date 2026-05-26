@@ -261,11 +261,9 @@ This section establishes the constraints that bound the design before any archit
 
 ## Code Standard, Tooling, and Design Constraints {#sec:engineering-constraints}
 
-These constraints fall into three categories: the tools and language dictated by Everllence's synthesis and simulation environment, the integration requirements specific to this project, and the coding rules from Everllence's VHDL Code Standard.
-
 ### Tools and Language {#sec:vhdl-osvvm}
 
-The RTL source is implemented in VHDL-93. Everllence's synthesis toolchain uses Quartus Prime [@quartus], which does not fully support VHDL-2008 constructs in synthesis, making VHDL-93 the practical upper bound for synthesizable RTL. Testbenches are written in VHDL-2008 to support the OSVVM verification framework [@osvvm], which requires VHDL-2008 language features. SystemVerilog with UVM is the dominant industry alternative for RTL implementation and verification at this scale. The choice here follows company convention rather than a project-level technical comparison. Riviera-PRO [@riviera_pro] is used for simulation. Sigasi [@sigasi] is used for linting and language-aware editing. Waveform figures are captured in GTKWave [@gtkwave], timing diagrams are drawn in WaveDrom [@wavedrom], and architecture diagrams in Mermaid [@mermaid].
+The RTL source is implemented in VHDL-93. Everllence's synthesis toolchain uses Quartus Prime [@quartus], which does not fully support VHDL-2008 constructs in synthesis, making VHDL-93 the practical upper bound for synthesizable RTL. Testbenches are written in VHDL-2008 for the OSVVM verification framework [@osvvm]. SystemVerilog with UVM is the dominant industry alternative for RTL implementation and verification at this scale. The choice here follows company convention rather than a project-level technical comparison. Riviera-PRO [@riviera_pro] is used for simulation. Sigasi [@sigasi] is used for linting and language-aware editing. Waveform figures are captured in GTKWave [@gtkwave], timing diagrams are drawn in WaveDrom [@wavedrom], and architecture diagrams in Mermaid [@mermaid].
 
 Claude Code [@claudecode] was used for prose editing and VHDL review. Technical content, design decisions, and all source files are the author's own work.
 
@@ -288,7 +286,7 @@ The requirements engineering process addressed two key objectives [@bergeron2003
 1. Extracting a clear and actionable set of requirements that could serve as a starting point for the design phase.
 2. Establishing a clear, traceable link between the ISO 11898-1 specification and the verification environment.
 
-Both objectives are complicated by the source material: normative requirements are distributed across subsections, often restated from different perspectives, and interspersed with explanatory text. The standard compounds this by bundling multiple obligations into single clauses, interspersing normative `shall` statements with informative rationale prose, and repeating equivalent obligations from both transmitter and receiver perspectives.
+Both objectives are complicated by the source material: normative requirements are distributed across subsections, bundled into compound clauses, and repeated from transmitter and receiver perspectives, interspersed with informative rationale prose.
 
 The AI-augmented pipeline shown in @fig:ver_plan_pipeline was designed to address these extraction challenges systematically. The first step was converting the ISO 11898-1 PDF to Markdown - a format that can be efficiently searched and ingested by LLMs. The resulting Markdown file was then fed to a Claude Sonnet 4.6 LLM agent, which was prompted to extract all normative statements - sentences containing words like "shall", "should", "must", and their corresponding negations.
 
@@ -301,7 +299,7 @@ The requirements set is stored as a TOML file, one entry per requirement. Direct
 - **`source_clause`**: Links every requirement back to the ISO 11898-1 clause from which it was distilled, enabling the requirements set to be audited against the standard.
 - **`original_wording`**: Verbatim ISO text for the relevant clauses. Preserving the source wording prevents paraphrase drift and provides a fallback for resolving ambiguity during implementation.
 - **`paraphrase`**: A concise, implementer-facing restatement of the requirement. Where the ISO prose bundles multiple obligations into a single clause, the paraphrase enumerates them as numbered sub-claims, each independently verifiable.
-- **`priority`**: A three-level rating - P1 (need-to-have, derived from "shall" obligations and core correctness), P2 (verified in the normal cycle), or P3 (optional, derived from "should" clauses or implementation-dependent features). The priority drove the implementation sequence and scope decisions when the schedule was constrained.
+- **`priority`**: A three-level rating - P1 (need-to-have, derived from "shall" obligations and core correctness), P2 (judged non-critical for this application: the bus functions in Everllence's target use case without these, though they are part of full standard compliance), or P3 (optional, derived from "should" clauses or implementation-dependent features). The priority drove the implementation sequence and scope decisions.
 - **`notes`**: Any residual clarifications not captured by the paraphrase - implementation constraints, out-of-scope markers, or known ambiguities. May be empty.
 
 Of the 37 requirements, 30 are rated P1, four are P2, and three are P3. Each non-P1 rating reflects a deliberate scoping decision - the rationale for each is given in @tbl:priority-demotion.
@@ -853,7 +851,7 @@ Complete signal-level connectivity of the implemented CAN node. The MAC sub-laye
 
 # Verification Plan {#sec:appendix-vplan}
 
-Both tables are regenerated automatically from `verification_plan/verification_plan.toml` on each PDF build. The ID field is the join key between them. See @sec:verification-plan-data-structure for the meaning of each field. The first table lists each requirement with its ISO source clause, priority, and paraphrase. The second table lists the verification metadata: layer, side, format applicability, observability, method, status, traceability label, file, and coverage criteria.
+Both tables are regenerated automatically from `verification_plan/verification_plan.toml` on each PDF build. The ID field is the join key between them. See @sec:req-extraction and @sec:verification-plan for the meaning of each field. The first table lists each requirement with its ISO source clause, priority, and paraphrase. The second table lists the verification metadata: layer, side, format applicability, observability, method, status, traceability label, file, and coverage criteria.
 
 <!-- generated:requirements-table -->
 
