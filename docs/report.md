@@ -562,7 +562,7 @@ The structure trades per-state locality for non-duplication of cross-cutting log
 
 `p_fsm` implements the per-field state granularity introduced in @sec:per-field-vs-per-phase. Each post-arbitration field has a dedicated state, with the arbitration region sharing `s_arbitration` across ID bits, RTR/SRR/RRS, and IDE via `bit_count`. The complete FSM is shown in @fig:mac-fsm.
 
-![`can_mac_fsm` controlling TX and RX for all in-scope frame formats. In each state, TX indicate transmitter behavior and RX indicates receiver behavior.](figures/mac_fsm.png){#fig:mac-fsm height=85%}
+![`can_mac_fsm` controlling TX and RX for all in-scope frame formats. In each state, TX indicate transmitter behavior and RX indicates receiver behavior.](figures/mac_fsm.png){#fig:mac-fsm height=90%}
 
 ### TX Mode: Frame Transmission
 
@@ -618,7 +618,7 @@ Counter updates follow REQ-028. Bus-off recovery requires 128 separate `pcs_i.id
 
 `can_pcs` implements bit timing as a 4-state FSM and a concurrent TDC pipeline (REQ-026, REQ-027), see @fig:can-pcs. The FSM advances through `s_sync_seg` (1 TQ, fixed), `s_prop_seg`, `s_phase_seg1`, and `s_phase_seg2` as each segment's TQ count expires. The SP strobe and `rx_data` latch fire at the end of `s_phase_seg1`. The TX bit is driven at the end of `s_phase_seg2`. TDC measurement runs at TQ granularity above the segment case statement. When `fce_i.bus_off` is asserted, consecutive recessive bits are counted and `fce_o.idle_condition` is pulsed every 11 bits - enabling FCE bus-off recovery (REQ-029).
 
-![`can_pcs` bit-time FSM with concurrent resynchronization and TDC pipelines per ISO 11898-1 sec. 7.2-7.4.](figures/pcs_fsm.png){#fig:can-pcs height=85%}
+![`can_pcs` bit-time FSM with concurrent resynchronization and TDC pipelines per ISO 11898-1 sec. 7.2-7.4.](figures/pcs_fsm.png){#fig:can-pcs height=90%}
 
 ### Synchronization {#sec:impl-can-pcs-resync}
 
