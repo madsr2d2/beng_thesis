@@ -96,6 +96,7 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 | IP | Intellectual Property |
 | IPT | Information Processing Time |
 | ISO | International Organization for Standardization |
+| LE | Logic Element |
 | LLC | Logical Link Control |
 | LLM | Large Language Model |
 | MAC | Medium Access Control |
@@ -711,30 +712,30 @@ Of the 37 requirements, 28 are closed: 26 via testbench simulation (@tbl:testben
 
 # Synthesis {#sec:synthesis}
 
-The implemented `can_mac_pcs_fce` stack was synthesized using Quartus Prime Standard Edition 21.1.1 targeting the Cyclone 10 LP device (10CL016YU256I7G) used in Everllence's IO-extender board. The synthesis used a standalone project with all record-typed ports flattened to individual `std_logic` and `std_logic_vector` signals and all I/O pins marked as `VIRTUAL_PIN`, isolating logic resource consumption from I/O buffer overhead. The clock constraint was set to 6 ns (166 MHz), deliberately overconstraining relative to any realistic CAN FD system clock to expose worst-case timing paths.
+The implemented `can_mac_pcs_fce` stack was synthesized targeting the Cyclone 10 LP device used in Everllence's IO-extender board. The clock constraint was set to 6 ns (166 MHz), deliberately overconstraining relative to any realistic CAN FD system clock to expose worst-case timing paths.
 
 ## Resource Utilization {#sec:synthesis-resources}
 
-The synthesized design uses 4,608 logic elements (30% of the 15,408 available on the target device) and 869 dedicated registers. No memory blocks, embedded multipliers, or PLLs are used. @tbl:synthesis-resources shows the per-module resource breakdown.
+The synthesized design (`can_mac_pcs_fce`) uses 4,608 Logic Elements (LE) (30% of the target device) and 869 dedicated registers. @tbl:synthesis-resources shows the per-module resource breakdown.
 
-| Module | LEs | Registers | Function |
+| Module | LEs | Registers | 
 | :--- | ---: | ---: | :--- |
-| `can_mac_fsm` | 4,109 | 684 | Protocol FSM and RX frame buffer |
-| `can_pcs` | 190 | 49 | Bit timing, TDC, dual bit rate |
-| `can_fce` | 117 | 31 | Fault confinement (TEC/REC) |
-| `can_mac_crc` | 84 | 53 | Three parallel CRC engines |
-| `can_mac_ser` | 84 | 40 | TX serializer |
-| `can_mac_bs` | 31 | 12 | Bit stuffer (dynamic and fixed mode) |
-| **CAN FD total** | **4,608** | **869** | |
+| `can_mac_fsm` | 4,109 | 684 |
+| `can_pcs` | 190 | 49 |
+| `can_fce` | 117 | 31 |
+| `can_mac_crc` | 84 | 53 |
+| `can_mac_ser` | 84 | 40 |
+| `can_mac_bs` | 31 | 12 |
+| **CAN FD total** (`can_mac_pcs_fce`) | **4,608** | **869** | |
 | **CAN Classic** (`can_bus_controller`) | **1,146** | **334** | Existing controller, see @sec:existing-controller |
 
-: Resource utilization on Cyclone 10 LP (10CL016YU256I7G): CAN FD module breakdown and CAN Classic baseline. {#tbl:synthesis-resources}
+: Resource utilization on Cyclone 10 LP: `can_mac_pcs_fce` breakdown and `can_bus_controller` baseline. {#tbl:synthesis-resources}
 
-`can_mac_fsm` dominates at 89% of total logic elements. The primary driver is the RX frame buffer: the FSM accumulates received frames into a 70-byte (560-bit) internal byte array, and each buffer register drives combinatorial decode and mux logic. The five remaining modules together consume 506 LEs, confirming that the PCS, FCE, CRC, serializer, and bit stuffer layers add modest overhead relative to the frame buffer cost.
+`can_mac_fsm` dominates at 89% of total LEs, driven primarily by the RX frame buffer. `can_mac_fsm` accumulates received frames into a 70-byte (560-bit) internal byte array, and each buffer register drives combinatorial decode and mux logic. The five remaining modules together consume 506 LEs, modest overhead relative to the frame buffer.
 
 ## Timing Results {#sec:synthesis-timing}
 
-@tbl:synthesis-timing shows the setup and hold slack across all timing corners at the overconstraining 166 MHz clock.
+Timing analysis covers four PVT corners: slow/fast transistor speeds, 1150 mV supply voltage, and -40°C to 100°C temperature range. @tbl:synthesis-timing shows the setup and hold slack at the overconstraining 166 MHz clock.
 
 | Corner | Worst setup slack | fmax estimate | Hold slack |
 | :--- | ---: | ---: | ---: |
@@ -743,9 +744,9 @@ The synthesized design uses 4,608 logic elements (30% of the 15,408 available on
 | Fast 1150 mV 100°C | +0.230 ns | >166 MHz | +0.163 ns |
 | Fast 1150 mV −40°C | +0.580 ns | >166 MHz | +0.145 ns |
 
-: Timing results for `can_mac_pcs_fce` at 6 ns (166 MHz) on Cyclone 10 LP. {#tbl:synthesis-timing}
+: Timing results for `can_mac_pcs_fce` at 6 ns (166 MHz) on Cyclone 10 LP. Slow/Fast denotes process transistor speed. {#tbl:synthesis-timing}
 
-The worst-case fmax is approximately 127 MHz on the slow 100°C corner. The setup failure at 166 MHz is a consequence of the deliberate overconstrain and does not indicate a functional problem at any realistic system clock frequency. At a 5 Mbit/s data-phase bit rate with the ISO-minimum 8 TQ per bit [@iso11898_1], a system clock of 40 MHz suffices at prescaler 1. The 127 MHz worst-case fmax exceeds this by more than 3×, meeting timing with margin on all corners. Hold slack is positive across all corners. At 30% device utilization on the smallest Cyclone 10 LP variant, the stack fits on the next device step up (10CL025, approximately 19%) or any larger variant in the family.
+The worst-case fmax is approximately 127 MHz on the slow 100°C corner. The negative setup slack on slow corners indicates timing violations at the 166 MHz constraint - a consequence of the deliberate overconstrain. Practical CAN FD implementations use system clocks of 20, 40, or 80 MHz [@mutter2013]. The 127 MHz fmax exceeds the highest of these by more than 1.5×, meeting timing on all corners at any realistic operating frequency. Hold slack is positive across all corners.
 
 # Discussion {#sec:discussion}
 
