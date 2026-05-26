@@ -365,7 +365,7 @@ ISO 11898-1 structures the CAN node reference model into three functional sub-la
 
 CAN defines two classes of frames: CAN Classic (CC) and CAN FD (FD). Within each class, frames may carry either an 11-bit base identifier or a 29-bit extended identifier, giving four frame formats: CB (Classic Base), CE (Classic Extended), FB (FD Base), and FE (FD Extended), as shown in @fig:can-frame-structure and specified in REQ-037. Classic frames (CB and CE) additionally support remote frame variants, giving six bus frame types in total.
 
-![CAN frame formats (CB, CE, FB, FE) and the error and overload flags, with field widths annotated per ISO 11898-1. The bus waveform below each format indicates the level of fixed-polarity protocol bits. Hatched regions indicate variable-content fields.](figures/frame_format.png){#fig:can-frame-structure height=90%}
+![CAN frame formats (CB, CE, FB, FE) and the error and overload flags, with field widths annotated per ISO 11898-1. The bus waveform below each format indicates the level of fixed-polarity protocol bits. Hatched regions indicate variable-content fields.](figures/frame_format.png){#fig:can-frame-structure height=85%}
 
 A CAN Classic frame opens with a dominant SOF bit that triggers hard synchronization (@sec:bit-timing) in all receiving nodes, followed by the arbitration, control, data, and CRC fields, an ACK slot, and a seven-bit EOF delimiter. The RTR bit is dominant for data frames and recessive for remote frames. The IDE bit distinguishes base frames (dominant, 11-bit ID) from extended frames (recessive, 29-bit ID). Fixed-polarity form bits (SRR, r0, r1) carry no protocol instruction. The DLC encodes the number of data bytes in the payload (REQ-031). The ACK slot carries a dominant bit driven by every receiver that has validated the CRC. Each frame is followed by the interframe space - intermission (INT), suspend transmission (ST, error passive transmitters only), and bus idle (REQ-008).
 
@@ -558,7 +558,7 @@ The structure trades per-state locality for non-duplication of cross-cutting log
 
 `p_fsm` implements the per-field state granularity introduced in @sec:per-field-vs-per-phase. Each post-arbitration field has a dedicated state, with the arbitration region sharing `s_arbitration` across ID bits, RTR/SRR/RRS, and IDE via `bit_count`. The complete FSM is shown in @fig:mac-fsm.
 
-![`can_mac_fsm` controlling TX and RX for all in-scope frame formats. In each state, TX indicate transmitter behavior and RX indicates receiver behavior.](figures/mac_fsm.png){#fig:mac-fsm height=90%}
+![`can_mac_fsm` controlling TX and RX for all in-scope frame formats. In each state, TX indicate transmitter behavior and RX indicates receiver behavior.](figures/mac_fsm.png){#fig:mac-fsm height=85%}
 
 ### TX Mode: Frame Transmission
 
@@ -614,7 +614,7 @@ Counter updates follow REQ-028. Bus-off recovery requires 128 separate `pcs_i.id
 
 `can_pcs` implements bit timing as a 4-state FSM and a concurrent TDC pipeline (REQ-026, REQ-027), see @fig:can-pcs. The FSM advances through `s_sync_seg` (1 TQ, fixed), `s_prop_seg`, `s_phase_seg1`, and `s_phase_seg2` as each segment's TQ count expires. The SP strobe and `rx_data` latch fire at the end of `s_phase_seg1`. The TX bit is driven at the end of `s_phase_seg2`. TDC measurement runs at TQ granularity above the segment case statement. When `fce_i.bus_off` is asserted, consecutive recessive bits are counted and `fce_o.idle_condition` is pulsed every 11 bits - enabling FCE bus-off recovery (REQ-029).
 
-![`can_pcs` bit-time FSM with concurrent resynchronization and TDC pipelines per ISO 11898-1 sec. 7.2-7.4.](figures/pcs_fsm.png){#fig:can-pcs height=90%}
+![`can_pcs` bit-time FSM with concurrent resynchronization and TDC pipelines per ISO 11898-1 sec. 7.2-7.4.](figures/pcs_fsm.png){#fig:can-pcs height=85%}
 
 ### Synchronization {#sec:impl-can-pcs-resync}
 
