@@ -715,7 +715,7 @@ Of the 37 requirements, 28 are closed: 26 via testbench simulation (@tbl:testben
 
 # Synthesis {#sec:synthesis}
 
-The implemented `can_mac_pcs_fce` stack was synthesized using Quartus Prime Standard Edition 21.1.1 targeting the Cyclone 10 LP device (10CL016YU256I7G) used in Everllence's IO-extender board. The synthesis used a standalone project with all record-typed ports flattened to individual `std_logic` and `std_logic_vector` signals and all I/O marked as `VIRTUAL_PIN`, isolating logic resource consumption from I/O buffer overhead. The clock constraint was set to 6 ns (166 MHz), deliberately overconstraining relative to any realistic CAN FD system clock to expose worst-case timing paths.
+The implemented `can_mac_pcs_fce` stack was synthesized using Quartus Prime Standard Edition 21.1.1 targeting the Cyclone 10 LP device (10CL016YU256I7G) used in Everllence's IO-extender board. The synthesis used a standalone project with all record-typed ports flattened to individual `std_logic` and `std_logic_vector` signals and all I/O pins marked as `VIRTUAL_PIN`, isolating logic resource consumption from I/O buffer overhead. The clock constraint was set to 6 ns (166 MHz), deliberately overconstraining relative to any realistic CAN FD system clock to expose worst-case timing paths.
 
 ## Resource Utilization {#sec:synthesis-resources}
 
@@ -749,7 +749,7 @@ The synthesized design uses 4,608 logic elements (30% of the 15,408 available on
 
 : Timing results for `can_mac_pcs_fce` at 6 ns (166 MHz) on Cyclone 10 LP. {#tbl:synthesis-timing}
 
-The worst-case fmax is approximately 127 MHz on the slow 100°C corner. The setup failure at 166 MHz is a consequence of the deliberate overconstrain and does not indicate a functional problem at any realistic system clock frequency. At a 5 Mbit/s data-phase bit rate with the ISO-minimum 8 TQ per bit [@iso11898_1], a system clock of 40 MHz suffices at prescaler 1. The 127 MHz worst-case fmax exceeds this by more than 3×, meeting timing with comfortable margin on all corners. Hold slack is positive across all corners. At 30% device utilization on the smallest Cyclone 10 LP variant, the stack fits on the next device step up (10CL025, approximately 19%) or any larger variant in the family.
+The worst-case fmax is approximately 127 MHz on the slow 100°C corner. The setup failure at 166 MHz is a consequence of the deliberate overconstrain and does not indicate a functional problem at any realistic system clock frequency. At a 5 Mbit/s data-phase bit rate with the ISO-minimum 8 TQ per bit [@iso11898_1], a system clock of 40 MHz suffices at prescaler 1. The 127 MHz worst-case fmax exceeds this by more than 3×, meeting timing with margin on all corners. Hold slack is positive across all corners. At 30% device utilization on the smallest Cyclone 10 LP variant, the stack fits on the next device step up (10CL025, approximately 19%) or any larger variant in the family.
 
 # Discussion {#sec:discussion}
 
