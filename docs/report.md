@@ -551,7 +551,7 @@ The structure trades per-state locality for non-duplication of cross-cutting log
 
 `p_fsm` implements the per-field state granularity introduced in @sec:per-field-vs-per-phase. Each post-arbitration field has a dedicated state, with the arbitration region sharing `s_arbitration` across ID bits, RTR/SRR/RRS, and IDE via `bit_count`. The complete FSM is shown in @fig:mac-fsm.
 
-![`can_mac_fsm` controlling TX and RX for all in-scope frame formats. In each state, TX indicate transmitter behavior and RX indicates receiver behavior.](figures/mac_fsm.png){#fig:mac-fsm height=90%}
+![`can_mac_fsm`. FSM orchestrating frame transmission and reception in `can_mac`. The state machine encodes the four in-scope frame formats depicted in @fig:can-frame-structure. Green states encode error-free and stuff-bit-free frame progression. Error and overload detection is handled, and `can_mac_bs` and `can_mac_crc` are fed, in the pre-case code block. The next bit is driven to `can_pcs` and fed to `can_mac_bs` and `can_mac_crc` in the post-case code block.](figures/mac_fsm.png){#fig:mac-fsm height=90%}
 
 ### TX Mode: Frame Transmission
 
