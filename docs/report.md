@@ -171,9 +171,9 @@ CF also strengthens the error detection architecture relative to CC. CC's CRC-15
 
 CF also addresses a gap in CC's stuff-bit handling: in CC, dynamic stuff bits are excluded from the CRC calculation, allowing rare two-bit errors that create or destroy a stuff condition to go undetected. CF closes this by including dynamic stuff bits in the CRC data feed and introducing the Stuff Bit Count (SBC) field as an independent check on the number of inserted stuff bits. The combined effect of these changes extends the CRC field from 16 bits in CC to 28 bits (CRC17) or 33 bits (CRC21). With 12 or 17 more bits required to accidentally match the expected CRC field, the residual error probability for this class of faults is reduced by several orders of magnitude [@mutter2015].
 
-### Existing CAN Controller {#sec:existing-controller}
+### Everllence's Current CAN Controller {#sec:existing-controller}
 
-The starting point for this project is an existing CC controller (`can_bus_controller`) developed internally at Everllence. The controller is implemented in VHDL and has been integrated into a production IO-extender FPGA design. It supports CC frames with both 11-bit (base) and 29-bit (extended) identifiers at bit rates up to 500 kbit/s, and has been verified through hardware bring-up on physical CAN buses. The initial version was developed by the author of the present document during an internship at Everllence and has since been extensively modified by other engineers at the company.
+The starting point for this project is Everllence's internally developed current CC controller (`can_bus_controller`). The controller is implemented in VHDL and has been integrated into a production IO-extender FPGA design. It supports CC frames with both 11-bit (base) and 29-bit (extended) identifiers at bit rates up to 500 kbit/s, and has been verified through hardware bring-up on physical CAN buses. The initial version was developed by the author of the present document during an internship at Everllence and has since been extensively modified by other engineers at the company.
 
 The top-level wrapper for `can_bus_controller` instantiates a combined TX/RX frame FSM, a bit timing generator, a dynamic bit stuffer, a CRC-15 engine, and two Avalon-ST converters for frame serialization and deserialization.
 
@@ -187,13 +187,13 @@ While the `can_bus_controller` is functional for CC, several areas of its design
 
 - **Single CRC engine**: The controller has a single CRC engine, where CF compliance requires three running in parallel with separate data feed paths (@sec:crc-overview).
 
-- **Coupled fault confinement**: Error counting and node state transitions are implemented in the same source file as the frame FSM, with no clean sub-layer boundary between them (@sec:error-model). ISO 11898-1 defines fault confinement as a distinct cross-cutting entity, and separating it as an independently testable module both conforms closer to the standard's reference model (@sec:can-layered-model) and simplifies verification.
+- **Coupled fault confinement**: Fault confinement is coupled into the frame FSM with no clean sub-layer boundary (@sec:error-model). ISO 11898-1 defines it as a distinct cross-cutting entity, and separating it improves both conformance to the standard's reference model (@sec:can-layered-model) and testability.
 
 - **Format-dependent frame structure**: CC and CF frames diverge in the control and data phases, where CF introduces format-specific fields with no Classic equivalent (@sec:frame-types). The existing FSM has no clean mechanism to handle this divergence across four frame variants.
 
 The changes required across bit timing, bit stuffing, CRC, and frame format handling are pervasive enough to justify a clean-slate redesign.
 
-## Third-Party CAN FD IP Cores {#sec:existing-ip-cores}
+## Available Third-Party CAN FD IP Cores {#sec:existing-ip-cores}
 
 Before committing to an in-house redesign, the available CF controller IP cores were evaluated. @tbl:canfd-ip-survey summarizes the candidates, spanning both open-source and commercial offerings.
 
@@ -218,17 +218,17 @@ Before committing to an in-house redesign, the available CF controller IP cores 
 
 : Survey of available CF controller IP cores. {#tbl:canfd-ip-survey}
 
-## Rationale for In-House Development {#sec:rationale-in-house}
+### Rationale for In-House Development {#sec:rationale-in-house}
 
-None of these solutions satisfies Everllence's combined requirements for safety-critical marine engine control. The disqualifying factors span IP ownership, verification authority, architectural scope, integration with existing infrastructure, and platform independence - each addressed in turn below.
+None of these solutions satisfies Everllence's combined requirements. The disqualifying factors span IP ownership, verification authority, architectural scope, integration with existing infrastructure, and platform independence - each addressed in turn below.
 
 - **IP ownership and supply chain independence:** Everllence's engine controllers carry service commitments of up to thirty years. Commercial IP cores introduce a licensing dependency on an external vendor over that full horizon - vendors may discontinue support, change licensing terms, or be acquired. Owning the RTL outright eliminates this exposure and ensures that the design can be maintained, ported, and modified without third-party approval for the full product lifetime. The open-source CTU CAN FD avoids the licensing risk, but using it still means adopting a codebase whose architecture, naming conventions, and design decisions were made for a different context.
 
 - **Verification authority:** In safety-critical domains, the verification evidence must be traceable from standard requirements to RTL assertions and testbench results. Adopting a third-party core means inheriting its verification artifacts rather than producing them. Everllence's verification methodology requires full control over the verification plan, the testbench architecture, and the assertion coverage.
 
-- **Architectural scope:** All available IP cores implement a complete CAN node - TX and RX pipelines, message memory, acceptance filtering, buffer management, register interfaces, and in some cases DMA controllers. Everllence's application requires only the protocol engine - the module that converts between byte-level frame data and the serial bus - which is exactly the scope of the existing CC controller. The higher-level buffering and filtering logic already exists in Everllence's FPGA infrastructure. Adopting a full-node IP core would introduce unnecessary complexity and area overhead, and stripping the unused subsystems to fit the existing architecture offsets the benefit of using a pre-built core.
+- **Architectural scope:** All available IP cores implement a complete CAN node - TX and RX pipelines, message memory, acceptance filtering, buffer management, register interfaces, and in some cases DMA controllers. Everllence's application requires only the protocol engine - the module that converts between byte-level frame data and the serial bus - which is also the scope of `can_bus_controller`. The higher-level buffering and filtering logic already exists in Everllence's FPGA infrastructure. Adopting a full-node IP core would introduce unnecessary complexity and area overhead, and stripping the unused subsystems to fit the existing architecture offsets the benefit of using a pre-built core.
 
-- **Integration with existing infrastructure:** Everllence's FPGA designs use a specific Avalon-ST streaming interface for inter-module communication and established conventions for signal naming and module boundaries. A third-party core would require an adaptation layer to bridge its native interface to the existing infrastructure. The in-house design uses Everllence's interface conventions natively, eliminating this integration overhead.
+- **Integration with existing infrastructure:** Everllence's FPGA designs use a specific Avalon-ST streaming interface for inter-module communication and established conventions for signal naming and module boundaries. A third-party core would require an adaptation layer to bridge its native interface to the existing infrastructure. An in-house design would use Everllence's interface conventions natively, eliminating this integration overhead.
 
 - **Platform independence:** The AMD/Xilinx CAN FD core is locked to Xilinx devices. The Bosch M\_CAN and other commercial cores are delivered as technology-specific netlists or encrypted HDL for a particular target. The in-house design is written in portable VHDL-93, synthesizable on any FPGA platform ensuring that the IP remains usable if Everllence changes FPGA vendors.
 
@@ -297,8 +297,8 @@ Of the 37 requirements, 30 are rated P1, four are P2, and three are P3. Each non
 | REQ-011 | Remote frame | P2 | A data-only node is a valid CAN implementation. Remote frame support is a distinct feature subset not required for basic interoperability. |
 | REQ-015 | ESI bit transmission | P2 | ESI communicates the node's error state as an informational signal. Incorrect ESI does not abort a frame or trigger a protocol error at any receiver. |
 | REQ-035 | Error signaling enable | P2 | Error signaling itself is covered by P1 requirements. This requirement concerns only the existence of a configurable disable mode, which is an optional operational feature. |
-| REQ-004 | Frame acceptance filtering | P3 | ISO uses advisory "should" language. Also, acceptance filtering is absent from the existing controller, so no regression concerns. The only protocol-relevant filter - suppressing loopback of transmitted frames - is covered by the design. |
-| REQ-034 | Shared memory consistency | P3 | The "may" language makes shared memory use optional. This implementation streams frames directly from LLC to MAC with no shared memory; the LLC is responsible for buffering and retransmission. Not applicable to this architecture. |
+| REQ-004 | Frame acceptance filtering | P3 | Acceptance filtering is absent from Everllence's current controller, so no regression concerns. The only protocol-relevant filter - suppressing loopback of transmitted frames - is covered by the design. |
+| REQ-034 | Shared memory consistency | P3 | The "may" language makes shared memory use optional. |
 | REQ-036 | DLC padding | P3 | Padding with 0xCC applies only when the implementation exposes a configurable maximum-data-byte restriction. The feature may be waived entirely if that restriction is not implemented. |
 
 : Priority demotion rationale for all requirements not rated P1. {#tbl:priority-demotion}
