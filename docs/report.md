@@ -392,11 +392,11 @@ Bit stuffing ensures sufficient transitions on the bus for receiver clock synchr
 
 ## Cyclic Redundancy Check {#sec:crc-overview}
 
-The CRC polynomial and field length depend on frame type and data payload length (REQ-006):
+The transmitter divides the frame bit stream by a fixed generator polynomial and appends the remainder as the CRC field. Receivers repeat this operation and flag a mismatch as a CRC error. The polynomial and field length depend on frame type and data payload length (REQ-006) as listed below.
 
-- **CRC-15**: used for all CC frames. The CRC accumulates over SOF, arbitration, control, and data fields with SBs excluded (REQ-013).
-- **CRC-17**: used for FD frames with data payloads up to 16 bytes (DLC 0-10).
-- **CRC-21**: used for FD frames with data payloads from 20 to 64 bytes (DLC 11-15).
+- **CRC-15**: Used for all CC frames. The CRC accumulates over SOF, arbitration, control, and data fields with SBs excluded (REQ-013).
+- **CRC-17**: Used for FD frames with data payloads up to 16 bytes (DLC 0-10).
+- **CRC-21**: Used for FD frames with data payloads from 20 to 64 bytes (DLC 11-15).
 
 The key asymmetry between CC and FD concerns the CRC data feed. For FD frames, dynamic stuff bits up to and including the data field are included in the CRC computation, along with the SBC field itself. Fixed stuff bits are excluded from the CRC computation in both CC and FD frames (REQ-013). The CRC field is terminated by a recessive CRC delimiter bit (REQ-017).
 
