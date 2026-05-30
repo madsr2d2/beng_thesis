@@ -73,6 +73,7 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 | CE | Classic Extended (frame format) |
 | CEFF | Classic Extended Frame Format |
 | CRC | Cyclic Redundancy Check |
+| D | Dominant |
 | DF | Data Frame |
 | DLC | Data Length Code |
 | DMA | Direct Memory Access |
@@ -115,6 +116,7 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 | PS | Propagation Segment (PROP_SEG) |
 | PS1 | Phase Segment 1 (PHASE_SEG1) |
 | PS2 | Phase Segment 2 (PHASE_SEG2) |
+| R | Recessive |
 | RF | Remote Frame |
 | RRS | Reserved Remote Request Substitution bit (FD frames) |
 | RTL | Register Transfer Level |
@@ -143,55 +145,70 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 ```
 # Introduction {#sec:introduction}
 
-Industrial control systems for large marine engines demand communication protocols that combine fault tolerance, multi-master arbitration, and multi-decade service reliability. The Controller Area Network (CAN) meets these demands, but as control system data requirements grow the bandwidth and payload limits of CAN Classic have become a bottleneck.
+Everllence (formerly MAN Energy Solutions) is a provider of propulsion and decarbonization solutions for the marine and energy industries, designing large two-stroke and four-stroke combustion engines for ship propulsion and power generation. This thesis was written within the engine controller division, where FPGA-based control hardware is developed and maintained for integration into Everllence's engine platforms. Industrial control systems for large marine engines demand communication protocols that combine fault tolerance and confinement, multi-master arbitration, and multi-decade service reliability. The Controller Area Network (CAN) communication protocol, developed by Bosch in the 1980s for automotive and industrial control, meet these basic demands [@bosch1991].
 
-## Motivation {#sec:motivation}
+The original version of CAN protocol, CAN Classic (CC), forms the basis of Everllence's existing CAN infrastructure, which is implemented through VHDL CC protocol controller `can_bus_controller` deployed on an IO-extender board forming part of the Triton motor controller system. As control systems grow more data-intensive, the eight-byte payload and 1 Mbit/s ceiling of CC has become a practical constraint. The CAN FD (Flexible Data Rate) protocol extension, introduced in 2012 [@hartwich2012], extends the maximum data payload to 64 bytes and raises the bit rate beyond 8 Mbit/s while preserving the arbitration and fault-confinement/tolerance architecture of CC. Thus, CAN FD (CF) is the natural migration path for Everllence's existing CAN infrastructure.
 
-Everllence (formerly MAN Energy Solutions) is a provider of propulsion and decarbonization solutions for the marine and energy industries, designing large two-stroke and four-stroke combustion engines for ship propulsion and power generation. This thesis was written within the engine controller division, where FPGA-based control hardware is developed and maintained for integration into Everllence's engine platforms.
+## Background {#sec:background}
 
-CAN, developed in the 1980s for automotive and industrial control, provides the fault-confinement properties that suit the reliability requirements of engine control applications [@bosch1991]. Everllence's existing CAN infrastructure is built around a CAN Classic protocol controller deployed on an IO-extender board forming part of the Triton motor controller system. As control systems grow more data-intensive, the eight-byte payload and 1 Mbit/s ceiling of CAN Classic has become a practical constraint. CAN FD (Flexible Data Rate) extends the maximum payload to 64 bytes and raises the data-phase bit rate beyond 8 Mbit/s while preserving the CAN Classic arbitration and fault-confinement architecture [@hartwich2012]. Thus, CAN FD is the natural migration path for Everllence's existing CAN infrastructure .
+This section establishes the technical context for the work. It covers the CC and CF protocols at the level of motivation and key properties, and introduces the existing Everllence CC controller that provided the immediate starting point for the redesign.
 
-## Existing CAN Controller {#sec:existing-controller}
+### CAN Classic {#sec:can-classic}
 
-The starting point for this project is an existing CAN Classic controller developed internally at Everllence. The controller is implemented in VHDL and has been integrated into a production IO-extender FPGA design. It supports CAN Classic frames with both 11-bit (base) and 29-bit (extended) identifiers at bit rates up to 500 kbit/s, and has been verified through hardware bring-up on physical CAN buses. The initial version was developed by the author of the present document during an internship at Everllence and has since been extensively modified by other engineers at the company.
+CC implements a serial multi-master bus connecting electronic control units in automotive environments. CAN uses a shared two-wire differential bus on which all nodes broadcast simultaneously and arbitrate access without any designated bus master. Any node may initiate a transmission at any time. Contention is resolved by a non-destructive bitwise arbitration in which the transmitter with the lower-priority identifier detects the collision and silently withdraws, leaving the winner's frame intact. The bus uses two conductors, CANH and CANL, whose voltage difference encodes the bit value, see @fig:can_bus. Twisting the conductors ensures that external electromagnetic interference couples equally onto both wires. Because the receiver measures only the differential voltage, this common-mode noise cancels - a practical necessity in the electrically harsh environment.
 
-The top-level wrapper for the module instantiates a combined TX/RX frame FSM, a bit timing generator, a dynamic bit stuffer, a CRC-15 engine, and two Avalon-ST converters for frame serialization and deserialization.
+CC's error-handling architecture is a distinguishing feature relative to simpler serial protocols. Five complementary error detection mechanisms operate concurrently on every transmitted frame: transmitter bit monitoring, frame format checking, cyclic redundancy checking, acknowledgment checking, and bit stuffing violation detection. The residual error probability, the probability that a corrupted frame passes all detection mechanisms undetected, for an eight-byte frame in a ten-node network is on the order of $10^{-9}$ per frame - several orders of magnitude lower than contemporary automotive bus alternatives such as VAN and SCP [@charzinski1994]. A fault confinement mechanism tracks each node's error history and automatically disconnects persistently faulty nodes from the bus without disrupting communication between healthy nodes. Together these properties made CC the protocol of choice for safety-relevant in-vehicle networks.
+
+![Four CAN nodes connected to a shared twisted-wire bus via CANH and CANL conductors. Each node comprises an application process, a CAN controller, and a transceiver IC. The bus is terminated with 120Ω resistors at each end.](figures/can_bus.png){#fig:can_bus width=60%}
+
+### CAN FD {#sec:can-fd-background}
+
+The design goal of CF was to extend payload and bit rate while preserving the arbitration and fault-confinement architecture that distinguished CC from its contemporaries. CC's original data payload was capped at eight bytes per frame, limiting raw throughput to around 1 Mbit/s. As embedded control applications became more data-intensive, this ceiling became a practical constraint. CF extends the maximum payload to 64 bytes. In addition, it introduces a dual bit rate frame format comprising two phases: a higher-speed data phase with bit rates of 8 Mbit/s or beyond, and a nominal arbitration phase operating at CC bit-rates.
+
+At high data phase bit rates the transceiver's TX-to-RX loop delay (approximately 100 ns for a typical CF transceiver such as the TCAN1042 [@tcan1042]) may exceed the data phase bit time. Since the fault confinement mechanism relies on transmitter nodes monitoring their own transmitted bits, this necessitates the Transmitter Delay Compensation (TDC) mechanism introduced in CF, see @sec:bit-timing. For data-phase to arbitration-phase bit rate ratios below approximately 9, CF accepts the same oscillator tolerance as CC [@mutter2013]. Below this threshold, the arbitration-phase resynchronization condition remains the binding constraint, so the higher data-phase bit rate does not impose a tighter oscillator requirement.
+
+CF also strengthens the error detection architecture relative to CC. CC's CRC-15 polynomial preserves a Hamming distance of 6 only up to a certain frame length, making it insufficient for CF's longer payloads. CF replaces it with a 17-bit polynomial for frames up to 16 data bytes and a 21-bit polynomial for frames up to 64 bytes, preserving the Hamming distance of 6 across the extended payload range and guaranteeing detection of any five or fewer bit errors [@hartwich2012]. CF also addresses a gap in CC's stuff-bit handling: in CC, dynamic stuff bits are excluded from the CRC calculation, allowing rare two-bit errors that create or destroy a stuff condition to go undetected. CF closes this by including dynamic stuff bits in the CRC data feed and introducing the Stuff Bit Count (SBC) field as an independent check on the number of inserted stuff bits. The combined effect of these changes extends the CRC field from 16 bits in CC to 28 bits (CRC17) or 33 bits (CRC21). With 12 or 17 more bits required to accidentally match the expected CRC field, the residual error probability for this class of faults is reduced by several orders of magnitude [@mutter2015].
+
+### Existing CAN Controller {#sec:existing-controller}
+
+The starting point for this project is an existing CC controller (`can_bus_controller`) developed internally at Everllence. The controller is implemented in VHDL and has been integrated into a production IO-extender FPGA design. It supports CC frames with both 11-bit (base) and 29-bit (extended) identifiers at bit rates up to 500 kbit/s, and has been verified through hardware bring-up on physical CAN buses. The initial version was developed by the author of the present document during an internship at Everllence and has since been extensively modified by other engineers at the company.
+
+The top-level wrapper for `can_bus_controller` instantiates a combined TX/RX frame FSM, a bit timing generator, a dynamic bit stuffer, a CRC-15 engine, and two Avalon-ST converters for frame serialization and deserialization.
 
 The central component is the orchestrating FSM that handles both transmission and reception in a single process. It manages frame arbitration, bit-level TX and RX, stuff-bit error checking, CRC validation, ACK handling, and error flag generation. Fault confinement (error active, error passive, bus off node state transition) is handled in a separate process within the main FSM entity.
 
-### Limitations {#sec:existing-limitations}
+#### Limitations {#sec:existing-limitations}
 
-While the existing controller is functional for CAN Classic, several areas of the existing design would require significant rework to support CAN FD.
+While the `can_bus_controller` is functional for CC, several areas of the `can_bus_controller` design would require significant rework to support CF. The main limitations are listed below.
 
-**Single bit rate domain.** CAN FD requires switching between a nominal bit rate (used during the arbitration phase) and a faster data bit rate (used during the data phase), with Transmitter Delay Compensation (TDC) to account for the transceiver loop delay at the higher rate (@sec:bit-timing). Adding dual bit rate support and TDC would require a fundamental redesign of the timing architecture.
+**Single bit rate domain.** CF requires switching between two bit rates: a slow (nominal) rate and a fast (data) rate. The fast data rate additionally requires Transmitter Delay Compensation (TDC) to account for the transceiver loop delay (@sec:bit-timing). 
 
-**Dynamic bit stuffing only.** The bit stuffer implements the CAN Classic rule of inserting an inverse bit after five consecutive identical bits. CAN FD introduces a second stuffing mode - fixed bit stuffing - where a stuff bit is inserted at fixed intervals during the CRC field, and a Stuff Bit Count (SBC) field with Gray-coded parity is appended (@sec:bit-stuffing). The existing stuffer has no mechanism for mode switching or SBC generation.
+**Dynamic bit stuffing only.** The `can_bus_controller` implements the CC rule of inserting an inverse bit after five consecutive identical bits. CF introduces a second stuffing mode - fixed bit stuffing - where a stuff bit is inserted at fixed intervals during the CRC field, and a Stuff Bit Count (SBC) field with Gray-coded parity is appended (@sec:bit-stuffing). The existing stuffer has no mechanism for mode switching or SBC generation.
 
-**Single CRC engine.** The controller has a single CRC engine. CAN FD requires three polynomials - CRC-15 for Classic frames, CRC-17 for FD frames with payloads up to 16 bytes, and CRC-21 for larger payloads (@sec:crc-overview). A compliant receiver must run all three engines in parallel, since the correct polynomial depends on DLC and is not known until the control field is decoded. The data feed also differs between Classic and FD frames, requiring separate accumulation paths.
+**Single CRC engine.** The `can_bus_controller` has a single CRC engine. CF requires three polynomials - CRC-15 for Classic frames, CRC-17 for CF frames with payloads up to 16 bytes, and CRC-21 for larger payloads (@sec:crc-overview). A compliant receiver must run all three engines in parallel, since the correct polynomial depends on DLC and is not known until the control field is decoded. The data feed also differs between CC and CF frames, requiring separate accumulation paths.
 
 **Coupled fault confinement.** Error counting (TEC/REC) and node state transitions are implemented in the same source file as the frame FSM, with no clean sub-layer boundary between them (@sec:error-model). ISO 11898-1 defines fault confinement as a distinct cross-cutting entity, and separating it as an independently testable module both conforms closer to the standard's reference model (@sec:can-layered-model) and simplifies verification.
 
-**Format-dependent frame structure.** CAN Classic and CAN FD frames diverge in the control and data phases, where FD introduces format-specific fields with no Classic equivalent (@sec:frame-types). The existing FSM has no clean mechanism to handle this divergence across four frame variants.
+**Format-dependent frame structure.** CC and CF frames diverge in the control and data phases, where CF introduces format-specific fields with no Classic equivalent (@sec:frame-types). The existing FSM has no clean mechanism to handle this divergence across four frame variants.
 
-### Decision to Redesign {#sec:decision-to-redesign}
+#### Decision to Redesign {#sec:decision-to-redesign}
 
 The rework required across bit timing, bit stuffing, CRC, and frame format complexity is large enough to justify a clean-slate redesign structured around the ISO 11898-1 layered architecture (LLC, MAC, PCS, FCE, @sec:can-layered-model) with independently testable subcomponents, rather than retrofitting FD support onto a design not originally built with those boundaries.
 
 ## Existing CAN FD IP Cores {#sec:existing-ip-cores}
 
-Before committing to an in-house redesign, the available CAN FD controller IP cores were evaluated. @tbl:canfd-ip-survey summarizes the candidates, spanning both open-source and commercial offerings.
+Before committing to an in-house redesign, the available CF controller IP cores were evaluated. @tbl:canfd-ip-survey summarizes the candidates, spanning both open-source and commercial offerings.
 
 ### Open-Source Implementations {#sec:open-source-implementations}
 
-**CTU CAN FD** [@ctucanfd] is the only mature open-source CAN FD controller available as synthesizable HDL. Developed at the Czech Technical University in Prague, it is written in VHDL, licensed under MIT, and has been conformance-tested against ISO 16845-1 [@iso16845_1]. The controller includes a full TX and RX pipeline with up to four TX buffers, acceptance filtering, timestamping, and a register interface with DMA support.
-
+**CTU CAN FD** [@ctucanfd] is the only mature open-source CF controller available as synthesizable HDL. Developed at the Czech Technical University in Prague, it is written in VHDL, licensed under MIT, and has been conformance-tested against ISO 16845-1 [@iso16845_1]. The controller includes a full TX and RX pipeline with up to four TX buffers, acceptance filtering, timestamping, and a register interface with DMA support.
 ### Commercial Implementations {#sec:commercial-implementations}
 
-**Bosch M\_CAN** [@bosch_mcan] is the reference CAN FD controller developed by Bosh. M\_CAN is the IP core embedded in most automotive micro controllers. It is licensed under a non-disclosure agreement with per-design royalty fees.
+**Bosch M\_CAN** [@bosch_mcan] is the reference CF controller developed by Bosh. M\_CAN is the IP core embedded in most automotive micro controllers. It is licensed under a non-disclosure agreement with per-design royalty fees.
 
 **AMD/Xilinx CAN FD** [@xilinx_canfd] is a soft IP core included in the Vivado Design Suite. It provides an AXI4-Lite register interface with up to 32 acceptance filters, TX mailboxes, and RX FIFOs. It is device-locked to AMD/Xilinx FPGAs and cannot be ported to other targets.
 
-**Technology-independent RTL cores.** CAST CAN FD [@cast_canfd] is a technology-independent CAN FD IP core licensed per-design with an upfront fee. Major EDA vendors including Synopsys (DesignWare) and Cadence offer similar ASIC-targeted cores under commercial licensing programs.
+**Technology-independent RTL cores.** CAST CAN FD [@cast_canfd] is a technology-independent CF IP core licensed per-design with an upfront fee. Major EDA vendors including Synopsys (DesignWare) and Cadence offer similar ASIC-targeted cores under commercial licensing programs.
 
 | Implementation | Source | License | Scope | Conformance Tested |
 |---|---|---|---|---|
@@ -200,7 +217,7 @@ Before committing to an in-house redesign, the available CAN FD controller IP co
 | AMD CAN FD [@xilinx_canfd] | Closed | Vivado-included | Full node | Yes |
 | CAST CAN FD [@cast_canfd] | Closed | Per-design fee | Full node | Yes |
 
-: Survey of available CAN FD controller IP cores. {#tbl:canfd-ip-survey}
+: Survey of available CF controller IP cores. {#tbl:canfd-ip-survey}
 
 ### Rationale for In-House Development {#sec:rationale-in-house}
 
@@ -210,7 +227,7 @@ None of these solutions satisfies Everllence's combined requirements for safety-
 
 **Verification authority.** In safety-critical domains, the verification evidence must be traceable from standard requirements to RTL assertions and testbench results. Adopting a third-party core means inheriting its verification artifacts rather than producing them. Everllence's verification methodology requires full control over the verification plan, the testbench architecture, and the assertion coverage.
 
-**Architectural scope.** All available IP cores implement a complete CAN node - TX and RX pipelines, message memory, acceptance filtering, buffer management, register interfaces, and in some cases DMA controllers. Everllence's application requires only the protocol engine - the module that converts between byte-level frame data and the serial bus - which is exactly the scope of the existing CAN Classic controller. The higher-level buffering and filtering logic already exists in Everllence's FPGA infrastructure. Adopting a full-node IP core would introduce unnecessary complexity and area overhead, and stripping the unused subsystems to fit the existing architecture offsets the benefit of using a pre-built core.
+**Architectural scope.** All available IP cores implement a complete CAN node - TX and RX pipelines, message memory, acceptance filtering, buffer management, register interfaces, and in some cases DMA controllers. Everllence's application requires only the protocol engine - the module that converts between byte-level frame data and the serial bus - which is exactly the scope of the existing CC controller. The higher-level buffering and filtering logic already exists in Everllence's FPGA infrastructure. Adopting a full-node IP core would introduce unnecessary complexity and area overhead, and stripping the unused subsystems to fit the existing architecture offsets the benefit of using a pre-built core.
 
 **Integration with existing infrastructure.** Everllence's FPGA designs use a specific Avalon-ST streaming interface for inter-module communication and established conventions for signal naming and module boundaries. A third-party core would require an adaptation layer to bridge its native interface to the existing infrastructure. The in-house design uses Everllence's interface conventions natively, eliminating this integration overhead.
 
@@ -218,35 +235,13 @@ None of these solutions satisfies Everllence's combined requirements for safety-
 
 ## Problem Statement {#sec:problem-statement}
 
-The architectural limitations of the existing controller (@sec:existing-limitations) and the unsuitability of available third-party IP cores (@sec:rationale-in-house) together motivate a clean-slate CAN FD protocol controller conforming to ISO 11898-1. No existing solution combines full IP ownership, a targeted data-link-layer scope matching Everllence's integration requirements, and native compatibility with Everllence's Avalon-ST interface conventions and VHDL Code Standard. The design described in this report addresses that gap directly.
+The architectural limitations of the existing controller (@sec:existing-limitations) and the unsuitability of available third-party IP cores (@sec:rationale-in-house) together motivate a clean-slate CF protocol controller conforming to ISO 11898-1. No existing solution combines full IP ownership, a targeted data-link-layer scope matching Everllence's integration requirements, and native compatibility with Everllence's Avalon-ST interface conventions and VHDL Code Standard. The design described in this report addresses that gap directly.
 
 ## Objectives {#sec:objectives}
 
-1. Implement a CAN/CAN FD protocol controller in VHDL, compliant with ISO 11898-1 [@iso11898_1].
+1. Implement a CC/CF protocol controller in VHDL, compliant with ISO 11898-1 [@iso11898_1].
 2. Establish a structured requirements framework with traceability from ISO 11898-1 to testbench evidence, covering all implemented modules.
 3. Produce an RTL design integrated via Avalon-ST interfaces into Everllence's existing FPGA infrastructure.
-
-# Background {#sec:background}
-
-This section covers the CAN and CAN FD protocol at the level of motivation and architecture - the bus model, fault-confinement properties, and the bandwidth extensions introduced by CAN FD.
-
-## CAN Classic {#sec:can-classic}
-
-CAN is a serial communication bus developed by Bosch in 1986 [@bosch1991] to connect electronic control units in automotive environments without a central host computer. CAN uses a shared two-wire differential bus on which all nodes broadcast simultaneously and arbitrate access without any designated bus master. Any node may initiate a transmission at any time. Contention is resolved by a non-destructive bitwise arbitration in which the transmitter with the lower-priority identifier detects the collision and silently withdraws, leaving the winner's frame intact. The bus uses two conductors, CANH and CANL, whose voltage difference encodes the bit value, see @fig:can_bus. Twisting the conductors ensures that external electromagnetic interference couples equally onto both wires. Because the receiver measures only the differential voltage, this common-mode noise cancels - a practical necessity in the electrically harsh environment.
-
-![Four CAN nodes connected to a shared twisted-wire bus via CANH and CANL conductors. Each node comprises an application process, a CAN controller, and a transceiver IC. The bus is terminated with 120Ω resistors at each end.](figures/can_bus.png){#fig:can_bus width=60%}
-
-CAN's error-handling architecture is a distinguishing feature relative to simpler serial protocols. Five complementary error detection mechanisms operate concurrently on every transmitted frame: transmitter bit monitoring, frame format checking, cyclic redundancy checking, acknowledgment checking, and bit stuffing violation detection. The residual error probability - the probability that a corrupted frame passes all detection mechanisms undetected - for an eight-byte frame in a ten-node network is on the order of $10^{-9}$ per frame, several orders of magnitude lower than contemporary automotive bus alternatives such as VAN and SCP [@charzinski1994]. A fault confinement mechanism tracks each node's error history and automatically escalates from error active through error passive to bus off, electrically isolating a persistently faulty node from the bus without disrupting communication between healthy nodes. Together these properties made CAN the protocol of choice for safety-relevant in-vehicle networks.
-
-## CAN FD {#sec:can-fd-background}
-
-The fault-confinement and multi-master properties that distinguished CAN from its contemporaries were deliberately preserved in CAN FD. The CAN FD protocol extension was introduced by Bosch in 2012 and incorporated in ISO 11898-1 in 2015. The design goal was to extend payload and bit rate while leaving the arbitration and fault-confinement architecture unchanged [@hartwich2012].
-
-CAN's original data payload was capped at eight bytes per frame, limiting raw throughput to around 1 Mbit/s. As embedded control applications became more data-intensive, this ceiling became a practical constraint. CAN FD extends the maximum payload to 64 bytes and introduces a separate higher-speed data phase with bit rates of 8 Mbit/s or beyond, while preserving the CAN Classic arbitration phase and the fault-confinement architecture unchanged.
-
-At high data-phase bit rates the transceiver's TX-to-RX loop delay (approximately 100 ns for a typical CAN FD transceiver such as the TCAN1042 [@tcan1042]) may exceed one bit time. Since the fault confinement mechanism in CAN relies on transmitter nodes monitoring their own transmitted bits, this necessitates the Transmitter Delay Compensation (TDC) mechanism introduced in CAN FD, see @sec:bit-timing. For data-phase to arbitration-phase bit rate ratios below approximately 9, CAN FD accepts the same oscillator tolerance as CAN Classic [@mutter2013].
-
-CAN FD also strengthens the error detection architecture. A CRC polynomial's Hamming distance guarantee holds only up to a certain frame length, making the CAN Classic CRC-15 insufficient for CAN FD's longer payloads. A 17-bit polynomial covers frames up to 16 data bytes and a 21-bit polynomial covers frames up to 64 bytes, both maintaining a Hamming distance of 6 - meaning any combination of five or fewer bit errors within a frame is guaranteed to be detected [@hartwich2012]. In CAN Classic, dynamic stuff bits are excluded from the CRC calculation, allowing errors that create or destroy stuff conditions to escape detection. CAN FD addresses this by including dynamic stuff bits in the CRC data feed and introducing the Stuff Bit Count (SBC) field as an independent check on the number of dynamic stuff bits. Together, these changes significantly reduce the residual error probability compared to CAN Classic [@mutter2015].
 
 # Requirements {#sec:requirements-engineering}
 
@@ -339,7 +334,7 @@ Statements 3 and 4 each embed CAN XL elements within otherwise in-scope obligati
 
 : REQ-026 distilled from seven extracted normative statements. {#tbl:req026-example}
 
-# CAN and CAN FD Protocol Overview {#sec:can-protocol-overview}
+# CAN Classic and CAN FD Protocol Overview {#sec:can-protocol-overview}
 
 The 37 requirements distilled in @sec:requirements-engineering define what must be implemented and verified - but they also function as a structured map to the protocol, since every requirement points to a mechanism that must be understood before implementation can begin. Those mechanisms - the sub-layer model, frame formats, bit timing, stuffing, CRC, and error handling - are covered here, each cross-referenced to the relevant REQ-NNN entries. Readers familiar with ISO 11898-1 may skip to @sec:verification-plan.
 
@@ -356,11 +351,11 @@ ISO 11898-1 structures the CAN node reference model into three functional sub-la
 
 ## Frame Types and Formats {#sec:frame-types}
 
-CAN defines two classes of frames: CAN Classic (CC) and CAN FD (FD). Within each class, frames may carry either an 11-bit base identifier or a 29-bit extended identifier, giving four frame formats: CB (Classic Base), CE (Classic Extended), FB (FD Base), and FE (FD Extended), as shown in @fig:can-frame-structure and specified in REQ-037. Classic frames (CB and CE) additionally support remote frame variants, giving six bus frame types in total.
+CAN frames may carry either an 11-bit base identifier or a 29-bit extended identifier, giving four frame formats: CBFF (CAN Classic Base Frame Format), CEFF (CAN Classic Extended Frame Format), FBFF (CAN FD Base Frame Format), and FEFF (CAN FD Extended Frame Format) (REQ-037). The four frame formats are depicted in @fig:can-frame-structure along with the Active/Passive Error Flags (AEF/PEF). CBFF and CEFF additionally support Remote Frame (RF) variants, giving six frame format types in total.
 
-![CAN frame formats (CB, CE, FB, FE) and the error and overload flags, with field widths annotated per ISO 11898-1. The bus waveform below each format indicates the level of fixed-polarity protocol bits. Hatched regions indicate variable-content fields.](figures/frame_format.png){#fig:can-frame-structure height=85%}
+![CAN frame formats (CBFF, CEFF, FBFF, FEFF) and the error and overload flags, with field widths annotated per ISO 11898-1. The bus waveform below each format indicates the level of fixed-polarity protocol bits. Hatched regions indicate variable-content fields.](figures/frame_format.png){#fig:can-frame-structure height=85%}
 
-A CAN Classic frame opens with a dominant SOF bit that triggers hard synchronization (@sec:bit-timing) in all receiving nodes, followed by the arbitration, control, data, and CRC fields, an ACK slot, and a seven-bit EOF delimiter. The RTR bit is dominant for data frames and recessive for remote frames. The IDE bit distinguishes base frames (dominant, 11-bit ID) from extended frames (recessive, 29-bit ID). Fixed-polarity form bits (SRR, r0, r1) carry no protocol instruction. The DLC encodes the number of data bytes in the payload (REQ-031). The ACK slot carries a dominant bit driven by every receiver that has validated the CRC. Each frame is followed by the interframe space - intermission (INT), suspend transmission (ST, error passive transmitters only), and bus idle (REQ-008).
+A frame opens with a dominant SOF bit that triggers hard synchronization (@sec:bit-timing) in all receiving nodes, followed by the arbitration, control, data, and CRC fields, an ACK slot, and a seven-bit EOF delimiter. The RTR bit is dominant for data frames and recessive for remote frames. The IDE bit distinguishes base frames (dominant, 11-bit ID) from extended frames (recessive, 29-bit ID). Fixed-polarity form bits (SRR, r0, r1) carry no protocol instruction. The DLC encodes the number of data bytes in the payload (REQ-031). The ACK slot carries a dominant bit driven by every receiver that has validated the CRC. Each frame is followed by the interframe space - intermission (INT), suspend transmission (ST, error passive transmitters only), and bus idle (REQ-008).
 
 A CAN FD frame shares the same arbitration phase structure, with the FDF bit signalling the FD format when recessive. The FD control field contains a reserved form bit (res) alongside BRS and ESI. The DLC retains its 4-bit width but uses a non-linear mapping above 8 bytes, extending the maximum payload to 64 bytes (REQ-031). The BRS (Bit Rate Switch) bit controls the transition to the data-phase bit rate: when BRS is recessive the bus switches to the faster data rate immediately after the BRS sample point and returns to the nominal rate at the CRC delimiter (REQ-030). The ESI (Error State Indicator) bit reflects the transmitting node's fault-confinement state: a node in error passive state shall transmit ESI recessive (REQ-015). The FD CRC field is additionally prefixed by a Stuff Bit Count (SBC) - a Gray-coded count of dynamic stuff bits with a parity bit (REQ-016).
 
@@ -368,7 +363,7 @@ A CAN FD frame shares the same arbitration phase structure, with the FDF bit sig
 
 ![CAN bit time segments (SS, PS, PS1, PS2) and Sample Point (SP). The two-node layout illustrates the round-trip propagation delay (t_TRX + t_bus each way) that PS must cover for correct arbitration.](figures/bit_timing.png){#fig:can-bit-timing width=70%}
 
-Every CAN bit period is divided into four non-overlapping time segments measured in Time Quanta (TQ), where one TQ equals the system clock period multiplied by a programmable integer prescaler, see @fig:can-bit-timing. CAN FD extends CAN Classic with an independently configured data-phase bit rate. A CAN FD node therefore maintains two independent sets of segment parameters, one for the nominal rate and one for the data rate (REQ-024):
+Every CAN bit period is divided into four non-overlapping time segments measured in Time Quanta (TQ), where one TQ equals the system clock period multiplied by a programmable integer prescaler, see @fig:can-bit-timing. CAN FD extends CC with an independently configured data-phase bit rate. A CAN FD node therefore maintains two independent sets of segment parameters, one for the nominal rate and one for the data rate (REQ-024):
 
 - **Sync Segment (SS)**: one TQ. The segment at which a recessive-to-dominant edge is expected when the node is synchronized.
 - **Propagation Segment (PS)**: guarantees that a bit driven by any node reaches all others before the sample point, enabling correct arbitration. PS shall be programmed to at least twice the one-way propagation delay: 2 × (t_TRX + t_bus), see @fig:can-bit-timing.
@@ -393,7 +388,7 @@ When the FD data phase begins, the transceiver loopback delay may span multiple 
 
 ## Bit Stuffing {#sec:bit-stuffing}
 
-Bit stuffing ensures sufficient transitions on the bus for receiver clock synchronization. CAN Classic applies dynamic stuffing from SOF through the CRC field: after five consecutive bits of the same polarity, the transmitter inserts one complement Stuff Bit (SB) and the receiver discards it (REQ-018). CAN FD retains dynamic stuffing through the arbitration and data fields, then switches to fixed stuffing in the CRC field. Fixed Stuff Bits (FSB) are inserted before the SBC field and after every fourth CRC bit, regardless of the preceding bit pattern. FSBs are accompanied by a Gray-coded Stuff Bit Count (SBC) field that allows receivers to verify the number of dynamic stuff bits seen in the frame (REQ-016, @fig:can-bit-stuffing).
+Bit stuffing ensures sufficient transitions on the bus for receiver clock synchronization. CC applies dynamic stuffing from SOF through the CRC field: after five consecutive bits of the same polarity, the transmitter inserts one complement Stuff Bit (SB) and the receiver discards it (REQ-018). CAN FD retains dynamic stuffing through the arbitration and data fields, then switches to fixed stuffing in the CRC field. Fixed Stuff Bits (FSB) are inserted before the SBC field and after every fourth CRC bit, regardless of the preceding bit pattern. FSBs are accompanied by a Gray-coded Stuff Bit Count (SBC) field that allows receivers to verify the number of dynamic stuff bits seen in the frame (REQ-016, @fig:can-bit-stuffing).
 
 ![Dynamic and fixed bit-stuffing examples showing stuff bit placement for both encoding modes. The waveform below each row shows the resulting bus signal.](figures/bit_stuffing.png){#fig:can-bit-stuffing width=100%}
 
@@ -401,7 +396,7 @@ Bit stuffing ensures sufficient transitions on the bus for receiver clock synchr
 
 The CRC polynomial and field length depend on frame type and data payload length (REQ-006):
 
-- **CRC-15**: used for all CAN Classic frames. The CRC accumulates over SOF, arbitration, control, and data fields with SBs excluded (REQ-013).
+- **CRC-15**: used for all CC frames. The CRC accumulates over SOF, arbitration, control, and data fields with SBs excluded (REQ-013).
 - **CRC-17**: used for FD frames with data payloads up to 16 bytes (DLC 0-10).
 - **CRC-21**: used for FD frames with data payloads from 20 to 64 bytes (DLC 11-15).
 
@@ -710,7 +705,7 @@ The synthesized design (`can_mac_pcs_fce`) uses 4,608 Logic Elements (LE) (30% o
 | `can_mac_ser` | 84 | 40 |
 | `can_mac_bs` | 31 | 12 |
 | **CAN FD total** (`can_mac_pcs_fce`) | **4,608** | **869** | |
-| **CAN Classic** (`can_bus_controller`) | **1,146** | **334** | Existing controller, see @sec:existing-controller |
+| **CC** (`can_bus_controller`) | **1,146** | **334** | Existing controller, see @sec:existing-controller |
 
 : Resource utilization on Cyclone 10 LP: `can_mac_pcs_fce` breakdown and `can_bus_controller` baseline. {#tbl:synthesis-resources}
 
@@ -741,7 +736,7 @@ The MCP server interface proved genuinely useful throughout the design, implemen
 
 Of the nine open requirements, six are LLC requirements deferred pending `can_llc` implementation - a known scope boundary, not a gap in the implemented protocol engine. REQ-034 (P3) is not applicable: this implementation streams frames from LLC to MAC with no shared memory, so the shared memory consistency requirement does not apply. REQ-035 (P2) is an optional operational feature - a node that always signals errors is a fully correct CAN FD participant. REQ-021 (P1) is partially covered: bit-error detection is verified, but sub-claims 2-5 require a frame-aware stimulus source to inject errors at the correct bit positions. A reference model approach closes them (@sec:future-work).
 
-The CAN FD stack uses 4,608 logic elements on the Cyclone 10 LP target - 4.0× the 1,146 elements of the existing CAN Classic controller (@sec:existing-controller). Growth is dominated by the RX frame buffer: at 15 bytes the register-based implementation is unremarkable, but at 70 bytes the write-address decoder and read mux each scale proportionally with buffer depth, becoming the dominant cost in `can_mac_fsm`'s 4,109 LEs. The added protocol features - dual bit rate switching, TDC, three CRC variants, fixed stuffing with SBC, and full fault confinement - account for the remainder. Mapping the 70-byte buffer to a single BRAM instance would eliminate the storage flip-flops and combinatorial decode logic, reducing `can_mac_fsm` to protocol-logic cost (@sec:future-work). The worst-case fmax of approximately 127 MHz exceeds the highest recommended CAN FD system clock of 80 MHz by more than 1.5× (@sec:synthesis-timing).
+The CAN FD stack uses 4,608 logic elements on the Cyclone 10 LP target - 4.0× the 1,146 elements of the existing CC controller (@sec:existing-controller). Growth is dominated by the RX frame buffer: at 15 bytes the register-based implementation is unremarkable, but at 70 bytes the write-address decoder and read mux each scale proportionally with buffer depth, becoming the dominant cost in `can_mac_fsm`'s 4,109 LEs. The added protocol features - dual bit rate switching, TDC, three CRC variants, fixed stuffing with SBC, and full fault confinement - account for the remainder. Mapping the 70-byte buffer to a single BRAM instance would eliminate the storage flip-flops and combinatorial decode logic, reducing `can_mac_fsm` to protocol-logic cost (@sec:future-work). The worst-case fmax of approximately 127 MHz exceeds the highest recommended CAN FD system clock of 80 MHz by more than 1.5× (@sec:synthesis-timing).
 
 ## Objectives Assessment {#sec:objectives-assessment}
 
