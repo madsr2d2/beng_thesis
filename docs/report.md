@@ -334,7 +334,7 @@ Statements 3 and 4 each embed CAN XL elements within otherwise in-scope obligati
 
 # CAN Classic and CAN FD Protocol Overview {#sec:can-protocol-overview}
 
-The 37 requirements distilled in @sec:requirements-engineering define what must be implemented and verified - but they also function as a structured map to the protocol, since every requirement points to a mechanism that must be understood before implementation can begin. Those mechanisms - the sub-layer model, frame formats, bit timing, stuffing, CRC, and error handling - are covered here, each cross-referenced to the relevant REQ-NNN entries. Readers familiar with ISO 11898-1 may skip to @sec:verification-plan.
+The 37 requirements distilled in @sec:requirements-engineering define what must be implemented and verified - but they also function as a structured map to the protocol, since every requirement points to a mechanism that must be understood before implementation can begin. Those mechanisms - the sub-layer model, frame formats, bit timing, bit stuffing, CRC, and error handling - are covered here, each cross-referenced to the relevant REQ-NNN entries. Readers familiar with ISO 11898-1 may skip to @sec:verification-plan.
 
 ## Layered Reference Model {#sec:can-layered-model}
 
@@ -342,10 +342,10 @@ The 37 requirements distilled in @sec:requirements-engineering define what must 
 
 ISO 11898-1 structures the CAN node reference model into three functional sub-layers - LLC and MAC in the data link layer, PCS in the physical layer - and a cross-cutting Fault Confinement Entity (FCE) [@iso11898_1, Fig. 4] (see @fig:can-node):
 
-- **LLC (Logical Link Control)**: acceptance filtering, overload notification, and recovery management - retransmission on error or lost arbitration, and supplying frames to the MAC.
-- **MAC (Medium Access Control)**: encodes and decodes the frame bit-by-bit, performing bit stuffing and destuffing, CRC generation and checking, error detection and signalling, acknowledgment handling, and medium access arbitration.
-- **PCS (Physical Coding Sublayer)**: bit timing and bus sampling, clock synchronization, and the TX/RX interface to the physical transceiver.
-- **FCE (Fault Confinement Entity)**: escalating the node's error state from error active through error passive to bus off as error counts accumulate.
+- **LLC (Logical Link Control)**: Acceptance filtering (selecting received frames by identifier), overload notification (delaying the next frame when internal conditions require it), and recovery management (retransmission on error or lost arbitration), and supplying frames to the MAC.
+- **MAC (Medium Access Control)**: Encodes and decodes the frame bit-by-bit, performing bit stuffing and destuffing, CRC generation and checking, error detection and signalling, acknowledgment handling, and medium access arbitration.
+- **PCS (Physical Coding Sublayer)**: Bit timing and bus sampling (segmenting each bit time and reading the bus at the sample point), clock synchronization, and the TX/RX interface to the physical transceiver.
+- **FCE (Fault Confinement Entity)**: Escalating the node's error state from error active through error passive to bus off as transmit and receive error counts accumulate.
 
 ## Frame Types and Formats {#sec:frame-types}
 
@@ -353,22 +353,22 @@ CAN frames may carry either an 11-bit base identifier or a 29-bit extended ident
 
 ![CAN frame formats (CBFF, CEFF, FBFF, FEFF) and the error and overload flags, with field widths annotated per ISO 11898-1. The bus waveform below each format indicates the level of fixed-polarity protocol bits. Hatched regions indicate variable-content fields.](figures/frame_format.png){#fig:can-frame-structure height=85%}
 
-A frame opens with a dominant SOF bit that triggers hard synchronization (@sec:bit-timing) in all receiving nodes, followed by the arbitration, control, data, and CRC fields, an ACK slot, and a seven-bit EOF delimiter. The RTR bit is dominant for data frames and recessive for remote frames. The IDE bit distinguishes base frames (dominant, 11-bit ID) from extended frames (recessive, 29-bit ID). Fixed-polarity form bits (SRR, r0, r1) carry no protocol instruction. The DLC encodes the number of data bytes in the payload (REQ-031). The ACK slot carries a dominant bit driven by every receiver that has validated the CRC. Each frame is followed by the interframe space - intermission (INT), suspend transmission (ST, error passive transmitters only), and bus idle (REQ-008).
+All frame formats opens with a D SOF bit that triggers hard synchronization (@sec:bit-timing) in all receiving nodes, followed by the arbitration, control, data, and CRC fields, an ACK slot, and a seven-bit EOF delimiter. The RTR bit is D for data frames and R for RF. The IDE bit distinguishes base frames from extended frames. Fixed-polarity form bits (SRR, r0, r1) carry no protocol instruction. The DLC encodes the number of data bytes in the payload (REQ-031). The ACK slot carries a dominant bit driven by every receiver that has validated the CRC. Each frame is followed by the interframe space - intermission (INT), suspend transmission (ST, error passive transmitters only), and bus idle (REQ-008).
 
-A CAN FD frame shares the same arbitration phase structure, with the FDF bit signalling the FD format when recessive. The FD control field contains a reserved form bit (res) alongside BRS and ESI. The DLC retains its 4-bit width but uses a non-linear mapping above 8 bytes, extending the maximum payload to 64 bytes (REQ-031). The BRS (Bit Rate Switch) bit controls the transition to the data-phase bit rate: when BRS is recessive the bus switches to the faster data rate immediately after the BRS sample point and returns to the nominal rate at the CRC delimiter (REQ-030). The ESI (Error State Indicator) bit reflects the transmitting node's fault-confinement state: a node in error passive state shall transmit ESI recessive (REQ-015). The FD CRC field is additionally prefixed by a Stuff Bit Count (SBC) - a Gray-coded count of dynamic stuff bits with a parity bit (REQ-016).
+CFFF share the same arbitration phase structure, with the FDF bit signalling an CF format when R. The CF control field contains a reserved form bit (res) alongside BRS and ESI. The DLC retains its 4-bit width but uses a non-linear mapping above 8 bytes, extending the maximum payload to 64 bytes (REQ-031). The BRS (Bit Rate Switch) bit controls the transition to the data-phase bit rate. When BRS is R the bus switches to the faster data rate immediately after the BRS sample point and returns to the nominal rate at the CRC delimiter (REQ-030). The ESI (Error State Indicator) bit reflects the transmitting node's fault-confinement state: a node in error passive state shall transmit ESI recessive (REQ-015). The CFFF CRC field is additionally prefixed by a Stuff Bit Count (SBC) - a Gray-coded count of dynamic stuff bits with a parity bit (REQ-016).
 
 ## Bit Timing {#sec:bit-timing}
 
 ![CAN bit time segments (SS, PS, PS1, PS2) and Sample Point (SP). The two-node layout illustrates the round-trip propagation delay (t_TRX + t_bus each way) that PS must cover for correct arbitration.](figures/bit_timing.png){#fig:can-bit-timing width=70%}
 
-Every CAN bit period is divided into four non-overlapping time segments measured in Time Quanta (TQ), where one TQ equals the system clock period multiplied by a programmable integer prescaler, see @fig:can-bit-timing. CAN FD extends CC with an independently configured data-phase bit rate. A CAN FD node therefore maintains two independent sets of segment parameters, one for the nominal rate and one for the data rate (REQ-024):
+Every CAN bit period is divided into four non-overlapping time segments measured in Time Quanta (TQ), where one TQ equals the system clock period multiplied by a programmable integer prescaler, see @fig:can-bit-timing. CF extends CC with an independently configured data-phase bit rate. A CF node therefore maintains two independent sets of segment parameters, one for the nominal rate and one for the data rate (REQ-024). The segments are listed described below.
 
 - **Sync Segment (SS)**: one TQ. The segment at which a recessive-to-dominant edge is expected when the node is synchronized.
 - **Propagation Segment (PS)**: guarantees that a bit driven by any node reaches all others before the sample point, enabling correct arbitration. PS shall be programmed to at least twice the one-way propagation delay: 2 × (t_TRX + t_bus), see @fig:can-bit-timing.
 - **Phase Segment 1 (PS1)**: immediately precedes the sample point. Can be lengthened by the resynchronization mechanism to absorb positive phase errors.
 - **Phase Segment 2 (PS2)**: follows the sample point to the end of the bit. Can be shortened to absorb negative phase errors.
 
-The **sample point** falls at the PS1 / PS2 boundary. Every receiver samples the bus exactly once per bit at this point. The sample point position - expressed as a percentage of the total bit time - is a configuration parameter traded off against bus length, node count, and oscillator tolerance.
+The bus is sampled at the sample point (SP) which falls at the PS1 / PS2 boundary.
 
 ### Synchronization {#sec:bit-sync}
 
@@ -379,14 +379,14 @@ In a synchronized receiving node, edges arrive within SS. An edge outside SS car
 
 ### Transmitter Delay Compensation {#sec:tdc}
 
-When the FD data phase begins, the transceiver loopback delay may span multiple data-phase bit times, necessitating a delay before sampling to compensate for in-flight bits (REQ-025). TDC measures this delay in the nominal-rate control field: from when the res bit goes dominant on TX to when the edge arrives on RX. The Secondary Sample Point (SSP) is then placed at the measured delay plus a programmable offset, firing before the SP in each bit time so that errors can be reacted upon at the SP. For the initial bits where the loopback has not yet returned, the SSP is suppressed. From the first valid SSP onward, SSP monitoring replaces SP monitoring for the remainder of the data phase, see @fig:can-tdc.
+When the CF data phase begins, the transceiver loopback delay may span multiple data-phase bit times, necessitating a delay before sampling to compensate for in-flight bits (REQ-025). TDC measures this delay in the nominal-rate control field: from when the res bit goes dominant on TX to when the edge arrives on RX. The Secondary Sample Point (SSP) is then placed at the measured delay plus a programmable offset, firing before the SP in each bit time so that bit errors can be reacted upon at the SP. For the initial data-phase bits where the loopback has not yet returned, the SSP is suppressed. From the first valid SSP onward, SSP monitoring replaces SP monitoring for the remainder of the data phase, see @fig:can-tdc.
 
 ![Transmitter Delay Compensation. Top: the first data-phase bits have no valid SSP while the loopback is still in transit. Once the loopback returns, the SSP is placed at the measured transceiver delay plus a programmable offset, firing before the SP in each bit time. Bottom: the transceiver delay is measured from when the res bit goes dominant on TX to when the edge arrives on RX.](figures/tdc.png){#fig:can-tdc width=100%}
 
 
 ## Bit Stuffing {#sec:bit-stuffing}
 
-Bit stuffing ensures sufficient transitions on the bus for receiver clock synchronization. CC applies dynamic stuffing from SOF through the CRC field: after five consecutive bits of the same polarity, the transmitter inserts one complement Stuff Bit (SB) and the receiver discards it (REQ-018). CAN FD retains dynamic stuffing through the arbitration and data fields, then switches to fixed stuffing in the CRC field. Fixed Stuff Bits (FSB) are inserted before the SBC field and after every fourth CRC bit, regardless of the preceding bit pattern. FSBs are accompanied by a Gray-coded Stuff Bit Count (SBC) field that allows receivers to verify the number of dynamic stuff bits seen in the frame (REQ-016, @fig:can-bit-stuffing).
+Bit stuffing ensures sufficient transitions on the bus for receiver clock synchronization. CC applies dynamic stuffing from SOF through the CRC field: after five consecutive bits of the same polarity, the transmitter inserts one complement Stuff Bit (SB) and the receiver discards it (REQ-018). CAN FD retains dynamic stuffing through the arbitration and data fields, then switches to fixed stuffing in the CRC field. Fixed Stuff Bits are inserted at fixed positions - before the SBC field and after every fourth CRC bit - each the inverse of the preceding bit, guaranteeing transitions regardless of the CRC data pattern. A separate Stuff Bit Count (SBC) field, Gray-coded with a parity bit, enables receivers to verify the number of dynamic stuff bits inserted in the frame (REQ-016, @fig:can-bit-stuffing).
 
 ![Dynamic and fixed bit-stuffing examples showing stuff bit placement for both encoding modes. The waveform below each row shows the resulting bus signal.](figures/bit_stuffing.png){#fig:can-bit-stuffing width=100%}
 
