@@ -151,7 +151,7 @@ The original version of CAN protocol, CAN Classic (CC), forms the basis of Everl
 
 ## Background {#sec:background}
 
-This section establishes the technical context for the work. CC and CF are both governed by ISO 11898-1 [@iso11898_1], which defines the CAN data link layer protocol. The subsections cover each at the level of motivation and key properties, and introduce the existing Everllence CC controller (`can_bus_controller`) that provided the immediate starting point for the redesign.
+This section establishes the technical context for the thesis work. CC and CF are both governed by ISO 11898-1 [@iso11898_1], which defines the CAN data link layer protocol. The subsections cover each at the level of motivation and key properties, and introduce the existing Everllence CC controller (`can_bus_controller`) that provided the immediate starting point for the redesign.
 
 ### CAN Classic {#sec:can-classic}
 
@@ -181,25 +181,26 @@ The central component is the orchestrating FSM that handles both transmission an
 
 While the `can_bus_controller` is functional for CC, several areas of its design would require significant rework to support CF. The main limitations are listed below.
 
-- **Single bit rate domain**: CF requires switching between two bit rates: a slow (nominal) rate and a fast (data) rate. The fast data rate additionally requires Transmitter Delay Compensation (TDC) to account for the transceiver loop delay (@sec:bit-timing). 
+- **Single bit rate domain**: The controller operates at a single bit rate with no data-phase switching or TDC support (@sec:bit-timing).
 
-- **Dynamic bit stuffing only**: The `can_bus_controller` implements the CC rule of inserting an inverse bit after five consecutive identical bits. CF introduces a second stuffing mode - fixed bit stuffing - where a stuff bit is inserted at fixed intervals during the CRC field, and a Stuff Bit Count (SBC) field with Gray-coded parity is appended (@sec:bit-stuffing). The existing stuffer has no mechanism for mode switching or SBC generation.
+- **Dynamic bit stuffing only**: The stuffer has no mechanism for fixed bit stuffing or SBC generation (@sec:bit-stuffing).
 
-- **Single CRC engine**: The `can_bus_controller` has a single CRC engine. CF requires three polynomials - CRC-15 for Classic frames, CRC-17 for CF frames with payloads up to 16 bytes, and CRC-21 for larger payloads (@sec:crc-overview). A compliant receiver must run all three engines in parallel, since the correct polynomial depends on DLC and is not known until the control field is decoded. The data feed also differs between CC and CF frames, requiring separate accumulation paths.
+- **Single CRC engine**: The controller has a single CRC engine, where CF compliance requires three running in parallel with separate data feed paths (@sec:crc-overview).
 
-- **Coupled fault confinement**: Error counting (TEC/REC) and node state transitions are implemented in the same source file as the frame FSM, with no clean sub-layer boundary between them (@sec:error-model). ISO 11898-1 defines fault confinement as a distinct cross-cutting entity, and separating it as an independently testable module both conforms closer to the standard's reference model (@sec:can-layered-model) and simplifies verification.
+- **Coupled fault confinement**: Error counting and node state transitions are implemented in the same source file as the frame FSM, with no clean sub-layer boundary between them (@sec:error-model). ISO 11898-1 defines fault confinement as a distinct cross-cutting entity, and separating it as an independently testable module both conforms closer to the standard's reference model (@sec:can-layered-model) and simplifies verification.
 
 - **Format-dependent frame structure**: CC and CF frames diverge in the control and data phases, where CF introduces format-specific fields with no Classic equivalent (@sec:frame-types). The existing FSM has no clean mechanism to handle this divergence across four frame variants.
 
-The rework required across bit timing, bit stuffing, CRC, and frame format complexity is large enough to justify a clean-slate redesign structured around the ISO 11898-1 layered architecture (LLC, MAC, PCS, FCE, @sec:can-layered-model) with independently testable subcomponents, rather than retrofitting FD support onto a design not originally built with those boundaries.
+The changes required across bit timing, bit stuffing, CRC, and frame format handling are pervasive enough to justify a clean-slate redesign.
 
-## Existing CAN FD IP Cores {#sec:existing-ip-cores}
+## Third-Party CAN FD IP Cores {#sec:existing-ip-cores}
 
 Before committing to an in-house redesign, the available CF controller IP cores were evaluated. @tbl:canfd-ip-survey summarizes the candidates, spanning both open-source and commercial offerings.
 
 ### Open-Source Implementations {#sec:open-source-implementations}
 
 **CTU CAN FD** [@ctucanfd] is the only mature open-source CF controller available as synthesizable HDL. Developed at the Czech Technical University in Prague, it is written in VHDL, licensed under MIT, and has been conformance-tested against ISO 16845-1 [@iso16845_1]. The controller includes a full TX and RX pipeline with up to four TX buffers, acceptance filtering, timestamping, and a register interface with DMA support.
+
 ### Commercial Implementations {#sec:commercial-implementations}
 
 **Bosch M\_CAN** [@bosch_mcan] is the reference CF controller developed by Bosh. M\_CAN is the IP core embedded in most automotive micro controllers. It is licensed under a non-disclosure agreement with per-design royalty fees.
@@ -217,19 +218,19 @@ Before committing to an in-house redesign, the available CF controller IP cores 
 
 : Survey of available CF controller IP cores. {#tbl:canfd-ip-survey}
 
-### Rationale for In-House Development {#sec:rationale-in-house}
+## Rationale for In-House Development {#sec:rationale-in-house}
 
 None of these solutions satisfies Everllence's combined requirements for safety-critical marine engine control. The disqualifying factors span IP ownership, verification authority, architectural scope, integration with existing infrastructure, and platform independence - each addressed in turn below.
 
-**IP ownership and supply chain independence.** Everllence's engine controllers carry service commitments of up to thirty years. Commercial IP cores introduce a licensing dependency on an external vendor over that full horizon - vendors may discontinue support, change licensing terms, or be acquired. Owning the RTL outright eliminates this exposure and ensures that the design can be maintained, ported, and modified without third-party approval for the full product lifetime. The open-source CTU CAN FD avoids the licensing risk, but using it still means adopting a codebase whose architecture, naming conventions, and design decisions were made for a different context.
+- **IP ownership and supply chain independence:** Everllence's engine controllers carry service commitments of up to thirty years. Commercial IP cores introduce a licensing dependency on an external vendor over that full horizon - vendors may discontinue support, change licensing terms, or be acquired. Owning the RTL outright eliminates this exposure and ensures that the design can be maintained, ported, and modified without third-party approval for the full product lifetime. The open-source CTU CAN FD avoids the licensing risk, but using it still means adopting a codebase whose architecture, naming conventions, and design decisions were made for a different context.
 
-**Verification authority.** In safety-critical domains, the verification evidence must be traceable from standard requirements to RTL assertions and testbench results. Adopting a third-party core means inheriting its verification artifacts rather than producing them. Everllence's verification methodology requires full control over the verification plan, the testbench architecture, and the assertion coverage.
+- **Verification authority:** In safety-critical domains, the verification evidence must be traceable from standard requirements to RTL assertions and testbench results. Adopting a third-party core means inheriting its verification artifacts rather than producing them. Everllence's verification methodology requires full control over the verification plan, the testbench architecture, and the assertion coverage.
 
-**Architectural scope.** All available IP cores implement a complete CAN node - TX and RX pipelines, message memory, acceptance filtering, buffer management, register interfaces, and in some cases DMA controllers. Everllence's application requires only the protocol engine - the module that converts between byte-level frame data and the serial bus - which is exactly the scope of the existing CC controller. The higher-level buffering and filtering logic already exists in Everllence's FPGA infrastructure. Adopting a full-node IP core would introduce unnecessary complexity and area overhead, and stripping the unused subsystems to fit the existing architecture offsets the benefit of using a pre-built core.
+- **Architectural scope:** All available IP cores implement a complete CAN node - TX and RX pipelines, message memory, acceptance filtering, buffer management, register interfaces, and in some cases DMA controllers. Everllence's application requires only the protocol engine - the module that converts between byte-level frame data and the serial bus - which is exactly the scope of the existing CC controller. The higher-level buffering and filtering logic already exists in Everllence's FPGA infrastructure. Adopting a full-node IP core would introduce unnecessary complexity and area overhead, and stripping the unused subsystems to fit the existing architecture offsets the benefit of using a pre-built core.
 
-**Integration with existing infrastructure.** Everllence's FPGA designs use a specific Avalon-ST streaming interface for inter-module communication and established conventions for signal naming and module boundaries. A third-party core would require an adaptation layer to bridge its native interface to the existing infrastructure. The in-house design uses Everllence's interface conventions natively, eliminating this integration overhead.
+- **Integration with existing infrastructure:** Everllence's FPGA designs use a specific Avalon-ST streaming interface for inter-module communication and established conventions for signal naming and module boundaries. A third-party core would require an adaptation layer to bridge its native interface to the existing infrastructure. The in-house design uses Everllence's interface conventions natively, eliminating this integration overhead.
 
-**Platform independence.** The AMD/Xilinx CAN FD core is locked to Xilinx devices. The Bosch M\_CAN and other commercial cores are delivered as technology-specific netlists or encrypted HDL for a particular target. The in-house design is written in portable VHDL-93, synthesizable on any FPGA platform ensuring that the IP remains usable if Everllence changes FPGA vendors.
+- **Platform independence:** The AMD/Xilinx CAN FD core is locked to Xilinx devices. The Bosch M\_CAN and other commercial cores are delivered as technology-specific netlists or encrypted HDL for a particular target. The in-house design is written in portable VHDL-93, synthesizable on any FPGA platform ensuring that the IP remains usable if Everllence changes FPGA vendors.
 
 ## Problem Statement {#sec:problem-statement}
 
