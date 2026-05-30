@@ -528,7 +528,7 @@ All inter-module interfaces use typed records (e.g., `t_can_mac_pcs_if_m2s`, `t_
 
 ### FSM Structure and Mode Flag
 
-`can_mac_fsm` contains two synchronous processes (`p_fsm` and `p_stream_to_LLC`) and one `t_fsm_state` enum covering 19 states. An `is_transmitter` flag, latched when the FSM drives the SOF dominant bit at the start of a new frame transmission and cleared at arbitration loss (REQ-020) or at the end of the EOF field, partitions per-state logic into a TX branch and an RX branch. The error-frame states (`s_error_flag`, `s_error_delimiter`) are an exception: both transmitter and receiver errors enter the same two-state sequence, with flag polarity driven by `fce_i.error_active` (REQ-007, REQ-022).
+`can_mac_fsm` contains two synchronous processes (`p_fsm` and `p_stream_to_LLC`). An `is_transmitter` flag, latched when the FSM drives the SOF dominant bit at the start of a new frame transmission and cleared at arbitration loss (REQ-020) or at the end of the EOF field, partitions per-state logic into a TX branch and an RX branch. The error-frame states (`s_error_flag`, `s_error_delimiter`) are an exception: both transmitter and receiver errors enter the same two-state sequence, with flag polarity driven by `fce_i.error_active` (REQ-007, REQ-022).
 
 `p_fsm` organizes each sample-point cycle as three phases:
 
