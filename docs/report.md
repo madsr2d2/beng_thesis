@@ -404,16 +404,15 @@ The key asymmetry between CC and FD concerns the CRC data feed. For FD frames, d
 
 Every CAN node monitors the bus for five categories of error (REQ-021):
 
-- **Bit error**: a transmitter reads back a polarity different from what it drove. Exceptions: a recessive non-stuff bit overridden during arbitration and a recessive bit in the ACK slot.
-- **Stuff error**: six consecutive bits of the same polarity where the stuffing rule prohibits it.
-- **CRC error**: received checksum does not match the locally recomputed value.
-- **Form error**: a fixed-format field contains an illegal bit value.
-- **Acknowledgment error**: a transmitter receives no dominant ACK bit from any receiver (REQ-014).
+- **Bit error**: A transmitter reads back a polarity different from what it drove. Exceptions: a recessive non-stuff bit overridden during arbitration and a recessive bit in the ACK slot.
+- **Stuff error**: Six consecutive bits of the same polarity in frame fields where dynamic bit stuffing applies.
+- **CRC error**: Received checksum does not match the locally recomputed value.
+- **Form error**: A fixed-format field contains an illegal bit value.
+- **Acknowledgment error**: A transmitter receives no dominant ACK bit from any receiver (REQ-014).
 
-Detection of any error causes the detecting node to transmit an error flag, aborting the frame (REQ-022). An error active node transmits an active error flag of six consecutive dominant bits. An error passive node transmits a passive error flag of six consecutive recessive bits instead (REQ-007). Both are followed by an eight-bit recessive error delimiter.
+Detection of any error causes the detecting node to abort frame transmission or reception and start transmitting an error flag (REQ-022). An error active node transmits an Active Error Flag (AEF) of six consecutive dominant bits. An error passive node transmits a Passive Error Flag (PEF) of six consecutive recessive bits instead (REQ-007). Both are followed by an eight-bit recessive error delimiter. Transmission of an AEF flag will trigger bit-stuffing errors in the receiving nodes on the bus, causing these nodes to transmit their own error flags. 
 
-The FCE tracks each node's error history through the Transmit Error Counter (TEC) and Receive Error Counter (REC). Counter increments and decrements follow the rules defined in REQ-028. A node begins in error active, transitions to error passive when either counter exceeds 127, and to bus off when TEC exceeds 255 (REQ-029). An error-passive transmitter is exempt from the TEC increment on an ACK error, preventing an isolated node from escalating to bus-off through failed acknowledgments alone. In bus off the node ceases all bus activity and shall not influence the bus (REQ-027) until 128 sequences of 11 consecutive recessive bits are observed, after which TEC and REC are reset and the node returns to error active. A host-initiated supervisory reset also returns the FCE to its initial state immediately (REQ-029). Whether error signaling is enabled at all is a run-time configuration parameter (REQ-035).
-
+The FCE tracks each node's error history through the Transmit Error Counter (TEC) and Receive Error Counter (REC). Counter increments and decrements follow the rules defined in REQ-028. A node begins in error active, transitions to error passive when either counter exceeds 127, and to bus off when TEC exceeds 255 (REQ-029). An error-passive transmitter is exempt from the TEC increment on an ACK error, preventing an isolated node from escalating to bus-off through failed acknowledgments alone. In the bus off state, the node ceases all bus activity and shall not influence the bus (REQ-027) until 128 sequences of 11 consecutive recessive bits are observed, after which TEC and REC are reset and the node returns to error active. A host-initiated reset also returns the FCE to its initial state immediately (REQ-029).
 # Verification Plan {#sec:verification-plan}
 
 The verification plan adds five classification dimensions to each of the 37 requirements, driving both the module architecture and the testbench design. The plan was populated using MCP introduced in @sec:requirements-engineering. The five classification dimensions fall into two groups. Design-facing dimensions inform the module architecture. Verification-facing dimensions inform the verification strategy and testbench design. Each field is summarized in the bullets below and described in detail in the following sections.
@@ -423,15 +422,15 @@ The verification plan adds five classification dimensions to each of the 37 requ
 
 ## Layer {#sec:vplan-layer}
 
-The `layer` field assigns each requirement to the protocol sub-layer that owns it (LLC, MAC, PCS, or FCE), determining which module testbench must exercise it. A fifth label - `system` - classifies requirements that are inherently multi-layer or multi-node in nature. The `system` label flags requirements that need either an integrated multi-module testbench or a multi-node simulation environment. REQ-020 (arbitration loss) illustrates both: verifying arbitration requires a full node - MAC, PCS, and FCE cooperating - to drive and monitor the bus, and a second node simultaneously driving dominant while the DUT drives recessive. It is covered in the multi-node `can_mac_pcs_fce_tb.vhd`.
+The `layer` field assigns each requirement to the sub-layer that owns it: LLC, MAC, PCS, or FCE. A fifth label, `system`, marks requirements that are inherently multi-layer or multi-node and need either an integrated testbench or a two-node simulation. REQ-020 (arbitration loss) illustrates the latter: verifying it requires MAC, PCS, and FCE cooperating in a full node, plus a second node driving dominant while the DUT drives recessive.
 
 ## Side {#sec:vplan-side}
 
-The `side` field records whether a requirement pertains to the transmitter path, the receiver path, or both - reflecting the ISO standard's own framing, which frequently specifies transmitter and receiver obligations separately. It determines whether a testbench drives the DUT in transmitter mode, receiver mode, or both roles in succession within a single test scenario. REQ-025 (TDC) illustrates a TX-only classification: measuring the bus loop delay and positioning the SSP is a transmitter concern. Receivers sample at the nominal SP and have no delay compensation obligation, so `side=transmitter` confines the testbench to TX-mode stimulus.
+The `side` field classifies each requirement as transmitter, receiver, or both, reflecting the ISO standard's practice of specifying TX and RX obligations separately. It scopes the testbench to the corresponding drive mode. REQ-025 (TDC) illustrates a TX-only requirement - measuring transceiver loop delay and positioning the SSP only apply to transmitting nodes.
 
 ## Format Applicability {#sec:vplan-format}
 
-The `format_applicability` field records which of the in-scope frame formats (CB, CE, FB, FE) each requirement applies to. Because the formats differ in stuffing mode, CRC polynomial, and control field structure (@sec:can-protocol-overview), a requirement that applies only to FD frames implies stimulus with FDF=1 and DLC values covering both sides of the CRC-17/CRC-21 boundary, while one that applies to all four formats requires a configuration for each. REQ-015 (ESI bit generation) is a good example: it applies only to FB and FE frames, since the ESI field does not exist in CC frames and CB and CE stimulus configurations are therefore meaningless for this requirement.
+The `format_applicability` field records which of the in-scope frame formats (CBFF, CEFF, FBFF, FEFF) each requirement applies to. Because the formats differ in stuffing mode, CRC polynomial, and control field structure, a requirement that applies only to CF frames implies stimulus with FDF=1 and DLC values covering both sides of the CRC-17/CRC-21 boundary, while one that applies to all four formats requires a configuration for each.
 
 ## Observability {#sec:vplan-observability}
 
