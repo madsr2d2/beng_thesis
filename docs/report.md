@@ -294,7 +294,7 @@ Of the 37 requirements, 30 are rated P1, four are P2, and three are P3. Each non
 | ID | Topic | Priority | Demotion rationale |
 | :- | :---- | :- | :------------------------------------------------------------------------- |
 | REQ-002 | LLC TX request and abort timing | P2 | The 2-SOF processing window is a responsiveness guarantee, not a correctness constraint. A node that transmits eventually but outside this window sends valid frames. |
-| REQ-011 | Remote frame | P2 | A data-only node is a valid CAN implementation. Remote frame support is a distinct feature subset not required for basic interoperability. |
+| REQ-011 | Remote frame | P2 | A data-only node is a valid CC/CF implementation. Remote frame support is a distinct feature subset not required for basic interoperability. |
 | REQ-015 | ESI bit transmission | P2 | ESI communicates the node's error state as an informational signal. Incorrect ESI does not abort a frame or trigger a protocol error at any receiver. |
 | REQ-035 | Error signaling enable | P2 | Error signaling itself is covered by P1 requirements. This requirement concerns only the existence of a configurable disable mode, which is an optional operational feature. |
 | REQ-004 | Frame acceptance filtering | P3 | Acceptance filtering is absent from Everllence's current controller, so no regression concerns. The only protocol-relevant filter - suppressing loopback of transmitted frames - is covered by the design. |
@@ -317,19 +317,18 @@ Statements 3 and 4 each embed CAN XL elements within otherwise in-scope obligati
 
 **Paraphrase:**
 
-1. Phase error: the time interval between a recessive-to-dominant edge and the Sync_Seg boundary of the current bit time. Positive when the edge falls after Sync_Seg (late), negative when before (early).
-2. SJW (Synchronization Jump Width): the maximum amount by which Phase_Seg1 or Phase_Seg2 may be adjusted per resynchronization.
-3. One synchronization per bit time, re-enabled after the next recessive sample point.
-4. An edge qualifies only if the previous sample point was recessive and no positive phase error exists while sending dominant. The first recessive-to-dominant edge after the CRC delimiter also qualifies when TDC is active.
-5. Hard synchronization: IFS edges (except the first intermission bit), bus-integration state, and the FDF-to-res transition. Bit time restarts with Sync_Seg completed, unconstrained by SJW.
-6. All other qualifying edges cause resynchronization, except for the FD data-phase transmitter. Positive error: Phase_Seg1 += SJW. Negative error: Phase_Seg2 -= SJW. Error ≤ SJW: same effect as hard synchronization.
+1. Phase error: the time interval between an R-to-D edge and the Sync_Seg boundary of the current bit time. Positive when the edge falls after Sync_Seg (late), negative when before (early).
+2. Qualifying edge: R-to-D, previous SP is R.
+3. SJW is the maximum per-resynchronization adjustment to Phase_Seg1 or Phase_Seg2. Qualifying edges cause resynchronization. If |phase error| ≤ SJW: same effect as hard synchronization. If phase error > SJW: Phase_Seg1 += SJW. If phase error < -SJW: Phase_Seg2 -= SJW.
+4. One synchronization per bit time, re-enabled after the next R SP.
+5. Hard synchronization: IFS edges (except first intermission bit), bus-integration state, and FDF-to-res transition in FD frames. Restarts bit time with Sync_Seg completed.
 
 | Field | Value |
 | :--- | :----------------------------------------------- |
 | ID | REQ-026 |
 | Source | §7.3.5.1, §7.3.5.2, §7.3.5.3, §7.3.5.4, Figure 33 |
 | Priority | P1 |
-| Notes | RTL is stricter than ISO: `mac_i.transmitting` suppresses all sync unconditionally, not just resync on positive phase error. Safe since the transmitter is the timing source. |
+| Notes | RTL is stricter than ISO: sync is suppressed unconditionally when transmitting. Safe since the transmitter is the timing source. |
 
 : REQ-026 distilled from seven extracted normative statements. {#tbl:req026-example}
 
