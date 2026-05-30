@@ -413,6 +413,7 @@ Every CAN node monitors the bus for five categories of error (REQ-021):
 Detection of any error causes the detecting node to abort frame transmission or reception and start transmitting an error flag (REQ-022). An error active node transmits an Active Error Flag (AEF) of six consecutive dominant bits. An error passive node transmits a Passive Error Flag (PEF) of six consecutive recessive bits instead (REQ-007). Both are followed by an eight-bit recessive error delimiter. Transmission of an AEF flag will trigger bit-stuffing errors in the receiving nodes on the bus, causing these nodes to transmit their own error flags. 
 
 The FCE tracks each node's error history through the Transmit Error Counter (TEC) and Receive Error Counter (REC). Counter increments and decrements follow the rules defined in REQ-028. A node begins in error active, transitions to error passive when either counter exceeds 127, and to bus off when TEC exceeds 255 (REQ-029). An error-passive transmitter is exempt from the TEC increment on an ACK error, preventing an isolated node from escalating to bus-off through failed acknowledgments alone. In the bus off state, the node ceases all bus activity and shall not influence the bus (REQ-027) until 128 sequences of 11 consecutive recessive bits are observed, after which TEC and REC are reset and the node returns to error active. A host-initiated reset also returns the FCE to its initial state immediately (REQ-029).
+
 # Verification Plan {#sec:verification-plan}
 
 The verification plan adds five classification dimensions to each of the 37 requirements, driving both the module architecture and the testbench design. The plan was populated using MCP introduced in @sec:requirements-engineering. The five classification dimensions fall into two groups. Design-facing dimensions inform the module architecture. Verification-facing dimensions inform the verification strategy and testbench design. Each field is summarized in the bullets below and described in detail in the following sections.
@@ -480,9 +481,8 @@ The `status` field (`not_started`, `in_progress`, `complete`) records requiremen
 The design maps each ISO 11898-1 sub-layer to a dedicated module, as shown in @fig:can-node-architecture. The primary data path runs from `can_llc` through `can_mac` to `can_pcs`, with `can_fce` sitting outside the path as a cross-cutting entity. A centralized types package (`pk_can_types`) defines all protocol constants, interface records, and reset values shared across modules.
 
 - **`can_llc`:** Implements the LLC sub-layer. Accepts host frames over Avalon-ST, applies acceptance filtering on RX, and streams frames to and from the MAC.
-- **`can_mac`:** Implements the MAC sub-layer. Top-level wrapper instantiating `can_mac_ser`, `can_mac_fsm`, `can_mac_bs`, and `can_mac_crc`.
-- **`can_mac_ser`:** Receives the LLC frame over Avalon-ST and presents a serialized bit stream to `can_mac_fsm`, asserting valid on each bit.
 - **`can_mac_fsm`:** Orchestrates frame TX and RX across all four in-scope formats, controls ready backpressure on `can_mac_ser`, drives `can_mac_bs` and `can_mac_crc`, and commits the next bit to the `can_pcs`.
+- **`can_mac_ser`:** Receives the LLC frame over Avalon-ST and presents a serialized bit stream to `can_mac_fsm`, asserting valid on each bit.
 - **`can_mac_bs`:** Performs dynamic and fixed bit stuffing and destuffing and generates the SBC field for FD frames.
 - **`can_mac_crc`:** Runs CRC-15, CRC-17, and CRC-21 engines in parallel, selecting the output based on frame format and DLC.
 - **`can_pcs`:** Applies bit timing, generates SP and SSP strobes, performs hard synchronization and resynchronization, and manages the TX/RX interface to the transceiver.

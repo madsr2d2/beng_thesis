@@ -216,7 +216,9 @@ main() {
 
   MERMAID_FILTER_CMD="$(find_mermaid_filter_cmd)" || die "could not find Mermaid Pandoc filter (tried: mermaid-filter, pandoc-mermaid-filter, pandoc-mermaid)."
 
-  PDF_ENGINE="${PDF_ENGINE:-xelatex}"
+  PDF_ENGINE="${PDF_ENGINE:-latexmk}"
+  PDF_ENGINE_OPTS=()
+  [[ "$PDF_ENGINE" == "latexmk" ]] && PDF_ENGINE_OPTS=(--pdf-engine-opt=-xelatex)
   PDF_MAINFONT="${PDF_MAINFONT:-Libertinus Serif}"
   PDF_FIG_WIDTH="${PDF_FIG_WIDTH:-\linewidth}"
   PDF_FIG_MAX_HEIGHT="${PDF_FIG_MAX_HEIGHT:-0.9\textheight}"
@@ -366,6 +368,7 @@ main() {
     --citeproc \
     --table-caption-position=above \
     --pdf-engine="$PDF_ENGINE" \
+    "${PDF_ENGINE_OPTS[@]}" \
     --number-sections \
     "${TOC_ARGS[@]}" \
     -V papersize:a4 \
