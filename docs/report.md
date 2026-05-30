@@ -234,7 +234,7 @@ None of these solutions satisfies Everllence's combined requirements. The disqua
 
 ## Problem Statement {#sec:problem-statement}
 
-The architectural limitations of the existing controller (@sec:existing-limitations) and the unsuitability of available third-party IP cores (@sec:rationale-in-house) together motivate a clean-slate CF protocol controller conforming to ISO 11898-1. No existing solution combines full IP ownership, a targeted data-link-layer scope matching Everllence's integration requirements, and native compatibility with Everllence's Avalon-ST interface conventions and VHDL Code Standard. The design described in this report addresses that gap directly.
+The architectural limitations of the existing controller (@sec:existing-controller) and the unsuitability of available third-party IP cores (@sec:rationale-in-house) together motivate a clean-slate CF protocol controller conforming to ISO 11898-1. No existing solution combines full IP ownership, a targeted data-link-layer scope matching Everllence's integration requirements, and native compatibility with Everllence's Avalon-ST interface conventions and VHDL Code Standard. The design described in this report addresses that gap directly.
 
 ## Objectives {#sec:objectives}
 
@@ -477,11 +477,16 @@ The `status` field (`not_started`, `in_progress`, `complete`) records requiremen
 
 # Design and Architecture {#sec:design-architecture}
 
-The design maps each ISO 11898-1 sub-layer to a dedicated module: `can_llc`, `can_mac`, `can_pcs`, and `can_fce`. `can_mac` is the top-level MAC sub-layer wrapper, containing the submodules `can_mac_fsm`, `can_mac_ser`, `can_mac_bs`, and `can_mac_crc`. The key architectural decisions that shaped this decomposition are described in the sections below.
+The design maps each ISO 11898-1 sub-layer to a dedicated module, as shown in @fig:can-node-architecture. The primary data path runs from `can_llc` through `can_mac` to `can_pcs`, with `can_fce` sitting outside the path as a cross-cutting entity. A centralized types package (`pk_can_types`) defines all protocol constants, interface records, and reset values shared across modules.
 
-## System Overview {#sec:system-overview}
-
-@fig:can-node-architecture shows the complete module decomposition. The primary data path runs from `can_llc` through `can_mac` to `can_pcs`. The LLC receives frames from the host over an Avalon-ST interface and streams them byte-by-byte to the MAC serializer. The MAC FSM drives the serialized bit stream to the PCS, which applies bit timing and produces the sample-point and SSP strobes that the MAC uses to read and write the bus. `can_fce` sits outside the primary data path, receiving error and success events from the MAC and feeding node-state signals (error active, bus off) back to both the MAC and PCS. The PCS additionally pulses `can_fce` with idle conditions to drive bus-off recovery. A centralized types package (`pk_can_types`) defines all protocol constants, interface records, and reset values shared across modules.
+- **`can_llc`:** Implements the LLC sub-layer. Accepts host frames over Avalon-ST, applies acceptance filtering on RX, and streams frames to and from the MAC.
+- **`can_mac`:** Implements the MAC sub-layer. Top-level wrapper instantiating `can_mac_ser`, `can_mac_fsm`, `can_mac_bs`, and `can_mac_crc`.
+- **`can_mac_ser`:** Receives the LLC frame over Avalon-ST and presents a serialized bit stream to `can_mac_fsm`, asserting valid on each bit.
+- **`can_mac_fsm`:** Orchestrates frame TX and RX across all four in-scope formats, controls ready backpressure on `can_mac_ser`, drives `can_mac_bs` and `can_mac_crc`, and commits the next bit to the `can_pcs`.
+- **`can_mac_bs`:** Performs dynamic and fixed bit stuffing and destuffing and generates the SBC field for FD frames.
+- **`can_mac_crc`:** Runs CRC-15, CRC-17, and CRC-21 engines in parallel, selecting the output based on frame format and DLC.
+- **`can_pcs`:** Applies bit timing, generates SP and SSP strobes, performs hard synchronization and resynchronization, and manages the TX/RX interface to the transceiver.
+- **`can_fce`:** Tracks transmit and receive error counts, manages error-active/error-passive/bus-off state transitions, and signals bus-off entry and recovery.
 
 ![Implementation module decomposition showing the five entities and their inter-module connections.](figures/mac_overview.png){#fig:can-node-architecture height=45%}
 
