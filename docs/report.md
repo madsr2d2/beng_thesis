@@ -478,7 +478,7 @@ The `status` field (`not_started`, `in_progress`, `complete`) records requiremen
 
 # Design and Architecture {#sec:design-architecture}
 
-The design maps each ISO 11898-1 sub-layer to a dedicated module, as shown in @fig:can-node-architecture. The primary data path runs from `can_llc` through `can_mac` to `can_pcs`, with `can_fce` sitting outside the path as a cross-cutting entity. A centralized types package (`pk_can_types`) defines all protocol constants, interface records, and reset values shared across modules.
+The design maps each ISO 11898-1 sub-layer to a dedicated module, as shown in @fig:can-node-architecture. The primary data path runs from `can_llc` through `can_mac` to `can_pcs`, with `can_fce` sitting outside the path as a cross-cutting entity. `can_mac` bundles the four MAC submodules into a single sub-layer wrapper. `can_mac_pcs_fce` further combines `can_mac`, `can_pcs`, and `can_fce` into a synthesizable integration target. A centralized types package (`pk_can_types`) defines all protocol constants, interface records, and reset values shared across modules.
 
 - **`can_llc`:** Implements the LLC sub-layer. Accepts host frames over Avalon-ST, applies acceptance filtering on RX, and streams frames to and from the MAC.
 - **`can_mac_fsm`:** Orchestrates frame TX and RX across all four in-scope formats, controls ready backpressure on `can_mac_ser`, drives `can_mac_bs` and `can_mac_crc`, and commits the next bit to the `can_pcs`.
@@ -493,14 +493,6 @@ The design maps each ISO 11898-1 sub-layer to a dedicated module, as shown in @f
 ## Adopting the ISO 11898-1 Sub-layer Model {#sec:monolithic-vs-layered}
 
 Mapping each ISO 11898-1 sub-layer to a dedicated module is the natural decomposition. Module boundaries align directly with verification targets, each requirement points unambiguously to the responsible implementation unit, and each module can be exercised in isolation without driving frame-level stimulus through unrelated sub-layers.
-
-## Combined vs. Separated TX/RX Paths {#sec:combined-vs-separated-fsm}
-
-The `side` dimension classifies each requirement as TX-only, RX-only, or both - making separate TX and RX paths appear natural, since each could be verified independently. A split-path implementation was attempted first.
-
-In practice, the split duplicated both code and hardware: each path required its own `can_mac_bs` and `can_mac_crc` instance, putting two of each on the device where one suffices. In addition, developing the two paths sequentially, shared protocol logic tended to diverge between implementations with no protocol justification. Debugging doubled the investigation surface - two independent FSMs, two sets of waveforms per bug.
-
-The split path was replaced by a single `can_mac_fsm` with shared `can_mac_bs` and `can_mac_crc` instances, as shown in @fig:can-node-architecture. Shared protocol logic exists once, implementation drift is prevented, and debugging involves a single FSM and a single set of waveforms.
 
 ## Per-Field FSM Granularity {#sec:per-field-vs-per-phase}
 
@@ -730,7 +722,7 @@ The worst-case fmax is approximately 127 MHz on the slow 100°C corner. The nega
 
 # Discussion {#sec:discussion}
 
-The three design-facing verification plan dimensions shaped the implementation in distinct ways. `layer` produced the module-to-testbench decomposition: each requirement maps to one testable module, and reference models in the sub-module testbenches made white-box sub-claims tractable without exposing RTL internals. `format_applicability` motivated front-loaded config byte ordering and per-field FSM granularity. `side` encoded requirements along the ISO transmitter/receiver axis and motivated a split TX/RX architecture - tried and abandoned for the reasons in @sec:combined-vs-separated-fsm.
+The three design-facing verification plan dimensions shaped the implementation in distinct ways. `layer` produced the module-to-testbench decomposition: each requirement maps to one testable module, and reference models in the sub-module testbenches made white-box sub-claims tractable without exposing RTL internals. `format_applicability` motivated front-loaded config byte ordering and per-field FSM granularity. `side` encoded requirements along the ISO transmitter/receiver axis and scopes testbench stimulus to the corresponding drive mode.
 
 The AI-assisted workflow delivered value in two distinct phases, with very different characteristics in each. In the extraction phase, the LLM agent earned its keep by bootstrapping and linking the initial normative statement set. Having a fully populated and linked starting point - even one requiring substantial revision - gave the manual review process a concrete artifact to work from. The time saving from the extraction itself was, however, marginal. The agent's output had to be reviewed statement by statement, which is functionally similar to extracting requirements manually in the first place. The primary benefit of the AI-assisted approach in this phase was therefore not efficiency, but rather the increased consistency of an automated pass over the full standard text.
 
