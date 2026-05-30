@@ -516,11 +516,9 @@ The host-LLC format places all control flags after the payload, requiring a full
 
 # Implementation {#sec:implementation}
 
-All inter-module interfaces use typed records (e.g., `t_can_mac_pcs_if_m2s`, `t_can_mac_fsm_bs_if_s2m`), each paired with a reset constant (e.g., `c_can_mac_pcs_if_m2s_reset`) so every module can be reset without enumerating individual fields. Port direction follows `m2s`/`s2m` (master-to-slave/slave-to-master) for control interfaces and `s2d`/`d2s` (source-to-destination/destination-to-source) for Avalon-ST data interfaces. `pk_can_types` is the single shared package all modules depend on. It defines every interface record type, protocol constant, frame format byte layout, and utility function used across the design. `can_llc` was not implemented within the project schedule. Its interface contracts are fully specified in the verification plan (REQ-001 through REQ-005, REQ-031, REQ-034, REQ-036), and the implementation path is described in @sec:future-work.
+This section describes the RTL implementation of the modules introduced in @sec:design-architecture, covering the key behavioral choices in each. All inter-module interfaces use typed records paired with reset constants, so every module can be reset without enumerating individual fields. Port direction follows `m2s`/`s2m` (master-to-slave/slave-to-master) for control interfaces and `s2d`/`d2s` for Avalon-ST data interfaces. `pk_can_types` is the single shared package defining every interface type, protocol constant, frame format layout, and utility function used across the design.
 
-## Module Overview {#sec:impl-module-overview}
-
-`can_mac_pcs_fce` is the synthesis and integration boundary. It instantiates `can_mac`, `can_pcs`, and `can_fce`. `can_mac` in turn instantiates `can_mac_fsm`, `can_mac_ser`, `can_mac_bs`, and `can_mac_crc`, with `can_mac_fsm` being the central orchestrating FSM in the MAC layer.
+`can_llc` is not implemented in this project. Its interface contracts are fully specified in the verification plan (REQ-001 through REQ-005, REQ-031, REQ-034, REQ-036), and the implementation path is described in @sec:future-work.
 
 ## `can_mac_fsm` {#sec:impl-can-mac-fsm}
 
