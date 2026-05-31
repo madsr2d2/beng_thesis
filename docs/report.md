@@ -478,6 +478,8 @@ The `status` field (`not_started`, `in_progress`, `complete`) records requiremen
 
 # Design and Architecture {#sec:design-architecture}
 
+This section presents the architectural and design decisions that bridge the requirements established in @sec:verification-plan to the implementation described in @sec:implementation, covering the sub-layer module decomposition, the LLC frame format, and the structural choices governing the MAC FSM.
+
 The design maps each ISO 11898-1 sub-layer to a dedicated module, as shown in @fig:can-node-architecture. The primary data path runs from `can_llc` through `can_mac` to `can_pcs`, with `can_fce` sitting outside the path as a cross-cutting entity. `can_mac` bundles the four MAC submodules into a single sub-layer wrapper. `can_mac_pcs_fce` further combines `can_mac`, `can_pcs`, and `can_fce` into a synthesizable integration target. A centralized types package (`pk_can_types`) defines all protocol constants, interface records, and reset values shared across modules.
 
 - **`can_llc`:** Implements the LLC sub-layer. Accepts host frames over Avalon-ST, applies acceptance filtering on RX, and streams frames to and from the MAC.
