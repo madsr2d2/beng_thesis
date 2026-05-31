@@ -484,7 +484,7 @@ The design maps each ISO 11898-1 sub-layer to a dedicated module, as shown in @f
 
 - **`can_llc`:** Implements the LLC sub-layer. It has a host-facing and a `can_mac`-facing Avalon-ST interface.  Applies acceptance filtering on frames received from `can_mac` and handles retransmission when `can_mac` reports arbitration loss or error/overload. It converts between the host and MAC-facing LLC frame formats described in @sec:llc-frame-format.  
 - **`can_mac_fsm`:** Orchestrates frame TX and RX across all four in-scope formats, controls ready backpressure on `can_mac_ser`, drives `can_mac_bs` and `can_mac_crc`, and commits the next bit to the `can_pcs`. Streams received frames to `can_llc` over Avalon-ST.
-- **`can_mac_ser`:** Receives the LLC frame over Avalon-ST from `can_llc` and presents a serialized bit stream to `can_mac_fsm` using a valid/ready handshake.
+- **`can_mac_ser`:** Receives the LLC frame over Avalon-ST from `can_llc` and presents a serialized bit stream to `can_mac_fsm` (using a valid/ready handshake) along with frame metadata bits (DLC, ESI, FDF, BRS, FTYP).
 - **`can_mac_bs`:** Performs dynamic and fixed bit stuffing/de-stuffing and generates the SBC field for CF frames.
 - **`can_mac_crc`:** Runs CRC-15, CRC-17, and CRC-21 engines in parallel, selecting the output based on frame format and DLC.
 - **`can_pcs`:** Applies bit timing, generates SP and SSP strobes, performs hard synchronization and resynchronization, and manages the TX/RX interface to the transceiver.
@@ -525,7 +525,13 @@ This section describes the RTL implementation of the modules introduced in @sec:
 
 ### FSM Structure
 
-`can_mac_fsm` contains two synchronous processes: `p_fsm` (the main controlling FSM) and `p_stream_to_LLC` (responsible for streaming received frames to LLC via Avalon-ST). An `is_transmitter` flag, latched when `p_fsm` drives the SOF bit at the start of a new frame transmission and cleared at arbitration loss or at the end of the EOF field, partitions per-state logic into a TX branch and an RX branch. The error flag states are an exception: both transmitter and receiver errors enter the same two-state sequence, with flag polarity driven by the `error_active` signal from `can_fce`.
+
+`can_mac_fsm` contains two synchronous processes: 
+
+- **`p_fsm`**: The main controlling FSM.
+- **`p_stream_to_LLC`**: Responsible for streaming received frames to `can_llc` via Avalon-ST.
+
+An `is_transmitter` flag, latched when `p_fsm` drives the SOF bit at the start of a new frame transmission and cleared at arbitration loss or at the end of the EOF field, partitions per-state logic into a TX branch and an RX branch. The error flag states are an exception: both transmitter and receiver errors enter the same two-state sequence, with flag polarity driven by the `error_active` signal from `can_fce`.
 
 State transition are triggered by the `sample_point` signal from `can_fce` and `p_fsm` organizes each sample-point cycle as three phases:
 
@@ -533,7 +539,7 @@ State transition are triggered by the `sample_point` signal from `can_fce` and `
 - **FSM case block**: This is the main FSM case statement. It handles only the error and stuff-bit free state transitions.
 - **Post-case block**: This code block feeds the `can_mac_bs` and `can_mac_crc`  and commits the drive polarity to the PCS output.
 
-The structure trades per-state locality for non-duplication of cross-cutting logic. Placing stuff-bit and error handling inside each state would duplicate identical detection and feed logic across multiple states. Centralizing it in the pre-case handles it once, and `v_skip_case` provides a single auditable guarantee that the state machine does not advance when it should not. For logic that is genuinely per-state - DLC parsing, ACK success latching, EOF completion - the case block handles it directly.
+This structure trades per-state locality for non-duplication of cross-cutting logic. Placing stuff-bit and error handling inside each state would duplicate identical detection and feed logic across multiple states. Centralizing it in the pre-case handles it once and the `v_skip_case` flag guarantees that the state machine does not advance when it should not. For logic that is genuinely per-state - DLC parsing, ACK success latching, EOF completion - the case block handles it directly.
 
 `p_fsm` implements the per-field state granularity introduced in @sec:per-field-vs-per-phase. Each post-arbitration field has a dedicated state, with the arbitration region sharing `s_arbitration` across ID bits, RTR/SRR/RRS, and IDE via `bit_count`. The complete `p_fsm` is shown in @fig:mac-fsm.
 
@@ -541,25 +547,21 @@ The structure trades per-state locality for non-duplication of cross-cutting log
 
 ### TX Mode
 
-When `is_transmitter = true`, the FSM writes `pcs_o.tx_data` two clock cycles after each sample point, giving the BS and CRC engines time to present valid outputs. `bs_i.valid` must be stable before the TX branch decides whether a stuff bit is due (REQ-018), and `crc_i.crc` must hold the fully accumulated value before the first CRC bit is driven (REQ-006). The PCS latches `pcs_o.tx_data` at the bit boundary - the MAC simply needs valid data ready in time.
+The `can_mac_fsm` executes the TX-relevant logic when `is_transmitter` is set. The `can_mac_fsm` drives the next bit to `can_pcs` through the `tx_data` signal two clock cycles after each sample point - giving the `can_mac_bs` and `can_mac_crc` modules time to present valid outputs. This is necessary because the `can_mac_bs` output must be stable before the `can_mac_fsm` can decides whether a stuff bit is due, and `can_mac_crc` must hold the fully accumulated value before the first CRC bit is driven. The `can_pcs` module latches the `tx_data` signal at the bit boundary and `can_mac_fsm` simply needs valid data ready in time.
 
-The FSM samples the bus at each sample point to detect bit errors (REQ-021), ACK (REQ-014), and arbitration loss (REQ-020). In the CAN FD data phase, the SSP strobe replaces the SP for bit-error monitoring (REQ-025). The MAC compares `pcs_i.rx_data` against `transmitted_bits_shift_reg(tdc_delay)` - where `tdc_delay` is supplied alongside the SSP strobe by the PCS - to check the bit that was transmitted `tdc_delay` bit times earlier. Arbitration loss clears `is_transmitter` in `s_arbitration` and the node continues as an receiver.
+The `can_mac_fsm` samples the `rx_data` signal from `can_pcs` at each SP strobe from `can_pcs` - detecting bit error, ACK/ACK-error, and arbitration loss. In the CF data phase, the SSP strobe replaces the SP for bit-error monitoring. The `can_mac_fsm` compares `rx_data` against `transmitted_bits_shift_reg`, where `tdc_delay` (supplied alongside the SSP strobe by the `can_pcs`) is used to index into `transmitted_bits_shift_reg`. Arbitration loss clears `is_transmitter` in `s_arbitration` and the node continues as an receiver.
 
-During `s_arbitration` multiple nodes may be transmitting, so both TX and RX feed `pcs_i.rx_data` into the CRC and BS engines - the bus is the only authoritative source (REQ-013, REQ-020). A transmitter that loses arbitration therefore needs no handoff: its accumulators already match a pure receiver's. From `s_fdf_r1_r0` onward the transmitter switches to `transmitted_bits_shift_reg(tdc_delay)`, enabling TDC in the data-phase.
+During `s_arbitration` state multiple nodes may be transmitting. This necessitates both transmitters and receiver nodes to feed `can_mac_bs` and `can_mac_crc` from the `rx_data` signal. This ensures that transmitter and receiver roles have matching accumulators during arbitration - enabling seamless transmitter-to-receiver transitions on arbitration loss. From `s_fdf_r1_r0` onward the transmitter nodes switches to `transmitted_bits_shift_reg(tdc_delay)` as the `can_mac_bs` and `can_mac_crc` feed source - enabling TDC in the data-phase.
 
 ### RX Mode
 
-When `is_transmitter = false`, the FSM observes `pcs_i.rx_data` at each sample point and stores received bits directly into the `llc_frame` byte array. The FSM drives the BS engine from `pcs_i.rx_data` to perform destuffing (REQ-018), and the CRC engine accumulates the received bit stream in parallel (REQ-013). The FSM validates the SBC field (FD frames, REQ-016), compares the received CRC against the locally accumulated result (REQ-006), and checks form bits (reserved bits, CRC delimiter, ACK delimiter, EOF) for required polarities (REQ-021). A mismatch in any of these fields triggers a transition to the error-frame sequence (REQ-022). During the ACK slot the FSM drives dominant for one bit (`bit_count = 0`) regardless of frame format (REQ-014). The FD ACK slot spans two bits but the receiver asserts dominant only during the first (REQ-014).
-
-During `s_intermission`, the completed frame is streamed byte-by-byte to the LLC RX sink over the Avalon-ST interface by `p_stream_to_LLC`, a dedicated process running concurrently with `p_fsm`.
+The `can_mac_fsm` executes the RX-relevant logic when `is_transmitter` is not set. The `can_mac_fsm` observes the `rx_data` signal from `can_pcs` at each SP strobe and stores received bits directly into the `llc_frame` byte array. The `can_mac_fsm` feeds the `can_mac_bs` module from `rx_data` and uses the `can_mac_bs` valid output signal to trigger de-stuffing. `can_mac_crc` is also fed from `rx_data` and the relevant output is selected using the `crc_poly_select` select signal once the DLC field as been received. The `can_mac_fsm` validates the received SBC and CRC values against the locally accumulated result and checks form bit polarities and stuff errors. During the ACK slot the ACK bit is driven for one bit time. The CF ACK slot spans two bits, but the receiver asserts dominant only during the first. During the `s_intermission` state, the completed frame is streamed byte-by-byte to `can_llc` over the Avalon-ST interface by `p_stream_to_LLC`.
 
 ## `can_mac_ser` {#sec:impl-can-mac-ser}
 
-`can_mac_ser` converts the LLC byte stream into a serial bit stream for the MAC FSM. Its four-state FSM manages the two-byte configuration handshake, byte fetching, and bit-by-bit serialization. The serializer extracts LLC metadata (IDE, FDF, DLC, FTYP, BRS, ESI) from the two config bytes and registers it in `t_llc_metadata`, which remains stable for the entire frame. The serializer forwards `transfer_status` from `can_mac_fsm` back to the LLC, returning to `s_load_config_byte_0` on any non-ongoing status so that errors and aborts terminate serialization immediately. The four-state serializer FSM is shown in @fig:mac-ser-fsm-tx.
+`can_mac_ser` converts the byte stream from `can_llc` into the serial bit stream consumed by `can_mac_fsm`. The module's FSM is comprised of four states, managing presentation of the frame metadata, byte fetching, and bit-by-bit serialization. `can_mac_ser` extracts the frame metadata (IDE, FDF, DLC, FTYP, BRS, ESI) from the two leading configuration bytes in the MAC-facing LLC frame (@sec:internal-llc-frame-format). These are bits are registered in `t_llc_metadata` which remains stable for the entire frame. `can_mac_ser` forwards the `transfer_status` signal from `can_mac_fsm` back to `can_llc`, returning to `s_load_config_byte_0` reset state on any non-ongoing status.The four-state `can_mac_ser` FSM is shown in @fig:mac-ser-fsm-tx.
 
-The 32-bit ID field in the internal format is left-aligned: a base identifier (11 bits) occupies bits [31:21], leaving 21 unused padding bits at the LSB end. An extended identifier (29 bits) occupies bits [31:3], leaving 3 unused padding bits. The serializer tracks this with two counters initialized in `s_load_config_byte_1` from the `ide` flag: `id_bits_remaining` counts real ID bits still to be presented, and `padding_bits_remaining` counts trailing unused bits to be skipped. In `s_shift_out_bits`, padding bits are advanced without asserting `valid`, so the MAC FSM never observes them. 
-
-![`can_mac_ser` FSM (four states) serializing the internal LLC frame to the MAC bit stream. Unused padding bits in the 32-bit ID field are skipped silently.](figures/mac_ser_fsm.png){#fig:mac-ser-fsm-tx width=100%}
+![`can_mac_ser` FSM serializing the MAC-facing LLC frame (@sec:internal-llc-frame-format). The bit stream is presented to `can_mac_fsm` using a valid/ready handshake. Unused padding bits in the 32-bit ID field are skipped silently.](figures/mac_ser_fsm.png){#fig:mac-ser-fsm-tx width=100%}
 
 ## `can_mac_bs` {#sec:impl-can-mac-bs}
 
