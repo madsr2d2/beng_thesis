@@ -478,27 +478,24 @@ The `status` field (`not_started`, `in_progress`, `complete`) records requiremen
 
 # Design and Architecture {#sec:design-architecture}
 
-This section presents the architectural and design decisions that bridge the requirements established in @sec:verification-plan to the implementation described in @sec:implementation, covering the sub-layer module decomposition, the LLC frame format, and the structural choices governing the MAC FSM.
+This section presents the key architectural and design decisions behind the implementation. It covers the sub-layer module decomposition, the LLC frame format, and the structural choices that govern the MAC sub-layer FSM.
 
-The design maps each ISO 11898-1 sub-layer to a dedicated module, as shown in @fig:can-node-architecture. The primary data path runs from `can_llc` through `can_mac` to `can_pcs`, with `can_fce` sitting outside the path as a cross-cutting entity. `can_mac` bundles the four MAC submodules into a single sub-layer wrapper. `can_mac_pcs_fce` further combines `can_mac`, `can_pcs`, and `can_fce` into a synthesizable integration target. A centralized types package (`pk_can_types`) defines all protocol constants, interface records, and reset values shared across modules.
+The design maps each ISO 11898-1 sub-layer to a dedicated module, as shown in @fig:can-node-architecture. This allows the module boundaries align directly with in verification targets, each requirement points unambiguously to the responsible implementation unit, and each module can be exercised in isolation. The primary data path runs from `can_llc` through `can_mac` to `can_pcs`, with `can_fce` sitting outside the path as a cross-cutting entity. `can_mac` bundles the four MAC sub-modules into a single sub-layer wrapper. `can_mac_pcs_fce` further combines `can_mac`, `can_pcs`, and `can_fce` into a synthesizable integration target. A centralized types package (`pk_can_types`) defines all protocol constants, interface records, and reset values shared across modules. The responsibilities of the individual modules are listed below.
 
-- **`can_llc`:** Implements the LLC sub-layer. Accepts host frames over Avalon-ST, applies acceptance filtering on RX, and streams frames to and from the MAC.
-- **`can_mac_fsm`:** Orchestrates frame TX and RX across all four in-scope formats, controls ready backpressure on `can_mac_ser`, drives `can_mac_bs` and `can_mac_crc`, and commits the next bit to the `can_pcs`.
-- **`can_mac_ser`:** Receives the LLC frame over Avalon-ST and presents a serialized bit stream to `can_mac_fsm`, asserting valid on each bit.
-- **`can_mac_bs`:** Performs dynamic and fixed bit stuffing and destuffing and generates the SBC field for FD frames.
+- **`can_llc`:** Implements the LLC sub-layer. It has a host-facing and a `can_mac`-facing Avalon-ST interface.  Applies acceptance filtering on frames received from `can_mac` and handles retransmission when `can_mac` reports arbitration loss or error/overload. It converts between the host and MAC-facing LLC frame formats described in @sec:llc-frame-format.  
+- **`can_mac_fsm`:** Orchestrates frame TX and RX across all four in-scope formats, controls ready backpressure on `can_mac_ser`, drives `can_mac_bs` and `can_mac_crc`, and commits the next bit to the `can_pcs`. Streams received frames to `can_llc` over Avalon-ST.
+- **`can_mac_ser`:** Receives the LLC frame over Avalon-ST from `can_llc` and presents a serialized bit stream to `can_mac_fsm` using a valid/ready handshake.
+- **`can_mac_bs`:** Performs dynamic and fixed bit stuffing/de-stuffing and generates the SBC field for CF frames.
 - **`can_mac_crc`:** Runs CRC-15, CRC-17, and CRC-21 engines in parallel, selecting the output based on frame format and DLC.
 - **`can_pcs`:** Applies bit timing, generates SP and SSP strobes, performs hard synchronization and resynchronization, and manages the TX/RX interface to the transceiver.
 - **`can_fce`:** Tracks transmit and receive error counts, manages error-active/error-passive/bus-off state transitions, and signals bus-off entry and recovery.
 
-![Implementation module decomposition showing the five entities and their inter-module connections.](figures/mac_overview.png){#fig:can-node-architecture height=45%}
+![Architecture module decomposition. The diagram shows the 6 implemented modules and their inter-module connections. Wrapper modules are shown as bounding boxes around the contained modules.](figures/mac_overview.png){#fig:can-node-architecture height=45%}
 
-## Adopting the ISO 11898-1 Sub-layer Model {#sec:monolithic-vs-layered}
 
-Mapping each ISO 11898-1 sub-layer to a dedicated module is the natural decomposition. Module boundaries align directly with verification targets, each requirement points unambiguously to the responsible implementation unit, and each module can be exercised in isolation without driving frame-level stimulus through unrelated sub-layers.
+## MAC FSM Granularity {#sec:per-field-vs-per-phase}
 
-## Per-Field FSM Granularity {#sec:per-field-vs-per-phase}
-
-The `format_applicability` dimension expresses requirements at the level of individual protocol fields. REQ-037 defines the complete MAC frame field sequence and fixed-polarity bits for all in-scope formats. With one FSM state per protocol field, the FSM naturally progresses through that structure: format-dependent transitions - such as the divergence between CC and FD at the FDF field - become state graph edges rather than counter conditionals inside a shared state, and each requirement maps directly to a named FSM state.
+REQ-037 defines the complete MAC frame field sequence and fixed-polarity bits for all in-scope formats. With one FSM state per MAC frame field, the FSM naturally progresses through frame structure: format-dependent transitions - such as the divergence between CC and FD at the FDF field - become state graph edges rather than counter conditionals inside a shared state. Each requirement pertaining to a specific MAC frame filed maps to a single FSM state aiding implementation, verification and traceability.
 
 ## LLC Frame Format {#sec:llc-frame-format}
 
@@ -524,25 +521,25 @@ This section describes the RTL implementation of the modules introduced in @sec:
 
 ## `can_mac_fsm` {#sec:impl-can-mac-fsm}
 
-`can_mac_fsm` accumulates received frames into a 70-byte internal byte array (`llc_frame`), reusing `can_bus_controller`'s register-array approach as a proof-of-concept baseline. The resource overhead is negligible at 15 bytes but becomes the dominant logic element cost at 70 bytes (@sec:synthesis-resources). A block RAM migration is the identified upgrade path (@sec:future-work). Bus-off state is owned entirely by `can_fce`. `can_mac_fsm` treats `fce_i.bus_off` as a secondary reset alongside the hardware reset, suppressing all bus activity. The complete signal-level interface is reproduced in @sec:appendix-mac-arch.
+`can_mac_fsm` accumulates received frames into a 70-byte internal byte array (`llc_frame`), reusing `can_bus_controller`'s register-array approach as a proof-of-concept baseline. The resource overhead is negligible at the 15 byte frame used by CC, but becomes the dominant logic element cost at the 70 byte frame used by CF - a block RAM migration is the identified upgrade path, see @sec:future-work. Bus-off state is owned entirely by `can_fce` and `can_mac_fsm` just treats the `bus_off` signal from `can_fce` as a secondary reset alongside the hardware reset. The complete signal-level interface is reproduced in @sec:appendix-mac-arch.
 
-### FSM Structure and Mode Flag
+### FSM Structure
 
-`can_mac_fsm` contains two synchronous processes (`p_fsm` and `p_stream_to_LLC`). An `is_transmitter` flag, latched when the FSM drives the SOF dominant bit at the start of a new frame transmission and cleared at arbitration loss (REQ-020) or at the end of the EOF field, partitions per-state logic into a TX branch and an RX branch. The error-frame states (`s_error_flag`, `s_error_delimiter`) are an exception: both transmitter and receiver errors enter the same two-state sequence, with flag polarity driven by `fce_i.error_active` (REQ-007, REQ-022).
+`can_mac_fsm` contains two synchronous processes: `p_fsm` (the main controlling FSM) and `p_stream_to_LLC` (responsible for streaming received frames to LLC via Avalon-ST). An `is_transmitter` flag, latched when `p_fsm` drives the SOF bit at the start of a new frame transmission and cleared at arbitration loss or at the end of the EOF field, partitions per-state logic into a TX branch and an RX branch. The error flag states are an exception: both transmitter and receiver errors enter the same two-state sequence, with flag polarity driven by the `error_active` signal from `can_fce`.
 
-`p_fsm` organizes each sample-point cycle as three phases:
+State transition are triggered by the `sample_point` signal from `can_fce` and `p_fsm` organizes each sample-point cycle as three phases:
 
-- **Pre-case**: handles all conditions that preempt normal state progression - lost arbitration (REQ-020), bit errors (REQ-021), and ACK errors (REQ-014) on the TX branch, and stuff errors (REQ-018), form errors (REQ-021), overload conditions (REQ-023), and deferred SBC/CRC mismatch detection (REQ-016, REQ-021) on the RX branch. When any of these fire, `v_skip_case` is set and the case block is bypassed entirely.
-- **Case**: handles only the error-free state transitions - `bit_count` advancing and state changing according to the protocol field sequence.
-- **Post-case**: feeds the BS and CRC engines at the sample point and commits the drive polarity to the PCS output.
+- **Pre-case code block**: This code block runs before the FSM case statement and handles all conditions that preempt normal state progression: stuff-bit insertion, lost arbitration, bit errors, and ACK errors on the TX branch, stuff-bit removal, stuff errors, form errors, CRC errors and overload conditions on the RX branch. When any of these conditions fire, the `v_skip_case` variable is set and the case block is bypassed entirely.
+- **FSM case block**: This is the main FSM case statement. It handles only the error and stuff-bit free state transitions.
+- **Post-case block**: This code block feeds the `can_mac_bs` and `can_mac_crc`  and commits the drive polarity to the PCS output.
 
-The structure trades per-state locality for non-duplication of cross-cutting logic. Placing stuff-bit handling inside each state would duplicate identical detection and feed logic across the seven dynamic-stuffing states (`s_arbitration` through `s_data`). Centralizing it in the pre-case handles it once, and `v_skip_case` provides a single auditable guarantee that the state machine does not advance when it should not. For logic that is genuinely per-state - DLC parsing, ACK success latching, EOF completion - the case block handles it directly. The locality cost is reasonable since the exception logic is cross-cutting.
+The structure trades per-state locality for non-duplication of cross-cutting logic. Placing stuff-bit and error handling inside each state would duplicate identical detection and feed logic across multiple states. Centralizing it in the pre-case handles it once, and `v_skip_case` provides a single auditable guarantee that the state machine does not advance when it should not. For logic that is genuinely per-state - DLC parsing, ACK success latching, EOF completion - the case block handles it directly.
 
-`p_fsm` implements the per-field state granularity introduced in @sec:per-field-vs-per-phase. Each post-arbitration field has a dedicated state, with the arbitration region sharing `s_arbitration` across ID bits, RTR/SRR/RRS, and IDE via `bit_count`. The complete FSM is shown in @fig:mac-fsm.
+`p_fsm` implements the per-field state granularity introduced in @sec:per-field-vs-per-phase. Each post-arbitration field has a dedicated state, with the arbitration region sharing `s_arbitration` across ID bits, RTR/SRR/RRS, and IDE via `bit_count`. The complete `p_fsm` is shown in @fig:mac-fsm.
 
 ![`can_mac_fsm`. FSM orchestrating frame transmission and reception in `can_mac`. The state machine encodes the four in-scope frame formats depicted in @fig:can-frame-structure. Green states encode error-free and stuff-bit-free frame progression. Error and overload detection is handled, and `can_mac_bs` and `can_mac_crc` are fed, in the pre-case code block. The next bit is driven to `can_pcs` and fed to `can_mac_bs` and `can_mac_crc` in the post-case code block.](figures/mac_fsm.png){#fig:mac-fsm height=90%}
 
-### TX Mode: Frame Transmission
+### TX Mode
 
 When `is_transmitter = true`, the FSM writes `pcs_o.tx_data` two clock cycles after each sample point, giving the BS and CRC engines time to present valid outputs. `bs_i.valid` must be stable before the TX branch decides whether a stuff bit is due (REQ-018), and `crc_i.crc` must hold the fully accumulated value before the first CRC bit is driven (REQ-006). The PCS latches `pcs_o.tx_data` at the bit boundary - the MAC simply needs valid data ready in time.
 
@@ -550,7 +547,7 @@ The FSM samples the bus at each sample point to detect bit errors (REQ-021), ACK
 
 During `s_arbitration` multiple nodes may be transmitting, so both TX and RX feed `pcs_i.rx_data` into the CRC and BS engines - the bus is the only authoritative source (REQ-013, REQ-020). A transmitter that loses arbitration therefore needs no handoff: its accumulators already match a pure receiver's. From `s_fdf_r1_r0` onward the transmitter switches to `transmitted_bits_shift_reg(tdc_delay)`, enabling TDC in the data-phase.
 
-### RX Mode: Frame Reception
+### RX Mode
 
 When `is_transmitter = false`, the FSM observes `pcs_i.rx_data` at each sample point and stores received bits directly into the `llc_frame` byte array. The FSM drives the BS engine from `pcs_i.rx_data` to perform destuffing (REQ-018), and the CRC engine accumulates the received bit stream in parallel (REQ-013). The FSM validates the SBC field (FD frames, REQ-016), compares the received CRC against the locally accumulated result (REQ-006), and checks form bits (reserved bits, CRC delimiter, ACK delimiter, EOF) for required polarities (REQ-021). A mismatch in any of these fields triggers a transition to the error-frame sequence (REQ-022). During the ACK slot the FSM drives dominant for one bit (`bit_count = 0`) regardless of frame format (REQ-014). The FD ACK slot spans two bits but the receiver asserts dominant only during the first (REQ-014).
 
