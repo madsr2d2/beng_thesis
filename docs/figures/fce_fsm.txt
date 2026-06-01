@@ -13,8 +13,8 @@ config:
 
 flowchart LR
 
-classDef reset fill:#CDFDC5,stroke:#33AA33,stroke-width:4px,color:#000000
-classDef ff    fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef reset fill:#,stroke:#,stroke-width:6px,color:#000000
+classDef ff    fill:#,stroke:#,color:#000000
 classDef event fill:#FFF3CD,stroke:#CC9900,stroke-width:2px,color:#000000
 
 classDef wd2 fill:#FFFFFF,stroke:#999999,color:#000000
@@ -58,5 +58,5 @@ s_error_passive -->|"TEC > 255"| s_bus_off
 s_bus_off       -->|"idle_count = 128"| s_error_active
 
 class s_error_active reset
-class s_error_passive wd4
-class s_bus_off wd9
+class s_error_passive ff
+class s_bus_off ff

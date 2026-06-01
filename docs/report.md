@@ -478,11 +478,11 @@ The `status` field (`not_started`, `in_progress`, `complete`) records requiremen
 
 # Design and Architecture {#sec:design-architecture}
 
-This section presents the key architectural and design decisions behind the implementation. It covers the sub-layer module decomposition, the LLC frame format, and the structural choices that govern the MAC sub-layer FSM.
+This section presents the key architectural design decisions behind the implementation. It covers the sub-layer module decomposition, the LLC frame format, and the structural choices that govern the MAC sub-layer FSM.
 
-The design maps each ISO 11898-1 sub-layer to a dedicated module, as shown in @fig:can-node-architecture. This allows the module boundaries align directly with in verification targets, each requirement points unambiguously to the responsible implementation unit, and each module can be exercised in isolation. The primary data path runs from `can_llc` through `can_mac` to `can_pcs`, with `can_fce` sitting outside the path as a cross-cutting entity. `can_mac` bundles the four MAC sub-modules into a single sub-layer wrapper. `can_mac_pcs_fce` further combines `can_mac`, `can_pcs`, and `can_fce` into a synthesizable integration target. A centralized types package (`pk_can_types`) defines all protocol constants, interface records, and reset values shared across modules. The responsibilities of the individual modules are listed below.
+The design maps each ISO 11898-1 refference model sub-layer to a dedicated module, as shown in @fig:can-node-architecture. This allows the module boundaries to align directly with in verification targets, each requirement points unambiguously to the responsible implementation unit, and each module can be exercised in isolation. The primary data path runs from `can_llc` through `can_mac` to `can_pcs`, with `can_fce` sitting outside the path as a cross-cutting entity. `can_mac` bundles the four MAC sub-modules into a single sub-layer wrapper. `can_mac_pcs_fce` further combines `can_mac`, `can_pcs`, and `can_fce` into a synthesizable integration target. A centralized types package (`pk_can_types`) defines all protocol constants, interface records, and reset values shared across modules. The responsibilities of the individual modules are listed below.
 
-- **`can_llc`:** Implements the LLC sub-layer. It has a host-facing and a `can_mac`-facing Avalon-ST interface.  Applies acceptance filtering on frames received from `can_mac` and handles retransmission when `can_mac` reports arbitration loss or error/overload. It converts between the host and MAC-facing LLC frame formats described in @sec:llc-frame-format.  
+- **`can_llc`:** Implements the LLC sub-layer. It has a host-facing and a `can_mac`-facing Avalon-ST interface.  Applies acceptance filtering on frames received from `can_mac` and handles retransmission when `can_mac` reports arbitration loss or error/overload. It converts between the host and MAC-facing LLC frame formats described in @sec:llc-frame-format.
 - **`can_mac_fsm`:** Orchestrates frame TX and RX across all four in-scope formats, controls ready backpressure on `can_mac_ser`, drives `can_mac_bs` and `can_mac_crc`, and commits the next bit to the `can_pcs`. Streams received frames to `can_llc` over Avalon-ST.
 - **`can_mac_ser`:** Receives the LLC frame over Avalon-ST from `can_llc` and presents a serialized bit stream to `can_mac_fsm` (using a valid/ready handshake) along with frame metadata bits (DLC, ESI, FDF, BRS, FTYP).
 - **`can_mac_bs`:** Performs dynamic and fixed bit stuffing/de-stuffing and generates the SBC field for CF frames.
@@ -490,7 +490,7 @@ The design maps each ISO 11898-1 sub-layer to a dedicated module, as shown in @f
 - **`can_pcs`:** Applies bit timing, generates SP and SSP strobes, performs hard synchronization and resynchronization, and manages the TX/RX interface to the transceiver.
 - **`can_fce`:** Tracks transmit and receive error counts, manages error-active/error-passive/bus-off state transitions, and signals bus-off entry and recovery.
 
-![Architecture module decomposition. The diagram shows the 6 implemented modules and their inter-module connections. Wrapper modules are shown as bounding boxes around the contained modules.](figures/mac_overview.png){#fig:can-node-architecture height=45%}
+![Architecture module decomposition. Wrapper modules are shown as bounding boxes around the contained modules.](figures/mac_overview.png){#fig:can-node-architecture height=45%}
 
 
 ## MAC FSM Granularity {#sec:per-field-vs-per-phase}
@@ -543,7 +543,7 @@ This structure trades per-state locality for non-duplication of cross-cutting lo
 
 `p_fsm` implements the per-field state granularity introduced in @sec:per-field-vs-per-phase. Each post-arbitration field has a dedicated state, with the arbitration region sharing `s_arbitration` across ID bits, RTR/SRR/RRS, and IDE via `bit_count`. The complete `p_fsm` is shown in @fig:mac-fsm.
 
-![`can_mac_fsm`. FSM orchestrating frame transmission and reception in `can_mac`. The state machine encodes the four in-scope frame formats depicted in @fig:can-frame-structure. Green states encode error-free and stuff-bit-free frame progression. Error and overload detection is handled, and `can_mac_bs` and `can_mac_crc` are fed, in the pre-case code block. The next bit is driven to `can_pcs` and fed to `can_mac_bs` and `can_mac_crc` in the post-case code block.](figures/mac_fsm.png){#fig:mac-fsm height=90%}
+![`can_mac_fsm`. FSM orchestrating frame transmission and reception in `can_mac`. The state machine encodes the four in-scope frame formats depicted in @fig:can-frame-structure. The states grouped in the FSM code block encode error and stuff-bit-free frame progression. Error and stuff-bit detection is handled in the pre-case code block. The next bit is driven to `can_pcs` and fed to `can_mac_bs` and `can_mac_crc` in the post-case code block.](figures/mac_fsm.png){#fig:mac-fsm height=90%}
 
 ### TX Mode
 
@@ -559,64 +559,61 @@ The `can_mac_fsm` executes the RX-relevant logic when `is_transmitter` is not se
 
 ## `can_mac_ser` {#sec:impl-can-mac-ser}
 
-`can_mac_ser` converts the byte stream from `can_llc` into the serial bit stream consumed by `can_mac_fsm`. The module's FSM is comprised of four states, managing presentation of the frame metadata, byte fetching, and bit-by-bit serialization. `can_mac_ser` extracts the frame metadata (IDE, FDF, DLC, FTYP, BRS, ESI) from the two leading configuration bytes in the MAC-facing LLC frame (@sec:internal-llc-frame-format). These are bits are registered in `t_llc_metadata` which remains stable for the entire frame. `can_mac_ser` forwards the `transfer_status` signal from `can_mac_fsm` back to `can_llc`, returning to `s_load_config_byte_0` reset state on any non-ongoing status.The four-state `can_mac_ser` FSM is shown in @fig:mac-ser-fsm-tx.
+`can_mac_ser` converts the byte stream from `can_llc` into the serial bit stream consumed by `can_mac_fsm`. The module's FSM is comprised of four states, managing presentation of the frame metadata, byte fetching, and bit-by-bit serialization. `can_mac_ser` extracts the frame metadata (IDE, FDF, DLC, FTYP, BRS, ESI) from the two leading configuration bytes in the MAC-facing LLC frame (@sec:internal-llc-frame-format). These are bits are registered in `t_llc_metadata` which remains stable for the entire frame. `can_mac_ser` forwards the `transfer_status` signal from `can_mac_fsm` back to `can_llc`, returning to `s_load_config_byte_0` reset state on any non-ongoing status. The padding bits in the ID field of the MAC-facing LLC frame are silently skipped, allowing `can_mac_fsm` to receive an uninterrupted stream of valid bits. The four-state `can_mac_ser` FSM is shown in @fig:mac-ser-fsm-tx. 
 
 ![`can_mac_ser` FSM serializing the MAC-facing LLC frame (@sec:internal-llc-frame-format). The bit stream is presented to `can_mac_fsm` using a valid/ready handshake. Unused padding bits in the 32-bit ID field are skipped silently.](figures/mac_ser_fsm.png){#fig:mac-ser-fsm-tx width=100%}
 
 ## `can_mac_bs` {#sec:impl-can-mac-bs}
 
-`can_mac_bs` implements both dynamic and fixed bit stuffing for CC and FD frames (REQ-018). The entity is instantiated inside `can_mac` and serves both TX stuffing and RX destuffing via the same logic: `can_mac_fsm` drives the `can_mac_bs` interface, and the stuffer's output is either inserted into the TX bit stream or used by `can_mac_fsm` to discard SBs and FSBs from the received stream.
+`can_mac_bs` implements both dynamic and fixed bit stuffing for CC and CF frames, see @fig:mac-bs-dataflow. The entity is instantiated inside `can_mac` and serves both TX stuffing and RX de-stuffing. The module has a data/valid interface in both the input and output directions. `can_mac_fsm` drives the relevant bit stream through the input data/valid interface. The output data/valid interface is used by `can_mac_fsm` to either inserted stuff bits into the TX bit stream or discard them from the RX stream.
 
-In dynamic mode (`fixed_bit_stuffing_en` = '0'), the stuffer counts consecutive bits of identical polarity and emits an inverse-polarity SB after every five. A counter is incremented on each dynamic SB. Its value is Gray-coded and parity bit is added, generating the `stuff_bit_count` output. This value is read by `can_mac_fsm` when transmitting the SBC field (REQ-016).
+The module operates in dynamic bit stuffing mode when `can_mac_fsm` de-asserts the `fixed_bit_stuffing_en` input signal. In this mode, an inverse-polarity stuff bit is emitted after after every five same-polarity bits received from `can_mac_fsm`. A counter is incremented on each emitted stuff bit and the value of this counter is Gray-coded and parity bit is added, generating the `stuff_bit_count` output signal constituting the SBC field in the CF MAC frame format. When operating in fixed mode (`fixed_bit_stuffing_en` asserted), the module emits a fixed stuff bit immediately on the rising edge of `fixed_bit_stuffing_en`, then one fixed stuff every four bits.
 
-In fixed mode (`fixed_bit_stuffing_en` = '1'), used for the FD CRC region, a FSB is emitted immediately on the rising edge of `fixed_bit_stuffing_en`, then one FSB every four real bits. If a dynamic SB is already pending when `fixed_bit_stuffing_en` rises, the initial FSB emission is skipped - preventing double stuffing.
-
-![`can_mac_bs` bit stuffing logic.](figures/mac_bs_fsm.png){#fig:mac-bs-dataflow width=100%}
+![`can_mac_bs` bit stuffing logic.](figures/mac_bs_fsm.png){#fig:mac-bs-dataflow width=70%}
 
 ## `can_mac_crc` {#sec:impl-can-mac-crc}
 
-`can_mac_crc` runs three parallel `gen_crc` instances on separate data feeds and selects the result with an output multiplexer, as shown in @fig:mac-crc: `data_cc` drives CRC-15 via `valid_cc`, while `data_fd` drives both CRC-17 and CRC-21 via `valid_fd`. The multiplexer selects the active engine's result based on `crc_poly_select` and left-aligns it to the common 21-bit output width: CRC-15 occupies bits [20:6], CRC-17 occupies bits [20:4], and CRC-21 occupies the full width. Transmitter nodes set `crc_poly_select` from the DLC field in `llc_metadata` before the first frame bit is driven. Receiving nodes set `crc_poly_select` after the DLC field has been received.
+`can_mac_crc` instantiates three parallel `gen_crc` modules (`u_crc15`, `u_crc17`, and `u_crc21`) with their output signals routed through a multiplexer using the `crc_poly_select` input signal as select, see @fig:mac-crc. For CC frames, the `can_mac_fsm` drives the input data through the `data_cc`/`valid_cc` interface to `u_crc15`. For CF frames, input data is driven through the `data_fd`/`valid_fd` interface feeding the `u_crc17` and `u_crc21` entities.
 
-The output mux is kept combinatorial - each `gen_crc` instance registers its outputs, so the mux already selects over registered values, keeping IPT at 2 system clocks. A registered mux would require 3 system clocks, violating REQ-024 (IPT ≤ 2 t_q) at minimum prescaler (m=1, t_q = 1 system clock).
+The multiplexer output is left-aligns it to the common 21-bit output width. The output of `u_crc15` occupies bits [20:6], `u_crc17` occupies bits [20:4], and `u_crc21` occupies the full width. Transmitter nodes set `crc_poly_select` from the DLC field in `llc_metadata` before the first frame bit is driven. Receiving nodes set `crc_poly_select` after the DLC field has been received.
 
-![`can_mac_crc` dataflow with three parallel CRC engines. The output mux is combinatorial to satisfy the ISO IPT ≤ 2 t_q constraint at minimum prescaler.](figures/mac_crc_fsm.png){#fig:mac-crc width=70%}
+The output multiplexer is kept combinatorial - each `gen_crc` instance registers its outputs, so the multiplexer already selects over registered values. This allows `can_mac` to meet the IPT ≤ 2 TQ requirement at the minimum pre-scaler value (m=1 => TQ = 1 system clock period) (REQ-024).
+
+![`can_mac_crc` data flow with three parallel `gen_crc` engines. The output multiplexer is combinatorial to satisfy REQ-024 (IPT ≤ 2 TQ) at minimum prescaler configuration.](figures/mac_crc_fsm.png){#fig:mac-crc width=70%}
 
 ## `can_fce` {#sec:impl-can-fce}
 
-`can_fce` implements the error state and counter management specified in REQ-029. It maintains TEC and REC and transitions between three states: `s_error_active`, `s_error_passive` (TEC or REC > 127), and `s_bus_off` (TEC > 255), as shown in @fig:fce-fsm.
+`can_fce` drives the `error_active` and `bus_off` signals controlling the error state of `can_mac`. `can_fce` maintains TEC and REC and counter update logic follow REQ-028. The logic is implemented through the 3-state FSM depicted in @fig:fce-fsm.
 
-Counter updates follow REQ-028. Bus-off recovery requires 128 separate `pcs_i.idle_condition` pulses, after which both counters reset to zero and the FSM returns to `s_error_active`. `llc_i.normal_mode` resets both counters and returns the FSM to `s_error_active` from any state (REQ-029).
+Bus-off recovery requires 128 strobes of `idle_condition` signal from the `can_pcs` module, after which both TEC and REC reset to zero and the FSM returns to the `s_error_active` reset state. Reset to `s_error_active` can can also be initiated through the `normal_mode` signal from `can_llc`.
 
-`can_mac_fsm` asserts `mac_i.passive_tx_ack_error_exempt_1` when it detects an ACK error while the node is error passive and transmitting, signaling `can_fce` to suppress the TEC increment in accordance with REQ-028.
+The TEC incrementation exception specified in REQ-028 is implemented through the `passive_tx_ack_error_exempt_1` signal asserted by `can_mac_fsm` when detecting ACK error while `error_active` is de-asserted.
 
-![`can_fce` FSM governing the error active, error passive, and bus off node states.](figures/fce_fsm.png){#fig:fce-fsm width=100%}
+![`can_fce` FSM governing the error active, error passive, and bus off node states.](figures/fce_fsm.png){#fig:fce-fsm width=80%}
 
 ## `can_pcs` {#sec:impl-can-pcs}
 
-`can_pcs` implements bit timing as a 4-state FSM and a concurrent TDC pipeline (REQ-026, REQ-027), see @fig:can-pcs. The FSM advances through `s_sync_seg` (1 TQ, fixed), `s_prop_seg`, `s_phase_seg1`, and `s_phase_seg2` as each segment's TQ count expires. The SP strobe and `rx_data` latch fire at the end of `s_phase_seg1`. The TX bit is driven at the end of `s_phase_seg2`. TDC measurement runs at TQ granularity above the segment case statement. When `fce_i.bus_off` is asserted, consecutive recessive bits are counted and `fce_o.idle_condition` is pulsed every 11 bits - enabling FCE bus-off recovery (REQ-029).
+`can_pcs` implements bit timing as a 4-state FSM, mapping to the four CAN bit-time segments described in @sec:bit-timing, see @fig:can-pcs. The module is parameterized through a set of generics specifying the segment lengths, SJW and prescaler values. The FSM advances through `s_sync_seg` (1 TQ, fixed), `s_prop_seg`, `s_phase_seg1`, and `s_phase_seg2` as each segment's TQ count expires. At the end of the `s_phase_seg1` state, the `sample_point` strobe signal fires and the transceiver RX signal is latched to the `rx_data` - both consumed by `can_mac_fsm`. At the end of the `s_phase_seg2` state, the `tx_data` input signal from `can_mac_fsm` is latched to the transceiver TX signal. When the `bus_off` input signal is asserted by `can_fce`, all output signals to `can_mac_fsm` are suppressed and the `idle_condition` signal (consumed by `can_fce`) is pulsed every 11 consecutive R bits.
 
-![`can_pcs` bit-time FSM with concurrent resynchronization and TDC pipelines per ISO 11898-1 sec. 7.2-7.4.](figures/pcs_fsm.png){#fig:can-pcs height=90%}
+Hard synchronization is initiated by the `can_mac_fsm` through the `do_hard_sync` input signal. When this signal is asserted, the module performs hard synchronization on the first observed R-to-D edge. On other R-to-D edges, the module performs re-synchronization by adjusting the `s_phase_seg1` and `s_phase_seg2` state durations by SJW. Both hard and re-synchronization are only enabled when the CAN node is operating as receiver, indicated by `can_mac_fsm` through the `transmitting` input signal.
 
-### Synchronization {#sec:impl-can-pcs-resync}
-
-- **Hard synchronization**: Controlled by `can_mac_fsm` via `do_hard_sync`, which restarts the bit time at the sync segment boundary. Used at SOF and at the FDF-to-res transition.
-- **Resynchronization**: The `sync_applied` flag enforces one sync per bit time. `rx_bus_prev` gates sync to recessive → dominant edges. The `transmitting` signal from `can_mac_fsm` suppresses sync during TX. Phase_Seg1 or Phase_Seg2 is adjusted by up to SJW. Phase errors not exceeding SJW produce the same result as a hard synchronization.
+![`can_pcs` FSM implementing CAN node bit timing, synchronization and TDC logic.](figures/pcs_fsm.png){#fig:can-pcs height=90%}
 
 ### Dual Bit Rate Switching {#sec:impl-can-pcs-dual-rate}
 
 `can_pcs` holds no frame-format knowledge. Rate switching is entirely driven by `can_mac_fsm` through three dedicated control signals.
 
-- `next_bit_is_brs`: At the BRS sample point, `can_pcs` reads BRS polarity and, if recessive, replaces the active segment lengths and SJW with their data-phase counterparts.
-- `next_bit_is_res`: Arms TDC measurement at the FD res bit boundary.
-- `data_phase_stop`: Asserted by the `can_mac_fsm` at the CRC delimiter SP or on error-frame entry. Restores nominal timing and clears all TDC state.
+- `next_bit_is_brs`: When this signal is asserted and the bus is observed or driven R at the sample point, the module replaces the nominal segment lengths, SJW and prescaler values with the data-phase counterparts.
+- `next_bit_is_res`: When this signal is asserted at the end of the `s_phase_seg2` state, the module starts TDC measurement.
+- `data_phase_stop`: When this signal is asserted and the bus is observed or driven R at the sample point, the module switches back to nominal bit-timing parameters. The signal is asserted by `can_mac_fsm` at the CRC delimiter bit sample point or when an error is observed. 
 
 ### Transmitter Delay Compensation {#sec:impl-can-pcs-tdc}
 
-TDC is implemented as a three-stage pipeline:
+TDC is implemented as a three-stage pipeline, active in nodes operating as transmitters:
 
-1. **Measure**: From the FD res bit boundary, `delay_count_tq` increments each TQ until the TX-to-RX dominant edge arrives on RX.
-2. **Count down**: At the first data-phase bit boundary, the measured delay is counted down each TQ until zero, setting `ssp_active`.
-3. **Fire**: With `ssp_active` set, the SSP fires one TQ before the SP on every data-phase bit time. `can_mac_fsm` uses `tdc_delay` to index into the transmitted-bit shift register for bit error detection.
+1. **Measure**: The measurement starts when the D polarity CF res bit is driven to the transceiver TX output signal. The `delay_count_tq` counter increments each TQ until the transmitted D polarity edge is observed on the transceiver RX input signal. When measurement is complete the `tdc_delay` output signal is latched
+2. **Count down**: When the first data-phase bit is transmitted, the previously measured `delay_count_tq` delay is counted down each TQ. When reaching zero, the `ssp_active` flag is asserted and the `tdc_delay` output signal is latched (used by `can_mac_fsm` to index into the transmitted-bit shift register enabling bit error detection during the CF data-phase).
+3. **Fire**: With `ssp_active` asserted, the `secondary_sample_point` output strobe fires one TQ before the `sample_point` strobe on every data-phase bit time. `can_mac_fsm` uses `tdc_delay` to index into the transmitted-bit shift register for bit error detection.
 
 # Verification and Results {#sec:verification-results}
 

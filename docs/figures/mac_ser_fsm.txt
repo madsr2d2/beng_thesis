@@ -13,8 +13,8 @@ config:
 
 flowchart LR
 
-classDef reset fill:#F5C2C0,stroke:#BB3333,stroke-width:4px,color:#000000
-classDef ff    fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef reset fill:#,stroke:#,stroke-width:6px,color:#000000
+classDef ff    fill:#,stroke:#,color:#000000
 classDef event fill:#FFF3CD,stroke:#CC9900,stroke-width:2px,color:#000000
 
 classDef wd2 fill:#FFFFFF,stroke:#999999,color:#000000
@@ -26,48 +26,36 @@ classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
 classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
 classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
 
+subgraph config["`**Fetch and present frame metadata to can_mac_fsm**`"]
 s_load_config_byte_0("`**s_load_config_byte_0**
 ─────────
-• Idle: llc ready = 1, MAC valid = 0
-• Awaiting valid + SOP from LLC
-• On SOP: latch IDE, FDF, FTYP, BRS, ESI
-  into llc_metadata (held for entire frame)`")
+• llc_metadata <= llc_i.data : llc_i.valid = '1' ∧ llc_o.ready = '1'`")
 
 s_load_config_byte_1("`**s_load_config_byte_1**
 ─────────
-• llc ready = 1, MAC valid = 0
-• On valid: latch DLC into llc_metadata
-• Init ID counters from IDE flag:
-  IDE=0 → id_bits = 11, padding = 21
-  IDE=1 → id_bits = 29, padding = 3`")
+• llc_metadata <= llc_i.data : llc_i.valid = '1' ∧ llc_o.ready = '1'`")
+end
 
+subgraph ser["`**Serialize byte stream from can_llc**`"]
 s_load_llc_frame_byte("`**s_load_llc_frame_byte**
 ─────────
-• llc ready = 1
-• On valid: latch byte, count = 0
-• Present byte MSB as MAC tx data`")
+• current_byte <= llc_i.data : llc_i.valid = '1' ∧ llc_o.ready = '1'`")
 
 s_shift_out_bits("`**s_shift_out_bits**
 ─────────
-• llc ready = 0 (holds LLC back-pressure)
-• Real bit (id_bits > 0 or past ID region):
-  assert MAC valid, wait for MAC ready
-  left-shift buffer, count + 1
-• Padding bit (id_bits = 0, padding > 0):
-  skip silently, no MAC valid asserted`")
+• mac_o.data <= current_byte(count) : mac_i.ready = '1':
+• count <= cout + 1 : mac_i.ready = '1'
+• count <= 0 : count = 7`")
+end
 
-ev_abort("`**Frame end / abort**
-─────────
-• transfer_status ≠ ongoing
-• count reset to 0`")
 
-s_load_config_byte_0 -->|"valid + SOP"| s_load_config_byte_1
-s_load_config_byte_1 -->|"valid"| s_load_llc_frame_byte
-s_load_llc_frame_byte -->|"valid: byte latched"| s_shift_out_bits
-s_shift_out_bits -->|"count = 7: byte done"| s_load_llc_frame_byte
-s_load_llc_frame_byte --> ev_abort
-s_shift_out_bits --> ev_abort
-ev_abort -->|"reset to idle"| s_load_config_byte_0
+
+s_load_config_byte_0 -->|"SOP = '1'"| s_load_config_byte_1
+s_load_config_byte_1 -->|"llc_i.valid = '1'"| s_load_llc_frame_byte
+s_load_llc_frame_byte -->|"llc_i.valid = '1' ∧ llc_o.ready = '1'"| s_shift_out_bits
+s_shift_out_bits -->|"count = 7"| s_load_llc_frame_byte
+
+ser -->|mac_i.transfer_status ≠ ongoing| s_load_config_byte_0
 
 class s_load_config_byte_0 reset
 class s_load_config_byte_1,s_load_llc_frame_byte,s_shift_out_bits ff

@@ -12,11 +12,11 @@ config:
 ---
 flowchart TD
 
-classDef reset fill:#CDFDC5,stroke:#33AA33,stroke-width:4px,color:#000000
+classDef reset fill:#,stroke:#,stroke-width:6px,color:#000000
 classDef ifs   fill:#,stroke:#,color:#000000
-classDef ff    fill:#CDFDC5,stroke:#33AA33,color:#000000
-classDef ef    fill:#F5C2C0,stroke:#BB3333,color:#000000
-classDef block  fill:#FFE0B9,stroke:#CC8833,color:#000000
+classDef ff    fill:#,stroke:#,color:#000000
+classDef ef    fill:#,stroke:#,color:#000000
+classDef block  fill:#,stroke:#,color:#000000
 
 s_bus_reintegration("`**s_bus_reintegration**`")
 
@@ -47,7 +47,7 @@ subgraph error_frame["`**Error / Overload flags**`"]
   s_error_delimiter -->|"rx_data = D (error or overload)"| s_error_flag
 end
 
-
+subgraph block["`**Pre-case and post-case code blocks**`"]
   postcase("`**Post-case bock**
   ─────────
   • Feed next_bit to can_mac_bs and can_mac_crc
@@ -56,10 +56,11 @@ end
   precase("`**Pre-case bock**
   ─────────
   • Detect error and overlaod conditions
-  • Detect and feed suff bit to can_mac_bs and can_mac_crc`")
+  • Detect and feed suff bit to can_mac_bs and can_mac_crc
+  • Skip FSM case block when stuff-bit or error detected`")
+end
 
-
-subgraph frame_fields["`**Frame Transmission / Reception**`"]
+subgraph frame_fields["`**Frame transmission / reception (FSM case block)**`"]
   s_arbitration("`**s_arbitration**
   ─────────
   • TX: next_bit <= arbitration bits

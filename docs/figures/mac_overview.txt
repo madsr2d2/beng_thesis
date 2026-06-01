@@ -27,7 +27,7 @@ classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
 classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
 classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
 
-LLC("`**LLC Interface**`")
+LLC("`**can_llc**`")
 
 
 

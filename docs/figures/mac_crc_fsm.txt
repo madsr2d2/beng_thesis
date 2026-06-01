@@ -13,8 +13,8 @@ config:
 
 flowchart TD
 
-classDef ff fill:#CDFDC5,stroke:#33AA33,color:#000000
-classDef mux fill:#FFF3CD,stroke:#CC9900,stroke-width:2px,color:#000000
+classDef ff fill:#,stroke:#,color:#000000
+classDef mux fill:#,stroke:#,stroke-width:6px,color:#000000
 
 classDef wd2 fill:#FFFFFF,stroke:#999999,color:#000000
 classDef wd3 fill:#FFFFB4,stroke:#999900,color:#000000
@@ -54,4 +54,4 @@ u_crc17 -->|"crc17_out [16:0]"| p_crc_mux
 u_crc21 -->|"crc21_out [20:0]"| p_crc_mux
 
 class u_crc15,u_crc17,u_crc21 ff
-class p_crc_mux wd4
+class p_crc_mux ff
