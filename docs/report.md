@@ -208,9 +208,9 @@ CF also addresses a gap in CC's stuff-bit handling: in CC, dynamic stuff bits ar
 
 The starting point for this project is Everllence's internally developed current CC controller (`can_bus_controller`). The controller is implemented in VHDL and has been integrated into a production IO-extender FPGA design. It supports CC frames with both 11-bit (base) and 29-bit (extended) identifiers at bit rates up to 500 kbit/s, and has been verified through hardware bring-up on physical CAN buses. The initial version was developed by the author of the present document during an internship at Everllence and has since been extensively modified by other engineers at the company.
 
-The top-level wrapper for `can_bus_controller` instantiates a combined TX/RX frame FSM, a bit timing generator, a dynamic bit stuffer, a CRC-15 engine, and two Avalon-ST converters for frame serialization and deserialization.
+The top-level wrapper for `can_bus_controller` instantiates a combined TX/RX frame Finite State Machine (FSM), a bit timing generator, a dynamic bit stuffer, a CRC-15 engine, and two Avalon-ST converters for frame serialization and deserialization.
 
-The central component is the orchestrating FSM that handles both transmission and reception in a single process. It manages frame arbitration, bit-level TX and RX, stuff-bit error checking, CRC validation, ACK handling, and error flag generation. Fault confinement (error active, error passive, bus off node state transition) is handled in a separate process within the main FSM entity.
+The central component is the orchestrating FSM that handles both transmission and reception in a single process. It manages frame arbitration, bit-level TX and RX, stuff-bit error checking, CRC validation, acknowledgment (ACK) handling, and error flag generation. Fault confinement (error active, error passive, bus off node state transition) is handled in a separate process within the main FSM entity.
 
 While the `can_bus_controller` is functional for CC, several areas of its design would require significant rework to support CF. The main limitations are listed below.
 
