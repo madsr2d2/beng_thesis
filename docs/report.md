@@ -292,7 +292,7 @@ Claude Code [@claudecode] was used for prose editing and VHDL review. Technical 
 ### Integration Requirements
 
 1. **Avalon-ST user interface:** The CAN controller's external interface to the host system must use the Avalon-ST streaming protocol [@avalon_st] (data, valid, ready, sop, eop). The requirement applies specifically to the boundary between the CAN controller and its user.
-2. **IP library CRC block:** Everllence maintains a reusable, parameterised CRC generator (`gen_crc`) in its IP library. This module must be used for all CRC computations.
+2. **IP library CRC block:** Everllence maintains a reusable, parameterized CRC generator (`gen_crc`) in its IP library. This module must be used for all CRC computations.
 
 ### VHDL Code Standard
 
@@ -378,7 +378,7 @@ The 37 requirements distilled in @sec:requirements-engineering define what must 
 ISO 11898-1 structures the CAN node reference model into three functional sub-layers - LLC and MAC in the data link layer, PCS in the physical layer - and a cross-cutting Fault Confinement Entity (FCE) [@iso11898_1, Fig. 4] (see @fig:can-node):
 
 - **LLC (Logical Link Control)**: Acceptance filtering (selecting received frames by identifier), overload notification (delaying the next frame when internal conditions require it), and recovery management (retransmission on error or lost arbitration), and supplying frames to the MAC.
-- **MAC (Medium Access Control)**: Encodes and decodes the frame bit-by-bit, performing bit stuffing and destuffing, CRC generation and checking, error detection and signalling, acknowledgment handling, and medium access arbitration.
+- **MAC (Medium Access Control)**: Encodes and decodes the frame bit-by-bit, performing bit stuffing and destuffing, CRC generation and checking, error detection and signaling, acknowledgment handling, and medium access arbitration.
 - **PCS (Physical Coding Sublayer)**: Bit timing and bus sampling (segmenting each bit time and reading the bus at the sample point), clock synchronization, and the TX/RX interface to the physical transceiver.
 - **FCE (Fault Confinement Entity)**: Escalating the node's error state from error active through error passive to bus off as transmit and receive error counts accumulate.
 
@@ -390,7 +390,7 @@ CAN frames may carry either an 11-bit base identifier or a 29-bit extended ident
 
 All frame formats opens with a D SOF bit that triggers hard synchronization (@sec:bit-timing) in all receiving nodes, followed by the arbitration, control, data, and CRC fields, an ACK slot, and a seven-bit EOF delimiter. The RTR bit is D for data frames and R for RF. The IDE bit distinguishes base frames from extended frames. Fixed-polarity form bits (SRR, r0, r1) carry no protocol instruction. The DLC encodes the number of data bytes in the payload (REQ-031). The ACK slot carries a dominant bit driven by every receiver that has validated the CRC. Each frame is followed by the interframe space - intermission (INT), suspend transmission (ST, error passive transmitters only), and bus idle (REQ-008).
 
-CFFF share the same arbitration phase structure, with the FDF bit signalling an CF format when R. The CF control field contains a reserved form bit (res) alongside BRS and ESI. The DLC retains its 4-bit width but uses a non-linear mapping above 8 bytes, extending the maximum payload to 64 bytes (REQ-031). The BRS (Bit Rate Switch) bit controls the transition to the data-phase bit rate. When BRS is R the bus switches to the faster data rate immediately after the BRS sample point and returns to the nominal rate at the CRC delimiter (REQ-030). The ESI (Error State Indicator) bit reflects the transmitting node's fault-confinement state: a node in error passive state shall transmit ESI recessive (REQ-015). The CFFF CRC field is additionally prefixed by a Stuff Bit Count (SBC) - a Gray-coded count of dynamic stuff bits with a parity bit (REQ-016).
+CFFF share the same arbitration phase structure, with the FDF bit signaling an CF format when R. The CF control field contains a reserved form bit (res) alongside BRS and ESI. The DLC retains its 4-bit width but uses a non-linear mapping above 8 bytes, extending the maximum payload to 64 bytes (REQ-031). The BRS (Bit Rate Switch) bit controls the transition to the data-phase bit rate. When BRS is R the bus switches to the faster data rate immediately after the BRS sample point and returns to the nominal rate at the CRC delimiter (REQ-030). The ESI (Error State Indicator) bit reflects the transmitting node's fault-confinement state: a node in error passive state shall transmit ESI recessive (REQ-015). The CFFF CRC field is additionally prefixed by a Stuff Bit Count (SBC) - a Gray-coded count of dynamic stuff bits with a parity bit (REQ-016).
 
 ## Bit Timing {#sec:bit-timing}
 
@@ -723,7 +723,7 @@ The implemented `can_mac_pcs_fce` stack was synthesized targeting the Cyclone 10
 | Bit timing | `can_node_clock` | 110 | 25 | `can_pcs` | 190 | 49 |
 | Fault confinement | *(in `can_fsm`)* | - | - | `can_fce` | 117 | 31 |
 | CRC | `gen_crc` | 18 | 15 | `can_mac_crc` | 84 | 53 |
-| TX serialiser | `can_ast_to_serial` | 92 | 34 | `can_mac_ser` | 84 | 40 |
+| TX serializer | `can_ast_to_serial` | 92 | 34 | `can_mac_ser` | 84 | 40 |
 | RX frame buffer | `can_serial_to_ast` | 324 | 166 | *(in `can_mac_fsm`)* | - | - |
 | Bit stuffing | `can_stuff_bit_gen` | 10 | 6 | `can_mac_bs` | 31 | 12 |
 | **Total** | | **1,146** | **334** | | **4,608** | **869** |
@@ -765,7 +765,7 @@ WE = (state = s_data) AND sample_point AND (byte_index = N) AND (bit_index = M)
 
 On a 4-input LUT, evaluating this condition without logic sharing costs 4 LUTs per flip-flop: 2 for the 6-bit `byte_index` comparator, 1 for the 3-bit `bit_index` comparator, and 1 to AND with state and sample point. Accordingly, 64 bytes × 8 bits × 4 LUTs = 2,048 LEs are needed to implement write enable across the 64-byte payload.
 
-The `p_stream_to_LLC` process, which streams the received 70-byte frame byte-by-byte to `can_llc`, iterates through the received frame using a runtime counter. This synthesises to a 70:1 8-bit mux. A 4-input LUT can implement a 2:1 mux, with 70 - 1 = 69 2:1 muxes needed for each output bit. This gives a total of 69 × 8 = 552 LEs for the full 70:1 8-bit mux.
+The `p_stream_to_LLC` process, which streams the received 70-byte frame byte-by-byte to `can_llc`, iterates through the received frame using a runtime counter. This synthesizes to a 70:1 8-bit mux. A 4-input LUT can implement a 2:1 mux, with 70 - 1 = 69 2:1 muxes needed for each output bit. This gives a total of 69 × 8 = 552 LEs for the full 70:1 8-bit mux.
 @tbl:fsm-le-upper-bound summarises the resulting upper bound.
 
 Together these bound the buffer contribution at approximately 2,716 LEs, leaving a minimum of 1,393 LEs for protocol FSM logic - at least 2.4× the 589 LEs of the CC `can_fsm`. However, the CC `can_fsm` includes partial fault confinement logic that in the CF design is separated into `can_fce` (117 LEs), so the 589 LE denominator is inflated relative to pure frame TX/RX logic. Subtracting the full `can_fce` cost as an upper bound gives a corrected CC baseline of 472 LEs, raising the protocol logic growth to at most 3.0×. The true ratio lies in the range 2.4× to 3.0×. The exact buffer/protocol split could be resolved by a controlled synthesis experiment, replacing `llc_frame` with constants and measuring the resulting LE reduction directly.
@@ -863,7 +863,7 @@ The zip file accompanying this document contains the complete source tree develo
 
 # `can_mac_pcs_fce` Signal-Level Schematic {#sec:appendix-mac-arch}
 
-The schematic below shows the signal-level realisation of the layered architecture described in @sec:design-architecture, with typed record interfaces at every module boundary.
+The schematic below shows the signal-level realization of the layered architecture described in @sec:design-architecture, with typed record interfaces at every module boundary.
 
 ::: {.landscape-tables}
 
