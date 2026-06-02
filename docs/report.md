@@ -682,22 +682,23 @@ The implemented `can_mac_pcs_fce` stack was synthesized targeting the Cyclone 10
 
 ## Resource Utilization {#sec:synthesis-resources}
 
-@tbl:synthesis-resources compares resource utilization by function between `can_bus_controller` (CAN CC) and `can_mac_pcs_fce` (CAN FD) on the Cyclone 10 LP target. The FD stack uses 4,608 Logic Elements at 30% device utilization against 1,146 for the CC baseline - a 4.0× increase.
+@tbl:synthesis-resources compares resource utilization by function between `can_bus_controller` (CAN CC) and `can_mac_pcs_fce` (CAN FD) on the Cyclone 10 LP target. The FD stack uses 4,608 Logic Elements at 30% device utilization against 1,146 for the CC baseline.
+
 
 | Function | `can_bus_controller` | LEs | Regs | `can_mac_pcs_fce` | LEs | Regs |
 | :--- | :--- | ---: | ---: | :--- | ---: | ---: |
 | Protocol FSM | `can_fsm` | 589 | 86 | `can_mac_fsm` | 4,109 | 684 |
 | Bit timing | `can_node_clock` | 110 | 25 | `can_pcs` | 190 | 49 |
-| Fault confinement | in `can_fsm` | - | - | `can_fce` | 117 | 31 |
+| Fault confinement | *(in `can_fsm`)* | - | - | `can_fce` | 117 | 31 |
 | CRC | `gen_crc` | 18 | 15 | `can_mac_crc` | 84 | 53 |
 | TX serialiser | `can_ast_to_serial` | 92 | 34 | `can_mac_ser` | 84 | 40 |
-| RX frame buffer | `can_serial_to_ast` | 324 | 166 | `can_mac_fsm` | - | - |
+| RX frame buffer | `can_serial_to_ast` | 324 | 166 | *(in `can_mac_fsm`)* | - | - |
 | Bit stuffing | `can_stuff_bit_gen` | 10 | 6 | `can_mac_bs` | 31 | 12 |
 | **Total** | | **1,146** | **334** | | **4,608** | **869** |
 
 : Resource utilization on Cyclone 10 LP by function: `can_bus_controller` (CAN CC) vs `can_mac_pcs_fce` (CAN FD). CC figures extracted from board-level hierarchy report. {#tbl:synthesis-resources}
 
-`can_mac_fsm` accounts for 89% of FD LEs. In the CC design the RX frame buffer is a separate module (`can_serial_to_ast`, 324 LEs); in the FD design it is integrated into `can_mac_fsm`, which combines protocol FSM and frame buffer in a single entity. The LE growth analysis is in @sec:discussion.
+`can_mac_fsm` accounts for 89% of CF LEs. In the CC design the RX frame buffer is a separate module (`can_serial_to_ast`, 324 LEs). In the FD design it is integrated into `can_mac_fsm`, which combines protocol FSM and frame buffer in a single entity. The LE growth analysis is in @sec:discussion.
 
 ## Timing Results {#sec:synthesis-timing}
 
