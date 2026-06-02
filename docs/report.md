@@ -6,7 +6,7 @@ bibliography: references.bib
 csl: ieee.csl
 link-citations: true
 abstract: |
-  This thesis describes the design, implementation, and verification of a CAN/CAN FD protocol controller in VHDL-93 for Everllence's FPGA-based IO-extender platform. The controller complies with ISO 11898-1 and supports CB, CE, FB, and FE frame formats with dual bit rate switching and Transmitter Delay Compensation for the FD data phase. The design follows the ISO 11898-1 layered reference model, with the MAC, PCS, and FCE sub-layers implemented as independently testable modules and connected to the host via Avalon-ST interfaces.
+  This thesis describes the design, partial implementation, and verification of a CAN/CAN FD protocol controller in VHDL-93 for Everllence's FPGA-based IO-extender platform. The controller complies with ISO 11898-1 and supports CB, CE, FB, and FE frame formats with dual bit rate switching and Transmitter Delay Compensation for the FD data phase. The design follows the ISO 11898-1 layered reference model, with the MAC, PCS, and FCE sub-layers implemented as independently testable modules and connected to the host via Avalon-ST interfaces.
 
   37 requirements were derived from ISO 11898-1, each linked to its source clause, verification method, and testbench assertion. 28 are closed against passing testbenches or code inspection. The nine open requirements comprise six LLC-layer requirements deferred pending LLC sub-layer implementation, one not applicable to this architecture, one optional operational feature, and one requiring a frame-aware reference model for error-type-specific injection coverage.
 
@@ -152,11 +152,11 @@ The report covers the full design and verification of a CAN FD protocol controll
 
 - **@sec:requirements-engineering** : Describes how 37 requirements were derived from ISO 11898-1 using an AI-assisted extraction pipeline, and introduces the custom tooling developed to maintain them through iterative refinement.
 
-- **@sec:can-protocol-overview** : Covers the six protocol mechanisms the implementation must realize: the ISO sub-layer reference model, frame formats, bit timing, bit stuffing, CRC generation, and error detection and fault confinement. Readers familiar with ISO 11898-1 may skip to @sec:verification-plan.
+- **@sec:can-protocol-overview** : Presents the key CAN protocol elements at the detailed mechanistic level. Covers the ISO sub-layer reference model, frame formats, bit timing, bit stuffing, CRC generation, and error detection and fault confinement. Readers familiar with ISO 11898-1 may skip this section.
 
 - **@sec:verification-plan** : Documents how each requirement is classified by sub-layer ownership, TX/RX scope, frame format applicability, observability, and verification method, and explains how these classifications drive the module decomposition and testbench architecture.
 
-- **@sec:design-architecture** : Presents the module decomposition, the rationale for per-field FSM granularity in the MAC, and the LLC frame format design.
+- **@sec:design-architecture** : Presents the architectural design and the decisions that drove it. The key design elements follow directly from the verification plan established in @sec:verification-plan.
 
 - **@sec:implementation** : Describes the RTL behavior of each module: `can_mac_fsm`, `can_mac_ser`, `can_mac_bs`, `can_mac_crc`, `can_fce`, and `can_pcs`.
 
@@ -164,7 +164,7 @@ The report covers the full design and verification of a CAN FD protocol controll
 
 - **@sec:synthesis** : Reports resource utilization and timing results from synthesis on the Cyclone 10 LP target.
 
-- **@sec:discussion** : Interprets the logic element growth over the CAN Classic baseline, assesses the three thesis objectives against the verification results (@sec:objectives-assessment), and identifies future work (@sec:future-work).
+- **@sec:discussion** : Interprets the logic element growth over the CAN Classic baseline implementation, assesses the three thesis objectives against the verification results (@sec:objectives-assessment), and identifies future work (@sec:future-work).
 
 - **@sec:conclusion** : Summarizes the findings.
 
