@@ -478,12 +478,12 @@ The `status` field (`not_started`, `in_progress`, `complete`) records requiremen
 
 # Design and Architecture {#sec:design-architecture}
 
-This section presents the key architectural design decisions behind the implementation. It covers the sub-layer module decomposition, the LLC frame format, and the structural choices that govern the MAC sub-layer FSM.
+This section presents the key architectural design decisions driving the implementation. It covers the architecture module decomposition, the LLC frame format, and the structural choices that govern the MAC sub-layer FSM.
 
 The design maps each ISO 11898-1 refference model sub-layer to a dedicated module, as shown in @fig:can-node-architecture. This allows the module boundaries to align directly with in verification targets, each requirement points unambiguously to the responsible implementation unit, and each module can be exercised in isolation. The primary data path runs from `can_llc` through `can_mac` to `can_pcs`, with `can_fce` sitting outside the path as a cross-cutting entity. `can_mac` bundles the four MAC sub-modules into a single sub-layer wrapper. `can_mac_pcs_fce` further combines `can_mac`, `can_pcs`, and `can_fce` into a synthesizable integration target. A centralized types package (`pk_can_types`) defines all protocol constants, interface records, and reset values shared across modules. The responsibilities of the individual modules are listed below.
 
 - **`can_llc`:** Implements the LLC sub-layer. It has a host-facing and a `can_mac`-facing Avalon-ST interface.  Applies acceptance filtering on frames received from `can_mac` and handles retransmission when `can_mac` reports arbitration loss or error/overload. It converts between the host and MAC-facing LLC frame formats described in @sec:llc-frame-format.
-- **`can_mac_fsm`:** Orchestrates frame TX and RX across all four in-scope formats, controls ready backpressure on `can_mac_ser`, drives `can_mac_bs` and `can_mac_crc`, and commits the next bit to the `can_pcs`. Streams received frames to `can_llc` over Avalon-ST.
+- **`can_mac_fsm`:** Orchestrates frame TX and RX across all four in-scope formats, controls the backpressure ready signal on the `can_mac_ser` interface, drives `can_mac_bs` and `can_mac_crc`, and commits the next bit to the `can_pcs`. Streams received frames to `can_llc` over Avalon-ST.
 - **`can_mac_ser`:** Receives the LLC frame over Avalon-ST from `can_llc` and presents a serialized bit stream to `can_mac_fsm` (using a valid/ready handshake) along with frame metadata bits (DLC, ESI, FDF, BRS, FTYP).
 - **`can_mac_bs`:** Performs dynamic and fixed bit stuffing/de-stuffing and generates the SBC field for CF frames.
 - **`can_mac_crc`:** Runs CRC-15, CRC-17, and CRC-21 engines in parallel, selecting the output based on frame format and DLC.
@@ -495,7 +495,7 @@ The design maps each ISO 11898-1 refference model sub-layer to a dedicated modul
 
 ## MAC FSM Granularity {#sec:per-field-vs-per-phase}
 
-REQ-037 defines the complete MAC frame field sequence and fixed-polarity bits for all in-scope formats. With one FSM state per MAC frame field, the FSM naturally progresses through frame structure: format-dependent transitions - such as the divergence between CC and FD at the FDF field - become state graph edges rather than counter conditionals inside a shared state. Each requirement pertaining to a specific MAC frame filed maps to a single FSM state aiding implementation, verification and traceability.
+REQ-037 defines the complete MAC frame field sequence and fixed-polarity bits for all in-scope formats. With one FSM state per MAC frame field, the FSM naturally progresses through frame structure: format-dependent transitions - such as the divergence between CC and CF at the FDF bit field - become state graph edges rather than counter conditionals inside a shared state. Each requirement pertaining to a specific MAC frame filed maps to a single FSM state aiding implementation, verification and traceability.
 
 ## LLC Frame Format {#sec:llc-frame-format}
 
@@ -509,20 +509,19 @@ The host-LLC format shown in @fig:llc-frame extends the `can_bus_controller` LLC
 
 ### LLC-MAC Interface Format {#sec:internal-llc-frame-format}
 
-The host-LLC format places all control flags after the payload, requiring a full 71-byte frame buffer before serialization can begin. The LLC-MAC format (@fig:llc-frame-int) avoids this by packing all metadata into two leading config bytes: `can_mac_ser` receives these first, then streams the ID and data bytes immediately.
+The host-LLC format places all control flags after the payload, requiring a full 71-byte frame buffer before serialization can begin. The LLC-MAC format (@fig:llc-frame-int) front-loads all metadata into two leading config bytes, allowing `can_mac_ser` to begin streaming ID and data bytes immediately without buffering the full frame.
 
 ![Internal LLC frame format at the `can_mac_ser` input, with identifier byte mapping for base and extended IDs. Hatched regions indicate variable-value bits.](figures/llc_frame_int.png){#fig:llc-frame-int width=100%}
 
 # Implementation {#sec:implementation}
 
-This section describes the RTL implementation of the modules introduced in @sec:design-architecture, covering the key behavioral choices in each. All inter-module interfaces use typed records paired with reset constants, so every module can be reset without enumerating individual fields. Port direction follows `m2s`/`s2m` (master-to-slave/slave-to-master) for control interfaces and `s2d`/`d2s` for Avalon-ST data interfaces. `pk_can_types` is the single shared package defining every interface type, protocol constant, frame format layout, and utility function used across the design.
+This section describes the RTL implementation of the modules introduced in @sec:design-architecture, covering the key behavioral choices in each. All inter-module interfaces use typed records paired with reset constants, so every module can be reset without enumerating individual fields. Port direction follows `m2s`/`s2m` (master-to-slave/slave-to-master) for control interfaces and `s2d`/`d2s` for Avalon-ST data interfaces. `pk_can_types` is the single shared package defining every interface type, protocol constant, frame format layout, and utility function used across the design. The complete signal-level schematic of `can_mac_pcs_fce` - the integrated implementation of the architecture overview in @sec:design-architecture - is reproduced in @sec:appendix-mac-arch.
 
-`can_llc` is not implemented in this project. Its interface contracts are fully specified in the verification plan (REQ-001 through REQ-005, REQ-031, REQ-034, REQ-036), and the implementation path is described in @sec:future-work.
+`can_llc` was not implemented within the project timeline. Its interface contracts are fully specified in the verification plan (REQ-001 through REQ-005, REQ-031, REQ-034, REQ-036) and the implementation path is described in @sec:future-work.
 
 ## `can_mac_fsm` {#sec:impl-can-mac-fsm}
-
-`can_mac_fsm` accumulates received frames into a 70-byte internal byte array (`llc_frame`), reusing `can_bus_controller`'s register-array approach as a proof-of-concept baseline. The resource overhead is negligible at the 15 byte frame used by CC, but becomes the dominant logic element cost at the 70 byte frame used by CF - a block RAM migration is the identified upgrade path, see @sec:future-work. Bus-off state is owned entirely by `can_fce` and `can_mac_fsm` just treats the `bus_off` signal from `can_fce` as a secondary reset alongside the hardware reset. The complete signal-level interface is reproduced in @sec:appendix-mac-arch.
-
+s
+`can_mac_fsm` accumulates received frames into a 70-byte internal byte array (`llc_frame`), reusing `can_bus_controller`'s register-array approach as a proof-of-concept baseline. The resource overhead is negligible at the 15 byte frame used by CC, but becomes the dominant logic element cost at the 70 byte frame used by CF - a block RAM migration is the identified upgrade path, see @sec:future-work. Bus-off state is owned entirely by `can_fce` and `can_mac_fsm` just treats the `bus_off` signal from `can_fce` as a secondary reset alongside the hardware reset.
 ### FSM Structure
 
 
@@ -531,15 +530,15 @@ This section describes the RTL implementation of the modules introduced in @sec:
 - **`p_fsm`**: The main controlling FSM.
 - **`p_stream_to_LLC`**: Responsible for streaming received frames to `can_llc` via Avalon-ST.
 
-An `is_transmitter` flag, latched when `p_fsm` drives the SOF bit at the start of a new frame transmission and cleared at arbitration loss or at the end of the EOF field, partitions per-state logic into a TX branch and an RX branch. The error flag states are an exception: both transmitter and receiver errors enter the same two-state sequence, with flag polarity driven by the `error_active` signal from `can_fce`.
+An `is_transmitter` flag, latched when `p_fsm` drives the SOF bit at the start of a new frame transmission and cleared at arbitration loss or at the end of the EOF field, partitions per-state logic into a TX branch and an RX branch. The error flag transmission states are an exception: both transmitter and receiver nodes enter the same two-state sequence, with flag polarity driven by the `error_active` signal from `can_fce`.
 
-State transition are triggered by the `sample_point` signal from `can_fce` and `p_fsm` organizes each sample-point cycle as three phases:
+State transition are triggered by the `sample_point` signal from `can_pcs` and `p_fsm` organizes each sample-point cycle as three phases:
 
 - **Pre-case code block**: This code block runs before the FSM case statement and handles all conditions that preempt normal state progression: stuff-bit insertion, lost arbitration, bit errors, and ACK errors on the TX branch, stuff-bit removal, stuff errors, form errors, CRC errors and overload conditions on the RX branch. When any of these conditions fire, the `v_skip_case` variable is set and the case block is bypassed entirely.
 - **FSM case block**: This is the main FSM case statement. It handles only the error and stuff-bit free state transitions.
 - **Post-case block**: This code block feeds the `can_mac_bs` and `can_mac_crc`  and commits the drive polarity to the PCS output.
 
-This structure trades per-state locality for non-duplication of cross-cutting logic. Placing stuff-bit and error handling inside each state would duplicate identical detection and feed logic across multiple states. Centralizing it in the pre-case handles it once and the `v_skip_case` flag guarantees that the state machine does not advance when it should not. For logic that is genuinely per-state - DLC parsing, ACK success latching, EOF completion - the case block handles it directly.
+This structure trades per-state code locality for non-duplication of cross-cutting logic. Placing stuff-bit and error handling inside each state would duplicate identical detection and feed logic across multiple states. Centralizing it in the pre-case handles it once and the `v_skip_case` flag guarantees that the state machine does not advance when it should not. For logic that is genuinely per-state - DLC parsing, ACK success latching, EOF completion - the case block handles it directly.
 
 `p_fsm` implements the per-field state granularity introduced in @sec:per-field-vs-per-phase. Each post-arbitration field has a dedicated state, with the arbitration region sharing `s_arbitration` across ID bits, RTR/SRR/RRS, and IDE via `bit_count`. The complete `p_fsm` is shown in @fig:mac-fsm.
 
@@ -551,7 +550,7 @@ The `can_mac_fsm` executes the TX-relevant logic when `is_transmitter` is set. T
 
 The `can_mac_fsm` samples the `rx_data` signal from `can_pcs` at each SP strobe from `can_pcs` - detecting bit error, ACK/ACK-error, and arbitration loss. In the CF data phase, the SSP strobe replaces the SP for bit-error monitoring. The `can_mac_fsm` compares `rx_data` against `transmitted_bits_shift_reg`, where `tdc_delay` (supplied alongside the SSP strobe by the `can_pcs`) is used to index into `transmitted_bits_shift_reg`. Arbitration loss clears `is_transmitter` in `s_arbitration` and the node continues as an receiver.
 
-During `s_arbitration` state multiple nodes may be transmitting. This necessitates both transmitters and receiver nodes to feed `can_mac_bs` and `can_mac_crc` from the `rx_data` signal. This ensures that transmitter and receiver roles have matching accumulators during arbitration - enabling seamless transmitter-to-receiver transitions on arbitration loss. From `s_fdf_r1_r0` onward the transmitter nodes switches to `transmitted_bits_shift_reg(tdc_delay)` as the `can_mac_bs` and `can_mac_crc` feed source - enabling TDC in the data-phase.
+During the `s_arbitration` state multiple nodes may be transmitting. This necessitates both transmitters and receiver nodes to feed `can_mac_bs` and `can_mac_crc` from the `rx_data` signal. This ensures that transmitter and receiver roles have matching accumulators during arbitration - enabling seamless transmitter-to-receiver transitions on arbitration loss. From `s_fdf_r1_r0` onward the transmitter nodes switches to `transmitted_bits_shift_reg(tdc_delay)` as the `can_mac_bs` and `can_mac_crc` feed source - enabling TDC in the data-phase.
 
 ### RX Mode
 
@@ -631,21 +630,21 @@ Code inspection provides evidence for sub-claims in several requirements covered
 
 The five unit testbenches target individual submodules with focused stimulus.
 
-1. **`can_mac_crc_tb`**: closes REQ-006 via three coverage bins (CRC-15 for CB/CE, CRC-17 for FD ≤16 bytes, CRC-21 for FD >16 bytes). `f_calc_can_crc` computes expected CRC per polynomial and checks DUT output on every frame. Additional checkers verify init vector reset and output stability between frames.
-2. **`can_mac_bs_tb`**: closes REQ-016 and REQ-018 via a two-phase stimulus: six directed FSB tests followed by random dynamic bits. Three concurrent reference models verify DUT output: `p_stuff_bit_checker` verifies a complement bit after every five same-polarity bits, `p_sbc_checker` verifies Gray-code parity and increments on dynamic stuff bits and holds on FSBs, and `p_fsb_checker` verifies initial and periodic FSB polarity. All coverage bins are hit.
-3. **`can_pcs_tb`**: provides simulation evidence for REQ-024, REQ-025, REQ-026 (combined with code inspection), and REQ-027. Two `can_pcs` instances run on mismatched clocks through a physical bus model. Three tests cover reset, random FD frames with alternating clock leadership, and bus-off isolation. `p_check_tdc_delay` verifies at each SSP that `polarity_history(tdc_delay)` matches the sampled bus value. `p_rx_mac_vc` compares RX-sampled bits against the TX sequence bit by bit.
-4. **`can_fce_tb`**: closes REQ-028, REQ-029, and REQ-033 (sub-claim 2) using directed stimulus only - counter rules are deterministic. Reset confirms outputs clear and `llc_i.normal_mode` restores error-active from any state. All REQ-028 counter rules are exercised at the error-active/error-passive boundary. REQ-033 sub-claim 2 confirms no bus-off entry when `passive_tx_ack_error_exempt_1` is set while error-passive. REQ-029 boundary check: 64 `idle_condition` strobes confirm no premature release, 128 confirm clearance and error-active restoration.
+1. **`can_mac_crc_tb`**: closes REQ-006 via three coverage bins (CRC-15 for CB/CE, CRC-17 for FD ≤16 bytes, CRC-21 for FD >16 bytes). The testbench contains an independent software CRC reference model (`f_calc_can_crc`) with no shared logic with the DUT: it processes the bit stream serially and applies the ISO polynomial to produce the expected digest, checked against DUT output on every frame. Additional checkers verify init vector reset and output stability between frames.
+2. **`can_mac_bs_tb`**: closes REQ-016 and REQ-018 via a two-phase stimulus: six directed FSB tests followed by random dynamic bits. Three concurrent reference models verify DUT output: `p_stuff_bit_checker` verifies a complement bit after every five same-polarity bits, `p_sbc_checker` verifies Gray-code and parity bit. All coverage bins are hit.
+3. **`can_pcs_tb`**: provides simulation evidence for REQ-024, REQ-025, REQ-026 (combined with code inspection), and REQ-027. Two `can_pcs` instances run on mismatched clocks through a physical bus model. Three tests cover reset, random CF frames with alternating clock leadership, and bus-off isolation. `p_check_tdc_delay` verifies that `polarity_history(tdc_delay)` matches the sampled bus value at each SSP strobe. `p_rx_mac_vc` compares RX-sampled bits against the TX sequence bit by bit.
+4. **`can_fce_tb`**: closes REQ-028, REQ-029, and REQ-033 (sub-claim 2) using directed stimulus. Reset confirms outputs clear and `llc_i.normal_mode` restores error-active from any state. All REQ-028 counter rules are exercised at the error-active/error-passive boundary. Asserting `passive_tx_ack_error_exempt_1` while error-passive confirms no bus-off entry (REQ-033 sub-claim 2). 64 `idle_condition` pulses confirm no premature release and 128 confirm clearance and error-active restoration (REQ-029).
 5. **`can_mac_ser_tb`**: closes REQ-031 (DLC encoding: linear for DLC 0-8, FD non-linear for DLC 9-15) and provides supporting evidence for higher-level requirements. Three coverage dimensions drive frame selection: IDE (base/extended), FDF (CC/FD), and DLC (0-15). `p_mac_fsm_vc` verifies all metadata fields against the LLC frame and compares the output bit stream byte by byte, accounting for ID width, padding, and DLC-derived data length. Random back pressure and a 2% mid-frame abort rate exercise pipeline stalls and the `c_disturbed` path. `p_transfer_status_checker` monitors `transfer_status` every cycle.
 
 ## Integration Testbench Simulation {#sec:integration-testbench}
 
-`can_mac_pcs_fce_tb` is the primary integration testbench, exercising two `can_mac_pcs_fce` instances connected through a dominant-wins bus model and covering 17 requirements spanning MAC frame encoding, arbitration, and error handling. The following waveforms are selected excerpts from the test run. Many requirements are verified by waveform inspection across all test scenarios. Reproducing a dedicated figure for each requirement would be impractical, so only representative scenarios are shown.
+`can_mac_pcs_fce_tb` is the primary integration level testbench, exercising two `can_mac_pcs_fce` instances connected through a dominant-wins bus model and covering 17 requirements spanning MAC frame encoding, arbitration, and error handling. The following waveforms are selected excerpts from the test run. Many requirements are verified by waveform inspection across all test scenarios. Reproducing a dedicated figure for each requirement would be impractical, so only representative scenarios are shown.
 
-- **Complete FD Frame Transmission** (@fig:full_fd_frame): a complete FD frame transmitted by DUT 1 and received by DUT 2, showing hard synchronization on SOF, TDC loopback delay measurement, dual bit rate switching at the BRS sample point, SSP pulses during the data phase, and ACK confirmation (REQ-010, REQ-012, REQ-014, REQ-015, REQ-017, REQ-026).
-- **Bit Stuffing** (@fig:bs): dynamic and fixed mode behavior (REQ-016, REQ-018).
-- **Bit Rate Switching and TDC** (@fig:pcs): the PCS switches to data-phase bit timing at the BRS sample point and positions the SSP once the transceiver loopback delay is measured (REQ-025, REQ-030).
-- **Arbitration** (@fig:arb): the losing node clears `is_transmitter` in-place at `s_arbitration` and continues as receiver without a state transition (REQ-020).
-- **Error Handling and Bus-off Recovery** (@fig:error_frame, @fig:bus_off_recovery): error frame escalation and bus-off recovery (REQ-007, REQ-008, REQ-009, REQ-021, REQ-022, REQ-028, REQ-029, REQ-033 sub-claim 1).
+- **Complete FD Frame Transmission** (@fig:full_fd_frame): A complete FD frame transmitted by DUT 1 and received by DUT 2, showing hard synchronization on SOF, TDC loopback delay measurement, dual bit rate switching at the BRS sample point, SSP pulses during the data phase, and ACK confirmation (REQ-010, REQ-012, REQ-014, REQ-015, REQ-017, REQ-026).
+- **Bit Stuffing** (@fig:bs): Dynamic and fixed mode behavior (REQ-016, REQ-018).
+- **Bit Rate Switching and TDC** (@fig:pcs): The PCS switches to data-phase bit timing at the BRS sample point and positions the SSP once the transceiver loopback delay is measured (REQ-025, REQ-030).
+- **Arbitration** (@fig:arb): The losing node clears `is_transmitter` in-place at `s_arbitration` and continues as receiver without a state transition (REQ-020).
+- **Error Handling and Bus-off Recovery** (@fig:error_frame, @fig:bus_off_recovery): Error frame escalation and bus-off recovery (REQ-007, REQ-008, REQ-009, REQ-021, REQ-022, REQ-028, REQ-029, REQ-033 sub-claim 1).
 
 ![Two-node simulation of a complete FD frame transmission in `can_mac_pcs_fce_tb`. DUT 2 hard-synchronizes on SOF at A. DUT 1 measures the TDC loopback delay between B and C. Both nodes switch to data-phase bit timing at the BRS sample point at D. DUT 1 switches back to nominal bit timing at the CRC delimiter sample point at E. DUT 2 drives the ACK slot dominant at F, DUT 1 samples the dominant ACK at G and latches `ack_success_seen`. Transmission ends at H.](figures/waveforms/full_fd_frame.pdf){#fig:full_fd_frame width=100%}
 
@@ -833,7 +832,7 @@ Complete signal-level connectivity of the implemented CAN node. The MAC sub-laye
 
 ::: {.landscape-tables}
 
-![Complete CAN node signal-level connectivity. The MAC sub-layer is expanded to show its four internal entities. The LLC interface block is the Avalon-ST boundary to the pending LLC implementation.](figures/mac_arch.png){#fig:mac-fsm-arch width=100%}
+![Signal-level schematic of `can_mac_pcs_fce`, showing the MAC, PCS, and FCE sub-layers and all inter-module interfaces. The MAC sub-layer is expanded to show its four internal entities (`can_mac_fsm`, `can_mac_ser`, `can_mac_bs`, `can_mac_crc`). The box labeled **LLC interface** is the stub for the unimplemented `can_llc` module.](figures/mac_arch.png){#fig:mac-fsm-arch width=100%}
 
 :::
 
