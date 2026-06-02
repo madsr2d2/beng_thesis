@@ -617,17 +617,15 @@ TDC is implemented as a three-stage pipeline, active in nodes operating as trans
 
 # Verification and Results {#sec:verification-results}
 
-The implemented modules described in @sec:implementation was exercised against the 37-requirement verification plan using five unit testbenches and one integration level testbench (`can_mac_pcs_fce_tb`), see @fig:tb-overview.
+The implemented modules described in @sec:implementation were exercised against the 37-requirement verification plan using five unit testbenches and one integration level testbench (`can_mac_pcs_fce_tb`), see @fig:tb-overview. The majority of requirements are closed by simulation. Code inspection provides evidence where testbench stimulus cannot reach the required condition. REQ-023 (overload frame conditions) is the primary example: triggering an overload frame requires injecting a dominant bit at specific field boundaries, which requires a frame-aware bit injector not present in the current testbench.
 
 ![`can_mac_pcs_fce_tb` integration testbench. Two `can_mac_pcs_fce` instances connect through a dominant-wins bus model. Avalon-ST VCs drive and sample the MAC interfaces. `p_test_ctrl` sequences test stimuli, injects bit errors, reads transfer status, and monitors bus-off status.](figures/tb_overview.png){#fig:tb-overview width=100%}
 
-REQ-013 (CRC data feed differs by format: CC excludes stuff bits, FD includes dynamic stuff bits and the SBC field) is verified by code inspection against `can_mac_fsm.vhd` - the FSM controls which frame fields are gated into the CRC engines, and the per-field feed logic is directly readable from the state transitions. REQ-023 (overload frame conditions) requires triggering an overload frame by injecting a dominant bit at specific field boundaries (last EOF bit, first two intermission bits, last error/overload delimiter bit), which requires a frame-aware bit injector not present in the current testbench.
-
-Code inspection also provides evidence for sub-claims in several requirements covered in @sec:integration-testbench:
+Code inspection provides evidence for sub-claims in several requirements covered in @sec:integration-testbench:
 
 - **Error detection paths not exercised by simulation**: REQ-021 sub-claims 2-5 (stuff, form, CRC, and ACK error detection) and REQ-022 sub-claims 2-3 (data-phase error rate switching and CRC error receiver behavior) are verified by code inspection only - frame-aware error injection is not available in the current testbench.
-- **Receiver acceptance of non-standard bit values**: REQ-012 sub-claims 1-2 (receiver acceptance of dominant SRR and RRS bits without form error) and REQ-017 sub-claim 1 (two-bit CRC delimiter tolerance) are confirmed by inspecting the form-error logic in `can_mac_fsm.vhd`.
-- **Conditions not covered by current testbench stimulus**: REQ-026 sub-claim 3 (one synchronization per bit time, enforced by `sync_applied`) and REQ-010 sub-claim 2 (third-intermission-bit skip-SOF transition) are confirmed by reading the guard conditions in `can_mac_fsm.vhd` and `can_pcs.vhd`.
+- **Receiver acceptance of non-standard bit values**: REQ-012 sub-claims 1-2 (receiver acceptance of dominant SRR and RRS bits without form error) are confirmed by inspecting the form-error logic in `can_mac_fsm.vhd`.
+- **Conditions not directly observable in simulation**: REQ-010 sub-claim 2 (third-intermission-bit skip-SOF transition) is confirmed by reading the guard conditions in `can_mac_fsm.vhd`.
 
 ## Unit Testbench Simulation {#sec:unit-testbenches}
 
