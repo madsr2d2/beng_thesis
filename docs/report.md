@@ -496,16 +496,16 @@ The `status` field (`not_started`, `in_progress`, `complete`) records requiremen
 
 ## Verification Plan Summary {#sec:vplan-summary}
 
-@tbl:vplan-distribution shows the 37 requirements distributed across layer, side, format scope, and observability. MAC carries 20 of the 37, with 16 white-box, reflecting the breadth of frame-encoding logic that requires bit-level state access to verify. FCE is the opposite: both requirements are black-box, since fault-confinement state transitions are fully observable through the node's error-state output signals. The complete verification plan is reproduced in @sec:appendix-vplan as two separate tables linked by common IDs.
+@tbl:vplan-distribution shows the 37 requirements distributed across layer, side, format scope, and observability. MAC carries 20 of the 37, with 18 white-box, reflecting the breadth of frame-encoding logic that requires bit-level state access to verify. FCE is the opposite: both requirements are black-box, since fault-confinement state transitions are fully observable through the node's error-state output signals. The complete verification plan is reproduced in @sec:appendix-vplan as two separate tables linked by common IDs.
 
 | Layer | Requirements | n | TX | RX | Both | FS | BB | WB |
 | :---- | :----------- | -: | -: | -: | ---: | -: | -: | -: |
-| MAC | REQ-006, REQ-008, REQ-010–013, REQ-015–019, REQ-021–023, REQ-030–032, REQ-034–035, REQ-037 | 20 | 3 | 0 | 17 | 5 | 4 | 16 |
+| MAC | REQ-006, REQ-008, REQ-010–013, REQ-015–019, REQ-021–023, REQ-030–032, REQ-034–035, REQ-037 | 20 | 3 | 0 | 17 | 5 | 2 | 18 |
 | LLC | REQ-001–005, REQ-036 | 6 | 3 | 1 | 2 | 0 | 3 | 3 |
 | PCS | REQ-024–027 | 4 | 1 | 0 | 3 | 1 | 1 | 3 |
 | FCE | REQ-028–029 | 2 | 0 | 0 | 2 | 0 | 2 | 0 |
 | System | REQ-007, REQ-009, REQ-014, REQ-020, REQ-033 | 5 | 1 | 0 | 4 | 0 | 2 | 3 |
-| **Total** | | **37** | **8** | **1** | **28** | **6** | **12** | **25** |
+| **Total** | | **37** | **8** | **1** | **28** | **6** | **10** | **27** |
 
 : Requirement distribution by layer, side, format scope, and observability. n = total. FS = format-specific (not applicable to all four frame formats). BB = black-box. WB = white-box. {#tbl:vplan-distribution}
 
