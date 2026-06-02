@@ -69,7 +69,7 @@ id = "REQ-002"
 source_clause = "§6.4.5.5.2, §6.4.5.5.3"
 original_wording = "Any L_Data.Request shall be processed not later than the second SOF after the request when there are no EFs present during this time. ; Receipt of this service shall cause the LLC sub-layer to abort the transfer of an LLC frame in the specified LLC storage unit. ; Pending transmissions, which are already passed to the MAC sub-layer, shall only be aborted if: an error in the MAC sub-layer during transmission occurs, or arbitration was lost in the MAC sub-layer, which causes the LLC frame to wait for another transmission attempt. ; This means that an abortion request shall be kept pending in the LLC layer until either one of the above situations occur, or until the transmission was completed. ; Any L_Data.AbortRequest shall be processed prior to the second SOF after the request when there are no EFs present during this time. ; Any L_Data.AbortRequest shall be processed prior to the third SOF after the request when there are EFs present during this time."
 paraphrase = """1) A TX request shall be processed no later than the second SOF after the request when no EFs are present.
-2) Frames not yet passed to the MAC are aborted immediately.
+2) Frames not yet passed to MAC are aborted immediately. Frames already in MAC are only aborted on error or arbitration loss - the abort request is held pending until then.
 3) An abort request shall be processed before the second SOF (no EFs present) or third SOF (with EFs present)."""
 side = "transmitter"
 layer = "LLC"
