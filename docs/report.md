@@ -551,8 +551,8 @@ This section describes the RTL implementation of the modules introduced in @sec:
 `can_llc` was not implemented within the project timeline. Its interface contracts are fully specified in the verification plan (REQ-001 through REQ-005, REQ-031, REQ-034, REQ-036) and the implementation path is described in @sec:future-work.
 
 ## `can_mac_fsm` {#sec:impl-can-mac-fsm}
-s
-`can_mac_fsm` accumulates received frames into a 70-byte internal byte array (`llc_frame`), reusing `can_bus_controller`'s register-array approach as a proof-of-concept baseline. The resource overhead is negligible at the 15 byte frame used by CC, but becomes the dominant logic element cost at the 70 byte frame used by CF - a block RAM migration is the identified upgrade path, see @sec:future-work. Bus-off state is owned entirely by `can_fce` and `can_mac_fsm` just treats the `bus_off` signal from `can_fce` as a secondary reset alongside the hardware reset.
+
+`can_mac_fsm` orchestrates bit-level frame encoding and decoding across all four in-scope formats, coordinating `can_mac_bs`, `can_mac_crc`, and `can_pcs` on each sample-point cycle. The module accumulates received frames into a 70-byte internal byte array (`llc_frame`), reusing `can_bus_controller`'s register-array approach as a proof-of-concept baseline. The resource overhead is negligible at the 15 byte frame used by CC, but becomes the dominant logic element cost at the 70 byte frame used by CF - a block RAM migration is the identified upgrade path, see @sec:future-work. Bus-off state is owned entirely by `can_fce` and `can_mac_fsm` just treats the `bus_off` signal from `can_fce` as a secondary reset alongside the hardware reset.
 ### FSM Structure
 
 
