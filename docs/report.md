@@ -116,6 +116,7 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 | PS | Propagation Segment (PROP_SEG) |
 | PS1 | Phase Segment 1 (PHASE_SEG1) |
 | PS2 | Phase Segment 2 (PHASE_SEG2) |
+| PVT | Process, Voltage, Temperature |
 | R | Recessive |
 | RF | Remote Frame |
 | RRS | Reserved Remote Request Substitution bit (FD frames) |
@@ -457,7 +458,7 @@ The verification plan adds five classification dimensions to each of the 37 requ
 
 ## Layer {#sec:vplan-layer}
 
-The `layer` field assigns each requirement to the sub-layer that owns it: LLC, MAC, PCS, or FCE. A fifth label, `system`, marks requirements that are inherently multi-layer or multi-node and need either an integrated testbench or a two-node simulation. REQ-020 (arbitration loss) illustrates the latter: verifying it requires MAC, PCS, and FCE cooperating in a full node, plus a second node driving dominant while the DUT drives recessive.
+The `layer` field assigns each requirement to the sub-layer that owns it: LLC, MAC, PCS, or FCE. A fifth label, `system`, marks requirements that are inherently multi-layer or multi-node and need either an integrated testbench or a two-node simulation. REQ-020 (arbitration loss) illustrates the latter: verifying it requires MAC, PCS, and FCE cooperating in a full node, plus a second node driving dominant while the Device Under Test (DUT) drives recessive.
 
 ## Side {#sec:vplan-side}
 
@@ -652,7 +653,7 @@ TDC is implemented as a three-stage pipeline, active in nodes operating as trans
 
 The implemented modules described in @sec:implementation were exercised against the 37-requirement verification plan using five unit testbenches and one integration level testbench (`can_mac_pcs_fce_tb`), see @fig:tb-overview. The majority of requirements are closed by simulation. Code inspection provides evidence where testbench stimulus cannot reach the required condition. REQ-023 (overload frame conditions) is the primary example: triggering an overload frame requires injecting a dominant bit at specific field boundaries, which requires a frame-aware bit injector not present in the current testbench.
 
-![`can_mac_pcs_fce_tb` integration testbench. Two `can_mac_pcs_fce` instances connect through a dominant-wins bus model. Avalon-ST VCs drive and sample the MAC interfaces. `p_test_ctrl` sequences test stimuli, injects bit errors, reads transfer status, and monitors bus-off status.](figures/tb_overview.png){#fig:tb-overview width=100%}
+![`can_mac_pcs_fce_tb` integration testbench. Two `can_mac_pcs_fce` instances connect through a dominant-wins bus model. Avalon-ST Verification Components (VCs) drive and sample the MAC interfaces. `p_test_ctrl` sequences test stimuli, injects bit errors, reads transfer status, and monitors bus-off status.](figures/tb_overview.png){#fig:tb-overview width=100%}
 
 Code inspection provides evidence for sub-claims in several requirements covered in @sec:integration-testbench:
 
