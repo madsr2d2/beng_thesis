@@ -10,7 +10,7 @@ abstract: |
 
   37 requirements were derived from ISO 11898-1, each linked to its source clause, verification method, and testbench assertion. 28 are closed against passing testbenches or code inspection. The nine open requirements comprise six LLC-layer requirements deferred pending LLC sub-layer implementation, one not applicable to this architecture, one optional operational feature, and one requiring a frame-aware reference model for error-type-specific injection coverage.
 
-  The design was synthesized on a Cyclone 10 LP FPGA target using 4,608 logic elements at 30% device utilization - 4.0× the existing CAN Classic controller. The worst-case fmax of approximately 127 MHz exceeds the highest recommended CAN FD system clock of 80 MHz by more than a factor of 1.5.
+  The design was synthesized on a Cyclone 10 LP FPGA target using 4,608 logic elements at 30% device utilization, ~4× the existing CAN Classic controller. Analysis attributes the majority of this growth to RX frame buffer decode logic, with protocol FSM logic growing 2.4× to 3.0× over the CC equivalent. The worst-case fmax of approximately 127 MHz exceeds the highest recommended CAN FD system clock of 80 MHz by more than a factor of 1.5.
 ---
 
 ```{=latex}
