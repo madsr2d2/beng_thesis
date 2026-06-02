@@ -617,11 +617,9 @@ TDC is implemented as a three-stage pipeline, active in nodes operating as trans
 
 # Verification and Results {#sec:verification-results}
 
-The implementation described in @sec:implementation was exercised against the 37-requirement verification plan (@sec:verification-plan) using five unit testbenches and one integration testbench, `can_mac_pcs_fce_tb`. @fig:tb-overview shows the integration testbench architecture.
+The implemented modules described in @sec:implementation was exercised against the 37-requirement verification plan using five unit testbenches and one integration level testbench (`can_mac_pcs_fce_tb`), see @fig:tb-overview.
 
 ![`can_mac_pcs_fce_tb` integration testbench. Two `can_mac_pcs_fce` instances connect through a dominant-wins bus model. Avalon-ST VCs drive and sample the MAC interfaces. `p_test_ctrl` sequences test stimuli, injects bit errors, reads transfer status, and monitors bus-off status.](figures/tb_overview.png){#fig:tb-overview width=100%}
-
-## Code Inspection {#sec:code-inspection}
 
 REQ-013 (CRC data feed differs by format: CC excludes stuff bits, FD includes dynamic stuff bits and the SBC field) is verified by code inspection against `can_mac_fsm.vhd` - the FSM controls which frame fields are gated into the CRC engines, and the per-field feed logic is directly readable from the state transitions. REQ-023 (overload frame conditions) requires triggering an overload frame by injecting a dominant bit at specific field boundaries (last EOF bit, first two intermission bits, last error/overload delimiter bit), which requires a frame-aware bit injector not present in the current testbench.
 
@@ -665,7 +663,7 @@ The five unit testbenches target individual submodules with focused stimulus.
 
 ## Testbench Results Summary {#sec:testbench-results-summary}
 
-Of the 37 requirements, 28 are closed: 26 via testbench simulation (@tbl:testbench-results-summary) and two (REQ-013, REQ-023) via code inspection (@sec:code-inspection). Nine remain open: six are LLC requirements (REQ-001 through REQ-005, REQ-036) deferred pending `can_llc` implementation, REQ-034 (P3) and REQ-035 (P2) are non-blocking, and REQ-021 (P1) is partially covered - bit-error detection is verified in `test_bus_off`, while the remaining sub-claims (stuff, form, CRC, ACK) require frame-aware error injection not available in the current testbench (@sec:future-work).
+Of the 37 requirements, 28 are closed: 26 via testbench simulation (@tbl:testbench-results-summary) and two (REQ-013, REQ-023) via code inspection. Nine remain open: six are LLC requirements (REQ-001 through REQ-005, REQ-036) deferred pending `can_llc` implementation, REQ-034 (P3) and REQ-035 (P2) are non-blocking, and REQ-021 (P1) is partially covered - bit-error detection is verified in `test_bus_off`, while the remaining sub-claims (stuff, form, CRC, ACK) require frame-aware error injection not available in the current testbench (@sec:future-work).
 
 | Testbench | Requirements covered | Status |
 | :--- | :--- | :--- |
@@ -726,7 +724,33 @@ The MCP server interface proved genuinely useful throughout the design, implemen
 
 Of the nine open requirements, six are LLC requirements deferred pending `can_llc` implementation - a known scope boundary, not a gap in the implemented protocol engine. REQ-034 (P3) is not applicable: this implementation streams frames from LLC to MAC with no shared memory, so the shared memory consistency requirement does not apply. REQ-035 (P2) is an optional operational feature - a node that always signals errors is a fully correct CAN FD participant. REQ-021 (P1) is partially covered: bit-error detection is verified, but sub-claims 2-5 require a frame-aware stimulus source to inject errors at the correct bit positions. A reference model approach closes them (@sec:future-work).
 
-The CAN FD stack uses 4,608 logic elements on the Cyclone 10 LP target - 4.0× the 1,146 elements of the existing CC controller (@sec:existing-controller). Growth is dominated by the RX frame buffer: at 15 bytes the register-based implementation is unremarkable, but at 70 bytes the write-address decoder and read mux each scale proportionally with buffer depth, becoming the dominant cost in `can_mac_fsm`'s 4,109 LEs. The added protocol features - dual bit rate switching, TDC, three CRC variants, fixed stuffing with SBC, and full fault confinement - account for the remainder. Mapping the 70-byte buffer to a single BRAM instance would eliminate the storage flip-flops and combinatorial decode logic, reducing `can_mac_fsm` to protocol-logic cost (@sec:future-work). The worst-case fmax of approximately 127 MHz exceeds the highest recommended CAN FD system clock of 80 MHz by more than 1.5× (@sec:synthesis-timing).
+The CAN FD stack uses 4,608 logic elements on the Cyclone 10 LP target - ~4 × the 1,146 elements of the existing CC controller `can_bus_controller`. Growth is dominated by the RX frame buffer in `can_mac_fsm`. The buffer spans 70 bytes (560 flip-flops), of which the 64-byte data payload contributes 512. The register growth tracks the payload increase directly: payload flip-flops grow from 64 (8 bytes) to 512 (64 bytes), accounting for 448 of the 535 additional registers over the CC baseline. Each data flip-flop at position `[byte_index=N][bit_index=M]` requires an individual write-enable signal:
+
+```
+WE = (state = s_data) AND sample_point AND (byte_index = N) AND (bit_index = M)
+```
+
+On a 4-input LUT, evaluating this condition without logic sharing costs 4 LUTs per flip-flop: 2 for the 6-bit `byte_index` comparator, 1 for the 3-bit `bit_index` comparator, and 1 to AND with state and sample point. Accordingly, 64 bytes × 8 bits × 4 LUTs = 2,048 LEs are needed to implement write enable across the 64-byte payload.
+
+The `p_stream_to_LLC` process, which streams the received 70-byte frame byte-by-byte to `can_llc`, iterates through the received frame using a runtime counter. This synthesises to a 70:1 8-bit mux. A 4-input LUT can implement a 2:1 mux, with 70 - 1 = 69 2:1 muxes needed for each output bit. This gives a total of 69 × 8 = 552 LEs for the full 70:1 8-bit mux.
+@tbl:fsm-le-upper-bound summarises the resulting upper bound.
+
+Together these bound the buffer contribution at approximately 2,716 LEs, leaving a minimum of 1,393 LEs for protocol FSM logic - at least 2.4× the 589 LEs of the CC `can_fsm`. The exact buffer/protocol split could be resolved by a controlled synthesis experiment, replacing `llc_frame` with constants and measuring the resulting LE reduction directly.
+
+Migrating the 70-byte buffer to a single block RAM instance would eliminate both the flip-flops and decode logic, reducing `can_mac_fsm` to protocol-logic cost (@sec:future-work). The worst-case fmax of approximately 127 MHz exceeds the highest recommended CAN FD system clock of 80 MHz by more than 1.5× (@sec:synthesis-timing).
+
+
+| Component | FFs | LEs (upper bound) |
+|:---|---:|---:|
+| Data payload write decode (64 bytes × 8 bits) | 512 | 2,048 |
+| ID write decode (4 bytes × 8 bits) | 32 | 96 |
+| Config writes (fixed address) | 16 | 20 |
+| Streaming read mux (70:1 × 8 bits) | - | 552 |
+| **Frame buffer total** | **560** | **~2,716** |
+| Protocol FSM logic (residual) | 124 | ≥1,393 |
+| **`can_mac_fsm` total (measured)** | **684** | **4,109** |
+
+: `can_mac_fsm` LE upper-bound model. FFs in the protocol residual row are non-buffer registers (state, counters, control signals). {#tbl:fsm-le-upper-bound}
 
 ## Objectives Assessment {#sec:objectives-assessment}
 

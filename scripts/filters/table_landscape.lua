@@ -80,6 +80,7 @@ local FULL_WIDTH_SPECS = {
   ["2:Field"]         = { 0.20, 0.80 },  -- tbl:vplan-metadata-fields
   -- 3-column tables
   ["3:Byte"]          = { 0.12, 0.18, 0.70 },  -- internal LLC frame layout
+  ["3:Component"]     = { 0.60, 0.12, 0.28 },  -- tbl:fsm-le-upper-bound
   ["3:Testbench"]     = { 0.25, 0.63, 0.12 },  -- tbl:testbench-results-summary
   -- 4-column tables
   ["4:ID"]            = { 0.08, 0.20, 0.08, 0.64 }, -- tbl:priority-demotion
