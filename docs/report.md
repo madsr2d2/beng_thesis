@@ -134,6 +134,7 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 | ST | Suspend Transmission |
 | TDC | Transmitter Delay Compensation |
 | TEC/REC | Transmit Error Counter / Receive Error Counter |
+| TOML | Tom's Obvious Minimal Language |
 | TQ | Time Quantum |
 | TX | Transmitter / Transmit |
 | VAN | Vehicle Area Network |
@@ -283,7 +284,7 @@ This section establishes the constraints that bound the design before any archit
 
 ### Tools and Language {#sec:vhdl-osvvm}
 
-The RTL source is implemented in VHDL-93. Everllence's synthesis toolchain uses Quartus Prime [@quartus], which does not fully support VHDL-2008 constructs in synthesis, making VHDL-93 the practical upper bound for synthesizable RTL. Testbenches are written in VHDL-2008 for the OSVVM verification framework [@osvvm]. SystemVerilog with UVM is the dominant industry alternative for RTL implementation and verification at this scale. The choice here follows company convention rather than a project-level technical comparison. Riviera-PRO [@riviera_pro] is used for simulation. Sigasi [@sigasi] is used for linting and language-aware editing. Waveform figures are captured in GTKWave [@gtkwave], timing diagrams are drawn in WaveDrom [@wavedrom], and architecture diagrams in Mermaid [@mermaid].
+The RTL source is implemented in VHDL-93. Everllence's synthesis toolchain uses Quartus Prime [@quartus], which does not fully support VHDL-2008 constructs in synthesis, making VHDL-93 the practical upper bound for synthesizable RTL. Testbenches are written in VHDL-2008 for the OSVVM verification framework [@osvvm]. SystemVerilog with UVM (Universal Verification Methodology) is the dominant industry alternative for RTL implementation and verification at this scale. The choice here follows company convention rather than a project-level technical comparison. Riviera-PRO [@riviera_pro] is used for simulation. Sigasi [@sigasi] is used for linting and language-aware editing. Waveform figures are captured in GTKWave [@gtkwave], timing diagrams are drawn in WaveDrom [@wavedrom], and architecture diagrams in Mermaid [@mermaid].
 
 Claude Code [@claudecode] was used for prose editing and VHDL review. Technical content, design decisions, and all source files are the author's own work.
 
@@ -308,7 +309,7 @@ The requirements engineering process addressed two key objectives [@bergeron2003
 
 Both objectives are complicated by the source material: normative requirements are distributed across subsections, bundled into compound clauses, and repeated from transmitter and receiver perspectives, interspersed with informative rationale prose.
 
-The AI-augmented pipeline shown in @fig:ver_plan_pipeline was designed to address these extraction challenges systematically. The first step was converting the ISO 11898-1 PDF to Markdown - a format that can be efficiently searched and ingested by LLMs. The resulting Markdown file was then fed to a Claude Sonnet 4.6 LLM agent, which was prompted to extract all normative statements - sentences containing words like "shall", "should", "must", and their corresponding negations.
+The AI-augmented pipeline shown in @fig:ver_plan_pipeline was designed to address these extraction challenges systematically. The first step was converting the ISO 11898-1 PDF to Markdown - a format that can be efficiently searched and ingested by Large Language Models (LLMs). The resulting Markdown file was then fed to a Claude Sonnet 4.6 LLM agent, which was prompted to extract all normative statements - sentences containing words like "shall", "should", "must", and their corresponding negations.
 
 ![Pipeline generating the `verification_plan.toml` artifact from the ISO 11898-1 standard.](figures/ver_plan_pipeline.png){#fig:ver_plan_pipeline width=100%}
 
