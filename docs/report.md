@@ -74,7 +74,6 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 | CEFF | Classic Extended Frame Format |
 | CRC | Cyclic Redundancy Check |
 | D | Dominant |
-| DF | Data Frame |
 | DLC | Data Length Code |
 | DMA | Direct Memory Access |
 | DUT | Device Under Test |
@@ -106,7 +105,6 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 | LLM | Large Language Model |
 | MAC | Medium Access Control |
 | MIT | Massachusetts Institute of Technology (license) |
-| MSB | Most Significant Bit |
 | OD | Overload Delimiter |
 | OF | Overload Flag |
 | OSVVM | Open Source VHDL Verification Methodology |
