@@ -111,7 +111,7 @@ def _to_report_row(row: dict) -> dict:
         "paraphrase": row["paraphrase"].replace("; ", " • "),
         "method":    row["verification_method"],
         "label":     row["label"],
-        "file":      Path(row["file"]).stem if row["file"] else "",
+        "file":      ", ".join(Path(f.strip()).stem for f in row["file"].split(",")) if row["file"] else "",
     }
 
 
@@ -139,7 +139,7 @@ def _to_vplan_row(row: dict) -> dict:
         "method":       row["verification_method"],
         "status":       row["status"],
         "label":        row["label"],
-        "file":              Path(row["file"]).stem if row["file"] else "",
+        "file":              ", ".join(Path(f.strip()).stem for f in row["file"].split(",")) if row["file"] else "",
         "coverage_criteria": row["coverage_criteria"],
     }
 
