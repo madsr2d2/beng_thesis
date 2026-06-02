@@ -826,9 +826,9 @@ The zip file accompanying this document contains the complete source tree develo
 | `verification_plan/verification_plan.toml` | 37 requirements with traceability metadata |
 | `mcp_tools/verification_plan_manager.py` | MCP server for verification plan maintenance |
 
-# Complete CAN Node Signal Interface {#sec:appendix-mac-arch}
+# `can_mac_pcs_fce` Signal-Level Schematic {#sec:appendix-mac-arch}
 
-Complete signal-level connectivity of the implemented CAN node. The MAC sub-layer is expanded to show its four constituent entities (`can_mac_fsm`, `can_mac_bs`, `can_mac_ser`, `can_mac_crc`). PCS and FCE appear as external module boundaries. The LLC interface block represents the Avalon-ST boundary to the LLC sub-layer, which is not implemented in this project.
+The schematic below shows the signal-level realisation of the layered architecture described in @sec:design-architecture, with typed record interfaces at every module boundary.
 
 ::: {.landscape-tables}
 
