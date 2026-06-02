@@ -124,6 +124,7 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 | RX | Receiver / Receive |
 | SB | Stuff Bit |
 | SBC | Stuff Bit Count |
+| SCP | Standard Corporate Protocol |
 | SJW | Synchronization Jump Width |
 | SOF | Start of Frame |
 | SP | Sample Point |
@@ -135,6 +136,7 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 | TEC/REC | Transmit Error Counter / Receive Error Counter |
 | TQ | Time Quantum |
 | TX | Transmitter / Transmit |
+| VAN | Vehicle Area Network |
 
 : Abbreviations used in this report. {#tbl:abbreviations}
 
