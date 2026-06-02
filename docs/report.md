@@ -696,9 +696,9 @@ The implemented `can_mac_pcs_fce` stack was synthesized targeting the Cyclone 10
 | Bit stuffing | `can_stuff_bit_gen` | 10 | 6 | `can_mac_bs` | 31 | 12 |
 | **Total** | | **1,146** | **334** | | **4,608** | **869** |
 
-: Resource utilization on Cyclone 10 LP by function: `can_bus_controller` (CAN CC) vs `can_mac_pcs_fce` (CAN FD). CC figures extracted from board-level hierarchy report. {#tbl:synthesis-resources}
+: Resource utilization on Cyclone 10 LP by function: `can_bus_controller` (CC) vs `can_mac_pcs_fce` (CF). {#tbl:synthesis-resources}
 
-`can_mac_fsm` accounts for 89% of CF LEs. In the CC design the RX frame buffer is a separate module (`can_serial_to_ast`, 324 LEs). In the FD design it is integrated into `can_mac_fsm`, which combines protocol FSM and frame buffer in a single entity. The LE growth analysis is in @sec:discussion.
+`can_mac_fsm` accounts for 89% of CF LEs. In the CC design the RX frame buffer is a separate module (`can_serial_to_ast`, 324 LEs). In the CF design it is integrated into `can_mac_fsm`, which combines protocol FSM and frame buffer in a single entity. The LE growth analysis is in @sec:discussion.
 
 ## Timing Results {#sec:synthesis-timing}
 
@@ -736,7 +736,7 @@ On a 4-input LUT, evaluating this condition without logic sharing costs 4 LUTs p
 The `p_stream_to_LLC` process, which streams the received 70-byte frame byte-by-byte to `can_llc`, iterates through the received frame using a runtime counter. This synthesises to a 70:1 8-bit mux. A 4-input LUT can implement a 2:1 mux, with 70 - 1 = 69 2:1 muxes needed for each output bit. This gives a total of 69 × 8 = 552 LEs for the full 70:1 8-bit mux.
 @tbl:fsm-le-upper-bound summarises the resulting upper bound.
 
-Together these bound the buffer contribution at approximately 2,716 LEs, leaving a minimum of 1,393 LEs for protocol FSM logic - at least 2.4× the 589 LEs of the CC `can_fsm`. The exact buffer/protocol split could be resolved by a controlled synthesis experiment, replacing `llc_frame` with constants and measuring the resulting LE reduction directly.
+Together these bound the buffer contribution at approximately 2,716 LEs, leaving a minimum of 1,393 LEs for protocol FSM logic - at least 2.4× the 589 LEs of the CC `can_fsm`. However, the CC `can_fsm` includes partial fault confinement logic that in the CF design is separated into `can_fce` (117 LEs), so the 589 LE denominator is inflated relative to pure frame TX/RX logic. Subtracting the full `can_fce` cost as an upper bound gives a corrected CC baseline of 472 LEs, raising the protocol logic growth to at most 3.0×. The true ratio lies in the range 2.4× to 3.0×. The exact buffer/protocol split could be resolved by a controlled synthesis experiment, replacing `llc_frame` with constants and measuring the resulting LE reduction directly.
 
 Migrating the 70-byte buffer to a single block RAM instance would eliminate both the flip-flops and decode logic, reducing `can_mac_fsm` to protocol-logic cost (@sec:future-work). The worst-case fmax of approximately 127 MHz exceeds the highest recommended CAN FD system clock of 80 MHz by more than 1.5× (@sec:synthesis-timing).
 
@@ -757,11 +757,11 @@ Migrating the 70-byte buffer to a single block RAM instance would eliminate both
 
 The three objectives stated in @sec:objectives are assessed against the verification results.
 
-1. **CAN/CAN FD protocol controller in VHDL compliant with ISO 11898-1.** The unified `can_mac_fsm` handles all four in-scope frame formats (CB, CE, FB, FE) in both TX and RX, including dual bit rate switching with TDC (REQ-024, REQ-025). 28 of 37 requirements are closed. The nine open cases are documented in @sec:future-work.
+1. **CAN/CAN FD protocol controller in VHDL compliant with ISO 11898-1.** The unified `can_mac_pcs_fce` handles all four in-scope frame formats (CB, CE, FB, FE) in both TX and RX, including dual bit rate switching with TDC (REQ-024, REQ-025). 28 of 37 requirements are closed. The nine open cases are documented in @sec:future-work.
 
 2. **Structured requirements with traceability from ISO 11898-1 to testbench results.** 37 requirements were derived from ISO 11898-1, each linked to its source section, verification method, testbench file, and assertion label. 28 are closed against passing testbenches or code inspection. The full plan is in @sec:appendix-vplan.
 
-3. **RTL design integrated via Avalon-ST interfaces into Everllence's existing FPGA infrastructure.** The RTL is written in portable VHDL-93 with no vendor primitives. Synthesis confirmed a worst-case fmax of 127 MHz, exceeding the highest recommended CAN FD system clock by more than 1.5× at 30% device utilization (@sec:synthesis). `can_mac_pcs_fce` exposes a fully functional Avalon-ST TX/RX interface and can be driven directly by the host, following the same integration model as `can_bus_controller`.
+3. **RTL design integrated via Avalon-ST interfaces into Everllence's existing FPGA infrastructure.** The RTL is written in portable VHDL-93. Synthesis confirmed a worst-case fmax of 127 MHz, exceeding the highest recommended CAN FD system clock by more than 1.5× at 30% device utilization (@sec:synthesis). `can_mac_pcs_fce` exposes a fully functional Avalon-ST TX/RX interface and can be driven directly by the host, following the same integration model as `can_bus_controller`.
 
 ## Future Work {#sec:future-work}
 
@@ -769,15 +769,15 @@ The three objectives stated in @sec:objectives are assessed against the verifica
 
 2. **Hardware integration and bring-up.** The RTL has been verified in simulation only. Bring-up on a physical CAN FD bus would validate timing closure, transceiver compatibility, and bit timing calibration under real bus conditions.
 
-3. **CAN XL support.** CAN XL is out of scope. The layered architecture and unified FSM are well-suited for extension: a third bit rate phase and XL-specific frame format map naturally onto additional PCS rate parameters and new `can_mac_fsm` states.
+3. **CAN XL support.** CAN XL is out of scope. Extending the implementation to support CAN XL is a natural next step, building on the layered architecture established here.
 
 4. **Frame buffer block RAM migration.** Migrating the 70-byte RX frame buffer to a single M9K block RAM instance would reduce `can_mac_fsm` from 4,109 LEs to protocol-logic-only cost. See @sec:discussion for the analysis.
 
-5. **Error-type-specific simulation coverage (REQ-021).** Sub-claims 2-5 require a frame-aware reference model running in parallel with the integrated testbench to track the stuffed bit stream and target injections to the correct frame region.
+5. **Error-type-specific simulation coverage (REQ-021).** Sub-claims 2-5 require a frame-aware reference model running in parallel with the integrated testbench. The model must track bit positions within the bus bit stream to identify when the bus is carrying a specific frame field. Stimulus can then be injected at the correct position to produce a targeted bit error, stuff error, form error, or CRC error, and the FSM response verified against the expected error handling path. This is most naturally implemented as an OSVVM verification component that shadows the FSM state and asserts injection commands at the right cycle.
 
 # Conclusion {#sec:conclusion}
 
-This thesis presented the design, implementation, and verification of a CAN/CAN FD protocol controller in VHDL-93, following the ISO 11898-1 layered reference model. The implemented design covers the MAC, PCS, and FCE sub-layers as independently testable modules, supports all four in-scope frame formats (CB, CE, FB, FE), and implements dual bit rate switching with Transmitter Delay Compensation. 28 of 37 requirements are closed against passing testbenches or code inspection. The nine open cases are documented in @sec:future-work. The design uses 4,608 logic elements with a worst-case fmax of approximately 127 MHz, exceeding the highest recommended CAN FD system clock of 80 MHz by more than 1.5×. The ISO 11898-1 layered reference model proved to be a practical partitioning of protocol complexity: each sub-layer was implemented, verified, and debugged independently, a property that motivates Everllence's decision to develop the controller in-house.
+This thesis presented the design, implementation, and verification of a CAN/CAN FD protocol controller in VHDL-93, following the ISO 11898-1 layered reference model. The implemented design covers the MAC, PCS, and FCE sub-layers as independently testable modules, supports all four in-scope frame formats (CB, CE, FB, FE), and implements dual bit rate switching with Transmitter Delay Compensation. 28 of 37 requirements are closed against passing testbenches or code inspection. The nine open cases are documented in @sec:future-work. The design uses 4,608 logic elements - 4.0× the CC baseline - with a worst-case fmax of approximately 127 MHz, exceeding the highest recommended CAN FD system clock of 80 MHz by more than 1.5×. Analysis attributes the majority of this growth to the RX frame buffer write-enable decode and streaming read mux, with protocol FSM logic growing 2.4× to 3.0× over the CC equivalent - consistent with the added protocol features. Migrating the frame buffer to block RAM is identified as the primary LE reduction path. The ISO 11898-1 layered reference model proved to be a practical partitioning of protocol complexity: each sub-layer was implemented, verified, and debugged independently, a property that motivates Everllence's decision to develop the controller in-house.
 ```{=latex}
 \clearpage
 ```
