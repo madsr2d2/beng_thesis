@@ -143,6 +143,37 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 \listoffigures
 \clearpage
 ```
+
+# Reading Guide {-}
+
+The report covers the full design and verification of a CAN FD protocol controller, from requirements extraction through RTL implementation to synthesis results. The sections below summarize each part to orient the reader before the detailed treatment begins.
+
+- **@sec:introduction** : Motivates the project in its industrial context at Everllence, introduces CAN Classic and CAN FD at the level of motivation and key properties through the background subsection (@sec:background), surveys available CAN FD IP alternatives and explains why none satisfies the combined requirements, and states the three thesis objectives.
+
+- **@sec:requirements-engineering** : Describes how 37 requirements were derived from ISO 11898-1 using an AI-assisted extraction pipeline, and introduces the custom tooling developed to maintain them through iterative refinement.
+
+- **@sec:can-protocol-overview** : Covers the six protocol mechanisms the implementation must realize: the ISO sub-layer reference model, frame formats, bit timing, bit stuffing, CRC generation, and error detection and fault confinement. Readers familiar with ISO 11898-1 may skip to @sec:verification-plan.
+
+- **@sec:verification-plan** : Documents how each requirement is classified by sub-layer ownership, TX/RX scope, frame format applicability, observability, and verification method, and explains how these classifications drive the module decomposition and testbench architecture.
+
+- **@sec:design-architecture** : Presents the module decomposition, the rationale for per-field FSM granularity in the MAC, and the LLC frame format design.
+
+- **@sec:implementation** : Describes the RTL behavior of each module: `can_mac_fsm`, `can_mac_ser`, `can_mac_bs`, `can_mac_crc`, `can_fce`, and `can_pcs`.
+
+- **@sec:verification-results** : Reports testbench execution outcomes for the five unit testbenches and the integration testbench, with waveform excerpts illustrating key protocol behaviors.
+
+- **@sec:synthesis** : Reports resource utilization and timing results from synthesis on the Cyclone 10 LP target.
+
+- **@sec:discussion** : Interprets the logic element growth over the CAN Classic baseline, assesses the three thesis objectives against the verification results (@sec:objectives-assessment), and identifies future work (@sec:future-work).
+
+- **@sec:conclusion** : Summarizes the findings.
+
+- **Appendices** : A listing of the accompanying digital materials (@sec:appendix-artifacts), the signal-level schematic of `can_mac_pcs_fce` (@sec:appendix-mac-arch), and the full verification plan tables (@sec:appendix-vplan).
+
+```{=latex}
+\clearpage
+```
+
 # Introduction {#sec:introduction}
 
 Everllence (formerly MAN Energy Solutions) is a provider of propulsion and decarbonization solutions for the marine and energy industries, designing large two-stroke and four-stroke combustion engines for ship propulsion and power generation. This thesis was written within the engine controller division, where FPGA-based control hardware is developed and maintained for integration into Everllence's engine platforms. Industrial control systems for large marine engines demand communication protocols that combine fault tolerance and confinement, multi-master arbitration, and multi-decade service reliability. The Controller Area Network (CAN) communication protocol, developed by Bosch in the 1980s for automotive and industrial control, meets these basic demands [@bosch1991].
