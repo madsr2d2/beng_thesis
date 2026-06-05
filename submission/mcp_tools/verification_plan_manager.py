@@ -34,8 +34,8 @@ class RequirementsManager:
     }
 
     def __init__(self, toml_path: Path):
-        self.toml_path = Path(toml_path)
-        self.backup_path = self.toml_path.with_suffix(".toml.bak")
+        self.toml_path = toml_path
+        self.backup_path = toml_path.with_suffix(".toml.bak")
 
         if not self.toml_path.exists():
             raise FileNotFoundError(f"Requirements file not found: {self.toml_path}")
@@ -152,16 +152,6 @@ class RequirementsManager:
     def get_statistics(self) -> dict:
         data = self._load()
         requirements = data.get("requirement", [])
-
-        if not requirements:
-            return {
-                "total_count": 0,
-                "by_layer": {},
-                "by_observability": {},
-                "by_side": {},
-                "blank_label_count": 0,
-                "blank_file_count": 0,
-            }
 
         return {
             "total_count": len(requirements),
@@ -404,11 +394,8 @@ def renumber_requirements() -> str:
     lines = [
         f"Renumbered {result['total']} requirements ({result['changed']} IDs changed)."
     ]
-    if result["id_map"]:
-        for old, new in list(result["id_map"].items())[:20]:
-            lines.append(f"  {old} → {new}")
-        if len(result["id_map"]) > 20:
-            lines.append(f"  ... and {len(result['id_map']) - 20} more")
+    for old, new in result["id_map"].items():
+        lines.append(f"  {old} → {new}")
     return "\n".join(lines)
 
 
