@@ -170,7 +170,7 @@ The report covers the full design and verification of a CAN FD protocol controll
 
 - **@sec:conclusion** : Summarizes the findings.
 
-- **Appendices** : A listing of the accompanying digital materials (@sec:appendix-artifacts), the signal-level schematic of `can_mac_pcs_fce` (@sec:appendix-mac-arch), and the full verification plan tables (@sec:appendix-vplan).
+- **Appendices** : The signal-level schematic of `can_mac_pcs_fce` (@sec:appendix-mac-arch), and the full verification plan tables (@sec:appendix-vplan).
 
 ```{=latex}
 \clearpage
@@ -823,41 +823,6 @@ This thesis presented the design, partial implementation, and verification of a 
 
 `\appendix`{=latex}
 
-# Accompanying Digital Materials {#sec:appendix-artifacts}
-
-The zip file accompanying this document contains the complete source tree developed during this project. The tables below identify the key files by category.
-
-**RTL source files**
-
-| File | Description |
-| :----------------------------------------- | :--- |
-| `src/can_types_p/hdl_src/can_types_p.vhd` | Shared types package |
-| `src/can_mac/hdl_src/can_mac_fsm.vhd` | Unified MAC FSM |
-| `src/can_mac/hdl_src/can_mac.vhd` | MAC wrapper |
-| `src/can_mac_ser/hdl_src/can_mac_ser.vhd` | TX serializer |
-| `src/can_mac_bs/hdl_src/can_mac_bs.vhd` | Bit stuffer/destuffer |
-| `src/can_mac_crc/hdl_src/can_mac_crc.vhd` | CRC engine |
-| `src/can_pcs/hdl_src/can_pcs.vhd` | PCS (bit timing, sync, TDC) |
-| `src/can_fce/hdl_src/can_fce.vhd` | Fault Confinement Entity |
-| `src/can_mac_pcs_fce/hdl_src/can_mac_pcs_fce.vhd` | Synthesized top-level wrapper |
-
-**Testbench files**
-
-| File | Description |
-| :----------------------------------------- | :--- |
-| `src/can_mac_ser/hdl_tb/can_mac_ser_tb.vhd` | Serializer |
-| `src/can_mac_bs/hdl_tb/can_mac_bs_tb.vhd` | Bit stuffer |
-| `src/can_mac_crc/hdl_tb/can_mac_crc_tb.vhd` | CRC engine |
-| `src/can_pcs/hdl_tb/can_pcs_tb.vhd` | PCS |
-| `src/can_fce/hdl_tb/can_fce_tb.vhd` | FCE |
-| `src/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd` | MAC + PCS + FCE integration |
-
-**Verification plan and tooling**
-
-| File | Description |
-| :----------------------------------------- | :--- |
-| `verification_plan/verification_plan.toml` | 37 requirements with traceability metadata |
-| `mcp_tools/verification_plan_manager.py` | MCP server for verification plan maintenance |
 
 # `can_mac_pcs_fce` Signal-Level Schematic {#sec:appendix-mac-arch}
 

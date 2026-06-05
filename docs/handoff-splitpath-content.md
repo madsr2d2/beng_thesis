@@ -18,8 +18,8 @@ Produced by a `/grill-with-docs` session. All claims verified against `git log`,
 
 The slide makes **two distinct arguments**. Both must be present. Neither is subordinate to the other.
 
-**Point 1 - Implementation drift**
 The TX and RX FSMs were developed sequentially, months apart. Every SP-granularity protocol boundary was defined twice, independently, and came out slightly different. Eight bugs resulted. Debugging required cross-correlating two independent waveform sets per bug.
+**Point 1 - Implementation drift**
 
 **Point 2 - Verification methodology weakness**
 Each single-path TB tested against a synthetic perfect partner using `build_bus_stream` as both test and benchmark. A passing test gave confidence in the reference model, not in the RTL. The unified approach replaces this: a passing test means a second independent CAN implementation agreed with the first - which is precisely what the protocol is supposed to guarantee.
