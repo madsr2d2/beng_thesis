@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """MCP server for managing the CAN verification plan in TOML format."""
 
 from collections import Counter
