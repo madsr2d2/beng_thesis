@@ -1,7 +1,7 @@
 ---
 title: "Implementation and Verification of a CAN/CAN FD Protocol Controller in VHDL"
 author: "Mads Richardt (s224948)"
-date: "May 18, 2026"
+date: "June 5, 2026"
 bibliography: references.bib
 csl: ieee.csl
 link-citations: true
@@ -30,7 +30,7 @@ It is assumed that the reader has a working knowledge of digital logic design an
 \centering
 \rule{7cm}{0.4pt}\\[4pt]
 Mads Richardt (s224948)\\[2pt]
-{\small Kgs.\ Lyngby, May 2026}
+{\small Kgs.\ Lyngby, June 2026}
 \end{minipage}
 \end{center}
 \clearpage
@@ -50,7 +50,7 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 ```{=latex}
 \clearpage
 \setcounter{tocdepth}{4}
-\tableofcontents
+\tableofcontents18
 \clearpage
 ```
 
@@ -148,7 +148,7 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 
 # Reading Guide {-}
 
-The report covers the full design and verification of a CAN FD protocol controller, from requirements extraction through RTL implementation to synthesis results. The sections below summarize each part to orient the reader before the detailed treatment begins.
+The report covers the full design and verification of a CAN FD protocol controller, from requirements extraction through RTL implementation to synthesis results. The sections below summarize each part to orient the reader before the detailed treatment begins. The source code described in this report is not included in the submission due to a non-disclosure agreement with Everllence.
 
 - **@sec:introduction** : Motivates the project in its industrial context at Everllence, introduces CAN Classic and CAN FD at the level of motivation and key properties through the background subsection (@sec:background), surveys available CAN FD IP alternatives and explains why none satisfies the combined requirements, and states the three thesis objectives.
 
@@ -170,7 +170,7 @@ The report covers the full design and verification of a CAN FD protocol controll
 
 - **@sec:conclusion** : Summarizes the findings.
 
-- **Appendices** : A listing of the accompanying digital materials (@sec:appendix-artifacts), the signal-level schematic of `can_mac_pcs_fce` (@sec:appendix-mac-arch), and the full verification plan tables (@sec:appendix-vplan).
+- **Appendices** : The signal-level schematic of `can_mac_pcs_fce` (@sec:appendix-mac-arch), and the full verification plan tables (@sec:appendix-vplan).
 
 ```{=latex}
 \clearpage
@@ -823,41 +823,6 @@ This thesis presented the design, partial implementation, and verification of a 
 
 `\appendix`{=latex}
 
-# Accompanying Digital Materials {#sec:appendix-artifacts}
-
-The zip file accompanying this document contains the complete source tree developed during this project. The tables below identify the key files by category.
-
-**RTL source files**
-
-| File | Description |
-| :----------------------------------------- | :--- |
-| `src/can_types_p/hdl_src/can_types_p.vhd` | Shared types package |
-| `src/can_mac/hdl_src/can_mac_fsm.vhd` | Unified MAC FSM |
-| `src/can_mac/hdl_src/can_mac.vhd` | MAC wrapper |
-| `src/can_mac_ser/hdl_src/can_mac_ser.vhd` | TX serializer |
-| `src/can_mac_bs/hdl_src/can_mac_bs.vhd` | Bit stuffer/destuffer |
-| `src/can_mac_crc/hdl_src/can_mac_crc.vhd` | CRC engine |
-| `src/can_pcs/hdl_src/can_pcs.vhd` | PCS (bit timing, sync, TDC) |
-| `src/can_fce/hdl_src/can_fce.vhd` | Fault Confinement Entity |
-| `src/can_mac_pcs_fce/hdl_src/can_mac_pcs_fce.vhd` | Synthesized top-level wrapper |
-
-**Testbench files**
-
-| File | Description |
-| :----------------------------------------- | :--- |
-| `src/can_mac_ser/hdl_tb/can_mac_ser_tb.vhd` | Serializer |
-| `src/can_mac_bs/hdl_tb/can_mac_bs_tb.vhd` | Bit stuffer |
-| `src/can_mac_crc/hdl_tb/can_mac_crc_tb.vhd` | CRC engine |
-| `src/can_pcs/hdl_tb/can_pcs_tb.vhd` | PCS |
-| `src/can_fce/hdl_tb/can_fce_tb.vhd` | FCE |
-| `src/can_mac_pcs_fce/hdl_tb/can_mac_pcs_fce_tb.vhd` | MAC + PCS + FCE integration |
-
-**Verification plan and tooling**
-
-| File | Description |
-| :----------------------------------------- | :--- |
-| `verification_plan/verification_plan.toml` | 37 requirements with traceability metadata |
-| `mcp_tools/verification_plan_manager.py` | MCP server for verification plan maintenance |
 
 # `can_mac_pcs_fce` Signal-Level Schematic {#sec:appendix-mac-arch}
 
