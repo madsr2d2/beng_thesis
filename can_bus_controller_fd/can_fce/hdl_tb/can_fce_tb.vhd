@@ -192,14 +192,14 @@ begin
   ----------------------------------------------------------------------------
   u_dut : entity work.can_fce
     port map(
-      clk_i => clk,
-      rst_i => reset,
-      llc_i => llc_i,
-      llc_o => llc_o,
-      mac_i => mac_i,
-      mac_o => mac_o,
-      pcs_i => pcs_i,
-      pcs_o => pcs_o
+      clk_i   => clk,
+      reset_i => reset,
+      llc_i   => llc_i,
+      llc_o   => llc_o,
+      mac_i   => mac_i,
+      mac_o   => mac_o,
+      pcs_i   => pcs_i,
+      pcs_o   => pcs_o
     );
 
   ----------------------------------------------------------------------------

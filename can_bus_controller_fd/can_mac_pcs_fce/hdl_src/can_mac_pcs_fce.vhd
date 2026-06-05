@@ -4,10 +4,12 @@
 --
 -- Requirements:  
 --
--- Description:
+-- Description:   Structural wrapper that instantiates can_mac, can_fce, and
+--                can_pcs and wires them together. Exposes LLC TX/RX interfaces,
+--                the LLC-FCE interface and a the physical bus interface (tx_o / rx_i).
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-04-27
+--                2026-05-01  TMYAES:   [TRIT-4355] [FPGA] Controlling FSM form MAC layer in CAN-FD module
 --
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -21,20 +23,20 @@ use work.pk_can_types.all;
 
 entity can_mac_pcs_fce is
   port(
-    clk      : in  std_logic;
-    rst      : in  std_logic;
+    clk_i     : in  std_logic;
+    reset_i   : in  std_logic;
     -- TX LLC interface
-    tx_llc_i : in  t_can_llc_mac_tx_if_s2d;
-    tx_llc_o : out t_can_llc_mac_tx_if_d2s;
+    tx_llc_i  : in  t_can_llc_mac_tx_if_s2d;
+    tx_llc_o  : out t_can_llc_mac_tx_if_d2s;
     -- RX LLC interface
-    rx_llc_i : in  t_can_llc_mac_rx_if_d2s;
-    rx_llc_o : out t_can_llc_mac_rx_if_s2d;
+    rx_llc_i  : in  t_can_llc_mac_rx_if_d2s;
+    rx_llc_o  : out t_can_llc_mac_rx_if_s2d;
     --
     llc_fce_i : in  t_can_llc_fce_if_m2s;
     llc_fce_o : out t_can_fce_llc_if_s2m;
     -- Bus interface
-    tx_o     : out std_logic;
-    rx_i     : in  std_logic
+    tx_o      : out std_logic;
+    rx_i      : in  std_logic
   );
 end entity can_mac_pcs_fce;
 
@@ -46,6 +48,7 @@ architecture rtl of can_mac_pcs_fce is
   -- FCE <-> PCS interface --------------------------------------------------
   signal pcs_to_fce : t_can_pcs_fce_if_s2m;
   signal fce_to_pcs : t_can_fce_pcs_if_m2s;
+  -- (LLC-FCE signals are routed through the wrapper ports llc_fce_i / llc_fce_o)
   -- PCS <-> MAC interface --------------------------------------------------
   signal mac_to_pcs : t_can_mac_pcs_if_m2s;
   signal pcs_to_mac : t_can_mac_pcs_if_s2m;
@@ -55,8 +58,8 @@ begin
   -- MAC layer entity -------------------------------------------------------
   u_mac : entity work.can_mac
     port map(
-      clk      => clk,
-      rst      => rst,
+      clk_i    => clk_i,
+      reset_i  => reset_i,
       -- LLC interfaces
       rx_llc_i => rx_llc_i,
       rx_llc_o => rx_llc_o,
@@ -74,28 +77,28 @@ begin
   -- FCE entity -------------------------------------------------------------
   u_fce : entity work.can_fce
     port map(
-      clk_i => clk,
-      rst_i => rst,
-      llc_i => llc_fce_i,
-      llc_o => llc_fce_o,
-      mac_i => mac_to_fce,
-      mac_o => fce_to_mac,
-      pcs_i => pcs_to_fce,
-      pcs_o => fce_to_pcs
+      clk_i   => clk_i,
+      reset_i => reset_i,
+      llc_i   => llc_fce_i,
+      llc_o   => llc_fce_o,
+      mac_i   => mac_to_fce,
+      mac_o   => fce_to_mac,
+      pcs_i   => pcs_to_fce,
+      pcs_o   => fce_to_pcs
     );
   ---------------------------------------------------------------------------
 
   -- PCS entity -------------------------------------------------------------
   u_pcs : entity work.can_pcs
     port map(
-      clk_i => clk,
-      rst_i => rst,
-      mac_i => mac_to_pcs,
-      mac_o => pcs_to_mac,
-      fce_i => fce_to_pcs,
-      fce_o => pcs_to_fce,
-      tx_o  => tx_o,
-      rx_i  => rx_i
+      clk_i   => clk_i,
+      reset_i => reset_i,
+      mac_i   => mac_to_pcs,
+      mac_o   => pcs_to_mac,
+      fce_i   => fce_to_pcs,
+      fce_o   => pcs_to_fce,
+      tx_o    => tx_o,
+      rx_i    => rx_i
     );
   ---------------------------------------------------------------------------
 end architecture rtl;

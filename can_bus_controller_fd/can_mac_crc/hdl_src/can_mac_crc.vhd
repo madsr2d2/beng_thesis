@@ -2,32 +2,30 @@
 -- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
--- Requirements:
+-- Requirements:  
 --
 -- Description:   CRC engine wrapper for CAN/CAN-FD TX path. Instantiates
 --                dedicated engines for CRC15, CRC17, and CRC21 and selects
 --                the appropriate output based on frame configuration.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-03-15  TMYAES    [TRIT-4346] [FPGA] CRC module for the CAN-FD module
+--                2026-03-15  TMYAES:   [TRIT-4346] [FPGA] CRC module for the CAN-FD module
 --
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
--- Main CRC engine wrapper
-
 library ieee;
-  use ieee.std_logic_1164.all;
-  use ieee.numeric_std.all;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
-  use work.pk_man_global.all;
-  use work.pk_can_types.all;
+use work.pk_man_global.all;
+use work.pk_can_types.all;
 
 entity can_mac_crc is
-  port (
-    clk_i : in    std_logic;
-    rst_i : in    std_logic;
-    crc_i : in    t_can_mac_fsm_crc_if_m2s;
-    crc_o : out   t_can_mac_fsm_crc_if_s2m
+  port(
+    clk_i   : in  std_logic;
+    reset_i : in  std_logic;
+    crc_i   : in  t_can_mac_fsm_crc_if_m2s;
+    crc_o   : out t_can_mac_fsm_crc_if_s2m
   );
 end entity can_mac_crc;
 
@@ -40,7 +38,7 @@ begin
 
 
   u_crc15 : entity work.gen_crc
-    generic map (
+    generic map(
       gc_data_width => 1,
       gc_crc_width  => c_crc_15_length,
       gc_crc_poly   => c_crc_poly_15_vec,
@@ -49,9 +47,9 @@ begin
       gc_ref_input  => 0,
       gc_ref_output => false
     )
-    port map (
+    port map(
       clk_i        => clk_i,
-      reset_i      => rst_i,
+      reset_i      => reset_i,
       start_crc_i  => '0',
       data_i(0)    => crc_i.data_cc,
       data_valid_i => crc_i.valid_cc,
@@ -59,7 +57,7 @@ begin
     );
 
   u_crc17 : entity work.gen_crc
-    generic map (
+    generic map(
       gc_data_width => 1,
       gc_crc_width  => c_crc_17_length,
       gc_crc_poly   => c_crc_poly_17_vec,
@@ -68,9 +66,9 @@ begin
       gc_ref_input  => 0,
       gc_ref_output => false
     )
-    port map (
+    port map(
       clk_i        => clk_i,
-      reset_i      => rst_i,
+      reset_i      => reset_i,
       start_crc_i  => '0',
       data_i(0)    => crc_i.data_fd,
       data_valid_i => crc_i.valid_fd,
@@ -78,7 +76,7 @@ begin
     );
 
   u_crc21 : entity work.gen_crc
-    generic map (
+    generic map(
       gc_data_width => 1,
       gc_crc_width  => c_crc_21_length,
       gc_crc_poly   => c_crc_poly_21_vec,
@@ -87,9 +85,9 @@ begin
       gc_ref_input  => 0,
       gc_ref_output => false
     )
-    port map (
+    port map(
       clk_i        => clk_i,
-      reset_i      => rst_i,
+      reset_i      => reset_i,
       start_crc_i  => '0',
       data_i(0)    => crc_i.data_fd,
       data_valid_i => crc_i.valid_fd,
@@ -97,25 +95,22 @@ begin
     );
 
   -- Combinatorial width-select mux: zero-extends CRC15/17 to the 21-bit output width.
-  -- gen_crc registers crc_r on each rising edge; using a combinatorial output here
-  -- ensures crc_o.crc settles at the same clock cycle as crc_r, giving the FSM the
-  -- complete CRC when drive_bit fires for CRC[0].
-  p_crc_mux : process (all) is
+  -- Must be combinatorial: the last CRC input is fed at SP, gen_crc registers it so
+  -- crc_r is final at SP+1. drive_bit reads crc_o.crc at SP+2. A registered mux
+  -- would only settle at SP+3, one cycle too late. So this keeps the latency to a minimum.
+  p_crc_mux : process(all) is
   begin
-
     case crc_i.crc_poly_select is
       when c_crc_poly_15_sel =>
-        crc_o.crc <= crc15_out & (c_crc_21_length - 1 - c_crc_15_length downto 0 => '0');
+        crc_o.crc <= crc15_out & ((c_crc_21_length - 1) - c_crc_15_length downto 0 => '0');
       when c_crc_poly_17_sel =>
-        crc_o.crc <= crc17_out & (c_crc_21_length - 1 - c_crc_17_length downto 0 => '0');
+        crc_o.crc <= crc17_out & ((c_crc_21_length - 1) - c_crc_17_length downto 0 => '0');
       when c_crc_poly_21_sel =>
         crc_o.crc <= crc21_out;
       when others =>
         crc_o.crc <= (others => '0');
     end case;
-
   end process p_crc_mux;
-
 end architecture rtl;
 
 -- eof

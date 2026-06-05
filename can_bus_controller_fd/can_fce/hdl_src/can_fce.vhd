@@ -20,17 +20,17 @@ use work.pk_can_types.all;
 
 entity can_fce is
   port(
-    clk_i : in  std_logic;
-    rst_i : in  std_logic;
+    clk_i   : in  std_logic;
+    reset_i : in  std_logic;
     -- LLC interface
-    llc_i : in  t_can_llc_fce_if_m2s;
-    llc_o : out t_can_fce_llc_if_s2m;
+    llc_i   : in  t_can_llc_fce_if_m2s;
+    llc_o   : out t_can_fce_llc_if_s2m;
     -- MAC interface
-    mac_i : in  t_can_mac_fce_if_m2s;
-    mac_o : out t_can_mac_fce_if_s2m;
+    mac_i   : in  t_can_mac_fce_if_m2s;
+    mac_o   : out t_can_mac_fce_if_s2m;
     -- PCS interface
-    pcs_i : in  t_can_pcs_fce_if_s2m;
-    pcs_o : out t_can_fce_pcs_if_m2s
+    pcs_i   : in  t_can_pcs_fce_if_s2m;
+    pcs_o   : out t_can_fce_pcs_if_m2s
   );
 end entity can_fce;
 
@@ -54,14 +54,14 @@ begin
   ---------------------------------------------------------------------------
   p_fsm : process(clk_i) is
     -- Named guard predicates (combinational, recomputed every cycle).
-    variable v_tec_fault  : std_logic; -- error that increments TEC by 8
-    variable v_rec_fault8 : std_logic; -- error that increments REC by 8
+    variable v_tec_fault  : std_logic;                                          -- error that increments TEC by 8
+    variable v_rec_fault8 : std_logic;                                          -- error that increments REC by 8
     variable v_go_bus_off : std_logic;
     variable v_go_passive : std_logic;
     variable v_go_active  : std_logic;
   begin
     if rising_edge(clk_i) then
-      if rst_i = '1' then
+      if reset_i = '1' then
         transmitter_error_count <= 0;
         receiver_error_count    <= 0;
         fce_state               <= s_error_active;
@@ -72,9 +72,21 @@ begin
       else
         v_tec_fault  := (mac_i.error and not mac_i.passive_tx_ack_error_exempt_1) or mac_i.error_delimiter_too_late;
         v_rec_fault8 := (mac_i.error and mac_i.sending_error_overload_flag) or mac_i.primary_error or mac_i.error_delimiter_too_late;
-        v_go_bus_off := '1' when transmitter_error_count > c_bus_off_threshold else '0';
-        v_go_passive := '1' when fce_state = s_error_active and (transmitter_error_count > c_error_count_threshold or receiver_error_count > c_error_count_threshold) else '0';
-        v_go_active  := '1' when fce_state = s_error_passive and transmitter_error_count <= c_error_count_threshold and receiver_error_count <= c_error_count_threshold else '0';
+        if transmitter_error_count > c_bus_off_threshold then
+          v_go_bus_off := '1';
+        else
+          v_go_bus_off := '0';
+        end if;
+        if (fce_state = s_error_active) and ((transmitter_error_count > c_error_count_threshold) or (receiver_error_count > c_error_count_threshold)) then
+          v_go_passive := '1';
+        else
+          v_go_passive := '0';
+        end if;
+        if (fce_state = s_error_passive) and (transmitter_error_count <= c_error_count_threshold) and (receiver_error_count <= c_error_count_threshold) then
+          v_go_active := '1';
+        else
+          v_go_active := '0';
+        end if;
 
         case fce_state is
           when s_error_active | s_error_passive =>
@@ -83,7 +95,11 @@ begin
               if v_tec_fault = '1' then
                 transmitter_error_count <= transmitter_error_count + 8;         -- ISO 8.1.4.2,c/d/f (TEC += 8)
               elsif mac_i.successful_transfer then
-                transmitter_error_count <= 0 when transmitter_error_count = 0 else transmitter_error_count - 1; -- ISO 8.1.4.2,g (TEC -= 1, min 0)
+                if transmitter_error_count = 0 then
+                  transmitter_error_count <= 0;
+                else
+                  transmitter_error_count <= transmitter_error_count - 1; -- ISO 8.1.4.2,g (TEC -= 1, min 0)
+                end if;
               end if;
             else                                                                -- Receiver errors
               if v_rec_fault8 = '1' then
@@ -91,7 +107,7 @@ begin
                   receiver_error_count <= receiver_error_count + 8;             -- ISO 8.1.4.2,b/e/f (REC += 8, clamped)
                 end if;
               elsif mac_i.error then
-                if receiver_error_count <= c_bus_off_threshold + 7 then
+                if receiver_error_count <= (c_bus_off_threshold + 7) then
                   receiver_error_count <= receiver_error_count + 1;             -- ISO 8.1.4.2,a (REC += 1, clamped)
                 end if;
               elsif mac_i.successful_transfer then

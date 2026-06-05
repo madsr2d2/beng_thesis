@@ -4,23 +4,20 @@
 --
 -- Requirements:  
 --
--- Description:   MAC serializer for CAN/CAN-FD TX path. Serializes LLC frame
---                bytes into a bit stream for the MAC FSM.
---                Internal LLC frame format (variable length, streamed by
---                can_llc_tx to can_mac_ser_tx):
---                Byte 0:    [7]=IDE, [6]=FDF, [5]=FTYP(RTR), [4]=ESI, [3]=BRS
---                Byte 1:    [7:4]=DLC, [3:0]=0000
---                Bytes 2-5: ID (32-bit, MSB first, left-aligned)
---                Bytes 6+:  Data (DLC count, no padding)
---                Note: The internal LLC frame format is different from the LLC frame format (used for the LLC-User interface).
---                The Internal LLC frame format has config bytes first, allowing the MAC FSM to start streaming out ID/DATA bits as soon as possible.
---                Responsibilities:
---                1) Extract LLC metadata from config bytes and register at
---                the MAC FSM interface.
---                2) Serialize LLC frame ID and data bytes and present as
---                individual bits to the MAC FSM.
---                3) Skip padding bits in the 32-bit ID stream.
---                4) Forward transfer status from MAC FSM back to LLC.
+-- Description:   MAC serializer for the CAN/CAN-FD TX path. Accepts the
+--                internal LLC frame format over Avalon-ST and presents a
+--                serial bit stream to the MAC FSM.
+--
+--                Internal frame format (streamed byte-by-byte, SOP on byte 0):
+--                  Byte 0:    [7:5]=FORMAT, [4]=FTYP(RTR), [3]=ESI, [2]=BRS
+--                  Byte 1:    [7:4]=DLC, [3:0]=0000
+--                  Bytes 2-5: ID (32-bit, MSB-first, left-aligned)
+--                  Bytes 6+:  Data (DLC bytes, no padding)
+--
+--                Extracts frame metadata from the two config bytes and
+--                registers it at the MAC FSM interface. Serializes ID and
+--                data bytes bit-by-bit, skipping padding bits in the 32-bit
+--                ID field. Forwards MAC FSM transfer status back to the LLC.
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-03-16  TMYAES:   [TRIT-4340] [FPGA] Serializer module for the CAN-FD module
@@ -28,24 +25,24 @@
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
-  use ieee.std_logic_1164.all;
-  use ieee.numeric_std.all;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
-  use work.pk_man_global.all;
-  use work.pk_can_types.all;
+use work.pk_man_global.all;
+use work.pk_can_types.all;
 
 entity can_mac_ser is
-  port (
-    clk_i : in    std_logic;
-    rst_i : in    std_logic;
+  port(
+    clk_i        : in  std_logic;
+    reset_i      : in  std_logic;
 
     -- LLC interface
-    llc_i : in    t_can_llc_mac_tx_if_s2d;
-    llc_o : out   t_can_llc_mac_tx_if_d2s;
+    llc_i        : in  t_can_llc_mac_tx_if_s2d;
+    llc_o        : out t_can_llc_mac_tx_if_d2s;
 
     -- MAC FSM interface
-    tx_mac_fsm_i : in    t_can_mac_ser_fsm_if_d2s;
-    tx_mac_fsm_o : out   t_can_mac_ser_fsm_if_s2d
+    tx_mac_fsm_i : in  t_can_mac_ser_fsm_if_d2s;
+    tx_mac_fsm_o : out t_can_mac_ser_fsm_if_s2d
   );
 end entity can_mac_ser;
 
@@ -54,29 +51,24 @@ architecture rtl of can_mac_ser is
   ------------------------------------------------------------------------
   -- Types
   ------------------------------------------------------------------------
-  type t_state is (
-    s_load_config_byte_0,
-    s_load_config_byte_1,
-    s_load_llc_frame_byte,
-    s_shift_out_bits
-  );
+  type t_state is (s_load_config_byte_0, s_load_config_byte_1, s_load_llc_frame_byte, s_shift_out_bits);
 
   ------------------------------------------------------------------------
   -- Signals
   ------------------------------------------------------------------------
   signal state                  : t_state;
   signal count                  : natural range 0 to c_byte_width;
-  signal llc_frame_buffer       :std_logic_vector(c_byte_width - 1 downto 0);
+  signal llc_frame_buffer       : std_logic_vector(c_byte_width - 1 downto 0);
   signal id_bits_remaining      : natural range 0 to c_base_id_width + c_extended_id_width;
   signal padding_bits_remaining : natural range 0 to c_llc_id_field_width - c_base_id_width;
 
 begin
 
-  p_fsm : process (clk_i) is
+  p_fsm : process(clk_i) is
   begin
 
     if rising_edge(clk_i) then
-      if (rst_i = '1') then
+      if (reset_i = '1') then
         state                  <= s_load_config_byte_0;
         count                  <= 0;
         llc_frame_buffer       <= (others => '0');
@@ -90,7 +82,11 @@ begin
         -- Default outputs: clear valid, forward status, don't accept LLC data during shift
         tx_mac_fsm_o.valid         <= '0';
         llc_o.transfer_status      <= tx_mac_fsm_i.transfer_status;
-        llc_o.avalon_st_sink.ready <= '0' when (state = s_shift_out_bits) else '1';
+        if state = s_shift_out_bits then
+          llc_o.avalon_st_sink.ready <= '0';
+        else
+          llc_o.avalon_st_sink.ready <= '1';
+        end if;
 
         if (tx_mac_fsm_i.transfer_status /= c_ongoing) then
           -- Transfer ended (completed, error, or abort): return to idle
@@ -170,11 +166,11 @@ begin
                     state              <= s_load_llc_frame_byte;
                   else
                     -- Shift out and present next bit
-                    llc_frame_buffer  <= llc_frame_buffer sll 1; -- shift left
+                    llc_frame_buffer  <= llc_frame_buffer(llc_frame_buffer'high - 1 downto 0) & '0'; -- shift left
                     tx_mac_fsm_o.data <= llc_frame_buffer(c_byte_width - 2);
                     count             <= count + 1;
                     if ((id_bits_remaining = 1) and (padding_bits_remaining > 0)) then
-                      -- Nest bit is start of padding region
+                      -- Next bit is start of padding region
                       tx_mac_fsm_o.valid <= '0';
                     end if;
                   end if;

@@ -4,10 +4,7 @@
 --
 -- Requirements:  
 --
--- Description: Structural wrapper instantiating can_mac_tx and can_mac_rx.
---              TX and RX paths have separate PCS interfaces. The FCE interface
---              merges the TX and RX FCE outputs (OR of all fields) and fans 
---              the FCE response back to both paths. 
+-- Description:   Structural wrapper instantiating CAN MAC FSM, PCS and FSM modules.
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-03-23  TMYAES:   [TRIT-4355] [FPGA] Controlling FSM form MAC layer in CAN-FD module
@@ -20,8 +17,8 @@ use work.pk_can_types.all;
 
 entity can_mac is
   port(
-    clk      : in  std_logic;
-    rst      : in  std_logic;
+    clk_i    : in  std_logic;
+    reset_i  : in  std_logic;
 
     -- TX LLC interface
     tx_llc_i : in  t_can_llc_mac_tx_if_s2d;
@@ -65,10 +62,10 @@ begin
   ---------------------------------------------------------------------------
   -- can_mac_ser: LLC byte serializer (TX path)
   ---------------------------------------------------------------------------
-  u_can_mac_ser_tx : entity work.can_mac_ser
+  u_can_mac_ser : entity work.can_mac_ser
     port map(
-      clk_i        => clk,
-      rst_i        => rst,
+      clk_i        => clk_i,
+      reset_i      => reset_i,
       llc_i        => tx_llc_i,
       llc_o        => tx_llc_o,
       tx_mac_fsm_i => fsm_to_ser,
@@ -80,8 +77,8 @@ begin
   ---------------------------------------------------------------------------
   u_can_mac_fsm : entity work.can_mac_fsm
     port map(
-      clk_i     => clk,
-      rst_i     => rst,
+      clk_i     => clk_i,
+      reset_i   => reset_i,
       mac_ser_i => ser_to_fsm,
       mac_ser_o => fsm_to_ser,
       llc_i     => rx_llc_i,
@@ -103,10 +100,10 @@ begin
   ---------------------------------------------------------------------------
   u_can_mac_bs : entity work.can_mac_bs
     port map(
-      clk_i => clk,
-      rst_i => rst or fsm_bs_rst,
-      bs_i  => fsm_to_bs,
-      bs_o  => bs_to_fsm
+      clk_i   => clk_i,
+      reset_i => reset_i or fsm_bs_rst,
+      bs_i    => fsm_to_bs,
+      bs_o    => bs_to_fsm
     );
 
   ---------------------------------------------------------------------------
@@ -114,10 +111,10 @@ begin
   ---------------------------------------------------------------------------
   u_can_mac_crc : entity work.can_mac_crc
     port map(
-      clk_i => clk,
-      rst_i => rst or fsm_crc_rst,
-      crc_i => fsm_to_crc,
-      crc_o => crc_to_fsm
+      clk_i   => clk_i,
+      reset_i => reset_i or fsm_crc_rst,
+      crc_i   => fsm_to_crc,
+      crc_o   => crc_to_fsm
     );
 
 end architecture rtl;

@@ -4,7 +4,7 @@
 --
 -- Requirements:
 --
--- Description:   Testbench for can_mac_ser_tx.
+-- Description:   Test bench for can_mac_ser_tx.
 --                  p_llc_vc           - LLC Avalon-ST source VC.
 --                  p_mac_fsm_vc       - MAC FSM sink VC (bit-level self-checking and random back pressure).
 --                  p_status_checker   - Transfer status forwarding monitor.
@@ -16,24 +16,23 @@
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
-  use ieee.std_logic_1164.all;
-  use ieee.numeric_std.all;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 library osvvm;
-  context osvvm.OsvvmContext;
-  use osvvm.ScoreboardPkg_slv.all;
+context osvvm.OsvvmContext;
+use osvvm.ScoreboardPkg_slv.all;
 library osvvm_common;
-  context osvvm_common.OsvvmCommonContext;
+context osvvm_common.OsvvmCommonContext;
 
 use work.pk_man_global.all;
 use work.common_register_interface_pkg.all;
 use work.common_tb_pkg.all;
 use work.pk_can_types.all;
 use work.pk_eth_st;
-use work.pk_can_tb.all;
 
 entity can_mac_ser_tb is
-  generic (
+  generic(
     gc_TbTimeOut   : time := 500 ms;
     gc_TbClkPeriod : time := 10 ns
   );
@@ -44,11 +43,11 @@ architecture tb of can_mac_ser_tb is
   ----------------------------------------------------------------------------
   -- Constants
   ----------------------------------------------------------------------------
-  constant c_config_bytes      : natural  := 2;
-  constant c_first_data_byte   : natural  := c_config_bytes + c_llc_id_byte_count;
-  constant c_bin_num           : natural := 100;
-  constant c_metadata_check    : std_logic_vector_max_c := "01";
-  constant c_bit_stream_check  : std_logic_vector_max_c := "10";
+  constant c_config_bytes     : natural                := 2;
+  constant c_first_data_byte  : natural                := c_config_bytes + c_llc_id_byte_count;
+  constant c_bin_num          : natural                := 100;
+  constant c_metadata_check   : std_logic_vector_max_c := "01";
+  constant c_bit_stream_check : std_logic_vector_max_c := "10";
 
   ----------------------------------------------------------------------------
   -- Signals
@@ -63,39 +62,51 @@ architecture tb of can_mac_ser_tb is
   signal tx_mac_fsm_o : t_can_mac_ser_fsm_if_s2d;
 
   -- OSVVM signals
-  shared variable RV  : RandomPType;
-  signal test_id      : AlertLogIDType;
-  signal ide_cov      : CoverageIDType;
-  signal fdf_cov      : CoverageIDType;
-  signal dlc_cov      : CoverageIDType;
-  signal init_barrier : integer_barrier := 1;
-  signal llc_rec : StreamRecType(
-    DataToModel    (c_byte_width - 1 downto 0),
-    ParamToModel   (1 downto 0),
-    DataFromModel  (0 downto 0),
-    ParamFromModel (0 downto 0)
+  shared variable RV           : RandomPType;
+  signal          test_id      : AlertLogIDType;
+  signal          ide_cov      : CoverageIDType;
+  signal          fdf_cov      : CoverageIDType;
+  signal          dlc_cov      : CoverageIDType;
+  signal          init_barrier : std_logic := '0';
+  signal          llc_rec      : StreamRecType(
+    DataToModel(c_byte_width - 1 downto 0),
+    ParamToModel(1 downto 0),
+    DataFromModel(0 downto 0),
+    ParamFromModel(0 downto 0)
   );
-  signal mac_fsm_rec : StreamRecType(
-    DataToModel    (2 downto 0),
-    ParamToModel   (1 downto 0),
-    DataFromModel  (0 downto 0),
-    ParamFromModel (0 downto 0)
+  signal          mac_fsm_rec  : StreamRecType(
+    DataToModel(2 downto 0),
+    ParamToModel(1 downto 0),
+    DataFromModel(0 downto 0),
+    ParamFromModel(0 downto 0)
   );
 
   ----------------------------------------------------------------------------
-  -- Functions and procedures 
+  -- Functions and procedures
   ----------------------------------------------------------------------------
-  function to_slv (b : std_logic) return std_logic_vector is
+  function extract_metadata(config_byte_0 : std_logic_vector; config_byte_1 : std_logic_vector) return t_llc_metadata is
+    variable v_result : t_llc_metadata;
+  begin
+    v_result.ide  := config_byte_0(c_llc_frame_ide);
+    v_result.fdf  := config_byte_0(c_llc_frame_fdf);
+    v_result.ftyp := config_byte_0(c_llc_frame_ftyp);
+    v_result.esi  := config_byte_0(c_llc_frame_esi);
+    v_result.brs  := config_byte_0(c_llc_frame_brs);
+    v_result.dlc  := config_byte_1(c_llc_frame_dlc_start downto c_llc_frame_dlc_end);
+    return v_result;
+  end function extract_metadata;
+
+  function to_slv(b : std_logic) return std_logic_vector is
   begin
     return (0 downto 0 => b);
   end function to_slv;
 
-  procedure avalon_st_send (
-    signal   sink   : in    pk_eth_st.t_eth_st_d2s;
-    signal   source : out   pk_eth_st.t_eth_st_s2d;
-    constant data   : in    std_logic_vector(c_byte_width - 1 downto 0);
-    constant sop    : in    std_logic;
-    constant eop    : in    std_logic
+  procedure avalon_st_send(
+    signal   sink   : in  t_eth_st_d2s;
+    signal   source : out t_eth_st_s2d;
+    constant data   : in  std_logic_vector(c_byte_width - 1 downto 0);
+    constant sop    : in  std_logic;
+    constant eop    : in  std_logic
   ) is
   begin
     source.valid         <= '1';
@@ -133,13 +144,12 @@ begin
     variable v_fdf_cov : CoverageIDType;
     variable v_dlc_cov : CoverageIDType;
   begin
-    RV.InitSeed(random_seed);
     SetAlertStopCount(ERROR, 10);
     SetLogEnable(INFO, TRUE);
-    v_test_id := NewId("can_mac_ser_tx");
-    v_ide_cov := NewID("IDE Coverage", v_test_id);
-    v_fdf_cov := NewID("FDF Coverage", v_test_id);
-    v_dlc_cov := NewID("DLC Coverage", v_test_id);
+    v_test_id             := NewId("can_mac_ser");
+    v_ide_cov             := NewID("IDE Coverage", v_test_id);
+    v_fdf_cov             := NewID("FDF Coverage", v_test_id);
+    v_dlc_cov             := NewID("DLC Coverage", v_test_id);
     mac_fsm_rec.BurstFifo <= NewID("MacFsmBurstFifo", v_test_id);
 
     -- Add coverage bins
@@ -160,9 +170,9 @@ begin
   -- DUT
   ----------------------------------------------------------------------------
   u_dut : entity work.can_mac_ser
-    port map (
+    port map(
       clk_i        => clk,
-      rst_i        => reset,
+      reset_i      => reset,
       llc_i        => llc_i,
       llc_o        => llc_o,
       tx_mac_fsm_i => tx_mac_fsm_i,
@@ -186,10 +196,7 @@ begin
 
       case llc_rec.Operation is
         when SEND =>
-          avalon_st_send(llc_o.avalon_st_sink, llc_i.avalon_st_source,
-                        std_logic_vector(llc_rec.DataToModel),
-                        llc_rec.ParamToModel(1), llc_rec.ParamToModel(0));
-
+          avalon_st_send(llc_o.avalon_st_sink, llc_i.avalon_st_source, std_logic_vector(llc_rec.DataToModel), llc_rec.ParamToModel(1), llc_rec.ParamToModel(0));
         when others => Null;
       end case;
     end loop;
@@ -286,9 +293,9 @@ begin
       end loop;
 
       -- Coverage-driven IDE, FDF, and DLC
-      v_frame(0)(c_llc_frame_ide) := std_logic(to_unsigned(GetRandPoint(ide_cov), 1)(0));
-      v_frame(0)(c_llc_frame_fdf) := std_logic(to_unsigned(GetRandPoint(fdf_cov), 1)(0));
-      v_frame(0)(5)               := '0'; -- reserved
+      v_frame(0)(c_llc_frame_ide)                                  := std_logic(to_unsigned(GetRandPoint(ide_cov), 1)(0));
+      v_frame(0)(c_llc_frame_fdf)                                  := std_logic(to_unsigned(GetRandPoint(fdf_cov), 1)(0));
+      v_frame(0)(5)                                                := '0';      -- reserved
       v_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) := std_logic_vector(to_unsigned(GetRandPoint(dlc_cov), 4));
 
       -- Extract metadata and compute frame length

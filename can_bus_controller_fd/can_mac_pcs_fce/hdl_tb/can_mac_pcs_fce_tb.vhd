@@ -4,7 +4,20 @@
 --
 -- Requirements:  
 --
--- Description: Test bench for CAN MAC, PCS and FCE integration.
+-- Description:   Testbench for can_mac_pcs_fce. Two DUT instances share a bus model with
+--                configurable transceiver and propagation delays sized using ISO 11898-1
+--                sec. 7.3.2 / 7.3.4 constraints. DUT 1 transmits, DUT 2 receives and ACKs.
+--
+--                  p_tx_llc_vc_dut_1    - Avalon-ST source VC: drives TX frame bytes to DUT 1.
+--                  p_tx_llc_vc_dut_2    - Avalon-ST source VC: drives TX frame bytes to DUT 2.
+--                  p_rx_llc_vc_dut_2    - Avalon-ST sink VC: collects DUT 2 RX bytes and compares
+--                                         them byte-for-byte against the expected FIFO.
+--                  p_status_latch_dut_1 - Monitor: captures first non-ongoing TX status for DUT 1.
+--                  p_status_latch_dut_2 - Monitor: captures first non-ongoing TX status for DUT 2.
+--                  p_bus_off_latch      - Monitor: sticky latch for DUT 1 bus-off event.
+--                  p_test_ctrl          - Coverage-driven sequencer: runs five tests (reset,
+--                                         normal TX/RX, delay sweep, lost arbitration, bus-off
+--                                         recovery) until IDE, FDF, BRS, ESI, DLC, and FTYP bins are all covered.
 --
 -- Revision log:  Date:       Initial:  JIRA:
 --                2026-05-02  TMYAES:   [TRIT-4355] [FPGA] Controlling FSM form MAC layer in CAN-FD module
@@ -25,7 +38,6 @@ use work.pk_man_global.all;
 use work.common_register_interface_pkg.all;
 use work.common_tb_pkg.all;
 use work.pk_can_types.all;
-use work.pk_can_tb.all;
 
 
 entity can_mac_pcs_fce_tb is
@@ -41,9 +53,9 @@ architecture tb of can_mac_pcs_fce_tb is
   -- Constants
   ----------------------------------------------------------------------------
   -- TB Infrastructure
-  constant c_bin_at_least          : natural := 5;
-  constant c_rec_width             : natural := 16;
-  constant c_frame_count           : natural := 100;
+  constant c_bin_at_least    : natural          := 10;
+  constant c_rec_width       : natural          := 16;
+  constant c_frame_count     : natural          := 100;
   constant c_avalon_sop_byte : std_logic_vector := "10";
   constant c_avalon_eop_byte : std_logic_vector := "01";
   constant c_avalon_byte     : std_logic_vector := "00";
@@ -61,97 +73,96 @@ architecture tb of can_mac_pcs_fce_tb is
   --        transmitter_delay = 2 x transceiver_d <= 95 x t_q.min
   --     With t_q.min = gc_TbClkPeriod = 10 ns: limit = 95 x 10 ns = 950 ns -> (1) is the binding constraint
   constant c_nom_prop_seg_time : time := 800 ns;
-  constant c_transceiver_d     : time := 50 ns;   -- 100 ns round-trip matches then TCAN1042 CAN transceiver (~110 ns TXD-to-RXD)
+  constant c_transceiver_d     : time := 50 ns;                                 -- 100 ns round-trip matches then TCAN1042 CAN transceiver (~110 ns TXD-to-RXD)
   constant c_bus_delay_max     : time := (c_nom_prop_seg_time - 4 * c_transceiver_d) / 2;
   type t_delay_cfg is record
     transceiver_d : time;
     bus_d         : time;
   end record;
-  type t_delay_cfg_arr is array (natural range <>) of t_delay_cfg;
+  type     t_delay_cfg_arr     is array (natural range <>) of t_delay_cfg;
   -- Sweep from 100 % down to 20 % of the propagation budget.
   constant c_delay_sweep : t_delay_cfg_arr := (
     (transceiver_d => 50 ns, bus_d => 300 ns),
     (transceiver_d => 40 ns, bus_d => 240 ns),
     (transceiver_d => 30 ns, bus_d => 180 ns),
     (transceiver_d => 20 ns, bus_d => 120 ns),
-    (transceiver_d => 10 ns, bus_d =>  60 ns)
+    (transceiver_d => 10 ns, bus_d => 60 ns)
   );
   ----------------------------------------------------------------------------
 
   ----------------------------------------------------------------------------
   -- Signals
   ----------------------------------------------------------------------------
-  signal clk      : std_logic;
-  signal reset    : std_logic := '1';
-  signal test_rst : std_logic := '0';  -- mid-test reset injection (OR'd with reset)
+  signal          clk                     : std_logic;
+  signal          reset                   : std_logic                    := '1';
+  signal          test_rst                : std_logic                    := '0'; -- mid-test reset injection (OR'd with reset)
   -- Bus model and delay signals
-  signal bus_delay      : time := c_bus_delay_max;
-  signal transceiver_d  : time := c_transceiver_d;
+  signal          bus_delay               : time                         := c_bus_delay_max;
+  signal          transceiver_d           : time                         := c_transceiver_d;
   -- DUT port connections
-  signal dut1_tx      : std_logic;
-  signal dut2_tx      : std_logic;
-  signal dut1_rx      : std_logic := c_recessive;
-  signal dut2_rx      : std_logic := c_recessive;
+  signal          dut1_tx                 : std_logic;
+  signal          dut2_tx                 : std_logic;
+  signal          dut1_rx                 : std_logic                    := c_recessive;
+  signal          dut2_rx                 : std_logic                    := c_recessive;
   -- Wire signals: DUT's TX after transceiver TX delay
-  signal dut1_wire    : std_logic := c_recessive;
-  signal dut2_wire    : std_logic := c_recessive;
+  signal          dut1_wire               : std_logic                    := c_recessive;
+  signal          dut2_wire               : std_logic                    := c_recessive;
   -- Propagated to the far end after bus delay
-  signal dut1_wire_far : std_logic := c_recessive;
-  signal dut2_wire_far : std_logic := c_recessive;
+  signal          dut1_wire_far           : std_logic                    := c_recessive;
+  signal          dut2_wire_far           : std_logic                    := c_recessive;
   -- Wired-AND bus as seen at each node's end (forced recessive on DUT 1 when injection active)
-  signal bus_dut1     : std_logic := c_recessive;
-  signal bus_dut2     : std_logic := c_recessive;
+  signal          bus_dut1                : std_logic                    := c_recessive;
+  signal          bus_dut2                : std_logic                    := c_recessive;
   -- s_dut_1_rx_recessive forces DUT 1's loopback recessive
-  signal dut_1_rx_recessive : boolean   := false;
+  signal          dut_1_rx_recessive      : boolean                      := false;
   -- bus_off latch (DUT 1)
-  signal bus_off_seen  : boolean := false;
-  signal bus_off_clear : boolean := false;
+  signal          bus_off_seen            : boolean                      := false;
   -- DUT 1 interfaces
-  signal llc_to_mac_tx_s2d_dut_1 : t_can_llc_mac_tx_if_s2d := c_llc_to_mac_tx_if_reset;
-  signal llc_to_mac_tx_d2s_dut_1 : t_can_llc_mac_tx_if_d2s;
-  signal mac_to_llc_tx_s2d_dut_1 : t_can_llc_mac_rx_if_s2d;
-  signal mac_to_llc_tx_d2s_dut_1 : t_can_llc_mac_rx_if_d2s := c_llc_to_mac_rx_if_reset;
+  signal          llc_to_mac_tx_s2d_dut_1 : t_can_llc_mac_tx_if_s2d      := c_llc_to_mac_tx_if_reset;
+  signal          llc_to_mac_tx_d2s_dut_1 : t_can_llc_mac_tx_if_d2s;
+  signal          mac_to_llc_tx_s2d_dut_1 : t_can_llc_mac_rx_if_s2d;
+  signal          mac_to_llc_tx_d2s_dut_1 : t_can_llc_mac_rx_if_d2s      := c_llc_to_mac_rx_if_reset;
   -- DUT 2 interfaces
-  signal llc_to_mac_tx_s2d_dut_2 : t_can_llc_mac_tx_if_s2d := c_llc_to_mac_tx_if_reset;
-  signal llc_to_mac_tx_d2s_dut_2 : t_can_llc_mac_tx_if_d2s;
-  signal mac_to_llc_tx_s2d_dut_2 : t_can_llc_mac_rx_if_s2d;
-  signal mac_to_llc_tx_d2s_dut_2 : t_can_llc_mac_rx_if_d2s := c_llc_to_mac_rx_if_reset;
+  signal          llc_to_mac_tx_s2d_dut_2 : t_can_llc_mac_tx_if_s2d      := c_llc_to_mac_tx_if_reset;
+  signal          llc_to_mac_tx_d2s_dut_2 : t_can_llc_mac_tx_if_d2s;
+  signal          mac_to_llc_tx_s2d_dut_2 : t_can_llc_mac_rx_if_s2d;
+  signal          mac_to_llc_tx_d2s_dut_2 : t_can_llc_mac_rx_if_d2s      := c_llc_to_mac_rx_if_reset;
   -- LLC-FCE interfaces
-  signal llc_fce_i_dut_1 : t_can_llc_fce_if_m2s := (normal_mode => '1');
-  signal llc_fce_o_dut_1 : t_can_fce_llc_if_s2m;
-  signal llc_fce_i_dut_2 : t_can_llc_fce_if_m2s := (normal_mode => '1');
-  signal llc_fce_o_dut_2 : t_can_fce_llc_if_s2m;
+  signal          llc_fce_i_dut_1         : t_can_llc_fce_if_m2s         := (normal_mode => '1');
+  signal          llc_fce_o_dut_1         : t_can_fce_llc_if_s2m;
+  signal          llc_fce_i_dut_2         : t_can_llc_fce_if_m2s         := (normal_mode => '1');
+  signal          llc_fce_o_dut_2         : t_can_fce_llc_if_s2m;
   -- Transfer status latches
-  signal status_latch_dut_1            : std_logic_vector(2 downto 0) := c_ongoing;
-  signal clear_status_dut_1 : boolean                      := false;
-  signal status_latch_dut_2 : std_logic_vector(2 downto 0) := c_ongoing;
-  signal clear_status_dut_2 : boolean                      := false;
+  signal          status_latch_dut_1      : std_logic_vector(2 downto 0) := c_ongoing;
+  signal          clear_status_dut_1      : boolean                      := false;
+  signal          status_latch_dut_2      : std_logic_vector(2 downto 0) := c_ongoing;
+  signal          clear_status_dut_2      : boolean                      := false;
   -- OSVVM stuff
-  shared variable RV           : RandomPType;
-  signal          test_id      : AlertLogIDType;
-  signal          check_id     : AlertLogIDType;
-  signal          ide_cov      : CoverageIDType;
-  signal          fdf_cov      : CoverageIDType;
-  signal          dlc_cov      : CoverageIDType;
-  signal          ftyp_cov     : CoverageIDType;
-  signal          brs_cov      : CoverageIDType;
-  signal          esi_cov      : CoverageIDType;
-  signal          init_barrier : integer_barrier := 1;
-  signal          test_num     : natural;
+  shared variable RV                      : RandomPType;
+  signal          test_id                 : AlertLogIDType;
+  signal          check_id                : AlertLogIDType;
+  signal          ide_cov                 : CoverageIDType;
+  signal          fdf_cov                 : CoverageIDType;
+  signal          dlc_cov                 : CoverageIDType;
+  signal          ftyp_cov                : CoverageIDType;
+  signal          brs_cov                 : CoverageIDType;
+  signal          esi_cov                 : CoverageIDType;
+  signal          init_barrier            : integer_barrier              := 1;
+  signal          test_num                : natural;
   -- Transaction interfaces
-  signal tx_llc_rec_dut_1 : StreamRecType(
+  signal          tx_llc_rec_dut_1        : StreamRecType(
     DataToModel(c_rec_width - 1 downto 0),
     ParamToModel(c_rec_width - 1 downto 0),
     DataFromModel(c_rec_width - 1 downto 0),
     ParamFromModel(c_rec_width - 1 downto 0)
   );
-  signal tx_llc_rec_dut_2 : StreamRecType(
+  signal          tx_llc_rec_dut_2        : StreamRecType(
     DataToModel(c_rec_width - 1 downto 0),
     ParamToModel(c_rec_width - 1 downto 0),
     DataFromModel(c_rec_width - 1 downto 0),
     ParamFromModel(c_rec_width - 1 downto 0)
   );
-  signal rx_llc_rec_dut_2 : StreamRecType(
+  signal          rx_llc_rec_dut_2        : StreamRecType(
     DataToModel(c_rec_width - 1 downto 0),
     ParamToModel(c_rec_width - 1 downto 0),
     DataFromModel(c_rec_width - 1 downto 0),
@@ -174,42 +185,42 @@ begin
   end process p_timeout;
 
   p_init : process is
-    variable v_test_id   : AlertLogIDType;
-    variable v_check_id  : AlertLogIDType;
-    variable v_ide_cov   : CoverageIDType;
-    variable v_fdf_cov   : CoverageIDType;
-    variable v_dlc_cov   : CoverageIDType;
-    variable v_ftyp_cov  : CoverageIDType;
-    variable v_brs_cov   : CoverageIDType;
-    variable v_esi_cov   : CoverageIDType;
+    variable v_test_id  : AlertLogIDType;
+    variable v_check_id : AlertLogIDType;
+    variable v_ide_cov  : CoverageIDType;
+    variable v_fdf_cov  : CoverageIDType;
+    variable v_dlc_cov  : CoverageIDType;
+    variable v_ftyp_cov : CoverageIDType;
+    variable v_brs_cov  : CoverageIDType;
+    variable v_esi_cov  : CoverageIDType;
   begin
     SetAlertStopCount(ERROR, 1);
     SetLogEnable(DEBUG, false);
-    v_test_id            := NewID("can_mac_pcs_fce");
-    v_check_id           := NewID("Frame check", v_test_id);
-    v_ide_cov            := NewID("IDE Coverage",  v_test_id, ReportMode => ENABLED);
-    v_fdf_cov            := NewID("FDF Coverage",  v_test_id, ReportMode => ENABLED);
-    v_dlc_cov            := NewID("DLC Coverage",  v_test_id, ReportMode => ENABLED);
-    v_ftyp_cov           := NewID("FTYP Coverage", v_test_id, ReportMode => ENABLED);
-    v_brs_cov            := NewID("BRS Coverage",  v_test_id, ReportMode => ENABLED);
-    v_esi_cov            := NewID("ESI Coverage",  v_test_id, ReportMode => ENABLED);
+    v_test_id                                    := NewID("can_mac_pcs_fce");
+    v_check_id                                   := NewID("Frame check", v_test_id);
+    v_ide_cov                                    := NewID("IDE Coverage", v_test_id, ReportMode => ENABLED);
+    v_fdf_cov                                    := NewID("FDF Coverage", v_test_id, ReportMode => ENABLED);
+    v_dlc_cov                                    := NewID("DLC Coverage", v_test_id, ReportMode => ENABLED);
+    v_ftyp_cov                                   := NewID("FTYP Coverage", v_test_id, ReportMode => ENABLED);
+    v_brs_cov                                    := NewID("BRS Coverage", v_test_id, ReportMode => ENABLED);
+    v_esi_cov                                    := NewID("ESI Coverage", v_test_id, ReportMode => ENABLED);
     RV.InitSeed(RV'instance_name & to_string(now));
-    AddBins(v_ide_cov,  c_bin_at_least, GenBin(0, 1));
-    AddBins(v_fdf_cov,  c_bin_at_least, GenBin(0, 1));
-    AddBins(v_dlc_cov,  c_bin_at_least, GenBin(0, c_dlc_max));
+    AddBins(v_ide_cov, c_bin_at_least, GenBin(0, 1));
+    AddBins(v_fdf_cov, c_bin_at_least, GenBin(0, 1));
+    AddBins(v_dlc_cov, c_bin_at_least, GenBin(0, c_dlc_max));
     AddBins(v_ftyp_cov, c_bin_at_least, GenBin(0, 1));
-    AddBins(v_brs_cov,  c_bin_at_least, GenBin(0, 1));
-    AddBins(v_esi_cov,  c_bin_at_least, GenBin(0, 1));
-    tx_llc_rec_dut_1.BurstFifo <= NewID("TX LLC Burst fifo DUT 1");
-    rx_llc_rec_dut_2.BurstFifo <= NewID("RX LLC Burst fifo DUT 2");
-    test_id              <= v_test_id;
-    check_id             <= v_check_id;
-    ide_cov              <= v_ide_cov;
-    fdf_cov              <= v_fdf_cov;
-    dlc_cov              <= v_dlc_cov;
-    ftyp_cov             <= v_ftyp_cov;
-    brs_cov              <= v_brs_cov;
-    esi_cov              <= v_esi_cov;
+    AddBins(v_brs_cov, c_bin_at_least, GenBin(0, 1));
+    AddBins(v_esi_cov, c_bin_at_least, GenBin(0, 1));
+    tx_llc_rec_dut_1.BurstFifo                   <= NewID("TX LLC Burst fifo DUT 1");
+    rx_llc_rec_dut_2.BurstFifo                   <= NewID("RX LLC Burst fifo DUT 2");
+    test_id                                      <= v_test_id;
+    check_id                                     <= v_check_id;
+    ide_cov                                      <= v_ide_cov;
+    fdf_cov                                      <= v_fdf_cov;
+    dlc_cov                                      <= v_dlc_cov;
+    ftyp_cov                                     <= v_ftyp_cov;
+    brs_cov                                      <= v_brs_cov;
+    esi_cov                                      <= v_esi_cov;
     -- DUT RX LLC sink always ready
     mac_to_llc_tx_d2s_dut_1.avalon_st_sink.ready <= '1';
     mac_to_llc_tx_d2s_dut_2.avalon_st_sink.ready <= '1';
@@ -222,8 +233,8 @@ begin
   ----------------------------------------------------------------------------
   u_dut_1 : entity work.can_mac_pcs_fce
     port map(
-      clk      => clk,
-      rst      => reset or test_rst,
+      clk_i     => clk,
+      reset_i   => reset or test_rst,
       tx_llc_i  => llc_to_mac_tx_s2d_dut_1,
       tx_llc_o  => llc_to_mac_tx_d2s_dut_1,
       rx_llc_i  => mac_to_llc_tx_d2s_dut_1,
@@ -239,8 +250,8 @@ begin
   ----------------------------------------------------------------------------
   u_dut_2 : entity work.can_mac_pcs_fce
     port map(
-      clk      => clk,
-      rst      => reset or test_rst,
+      clk_i     => clk,
+      reset_i   => reset or test_rst,
       tx_llc_i  => llc_to_mac_tx_s2d_dut_2,
       tx_llc_o  => llc_to_mac_tx_d2s_dut_2,
       rx_llc_i  => mac_to_llc_tx_d2s_dut_2,
@@ -314,7 +325,7 @@ begin
   p_bus_off_latch : process(clk) is
   begin
     if rising_edge(clk) then
-      if reset = '1' or bus_off_clear then
+      if reset = '1' then
         bus_off_seen <= false;
       elsif llc_fce_o_dut_1.bus_off = '1' then
         bus_off_seen <= true;
@@ -325,7 +336,7 @@ begin
   ----------------------------------------------------------------------------
   -- Transfer status latch (DUT 1 TX)
   ----------------------------------------------------------------------------
-  p_status_latch_dut_1: process(clk) is
+  p_status_latch_dut_1 : process(clk) is
   begin
     if rising_edge(clk) then
       if reset = '1' or clear_status_dut_1 then
@@ -470,7 +481,7 @@ begin
     --    Version 1: builds a CC base LLC frame with a fixed 11-bit ID (DLC=1).
     --    Version 2: builds a random LLC frame drawn from coverage bins.
     --------------------------------------------------------------------------
-    procedure gen_frame( tx_frame : out t_llc_frame; last_byte : out natural; v_id : in  std_logic_vector(c_base_id_width - 1 downto 0)) is
+    procedure gen_frame(tx_frame : out t_llc_frame; last_byte : out natural; v_id : in std_logic_vector(c_base_id_width - 1 downto 0)) is
       variable v_data_len : natural;
     begin
       for i in tx_frame'range loop
@@ -478,11 +489,11 @@ begin
       end loop;
       tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) :=
         std_logic_vector(to_unsigned(1, c_dlc_field_width));
-      tx_frame(2)             := v_id(c_base_id_width - 1 downto c_base_id_width - 8);
-      tx_frame(3)(7 downto 5) := v_id(2 downto 0);
-      v_data_len  := 1;
-      last_byte   := c_data_offset - 1 + v_data_len;
-      tx_frame(c_data_offset) := RV.RandSlv(8);
+      tx_frame(2)                                                   := v_id(c_base_id_width - 1 downto c_base_id_width - 8);
+      tx_frame(3)(7 downto 5)                                       := v_id(2 downto 0);
+      v_data_len                                                    := 1;
+      last_byte                                                     := c_data_offset - 1 + v_data_len;
+      tx_frame(c_data_offset)                                       := RV.RandSlv(8);
     end procedure gen_frame;
 
     procedure gen_frame(tx_frame : out t_llc_frame; last_byte : out natural) is
@@ -492,8 +503,8 @@ begin
         tx_frame(i) := (others => '0');
       end loop;
       -- Format flags, DLC, and ID all drawn from coverage bins.
-      tx_frame(0)(c_llc_frame_ide) := std_logic(to_unsigned(GetRandPoint(ide_cov), 1)(0));
-      tx_frame(0)(c_llc_frame_fdf) := std_logic(to_unsigned(GetRandPoint(fdf_cov), 1)(0));
+      tx_frame(0)(c_llc_frame_ide)                                  := std_logic(to_unsigned(GetRandPoint(ide_cov), 1)(0));
+      tx_frame(0)(c_llc_frame_fdf)                                  := std_logic(to_unsigned(GetRandPoint(fdf_cov), 1)(0));
       tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end) := std_logic_vector(to_unsigned(GetRandPoint(dlc_cov), 4));
       if tx_frame(0)(c_llc_frame_fdf) = '1' then
         tx_frame(0)(c_llc_frame_brs) := RV.RandSlv(1)(1);
@@ -520,7 +531,7 @@ begin
         v_data_len := dlc_to_data_length(
           to_integer(unsigned(tx_frame(1)(c_llc_frame_dlc_start downto c_llc_frame_dlc_end))),
           tx_frame(0)(c_llc_frame_fdf));
-        last_byte := c_data_offset - 1 + v_data_len;
+        last_byte  := c_data_offset - 1 + v_data_len;
         for i in 0 to v_data_len - 1 loop
           tx_frame(c_data_offset + i) := RV.RandSlv(8);
         end loop;
@@ -589,7 +600,7 @@ begin
       Print("--------------------------------------------------------------------------");
       Print("Test 2: Normal Usage (DUT 1 TX -> DUT 2 RX)");
       Print("--------------------------------------------------------------------------");
-      while not (IsCovered(ide_cov)  and IsCovered(fdf_cov) and IsCovered(dlc_cov)  and IsCovered(ftyp_cov) and IsCovered(brs_cov)  and IsCovered(esi_cov)) loop
+      while not (IsCovered(ide_cov) and IsCovered(fdf_cov) and IsCovered(dlc_cov) and IsCovered(ftyp_cov) and IsCovered(brs_cov) and IsCovered(esi_cov)) loop
         gen_frame(v_frame, v_last_byte);
         submit_and_verify(v_frame, v_last_byte);
 
@@ -635,14 +646,14 @@ begin
     -- reports c_lost_arb.
     --------------------------------------------------------------------------
     procedure test_lost_arb is
-      variable v_id_1       : std_logic_vector(c_base_id_width - 1 downto 0);
-      variable v_id_2       : std_logic_vector(c_base_id_width - 1 downto 0);
-      variable v_frame_1    : t_llc_frame;
-      variable v_frame_2    : t_llc_frame;
-      variable v_last       : natural;
-      variable v_dut1_wins  : boolean;
+      variable v_id_1      : std_logic_vector(c_base_id_width - 1 downto 0);
+      variable v_id_2      : std_logic_vector(c_base_id_width - 1 downto 0);
+      variable v_frame_1   : t_llc_frame;
+      variable v_frame_2   : t_llc_frame;
+      variable v_last      : natural;
+      variable v_dut1_wins : boolean;
     begin
-      test_num <= 4;
+      test_num      <= 4;
       Print("--------------------------------------------------------------------------");
       Print("Test 4: Lost Arbitration");
       Print("--------------------------------------------------------------------------");
@@ -652,7 +663,7 @@ begin
         -- Clear latches so we can collect fresh transmission status
         wait_idle_and_clear;
 
-        loop  -- Generate distinct IDs
+        loop                                                                    -- Generate distinct IDs
           v_id_1 := RV.RandSlv(c_base_id_width);
           v_id_2 := RV.RandSlv(c_base_id_width);
           exit when v_id_1 /= v_id_2;
@@ -686,10 +697,10 @@ begin
         -- Check that we got the correct arbitration winner
         if v_dut1_wins then
           AffirmIfEqual(check_id, status_latch_dut_1, c_transmitted, "DUT 1 transmitted");
-          AffirmIfEqual(check_id, status_latch_dut_2, c_lost_arb,   "DUT 2 lost arb");
+          AffirmIfEqual(check_id, status_latch_dut_2, c_lost_arb, "DUT 2 lost arb");
           AffirmIf(check_id, unsigned(v_id_1) < unsigned(v_id_2), "DUT 1 won: lower ID");
         else
-          AffirmIfEqual(check_id, status_latch_dut_1, c_lost_arb,   "DUT 1 lost arb");
+          AffirmIfEqual(check_id, status_latch_dut_1, c_lost_arb, "DUT 1 lost arb");
           AffirmIfEqual(check_id, status_latch_dut_2, c_transmitted, "DUT 2 transmitted");
           AffirmIf(check_id, unsigned(v_id_2) < unsigned(v_id_1), "DUT 2 won: lower ID");
         end if;
@@ -756,12 +767,12 @@ begin
     --------------------------------------------------------------------------
     procedure report_results is
     begin
-      AffirmIf(test_id, IsCovered(ide_cov),  "IDE covered");
-      AffirmIf(test_id, IsCovered(fdf_cov),  "FDF covered");
-      AffirmIf(test_id, IsCovered(dlc_cov),  "DLC covered");
+      AffirmIf(test_id, IsCovered(ide_cov), "IDE covered");
+      AffirmIf(test_id, IsCovered(fdf_cov), "FDF covered");
+      AffirmIf(test_id, IsCovered(dlc_cov), "DLC covered");
       AffirmIf(test_id, IsCovered(ftyp_cov), "FTYP covered");
-      AffirmIf(test_id, IsCovered(brs_cov),  "BRS covered");
-      AffirmIf(test_id, IsCovered(esi_cov),  "ESI covered");
+      AffirmIf(test_id, IsCovered(brs_cov), "BRS covered");
+      AffirmIf(test_id, IsCovered(esi_cov), "ESI covered");
       WriteBin(ide_cov);
       WriteBin(fdf_cov);
       WriteBin(dlc_cov);

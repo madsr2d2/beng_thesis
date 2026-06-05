@@ -4,7 +4,7 @@
 --
 -- Requirements:  
 --
--- Description:   Testbench for can_mac_bs.
+-- Description:   Test bench for can_mac_bs.
 --                p_stim              - Two-phase driver: directed FSB tests then random dynamic.
 --                p_reset_checker     - Verifies outputs cleared after reset.
 --                p_stuff_bit_checker - Verifies dynamic stuff bit after 5 consecutive same bits.
@@ -18,14 +18,14 @@
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
-  use ieee.std_logic_1164.all;
-  use ieee.numeric_std.all;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 library osvvm;
-  context osvvm.OsvvmContext;
-  use osvvm.ScoreboardPkg_slv.all;
+context osvvm.OsvvmContext;
+use osvvm.ScoreboardPkg_slv.all;
 library osvvm_common;
-  context osvvm_common.OsvvmCommonContext;
+context osvvm_common.OsvvmCommonContext;
 
 use work.pk_man_global.all;
 use work.common_register_interface_pkg.all;
@@ -40,18 +40,17 @@ architecture tb of can_mac_bs_tb is
   constant c_clk_period : time    := 10 ns;
   constant c_num_random : natural := 5000;
 
-  signal clk_i      : std_logic;
-  signal rst_i      : std_logic := '1';
-  signal frame_rst  : std_logic := '0';
-  signal bs_i       : t_can_mac_fsm_bs_if_m2s := c_mac_fsm_to_bs_fd_if_reset;
-  signal bs_o       : t_can_mac_fsm_bs_if_s2m;
-  signal cov_input  : CoverageIdType;
-  signal cov_output : CoverageIdType;
-  signal test_done  : resolved_barrier natural := 1;
-  shared variable RV : RandomPType;
-  signal test_id    : AlertLogIDType;
-  signal reset_id   : AlertLogIDType;
-  signal dsb_id   : AlertLogIDType;
+  signal          clk_i      : std_logic;
+  signal          rst_i      : std_logic                := '1';
+  signal          frame_rst  : std_logic                := '0';
+  signal          bs_i       : t_can_mac_fsm_bs_if_m2s  := c_mac_fsm_to_bs_fd_if_reset;
+  signal          bs_o       : t_can_mac_fsm_bs_if_s2m;
+  signal          cov_input  : CoverageIdType;
+  signal          cov_output : CoverageIdType;
+  signal          test_done  : resolved_barrier natural := 1;
+  shared variable RV         : RandomPType;
+  signal          reset_id   : AlertLogIDType;
+  signal          dsb_id     : AlertLogIDType;
 
 begin
 
@@ -59,26 +58,24 @@ begin
   CreateReset(rst_i, '1', clk_i, c_clk_period * 5);
 
   u_dut : entity work.can_mac_bs
-    port map (
-      clk_i => clk_i,
-      rst_i => rst_i or frame_rst,
-      bs_i  => bs_i,
-      bs_o  => bs_o
+    port map(
+      clk_i   => clk_i,
+      reset_i => rst_i or frame_rst,
+      bs_i    => bs_i,
+      bs_o    => bs_o
     );
 
   p_init : process
-    variable v_test_id    : AlertLogIDType;
-    variable v_reset_id   : AlertLogIDType;
-    variable v_dsb_id     : AlertLogIDType;
+    variable v_test_id  : AlertLogIDType;
+    variable v_reset_id : AlertLogIDType;
+    variable v_dsb_id   : AlertLogIDType;
   begin
-    RV.InitSeed(random_seed);
     SetAlertStopCount(ERROR, 10);
-    v_test_id := NewID("can_mac_bs");
-    v_reset_id   := NewID("Reset check", v_test_id);
-    v_dsb_id     := NewID("Dynamic stuff bit check", v_test_id);
-    test_id <= v_test_id;
-    reset_id <= v_reset_id;
-    dsb_id <= v_dsb_id;
+    v_test_id  := NewID("can_mac_bs");
+    v_reset_id := NewID("Reset check", v_test_id);
+    v_dsb_id   := NewID("Dynamic stuff bit check", v_test_id);
+    reset_id   <= v_reset_id;
+    dsb_id     <= v_dsb_id;
     wait;
   end process p_init;
 
@@ -97,13 +94,13 @@ begin
     variable stim_id   : AlertLogIDType;
     variable saved_sbc : std_logic_vector(c_sbc_field_width - 1 downto 0);
 
-    procedure send_bit (data : std_logic; fsb_en : std_logic := '0') is
+    procedure send_bit(data : std_logic; fsb_en : std_logic := '0') is
     begin
-      bs_i.data   <= data;
-      bs_i.valid  <= '1';
+      bs_i.data                  <= data;
+      bs_i.valid                 <= '1';
       bs_i.fixed_bit_stuffing_en <= fsb_en;
       WaitForClock(clk_i);
-      bs_i.valid  <= '0';
+      bs_i.valid                 <= '0';
       WaitForClock(clk_i);
     end procedure;
 
@@ -197,8 +194,8 @@ begin
         WaitForClock(clk_i);
       end if;
 
-      bs_i.data   <= c_dominant when RV.DistBool((false => 50, true => 50)) else c_recessive;
-      bs_i.valid  <= '1' when RV.DistBool((false => 25, true => 75)) else '0';
+      bs_i.data                  <= c_dominant when RV.DistBool((false => 50, true => 50)) else c_recessive;
+      bs_i.valid                 <= '1' when RV.DistBool((false => 25, true => 75)) else '0';
       bs_i.fixed_bit_stuffing_en <= '0';
       WaitForClock(clk_i);
 
@@ -210,7 +207,7 @@ begin
 
     end loop;
 
-    bs_i.valid  <= '0';
+    bs_i.valid                 <= '0';
     bs_i.fixed_bit_stuffing_en <= '0';
     WaitForClock(clk_i, 5);
     WaitForBarrier(test_done);
@@ -240,9 +237,9 @@ begin
   ---------------------------------------------------------------------------
   p_stuff_bit_checker : process
     variable consecutive  : natural range 0 to c_stuff_width := 0;
-    variable polarity     : std_logic := c_recessive;
-    variable expect_stuff : boolean   := false;
-    variable fsb_en_prev  : std_logic := '0';
+    variable polarity     : std_logic                        := c_recessive;
+    variable expect_stuff : boolean                          := false;
+    variable fsb_en_prev  : std_logic                        := '0';
   begin
     wait until rst_i = '0';
     WaitForClock(clk_i);
@@ -296,7 +293,7 @@ begin
   p_sbc_checker : process
     variable id         : AlertLogIDType;
     variable prev_sbc   : std_logic_vector(c_sbc_field_width - 1 downto 0) := "0000";
-    variable prev_valid : std_logic := '0';
+    variable prev_valid : std_logic                                        := '0';
   begin
     id := GetAlertLogID("SBC Checker");
     wait until rst_i = '0';
@@ -405,18 +402,18 @@ begin
     cov_output <= NewID("Output Coverage");
     wait for 0 ns;
 
-    AddBins(cov_input, "idle",              50, GenBin(0));
-    AddBins(cov_input, "valid_dominant",   100, GenBin(1));
-    AddBins(cov_input, "valid_recessive",  100, GenBin(2));
-    AddBins(cov_input, "frame_rst",         10, GenBin(3));
-    AddBins(cov_input, "fsb_dominant",      10, GenBin(4));
-    AddBins(cov_input, "fsb_recessive",     10, GenBin(5));
+    AddBins(cov_input, "idle", 50, GenBin(0));
+    AddBins(cov_input, "valid_dominant", 100, GenBin(1));
+    AddBins(cov_input, "valid_recessive", 100, GenBin(2));
+    AddBins(cov_input, "frame_rst", 10, GenBin(3));
+    AddBins(cov_input, "fsb_dominant", 10, GenBin(4));
+    AddBins(cov_input, "fsb_recessive", 10, GenBin(5));
 
-    AddBins(cov_output, "no_stuff_bit",    100, GenBin(0));
-    AddBins(cov_output, "stuff_dominant",    5, GenBin(1));
-    AddBins(cov_output, "stuff_recessive",   5, GenBin(2));
-    AddBins(cov_output, "fsb_dominant",      3, GenBin(3));
-    AddBins(cov_output, "fsb_recessive",     3, GenBin(4));
+    AddBins(cov_output, "no_stuff_bit", 100, GenBin(0));
+    AddBins(cov_output, "stuff_dominant", 5, GenBin(1));
+    AddBins(cov_output, "stuff_recessive", 5, GenBin(2));
+    AddBins(cov_output, "fsb_dominant", 3, GenBin(3));
+    AddBins(cov_output, "fsb_recessive", 3, GenBin(4));
 
     wait until rst_i = '0';
 
@@ -424,31 +421,31 @@ begin
       WaitForClock(clk_i);
 
       -- Classify input
-      if (frame_rst = '1') then                                           v_in := 3;
+      if (frame_rst = '1') then v_in := 3;
       elsif (bs_i.fixed_bit_stuffing_en = '1' and bs_i.valid = '1') then
-        if (bs_i.data = c_dominant) then                                  v_in := 4;
-        else                                                              v_in := 5;
+        if (bs_i.data = c_dominant) then v_in := 4;
+        else v_in := 5;
         end if;
       elsif (bs_i.valid = '1') then
-        if (bs_i.data = c_dominant) then                                  v_in := 1;
-        else                                                              v_in := 2;
+        if (bs_i.data = c_dominant) then v_in := 1;
+        else v_in := 2;
         end if;
-      else                                                                v_in := 0;
+      else v_in := 0;
       end if;
       ICover(cov_input, v_in);
 
       -- Classify output
       if (bs_o.valid = '1') then
         if (bs_i.fixed_bit_stuffing_en = '1') then
-          if (bs_o.data = c_dominant) then                                v_out := 3;
-          else                                                            v_out := 4;
+          if (bs_o.data = c_dominant) then v_out := 3;
+          else v_out := 4;
           end if;
         else
-          if (bs_o.data = c_dominant) then                                v_out := 1;
-          else                                                            v_out := 2;
+          if (bs_o.data = c_dominant) then v_out := 1;
+          else v_out := 2;
           end if;
         end if;
-      else                                                                v_out := 0;
+      else v_out := 0;
       end if;
       ICover(cov_output, v_out);
 

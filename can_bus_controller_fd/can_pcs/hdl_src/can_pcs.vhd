@@ -2,17 +2,19 @@
 -- Copyright 2026 Everllence, Teglholmsgade 41, 2450 Copenhagen SV, Denmark
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
--- Requirements:
+-- Requirements:  
 --
--- Description: Physical Coding Sub-layer (PCS) per ISO 11898-1:2024 (7.2, 7.3).
---              Handles bit timing, hard sync and resync (ISO 7.3.5), sample point
---              generation, and TDC-based secondary sample point positioning
---              (ISO 7.3.4) for CAN FD nominal and data phases. Generates
---              idle_condition strobes for bus-off recovery counting (ISO 8.1.4.4).
+-- Description:   Physical Coding Sub-layer (PCS) per ISO 11898-1:2024 (7.2, 7.3).
+--                Handles bit timing, hard sync and resync (ISO 7.3.5), sample point
+--                generation, and TDC-based secondary sample point positioning
+--                (ISO 7.3.4) for CAN FD nominal and data phases. Generates
+--                idle_condition strobes for bus-off recovery counting.
 --
 -- Revision log:  Date:       Initial:  JIRA:
---                2026-04-16  [TRIT-4336] [FPGA] CAN FD extensions of TRIT-3880
+--                2026-04-16  TMYAES:   [TRIT-4336] [FPGA] CAN FD extensions of TRIT-3880
+--
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -63,7 +65,7 @@ entity can_pcs is
   --   Phase_Seg1 (floor(Prop_Seg+Phase_Seg1/2))     =   3 TQ
   --   SJW (1 <= SJW <= min(Phase_Seg1, Phase_Seg2)) =   2 TQ
   ---------------------------------------------------------------------------
-  generic (
+  generic(
     gc_prescaler       : natural := 2;
     gc_nom_prop_seg    : natural := 40;
     gc_nom_phase_seg1  : natural := 39;
@@ -74,18 +76,18 @@ entity can_pcs is
     gc_nom_sjw         : natural := 4;
     gc_data_sjw        : natural := 2
   );
-  port (
-    clk_i : in    std_logic;
-    rst_i : in    std_logic;
+  port(
+    clk_i   : in  std_logic;
+    reset_i : in  std_logic;
     ---
-    mac_i : in    t_can_mac_pcs_if_m2s;
-    mac_o : out   t_can_mac_pcs_if_s2m;
+    mac_i   : in  t_can_mac_pcs_if_m2s;
+    mac_o   : out t_can_mac_pcs_if_s2m;
     ---
-    fce_i : in    t_can_fce_pcs_if_m2s;
-    fce_o : out   t_can_pcs_fce_if_s2m;
+    fce_i   : in  t_can_fce_pcs_if_m2s;
+    fce_o   : out t_can_pcs_fce_if_s2m;
     ---
-    tx_o  : out   std_logic;
-    rx_i  : in    std_logic
+    tx_o    : out std_logic;
+    rx_i    : in  std_logic
   );
 end entity can_pcs;
 
@@ -107,10 +109,10 @@ architecture rtl of can_pcs is
   signal phase1_extension             : natural range 0 to gc_nom_sjw;
   signal phase2_shortening            : natural range 0 to gc_nom_sjw;
   signal recessive_counter            : natural range 0 to c_bus_idle_condition_width - 1;
-  signal active_prop_seg              : natural range nom_prop_seg_min to nom_prop_seg_max;
-  signal active_phase_seg1            : natural range nom_phase_seg1_min to nom_phase_seg1_max;
-  signal active_phase_seg2            : natural range nom_phase_seg2_min to nom_phase_seg2_max;
-  signal active_sjw                   : natural range sjw_min to sjw_max;
+  signal active_prop_seg              : natural range c_nom_prop_seg_min to c_nom_prop_seg_max;
+  signal active_phase_seg1            : natural range c_nom_phase_seg1_min to c_nom_phase_seg1_max;
+  signal active_phase_seg2            : natural range c_nom_phase_seg2_min to c_nom_phase_seg2_max;
+  signal active_sjw                   : natural range c_sjw_min to c_sjw_max;
   signal tdc_count_active             : std_logic;
   signal delay_count_tq               : natural range 0 to c_max_transmitter_delay;
   signal ssp_active                   : std_logic;
@@ -122,12 +124,12 @@ architecture rtl of can_pcs is
   signal data_phase_active            : std_logic;
 begin
 
-  p_can_pcs : process (clk_i) is
+  p_can_pcs : process(clk_i) is
     variable v_phase_error : natural range 0 to gc_nom_prop_seg + gc_nom_phase_seg1 + gc_nom_phase_seg2;
     variable v_do_sync     : boolean;
   begin
     if rising_edge(clk_i) then
-      if rst_i = '1' then
+      if reset_i = '1' then
         mac_o                        <= c_pcs_to_mac_if_reset;
         fce_o                        <= c_pcs_to_fce_if_reset;
         tx_o                         <= c_recessive;
@@ -172,7 +174,6 @@ begin
           rx_bus_prev <= rx_i;
 
           -- Evaluate synchronization condition
-          -- v_do_sync := (rx_bus_prev = c_recessive) and (rx_i = c_dominant) and (sync_applied = '0') and (mac_i.transmitting = '0');
           v_do_sync := (rx_bus_prev = c_recessive) and (rx_i = c_dominant) and (sync_applied = '0') and (mac_i.transmitting = '0');
 
           -- Transmitter delay counter --------------------------------------------
@@ -316,6 +317,7 @@ begin
                       ssp_active                   <= '0';
                       delay_count_tq               <= 0;
                       tdc_count_active             <= '0';
+                      mac_o.tdc_delay <= std_logic_vector(to_unsigned(0, mac_o.tdc_delay'length));
                     end if;
 
                   else
@@ -338,7 +340,7 @@ begin
                   mac_o.secondary_sample_point <= '1';
                   mac_o.rx_data                <= rx_i;
                   ssp_seen                     <= '1';
-                  mac_o.tdc_delay <= std_logic_vector(to_unsigned(tdc_delay, mac_o.tdc_delay'length));
+                  mac_o.tdc_delay              <= std_logic_vector(to_unsigned(tdc_delay, mac_o.tdc_delay'length));
                 end if;
               ---------------------------------------------------------------------------
 
@@ -367,13 +369,13 @@ begin
 
                 -- Bit boundary -----------------------------------------------------------
                 elsif seg_count >= ((active_phase_seg2 - 1) - phase2_shortening) then
-                  tx_o <= mac_i.tx_data;
-                  bit_boundary       <= '1';
-                  segment            <= s_sync_seg;
-                  seg_count          <= 0;
-                  phase2_shortening  <= 0;
+                  tx_o              <= mac_i.tx_data;
+                  bit_boundary      <= '1';
+                  segment           <= s_sync_seg;
+                  seg_count         <= 0;
+                  phase2_shortening <= 0;
                   -- Allow sync again now that we've reached the next bit boundary
-                  sync_applied       <= '0';
+                  sync_applied      <= '0';
 
                   if fce_i.bus_off = '0' then
                     if mac_i.transmitting = '1' then

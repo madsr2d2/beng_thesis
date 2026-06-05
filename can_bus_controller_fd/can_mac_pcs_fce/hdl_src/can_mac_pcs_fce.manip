@@ -1,0 +1,37 @@
+
+# ---------------------------------------------------------------------------- #
+# Packages
+# ---------------------------------------------------------------------------- #
+set_global_assignment -name VHDL_FILE [file join $abs_path "modules/ip_lib/man_global_p/hdl_src/man_global_p.vhd"]
+set_global_assignment -name VHDL_FILE [file join $abs_path "modules/ip_lib/eth_st/hdl_src/eth_st_p.vhd"]
+set_global_assignment -name VHDL_FILE [file join $abs_path "modules/ip_lib/can_bus_controller_fd/can_types_p/hdl_src/can_types_p.vhd"]
+
+# ---------------------------------------------------------------------------- #
+# gen_crc (used by can_mac_crc)
+# ---------------------------------------------------------------------------- #
+set_global_assignment -name VHDL_FILE [file join $abs_path "modules/ip_lib/gen_crc/hdl_src/gen_crc_p.vhd"]
+set_global_assignment -name VHDL_FILE [file join $abs_path "modules/ip_lib/gen_crc/hdl_src/gen_crc.vhd"]
+
+# ---------------------------------------------------------------------------- #
+# can_mac sub-modules
+# ---------------------------------------------------------------------------- #
+set_global_assignment -name VHDL_FILE [file join $abs_path "modules/ip_lib/can_bus_controller_fd/can_mac/hdl_src/can_mac_fsm.vhd"]
+set_global_assignment -name VHDL_FILE [file join $abs_path "modules/ip_lib/can_bus_controller_fd/can_mac_ser/hdl_src/can_mac_ser.vhd"]
+set_global_assignment -name VHDL_FILE [file join $abs_path "modules/ip_lib/can_bus_controller_fd/can_mac_bs/hdl_src/can_mac_bs.vhd"]
+set_global_assignment -name VHDL_FILE [file join $abs_path "modules/ip_lib/can_bus_controller_fd/can_mac_crc/hdl_src/can_mac_crc.vhd"]
+set_global_assignment -name VHDL_FILE [file join $abs_path "modules/ip_lib/can_bus_controller_fd/can_mac/hdl_src/can_mac.vhd"]
+
+# ---------------------------------------------------------------------------- #
+# can_fce
+# ---------------------------------------------------------------------------- #
+set_global_assignment -name VHDL_FILE [file join $abs_path "modules/ip_lib/can_bus_controller_fd/can_fce/hdl_src/can_fce.vhd"]
+
+# ---------------------------------------------------------------------------- #
+# can_pcs
+# ---------------------------------------------------------------------------- #
+set_global_assignment -name VHDL_FILE [file join $abs_path "modules/ip_lib/can_bus_controller_fd/can_pcs/hdl_src/can_pcs.vhd"]
+
+# ---------------------------------------------------------------------------- #
+# Top module
+# ---------------------------------------------------------------------------- #
+set_global_assignment -name VHDL_FILE [file join $abs_path "modules/ip_lib/can_bus_controller_fd/can_mac_pcs_fce/hdl_src/can_mac_pcs_fce.vhd"]

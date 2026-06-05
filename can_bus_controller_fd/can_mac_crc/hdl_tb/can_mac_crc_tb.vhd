@@ -4,11 +4,11 @@
 --
 -- Requirements:  
 --
--- Description:   Testbench for can_mac_crc.
+-- Description:   Test bench for can_mac_crc.
 --                p_input_vc          - Feeds random bit streams to DUT.
 --                p_output_vc         - Checks CRC output against reference model.
 --                p_reset_checker     - Verifies reset zeroes CRC output.
---                p_output_stable_checker - Verifies CRC holds when valid deasserted.
+--                p_output_stable_checker - Verifies CRC holds when valid de-asserted.
 --                p_test_ctrl         - Coverage-driven test sequencer.
 --
 -- Revision log:  Date:       Initial:  JIRA:
@@ -17,23 +17,22 @@
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
-  use ieee.std_logic_1164.all;
-  use ieee.numeric_std.all;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 library osvvm;
-  context osvvm.OsvvmContext;
-  use osvvm.ScoreboardPkg_slv.all;
+context osvvm.OsvvmContext;
+use osvvm.ScoreboardPkg_slv.all;
 library osvvm_common;
-  context osvvm_common.OsvvmCommonContext;
+context osvvm_common.OsvvmCommonContext;
 
 use work.pk_man_global.all;
 use work.common_register_interface_pkg.all;
 use work.common_tb_pkg.all;
 use work.pk_can_types.all;
-use work.pk_can_tb.all;
 
 entity can_mac_crc_tb is
-  generic (
+  generic(
     gc_TbTimeOut   : time := 2 ms;
     gc_TbClkPeriod : time := 10 ns
   );
@@ -48,7 +47,6 @@ architecture tb of can_mac_crc_tb is
   constant c_bin_crc_17_sel : natural := 1;
   constant c_bin_crc_21_sel : natural := 2;
   constant c_num_frames     : natural := 1000;
-  constant c_crc_reset_value : std_logic_vector(c_crc_21_length - 1 downto 0) := (others => '0');
 
   ----------------------------------------------------------------------------
   -- Signals
@@ -64,30 +62,45 @@ architecture tb of can_mac_crc_tb is
   signal dut_rst   : std_logic;
 
   -- OSVVM signals
-  signal reset_id        : AlertLogIDType;
-  signal crc_check_id    : AlertLogIDType;
-  signal output_stable_id : AlertLogIDType;
-  signal tx_rec : StreamRecType(
+  signal          reset_id         : AlertLogIDType;
+  signal          crc_check_id     : AlertLogIDType;
+  signal          output_stable_id : AlertLogIDType;
+  signal          tx_rec           : StreamRecType(
     DataToModel(2 * c_max_mac_frame_length - 1 downto 0),
     ParamToModel(1 downto 0),
     DataFromModel(0 downto 0),
     ParamFromModel(0 downto 0)
   );
-  signal rx_rec : StreamRecType(
+  signal          rx_rec           : StreamRecType(
     DataToModel(c_crc_21_length - 1 downto 0),
     ParamToModel(0 downto 0),
     DataFromModel(0 downto 0),
     ParamFromModel(0 downto 0)
   );
-  signal cov : CoverageIdType;
-  shared variable rv : RandomPType;
+  signal          cov              : CoverageIdType;
+  shared variable rv               : RandomPType;
 
   ----------------------------------------------------------------------------
   -- Functions
   ----------------------------------------------------------------------------
+  function f_calc_can_crc(data : std_logic_vector; init_vec : std_logic_vector; poly : std_logic_vector) return std_logic_vector is
+    variable v_crc      : std_logic_vector(init_vec'length - 1 downto 0);
+    variable v_crc_next : std_logic;
+  begin
+    v_crc := init_vec;
+    for i in data'range loop
+      v_crc_next := data(i) xor v_crc(v_crc'high);
+      v_crc      := v_crc sll 1;
+      if (v_crc_next) then
+        v_crc := v_crc xor poly;
+      end if;
+    end loop;
+    return v_crc;
+  end function f_calc_can_crc;
+
   -- Left-justifies the CRC output for comparison with DUT.
-  function f_calc_can_crc_aligned (
-    dat        : std_logic_vector;
+  function f_calc_can_crc_aligned(
+    dat         : std_logic_vector;
     poly_select : std_logic_vector(1 downto 0)
   ) return std_logic_vector is
     variable v_result : std_logic_vector(c_crc_21_length - 1 downto 0) := (others => '0');
@@ -110,12 +123,11 @@ architecture tb of can_mac_crc_tb is
 begin
 
   ----------------------------------------------------------------------------
-  -- Initialisation
+  -- Initialization
   ----------------------------------------------------------------------------
   p_init : process
     variable v_cov : CoverageIdType;
   begin
-    RV.InitSeed(random_seed);
     SetAlertStopCount(ERROR, 10);
 
     reset_id         <= NewId("Reset");
@@ -126,7 +138,7 @@ begin
     AddBins(v_cov, "crc_15", 100, GenBin(c_bin_crc_15_sel));
     AddBins(v_cov, "crc_17", 100, GenBin(c_bin_crc_17_sel));
     AddBins(v_cov, "crc_21", 100, GenBin(c_bin_crc_21_sel));
-    cov <= v_cov;
+    cov   <= v_cov;
     wait;
   end process;
 
@@ -148,18 +160,18 @@ begin
     std.env.stop(1);
   end process p_timeout;
 
-  -- Frame reset OR'd with main reset for CRC re-initialisation between frames
+  -- Frame reset OR'd with main reset for CRC re-initialization between frames
   dut_rst <= reset or frame_rst;
 
   ----------------------------------------------------------------------------
   -- DUT
   ----------------------------------------------------------------------------
   u_dut : entity work.can_mac_crc
-    port map (
-      clk_i => clk,
-      rst_i => dut_rst,
-      crc_i => crc_i,
-      crc_o => crc_o
+    port map(
+      clk_i   => clk,
+      reset_i => dut_rst,
+      crc_i   => crc_i,
+      crc_o   => crc_o
     );
 
   ----------------------------------------------------------------------------
@@ -210,23 +222,23 @@ begin
     case tx_rec.Operation is
       when SEND =>
         -- Pulse frame reset to clear CRC state before each frame
-        frame_rst <= '1';
+        frame_rst      <= '1';
         WaitForClock(clk);
-        frame_rst <= '0';
+        frame_rst      <= '0';
         WaitForClock(clk);
         -- Feed both streams in parallel, one bit per clock
         for i in c_max_mac_frame_length - 1 downto 0 loop
           crc_i.crc_poly_select <= SafeResize(tx_rec.ParamToModel, crc_i.crc_poly_select'length);
-          crc_i.data_cc <= tx_rec.DataToModel(i + c_max_mac_frame_length);
-          crc_i.data_fd <= tx_rec.DataToModel(i);
-          crc_i.valid_cc   <= '1';
-          crc_i.valid_fd   <= '1';
+          crc_i.data_cc         <= tx_rec.DataToModel(i + c_max_mac_frame_length);
+          crc_i.data_fd         <= tx_rec.DataToModel(i);
+          crc_i.valid_cc        <= '1';
+          crc_i.valid_fd        <= '1';
           WaitForClock(clk);
         end loop;
         crc_i.valid_cc <= '0';
         crc_i.valid_fd <= '0';
         WaitForClock(clk);
-        tx_rec.Ack <= tx_rec.Ack + 1;
+        tx_rec.Ack     <= tx_rec.Ack + 1;
       when others => null;
     end case;
   end process p_input_vc;
@@ -241,8 +253,8 @@ begin
     case rx_rec.Operation is
       when CHECK =>
         AffirmIf(crc_check_id,
-          std_logic_vector(crc_o.crc) = std_logic_vector(rx_rec.DataToModel),
-          "Got : " & to_string(crc_o.crc) & ", expected: " & to_string(std_logic_vector(rx_rec.DataToModel)));
+                 std_logic_vector(crc_o.crc) = std_logic_vector(rx_rec.DataToModel),
+                 "Got : " & to_string(crc_o.crc) & ", expected: " & to_string(std_logic_vector(rx_rec.DataToModel)));
         rx_rec.Ack <= rx_rec.Ack + 1;
       when others => null;
     end case;
@@ -251,12 +263,23 @@ begin
   ---------------------------------------------------------------------------
   -- Checker: Check reset
   ---------------------------------------------------------------------------
-  p_reset_checker : process
+  p_reset_checker : process is
+    variable v_expected : std_logic_vector(c_crc_21_length - 1 downto 0);
   begin
     loop
       wait until rising_edge(clk) and dut_rst = '1';
       WaitForClock(clk);
-      AffirmIf(reset_id, crc_o.crc = c_crc_reset_value, "CRC output not reset to zero");
+      case crc_i.crc_poly_select is
+        when c_crc_poly_15_sel =>
+          v_expected := c_crc_init_15_vec & (c_crc_21_length - 1 - c_crc_15_length downto 0 => '0');
+        when c_crc_poly_17_sel =>
+          v_expected := c_crc_init_17_vec & (c_crc_21_length - 1 - c_crc_17_length downto 0 => '0');
+        when c_crc_poly_21_sel =>
+          v_expected := c_crc_init_21_vec;
+        when others =>
+          v_expected := (others => '0');
+      end case;
+      AffirmIf(reset_id, crc_o.crc = v_expected, "CRC output not reset to init value");
     end loop;
   end process p_reset_checker;
 
