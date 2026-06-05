@@ -1,27 +1,5 @@
 #!/usr/bin/env python3
-"""
-CAN Verification Plan MCP Server
-
-Manages the CAN verification plan in TOML format.
-Handles querying, updating, inserting, deleting, and validating requirements.
-
-Format structure:
-  [[requirement]]
-  id = "REQ-MAC-001"
-  source_clause = "§6.6.8"
-  original_wording = "..."
-  side = "transmitter" | "receiver" | "both"
-  layer = "LLC" | "MAC" | "PCS" | "FCE"
-  format_applicability = "CB, CE, FB, FE"
-  observability = "black_box" | "white_box"
-  notes = ""              # Residual clarifications not resolved by other fields
-  coverage_criteria = "" # Bins, stimulus conditions, and closure criteria
-  label = ""             # PSL assertion label or testbench procedure name
-  file = ""              # Target VHDL source file
-
-Usage:
-    python -m mcp_tools.verification_plan_manager
-"""
+"""MCP server for managing the CAN verification plan in TOML format."""
 
 import logging
 import sys
@@ -32,7 +10,6 @@ from typing import Optional
 import tomlkit
 from mcp.server.fastmcp import FastMCP
 
-# ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
@@ -40,17 +17,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
 _PROJECT_ROOT = Path(__file__).parent.parent
 _VPLAN_DIR = _PROJECT_ROOT / "verification_plan"
 
-# ── FastMCP Server ────────────────────────────────────────────────────────────
 mcp = FastMCP("verification_plan")
 
-# ── Requirements Manager ─────────────────────────────────────────────────────
 
 class RequirementsManager:
-    """Manager for ISO-aligned CAN requirements using tomlkit."""
 
     VALID_LAYERS = {"LLC", "MAC", "PCS", "FCE", "system"}
     VALID_OBSERVABILITIES = {"black_box", "white_box"}
@@ -81,12 +54,10 @@ class RequirementsManager:
         logger.info(f"RequirementsManager ready: {self.toml_path}")
 
     def _load(self) -> dict:
-        """Load TOML preserving comments and formatting."""
         with open(self.toml_path, "r") as f:
             return tomlkit.parse(f.read())
 
     def _save(self, data: dict) -> None:
-        """Write TOML back preserving comments and formatting."""
         with open(self.toml_path, "w") as f:
             f.write(tomlkit.dumps(data))
         logger.info(f"Saved: {self.toml_path}")
@@ -104,7 +75,6 @@ class RequirementsManager:
         is_blank_label: Optional[bool] = None,
         is_blank_file: Optional[bool] = None,
     ) -> list[dict]:
-        """Query requirements by layer, side, and observability."""
         data = self._load()
         requirements = data.get("requirement", [])
 
@@ -133,7 +103,6 @@ class RequirementsManager:
         return results
 
     def get_by_id(self, req_id: str) -> Optional[dict]:
-        """Get a single requirement by ID."""
         data = self._load()
         requirements = data.get("requirement", [])
         for req in requirements:
@@ -142,7 +111,6 @@ class RequirementsManager:
         return None
 
     def update_requirement(self, req_id: str, field: str, value) -> dict:
-        """Update a single field on one requirement."""
         if field not in self.VALID_FIELD_UPDATES:
             raise ValueError(
                 f"Invalid field '{field}'. Valid: {self.VALID_FIELD_UPDATES}"
@@ -177,7 +145,6 @@ class RequirementsManager:
         return updated_req
 
     def bulk_update(self, field: str, value, **filters) -> dict:  # type: ignore[return]
-        """Update a field on all requirements matching the given filters."""
         if field not in self.VALID_FIELD_UPDATES:
             raise ValueError(
                 f"Invalid field '{field}'. Valid: {self.VALID_FIELD_UPDATES}"
@@ -205,7 +172,6 @@ class RequirementsManager:
         return {"count": len(updated_ids), "updated_ids": updated_ids}
 
     def get_statistics(self) -> dict:
-        """Get requirement counts by layer, observability, and side."""
         data = self._load()
         requirements = data.get("requirement", [])
 
@@ -215,7 +181,6 @@ class RequirementsManager:
                 "by_layer": {},
                 "by_observability": {},
                 "by_side": {},
-                
                 "blank_label_count": 0,
                 "blank_file_count": 0,
             }
@@ -227,7 +192,6 @@ class RequirementsManager:
                 Counter(r.get("observability", "") or "unset" for r in requirements)
             ),
             "by_side": dict(Counter(r.get("side", "unknown") for r in requirements)),
-            
             "blank_label_count": sum(
                 1 for r in requirements if r.get("label", "") == ""
             ),
@@ -235,7 +199,6 @@ class RequirementsManager:
         }
 
     def delete_requirement(self, req_id: str) -> dict:
-        """Delete a requirement by ID."""
         self._backup()
         data = self._load()
         requirements = data.get("requirement", [])
@@ -250,7 +213,6 @@ class RequirementsManager:
         raise KeyError(f"Requirement {req_id} not found")
 
     def renumber_requirements(self) -> dict:
-        """Renumber all requirement IDs sequentially as REQ-NNN."""
         self._backup()
         data = self._load()
         requirements = data.get("requirement", [])
@@ -272,11 +234,12 @@ class RequirementsManager:
                 req["notes"] = notes
 
         self._save(data)
-        logger.info(f"Renumbered {len(requirements)} requirements, {len(id_map)} IDs changed")
+        logger.info(
+            f"Renumbered {len(requirements)} requirements, {len(id_map)} IDs changed"
+        )
         return {"total": len(requirements), "changed": len(id_map), "id_map": id_map}
 
     def insert_requirement(self, **fields) -> dict:
-        """Insert a new requirement. Auto-assigns next sequential ID for the layer."""
         self._backup()
         data = self._load()
         requirements = data.get("requirement", [])
@@ -319,9 +282,8 @@ class RequirementsManager:
         logger.info(f"Inserted {new_id}")
         return {"id": new_id, "total": len(requirements)}
 
-# ── Singleton ─────────────────────────────────────────────────────────────────
+
 def get_manager(toml_path: Optional[Path] = None):
-    """Get or create a manager for the given TOML file."""
     if toml_path is None:
         for name in [
             "verification_plan.toml",
@@ -331,13 +293,10 @@ def get_manager(toml_path: Optional[Path] = None):
                 toml_path = path
                 break
         if toml_path is None:
-            raise FileNotFoundError(
-                f"No verification plan TOML found in {_VPLAN_DIR}"
-            )
+            raise FileNotFoundError(f"No verification plan TOML found in {_VPLAN_DIR}")
 
     return RequirementsManager(toml_path)
 
-# ── MCP Tools ─────────────────────────────────────────────────────────────────
 
 @mcp.tool()
 def query_requirements(
@@ -379,6 +338,7 @@ def query_requirements(
         return "No requirements matched the query."
     return f"{len(results)} requirements found:\n\n" + "\n".join(lines)
 
+
 @mcp.tool()
 def get_requirement(req_id: str, toml_path: Optional[str] = None) -> str:
     """Get a single requirement by ID with all details.
@@ -415,6 +375,7 @@ def get_requirement(req_id: str, toml_path: Optional[str] = None) -> str:
 
     return "\n".join(lines)
 
+
 @mcp.tool()
 def update_requirement(
     req_id: str,
@@ -433,6 +394,7 @@ def update_requirement(
     manager = get_manager(Path(toml_path) if toml_path else None)
     manager.update_requirement(req_id, field, value)
     return f"Updated {req_id}.{field} = {value!r}"
+
 
 @mcp.tool()
 def bulk_update(
@@ -468,6 +430,7 @@ def bulk_update(
         f"Updated {result['count']} requirements:\n{', '.join(result['updated_ids'])}"
     )
 
+
 @mcp.tool()
 def delete_requirement(
     req_id: str,
@@ -483,6 +446,7 @@ def delete_requirement(
     result = manager.delete_requirement(req_id)
     return f"Deleted {result['deleted']}. {result['remaining']} requirements remaining."
 
+
 @mcp.tool()
 def renumber_requirements(toml_path: Optional[str] = None) -> str:
     """Renumber all requirement IDs sequentially within each layer.
@@ -492,13 +456,16 @@ def renumber_requirements(toml_path: Optional[str] = None) -> str:
     """
     manager = get_manager(Path(toml_path) if toml_path else None)
     result = manager.renumber_requirements()
-    lines = [f"Renumbered {result['total']} requirements ({result['changed']} IDs changed)."]
+    lines = [
+        f"Renumbered {result['total']} requirements ({result['changed']} IDs changed)."
+    ]
     if result["id_map"]:
         for old, new in list(result["id_map"].items())[:20]:
             lines.append(f"  {old} → {new}")
         if len(result["id_map"]) > 20:
             lines.append(f"  ... and {len(result['id_map']) - 20} more")
     return "\n".join(lines)
+
 
 @mcp.tool()
 def insert_requirement(
@@ -535,6 +502,7 @@ def insert_requirement(
     )
     return f"Inserted {result['id']}. Total: {result['total']} requirements."
 
+
 @mcp.tool()
 def get_statistics(toml_path: Optional[str] = None) -> str:
     """Get statistics on requirements by layer, observability, and side.
@@ -556,12 +524,11 @@ def get_statistics(toml_path: Optional[str] = None) -> str:
     ]
     return "\n".join(lines)
 
-# ── Entry Point ───────────────────────────────────────────────────────────────
 
 def main() -> None:
-    """Start the MCP server using stdio transport."""
     logger.info("Starting Verification Plan MCP server")
     mcp.run(transport="stdio")
+
 
 if __name__ == "__main__":
     main()
