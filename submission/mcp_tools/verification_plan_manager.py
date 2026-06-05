@@ -1,21 +1,12 @@
 #!/usr/bin/env python3
 """MCP server for managing the CAN verification plan in TOML format."""
 
-import logging
-import sys
 from collections import Counter
 from pathlib import Path
 from typing import Optional
 
 import tomlkit
 from mcp.server.fastmcp import FastMCP
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-    stream=sys.stderr,
-)
-logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = Path(__file__).parent.parent
 _VPLAN_DIR = _PROJECT_ROOT / "verification_plan"
@@ -24,7 +15,6 @@ mcp = FastMCP("verification_plan")
 
 
 class RequirementsManager:
-
     VALID_LAYERS = {"LLC", "MAC", "PCS", "FCE", "system"}
     VALID_OBSERVABILITIES = {"black_box", "white_box"}
     VALID_FIELD_UPDATES = {
@@ -51,7 +41,6 @@ class RequirementsManager:
 
         if not self.toml_path.exists():
             raise FileNotFoundError(f"Requirements file not found: {self.toml_path}")
-        logger.info(f"RequirementsManager ready: {self.toml_path}")
 
     def _load(self) -> dict:
         with open(self.toml_path, "r") as f:
@@ -60,12 +49,10 @@ class RequirementsManager:
     def _save(self, data: dict) -> None:
         with open(self.toml_path, "w") as f:
             f.write(tomlkit.dumps(data))
-        logger.info(f"Saved: {self.toml_path}")
 
     def _backup(self) -> None:
         self.toml_path.read_text()  # Verify readable
         self.backup_path.write_text(self.toml_path.read_text())
-        logger.info(f"Backup: {self.backup_path}")
 
     def query(
         self,
@@ -99,7 +86,6 @@ class RequirementsManager:
                     continue
             results.append(req)
 
-        logger.info(f"query() with filters → {len(results)} results")
         return results
 
     def get_by_id(self, req_id: str) -> Optional[dict]:
@@ -127,24 +113,20 @@ class RequirementsManager:
         data = self._load()
         requirements = data.get("requirement", [])
 
-        found = False
         updated_req = None
         for req in requirements:
             if req.get("id") == req_id:
-                old_value = req.get(field)
                 req[field] = value
-                found = True
                 updated_req = req
-                logger.info(f"Updated {req_id}.{field}: {old_value!r} → {value!r}")
                 break
 
-        if not found:
+        if updated_req is None:
             raise KeyError(f"Requirement {req_id} not found")
 
         self._save(data)
         return updated_req
 
-    def bulk_update(self, field: str, value, **filters) -> dict:  # type: ignore[return]
+    def bulk_update(self, field: str, value, **filters) -> dict:
         if field not in self.VALID_FIELD_UPDATES:
             raise ValueError(
                 f"Invalid field '{field}'. Valid: {self.VALID_FIELD_UPDATES}"
@@ -168,7 +150,6 @@ class RequirementsManager:
                     break
 
         self._save(data)
-        logger.info(f"bulk_update {field}={value!r} on {len(updated_ids)} requirements")
         return {"count": len(updated_ids), "updated_ids": updated_ids}
 
     def get_statistics(self) -> dict:
@@ -207,7 +188,6 @@ class RequirementsManager:
             if req.get("id") == req_id:
                 del requirements[i]
                 self._save(data)
-                logger.info(f"Deleted {req_id}, {len(requirements)} remaining")
                 return {"deleted": req_id, "remaining": len(requirements)}
 
         raise KeyError(f"Requirement {req_id} not found")
@@ -234,9 +214,6 @@ class RequirementsManager:
                 req["notes"] = notes
 
         self._save(data)
-        logger.info(
-            f"Renumbered {len(requirements)} requirements, {len(id_map)} IDs changed"
-        )
         return {"total": len(requirements), "changed": len(id_map), "id_map": id_map}
 
     def insert_requirement(self, **fields) -> dict:
@@ -279,20 +256,15 @@ class RequirementsManager:
 
         requirements.append(new_req)
         self._save(data)
-        logger.info(f"Inserted {new_id}")
         return {"id": new_id, "total": len(requirements)}
 
 
 def get_manager(toml_path: Optional[Path] = None):
     if toml_path is None:
-        for name in [
-            "verification_plan.toml",
-        ]:
-            path = _VPLAN_DIR / name
-            if path.exists():
-                toml_path = path
-                break
-        if toml_path is None:
+        path = _VPLAN_DIR / "verification_plan.toml"
+        if path.exists():
+            toml_path = path
+        else:
             raise FileNotFoundError(f"No verification plan TOML found in {_VPLAN_DIR}")
 
     return RequirementsManager(toml_path)
@@ -520,15 +492,9 @@ def get_statistics(toml_path: Optional[str] = None) -> str:
         f"By side: {stats['by_side']}",
         f"Blank label: {stats['blank_label_count']}",
         f"Blank file: {stats['blank_file_count']}",
-        f"",
     ]
     return "\n".join(lines)
 
 
-def main() -> None:
-    logger.info("Starting Verification Plan MCP server")
-    mcp.run(transport="stdio")
-
-
 if __name__ == "__main__":
-    main()
+    mcp.run(transport="stdio")
