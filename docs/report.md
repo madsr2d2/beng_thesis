@@ -30,7 +30,7 @@ It is assumed that the reader has a working knowledge of digital logic design an
 \centering
 \rule{7cm}{0.4pt}\\[4pt]
 Mads Richardt (s224948)\\[2pt]
-{\small Kgs.\ Lyngby, May 2026}
+{\small Kgs.\ Lyngby, June 2026}
 \end{minipage}
 \end{center}
 \clearpage
@@ -50,7 +50,7 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 ```{=latex}
 \clearpage
 \setcounter{tocdepth}{4}
-\tableofcontents
+\tableofcontents18
 \clearpage
 ```
 
