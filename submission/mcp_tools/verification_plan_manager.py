@@ -218,7 +218,6 @@ class RequirementsManager:
         data = self._load()
         requirements = data.get("requirement", [])
 
-        layer = fields.get("layer", "LLC")
         max_num = 0
         for req in requirements:
             rid = req.get("id", "")
@@ -236,7 +235,7 @@ class RequirementsManager:
             "original_wording": "",
             "paraphrase": "",
             "group_title": "",
-            "layer": layer,
+            "layer": fields["layer"],
             "side": "",
             "format_applicability": "",
             "observability": "",
