@@ -7,8 +7,7 @@ from typing import Optional
 import tomlkit
 from mcp.server.fastmcp import FastMCP
 
-_PROJECT_ROOT = Path(__file__).parent.parent
-_VPLAN_DIR = _PROJECT_ROOT / "verification_plan"
+VPLAN_DIR = Path(__file__).parent.parent / "verification_plan"
 
 mcp = FastMCP("verification_plan")
 
@@ -50,7 +49,6 @@ class RequirementsManager:
             f.write(tomlkit.dumps(data))
 
     def _backup(self) -> None:
-        self.toml_path.read_text()  # Verify readable
         self.backup_path.write_text(self.toml_path.read_text())
 
     def query(
@@ -258,15 +256,11 @@ class RequirementsManager:
         return {"id": new_id, "total": len(requirements)}
 
 
-def get_manager(toml_path: Optional[Path] = None):
-    if toml_path is None:
-        path = _VPLAN_DIR / "verification_plan.toml"
-        if path.exists():
-            toml_path = path
-        else:
-            raise FileNotFoundError(f"No verification plan TOML found in {_VPLAN_DIR}")
-
-    return RequirementsManager(toml_path)
+def get_manager() -> RequirementsManager:
+    path = VPLAN_DIR / "verification_plan.toml"
+    if not path.exists():
+        raise FileNotFoundError(f"No verification plan TOML found in {VPLAN_DIR}")
+    return RequirementsManager(path)
 
 
 @mcp.tool()
@@ -276,7 +270,6 @@ def query_requirements(
     observability: Optional[str] = None,
     is_blank_label: Optional[bool] = None,
     is_blank_file: Optional[bool] = None,
-    toml_path: Optional[str] = None,
 ) -> str:
     """Query requirements with optional filters.
 
@@ -286,9 +279,8 @@ def query_requirements(
         observability: black_box or white_box
         is_blank_label: if true, return only requirements with label=""
         is_blank_file: if true, return only requirements with file=""
-        toml_path: Path to requirements file (auto-detected if not provided)
     """
-    manager = get_manager(Path(toml_path) if toml_path else None)
+    manager = get_manager()
     results = manager.query(
         layer=layer,
         side=side,
@@ -311,14 +303,13 @@ def query_requirements(
 
 
 @mcp.tool()
-def get_requirement(req_id: str, toml_path: Optional[str] = None) -> str:
+def get_requirement(req_id: str) -> str:
     """Get a single requirement by ID with all details.
 
     Args:
-        req_id: Requirement ID (e.g. "REQ-LLC-001")
-        toml_path: Path to requirements file (auto-detected if not provided)
+        req_id: Requirement ID (e.g. "REQ-001")
     """
-    manager = get_manager(Path(toml_path) if toml_path else None)
+    manager = get_manager()
     req = manager.get_by_id(req_id)
 
     if not req:
@@ -348,21 +339,15 @@ def get_requirement(req_id: str, toml_path: Optional[str] = None) -> str:
 
 
 @mcp.tool()
-def update_requirement(
-    req_id: str,
-    field: str,
-    value: str,
-    toml_path: Optional[str] = None,
-) -> str:
+def update_requirement(req_id: str, field: str, value: str) -> str:
     """Update a single field on one requirement.
 
     Args:
-        req_id: Requirement ID (e.g. "REQ-LLC-001")
-        field: Field to update (shape, scope, layer, label, file, notes, etc.)
+        req_id: Requirement ID (e.g. "REQ-001")
+        field: Field to update (layer, label, file, notes, status, etc.)
         value: New value
-        toml_path: Path to requirements file (auto-detected if not provided)
     """
-    manager = get_manager(Path(toml_path) if toml_path else None)
+    manager = get_manager()
     manager.update_requirement(req_id, field, value)
     return f"Updated {req_id}.{field} = {value!r}"
 
@@ -375,7 +360,6 @@ def bulk_update(
     observability: Optional[str] = None,
     is_blank_label: Optional[bool] = None,
     is_blank_file: Optional[bool] = None,
-    toml_path: Optional[str] = None,
 ) -> str:
     """Bulk update a field on requirements matching filters.
 
@@ -386,9 +370,8 @@ def bulk_update(
         observability: Filter by observability (black_box, white_box)
         is_blank_label: Filter by blank label
         is_blank_file: Filter by blank file
-        toml_path: Path to requirements file (auto-detected if not provided)
     """
-    manager = get_manager(Path(toml_path) if toml_path else None)
+    manager = get_manager()
     result = manager.bulk_update(
         field,
         value,
@@ -403,29 +386,21 @@ def bulk_update(
 
 
 @mcp.tool()
-def delete_requirement(
-    req_id: str,
-    toml_path: Optional[str] = None,
-) -> str:
+def delete_requirement(req_id: str) -> str:
     """Delete a requirement by ID.
 
     Args:
-        req_id: Requirement ID (e.g. "REQ-LLC-001")
-        toml_path: Path to requirements file (auto-detected if not provided)
+        req_id: Requirement ID (e.g. "REQ-001")
     """
-    manager = get_manager(Path(toml_path) if toml_path else None)
+    manager = get_manager()
     result = manager.delete_requirement(req_id)
     return f"Deleted {result['deleted']}. {result['remaining']} requirements remaining."
 
 
 @mcp.tool()
-def renumber_requirements(toml_path: Optional[str] = None) -> str:
-    """Renumber all requirement IDs sequentially within each layer.
-
-    Args:
-        toml_path: Path to requirements file (auto-detected if not provided)
-    """
-    manager = get_manager(Path(toml_path) if toml_path else None)
+def renumber_requirements() -> str:
+    """Renumber all requirement IDs sequentially as REQ-NNN."""
+    manager = get_manager()
     result = manager.renumber_requirements()
     lines = [
         f"Renumbered {result['total']} requirements ({result['changed']} IDs changed)."
@@ -447,9 +422,8 @@ def insert_requirement(
     format_applicability: str = "",
     observability: str = "",
     notes: str = "",
-    toml_path: Optional[str] = None,
 ) -> str:
-    """Insert a new requirement. Auto-assigns next sequential ID for the layer.
+    """Insert a new requirement. Auto-assigns next sequential ID.
 
     Args:
         layer: LLC, MAC, PCS, FCE, or system
@@ -459,9 +433,8 @@ def insert_requirement(
         format_applicability: Comma-separated formats (e.g. "CB, CE, FB, FE")
         observability: black_box or white_box
         notes: How this is verified and any relevant caveats
-        toml_path: Path to requirements file (auto-detected if not provided)
     """
-    manager = get_manager(Path(toml_path) if toml_path else None)
+    manager = get_manager()
     result = manager.insert_requirement(
         layer=layer,
         original_wording=original_wording,
@@ -475,13 +448,9 @@ def insert_requirement(
 
 
 @mcp.tool()
-def get_statistics(toml_path: Optional[str] = None) -> str:
-    """Get statistics on requirements by layer, observability, and side.
-
-    Args:
-        toml_path: Path to requirements file (auto-detected if not provided)
-    """
-    manager = get_manager(Path(toml_path) if toml_path else None)
+def get_statistics() -> str:
+    """Get requirement counts by layer, observability, and side."""
+    manager = get_manager()
     stats = manager.get_statistics()
 
     lines = [
