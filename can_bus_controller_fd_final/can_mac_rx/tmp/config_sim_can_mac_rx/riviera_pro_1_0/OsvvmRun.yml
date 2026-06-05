@@ -1,8 +1,0 @@
-        Name: "AlertLogTop"
-        Status: PASSED
-        Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 14554, AffirmCount: 14554, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        FunctionalCoverage: 100.00
-        Name: "AlertLogTop"
-        Status: PASSED
-        Results: {TotalErrors: 0, AlertCount: {Failure: 0, Error: 0, Warning: 0}, PassedCount: 14554, AffirmCount: 14554, RequirementsPassed: 0, RequirementsGoal: 0, DisabledAlertCount: {Failure: 0, Error: 0, Warning: 0}}
-        FunctionalCoverage: 100.00
