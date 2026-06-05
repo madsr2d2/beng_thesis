@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--ALINT-PRO 2024.12.1889. (c) 2010-2025 Aldec, Inc.-->
+<workspace version="2" uuid="{1c2d9953-2c96-444c-87ef-427339ef876e}">
+    <active-configuration name="default"/>
+    <configurations>
+        <configuration name="default">
+            <project name="can_pcs" configuration="default"/>
+        </configuration>
+    </configurations>
+    <extended-preferences>
+        <configuration name="default">
+            <plugin version="1" name="linting_flow">
+                <template name="Default"/>
+            </plugin>
+        </configuration>
+    </extended-preferences>
+    <structure>
+        <project path="can_pcs.alintproj" active="true"/>
+    </structure>
+    <external-files-dependencies/>
+</workspace>

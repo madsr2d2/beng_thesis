@@ -1,0 +1,23 @@
+<!--ALINT-PRO 2024.12.1889. (c) 2010-2025 Aldec, Inc.-->
+<workspace-user-data>
+ <plugins>
+  <plugin version="1" name="project_manager_gui">
+   <nodes_state>
+    <node name="Temp"/>
+   </nodes_state>
+  </plugin>
+  <plugin version="1" name="linting_flow_gui">
+   <nodes_state>
+    <node name="/">
+     <node name="CDC Report"/>
+     <node name="FSM Report"/>
+     <node name="Project Setup"/>
+     <node name="RDC Report"/>
+     <node name="Run Project"/>
+     <node name="Synthesis Report"/>
+     <node name="View Results"/>
+    </node>
+   </nodes_state>
+  </plugin>
+ </plugins>
+</workspace-user-data>

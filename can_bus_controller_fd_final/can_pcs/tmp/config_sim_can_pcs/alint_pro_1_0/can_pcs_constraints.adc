@@ -1,0 +1,2 @@
+set_hierarchy_separator /
+create_clock -period 10 -name Input_Clk [ get_ports can_pcs/clk_i ]

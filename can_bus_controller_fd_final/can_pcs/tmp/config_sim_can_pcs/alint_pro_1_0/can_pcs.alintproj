@@ -1,0 +1,399 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--ALINT-PRO 2024.12.1889. (c) 2010-2025 Aldec, Inc.-->
+<project version="2">
+    <configurations>
+        <configuration name="default" uuid="{4a1eb6fa-f66c-4309-8486-c40f506673c7}"/>
+    </configurations>
+    <preferences version="2">
+        <configuration name="default">
+            <property key="application/alint_preferences/linting_policy_page/policy_name" value="Triton_3_1"/>
+            <property key="application/framework_preferences/constraints_page/design_constraints_file" value="can_pcs_constraints.adc"/>
+            <property key="application/framework_preferences/verilog_general_page/verilog_standard_version" value="2"/>
+            <property key="application/framework_preferences/vhdl_general_page/standard_version" value="3"/>
+        </configuration>
+    </preferences>
+    <extended-preferences>
+        <configuration name="default">
+            <plugin version="17" name="waiver_manager"/>
+            <plugin version="17" name="rule_plugins_manager">
+                <policy>
+                    <rulesets>
+                        <ruleset name="STARC_CHAPTERS">
+                            <ruleset name="Part 2">
+                                <ruleset name="Chapter 2.1">
+                                    <ruleset name="Section 2.1.1 VHDL"/>
+                                    <ruleset name="Section 2.1.3 VHDL"/>
+                                    <ruleset name="Section 2.1.5 VHDL"/>
+                                </ruleset>
+                                <ruleset name="Chapter 2.2">
+                                    <ruleset name="Section 2.2.1"/>
+                                </ruleset>
+                                <ruleset name="Chapter 2.9">
+                                    <ruleset name="Section 2.9.3"/>
+                                </ruleset>
+                            </ruleset>
+                            <ruleset name="Part 3">
+                                <ruleset name="Chapter 3.4"/>
+                            </ruleset>
+                        </ruleset>
+                    </rulesets>
+                    <rule name="ALDEC_BASIC_PROJECT.6011"/>
+                    <rule name="ALDEC_BASIC_VHDL.1001"/>
+                    <rule name="ALDEC_BASIC_VHDL.1017"/>
+                    <rule name="ALDEC_BASIC_VHDL.2051_a"/>
+                    <rule name="ALDEC_BASIC_VHDL.2051_b"/>
+                    <rule name="ALDEC_BASIC_VHDL.2051_c"/>
+                    <rule name="ALDEC_BASIC_VHDL.2051_d"/>
+                    <rule name="ALDEC_BASIC_VHDL.2051_e"/>
+                    <rule name="ALDEC_BASIC_VHDL.2051_f"/>
+                    <rule name="ALDEC_BASIC_VHDL.2051_g"/>
+                    <rule name="ALDEC_BASIC_VHDL.2051_i"/>
+                    <rule name="ALDEC_BASIC_VHDL.2051_j"/>
+                    <rule name="ALDEC_BASIC_VHDL.2052_a"/>
+                    <rule name="ALDEC_BASIC_VHDL.2052_b"/>
+                    <rule name="ALDEC_BASIC_VHDL.3003"/>
+                    <rule name="ALDEC_BASIC_VHDL.3302"/>
+                    <rule name="ALDEC_BASIC_VHDL.3303"/>
+                    <rule name="ALDEC_BASIC_VHDL.4012"/>
+                    <rule name="ALDEC_BASIC_VHDL.4112_a"/>
+                    <rule name="ALDEC_BASIC_VHDL.5010"/>
+                    <rule name="ALDEC_BASIC_VHDL.5210"/>
+                    <rule name="ALDEC_BASIC_VHDL.5312"/>
+                    <rule name="ALDEC_BASIC_VHDL.5510"/>
+                    <rule name="ALDEC_BASIC_VHDL.5511"/>
+                    <rule name="ALDEC_BASIC_VHDL.5710"/>
+                    <rule name="ALDEC_BASIC_VHDL.6010_h"/>
+                    <rule name="ALDEC_BASIC_VHDL.6110"/>
+                    <rule name="STARC_NETLIST.1.1.1.7_b"/>
+                    <rule name="STARC_NETLIST.1.1.5.2_a"/>
+                    <rule name="STARC_NETLIST.1.1.5.2_b"/>
+                    <rule name="STARC_NETLIST.1.2.1.1_a"/>
+                    <rule name="STARC_NETLIST.1.2.1.2"/>
+                    <rule name="STARC_NETLIST.1.2.1.3"/>
+                    <rule name="STARC_NETLIST.1.3.1.3"/>
+                    <rule name="STARC_NETLIST.1.3.1.6"/>
+                    <rule name="STARC_NETLIST.1.3.2.1_a"/>
+                    <rule name="STARC_NETLIST.1.3.2.1_b"/>
+                    <rule name="STARC_NETLIST.1.3.2.2_b"/>
+                    <rule name="STARC_NETLIST.1.4.3.1_b"/>
+                    <rule name="STARC_NETLIST.1.4.3.2"/>
+                    <rule name="STARC_NETLIST.1.4.3.4"/>
+                    <rule name="STARC_NETLIST.1.4.3.6"/>
+                    <rule name="STARC_NETLIST.1.5.1.1"/>
+                    <rule name="STARC_NETLIST.1.5.1.2"/>
+                    <rule name="STARC_NETLIST.1.5.1.3"/>
+                    <rule name="STARC_NETLIST.2.3.1.7"/>
+                    <rule name="STARC_NETLIST.2.3.6.2_a"/>
+                    <rule name="STARC_NETLIST.2.4.1.3"/>
+                    <rule name="STARC_NETLIST.2.4.1.4"/>
+                    <rule name="STARC_NETLIST.2.4.1.5"/>
+                    <rule name="STARC_NETLIST.2.5.1.4"/>
+                    <rule name="STARC_NETLIST.2.5.1.5"/>
+                    <rule name="STARC_NETLIST.2.5.1.6"/>
+                    <rule name="STARC_NETLIST.3.3.1.3_a"/>
+                    <rule name="STARC_NETLIST.3.3.1.3_b"/>
+                    <rule name="STARC_NETLIST.3.3.3.1"/>
+                    <rule name="STARC_NETLIST.3.3.5.3"/>
+                    <rule name="STARC_NETLIST.3.3.5.4"/>
+                    <rule name="STARC_NETLIST.3.3.5.5"/>
+                    <rule name="STARC_NETLIST.3.3.5.7"/>
+                    <rule name="STARC_NETLIST.3.3.6.1_b"/>
+                    <rule name="STARC_NETLIST.3.3.6.2"/>
+                    <rule name="STARC_NETLIST.3.3.6.4"/>
+                    <rule name="STARC_VHDL.1.1.1.1"/>
+                    <rule name="STARC_VHDL.1.1.1.10"/>
+                    <rule name="STARC_VHDL.1.1.1.2"/>
+                    <rule name="STARC_VHDL.1.1.1.3"/>
+                    <rule name="STARC_VHDL.1.1.1.4"/>
+                    <rule name="STARC_VHDL.1.1.1.5"/>
+                    <rule name="STARC_VHDL.1.1.1.9_b"/>
+                    <rule name="STARC_VHDL.1.1.2.1_a"/>
+                    <rule name="STARC_VHDL.1.1.2.1_b"/>
+                    <rule name="STARC_VHDL.1.1.2.1_c"/>
+                    <rule name="STARC_VHDL.1.1.4.1"/>
+                    <rule name="STARC_VHDL.1.1.4.4"/>
+                    <rule name="STARC_VHDL.1.1.4.8"/>
+                    <rule name="STARC_VHDL.1.1.6.1"/>
+                    <rule name="STARC_VHDL.1.1.6.4"/>
+                    <rule name="STARC_VHDL.2.1.10.1"/>
+                    <rule name="STARC_VHDL.2.1.10.10"/>
+                    <rule name="STARC_VHDL.2.1.10.11"/>
+                    <rule name="STARC_VHDL.2.1.10.12"/>
+                    <rule name="STARC_VHDL.2.1.10.13"/>
+                    <rule name="STARC_VHDL.2.1.10.3"/>
+                    <rule name="STARC_VHDL.2.1.10.4"/>
+                    <rule name="STARC_VHDL.2.1.10.5"/>
+                    <rule name="STARC_VHDL.2.1.10.7"/>
+                    <rule name="STARC_VHDL.2.1.10.8"/>
+                    <rule name="STARC_VHDL.2.1.10.9"/>
+                    <rule name="STARC_VHDL.2.1.2.1"/>
+                    <rule name="STARC_VHDL.2.1.2.3"/>
+                    <rule name="STARC_VHDL.2.1.2.4"/>
+                    <rule name="STARC_VHDL.2.1.2.5"/>
+                    <rule name="STARC_VHDL.2.1.2.6"/>
+                    <rule name="STARC_VHDL.2.1.4.1"/>
+                    <rule name="STARC_VHDL.2.1.6.5"/>
+                    <rule name="STARC_VHDL.2.1.7.1"/>
+                    <rule name="STARC_VHDL.2.1.8.10"/>
+                    <rule name="STARC_VHDL.2.1.8.5"/>
+                    <rule name="STARC_VHDL.2.1.8.6"/>
+                    <rule name="STARC_VHDL.2.1.8.7"/>
+                    <rule name="STARC_VHDL.2.10.1.3"/>
+                    <rule name="STARC_VHDL.2.10.4.3"/>
+                    <rule name="STARC_VHDL.2.10.4.8"/>
+                    <rule name="STARC_VHDL.2.10.5.5"/>
+                    <rule name="STARC_VHDL.2.10.6.2_b"/>
+                    <rule name="STARC_VHDL.2.10.6.3"/>
+                    <rule name="STARC_VHDL.2.10.6.6"/>
+                    <rule name="STARC_VHDL.2.10.7.1"/>
+                    <rule name="STARC_VHDL.2.2.2.1"/>
+                    <rule name="STARC_VHDL.2.2.2.2"/>
+                    <rule name="STARC_VHDL.2.2.2.3"/>
+                    <rule name="STARC_VHDL.2.3.1.2"/>
+                    <rule name="STARC_VHDL.2.3.1.5_a"/>
+                    <rule name="STARC_VHDL.2.3.1.5_b"/>
+                    <rule name="STARC_VHDL.2.3.1.8"/>
+                    <rule name="STARC_VHDL.2.3.2.3"/>
+                    <rule name="STARC_VHDL.2.3.3.1_a"/>
+                    <rule name="STARC_VHDL.2.3.3.1_b"/>
+                    <rule name="STARC_VHDL.2.3.6.1"/>
+                    <rule name="STARC_VHDL.2.3.6.2_b"/>
+                    <rule name="STARC_VHDL.2.5.1.7"/>
+                    <rule name="STARC_VHDL.2.6.1.4_b"/>
+                    <rule name="STARC_VHDL.2.6.2.2"/>
+                    <rule name="STARC_VHDL.2.7.2.2"/>
+                    <rule name="STARC_VHDL.2.7.3.1_a"/>
+                    <rule name="STARC_VHDL.2.7.3.1_b"/>
+                    <rule name="STARC_VHDL.2.7.3.1_c"/>
+                    <rule name="STARC_VHDL.2.7.3.1_d"/>
+                    <rule name="STARC_VHDL.2.8.1.2"/>
+                    <rule name="STARC_VHDL.2.8.1.4"/>
+                    <rule name="STARC_VHDL.2.8.1.5"/>
+                    <rule name="STARC_VHDL.2.9.2.1"/>
+                    <rule name="STARC_VHDL.3.1.4.3"/>
+                    <rule name="STARC_VHDL.3.1.4.4_a"/>
+                    <rule name="STARC_VHDL.3.1.4.5"/>
+                    <rule name="STARC_VHDL.3.2.3.1"/>
+                    <rule name="STARC_VHDL.3.2.3.2"/>
+                    <rule name="STARC_VHDL.3.2.4.3"/>
+                    <rule name="STARC_VHDL.3.5.6.3_b"/>
+                    <rule name="STARC_VHDL.3.5.6.7"/>
+                    <rule name="STARC_VHDL.4.1.4.2"/>
+                    <rule name="STARC_VHDL.4.1.8.6"/>
+                    <rule_configuration rule_name="ALDEC_BASIC_PROJECT.6011">
+                        <parameter name="PATH_TO_CHECK">
+                            <value>'FROM_WORKSPACE'</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="ALDEC_BASIC_VHDL.2051_a">
+                        <parameter name="SIGNAL.REGEXP">
+                            <value>'^[a-z_][a-z_0-9]{1,63}(TIG){0,1}$'</value>
+                        </parameter>
+                        <parameter name="VARIABLE.REGEXP">
+                            <value>'^v_[a-z_0-9]{1,62}$'</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="ALDEC_BASIC_VHDL.2051_b">
+                        <parameter name="RECORD.REGEXP">
+                            <value>'^[a-z_][a-z_0-9]{1,63}$'</value>
+                        </parameter>
+                        <parameter name="TYPE.REGEXP">
+                            <value>'^t_[a-z_0-9]{1,62}$'</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="ALDEC_BASIC_VHDL.2051_c">
+                        <parameter name="PORT_BUFFER.REGEXP">
+                            <value>'^[a-z_][a-z_0-9]{1,63}$'</value>
+                        </parameter>
+                        <parameter name="PORT_IN.REGEXP">
+                            <value>'^[a-z_][a-z_0-9]{1,61}_i$'</value>
+                        </parameter>
+                        <parameter name="PORT_INOUT.REGEXP">
+                            <value>'^[a-z_][a-z_0-9]{1,60}_io$'</value>
+                        </parameter>
+                        <parameter name="PORT_LINKAGE.REGEXP">
+                            <value>'^[a-z_][a-z_0-9]{1,63}$'</value>
+                        </parameter>
+                        <parameter name="PORT_OUT.REGEXP">
+                            <value>'^[a-z_][a-z_0-9]{1,61}_o$'</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="ALDEC_BASIC_VHDL.2051_d">
+                        <parameter name="FUNCTION.REGEXP">
+                            <value>'^f_[a-z_0-9]{1,62}$'</value>
+                        </parameter>
+                        <parameter name="PROCEDURE.REGEXP">
+                            <value>'^pr_[a-z_0-9]{1,62}$'</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="ALDEC_BASIC_VHDL.2051_e">
+                        <parameter name="CONSTANT.REGEXP">
+                            <value>'^c_[a-z_0-9]{1,100}$'</value>
+                        </parameter>
+                        <parameter name="GENERIC.REGEXP">
+                            <value>'^gc_[a-z_0-9]{1,62}$'</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="ALDEC_BASIC_VHDL.2051_f">
+                        <parameter name="LABEL.REGEXP">
+                            <value>'^p_[a-z_0-9]{1,62}$'</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="ALDEC_BASIC_VHDL.2051_i">
+                        <parameter name="LABEL.REGEXP">
+                            <value>'^g(en)?_.+'</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="ALDEC_BASIC_VHDL.2051_j">
+                        <parameter name="INSTANCE.REGEXP">
+                            <value>'^u_.+'</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="ALDEC_BASIC_VHDL.3303">
+                        <parameter name="ALLOWED_EDGE_DESCRIPTION_STYLE">
+                            <value>('STD_FUNCTIONS')</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="ALDEC_BASIC_VHDL.4012">
+                        <parameter name="CONSTRUCTS_TO_CHECK">
+                            <value>('PROCESS')</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="ALDEC_BASIC_VHDL.5010">
+                        <parameter name="KEYWORD_CASE">
+                            <value>'lower'</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="ALDEC_BASIC_VHDL.5210">
+                        <parameter name="CONSTRUCTS_TO_CHECK_DECL_PART">
+                            <value>('PACKAGE', 'PROTECTED_TYPE', 'PROTECTED_BODY')</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="STARC_NETLIST.1.1.1.7_b">
+                        <parameter name="CTRL_REGEXP">
+                            <value>'\w+_n$'</value>
+                        </parameter>
+                        <parameter name="REGEXP.CASE_SENSITIVE">
+                            <value>YES</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="STARC_NETLIST.1.1.5.2_a">
+                        <parameter name="CLOCK.REGEXP">
+                            <value>'^clk_i$'</value>
+                        </parameter>
+                        <parameter name="REGEXP.CASE_SENSITIVE">
+                            <value>yes</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="STARC_NETLIST.1.1.5.2_b">
+                        <parameter name="ACTRL.REGEXP">
+                            <value>'((^reset_i$)|(\w+_rst$)|(\w+_reset$))'</value>
+                        </parameter>
+                        <parameter name="REGEXP.CASE_SENSITIVE">
+                            <value>yes</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="STARC_NETLIST.1.3.1.6">
+                        <parameter name="MAX_DETAIL_COUNT">
+                            <value>0</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="STARC_NETLIST.1.3.2.1_a">
+                        <parameter name="SHOW_ALL_CONNECTIONS">
+                            <value>YES</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="STARC_NETLIST.2.3.6.2_a">
+                        <parameter name="RECOMMENDED_POLARITY">
+                            <value>'HIGH'</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="STARC_NETLIST.3.1.3.2">
+                        <parameter name="PORT_ORDER">
+                            <value>('clock', 'reset')</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="STARC_VHDL.1.1.1.8">
+                        <parameter name="MULTIPLE_INST_REGEXP">
+                            <value>'^u_.*_[0-9]+'</value>
+                        </parameter>
+                        <parameter name="SINGLE_INST_REGEXP">
+                            <value>'^u_.*'</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="STARC_VHDL.1.1.1.9_b">
+                        <parameter name="PORT_BUFFER.LENGTH">
+                            <value>(2:64)</value>
+                        </parameter>
+                        <parameter name="PORT_IN.LENGTH">
+                            <value>(2:64)</value>
+                        </parameter>
+                        <parameter name="PORT_INOUT.LENGTH">
+                            <value>(2:64)</value>
+                        </parameter>
+                        <parameter name="PORT_LINKAGE.LENGTH">
+                            <value>(2:64)</value>
+                        </parameter>
+                        <parameter name="PORT_OUT.LENGTH">
+                            <value>(2:64)</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="STARC_VHDL.1.1.2.1_a">
+                        <parameter name="ENTITY.LENGTH">
+                            <value>(2:64)</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="STARC_VHDL.1.1.2.1_b">
+                        <parameter name="INSTANCE.LENGTH">
+                            <value>(2:64)</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="STARC_VHDL.1.1.2.1_c">
+                        <parameter name="INSTANCE.LENGTH">
+                            <value>(2:64)</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="STARC_VHDL.1.1.4.1">
+                        <parameter name="FILE.REGEXP">
+                            <value>'.*_p'</value>
+                        </parameter>
+                        <parameter name="REGEXP.CASE_SENSITIVE">
+                            <value>YES</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="STARC_VHDL.2.1.1.2">
+                        <parameter name="PACKAGES_LIST">
+                            <value>(('std_logic_unsigned', 'std_logic_arith'))</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="STARC_VHDL.2.7.2.2">
+                        <parameter name="ALLOW_GENERIC_DEPENDENT_BRANCHES">
+                            <value>YES</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="STARC_VHDL.2.7.3.1_a">
+                        <parameter name="NESTING_LEVEL_COUNT">
+                            <value>7</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="STARC_VHDL.2.7.3.1_b">
+                        <parameter name="BRANCH_COUNT">
+                            <value>6</value>
+                        </parameter>
+                    </rule_configuration>
+                    <rule_configuration rule_name="STARC_VHDL.3.1.4.5">
+                        <parameter name="MAX_LINE_LENGTH">
+                            <value>256</value>
+                        </parameter>
+                    </rule_configuration>
+                </policy>
+            </plugin>
+        </configuration>
+    </extended-preferences>
+    <structure>
+        <file path="../../../hdl_src/can_pcs.vhd"/>
+        <file path="../../../../can_types_p/hdl_src/can_types_p.vhd"/>
+        <file path="../../../../../eth_st/hdl_src/eth_st_p.vhd"/>
+        <file path="../../../../../man_global_p/hdl_src/man_global_p.vhd"/>
+    </structure>
+</project>

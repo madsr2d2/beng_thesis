@@ -1,0 +1,126 @@
+Version: 1.0
+Coverage: 100.00
+Settings: 
+  WritePassFail: 0
+Models: 
+  - Name: "Input Coverage"
+    TestCases: 
+      - "AlertLogTop"
+    Coverage: 100.00
+    Settings: 
+      CovWeight: 1
+      Goal: 100.0
+      WeightMode: "AT_LEAST"
+      Seeds: [1223489919, 425339342]
+      CountMode: "COUNT_FIRST"
+      IllegalMode: "ILLEGAL_ON"
+      Threshold: 45.0
+      ThresholdEnable: "FALSE"
+      TotalCovCount: 280
+      TotalCovGoal: 280
+    BinInfo: 
+      Dimensions: 1
+      FieldNames: 
+        - "Bin1"
+      NumBins: 6
+    Bins: 
+      - Name: "idle"
+        Type: "COUNT"
+        Range: 
+          - {Min: 0, Max: 0}
+        Count: 196
+        AtLeast: 50
+        PercentCov: 392.0000
+      - Name: "valid_dominant"
+        Type: "COUNT"
+        Range: 
+          - {Min: 1, Max: 1}
+        Count: 239
+        AtLeast: 100
+        PercentCov: 239.0000
+      - Name: "valid_recessive"
+        Type: "COUNT"
+        Range: 
+          - {Min: 2, Max: 2}
+        Count: 196
+        AtLeast: 100
+        PercentCov: 196.0000
+      - Name: "frame_rst"
+        Type: "COUNT"
+        Range: 
+          - {Min: 3, Max: 3}
+        Count: 24
+        AtLeast: 10
+        PercentCov: 240.0000
+      - Name: "fsb_dominant"
+        Type: "COUNT"
+        Range: 
+          - {Min: 4, Max: 4}
+        Count: 16
+        AtLeast: 10
+        PercentCov: 160.0000
+      - Name: "fsb_recessive"
+        Type: "COUNT"
+        Range: 
+          - {Min: 5, Max: 5}
+        Count: 10
+        AtLeast: 10
+        PercentCov: 100.0000
+
+  - Name: "Output Coverage"
+    TestCases: 
+      - "AlertLogTop"
+    Coverage: 100.00
+    Settings: 
+      CovWeight: 1
+      Goal: 100.0
+      WeightMode: "AT_LEAST"
+      Seeds: [1223489919, 1317361944]
+      CountMode: "COUNT_FIRST"
+      IllegalMode: "ILLEGAL_ON"
+      Threshold: 45.0
+      ThresholdEnable: "FALSE"
+      TotalCovCount: 116
+      TotalCovGoal: 116
+    BinInfo: 
+      Dimensions: 1
+      FieldNames: 
+        - "Bin1"
+      NumBins: 5
+    Bins: 
+      - Name: "no_stuff_bit"
+        Type: "COUNT"
+        Range: 
+          - {Min: 0, Max: 0}
+        Count: 651
+        AtLeast: 100
+        PercentCov: 651.0000
+      - Name: "stuff_dominant"
+        Type: "COUNT"
+        Range: 
+          - {Min: 1, Max: 1}
+        Count: 5
+        AtLeast: 5
+        PercentCov: 100.0000
+      - Name: "stuff_recessive"
+        Type: "COUNT"
+        Range: 
+          - {Min: 2, Max: 2}
+        Count: 13
+        AtLeast: 5
+        PercentCov: 260.0000
+      - Name: "fsb_dominant"
+        Type: "COUNT"
+        Range: 
+          - {Min: 3, Max: 3}
+        Count: 4
+        AtLeast: 3
+        PercentCov: 133.3333
+      - Name: "fsb_recessive"
+        Type: "COUNT"
+        Range: 
+          - {Min: 4, Max: 4}
+        Count: 8
+        AtLeast: 3
+        PercentCov: 266.6667
+

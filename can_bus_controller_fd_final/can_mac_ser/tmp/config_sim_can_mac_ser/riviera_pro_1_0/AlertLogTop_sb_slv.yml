@@ -1,0 +1,11 @@
+Version: 1.1
+TestCase: "AlertLogTop"
+Scoreboards: 
+  - Name:         "MacFsmBurstFifo"
+    ParentName:   "can_mac_ser"
+    ItemCount:    "225601"
+    ErrorCount:   "0"
+    ItemsChecked: "0"
+    ItemsPopped:  "225601"
+    ItemsDropped: "0"
+    FifoCount: "0"
