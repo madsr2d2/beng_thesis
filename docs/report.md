@@ -148,7 +148,7 @@ Thank you for the sparring and advice, good company - and the many coffee machin
 
 # Reading Guide {-}
 
-The report covers the full design and verification of a CAN FD protocol controller, from requirements extraction through RTL implementation to synthesis results. The sections below summarize each part to orient the reader before the detailed treatment begins.
+The report covers the full design and verification of a CAN FD protocol controller, from requirements extraction through RTL implementation to synthesis results. The sections below summarize each part to orient the reader before the detailed treatment begins. The source code described in this report is not included in the submission due to a non-disclosure agreement with Everllence.
 
 - **@sec:introduction** : Motivates the project in its industrial context at Everllence, introduces CAN Classic and CAN FD at the level of motivation and key properties through the background subsection (@sec:background), surveys available CAN FD IP alternatives and explains why none satisfies the combined requirements, and states the three thesis objectives.
 
