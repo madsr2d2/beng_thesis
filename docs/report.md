@@ -825,7 +825,7 @@ This thesis presented the design, partial implementation, and verification of a 
 
 # Accompanying Digital Materials {#sec:appendix-artifacts}
 
-The zip file accompanying this document contains the complete source tree developed during this project. The tables below identify the key files by category.
+The zip file accompanying this document contains the complete source tree developed during this project.
 
 **RTL source files**
 
