@@ -1,0 +1,1 @@
+$ENV{'TEXINPUTS'}='./dtutemplates/templates/Beamer//:' . $ENV{'TEXINPUTS'};

@@ -114,3 +114,14 @@ view:
 clean:
 	@rm -rf $(SIMDIR)
 	@rm -f *.o e~*.o work-obj08.cf
+
+SLIDES_DIR = defense
+SLIDES_PDF = $(SLIDES_DIR)/slides.pdf
+
+.PHONY: slides slides-clean
+
+slides:
+	cd $(SLIDES_DIR) && latexmk -pdf -interaction=nonstopmode slides.tex
+
+slides-clean:
+	cd $(SLIDES_DIR) && latexmk -C slides.tex
