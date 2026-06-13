@@ -150,33 +150,24 @@
 }
 
 % ==========================================
-% SLIDE 3: CAN FD + Everllence context
+% SLIDE 3: CAN vs CAN FD
 % ==========================================
-\begin{frame}{CAN FD: More Payload, Faster Data}
-	\begin{columns}[T]
-		\begin{column}{0.52\textwidth}
-			\renewcommand{\arraystretch}{1.4}
-			\footnotesize
-			\begin{tabular}{>{\bfseries}p{0.36\textwidth} p{0.26\textwidth} p{0.26\textwidth}}
-				\toprule
-				Feature      & CAN Classic & CAN FD          \\
-				\midrule
-				Max bit rate & 1\,Mbit/s   & 8\,Mbit/s       \\
-				Max payload  & 8\,bytes    & 64\,bytes       \\
-				CRC          & CRC-15      & CRC-17/21       \\
-				Bit stuffing & Dynamic     & Dynamic + fixed \\
-				TDC          & ---         & Yes             \\
-				\bottomrule
-			\end{tabular}
-		\end{column}
-		\begin{column}{0.44\textwidth}
-			\textbf{Everllence context}\\[0.4em]
-			Marine engine control: sensors and actuators
-			on a shared bus. An IO-extender FPGA needs a new CAN node.\\[0.4em]
-			CAN Classic: 1\,Mbit/s, 8-byte payload --- becoming a constraint.\\[0.3em]
-			CAN FD: 5\,Mbit/s data phase, 64-byte payload --- the migration path.
-		\end{column}
-	\end{columns}
+\begin{frame}{CAN Flexible Data Rate (CAN FD)}
+	\vspace{0.8em}
+	\begin{center}
+		\renewcommand{\arraystretch}{1.7}
+		\begin{tabular}{>{\bfseries}p{0.32\textwidth} p{0.26\textwidth} p{0.26\textwidth}}
+			\toprule
+			Feature      & CAN Classic & CAN FD          \\
+			\midrule
+			Max bit rate & 1\,Mbit/s   & 8\,Mbit/s       \\
+			Max payload  & 8\,bytes    & 64\,bytes       \\
+			CRC          & CRC-15      & CRC-17/21       \\
+			Bit stuffing & Dynamic     & Dynamic + fixed \\
+			TDC          & ---         & Yes             \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
 \end{frame}
 
 % ==========================================
@@ -197,13 +188,26 @@
 			Extension to CAN FD would require replacing every major block.
 		\end{column}
 		\begin{column}{0.42\textwidth}
-			\textbf{Third-party IP: rejected}\\[0.4em]
-			No available core satisfies all five constraints simultaneously: IP ownership,
-			verification authority, architectural scope, integration conventions, and
-			platform independence.
+			\textbf{Everllence context}\\[0.4em]
+			Marine engine control: sensors and actuators on a shared bus.
+			An IO-extender FPGA needs a new CAN node.\\[0.4em]
+			CAN Classic: 1\,Mbit/s, 8-byte payload --- becoming a constraint.\\[0.3em]
+			CAN FD: 5\,Mbit/s data phase, 64-byte payload --- the migration path.
 		\end{column}
 	\end{columns}
 \end{frame}
+\note{
+	\footnotesize
+	\textbf{Third-party IP --- why rejected:} No available core satisfies all five
+	constraints simultaneously.
+	\begin{itemize}\setlength{\itemsep}{3pt}
+		\item IP ownership: 30-year service horizon; no vendor dependency
+		\item Verification authority: must own the verification, not inherit it
+		\item Architectural scope: existing cores include full node (buffers, filters, DMA) --- Everllence needs protocol engine only
+		\item Integration conventions: Avalon-ST interfaces, existing FPGA infrastructure
+		\item Platform independence: Xilinx/Intel-locked cores are a non-starter
+	\end{itemize}
+}
 
 % ==========================================
 % SLIDE 3: Protocol essentials
