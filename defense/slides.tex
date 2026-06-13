@@ -152,42 +152,42 @@
 % ==========================================
 % SLIDE 3: CAN vs CAN FD
 % ==========================================
-\begin{frame}{CAN Classic vs. CAN Flexible Data Rate (CAN FD)}
+\begin{frame}{CAN Classic (CC) vs. CAN Flexible Data Rate (CF)}
 	\vspace{0.3em}
 	\includegraphics[width=\textwidth,height=0.38\textheight,keepaspectratio]{images/frame_format.png}\\[0.3em]
 	\footnotesize
 	\renewcommand{\arraystretch}{1.5}
 	\begin{tabular}{>{\bfseries}p{0.40\textwidth} p{0.26\textwidth} p{0.26\textwidth}}
 		\toprule
-		Feature              & CAN Classic                      & CAN FD                 \\
+		Feature                      & CAN Classic                      & CAN FD                       \\
 		\midrule
-		Max bit rate         & 1\,Mbit/s                        & 8\,Mbit/s (data phase) \\
-		Max payload          & 8\,bytes                         & 64\,bytes              \\
+		Max bit rate                 & 1\,Mbit/s                        & 8\,Mbit/s (data phase)       \\
+		Max payload                  & 8\,bytes                         & 64\,bytes                    \\
 		Error detection HD$^\dagger$ & 6 typical, \textbf{2 worst case} & 6, all patterns, $\leq$64\,B \\
-		Burst error detection  & up to 15\,bits                 & up to 17/21\,bits \\
+		Burst error detection        & up to 15\,bits                   & up to 17/21\,bits            \\
 		\bottomrule
 	\end{tabular}\\[0.2em]
 	{\tiny $^\dagger$ HD degrades to 2 for specific bit patterns due to stuff-bit cancellation.
 	Source: CAN in Automation (CiA), \textit{CRC in CAN Frames}, can-cia.org.}
 \end{frame}
 \note{
-	\footnotesize\setlength{\parskip}{3pt}
-	\textbf{Dual bit rate:} Arbitration at nominal rate (backward compatible). Data phase
-	switches to fast rate at the BRS bit. TDC compensates transceiver loop delay.
+\footnotesize\setlength{\parskip}{3pt}
+\textbf{Dual bit rate:} Arbitration at nominal rate (backward compatible). Data phase
+switches to fast rate at the BRS bit. TDC compensates transceiver loop delay.
 
-	\textbf{HD=6 requires fixed length:} CRC-15 BCH guarantees HD=6 only for fixed codeword
-	length. CAN Classic stuff bits make wire length variable --- receiver determines
-	stuff positions by counting, not from metadata.
+\textbf{HD=6 requires fixed length:} CRC-15 BCH guarantees HD=6 only for fixed codeword
+length. CAN Classic stuff bits make wire length variable --- receiver determines
+stuff positions by counting, not from metadata.
 
-	\textbf{HD=2 worst case:} Two errors can \emph{relocate} a stuff bit (one deletes it,
-	one creates it elsewhere). Receiver strips the wrong bit, feeds a different logical
-	sequence to CRC. For specific data patterns the CRC accidentally matches --- undetected.
-	CAN FD fixes this: dynamic stuff bits included in CRC feed + SBC field (Gray-coded
-	count + parity) means any relocation changes the CRC remainder.
+\textbf{HD=2 worst case:} Two errors can \emph{relocate} a stuff bit (one deletes it,
+one creates it elsewhere). Receiver strips the wrong bit, feeds a different logical
+sequence to CRC. For specific data patterns the CRC accidentally matches --- undetected.
+CAN FD fixes this: dynamic stuff bits included in CRC feed + SBC field (Gray-coded
+count + parity) means any relocation changes the CRC remainder.
 
-	\textbf{Burst detection:} Burst error of length $b$ = polynomial $x^i \cdot B(x)$,
-	$\deg(B)=b{-}1$. Undetected only if $G(x)$ divides $B(x)$. Impossible when
-	$\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD frames.
+\textbf{Burst detection:} Burst error of length $b$ = polynomial $x^i \cdot B(x)$,
+$\deg(B)=b{-}1$. Undetected only if $G(x)$ divides $B(x)$. Impossible when
+$\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD frames.
 }
 
 % ==========================================
