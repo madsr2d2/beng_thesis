@@ -2,6 +2,8 @@
 \input{dtutemplates/templates/Beamer/template/preamble}
 
 \usepackage{array}
+\usepackage{pgfpages}
+\setbeameroption{show notes on second screen=right}
 \usetikzlibrary{positioning}
 
 \title{CAN/CAN~FD\\Protocol Controller}
@@ -13,27 +15,168 @@
 \setcolor{dtured}
 
 \def\figures{../docs/figures}
+\newcommand{\canbusanchor}{%
+  \begin{column}{0.55\textwidth}
+    \begin{center}
+      \includegraphics[width=\textwidth,height=0.78\textheight,keepaspectratio]{\figures/can_bus.png}
+    \end{center}
+  \end{column}%
+}
 
 \begin{document}
 
 \inserttitlepage
 
 % ==========================================
-% SLIDE 1: Motivation
+% SLIDE 1: What is CAN
 % ==========================================
-\section{Motivation}
-\begin{frame}{Everllence and the CAN FD Migration}
-  \begin{columns}[T]
-    \begin{column}{0.54\textwidth}
-      Marine engine control at Everllence: sensors and actuators on a shared bus.
-      An IO-extender FPGA needs a new CAN node.\\[0.8em]
-      \textbf{CAN Classic:} 1~Mbit/s, 8-byte payload --- not enough.\\[0.3em]
-      \textbf{CAN FD:} 5~Mbit/s data phase, 64-byte payload --- the migration path.
-    \end{column}
-    \begin{column}{0.42\textwidth}
-      \includegraphics[width=\textwidth]{\figures/can_bus.png}
-    \end{column}
-  \end{columns}
+\section{Introduction}
+\begin{frame}{CAN: Controller Area Network}
+	\begin{columns}[T]
+		\canbusanchor
+		\begin{column}{0.41\textwidth}
+			\begin{center}
+				\vspace{1.2em}
+				\includegraphics[width=\textwidth,height=0.65\textheight,keepaspectratio]{images/bus_wire.jpeg}\\[0.3em]
+				{\tiny Source: Amazon.com}
+			\end{center}
+		\end{column}
+	\end{columns}
+\end{frame}
+\note{
+	\footnotesize
+	\begin{itemize}\setlength{\itemsep}{4pt}
+		\item CAN = Controller Area Network. Bosch, 1980s. Now ISO 11898-1 --- the dominant embedded bus standard.
+		\item Each box = an ECU (Electronic Control Unit). CAN controller + transceiver chip. No host, no bus master.
+		\item Used in: cars, trucks, marine, industrial machinery, aerospace, agriculture.
+		\item Everllence: marine engine control. Sensors and actuators on one shared CAN bus on the IO-extender FPGA.
+	\end{itemize}
+}
+
+% ==========================================
+% SLIDE 2: Benefit 1
+% ==========================================
+\begin{frame}{Why CAN -- Key Attributes and Benefits}
+	\begin{columns}[T]
+		\canbusanchor
+		\begin{column}{0.41\textwidth}
+			\vspace{1.2em}
+			\textbf{Simple and Low Cost}
+			\begin{itemize}\setlength{\itemsep}{10pt}
+				\item Single shared bus replaces complex point-to-point wiring
+				\item Reduces vehicle/machine weight, wiring errors, and costs
+				\item Widely adopted: low-cost controllers, transceivers, and tooling
+			\end{itemize}
+		\end{column}
+	\end{columns}
+\end{frame}
+\note{
+	Good example: NMEA 0183 (point-to-point, one talker per line) vs NMEA 2000
+	(CAN-based, all devices on one bus) in marine systems --- exactly Everllence's world.
+	Weight reduction in automotive: switching to CAN can save up to 20 kg of wiring harness.
+}
+
+% ==========================================
+% SLIDE 3: Benefit 2
+% ==========================================
+\begin{frame}{Why CAN -- Key Attributes and Benefits}
+	\begin{columns}[T]
+		\canbusanchor
+		\begin{column}{0.41\textwidth}
+			\vspace{1.2em}
+			\textbf{Easy Centralized Access}
+			\begin{itemize}\setlength{\itemsep}{10pt}
+				\item One connection point for diagnostics across all ECUs on the network
+				\item Silent data logging --- the interface does not affect bus traffic
+				\item Remote ECU firmware and configuration updates via CAN frames
+			\end{itemize}
+		\end{column}
+	\end{columns}
+\end{frame}
+\note{
+	Silent mode is critical for non-invasive diagnostics in production systems ---
+	a logging device that influences the bus would invalidate the measurement.
+	ECU flashing over CAN is standard in automotive (UDS protocol) and is used
+	in Everllence's engine platforms too.
+}
+
+% ==========================================
+% SLIDE 4: Benefit 3
+% ==========================================
+\begin{frame}{Why CAN -- Key Attributes and Benefits}
+	\begin{columns}[T]
+		\canbusanchor
+		\begin{column}{0.41\textwidth}
+			\vspace{1.2em}
+			\textbf{Robust Against Interference}
+			\begin{itemize}\setlength{\itemsep}{10pt}
+				\item Differential signaling (CANH/CANL): noise couples equally to both wires and cancels
+				\item Built-in error detection: bit, stuff, CRC, form, and ACK errors
+				\item Faulty nodes automatically isolated --- bus off prevents one node corrupting the network
+			\end{itemize}
+		\end{column}
+	\end{columns}
+\end{frame}
+\note{
+	The marine engine bay is one of the harshest EMI environments imaginable ---
+	high-current motor drives, ignition systems, inverters. Differential signaling
+	and bus-off isolation are not nice-to-haves here, they are requirements.
+	Bus off is implemented in the FCE (Fault Confinement Entity) in this project ---
+	good segue to the architecture slides later.
+}
+
+% ==========================================
+% SLIDE 5: Benefit 4
+% ==========================================
+\begin{frame}{Why CAN -- Key Attributes and Benefits}
+	\begin{columns}[T]
+		\canbusanchor
+		\begin{column}{0.41\textwidth}
+			\vspace{1.2em}
+			\textbf{Efficient Priority-Based Access}
+			\begin{itemize}\setlength{\itemsep}{10pt}
+				\item Bitwise arbitration: lowest identifier wins, no collisions, no bus master
+				\item Safety-critical messages always transmitted first
+				\item Lower-priority frames automatically fill remaining bus bandwidth
+			\end{itemize}
+		\end{column}
+	\end{columns}
+\end{frame}
+\note{
+	Non-destructive arbitration: the losing node does not corrupt the winning frame ---
+	it simply backs off and retries. No wasted bandwidth, no collision recovery overhead.
+	This is the key reason CAN outperformed competing protocols like VAN and SCP
+	in the 1990s for safety-critical automotive use.
+}
+
+% ==========================================
+% SLIDE 3: CAN FD + Everllence context
+% ==========================================
+\begin{frame}{CAN FD: More Payload, Faster Data}
+	\begin{columns}[T]
+		\begin{column}{0.52\textwidth}
+			\renewcommand{\arraystretch}{1.4}
+			\footnotesize
+			\begin{tabular}{>{\bfseries}p{0.36\textwidth} p{0.26\textwidth} p{0.26\textwidth}}
+				\toprule
+				Feature      & CAN Classic & CAN FD          \\
+				\midrule
+				Max bit rate & 1\,Mbit/s   & 8\,Mbit/s       \\
+				Max payload  & 8\,bytes    & 64\,bytes       \\
+				CRC          & CRC-15      & CRC-17/21       \\
+				Bit stuffing & Dynamic     & Dynamic + fixed \\
+				TDC          & ---         & Yes             \\
+				\bottomrule
+			\end{tabular}
+		\end{column}
+		\begin{column}{0.44\textwidth}
+			\textbf{Everllence context}\\[0.4em]
+			Marine engine control: sensors and actuators
+			on a shared bus. An IO-extender FPGA needs a new CAN node.\\[0.4em]
+			CAN Classic: 1\,Mbit/s, 8-byte payload --- becoming a constraint.\\[0.3em]
+			CAN FD: 5\,Mbit/s data phase, 64-byte payload --- the migration path.
+		\end{column}
+	\end{columns}
 \end{frame}
 
 % ==========================================
@@ -41,25 +184,25 @@
 % ==========================================
 \section{Problem}
 \begin{frame}{Why Clean-Slate}
-  \begin{columns}[T]
-    \begin{column}{0.53\textwidth}
-      \textbf{Existing \texttt{can\_bus\_controller}: four limitations}
-      \begin{itemize}
-        \item Single bit rate --- no data-phase switching
-        \item Dynamic stuffing only --- no fixed stuffing or SBC
-        \item Single CRC engine (CRC-15) --- no CRC-17/21
-        \item Coupled fault confinement --- shared error path
-      \end{itemize}
-      \vspace{0.5em}
-      Extension to CAN FD would require replacing every major block.
-    \end{column}
-    \begin{column}{0.42\textwidth}
-      \textbf{Third-party IP: rejected}\\[0.4em]
-      No available core satisfies all five constraints simultaneously: IP ownership,
-      verification authority, architectural scope, integration conventions, and
-      platform independence.
-    \end{column}
-  \end{columns}
+	\begin{columns}[T]
+		\begin{column}{0.53\textwidth}
+			\textbf{Existing \texttt{can\_bus\_controller}: four limitations}
+			\begin{itemize}
+				\item Single bit rate --- no data-phase switching
+				\item Dynamic stuffing only --- no fixed stuffing or SBC
+				\item Single CRC engine (CRC-15) --- no CRC-17/21
+				\item Coupled fault confinement --- shared error path
+			\end{itemize}
+			\vspace{0.5em}
+			Extension to CAN FD would require replacing every major block.
+		\end{column}
+		\begin{column}{0.42\textwidth}
+			\textbf{Third-party IP: rejected}\\[0.4em]
+			No available core satisfies all five constraints simultaneously: IP ownership,
+			verification authority, architectural scope, integration conventions, and
+			platform independence.
+		\end{column}
+	\end{columns}
 \end{frame}
 
 % ==========================================
@@ -67,23 +210,23 @@
 % ==========================================
 \section{Protocol}
 \begin{frame}{CAN FD: Four Mechanisms, Four Architectural Consequences}
-  \vspace{0.5em}
-  \footnotesize
-  \renewcommand{\arraystretch}{1.6}
-  \begin{tabular}{>{\bfseries}p{0.40\textwidth} p{0.52\textwidth}}
-    \toprule
-    CAN FD feature & Architectural consequence \\
-    \midrule
-    Dual bit rate + TDC &
-      \texttt{can\_pcs} redesign with 3-stage TDC pipeline \\
-    Fixed stuffing + SBC &
-      \texttt{can\_mac\_bs} mode switching \\
-    CRC-17/21, dual data feed &
-      Three parallel CRC engines in \texttt{can\_mac\_crc} \\
-    Four formats (CB/CE/FB/FE) with diverging fields &
-      Per-field FSM states; format transitions become state graph edges \\
-    \bottomrule
-  \end{tabular}
+	\vspace{0.5em}
+	\footnotesize
+	\renewcommand{\arraystretch}{1.6}
+	\begin{tabular}{>{\bfseries}p{0.40\textwidth} p{0.52\textwidth}}
+		\toprule
+		CAN FD feature                                   & Architectural consequence \\
+		\midrule
+		Dual bit rate + TDC                              &
+		\texttt{can\_pcs} redesign with 3-stage TDC pipeline                         \\
+		Fixed stuffing + SBC                             &
+		\texttt{can\_mac\_bs} mode switching                                         \\
+		CRC-17/21, dual data feed                        &
+		Three parallel CRC engines in \texttt{can\_mac\_crc}                         \\
+		Four formats (CB/CE/FB/FE) with diverging fields &
+		Per-field FSM states; format transitions become state graph edges            \\
+		\bottomrule
+	\end{tabular}
 \end{frame}
 
 % ==========================================
@@ -91,63 +234,64 @@
 % ==========================================
 \section{Architecture}
 \begin{frame}{Layered Architecture Enables Module-by-Module Verification}
-  \begin{columns}[T]
-    \begin{column}{0.60\textwidth}
-      \vspace{0.3em}
-      \includegraphics[width=\textwidth]{\figures/mac_overview.png}
-    \end{column}
-    \begin{column}{0.36\textwidth}
-      Each ISO sub-layer is one module; each module has one testbench.\\[0.8em]
-      \textbf{Six modules:}
-      \begin{itemize}\small
-        \item \texttt{can\_mac\_fsm}
-        \item \texttt{can\_mac\_bs}
-        \item \texttt{can\_mac\_crc}
-        \item \texttt{can\_mac\_ser}
-        \item \texttt{can\_pcs}
-        \item \texttt{can\_fce}
-      \end{itemize}
-    \end{column}
-  \end{columns}
+	\begin{columns}[T]
+		\begin{column}{0.60\textwidth}
+			\vspace{0.3em}
+			\includegraphics[width=\textwidth]{\figures/mac_overview.png}
+		\end{column}
+		\begin{column}{0.36\textwidth}
+			Each ISO sub-layer is one module; each module has one testbench.\\[0.8em]
+			\textbf{Six modules:}
+			\begin{itemize}\small
+				\item \texttt{can\_mac\_fsm}
+				\item \texttt{can\_mac\_bs}
+				\item \texttt{can\_mac\_crc}
+				\item \texttt{can\_mac\_ser}
+				\item \texttt{can\_pcs}
+				\item \texttt{can\_fce}
+			\end{itemize}
+		\end{column}
+	\end{columns}
 \end{frame}
 
 % ==========================================
-% SLIDE 5: Unified FSM
+% SLIDE 5A: Split Path — Implementation Drift
 % ==========================================
-\begin{frame}[t]{Unified FSM: Split Path Tried and Abandoned}
-  \fontsize{8}{9.5}\selectfont
-  \begin{columns}[T]
-    \begin{column}{0.52\textwidth}
-      \textbf{Point 1 --- Implementation drift}\\[0.1em]
-      \texttt{side} dimension misread as implementation-facing:
-      TX and RX split into separate FSMs.\\[0.1em]
-      TX stable Feb~2026. RX stubs March~31.
-      Two weeks parallel $\to$ \textbf{eight timing divergences.}\\[0.1em]
-      Two \texttt{can\_mac\_bs}, two \texttt{can\_mac\_crc} instances.
-      Each SP-boundary defined twice, independently.\\[0.15em]
-      \textbf{Three bugs:}
-      \begin{itemize}\fontsize{7}{8.5}\selectfont\setlength{\itemsep}{1pt}\setlength{\parskip}{0pt}
-        \item \textbf{A+C:} SOF structural divergence ---
-          TX 2-bit SOF, RX 1~SP behind in all CRC feeds
-        \item \textbf{E:} \texttt{in\_data\_phase} cleared 1~SP early at CRC boundary;
-          triggered after $\sim$265 FD frames on specific CRC patterns
-        \item \textbf{D:} ACK window excluded \texttt{s\_ack\_delimiter};
-          unreachable with zero-delay loopback
-      \end{itemize}
-      \vspace{0.1em}Two waveform sets per bug.
-    \end{column}
-    \begin{column}{0.44\textwidth}
-      \textbf{Point 2 --- Verification methodology}\\[0.1em]
-      Split-path tests verified the RTL against a reference model.
-      The reference model was calibrated to the same implicit timing assumptions
-      as the RTL --- bugs cancelled out.\\[0.4em]
-      Unified-path tests verify that a second independent CAN implementation
-      agrees with the first. This is exactly what the protocol guarantees.\\[0.3em]
-      Bug~D is structurally impossible to trigger in a single-node testbench
-      regardless of frame count.
-      Only visible with two nodes and realistic bus delay.
-    \end{column}
-  \end{columns}
+\begin{frame}[t]{Split Path: Drift in Parallel Development}
+	\texttt{side} dimension misread as implementation-facing: TX and RX split into
+	separate FSMs. TX stable Feb~2026; RX stubs March~31.
+	Two weeks of parallel development $\to$ \textbf{eight timing divergences.}
+	Two \texttt{can\_mac\_bs} and two \texttt{can\_mac\_crc} instances;
+	each SP-boundary defined twice, independently.\\[0.3em]
+	\textbf{Three representative bugs --- two waveform sets each:}\\[0.2em]
+	\small
+	\renewcommand{\arraystretch}{1.5}
+	\begin{tabular}{>{\bfseries}p{0.07\textwidth} p{0.50\textwidth} p{0.34\textwidth}}
+		\toprule
+		Bug & Symptom                                                                  & Trigger \\
+		\midrule
+		A+C & SOF structural divergence: TX 2-bit SOF, RX 1~SP behind in all CRC feeds
+		    & Systematic; every FD frame                                                         \\
+		E   & \texttt{in\_data\_phase} cleared 1~SP early at CRC boundary
+		    & $\sim$265 FD frames on specific CRC patterns                                       \\
+		D   & ACK window excluded \texttt{s\_ack\_delimiter}
+		    & Unreachable with zero-delay loopback                                               \\
+		\bottomrule
+	\end{tabular}
+\end{frame}
+
+% ==========================================
+% SLIDE 5B: Split Path — Verification Blind Spot
+% ==========================================
+\begin{frame}[t]{Split Path: A Verification Blind Spot}
+	\textbf{Split-path approach:} tests verified the RTL against a reference model.
+	The reference model was calibrated to the same implicit timing assumptions
+	as the RTL --- bugs cancelled out.\\[0.8em]
+	\textbf{Unified-path approach:} tests verify that a second independent CAN
+	implementation agrees with the first.
+	This is exactly what the protocol guarantees.\\[0.8em]
+	Bug~D is structurally impossible to trigger in a single-node testbench
+	regardless of frame count --- only visible with two nodes and realistic bus delay.
 \end{frame}
 
 % ==========================================
@@ -155,46 +299,46 @@
 % ==========================================
 \section{PCS}
 \begin{frame}{PCS: Dual Bit Rate Switching and TDC}
-  \textbf{Bit rate switching} --- arbitration: nominal (e.g.\ 500~kbit/s);
-  data phase: fast (up to 5~Mbit/s), entered on BRS bit.\\[0.3em]
-  \textbf{TDC} --- transceiver loop delay measured and compensated so the
-  Secondary Sample Point (SSP) lands correctly for bit-error monitoring.
-  \vspace{0.8em}
-  \begin{center}
-  \begin{tikzpicture}[node distance=3.2cm, >=stealth]
-    \tikzstyle{stage} = [draw, rectangle, rounded corners=4pt,
-                         fill=gray!12, text centered,
-                         minimum height=1.2cm, minimum width=2.2cm,
-                         font=\normalsize]
-    \tikzstyle{lbl}   = [text centered, font=\small, text width=2.2cm]
-    \node[stage] (A) {Measure};
-    \node[stage, right of=A] (B) {Count down};
-    \node[stage, right of=B] (C) {Fire SSP};
-    \draw[->, thick] (A) -- (B);
-    \draw[->, thick] (B) -- (C);
-    \node[lbl, below=0.2cm of A] {TX$\!\to\!$RX echo\\on res bit};
-    \node[lbl, below=0.2cm of B] {from BRS edge};
-    \node[lbl, below=0.2cm of C] {bit-error\\monitor};
-  \end{tikzpicture}
-  \end{center}
+	\textbf{Bit rate switching} --- arbitration: nominal (e.g.\ 500~kbit/s);
+	data phase: fast (up to 5~Mbit/s), entered on BRS bit.\\[0.3em]
+	\textbf{TDC} --- transceiver loop delay measured and compensated so the
+	Secondary Sample Point (SSP) lands correctly for bit-error monitoring.
+	\vspace{0.8em}
+	\begin{center}
+		\begin{tikzpicture}[node distance=3.2cm, >=stealth]
+			\tikzstyle{stage} = [draw, rectangle, rounded corners=4pt,
+			fill=gray!12, text centered,
+			minimum height=1.2cm, minimum width=2.2cm,
+			font=\normalsize]
+			\tikzstyle{lbl}   = [text centered, font=\small, text width=2.2cm]
+			\node[stage] (A) {Measure};
+			\node[stage, right of=A] (B) {Count down};
+			\node[stage, right of=B] (C) {Fire SSP};
+			\draw[->, thick] (A) -- (B);
+			\draw[->, thick] (B) -- (C);
+			\node[lbl, below=0.2cm of A] {TX$\!\to\!$RX echo\\on res bit};
+			\node[lbl, below=0.2cm of B] {from BRS edge};
+			\node[lbl, below=0.2cm of C] {bit-error\\monitor};
+		\end{tikzpicture}
+	\end{center}
 \end{frame}
 
 % ==========================================
 % SLIDE 7: PCS waveform evidence
 % ==========================================
 \begin{frame}{PCS Waveform Evidence}
-  \begin{center}
-    \includegraphics[width=0.90\textwidth,
-                    height=0.36\textheight,
-                    keepaspectratio]{\figures/waveforms/pcs.pdf}\\[0.2em]
-    {\footnotesize
-      A$\to$B: TDC count-up (TX$\to$RX echo, 19\,TQ)\enspace
-      C$\to$D: countdown from BRS\enspace
-      D: SSP fires}\\[0.5em]
-    \includegraphics[width=0.90\textwidth,
-                    height=0.36\textheight,
-                    keepaspectratio]{\figures/waveforms/full_fd_frame.pdf}
-  \end{center}
+	\begin{center}
+		\includegraphics[width=0.90\textwidth,
+			height=0.36\textheight,
+			keepaspectratio]{\figures/waveforms/pcs.pdf}\\[0.2em]
+		{\footnotesize
+		A$\to$B: TDC count-up (TX$\to$RX echo, 19\,TQ)\enspace
+		C$\to$D: countdown from BRS\enspace
+		D: SSP fires}\\[0.5em]
+		\includegraphics[width=0.90\textwidth,
+			height=0.36\textheight,
+			keepaspectratio]{\figures/waveforms/full_fd_frame.pdf}
+	\end{center}
 \end{frame}
 
 % ==========================================
@@ -202,43 +346,43 @@
 % ==========================================
 \section{Verification}
 \begin{frame}{Bus-Off Recovery}
-  \begin{center}
-    \includegraphics[width=\textwidth,
-                    height=0.70\textheight,
-                    keepaspectratio]{\figures/waveforms/bus_off.pdf}
-  \end{center}
-  \vspace{-0.4em}
-  {\footnotesize
-    Error active $\to$ error passive (TEC\,=\,128) $\to$
-    bus off (TEC\,=\,256) $\to$ 128 idle sequences $\to$ error active}
+	\begin{center}
+		\includegraphics[width=\textwidth,
+			height=0.70\textheight,
+			keepaspectratio]{\figures/waveforms/bus_off.pdf}
+	\end{center}
+	\vspace{-0.4em}
+	{\footnotesize
+		Error active $\to$ error passive (TEC\,=\,128) $\to$
+		bus off (TEC\,=\,256) $\to$ 128 idle sequences $\to$ error active}
 \end{frame}
 
 % ==========================================
 % SLIDE 9: Verification summary
 % ==========================================
 \begin{frame}{Verification: 28 of 37 Requirements Closed}
-  \begin{columns}[T]
-    \begin{column}{0.34\textwidth}
-      \vspace{1.2em}
-      \begin{center}
-        {\fontsize{48}{54}\selectfont\textbf{28}}\,/\,37\\[0.4em]
-        {\small requirements closed}
-      \end{center}
-    \end{column}
-    \begin{column}{0.62\textwidth}
-      \textbf{9 open --- three groups:}\\[0.6em]
-      \begin{itemize}
-        \item \textbf{6 LLC deferred} ---
-          scope boundary; \texttt{can\_llc} not implemented
-        \item \textbf{2 non-blocking} ---
-          REQ-034 (P3, not applicable to this scope);
-          REQ-035 (P2, optional)
-        \item \textbf{1 in progress} ---
-          REQ-021 bit-error detection: sub-claim~1 verified;
-          sub-claims 2--5 require frame-aware error injection
-      \end{itemize}
-    \end{column}
-  \end{columns}
+	\begin{columns}[T]
+		\begin{column}{0.34\textwidth}
+			\vspace{1.2em}
+			\begin{center}
+				{\fontsize{48}{54}\selectfont\textbf{28}}\,/\,37\\[0.4em]
+				{\small requirements closed}
+			\end{center}
+		\end{column}
+		\begin{column}{0.62\textwidth}
+			\textbf{9 open --- three groups:}\\[0.6em]
+			\begin{itemize}
+				\item \textbf{6 LLC deferred} ---
+				      scope boundary; \texttt{can\_llc} not implemented
+				\item \textbf{2 non-blocking} ---
+				      REQ-034 (P3, not applicable to this scope);
+				      REQ-035 (P2, optional)
+				\item \textbf{1 in progress} ---
+				      REQ-021 bit-error detection: sub-claim~1 verified;
+				      sub-claims 2--5 require frame-aware error injection
+			\end{itemize}
+		\end{column}
+	\end{columns}
 \end{frame}
 
 % ==========================================
@@ -246,33 +390,33 @@
 % ==========================================
 \section{Synthesis}
 \begin{frame}{Synthesis Results: Cyclone~10~LP}
-  \begin{columns}[T]
-    \begin{column}{0.46\textwidth}
-      \textbf{Resource utilisation}\\[0.4em]
-      \renewcommand{\arraystretch}{1.3}
-      \begin{tabular}{lr}
-        \toprule
-        Metric & Value \\
-        \midrule
-        Logic elements & 4{,}608 (30\,\%) \\
-        Registers       & 869 \\
-        Memory blocks   & 0 \\
-        Fmax (slow 100\,$^\circ$C) & 127\,MHz \\
-        \bottomrule
-      \end{tabular}\\[0.7em]
-      Exceeds 40\,MHz minimum for 5\,Mbit/s at 8\,TQ/bit.
-    \end{column}
-    \begin{column}{0.50\textwidth}
-      \textbf{CAN FD vs.\ CAN Classic}\\[0.4em]
-      \begin{itemize}
-        \item $4.0\times$ total LEs
-        \item Frame buffer dominates: \texttt{can\_mac\_fsm} is 89\,\% of LEs,
-          driven by 560-bit RX buffer
-        \item Protocol logic alone: $2.9\times$
-        \item Payload-normalised: 72 vs.\ 143\,LE/byte
-      \end{itemize}
-    \end{column}
-  \end{columns}
+	\begin{columns}[T]
+		\begin{column}{0.46\textwidth}
+			\textbf{Resource utilisation}\\[0.4em]
+			\renewcommand{\arraystretch}{1.3}
+			\begin{tabular}{lr}
+				\toprule
+				Metric                     & Value            \\
+				\midrule
+				Logic elements             & 4{,}608 (30\,\%) \\
+				Registers                  & 869              \\
+				Memory blocks              & 0                \\
+				Fmax (slow 100\,$^\circ$C) & 127\,MHz         \\
+				\bottomrule
+			\end{tabular}\\[0.7em]
+			Exceeds 40\,MHz minimum for 5\,Mbit/s at 8\,TQ/bit.
+		\end{column}
+		\begin{column}{0.50\textwidth}
+			\textbf{CAN FD vs.\ CAN Classic}\\[0.4em]
+			\begin{itemize}
+				\item $4.0\times$ total LEs
+				\item Frame buffer dominates: \texttt{can\_mac\_fsm} is 89\,\% of LEs,
+				      driven by 560-bit RX buffer
+				\item Protocol logic alone: $2.9\times$
+				\item Payload-normalised: 72 vs.\ 143\,LE/byte
+			\end{itemize}
+		\end{column}
+	\end{columns}
 \end{frame}
 
 % ==========================================
@@ -280,32 +424,32 @@
 % ==========================================
 \section{Conclusion}
 \begin{frame}[t]{Conclusion and Future Work}
-  \small
-  \begin{columns}[T]
-    \begin{column}{0.48\textwidth}
-      \textbf{Delivered}\\[0.15em]
-      Full CAN/CAN FD node in VHDL-93.
-      28\,/\,37 requirements closed.
-      4{,}608\,LE at 127\,MHz (Cyclone~10~LP).\\[0.5em]
-      \textbf{Two lessons}
-      \begin{enumerate}\setlength{\itemsep}{3pt}
-        \item Requirements structure is not RTL structure ---
-          the \texttt{side} dimension shapes testbenches, not modules
-        \item Layered architecture is a practical partitioning ---
-          sub-layer boundaries are testbench boundaries
-      \end{enumerate}
-    \end{column}
-    \begin{column}{0.48\textwidth}
-      \textbf{Future work}
-      \begin{enumerate}\setlength{\itemsep}{3pt}
-        \item \texttt{can\_llc} implementation
-        \item Hardware bring-up and PCAN interoperability
-        \item BRAM migration for RX frame buffer
-        \item REQ-021 frame-aware error injection
-          (all four error types)
-      \end{enumerate}
-    \end{column}
-  \end{columns}
+	\small
+	\begin{columns}[T]
+		\begin{column}{0.48\textwidth}
+			\textbf{Delivered}\\[0.15em]
+			Full CAN/CAN FD node in VHDL-93.
+			28\,/\,37 requirements closed.
+			4{,}608\,LE at 127\,MHz (Cyclone~10~LP).\\[0.5em]
+			\textbf{Two lessons}
+			\begin{enumerate}\setlength{\itemsep}{3pt}
+				\item Requirements structure is not RTL structure ---
+				      the \texttt{side} dimension shapes testbenches, not modules
+				\item Layered architecture is a practical partitioning ---
+				      sub-layer boundaries are testbench boundaries
+			\end{enumerate}
+		\end{column}
+		\begin{column}{0.48\textwidth}
+			\textbf{Future work}
+			\begin{enumerate}\setlength{\itemsep}{3pt}
+				\item \texttt{can\_llc} implementation
+				\item Hardware bring-up and PCAN interoperability
+				\item BRAM migration for RX frame buffer
+				\item REQ-021 frame-aware error injection
+				      (all four error types)
+			\end{enumerate}
+		\end{column}
+	\end{columns}
 \end{frame}
 
 \end{document}

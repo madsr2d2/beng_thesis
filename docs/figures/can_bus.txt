@@ -21,62 +21,56 @@ classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
 classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
 classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
 
-
-    subgraph dev1["`**Device 1**`"]
-    user1("`**Application Process**`")
-    n1("`**CAN Node**`")
-    t1("`**Transceiver IC**`")
+    subgraph ECU["`**Electronic Control Units (ECU)**`"]
+    subgraph dev1["`**ECU 1**`"]
+    user1("`**CAN Application Process**`")
+    n1("`**CAN Controller**`")
+    t1("`**CAN Transceiver IC**`")
     user1 <==> n1 <==> t1
     end
 
-    subgraph dev2["`**Device 2**`"]
-    user2("`**Application Process**`")
-    n2("`**CAN Node**`")
-    t2("`**Transceiver IC**`")
+    subgraph dev2["`**ECU 2**`"]
+    user2("`**CAN Application Process**`")
+    n2("`**CAN Controller**`")
+    t2("`**CAN Transceiver IC**`")
     user2 <==> n2 <==> t2
     end
 
-    subgraph dev3["`**Device 3**`"]
-    user3("`**Application Process**`")
-    n3("`**CAN Node**`")
-    t3("`**Transceiver IC**`")
+    subgraph dev3["`**ECU 3**`"]
+    user3("`**CAN Application Process**`")
+    n3("`**CAN Controller**`")
+    t3("`**CAN Transceiver IC**`")
     user3 <==> n3 <==> t3
     end
-
-    subgraph dev4["`**Device 4**`"]
-    user4("`**Application Process**`")
-    n4("`**CAN Node**`")
-    t4("`**Transceiver IC**`")
-    user4 <==> n4 <==> t4
     end
 
-    subgraph bus["`**Twisted Wire Bus**`"]
-    direction LR
+
     r1[["`**120Ω**`"]]
     r2[["`**120Ω**`"]]
     h1(( ))
     h2(( ))
     h3(( ))
-    h4(( ))
     l1(( ))
     l2(( ))
     l3(( ))
-    l4(( ))
-    r1 --- h1 --- h2 --- h3 --- h4 --- r2
-    r1 --- l1 --- l2 --- l3 --- l4 --- r2
-    end
+
+    r1 --- h1 --- h2 --- h3 --- r2
+    r1 --- l1 --- l2 --- l3 --- r2
 
     t1 ---|CANH| h1
     t2 ---|CANH| h2
     t3 ---|CANH| h3
-    t4 ---|CANH| h4
+
 
     t1 ---|CANL| l1
     t2 ---|CANL| l2
     t3 ---|CANL| l3
-    t4 ---|CANL| l4
 
 
-    class n1,n2,n3,n4 wd7
-    class t1,t2,t3,t4 wd4
-    class r1,r2 wd9
+
+    class n1,n2,n3 wd1
+    class t1,t2,t3 wd1
+    class r1,r2 wd1
+
+    linkStyle 6,7,8,9,14,15,16 stroke:#33AA33,stroke-width:8px
+    linkStyle 10,11,12,13,17,18,19 stroke:#999900,stroke-width:8px
