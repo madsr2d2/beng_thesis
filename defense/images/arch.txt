@@ -1,0 +1,76 @@
+---
+config:
+  theme: neutral
+  layout: elk
+  flowchart:
+    curve: monotoneX
+  elk:
+    algorithm: layered
+    mergeEdges: false
+    nodePlacementStrategy: BRANDES_KOEPF
+    edgeRouting: SPLINES
+---
+
+flowchart LR
+
+classDef llc fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef mac fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef pcs fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef fce fill:#F5C2C0,stroke:#BB3333,stroke-width:4px,color:#000000
+
+classDef wd2 fill:#FFFFFF,stroke:#999999,color:#000000
+classDef wd3 fill:#FFFFB4,stroke:#999900,color:#000000
+classDef wd4 fill:#FFE0B9,stroke:#CC8833,color:#000000
+classDef wd5 fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef wd6 fill:#CCFDFE,stroke:#33AAAA,color:#000000
+classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
+classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
+
+
+subgraph mac_pcs_fce["`**CAN Controller**`"]
+subgraph DDL["`**Data link layer (DLL)**`"]
+subgraph llc["`**Logic Link Control (LLC)**`"]
+LLC("`**can_llc**`")
+end
+
+
+subgraph MAC["`**Medium Access Control (MAC)**`"]
+SER("`**can_mac_ser**`")
+
+FSM("`**can_mac_fsm**`")
+
+BS("`**can_mac_bs**`")
+
+CRC("`**can_mac_crc**`")
+end
+end
+subgraph pcs["`**Physical Coding Sub-layer (PCS)**`"]
+PCS("`**can_pcs**`")
+end
+subgraph fce["`**Fault Confinement Entity (FCE)**`"]
+FCE("`**can_fce**`")
+end
+end
+
+tran("`**CAN Transceiver IC**`")
+app("`**CAN Application Process**`")
+
+LLC <==>|"`TX (Avalon-ST)`"| SER
+LLC <==>|"`RX (Avalon-ST)`"| FSM
+
+FSM <==> PCS
+FSM <==> FCE
+FCE <==> PCS
+FCE <==> LLC
+SER <==> FSM
+FSM <==> BS
+FSM <==> CRC
+tran -->|RX| PCS
+PCS -->|TX| tran
+app <==>|"`TX (Avalon-ST)`"| LLC
+LLC <==>|"`RX (Avalon-ST)`"| app
+
+class SER,FSM,BS,CRC,LLC mac
+class PCS pcs
+class FCE wd9

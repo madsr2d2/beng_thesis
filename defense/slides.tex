@@ -255,26 +255,12 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % ==========================================
 % SLIDE 4: Layered architecture
 % ==========================================
-\section{Design}
+\section{Design and Implementation}
 \begin{frame}{Layered Architecture Enables Module-by-Module Verification}
-	\begin{columns}[T]
-		\begin{column}{0.60\textwidth}
-			\vspace{0.3em}
-			\includegraphics[width=\textwidth]{\figures/mac_overview.png}
-		\end{column}
-		\begin{column}{0.36\textwidth}
-			Each ISO sub-layer is one module; each module has one testbench.\\[0.8em]
-			\textbf{Six modules:}
-			\begin{itemize}\small
-				\item \texttt{can\_mac\_fsm}
-				\item \texttt{can\_mac\_bs}
-				\item \texttt{can\_mac\_crc}
-				\item \texttt{can\_mac\_ser}
-				\item \texttt{can\_pcs}
-				\item \texttt{can\_fce}
-			\end{itemize}
-		\end{column}
-	\end{columns}
+	\includegraphics[width=\textwidth,keepaspectratio]{images/arch.png}\\[0.4em]
+	Each ISO sub-layer is one module; each module has one testbench:
+	\texttt{can\_mac\_fsm}, \texttt{can\_mac\_bs}, \texttt{can\_mac\_crc},
+	\texttt{can\_mac\_ser}, \texttt{can\_pcs}, \texttt{can\_fce}.
 \end{frame}
 
 % ==========================================
@@ -299,15 +285,14 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 	\end{columns}
 \end{frame}
 \note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
-	\item Split-path attempt: TX and RX into separate FSMs --- \texttt{side} dimension misread as implementation-facing. Two weeks of parallel development produced eight timing divergences.
-	\item Three representative bugs: SOF structural divergence (systematic, every FD frame); \texttt{in\_data\_phase} cleared 1~SP early at CRC boundary ($\sim$265 FD frames); ACK window excluded \texttt{s\_ack\_delimiter} (unreachable with zero-delay loopback).
-	\item Unified path: a second independent CAN implementation verifying the first. Bug~D is structurally impossible to trigger in a single-node testbench --- only visible with two nodes and realistic bus delay.
-\end{itemize}}
+		\item Split-path attempt: TX and RX into separate FSMs --- \texttt{side} dimension misread as implementation-facing. Two weeks of parallel development produced eight timing divergences.
+		\item Three representative bugs: SOF structural divergence (systematic, every FD frame); \texttt{in\_data\_phase} cleared 1~SP early at CRC boundary ($\sim$265 FD frames); ACK window excluded \texttt{s\_ack\_delimiter} (unreachable with zero-delay loopback).
+		\item Unified path: a second independent CAN implementation verifying the first. Bug~D is structurally impossible to trigger in a single-node testbench --- only visible with two nodes and realistic bus delay.
+	\end{itemize}}
 
 % ==========================================
 % SLIDE 6: PCS
 % ==========================================
-\section{PCS}
 \begin{frame}{PCS: Dual Bit Rate Switching and TDC}
 	\textbf{Bit rate switching} --- arbitration: nominal (e.g.\ 500~kbit/s);
 	data phase: fast (up to 5~Mbit/s), entered on BRS bit.\\[0.3em]
@@ -349,8 +334,8 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 			height=0.36\textheight,
 			keepaspectratio]{\figures/waveforms/full_fd_frame.pdf}
 	\end{center}
-\end{frame}
 
+\end{frame}
 % ==========================================
 % SLIDE 8: Bus-off recovery
 % ==========================================
