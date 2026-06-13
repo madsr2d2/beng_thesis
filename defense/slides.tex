@@ -38,7 +38,7 @@
 			\begin{center}
 				\vspace{1.2em}
 				\includegraphics[width=\textwidth,height=0.65\textheight,keepaspectratio]{images/bus_wire.jpeg}\\[0.3em]
-				{\tiny CAN bus wire (source: Amazon.com)}
+				{\tiny CAN bus wire - notice the twist, (source: Amazon.com)}
 			\end{center}
 		\end{column}
 	\end{columns}
@@ -193,26 +193,25 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % ==========================================
 % SLIDE 2: Why clean-slate
 % ==========================================
-\section{Problem}
-\begin{frame}{Why Clean-Slate}
+\begin{frame}{Project Objectives and Rationale}
 	\begin{columns}[T]
-		\begin{column}{0.53\textwidth}
-			\textbf{Existing \texttt{can\_bus\_controller}: four limitations}
-			\begin{itemize}
-				\item Single bit rate --- no data-phase switching
-				\item Dynamic stuffing only --- no fixed stuffing or SBC
-				\item Single CRC engine (CRC-15) --- no CRC-17/21
-				\item Coupled fault confinement --- shared error path
-			\end{itemize}
-			\vspace{0.5em}
-			Extension to CAN FD would require replacing every major block.
+		\begin{column}{0.50\textwidth}
+			\textbf{Objectives}
+			\begin{enumerate}\setlength{\itemsep}{8pt}
+				\item Implement a CAN Classic/FD protocol controller in VHDL, compliant with ISO\,11898-1
+				\item Structured requirements framework with traceability from ISO\,11898-1 to testbench evidence
+				\item RTL design integrated via Avalon-ST into Everllence's existing FPGA infrastructure
+			\end{enumerate}
 		\end{column}
-		\begin{column}{0.42\textwidth}
-			\textbf{Everllence context}\\[0.4em]
-			Marine engine control: sensors and actuators on a shared bus.
-			An IO-extender FPGA needs a new CAN node.\\[0.4em]
-			CAN Classic: 1\,Mbit/s, 8-byte payload --- becoming a constraint.\\[0.3em]
-			CAN FD: 5\,Mbit/s data phase, 64-byte payload --- the migration path.
+		\begin{column}{0.46\textwidth}
+			\textbf{Why design in-house}
+			\begin{itemize}\setlength{\itemsep}{6pt}
+				\item IP ownership: 30-year service horizon
+				\item Verification authority: own the test suite
+				\item Scope: protocol engine only, not a full node
+				\item Integration: Avalon-ST + existing infrastructure
+				\item Platform independence: portable VHDL-93
+			\end{itemize}
 		\end{column}
 	\end{columns}
 \end{frame}
@@ -224,8 +223,8 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 		\item IP ownership: 30-year service horizon; no vendor dependency
 		\item Verification authority: must own the verification, not inherit it
 		\item Architectural scope: existing cores include full node (buffers, filters, DMA) --- Everllence needs protocol engine only
-		\item Integration conventions: Avalon-ST interfaces, existing FPGA infrastructure
 		\item Platform independence: Xilinx/Intel-locked cores are a non-starter
+		\item Integration conventions: Avalon-ST interfaces, existing FPGA infrastructure
 	\end{itemize}
 }
 
