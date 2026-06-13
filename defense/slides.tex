@@ -255,7 +255,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % ==========================================
 % SLIDE 4: Layered architecture
 % ==========================================
-\section{Architecture}
+\section{Design}
 \begin{frame}{Layered Architecture Enables Module-by-Module Verification}
 	\begin{columns}[T]
 		\begin{column}{0.60\textwidth}
@@ -278,44 +278,31 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 \end{frame}
 
 % ==========================================
-% SLIDE 5A: Split Path — Implementation Drift
+% SLIDE Design-2: MAC FSM Granularity
 % ==========================================
-\begin{frame}[t]{Split Path: Drift in Parallel Development}
-	\texttt{side} dimension misread as implementation-facing: TX and RX split into
-	separate FSMs. TX stable Feb~2026; RX stubs March~31.
-	Two weeks of parallel development $\to$ \textbf{eight timing divergences.}
-	Two \texttt{can\_mac\_bs} and two \texttt{can\_mac\_crc} instances;
-	each SP-boundary defined twice, independently.\\[0.3em]
-	\textbf{Three representative bugs --- two waveform sets each:}\\[0.2em]
-	\small
-	\renewcommand{\arraystretch}{1.5}
-	\begin{tabular}{>{\bfseries}p{0.07\textwidth} p{0.50\textwidth} p{0.34\textwidth}}
-		\toprule
-		Bug & Symptom                                                                  & Trigger \\
-		\midrule
-		A+C & SOF structural divergence: TX 2-bit SOF, RX 1~SP behind in all CRC feeds
-		    & Systematic; every FD frame                                                         \\
-		E   & \texttt{in\_data\_phase} cleared 1~SP early at CRC boundary
-		    & $\sim$265 FD frames on specific CRC patterns                                       \\
-		D   & ACK window excluded \texttt{s\_ack\_delimiter}
-		    & Unreachable with zero-delay loopback                                               \\
-		\bottomrule
-	\end{tabular}
+\begin{frame}{MAC FSM: One State per Frame Field}
+	\begin{columns}[T]
+		\begin{column}{0.50\textwidth}
+			\textbf{Design decision}
+			\begin{itemize}\setlength{\itemsep}{10pt}
+				\item One \texttt{can\_mac\_fsm} state per MAC frame field
+				\item Format divergences (CC vs.\ CF at the FDF bit) become state graph edges --- not counter conditionals inside a shared state
+			\end{itemize}
+		\end{column}
+		\begin{column}{0.46\textwidth}
+			\textbf{Consequence}
+			\begin{itemize}\setlength{\itemsep}{10pt}
+				\item Each frame field requirement maps to exactly one FSM state
+				\item Traceability is structural --- not a documentation exercise
+			\end{itemize}
+		\end{column}
+	\end{columns}
 \end{frame}
-
-% ==========================================
-% SLIDE 5B: Split Path — Verification Blind Spot
-% ==========================================
-\begin{frame}[t]{Split Path: A Verification Blind Spot}
-	\textbf{Split-path approach:} tests verified the RTL against a reference model.
-	The reference model was calibrated to the same implicit timing assumptions
-	as the RTL --- bugs cancelled out.\\[0.8em]
-	\textbf{Unified-path approach:} tests verify that a second independent CAN
-	implementation agrees with the first.
-	This is exactly what the protocol guarantees.\\[0.8em]
-	Bug~D is structurally impossible to trigger in a single-node testbench
-	regardless of frame count --- only visible with two nodes and realistic bus delay.
-\end{frame}
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
+	\item Split-path attempt: TX and RX into separate FSMs --- \texttt{side} dimension misread as implementation-facing. Two weeks of parallel development produced eight timing divergences.
+	\item Three representative bugs: SOF structural divergence (systematic, every FD frame); \texttt{in\_data\_phase} cleared 1~SP early at CRC boundary ($\sim$265 FD frames); ACK window excluded \texttt{s\_ack\_delimiter} (unreachable with zero-delay loopback).
+	\item Unified path: a second independent CAN implementation verifying the first. Bug~D is structurally impossible to trigger in a single-node testbench --- only visible with two nodes and realistic bus delay.
+\end{itemize}}
 
 % ==========================================
 % SLIDE 6: PCS
