@@ -154,6 +154,7 @@
 % ==========================================
 \begin{frame}{CAN Classic (CC) vs. CAN Flexible Data Rate (CF)}
 	\vspace{0.3em}
+	\includegraphics[width=\textwidth,height=0.38\textheight,keepaspectratio]{images/frame_format.png}\\[0.3em]
 	\footnotesize
 	\renewcommand{\arraystretch}{1.5}
 	\begin{tabular}{>{\bfseries}p{0.26\textwidth} p{0.26\textwidth} p{0.26\textwidth}}
@@ -260,7 +261,6 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % SLIDE MAC-1: FSM per-field structure
 % ==========================================
 \begin{frame}{MAC: \texttt{can\_mac\_fsm} --- One State per Frame Field}
-	\includegraphics[width=\textwidth,height=0.32\textheight,keepaspectratio]{images/frame_format.png}\\[0.3em]
 	\begin{columns}[T]
 		\begin{column}{0.50\textwidth}
 			\begin{itemize}\setlength{\itemsep}{8pt}
@@ -272,8 +272,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 		\end{column}
 		\begin{column}{0.46\textwidth}
 			\begin{center}
-				% TODO: replace with FSM pre_case/case/post_case diagram
-				\includegraphics[width=\textwidth,height=0.45\textheight,keepaspectratio]{images/ecu.png}
+				\includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{images/fsm.png}
 			\end{center}
 		\end{column}
 	\end{columns}
