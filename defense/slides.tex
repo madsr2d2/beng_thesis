@@ -272,7 +272,6 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 		\begin{column}{0.46\textwidth}
 			\begin{center}
 				\includegraphics[width=\textwidth,height=0.70\textheight,keepaspectratio]{images/fsm.png}\\[0.3em]
-				{\small \texttt{can\_mac\_fsm} process execution structure}
 			\end{center}
 		\end{column}
 	\end{columns}
@@ -288,39 +287,63 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 	\end{itemize}}
 
 % ==========================================
-% SLIDE MAC-2: Bit stuffing and CRC
+% SLIDE MAC-2: Bit stuffing
 % ==========================================
-\begin{frame}{MAC: \texttt{can\_mac\_bs} and \texttt{can\_mac\_crc}}
+\begin{frame}{MAC: \texttt{can\_mac\_bs} -- Bit Stuffing and Destuffing}
 	\begin{columns}[T]
-		\begin{column}{0.48\textwidth}
-			\textbf{\texttt{can\_mac\_bs} --- Bit Stuffing}\\[0.3em]
-			\textit{Dynamic} (CC and CF): insert inverse bit after five identical bits\\[0.4em]
-			\textit{Fixed} (CF CRC region only):
-			\begin{itemize}\setlength{\itemsep}{4pt}
-				\item Stuff bit at fixed intervals --- position known without counting
+		\begin{column}{0.50\textwidth}
+			\textbf{Dynamic stuffing} (CC and CF):
+			\begin{itemize}\setlength{\itemsep}{6pt}
+				\item Transmitter inserts inverse bit after five consecutive identical bits
+				\item Receiver strips stuff bits and checks for violations
+			\end{itemize}
+			\vspace{0.4em}
+			\textbf{Fixed stuffing} (CF CRC region only):
+			\begin{itemize}\setlength{\itemsep}{6pt}
+				\item Stuff bit at fixed intervals
 				\item SBC: Gray-coded dynamic stuff count + parity
-				\item Fixes HD=2 weakness: dynamic stuff bits included in CF CRC feed
 			\end{itemize}
 		\end{column}
-		\begin{column}{0.48\textwidth}
-			\textbf{\texttt{can\_mac\_crc} --- CRC Engines}\\[0.3em]
-			Three engines run in parallel, selected by format and DLC:
-			\begin{itemize}\setlength{\itemsep}{4pt}
-				\item CRC-15: CC frames
-				\item CRC-17: CF frames, DLC $\leq$ 16\,bytes
-				\item CRC-21: CF frames, DLC $>$ 16\,bytes
-			\end{itemize}
-			\vspace{0.3em}
-			Dual feed: \texttt{data\_cc} (de-stuffed) and \texttt{data\_fd} (includes dynamic stuff bits)
+		\begin{column}{0.46\textwidth}
+			\begin{center}
+				\includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{images/bs.png}\\[0.3em]
+			\end{center}
 		\end{column}
 	\end{columns}
 \end{frame}
 \note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
-		\item \texttt{can\_mac\_bs} is a single shared instance --- same module handles TX stuffing and RX destuffing, switched by \texttt{is\_transmitter}.
+		\item \texttt{can\_mac\_bs} is a single shared instance -- same module handles TX stuffing and RX destuffing, switched by \texttt{is\_transmitter}.
+		\item Dynamic stuffing applies from SOF through the data field in both CC and CF. Fixed stuffing applies only to the CF CRC region.
 		\item SBC (Stuff Bit Count): Gray-coded count of dynamic stuff bits inserted since SOF, plus a parity bit. Transmitted before the CF CRC. Receiver verifies independently of CRC.
 		\item HD=2 fix: in CC, dynamic stuff bits excluded from CRC feed --- two errors can relocate a stuff bit and leave CRC unchanged. In CF, dynamic stuff bits included in \texttt{data\_fd}, so any relocation changes the remainder.
+	\end{itemize}}
+
+% ==========================================
+% SLIDE MAC-3: CRC
+% ==========================================
+\begin{frame}{MAC: \texttt{can\_mac\_crc} -- Three Parallel CRC Engines}
+	\begin{columns}[T]
+		\begin{column}{0.50\textwidth}
+			Three engines run in parallel, selected by format and DLC:
+			\begin{itemize}\setlength{\itemsep}{6pt}
+				\item CRC-15: CC frames
+				\item CRC-17: CF frames, DLC $\leq$ 16\,bytes
+				\item CRC-21: CF frames, DLC $>$ 16\,bytes
+			\end{itemize}
+			\vspace{0.5em}
+			Dual feed: \texttt{data\_cc} (de-stuffed) and \texttt{data\_fd} (includes dynamic stuff bits)
+		\end{column}
+		\begin{column}{0.46\textwidth}
+			\begin{center}
+				\includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{images/crc.png}\\[0.3em]
+			\end{center}
+		\end{column}
+	\end{columns}
+\end{frame}
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
 		\item All three CRC engines run every cycle. Output selected at CRC transmission/check time based on format and DLC.
 		\item \texttt{data\_cc} is the de-stuffed stream, identical to what the CC receiver reconstructs. \texttt{data\_fd} includes dynamic stuff bits --- this restores the HD=6 guarantee lost in CC due to variable wire length.
+		\item CRC-17 and CRC-21 are both BCH codes with HD=6 guarantee for fixed-length codewords. CF fixed stuffing makes wire-length predictable, restoring the HD=6 property lost in CC.
 	\end{itemize}}
 
 % ==========================================
