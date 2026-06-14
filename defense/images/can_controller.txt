@@ -1,0 +1,69 @@
+---
+config:
+  theme: neutral
+  layout: elk
+  flowchart:
+    curve: monotoneX
+  elk:
+    algorithm: layered
+    mergeEdges: false
+    nodePlacementStrategy: BRANDES_KOEPF
+    edgeRouting: SPLINES
+---
+
+flowchart TD
+
+classDef llc fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef mac fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef pcs fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef fce fill:#F5C2C0,stroke:#BB3333,stroke-width:4px,color:#000000
+
+classDef wd2 fill:#FFFFFF,stroke:#999999,color:#000000
+classDef wd3 fill:#FFFFB4,stroke:#999900,color:#000000
+classDef wd4 fill:#FFE0B9,stroke:#CC8833,color:#000000
+classDef wd5 fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef wd6 fill:#CCFDFE,stroke:#33AAAA,color:#000000
+classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
+classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
+
+
+subgraph mac_pcs_fce["`**CAN Controller**`"]
+
+LLC("`**LLC**`")
+
+
+
+subgraph MAC["`**MAC**`"]
+    SER("`**can_mac_ser**`")
+
+    FSM("`**can_mac_fsm**`")
+
+    BS("`**can_mac_bs**`")
+
+    CRC("`**can_mac_crc**`")
+end
+
+PCS("`**PCS
+(can_pcs)**`")
+
+FCE("`**FCE
+(can_fce)**`")
+
+end
+
+LLC <==>|"`TX (Avalon-ST)`"| SER
+LLC <==>|"`RX (Avalon-ST)`"| FSM
+
+FSM <==> PCS
+FSM <==> FCE
+FCE <==> PCS
+FCE <==> LLC
+SER <==> FSM
+FSM <==> BS
+FSM <==> CRC
+
+class LLC wd2
+class SER,FSM,BS,CRC w1
+class PCS w1
+class FCE w1

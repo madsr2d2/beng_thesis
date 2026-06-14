@@ -256,12 +256,28 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % SLIDE 4: Layered architecture
 % ==========================================
 \section{Design and Implementation}
-\begin{frame}{Layered Architecture Enables Module-by-Module Verification}
-	\includegraphics[width=\textwidth,keepaspectratio]{images/arch.png}\\[0.4em]
-	Each ISO sub-layer is one module; each module has one testbench:
-	\texttt{can\_mac\_fsm}, \texttt{can\_mac\_bs}, \texttt{can\_mac\_crc},
-	\texttt{can\_mac\_ser}, \texttt{can\_pcs}, \texttt{can\_fce}.
+\begin{frame}{From ISO Reference Model to RTL Modules}
+	\begin{columns}[T]
+		\begin{column}{0.48\textwidth}
+			\begin{center}
+				\includegraphics[width=1.0\textwidth,height=0.75\textheight,keepaspectratio]{images/ecu.png}\\[0.3em]
+				{\small ISO\,11898-1 reference model}
+			\end{center}
+		\end{column}
+		\begin{column}{0.48\textwidth}
+			\begin{center}
+				\includegraphics[width=1.0\textwidth,height=0.75\textheight,keepaspectratio]{images/can_controller.png}\\[0.3em]
+				{\small Implemented RTL modules}
+			\end{center}
+		\end{column}
+	\end{columns}
 \end{frame}
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
+		\item ISO 11898-1 defines four sub-layers: LLC, MAC, PCS, and FCE. Each has a specific responsibility boundary --- the standard does not prescribe RTL structure, just the functional split.
+		\item Left diagram: the reference model as the standard defines it. FCE sits outside the data path as a cross-cutting entity --- it monitors errors on every transmission and reception.
+		\item Right diagram: one RTL module per sub-layer. LLC is not implemented (out of scope) --- the LLC interface is the boundary where a host application connects. MAC is split into four sub-modules: \texttt{can\_mac\_fsm} orchestrates everything, \texttt{can\_mac\_ser} serializes the TX frame, \texttt{can\_mac\_bs} handles bit stuffing/destuffing, \texttt{can\_mac\_crc} runs the three CRC engines in parallel.
+		\item Key payoff: module boundaries = testbench boundaries. Each module has exactly one testbench. Requirements trace unambiguously to one module.
+	\end{itemize}}
 
 % ==========================================
 % SLIDE Design-2: MAC FSM Granularity

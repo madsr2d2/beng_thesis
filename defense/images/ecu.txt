@@ -1,0 +1,52 @@
+---
+config:
+  theme: neutral
+  layout: elk
+  flowchart:
+    curve: monotoneX
+  elk:
+    algorithm: layered
+    mergeEdges: false
+    nodePlacementStrategy: BRANDES_KOEPF
+    edgeRouting: SPLINES
+---
+
+graph 
+classDef wd2 fill:#FFFFFF,stroke:#999999,color:#000000
+classDef wd3 fill:#FFFFB4,stroke:#999900,color:#000000
+classDef wd4 fill:#FFE0B9,stroke:#CC8833,color:#000000
+classDef wd5 fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef wd6 fill:#CCFDFE,stroke:#33AAAA,color:#000000
+classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
+classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
+
+subgraph dev1["`**ECU**`"]
+  user("`**CAN Application Process**`")
+  subgraph d1["`**CAN Controller**`"]
+      LLC("`**Logic Link Control
+      (LLC)**`") 
+      MAC("`**Medium Access Control
+      (MAC)**`")
+      PCS("`**Physical Coding Sub-layer
+      (PCS)**`")
+      FCE("`**Fault Confinement Entity
+      (FCE)**`")
+
+      LLC <==> MAC
+      MAC <==> PCS
+      FCE <==> MAC
+      FCE <==> LLC
+      FCE <==> PCS
+  end
+  t("`**CAN Transceiver IC**`")
+  user <==> LLC
+  PCS -->|TX| t
+  t -->|RX| PCS
+end
+
+class LLC,MAC wd1
+class PCS wd1
+class FCE wd1
+class user wd2
+class t wd2
