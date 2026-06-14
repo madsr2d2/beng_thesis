@@ -409,6 +409,36 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % ==========================================
 \section{Verification}
 % ==========================================
+% SLIDE 9: Verification plan and results
+% ==========================================
+\begin{frame}{Verification Plan and Results}
+	\begin{columns}[T]
+		\begin{column}{0.48\textwidth}
+			\textbf{Methodology}
+			\begin{itemize}\setlength{\itemsep}{6pt}
+				\item 37 structured requirements extracted from ISO\,11898-1 via AI-assisted extraction and manual review
+				\item Each requirement independently verifiable and traced to a single module
+				\item Managed via MCP server --- safe incremental updates throughout design and verification
+			\end{itemize}
+		\end{column}
+		\begin{column}{0.48\textwidth}
+			\textbf{Results}\\[0.3em]
+			\begin{center}
+				{\fontsize{36}{42}\selectfont\textbf{28}}\,/\,37\\[0.3em]
+				{\small requirements closed}
+			\end{center}
+			\vspace{0.3em}
+			\textbf{9 open:}
+			\begin{itemize}\setlength{\itemsep}{4pt}
+				\item \textbf{6 LLC deferred} --- \texttt{can\_llc} out of scope
+				\item \textbf{2 non-blocking} --- P2/P3, optional
+				\item \textbf{1 in progress} --- REQ-021 bit-error detection
+			\end{itemize}
+		\end{column}
+	\end{columns}
+\end{frame}
+
+% ==========================================
 % SLIDE: Integration testbench
 % ==========================================
 \begin{frame}{Integration Testbench Architecture}
@@ -429,34 +459,6 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 	\item \texttt{p\_test\_ctrl} orchestrates: drives TX frames into both DUTs, monitors \texttt{transfer\_status} and \texttt{bus\_off}, controls error injection timing and configurable loop delay for TDC validation.
 	\item \texttt{rx\_llc\_dut\_2} compares received frames against expected frames asserted by the TX source --- any field mismatch fails the test immediately.
 \end{itemize}}
-
-% ==========================================
-% SLIDE 9: Verification summary
-% ==========================================
-\begin{frame}{Verification: 28 of 37 Requirements Closed}
-	\begin{columns}[T]
-		\begin{column}{0.34\textwidth}
-			\vspace{1.2em}
-			\begin{center}
-				{\fontsize{48}{54}\selectfont\textbf{28}}\,/\,37\\[0.4em]
-				{\small requirements closed}
-			\end{center}
-		\end{column}
-		\begin{column}{0.62\textwidth}
-			\textbf{9 open --- three groups:}\\[0.6em]
-			\begin{itemize}
-				\item \textbf{6 LLC deferred} ---
-				      scope boundary; \texttt{can\_llc} not implemented
-				\item \textbf{2 non-blocking} ---
-				      REQ-034 (P3, not applicable to this scope);
-				      REQ-035 (P2, optional)
-				\item \textbf{1 in progress} ---
-				      REQ-021 bit-error detection: sub-claim~1 verified;
-				      sub-claims 2--5 require frame-aware error injection
-			\end{itemize}
-		\end{column}
-	\end{columns}
-\end{frame}
 
 % ==========================================
 % SLIDE 7: PCS waveform evidence
