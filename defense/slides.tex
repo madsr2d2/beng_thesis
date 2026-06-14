@@ -260,18 +260,19 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % ==========================================
 % SLIDE MAC-1: FSM per-field structure
 % ==========================================
-\begin{frame}{MAC: \texttt{can\_mac\_fsm} --- One State per Frame Field}
+\begin{frame}{MAC: \texttt{can\_mac\_fsm} -- FSM orchestrating the MAC layer}
 	\begin{columns}[T]
 		\begin{column}{0.50\textwidth}
 			\begin{itemize}\setlength{\itemsep}{8pt}
-				\item CB, CE, FB and FE gets one branch each -- one state per frame field
-				\item \texttt{is\_transmitter} gates TX vs.\ RX logic within each shared state
-				\item One PCS strobe per bit: \texttt{sample\_point}. Next bit driven two cycles later once \texttt{can\_mac\_bs} and \texttt{can\_mac\_crc} outputs have settled
+				\item CB, CE, FB and FE gets one branch each in the FSM state graph -- one state per frame field
+				\item The \texttt{is\_transmitter} flag gates TX vs.\ RX logic within each state
+				\item State transition on the sample point strobe from \texttt{can\_pcs}. Next bit is driven two cycles later once \texttt{can\_mac\_bs} and \texttt{can\_mac\_crc} outputs have settled
 			\end{itemize}
 		\end{column}
 		\begin{column}{0.46\textwidth}
 			\begin{center}
-				\includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{images/fsm.png}
+				\includegraphics[width=\textwidth,height=0.70\textheight,keepaspectratio]{images/fsm.png}\\[0.3em]
+				{\small \texttt{can\_mac\_fsm} process execution structure}
 			\end{center}
 		\end{column}
 	\end{columns}
@@ -280,7 +281,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 		\item Point to the frame format image: CC and CF are identical up to FDF. From FDF onward the field sequences diverge --- BRS, ESI, longer data, SBC, different CRC. Each of those fields is one FSM state.
 		\item Format transitions (e.g. CC to CF at FDF bit) are state graph edges, not conditionals inside a shared counting state. This makes the FSM directly readable against the ISO field sequence table.
 		\item \texttt{is\_transmitter} is set at frame start and held for the duration. In each state, TX logic (driving the bus, reading from \texttt{can\_mac\_ser}) is gated on \texttt{is\_transmitter='1'}; RX logic (sampling the bus, writing to the RX buffer) is gated on \texttt{is\_transmitter='0'}. This is the mechanism that lets one FSM serve both directions without duplication.
-		\item Traceability is structural --- each requirement maps to exactly one FSM state. This is not a documentation exercise: it falls out of the one-state-per-field design decision automatically.
+		\item Traceability is structural --- each requirement maps to exactly one FSM state. Falls out of the one-state-per-field decision automatically, not a documentation exercise.
 		\item Split-path attempt: TX and RX into separate FSMs --- \texttt{side} dimension misread as implementation-facing. Two weeks of parallel development produced eight timing divergences.
 		\item Three representative bugs: SOF structural divergence (systematic, every FD frame); \texttt{in\_data\_phase} cleared 1~SP early at CRC boundary ($\sim$265 FD frames); ACK window excluded \texttt{s\_ack\_delimiter} (unreachable with zero-delay loopback).
 		\item Unified path: a second independent CAN implementation verifying the first. Bug~D structurally impossible to trigger in a single-node testbench --- only visible with two nodes and realistic bus delay.
