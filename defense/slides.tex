@@ -263,16 +263,18 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 	\includegraphics[width=\textwidth,height=0.32\textheight,keepaspectratio]{images/frame_format.png}\\[0.3em]
 	\begin{columns}[T]
 		\begin{column}{0.50\textwidth}
-			\begin{itemize}\setlength{\itemsep}{6pt}
-				\item One FSM state per MAC frame field
+			\begin{itemize}\setlength{\itemsep}{8pt}
+				\item One \texttt{can\_mac\_fsm} state per MAC frame field
 				\item CC and CF share states up to FDF --- diverge into separate branches from there
+				\item \texttt{is\_transmitter} gates TX vs.\ RX logic within each shared state
+				\item Traceability is structural --- each requirement maps to exactly one state
 			\end{itemize}
 		\end{column}
 		\begin{column}{0.46\textwidth}
-			\begin{itemize}\setlength{\itemsep}{6pt}
-				\item Traceability is structural --- each requirement maps to one state, not a documentation exercise
-				\item \texttt{is\_transmitter} flag gates TX vs.\ RX logic within each shared state
-			\end{itemize}
+			\begin{center}
+				% TODO: replace with FSM pre_case/case/post_case diagram
+				\includegraphics[width=\textwidth,height=0.45\textheight,keepaspectratio]{images/ecu.png}
+			\end{center}
 		\end{column}
 	\end{columns}
 \end{frame}
