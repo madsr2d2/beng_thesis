@@ -351,6 +351,36 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 	\end{itemize}}
 
 % ==========================================
+% SLIDE MAC-4: Serializer
+% ==========================================
+\begin{frame}{MAC: \texttt{can\_mac\_ser} --- TX Frame Serializer}
+	\begin{columns}[T]
+		\begin{column}{0.50\textwidth}
+			\textbf{TX-only}: converts LLC byte stream to serial bit stream for \texttt{can\_mac\_fsm}
+			\begin{itemize}\setlength{\itemsep}{6pt}
+				\item Receives LLC frame over Avalon-ST valid/ready handshake
+				\item Extracts frame metadata (FDF, BRS, ESI, DLC) from two leading config bytes
+				\item Metadata held stable in \texttt{t\_llc\_metadata} for the full frame
+				\item Padding bits in the 32-bit ID field skipped silently
+			\end{itemize}
+		\end{column}
+		\begin{column}{0.46\textwidth}
+			\begin{center}
+				% TODO: replace with can_mac_ser diagram
+				\includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{images/crc.png}\\[0.3em]
+				{\small \texttt{can\_mac\_ser} FSM}
+			\end{center}
+		\end{column}
+	\end{columns}
+\end{frame}
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
+		\item \texttt{can\_mac\_ser} is TX-only --- there is no RX path. The receiver samples bits directly from the bus via \texttt{can\_pcs}.
+		\item The LLC-MAC frame format front-loads all metadata into two leading config bytes, so \texttt{can\_mac\_ser} can begin streaming ID and data bits immediately without buffering the full 71-byte frame.
+		\item Padding bits in the 32-bit ID field: base ID occupies bits [31:21] (11 bits, 21 trailing unused); extended ID occupies bits [31:3] (29 bits, 3 trailing unused). \texttt{can\_mac\_ser} skips these without asserting valid.
+		\item \texttt{transfer\_status} from \texttt{can\_mac\_fsm} is forwarded back to \texttt{can\_llc} --- on any non-ongoing status (transmitted, aborted, lost arbitration) \texttt{can\_mac\_ser} returns to its reset state.
+	\end{itemize}}
+
+% ==========================================
 % SLIDE 6: PCS
 % ==========================================
 \begin{frame}{PCS: Dual Bit Rate Switching and TDC}
