@@ -413,10 +413,22 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % ==========================================
 \begin{frame}{Integration Testbench Architecture}
 	\begin{center}
-		\includegraphics[width=\textwidth,height=0.78\textheight,keepaspectratio]{images/ver.png}\\[0.3em]
-		{\small Two \texttt{can\_mac\_pcs\_fce} instances on a shared bus model with error injection}
+		\includegraphics[width=\textwidth,height=0.62\textheight,keepaspectratio]{images/ver.png}
 	\end{center}
+	\vspace{0.2em}
+	\footnotesize
+	\begin{itemize}\setlength{\itemsep}{3pt}
+		\item Two independent \texttt{can\_mac\_pcs\_fce} instances --- what DUT~1 transmits, DUT~2 must receive correctly and vice versa
+		\item Bus model with configurable loop delay and error injection controlled by \texttt{p\_test\_ctrl}
+		\item \texttt{rx\_llc\_dut\_2} checks received frames against expected frames from the TX source
+	\end{itemize}
 \end{frame}
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
+	\item Each of the six modules has its own unit testbench --- \texttt{can\_mac\_fsm\_tb}, \texttt{can\_mac\_bs\_tb}, \texttt{can\_mac\_crc\_tb}, \texttt{can\_mac\_ser\_tb}, \texttt{can\_pcs\_tb}, \texttt{can\_fce\_tb}. The bulk of requirement coverage lives in the unit TBs. Integration TB shown here for brevity.
+	\item Two-node approach catches bugs structurally invisible in a single-node setup. Bug~D (ACK window excluded \texttt{s\_ack\_delimiter}) could not be triggered without a second node with realistic bus delay --- zero-delay loopback always ACKs, masking the defect.
+	\item \texttt{p\_test\_ctrl} orchestrates: drives TX frames into both DUTs, monitors \texttt{transfer\_status} and \texttt{bus\_off}, controls error injection timing and configurable loop delay for TDC validation.
+	\item \texttt{rx\_llc\_dut\_2} compares received frames against expected frames asserted by the TX source --- any field mismatch fails the test immediately.
+\end{itemize}}
 
 % ==========================================
 % SLIDE 9: Verification summary
