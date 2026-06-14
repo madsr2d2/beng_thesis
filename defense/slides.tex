@@ -321,17 +321,21 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % ==========================================
 % SLIDE MAC-3: CRC
 % ==========================================
-\begin{frame}{MAC: \texttt{can\_mac\_crc} -- Three Parallel CRC Engines}
+\begin{frame}{MAC: \texttt{can\_mac\_crc} -- CRC Engine}
 	\begin{columns}[T]
 		\begin{column}{0.50\textwidth}
-			Three engines run in parallel, selected by format and DLC:
+			\textbf{Three parallel engines}:
 			\begin{itemize}\setlength{\itemsep}{6pt}
 				\item CRC-15: CC frames
-				\item CRC-17: CF frames, DLC $\leq$ 16\,bytes
-				\item CRC-21: CF frames, DLC $>$ 16\,bytes
+				\item CRC-17: CF frames, data payload $\leq$ 16\,bytes
+				\item CRC-21: CF frames, data payload $>$ 16\,bytes
 			\end{itemize}
-			\vspace{0.5em}
-			Dual feed: \texttt{data\_cc} (de-stuffed) and \texttt{data\_fd} (includes dynamic stuff bits)
+			\vspace{0.4em}
+			\textbf{Dual data feed}:
+			\begin{itemize}\setlength{\itemsep}{6pt}
+				\item \texttt{data\_cc}: de-stuffed stream
+				\item \texttt{data\_fd}: includes dynamic stuff bits
+			\end{itemize}
 		\end{column}
 		\begin{column}{0.46\textwidth}
 			\begin{center}

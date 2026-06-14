@@ -1,0 +1,52 @@
+---
+config:
+  theme: neutral
+  layout: elk
+  flowchart:
+    curve: monotoneX
+  elk:
+    algorithm: layered
+    mergeEdges: false
+    nodePlacementStrategy: BRANDES_KOEPF
+    edgeRouting: SPLINES
+---
+
+flowchart TD
+
+
+classDef wd2 fill:#FFFFFF,stroke:#999999,color:#000000
+classDef wd3 fill:#FFFFB4,stroke:#999900,color:#000000
+classDef wd4 fill:#FFE0B9,stroke:#CC8833,color:#000000
+classDef wd5 fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef wd6 fill:#CCFDFE,stroke:#33AAAA,color:#000000
+classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
+classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
+
+subgraph crc["`**can_mac_crc**`"]
+crc15("`**CRC-15**`")
+crc17("`**CRC-17**`")
+crc21("`**CRC-21**`")
+mux("`**MUX**`")
+end
+
+fsm("`**can_mac_fsm**`")
+
+crc15 --> mux
+crc17 --> mux
+crc21 --> mux
+
+fsm ==>|select| crc
+crc ==>|crc| fsm
+fsm -->|data_cc| crc
+fsm -->|data_cf| crc
+fsm -->|valid_cc| crc
+fsm -->|valid_cf| crc
+
+
+
+
+
+class s_dynamic rwd1
+class s_fixed wd1
+class ev_fsb_rise,ev_fsb_fall wd1
