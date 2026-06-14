@@ -235,14 +235,14 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 	\begin{columns}[T]
 		\begin{column}{0.50\textwidth}
 			\begin{center}
-				\includegraphics[width=1.0\textwidth,height=0.75\textheight,keepaspectratio]{images/ecu.png}\\[0.3em]
-				{\small ISO\,11898-1 reference model}
+				\includegraphics[height=0.75\textheight,keepaspectratio]{images/ecu.png}\\
+				{\tiny ISO\,11898-1 reference model}
 			\end{center}
 		\end{column}
 		\begin{column}{0.50\textwidth}
 			\begin{center}
-				\includegraphics[width=1.0\textwidth,height=0.75\textheight,keepaspectratio]{images/can_controller.png}\\[0.3em]
-				{\small Implemented RTL modules}
+				\includegraphics[height=0.75\textheight,keepaspectratio]{images/can_controller.png}\\
+				{\tiny Implemented RTL modules}
 			\end{center}
 		\end{column}
 	\end{columns}
@@ -379,31 +379,35 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % ==========================================
 % SLIDE 6: PCS
 % ==========================================
-\begin{frame}{PCS: Dual Bit Rate Switching and TDC}
-	\textbf{Bit rate switching} --- arbitration: nominal (e.g.\ 500~kbit/s);
-	data phase: fast (up to 5~Mbit/s), entered on BRS bit.\\[0.3em]
-	\textbf{TDC} --- transceiver loop delay measured and compensated so the
-	Secondary Sample Point (SSP) lands correctly for bit-error monitoring.
-	\vspace{0.8em}
-	\begin{center}
-		\begin{tikzpicture}[node distance=3.2cm, >=stealth]
-			\tikzstyle{stage} = [draw, rectangle, rounded corners=4pt,
-			fill=gray!12, text centered,
-			minimum height=1.2cm, minimum width=2.2cm,
-			font=\normalsize]
-			\tikzstyle{lbl}   = [text centered, font=\small, text width=2.2cm]
-			\node[stage] (A) {Measure};
-			\node[stage, right of=A] (B) {Count down};
-			\node[stage, right of=B] (C) {Fire SSP};
-			\draw[->, thick] (A) -- (B);
-			\draw[->, thick] (B) -- (C);
-			\node[lbl, below=0.2cm of A] {TX$\!\to\!$RX echo\\on res bit};
-			\node[lbl, below=0.2cm of B] {from BRS edge};
-			\node[lbl, below=0.2cm of C] {bit-error\\monitor};
-		\end{tikzpicture}
-	\end{center}
+\begin{frame}{PCS: \texttt{can\_pcs} -- Bit Timing and Transmitter Delay Compensation (TDC)}
+	\begin{columns}[T]
+		\begin{column}{0.40\textwidth}
+			\begin{itemize}\setlength{\itemsep}{6pt}
+				\item SP strobes at end of PHASE\_SEG1
+				\item Transmit bit at end of PHASE\_SEG2
+				\item SSP strobe used for bit-error monitoring in data phase
+				\item Switch to data phase bit rate at BRS bit
+				\item Transceiver loop delay measured on res bit
+			\end{itemize}
+		\end{column}
+		\begin{column}{0.60\textwidth}
+			\begin{center}
+				\includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{images/pcs.png}\\[0.3em]
+			\end{center}
+		\end{column}
+	\end{columns}
 \end{frame}
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
+		\item Nominal rate: e.g.\ 500\,kbit/s for arbitration. Data phase: up to 5\,Mbit/s, entered at BRS bit, exited at CRC delimiter.
+		\item Hard synchronization: on SOF dominant edge after bus idle --- resets the bit timing counter. Resynchronization: on any recessive-to-dominant edge during a frame --- adjusts PHASE\_SEG1 or PHASE\_SEG2 by the sync jump width.
+		\item TDC: the transceiver introduces a loop delay between TX drive and RX echo. At fast data rates this is a significant fraction of the bit period. TDC measures it on the reserved bit, counts down from BRS, and fires SSP at the correct offset.
+		\item SSP fires independently of SP --- transmitter uses SSP for bit-error detection in data phase, not SP.
+	\end{itemize}}
 
+% ==========================================
+% SLIDE 8: Bus-off recovery
+% ==========================================
+\section{Verification}
 % ==========================================
 % SLIDE 7: PCS waveform evidence
 % ==========================================
@@ -420,12 +424,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 			height=0.36\textheight,
 			keepaspectratio]{\figures/waveforms/full_fd_frame.pdf}
 	\end{center}
-
 \end{frame}
-% ==========================================
-% SLIDE 8: Bus-off recovery
-% ==========================================
-\section{Verification}
 \begin{frame}{Bus-Off Recovery}
 	\begin{center}
 		\includegraphics[width=\textwidth,
@@ -436,6 +435,16 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 	{\footnotesize
 		Error active $\to$ error passive (TEC\,=\,128) $\to$
 		bus off (TEC\,=\,256) $\to$ 128 idle sequences $\to$ error active}
+\end{frame}
+
+% ==========================================
+% SLIDE: Integration testbench
+% ==========================================
+\begin{frame}{Integration Testbench Architecture}
+	\begin{center}
+		\includegraphics[width=\textwidth,height=0.78\textheight,keepaspectratio]{images/ver.png}\\[0.3em]
+		{\small Two \texttt{can\_mac\_pcs\_fce} instances on a shared bus model with error injection}
+	\end{center}
 \end{frame}
 
 % ==========================================
