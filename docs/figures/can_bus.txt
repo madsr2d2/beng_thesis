@@ -26,22 +26,20 @@ classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
     user1("`**CAN Application Process**`")
     n1("`**CAN Controller**`")
     t1("`**CAN Transceiver IC**`")
-    user1 <==> n1 <==> t1
+    user1 <==> n1
+    n1 -->|TX| t1
+    t1 -->|RX| n1
     end
 
     subgraph dev2["`**ECU 2**`"]
     user2("`**CAN Application Process**`")
     n2("`**CAN Controller**`")
     t2("`**CAN Transceiver IC**`")
-    user2 <==> n2 <==> t2
+    user2 <==> n2
+    n2 -->|TX| t2
+    t2 -->|RX| n2
     end
 
-    subgraph dev3["`**ECU 3**`"]
-    user3("`**CAN Application Process**`")
-    n3("`**CAN Controller**`")
-    t3("`**CAN Transceiver IC**`")
-    user3 <==> n3 <==> t3
-    end
     end
 
 
@@ -49,28 +47,25 @@ classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
     r2[["`**120Ω**`"]]
     h1(( ))
     h2(( ))
-    h3(( ))
     l1(( ))
     l2(( ))
-    l3(( ))
 
-    r1 --- h1 --- h2 --- h3 --- r2
-    r1 --- l1 --- l2 --- l3 --- r2
+
+    r1 --- h1 --- h2 --- r2
+    r1 --- l1 --- l2 --- r2
 
     t1 ---|CANH| h1
     t2 ---|CANH| h2
-    t3 ---|CANH| h3
 
 
     t1 ---|CANL| l1
     t2 ---|CANL| l2
-    t3 ---|CANL| l3
 
 
 
-    class n1,n2,n3 wd1
-    class t1,t2,t3 wd1
+    class n1,n2 wd1
+    class t1,t2 wd1
     class r1,r2 wd1
 
-    linkStyle 6,7,8,9,14,15,16 stroke:#33AA33,stroke-width:8px
-    linkStyle 10,11,12,13,17,18,19 stroke:#999900,stroke-width:8px
+    linkStyle 6,7,8,12,13 stroke:#33AA33,stroke-width:8px
+    linkStyle 9,10,11,14,15 stroke:#999900,stroke-width:8px

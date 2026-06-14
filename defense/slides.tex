@@ -274,8 +274,11 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 \end{frame}
 \note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
 		\item ISO 11898-1 defines four sub-layers: LLC, MAC, PCS, and FCE. Each has a specific responsibility boundary --- the standard does not prescribe RTL structure, just the functional split.
-		\item Left diagram: the reference model as the standard defines it. FCE sits outside the data path as a cross-cutting entity --- it monitors errors on every transmission and reception.
-		\item Right diagram: one RTL module per sub-layer. LLC is not implemented (out of scope) --- the LLC interface is the boundary where a host application connects. MAC is split into four sub-modules: \texttt{can\_mac\_fsm} orchestrates everything, \texttt{can\_mac\_ser} serializes the TX frame, \texttt{can\_mac\_bs} handles bit stuffing/destuffing, \texttt{can\_mac\_crc} runs the three CRC engines in parallel.
+		\item \textbf{LLC} (Logic Link Control): acceptance filtering on received frames, retransmission on arbitration loss or error, conversion between host-facing and MAC-facing frame formats.
+		\item \textbf{MAC} (Medium Access Control): orchestrates frame TX and RX across all four formats, controls bit stuffing/destuffing, drives CRC computation, and commits bits to the bus.
+		\item \textbf{PCS} (Physical Coding Sub-layer): bit timing, sample point generation, hard synchronization and resynchronization, TDC for SSP positioning in the data phase.
+		\item \textbf{FCE} (Fault Confinement Entity): tracks TX and RX error counts, manages error active/error passive/bus off state transitions. Sits outside the data path --- monitors every TX and RX event as a cross-cutting entity.
+		\item Right diagram: one RTL module per sub-layer. LLC is not implemented (out of scope). MAC is split into four sub-modules: \texttt{can\_mac\_fsm} orchestrates, \texttt{can\_mac\_ser} serializes the TX frame, \texttt{can\_mac\_bs} handles bit stuffing/destuffing, \texttt{can\_mac\_crc} runs three CRC engines in parallel.
 		\item Key payoff: module boundaries = testbench boundaries. Each module has exactly one testbench. Requirements trace unambiguously to one module.
 	\end{itemize}}
 
