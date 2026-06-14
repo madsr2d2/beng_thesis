@@ -1,0 +1,38 @@
+---
+config:
+  theme: neutral
+  layout: elk
+  flowchart:
+    curve: monotoneX
+  elk:
+    algorithm: layered
+    mergeEdges: false
+    nodePlacementStrategy: BRANDES_KOEPF
+    edgeRouting: SPLINES
+---
+
+graph 
+
+    case("`**FSM case block**
+    - Per-field state logic
+    - State transitions`")
+
+    precase("`**Pre-case code block**
+    - Error detection
+    - Bit stuffing handling`")
+
+    postcase("`**Post-case code block**
+    - Drive bit to PCS
+    - Feed CRC and Bit stuffer`")
+
+    error("`**Drive Error Flag**`")
+
+    precase --> case
+    precase -->|"`Stuff bit
+    detected`"| postcase
+    precase -->|Error detected| error
+    case --> postcase
+    postcase --> precase
+    error -->|"`Error flag
+    complete`"| precase
+
