@@ -1,0 +1,60 @@
+---
+config:
+  theme: neutral
+  layout: elk
+  flowchart:
+    curve: monotoneX
+  elk:
+    algorithm: layered
+    mergeEdges: false
+    nodePlacementStrategy: BRANDES_KOEPF
+    edgeRouting: SPLINES
+---
+
+flowchart LR
+
+classDef reset fill:#,stroke:#,stroke-width:6px,color:#000000
+classDef ff    fill:#,stroke:#,color:#000000
+classDef event fill:#FFF3CD,stroke:#CC9900,stroke-width:2px,color:#000000
+
+classDef wd2 fill:#FFFFFF,stroke:#999999,color:#000000
+classDef wd3 fill:#FFFFB4,stroke:#999900,color:#000000
+classDef wd4 fill:#FFE0B9,stroke:#CC8833,color:#000000
+classDef wd5 fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef wd6 fill:#CCFDFE,stroke:#33AAAA,color:#000000
+classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
+classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
+
+subgraph ser["`**can_mac_ser**`"]
+direction TD
+s_load_config_byte_0("`**Load config byte 0**`")
+
+s_load_config_byte_1("`**Load config byte 1**`")
+
+s_load_llc_frame_byte("`**Load frame byte**`")
+
+s_shift_out_bits("`**Shift out bits**`")
+end
+
+fsm("`**can_mac_fsm**`")
+llc("`**LLC**`")
+
+
+s_load_config_byte_0 --> s_load_config_byte_1
+s_load_config_byte_1 -->s_load_llc_frame_byte
+s_load_llc_frame_byte --> s_shift_out_bits
+s_shift_out_bits --> s_load_llc_frame_byte
+fsm -->|ready| ser
+fsm ==>|transfer_status| ser
+ser -->|valid| fsm
+ser -->|data| fsm
+ser ==>|metadata| fsm
+llc <==> ser
+
+
+s_shift_out_bits -->|transfer done| s_load_config_byte_0
+
+class s_load_config_byte_0 reset
+class s_load_config_byte_1,s_load_llc_frame_byte,s_shift_out_bits ff
+class ev_abort wd4

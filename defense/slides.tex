@@ -16,7 +16,7 @@
 
 \def\figures{../docs/figures}
 \newcommand{\canbusanchor}{%
-  \begin{column}{0.55\textwidth}
+  \begin{column}{0.60\textwidth}
     \begin{center}
       \includegraphics[width=\textwidth,height=0.78\textheight,keepaspectratio]{\figures/can_bus.png}
     \end{center}
@@ -34,7 +34,7 @@
 \begin{frame}{Controller Area Network (CAN) -- Bus Topology and ECUs}
 	\begin{columns}[T]
 		\canbusanchor
-		\begin{column}{0.41\textwidth}
+		\begin{column}{0.40\textwidth}
 			\begin{center}
 				\vspace{1.2em}
 				\includegraphics[width=\textwidth,height=0.65\textheight,keepaspectratio]{images/bus_wire.jpeg}\\[0.3em]
@@ -59,7 +59,7 @@
 \begin{frame}{Why CAN -- Key Attributes and Benefits}
 	\begin{columns}[T]
 		\canbusanchor
-		\begin{column}{0.41\textwidth}
+		\begin{column}{0.40\textwidth}
 			\vspace{1.2em}
 			\textbf{Simple and Low Cost}
 			\begin{itemize}\setlength{\itemsep}{10pt}
@@ -82,7 +82,7 @@
 \begin{frame}{Why CAN -- Key Attributes and Benefits}
 	\begin{columns}[T]
 		\canbusanchor
-		\begin{column}{0.41\textwidth}
+		\begin{column}{0.40\textwidth}
 			\vspace{1.2em}
 			\textbf{Easy Centralized Access}
 			\begin{itemize}\setlength{\itemsep}{10pt}
@@ -106,7 +106,7 @@
 \begin{frame}{Why CAN -- Key Attributes and Benefits}
 	\begin{columns}[T]
 		\canbusanchor
-		\begin{column}{0.41\textwidth}
+		\begin{column}{0.40\textwidth}
 			\vspace{1.2em}
 			\textbf{Robust Against Interference}
 			\begin{itemize}\setlength{\itemsep}{10pt}
@@ -131,7 +131,7 @@
 \begin{frame}{Why CAN -- Key Attributes and Benefits}
 	\begin{columns}[T]
 		\canbusanchor
-		\begin{column}{0.41\textwidth}
+		\begin{column}{0.40\textwidth}
 			\vspace{1.2em}
 			\textbf{Efficient Priority-Based Access}
 			\begin{itemize}\setlength{\itemsep}{10pt}
@@ -154,7 +154,7 @@
 % ==========================================
 \begin{frame}{CAN Classic (CC) vs. CAN Flexible Data Rate (CF)}
 	\vspace{0.3em}
-	\includegraphics[width=\textwidth,height=0.38\textheight,keepaspectratio]{images/frame_format.png}\\[0.3em]
+	\includegraphics[width=\textwidth,keepaspectratio]{images/frame_format.png}\\[0.3em]
 	\footnotesize
 	\renewcommand{\arraystretch}{1.5}
 	\begin{tabular}{>{\bfseries}p{0.26\textwidth} p{0.26\textwidth} p{0.26\textwidth}}
@@ -202,7 +202,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 				\item RTL design integrated via Avalon-ST into Everllence's existing FPGA infrastructure
 			\end{enumerate}
 		\end{column}
-		\begin{column}{0.46\textwidth}
+		\begin{column}{0.50\textwidth}
 			\textbf{Why design in-house}
 			\begin{itemize}\setlength{\itemsep}{6pt}
 				\item IP ownership: 30-year service horizon
@@ -233,13 +233,13 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 \section{Design and Implementation}
 \begin{frame}{From ISO Reference Model to RTL Modules}
 	\begin{columns}[T]
-		\begin{column}{0.48\textwidth}
+		\begin{column}{0.50\textwidth}
 			\begin{center}
 				\includegraphics[width=1.0\textwidth,height=0.75\textheight,keepaspectratio]{images/ecu.png}\\[0.3em]
 				{\small ISO\,11898-1 reference model}
 			\end{center}
 		\end{column}
-		\begin{column}{0.48\textwidth}
+		\begin{column}{0.50\textwidth}
 			\begin{center}
 				\includegraphics[width=1.0\textwidth,height=0.75\textheight,keepaspectratio]{images/can_controller.png}\\[0.3em]
 				{\small Implemented RTL modules}
@@ -269,7 +269,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 				\item State transition on the sample point strobe from \texttt{can\_pcs}. Next bit is driven two cycles later once \texttt{can\_mac\_bs} and \texttt{can\_mac\_crc} outputs have settled
 			\end{itemize}
 		\end{column}
-		\begin{column}{0.46\textwidth}
+		\begin{column}{0.50\textwidth}
 			\begin{center}
 				\includegraphics[width=\textwidth,height=0.70\textheight,keepaspectratio]{images/fsm.png}\\[0.3em]
 			\end{center}
@@ -304,7 +304,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 				\item SBC: Gray-coded dynamic stuff count + parity
 			\end{itemize}
 		\end{column}
-		\begin{column}{0.46\textwidth}
+		\begin{column}{0.50\textwidth}
 			\begin{center}
 				\includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{images/bs.png}\\[0.3em]
 			\end{center}
@@ -337,7 +337,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 				\item \texttt{data\_fd}: includes dynamic stuff bits
 			\end{itemize}
 		\end{column}
-		\begin{column}{0.46\textwidth}
+		\begin{column}{0.50\textwidth}
 			\begin{center}
 				\includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{images/crc.png}\\[0.3em]
 			\end{center}
@@ -353,22 +353,18 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % ==========================================
 % SLIDE MAC-4: Serializer
 % ==========================================
-\begin{frame}{MAC: \texttt{can\_mac\_ser} --- TX Frame Serializer}
+\begin{frame}{MAC: \texttt{can\_mac\_ser} -- TX Frame Serializer}
 	\begin{columns}[T]
-		\begin{column}{0.50\textwidth}
-			\textbf{TX-only}: converts LLC byte stream to serial bit stream for \texttt{can\_mac\_fsm}
+		\begin{column}{0.40\textwidth}
 			\begin{itemize}\setlength{\itemsep}{6pt}
-				\item Receives LLC frame over Avalon-ST valid/ready handshake
-				\item Extracts frame metadata (FDF, BRS, ESI, DLC) from two leading config bytes
-				\item Metadata held stable in \texttt{t\_llc\_metadata} for the full frame
-				\item Padding bits in the 32-bit ID field skipped silently
+				\item Converts LLC byte stream to serial bit stream for \texttt{can\_mac\_fsm}
+				\item Receives frame from LLC over Avalon-ST interface
+				\item Extracts frame metadata (IDE, FDF, DLC, FTYP, BRS, ESI) from two leading config bytes in LLC frame
 			\end{itemize}
 		\end{column}
-		\begin{column}{0.46\textwidth}
+		\begin{column}{0.60\textwidth}
 			\begin{center}
-				% TODO: replace with can_mac_ser diagram
-				\includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{images/crc.png}\\[0.3em]
-				{\small \texttt{can\_mac\_ser} FSM}
+				\includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{images/ser.png}\\[0.3em]
 			\end{center}
 		\end{column}
 	\end{columns}
