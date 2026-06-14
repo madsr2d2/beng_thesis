@@ -409,35 +409,6 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % ==========================================
 \section{Verification}
 % ==========================================
-% SLIDE 7: PCS waveform evidence
-% ==========================================
-\begin{frame}{PCS Waveform Evidence}
-	\begin{center}
-		\includegraphics[width=0.90\textwidth,
-			height=0.36\textheight,
-			keepaspectratio]{\figures/waveforms/pcs.pdf}\\[0.2em]
-		{\footnotesize
-		A$\to$B: TDC count-up (TX$\to$RX echo, 19\,TQ)\enspace
-		C$\to$D: countdown from BRS\enspace
-		D: SSP fires}\\[0.5em]
-		\includegraphics[width=0.90\textwidth,
-			height=0.36\textheight,
-			keepaspectratio]{\figures/waveforms/full_fd_frame.pdf}
-	\end{center}
-\end{frame}
-\begin{frame}{Bus-Off Recovery}
-	\begin{center}
-		\includegraphics[width=\textwidth,
-			height=0.70\textheight,
-			keepaspectratio]{\figures/waveforms/bus_off.pdf}
-	\end{center}
-	\vspace{-0.4em}
-	{\footnotesize
-		Error active $\to$ error passive (TEC\,=\,128) $\to$
-		bus off (TEC\,=\,256) $\to$ 128 idle sequences $\to$ error active}
-\end{frame}
-
-% ==========================================
 % SLIDE: Integration testbench
 % ==========================================
 \begin{frame}{Integration Testbench Architecture}
@@ -473,6 +444,39 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 			\end{itemize}
 		\end{column}
 	\end{columns}
+\end{frame}
+
+% ==========================================
+% SLIDE 7: PCS waveform evidence
+% ==========================================
+\begin{frame}{PCS Waveform Evidence}
+	\begin{center}
+		\includegraphics[width=0.90\textwidth,
+			height=0.36\textheight,
+			keepaspectratio]{\figures/waveforms/pcs.pdf}\\[0.2em]
+		{\footnotesize
+		A$\to$B: TDC count-up (TX$\to$RX echo, 19\,TQ)\enspace
+		C$\to$D: countdown from BRS\enspace
+		D: SSP fires}\\[0.5em]
+		\includegraphics[width=0.90\textwidth,
+			height=0.36\textheight,
+			keepaspectratio]{\figures/waveforms/full_fd_frame.pdf}
+	\end{center}
+\end{frame}
+
+% ==========================================
+% SLIDE 8: Bus-off recovery
+% ==========================================
+\begin{frame}{Bus-Off Recovery}
+	\begin{center}
+		\includegraphics[width=\textwidth,
+			height=0.70\textheight,
+			keepaspectratio]{\figures/waveforms/bus_off.pdf}
+	\end{center}
+	\vspace{-0.4em}
+	{\footnotesize
+		Error active $\to$ error passive (TEC\,=\,128) $\to$
+		bus off (TEC\,=\,256) $\to$ 128 idle sequences $\to$ error active}
 \end{frame}
 
 % ==========================================
