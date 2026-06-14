@@ -154,7 +154,6 @@
 % ==========================================
 \begin{frame}{CAN Classic (CC) vs. CAN Flexible Data Rate (CF)}
 	\vspace{0.3em}
-	\includegraphics[width=\textwidth,height=0.38\textheight,keepaspectratio]{images/frame_format.png}\\[0.3em]
 	\footnotesize
 	\renewcommand{\arraystretch}{1.5}
 	\begin{tabular}{>{\bfseries}p{0.40\textwidth} p{0.26\textwidth} p{0.26\textwidth}}
@@ -229,30 +228,6 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 }
 
 % ==========================================
-% SLIDE 3: Protocol essentials
-% ==========================================
-\section{Protocol}
-\begin{frame}{CAN FD: Four Mechanisms, Four Architectural Consequences}
-	\vspace{0.5em}
-	\footnotesize
-	\renewcommand{\arraystretch}{1.6}
-	\begin{tabular}{>{\bfseries}p{0.40\textwidth} p{0.52\textwidth}}
-		\toprule
-		CAN FD feature                                   & Architectural consequence \\
-		\midrule
-		Dual bit rate + TDC                              &
-		\texttt{can\_pcs} redesign with 3-stage TDC pipeline                         \\
-		Fixed stuffing + SBC                             &
-		\texttt{can\_mac\_bs} mode switching                                         \\
-		CRC-17/21, dual data feed                        &
-		Three parallel CRC engines in \texttt{can\_mac\_crc}                         \\
-		Four formats (CB/CE/FB/FE) with diverging fields &
-		Per-field FSM states; format transitions become state graph edges            \\
-		\bottomrule
-	\end{tabular}
-\end{frame}
-
-% ==========================================
 % SLIDE 4: Layered architecture
 % ==========================================
 \section{Design and Implementation}
@@ -281,6 +256,29 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 		\item Right diagram: one RTL module per sub-layer. LLC is not implemented (out of scope). MAC is split into four sub-modules: \texttt{can\_mac\_fsm} orchestrates, \texttt{can\_mac\_ser} serializes the TX frame, \texttt{can\_mac\_bs} handles bit stuffing/destuffing, \texttt{can\_mac\_crc} runs three CRC engines in parallel.
 		\item Key payoff: module boundaries = testbench boundaries. Each module has exactly one testbench. Requirements trace unambiguously to one module.
 	\end{itemize}}
+
+% ==========================================
+% SLIDE: CAN FD Protocol Consequences
+% ==========================================
+\begin{frame}{CAN FD: Four Mechanisms, Four Architectural Consequences}
+	\includegraphics[width=\textwidth,height=0.32\textheight,keepaspectratio]{images/frame_format.png}\\[0.3em]
+	\footnotesize
+	\renewcommand{\arraystretch}{1.6}
+	\begin{tabular}{>{\bfseries}p{0.40\textwidth} p{0.52\textwidth}}
+		\toprule
+		CAN FD feature                                         & Architectural consequence \\
+		\midrule
+		Dual bit rate + TDC                                    &
+		\texttt{can\_pcs} redesign with 3-stage TDC pipeline                               \\
+		Fixed stuffing + SBC                                   &
+		\texttt{can\_mac\_bs} mode switching                                               \\
+		CRC-17/21, dual data feed                              &
+		Three parallel CRC engines in \texttt{can\_mac\_crc}                               \\
+		Four formats (CB/CE/FB/FE) with diverging frame fields &
+		Per-field FSM states; format transitions become state graph edges                  \\
+		\bottomrule
+	\end{tabular}
+\end{frame}
 
 % ==========================================
 % SLIDE Design-2: MAC FSM Granularity
