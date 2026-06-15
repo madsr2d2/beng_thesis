@@ -1,0 +1,118 @@
+---
+config:
+  theme: neutral
+  layout: elk
+  flowchart:
+    curve: monotoneX
+  elk:
+    algorithm: layered
+    mergeEdges: false
+    nodePlacementStrategy: BRANDES_KOEPF
+    edgeRouting: SPLINES
+---
+
+flowchart LR
+
+classDef llc fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef mac fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef pcs fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef fce fill:#F5C2C0,stroke:#BB3333,stroke-width:4px,color:#000000
+
+classDef wd2 fill:#FFFFFF,stroke:#999999,color:#000000
+classDef wd3 fill:#FFFFB4,stroke:#999900,color:#000000
+classDef wd4 fill:#FFE0B9,stroke:#CC8833,color:#000000
+classDef wd5 fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef wd6 fill:#CCFDFE,stroke:#33AAAA,color:#000000
+classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
+classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
+
+TEST_CTRL("`**Test
+Control**`")
+
+
+
+
+
+
+subgraph BUS["`**Bus model**`"]
+    B1("`**Transceiver 
+    (DUT 1)**`")
+    B2("`**Transceiver 
+    (DUT 2)**`")
+    B3("`**Bus**`")
+end
+
+subgraph DUT["`**Devices Under Test**`"]
+    subgraph DUT1["`**DUT 1**`"]
+        MAC1("`**can_mac**`")
+        PCS1("`**can_pcs**`")
+        FCE1("`**can_fce**`")
+
+        MAC1 <==> PCS1
+        MAC1 <==> FCE1
+        FCE1 <==> PCS1
+    end
+
+    subgraph DUT2["`**DUT 2**`"]
+        MAC2("`**can_mac**`")
+        PCS2("`**can_pcs**`")
+        FCE2("`**can_fce**`")
+
+        MAC2 <==> PCS2
+        MAC2 <==> FCE2
+        FCE2 <==> PCS2
+    end
+end
+
+subgraph VC["`**VC's**`"]
+    TX_VC_1("`**LLC-TX DUT 1**
+    • Avalon-ST surce`")
+
+    TX_VC_2("`**LLC-TX DUT 2**
+    • Avalon-ST source`")
+
+    RX_VC_2("`**LLC-RX DUT 2**
+    • Avalon-ST sink
+    • Frame checker`")
+end
+
+
+TEST_CTRL == TX frame ==> TX_VC_1
+TEST_CTRL == TX frame ==> TX_VC_2
+TEST_CTRL == expected frame ==> RX_VC_2
+TEST_CTRL -- error injection --> B1
+TEST_CTRL -- loop back delay --> B1
+TEST_CTRL -- loop back delay --> B2
+TEST_CTRL -- bus delay --> B3
+B1 <==> B3 <==> B2
+
+
+
+TX_VC_1 <==> MAC1
+
+
+MAC1 -->|transfer_status| TEST_CTRL
+MAC2 -->|transfer_status| TEST_CTRL
+
+FCE1 -->|bus_off| TEST_CTRL
+
+
+
+
+PCS1 <==>|RX/TX| B1
+PCS2 <==>|RX/TX| B2
+
+
+TX_VC_2 <==> MAC2
+RX_VC_2 <==> MAC2
+
+
+
+
+class TX_VC_1,MON_1,BUS_OFF_MON,TX_VC_2,RX_VC_2,MON_2 wd7
+class MAC1,MAC2 wd1
+class PCS1,PCS2 wd1
+class FCE1,FCE2 wd1
+class B1,B2,B3 wd4
+class TEST_CTRL wd9

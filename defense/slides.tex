@@ -415,7 +415,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 	\begin{columns}[T]
 		\begin{column}{0.40\textwidth}
 			\begin{itemize}\setlength{\itemsep}{6pt}
-				\item 37 requirements extracted from ISO\,11898-1
+				\item 37 requirements distilled from ISO\,11898-1
 				\item AI-assisted extraction and manual review
 				\item Managed via MCP server for safe incremental AI-assisted updates throughout design and verification
 			\end{itemize}
@@ -428,7 +428,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 				id             & REQ-NNN                                \\
 				source\_clause & ISO\,11898-1 section reference         \\
 				paraphrase     & Concise restatement                    \\
-				layer          & LLC / MAC / PCS / FCE                  \\
+				layer          & LLC / MAC / PCS / FCE / System         \\
 				side           & TX / RX / both                         \\
 				format         & CB / CE / FB / FE                      \\
 				observability  & black\_box / white\_box                \\
@@ -442,6 +442,13 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 		\end{column}
 	\end{columns}
 \end{frame}
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
+		\item AI-assisted extraction: Claude bootstrapped 168 normative statements from ISO\,11898-1. Manual distillation step --- consolidating to 37 prioritised, independently verifiable requirements --- was substantial and irreplaceable. Primary benefit of AI assistance was consistency, not speed.
+		\item The five classification dimensions (layer, side, format, observability, method) make each requirement independently testable and unambiguously assigned to one implementation unit.
+		\item MCP server wraps the TOML file with a typed write interface. Claude Code agents use it throughout design and verification to update status, add labels, and link files --- the narrow interface prevents silent data corruption that would occur with direct file edits.
+		\item P1 = need-to-have (shall requirements, core correctness). P2 = nice-to-have. P3 = optional (should clauses). Priority drives the verification schedule.
+		\item \texttt{label} and \texttt{file} are the traceability endpoints --- label names the TB procedure or RTL tag, file is the testbench or RTL source. Together they link each requirement to runnable evidence.
+	\end{itemize}}
 
 % ==========================================
 % SLIDE 9b: Verification results

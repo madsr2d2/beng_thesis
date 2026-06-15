@@ -13,6 +13,7 @@ config:
 
 graph 
 
+subgraph DUT["`**can_mac_fsm**`"]
     case("`**FSM case block**
     - Per-field state logic
     - State transitions`")
@@ -26,7 +27,7 @@ graph
     - Feed CRC and Bit stuffer`")
 
     error("`**Drive Error Flag**`")
-
+end
     precase --> case
     precase -->|"`Stuff bit
     detected`"| postcase
