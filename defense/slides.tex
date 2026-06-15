@@ -453,16 +453,21 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % ==========================================
 % SLIDE 9b: Verification results
 % ==========================================
-\begin{frame}{Verification Results}
+\begin{frame}{Verification Results -- 28 of 37 requirements closed}
 	\begin{itemize}\setlength{\itemsep}{8pt}
-		\item \textbf{28 of 37 requirements closed}
-		\item \textbf{Testbench coverage:} unit TB per module (6 total) and an integrated two-node bus simulation TB
-		\item \textbf{6 LLC not implemented} --- \texttt{can\_llc} adds acceptance filtering and retransmission on arbitration loss; MAC, PCS, and FCE are sufficient for full frame TX/RX
-		\item \textbf{REQ-034 not applicable} --- shared-memory data consistency; this design uses direct LLC-to-MAC streaming, so the requirement does not apply
-		\item \textbf{REQ-035 not started} --- configurable error signalling enable/disable (P2, not implemented within project timeline)
-		\item \textbf{REQ-021 in progress} --- bit-error detection: sub-claim~1 verified; sub-claims 2--5 require frame-aware error injection into a running frame
+		\item \textbf{Testbench coverage:} Unit TB per module and an integrated two-node bus simulation TB
+		\item \textbf{LLC not implemented:} 6 LLC-related requirements \textbf{not started}. LLC adds acceptance filtering and retransmission on arbitration loss. MAC, PCS, and FCE are sufficient for full frame TX/RX.
+		\item \textbf{2 not started:} Both \textbf{optional} and \textbf{non-blocking}. \textbf{REQ-034} applies to implementations buffering TX frames in MAC. This design uses direct streaming. \textbf{REQ-035} is error signalling enable/disable.
+		\item \textbf{REQ-021 in progress:} Sub-claim~1 verified (Bit-error detection). Sub-claims 2-5 require frame-aware error injection into a running frame - not supported in the current test environment.
 	\end{itemize}
 \end{frame}
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
+	\item 28 closed means all P1 MAC, PCS, and FCE requirements are verified. The open items are either structurally deferred (LLC), architecturally not applicable (REQ-034), or require tooling not yet in place (REQ-021).
+	\item LLC was not implemented due to project timeline constraints, not because it is out of scope. The six LLC requirements cover transfer status reporting, retransmission, acceptance filtering, and frame format conversion. These are genuine protocol engine responsibilities per ISO 11898-1.
+	\item REQ-034: the shared-memory data consistency requirement is conditional --- it only applies if the implementation uses shared memory for MAC frames. This design streams frames directly from LLC to MAC via Avalon-ST, so the condition never applies.
+	\item REQ-035: configurable error signalling enable/disable is a P2 requirement. Not implemented within the project timeline but non-blocking --- the controller operates correctly in the default error-active mode.
+	\item REQ-021 bit-error detection: sub-claim 1 (SP bit-error at arbitrary point in frame) is verified. Sub-claims 2--5 cover SSP bit-error, error flag injection, error passive flag, and bus-off entry triggered by bit-error --- these require injecting an error into a specific bit position within a running frame, which the current testbench cannot do.
+\end{itemize}}
 
 % ==========================================
 % SLIDE: Integration testbench
