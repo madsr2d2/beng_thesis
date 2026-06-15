@@ -454,28 +454,13 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % SLIDE 9b: Verification results
 % ==========================================
 \begin{frame}{Verification Results}
-	\begin{columns}[T]
-		\begin{column}{0.34\textwidth}
-			\vspace{1.2em}
-			\begin{center}
-				{\fontsize{48}{54}\selectfont\textbf{28}}\,/\,37\\[0.4em]
-				{\small requirements closed}
-			\end{center}
-		\end{column}
-		\begin{column}{0.62\textwidth}
-			\textbf{9 open --- three groups:}\\[0.6em]
-			\begin{itemize}
-				\item \textbf{6 LLC deferred} ---
-				      scope boundary; \texttt{can\_llc} not implemented
-				\item \textbf{2 non-blocking} ---
-				      REQ-034 (P3, not applicable to this scope);
-				      REQ-035 (P2, optional)
-				\item \textbf{1 in progress} ---
-				      REQ-021 bit-error detection: sub-claim~1 verified;
-				      sub-claims 2--5 require frame-aware error injection
-			\end{itemize}
-		\end{column}
-	\end{columns}
+	\begin{itemize}\setlength{\itemsep}{8pt}
+		\item \textbf{28 of 37 requirements closed}
+		\item \textbf{Testbench coverage:} unit TB per module (6 total) and an integrated two-node bus simulation TB
+		\item \textbf{6 LLC deferred} --- \texttt{can\_llc} out of scope by design; LLC handles acceptance filtering and retransmission, not protocol engine responsibility
+		\item \textbf{2 non-blocking} --- REQ-034 (P3, CAN XL format, explicitly out of scope); REQ-035 (P2, optional overload frame handling)
+		\item \textbf{1 in progress} --- REQ-021 bit-error detection: sub-claim~1 verified; sub-claims 2--5 require frame-aware error injection into a running frame
+	\end{itemize}
 \end{frame}
 
 % ==========================================
