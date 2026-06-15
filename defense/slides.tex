@@ -381,26 +381,30 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % ==========================================
 \begin{frame}{FCE: \texttt{can\_mac\_pcs\_fce} -- Fault Confinement Entity}
 	\begin{columns}[T]
-		\begin{column}{0.60\textwidth}
+		\begin{column}{0.40\textwidth}
 			\begin{itemize}\setlength{\itemsep}{6pt}
-				\item Three states: error active, error passive, bus off --- transitions driven by TEC and REC thresholds
-				\item Five event inputs from \texttt{can\_mac\_fsm}: primary\_error, sending\_error\_flag, passive\_tx\_ack\_error, error\_delim\_to\_late, successful\_transfer
-				\item Asserts \texttt{error\_active} and \texttt{bus\_off} back to \texttt{can\_mac\_fsm}; \texttt{bus\_off} also gates \texttt{can\_pcs} and LLC
-				\item Bus off recovery: 128 idle sequences counted via \texttt{idle\_condition} from \texttt{can\_pcs}
+				\item Three states: error active, error passive, bus off. Driven by TEC and REC thresholds
+				\item Subscribes to error events from \texttt{can\_mac\_fsm}. Signals \texttt{error\_active} and \texttt{bus\_off} back
+				\item Bus-off recovery after 128 \texttt{idle\_condition} strobes from \texttt{can\_pcs}
 			\end{itemize}
 		\end{column}
-		\begin{column}{0.40\textwidth}
+		\begin{column}{0.60\textwidth}
 			\begin{center}
 				\includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{images/fce.png}\\[0.3em]
 			\end{center}
 		\end{column}
 	\end{columns}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
-		\item TEC increments by 8 on TX errors and decrements by 1 on successful TX. REC increments by 1 on RX errors, decrements by 1 on successful RX.
-		\item Error active (TEC and REC below 128): node transmits active error flags (six dominant bits). Error passive (TEC or REC $\geq$ 128): node transmits passive error flags (six recessive bits), which are invisible on the bus.
-		\item Bus off (TEC $\geq$ 256): node stops transmitting entirely. Recovery requires detecting 128 sequences of 11 consecutive recessive bits --- ensures the bus has been free for an extended period before re-joining.
-		\item Implemented as the wrapper \texttt{can\_mac\_pcs\_fce}, which instantiates \texttt{can\_mac\_fsm}, \texttt{can\_pcs}, and the FCE logic. The FCE monitors \texttt{transfer\_status} and the per-bit error signals from \texttt{can\_mac\_fsm}.
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
+		\item \textbf{Error counters:} TEC $+8$ on TX error, $-1$ on successful TX. REC $+1$ on RX error, $-1$ on successful RX.
+		\item \textbf{State thresholds:} Error active: TEC and REC $<128$. Error passive: TEC or REC $\geq128$ --- passive flags are recessive, invisible on bus. Bus off: TEC $\geq256$ --- stops transmitting.
+		\item \textbf{Error events:} \texttt{primary\_error}, \texttt{sending\_error\_flag}, \texttt{passive\_tx\_ack\_error}, \texttt{error\_delim\_to\_late}, \texttt{successful\_transfer}.
+		      \begin{itemize}\setlength{\itemsep}{1pt}
+			      \item \texttt{passive\_tx\_ack\_error}: ACK failure for an error-passive transmitter -- ISO exempts this from TEC increment to avoid stranding lone node at bus off.
+			      \item \texttt{error\_delim\_to\_late}: delimiter window expired with no recessive edge --- stuck-dominant fault. Hits both TEC and REC by 8 to fast-track bus off.
+		      \end{itemize}
+		\item \textbf{Q: Why 128 sequences?} ISO mandates it -- extended quiet period prevents rapid re-entry after bus-off.
+		\item \textbf{Q: In-flight frame on bus off?} \texttt{can\_mac\_fsm} receives \texttt{bus\_off} and aborts immediately.
 	\end{itemize}}
 
 % ==========================================
