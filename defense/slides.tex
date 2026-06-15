@@ -457,9 +457,10 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 	\begin{itemize}\setlength{\itemsep}{8pt}
 		\item \textbf{28 of 37 requirements closed}
 		\item \textbf{Testbench coverage:} unit TB per module (6 total) and an integrated two-node bus simulation TB
-		\item \textbf{6 LLC deferred} --- \texttt{can\_llc} out of scope by design; LLC handles acceptance filtering and retransmission, not protocol engine responsibility
-		\item \textbf{2 non-blocking} --- REQ-034 (P3, CAN XL format, explicitly out of scope); REQ-035 (P2, optional overload frame handling)
-		\item \textbf{1 in progress} --- REQ-021 bit-error detection: sub-claim~1 verified; sub-claims 2--5 require frame-aware error injection into a running frame
+		\item \textbf{6 LLC not implemented} --- \texttt{can\_llc} adds acceptance filtering and retransmission on arbitration loss; MAC, PCS, and FCE are sufficient for full frame TX/RX
+		\item \textbf{REQ-034 not applicable} --- shared-memory data consistency; this design uses direct LLC-to-MAC streaming, so the requirement does not apply
+		\item \textbf{REQ-035 not started} --- configurable error signalling enable/disable (P2, not implemented within project timeline)
+		\item \textbf{REQ-021 in progress} --- bit-error detection: sub-claim~1 verified; sub-claims 2--5 require frame-aware error injection into a running frame
 	\end{itemize}
 \end{frame}
 
