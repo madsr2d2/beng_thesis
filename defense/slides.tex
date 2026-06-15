@@ -291,7 +291,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % ==========================================
 \begin{frame}{MAC: \texttt{can\_mac\_bs} -- Bit Stuffing and Destuffing}
 	\begin{columns}[T]
-		\begin{column}{0.50\textwidth}
+		\begin{column}{0.60\textwidth}
 			\textbf{Dynamic stuffing} (CC and CF):
 			\begin{itemize}\setlength{\itemsep}{6pt}
 				\item Transmitter inserts inverse bit after five consecutive identical bits
@@ -304,7 +304,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 				\item SBC: Gray-coded dynamic stuff count + parity
 			\end{itemize}
 		\end{column}
-		\begin{column}{0.50\textwidth}
+		\begin{column}{0.40\textwidth}
 			\begin{center}
 				\includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{images/bs.png}\\[0.3em]
 			\end{center}
@@ -323,7 +323,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % ==========================================
 \begin{frame}{MAC: \texttt{can\_mac\_crc} -- CRC Engine}
 	\begin{columns}[T]
-		\begin{column}{0.50\textwidth}
+		\begin{column}{0.60\textwidth}
 			\textbf{Three parallel engines}:
 			\begin{itemize}\setlength{\itemsep}{6pt}
 				\item CRC-15: CC frames
@@ -337,7 +337,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 				\item \texttt{data\_fd}: includes dynamic stuff bits
 			\end{itemize}
 		\end{column}
-		\begin{column}{0.50\textwidth}
+		\begin{column}{0.40\textwidth}
 			\begin{center}
 				\includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{images/crc.png}\\[0.3em]
 			\end{center}
@@ -377,11 +377,38 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 	\end{itemize}}
 
 % ==========================================
+% SLIDE MAC-5: FCE
+% ==========================================
+\begin{frame}{FCE: \texttt{can\_mac\_pcs\_fce} -- Fault Confinement Entity}
+	\begin{columns}[T]
+		\begin{column}{0.60\textwidth}
+			\begin{itemize}\setlength{\itemsep}{6pt}
+				\item Three states: error active, error passive, bus off --- transitions driven by TEC and REC thresholds
+				\item Five event inputs from \texttt{can\_mac\_fsm}: primary\_error, sending\_error\_flag, passive\_tx\_ack\_error, error\_delim\_to\_late, successful\_transfer
+				\item Asserts \texttt{error\_active} and \texttt{bus\_off} back to \texttt{can\_mac\_fsm}; \texttt{bus\_off} also gates \texttt{can\_pcs} and LLC
+				\item Bus off recovery: 128 idle sequences counted via \texttt{idle\_condition} from \texttt{can\_pcs}
+			\end{itemize}
+		\end{column}
+		\begin{column}{0.40\textwidth}
+			\begin{center}
+				\includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{images/fce.png}\\[0.3em]
+			\end{center}
+		\end{column}
+	\end{columns}
+\end{frame}
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
+		\item TEC increments by 8 on TX errors and decrements by 1 on successful TX. REC increments by 1 on RX errors, decrements by 1 on successful RX.
+		\item Error active (TEC and REC below 128): node transmits active error flags (six dominant bits). Error passive (TEC or REC $\geq$ 128): node transmits passive error flags (six recessive bits), which are invisible on the bus.
+		\item Bus off (TEC $\geq$ 256): node stops transmitting entirely. Recovery requires detecting 128 sequences of 11 consecutive recessive bits --- ensures the bus has been free for an extended period before re-joining.
+		\item Implemented as the wrapper \texttt{can\_mac\_pcs\_fce}, which instantiates \texttt{can\_mac\_fsm}, \texttt{can\_pcs}, and the FCE logic. The FCE monitors \texttt{transfer\_status} and the per-bit error signals from \texttt{can\_mac\_fsm}.
+	\end{itemize}}
+
+% ==========================================
 % SLIDE 6: PCS
 % ==========================================
 \begin{frame}{PCS: \texttt{can\_pcs} -- Bit Timing and Transmitter Delay Compensation (TDC)}
 	\begin{columns}[T]
-		\begin{column}{0.40\textwidth}
+		\begin{column}{0.50\textwidth}
 			\begin{itemize}\setlength{\itemsep}{6pt}
 				\item SP strobes at end of PHASE\_SEG1
 				\item Transmit bit at end of PHASE\_SEG2
@@ -390,7 +417,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 				\item Transceiver loop delay measured on res bit
 			\end{itemize}
 		\end{column}
-		\begin{column}{0.60\textwidth}
+		\begin{column}{0.50\textwidth}
 			\begin{center}
 				\includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{images/pcs.png}\\[0.3em]
 			\end{center}
@@ -462,12 +489,12 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 	\end{itemize}
 \end{frame}
 \note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
-	\item 28 closed means all P1 MAC, PCS, and FCE requirements are verified. The open items are either structurally deferred (LLC), architecturally not applicable (REQ-034), or require tooling not yet in place (REQ-021).
-	\item LLC was not implemented due to project timeline constraints, not because it is out of scope. The six LLC requirements cover transfer status reporting, retransmission, acceptance filtering, and frame format conversion. These are genuine protocol engine responsibilities per ISO 11898-1.
-	\item REQ-034: the shared-memory data consistency requirement is conditional --- it only applies if the implementation uses shared memory for MAC frames. This design streams frames directly from LLC to MAC via Avalon-ST, so the condition never applies.
-	\item REQ-035: configurable error signalling enable/disable is a P2 requirement. Not implemented within the project timeline but non-blocking --- the controller operates correctly in the default error-active mode.
-	\item REQ-021 bit-error detection: sub-claim 1 (SP bit-error at arbitrary point in frame) is verified. Sub-claims 2--5 cover SSP bit-error, error flag injection, error passive flag, and bus-off entry triggered by bit-error --- these require injecting an error into a specific bit position within a running frame, which the current testbench cannot do.
-\end{itemize}}
+		\item 28 closed means all P1 MAC, PCS, and FCE requirements are verified. The open items are either structurally deferred (LLC), architecturally not applicable (REQ-034), or require tooling not yet in place (REQ-021).
+		\item LLC was not implemented due to project timeline constraints, not because it is out of scope. The six LLC requirements cover transfer status reporting, retransmission, acceptance filtering, and frame format conversion. These are genuine protocol engine responsibilities per ISO 11898-1.
+		\item REQ-034: the shared-memory data consistency requirement is conditional --- it only applies if the implementation uses shared memory for MAC frames. This design streams frames directly from LLC to MAC via Avalon-ST, so the condition never applies.
+		\item REQ-035: configurable error signalling enable/disable is a P2 requirement. Not implemented within the project timeline but non-blocking --- the controller operates correctly in the default error-active mode.
+		\item REQ-021 bit-error detection: sub-claim 1 (SP bit-error at arbitrary point in frame) is verified. Sub-claims 2--5 cover SSP bit-error, error flag injection, error passive flag, and bus-off entry triggered by bit-error --- these require injecting an error into a specific bit position within a running frame, which the current testbench cannot do.
+	\end{itemize}}
 
 % ==========================================
 % SLIDE: Integration testbench
