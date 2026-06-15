@@ -409,30 +409,63 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % ==========================================
 \section{Verification}
 % ==========================================
-% SLIDE 9: Verification plan and results
+% SLIDE 9a: Verification plan methodology
 % ==========================================
-\begin{frame}{Verification Plan and Results}
+\begin{frame}{Verification Plan}
 	\begin{columns}[T]
-		\begin{column}{0.48\textwidth}
-			\textbf{Methodology}
+		\begin{column}{0.40\textwidth}
 			\begin{itemize}\setlength{\itemsep}{6pt}
-				\item 37 structured requirements extracted from ISO\,11898-1 via AI-assisted extraction and manual review
-				\item Each requirement independently verifiable and traced to a single module
-				\item Managed via MCP server --- safe incremental updates throughout design and verification
+				\item 37 requirements extracted from ISO\,11898-1
+				\item AI-assisted extraction and manual review
+				\item Managed via MCP server for safe incremental AI-assisted updates throughout design and verification
 			\end{itemize}
 		\end{column}
-		\begin{column}{0.48\textwidth}
-			\textbf{Results}\\[0.3em]
+		\begin{column}{0.60\textwidth}
+			\footnotesize
+			\renewcommand{\arraystretch}{1.4}
+			\begin{tabular}{>{\ttfamily}l p{0.65\textwidth}}
+				\toprule
+				id             & REQ-NNN                                \\
+				source\_clause & ISO\,11898-1 section reference         \\
+				paraphrase     & Concise restatement                    \\
+				layer          & LLC / MAC / PCS / FCE                  \\
+				side           & TX / RX / both                         \\
+				format         & CB / CE / FB / FE                      \\
+				observability  & black\_box / white\_box                \\
+				method         & simulation / waveform / inspection     \\
+				priority       & P1 / P2 / P3                           \\
+				status         & not\_started / in\_progress / complete \\
+				label          & TB procedure or RTL tag                \\
+				file           & Testbench or RTL source file           \\
+				\bottomrule
+			\end{tabular}
+		\end{column}
+	\end{columns}
+\end{frame}
+
+% ==========================================
+% SLIDE 9b: Verification results
+% ==========================================
+\begin{frame}{Verification Results}
+	\begin{columns}[T]
+		\begin{column}{0.34\textwidth}
+			\vspace{1.2em}
 			\begin{center}
-				{\fontsize{36}{42}\selectfont\textbf{28}}\,/\,37\\[0.3em]
+				{\fontsize{48}{54}\selectfont\textbf{28}}\,/\,37\\[0.4em]
 				{\small requirements closed}
 			\end{center}
-			\vspace{0.3em}
-			\textbf{9 open:}
-			\begin{itemize}\setlength{\itemsep}{4pt}
-				\item \textbf{6 LLC deferred} --- \texttt{can\_llc} out of scope
-				\item \textbf{2 non-blocking} --- P2/P3, optional
-				\item \textbf{1 in progress} --- REQ-021 bit-error detection
+		\end{column}
+		\begin{column}{0.62\textwidth}
+			\textbf{9 open --- three groups:}\\[0.6em]
+			\begin{itemize}
+				\item \textbf{6 LLC deferred} ---
+				      scope boundary; \texttt{can\_llc} not implemented
+				\item \textbf{2 non-blocking} ---
+				      REQ-034 (P3, not applicable to this scope);
+				      REQ-035 (P2, optional)
+				\item \textbf{1 in progress} ---
+				      REQ-021 bit-error detection: sub-claim~1 verified;
+				      sub-claims 2--5 require frame-aware error injection
 			\end{itemize}
 		\end{column}
 	\end{columns}
@@ -454,11 +487,11 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 	\end{itemize}
 \end{frame}
 \note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
-	\item Each of the six modules has its own unit testbench --- \texttt{can\_mac\_fsm\_tb}, \texttt{can\_mac\_bs\_tb}, \texttt{can\_mac\_crc\_tb}, \texttt{can\_mac\_ser\_tb}, \texttt{can\_pcs\_tb}, \texttt{can\_fce\_tb}. The bulk of requirement coverage lives in the unit TBs. Integration TB shown here for brevity.
-	\item Two-node approach catches bugs structurally invisible in a single-node setup. Bug~D (ACK window excluded \texttt{s\_ack\_delimiter}) could not be triggered without a second node with realistic bus delay --- zero-delay loopback always ACKs, masking the defect.
-	\item \texttt{p\_test\_ctrl} orchestrates: drives TX frames into both DUTs, monitors \texttt{transfer\_status} and \texttt{bus\_off}, controls error injection timing and configurable loop delay for TDC validation.
-	\item \texttt{rx\_llc\_dut\_2} compares received frames against expected frames asserted by the TX source --- any field mismatch fails the test immediately.
-\end{itemize}}
+		\item Each of the six modules has its own unit testbench --- \texttt{can\_mac\_fsm\_tb}, \texttt{can\_mac\_bs\_tb}, \texttt{can\_mac\_crc\_tb}, \texttt{can\_mac\_ser\_tb}, \texttt{can\_pcs\_tb}, \texttt{can\_fce\_tb}. The bulk of requirement coverage lives in the unit TBs. Integration TB shown here for brevity.
+		\item Two-node approach catches bugs structurally invisible in a single-node setup. Bug~D (ACK window excluded \texttt{s\_ack\_delimiter}) could not be triggered without a second node with realistic bus delay --- zero-delay loopback always ACKs, masking the defect.
+		\item \texttt{p\_test\_ctrl} orchestrates: drives TX frames into both DUTs, monitors \texttt{transfer\_status} and \texttt{bus\_off}, controls error injection timing and configurable loop delay for TDC validation.
+		\item \texttt{rx\_llc\_dut\_2} compares received frames against expected frames asserted by the TX source --- any field mismatch fails the test immediately.
+	\end{itemize}}
 
 % ==========================================
 % SLIDE 7: PCS waveform evidence
