@@ -32,7 +32,7 @@
 % ==========================================
 \section{Introduction}
 \begin{frame}{Controller Area Network (CAN) -- Bus Topology and ECUs}
-	\begin{columns}[T]
+	\begin{columns}[c]
 		\canbusanchor
 		\begin{column}{0.40\textwidth}
 			\begin{center}
@@ -57,7 +57,7 @@
 % SLIDE 2: Benefit 1
 % ==========================================
 \begin{frame}{Why CAN -- Key Attributes and Benefits}
-	\begin{columns}[T]
+	\begin{columns}[c]
 		\canbusanchor
 		\begin{column}{0.40\textwidth}
 			\vspace{1.2em}
@@ -80,7 +80,7 @@
 % SLIDE 3: Benefit 2
 % ==========================================
 \begin{frame}{Why CAN -- Key Attributes and Benefits}
-	\begin{columns}[T]
+	\begin{columns}[c]
 		\canbusanchor
 		\begin{column}{0.40\textwidth}
 			\vspace{1.2em}
@@ -104,7 +104,7 @@
 % SLIDE 4: Benefit 3
 % ==========================================
 \begin{frame}{Why CAN -- Key Attributes and Benefits}
-	\begin{columns}[T]
+	\begin{columns}[c]
 		\canbusanchor
 		\begin{column}{0.40\textwidth}
 			\vspace{1.2em}
@@ -129,7 +129,7 @@
 % SLIDE 5: Benefit 4
 % ==========================================
 \begin{frame}{Why CAN -- Key Attributes and Benefits}
-	\begin{columns}[T]
+	\begin{columns}[c]
 		\canbusanchor
 		\begin{column}{0.40\textwidth}
 			\vspace{1.2em}
@@ -150,7 +150,68 @@
 }
 
 % ==========================================
-% SLIDE 3: CAN vs CAN FD
+% SLIDE: Bit Timing
+% ==========================================
+\begin{frame}{CAN Bit Timing and Synchronization}
+	\begin{columns}[c]
+		\begin{column}{0.42\textwidth}
+			\begin{itemize}\setlength{\itemsep}{6pt}
+				\item Each bit: SYNC\_SEG, PROP\_SEG, PHASE\_SEG1, PHASE\_SEG2 --- sample point at end of PHASE\_SEG1
+				\item Hard synchronization on SOF dominant edge; resynchronization on any recessive-to-dominant edge mid-frame
+				\item CAN FD: arbitration phase at nominal rate, data phase at up to 8\,Mbit/s --- switch at BRS bit
+				\item TDC measures transceiver loop delay on reserved bit; positions SSP for bit-error monitoring in data phase
+			\end{itemize}
+		\end{column}
+		\begin{column}{0.58\textwidth}
+			\begin{center}
+				\includegraphics[width=\textwidth,height=0.38\textheight,keepaspectratio]{\figures/bit_timing.png}\\[0.4em]
+				\includegraphics[width=\textwidth,height=0.38\textheight,keepaspectratio]{\figures/tdc.png}
+			\end{center}
+		\end{column}
+	\end{columns}
+\end{frame}
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
+		\item \textbf{Segments:} SYNC\_SEG = 1\,TQ (edge expected here). PROP\_SEG compensates bus propagation. PHASE\_SEG1/2 are adjustable for sync. Total bit time is configurable in time quanta (TQ).
+		\item \textbf{Hard sync:} only on SOF, resets the bit timing counter. Resync: adjusts PHASE\_SEG1 (lengthen) or PHASE\_SEG2 (shorten) by up to the sync jump width.
+		\item \textbf{Dual rate:} arbitration must be slow enough for all nodes to participate simultaneously (round-trip propagation). Data phase is point-to-point after arbitration --- can be much faster.
+		\item \textbf{TDC:} transmitter drives a bit, echos it back via the transceiver. At 5\,Mbit/s a 200\,ns loop delay = 1 full bit period --- SP would sample the wrong bit. TDC counts from BRS edge to reserved bit echo, stores the offset, fires SSP at that offset each data-phase bit.
+		\item \textbf{Q: Why not just use SP for bit-error monitoring in data phase?} SP fires at the nominal sample point --- at fast rates, the TX echo arrives late, so the transmitter would read its own bit one period behind. SSP fires at the correct offset.
+	\end{itemize}}
+
+% ==========================================
+% SLIDE: Error Detection and Confinement
+% ==========================================
+\begin{frame}{Error Detection and Confinement}
+	\begin{columns}[c]
+		\begin{column}{0.42\textwidth}
+			\textbf{Five error types}
+			\begin{itemize}\setlength{\itemsep}{4pt}
+				\item \textbf{Bit:} transmitted bit $\neq$ monitored bus level
+				\item \textbf{Stuff:} six consecutive identical bits
+				\item \textbf{CRC:} computed vs.\ received remainder mismatch
+				\item \textbf{Form:} fixed-form field violated
+				\item \textbf{ACK:} no dominant ACK received
+			\end{itemize}
+			\vspace{0.5em}
+			Any detecting node transmits an error flag, destroying the current frame
+		\end{column}
+		\begin{column}{0.58\textwidth}
+			\begin{center}
+				\includegraphics[width=\textwidth,height=0.72\textheight,keepaspectratio]{\figures/fce_fsm.png}
+			\end{center}
+		\end{column}
+	\end{columns}
+\end{frame}
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
+		\item \textbf{Active error flag:} 6 dominant bits --- violates stuff rule, all nodes detect it and join in. Passive error flag: 6 recessive bits --- invisible on bus, other nodes continue.
+		\item \textbf{TEC/REC rules:} TEC $+8$ on TX error, $-1$ on success. REC $+1$ on RX error, $-8$ on primary error (node caused it), $-1$ on success.
+		\item \textbf{Error passive:} TEC or REC $\geq 128$. Node still participates but cannot destroy frames --- passive flags are recessive and ignored by other nodes.
+		\item \textbf{Bus off:} TEC $\geq 256$. Node stops driving. Recovery: 128 sequences of 11 consecutive recessive bits.
+		\item \textbf{Q: Why does error passive node still transmit?} It can still receive and ACK --- only its ability to signal errors is degraded. Useful for a node recovering from transient faults.
+	\end{itemize}}
+
+% ==========================================
+% SLIDE: CAN vs CAN FD
 % ==========================================
 \begin{frame}{CAN Classic (CC) vs. CAN Flexible Data Rate (CF)}
 	\vspace{0.3em}
@@ -193,7 +254,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % SLIDE 2: Why clean-slate
 % ==========================================
 \begin{frame}{Project Objectives and Rationale}
-	\begin{columns}[T]
+	\begin{columns}[c]
 		\begin{column}{0.50\textwidth}
 			\textbf{Objectives}
 			\begin{enumerate}\setlength{\itemsep}{8pt}
@@ -232,7 +293,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % ==========================================
 \section{Design and Implementation}
 \begin{frame}{From ISO Reference Model to RTL Modules}
-	\begin{columns}[T]
+	\begin{columns}[c]
 		\begin{column}{0.50\textwidth}
 			\begin{center}
 				\includegraphics[height=0.75\textheight,keepaspectratio]{images/ecu.png}\\
@@ -261,17 +322,17 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % SLIDE MAC-1: FSM per-field structure
 % ==========================================
 \begin{frame}{MAC: \texttt{can\_mac\_fsm} -- FSM orchestrating the MAC layer}
-	\begin{columns}[T]
-		\begin{column}{0.50\textwidth}
+	\begin{columns}[c]
+		\begin{column}{0.60\textwidth}
 			\begin{itemize}\setlength{\itemsep}{8pt}
 				\item CB, CE, FB and FE gets one branch each in the FSM state graph -- one state per frame field
 				\item The \texttt{is\_transmitter} flag gates TX vs.\ RX logic within each state
 				\item State transition on the sample point strobe from \texttt{can\_pcs}. Next bit is driven two cycles later once \texttt{can\_mac\_bs} and \texttt{can\_mac\_crc} outputs have settled
 			\end{itemize}
 		\end{column}
-		\begin{column}{0.50\textwidth}
+		\begin{column}{0.40\textwidth}
 			\begin{center}
-				\includegraphics[width=\textwidth,height=0.70\textheight,keepaspectratio]{images/fsm.png}\\[0.3em]
+				\includegraphics[,height=0.85\textheight,keepaspectratio]{images/fsm.png}
 			\end{center}
 		\end{column}
 	\end{columns}
@@ -290,8 +351,8 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % SLIDE MAC-2: Bit stuffing
 % ==========================================
 \begin{frame}{MAC: \texttt{can\_mac\_bs} -- Bit Stuffing and Destuffing}
-	\begin{columns}[T]
-		\begin{column}{0.60\textwidth}
+	\begin{columns}[c]
+		\begin{column}{0.50\textwidth}
 			\textbf{Dynamic stuffing} (CC and CF):
 			\begin{itemize}\setlength{\itemsep}{6pt}
 				\item Transmitter inserts inverse bit after five consecutive identical bits
@@ -304,9 +365,9 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 				\item SBC: Gray-coded dynamic stuff count + parity
 			\end{itemize}
 		\end{column}
-		\begin{column}{0.40\textwidth}
+		\begin{column}{0.50\textwidth}
 			\begin{center}
-				\includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{images/bs.png}\\[0.3em]
+				\includegraphics[width=1.0\textwidth,keepaspectratio]{images/bs.png}
 			\end{center}
 		\end{column}
 	\end{columns}
@@ -322,8 +383,8 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % SLIDE MAC-3: CRC
 % ==========================================
 \begin{frame}{MAC: \texttt{can\_mac\_crc} -- CRC Engine}
-	\begin{columns}[T]
-		\begin{column}{0.60\textwidth}
+	\begin{columns}[c]
+		\begin{column}{0.50\textwidth}
 			\textbf{Three parallel engines}:
 			\begin{itemize}\setlength{\itemsep}{6pt}
 				\item CRC-15: CC frames
@@ -337,9 +398,9 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 				\item \texttt{data\_fd}: includes dynamic stuff bits
 			\end{itemize}
 		\end{column}
-		\begin{column}{0.40\textwidth}
+		\begin{column}{0.50\textwidth}
 			\begin{center}
-				\includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{images/crc.png}\\[0.3em]
+				\includegraphics[width=1.0\textwidth,keepaspectratio]{images/crc.png}
 			\end{center}
 		\end{column}
 	\end{columns}
@@ -354,17 +415,17 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % SLIDE MAC-4: Serializer
 % ==========================================
 \begin{frame}{MAC: \texttt{can\_mac\_ser} -- TX Frame Serializer}
-	\begin{columns}[T]
-		\begin{column}{0.40\textwidth}
+	\begin{columns}[c]
+		\begin{column}{0.70\textwidth}
 			\begin{itemize}\setlength{\itemsep}{6pt}
 				\item Converts LLC byte stream to serial bit stream for \texttt{can\_mac\_fsm}
 				\item Receives frame from LLC over Avalon-ST interface
 				\item Extracts frame metadata (IDE, FDF, DLC, FTYP, BRS, ESI) from two leading config bytes in LLC frame
 			\end{itemize}
 		\end{column}
-		\begin{column}{0.60\textwidth}
+		\begin{column}{0.30\textwidth}
 			\begin{center}
-				\includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{images/ser.png}\\[0.3em]
+				\includegraphics[height=0.90\textheight,keepaspectratio]{images/ser.png}
 			\end{center}
 		\end{column}
 	\end{columns}
@@ -379,18 +440,18 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % ==========================================
 % SLIDE MAC-5: FCE
 % ==========================================
-\begin{frame}{FCE: \texttt{can\_mac\_pcs\_fce} -- Fault Confinement Entity}
-	\begin{columns}[T]
-		\begin{column}{0.40\textwidth}
+\begin{frame}{FCE: \texttt{can\_fce} -- Fault Confinement Entity}
+	\begin{columns}[c]
+		\begin{column}{0.70\textwidth}
 			\begin{itemize}\setlength{\itemsep}{6pt}
 				\item Three states: error active, error passive, bus off. Driven by TEC and REC thresholds
 				\item Subscribes to error events from \texttt{can\_mac\_fsm}. Signals \texttt{error\_active} and \texttt{bus\_off} back
 				\item Bus-off recovery after 128 \texttt{idle\_condition} strobes from \texttt{can\_pcs}
 			\end{itemize}
 		\end{column}
-		\begin{column}{0.60\textwidth}
+		\begin{column}{0.30\textwidth}
 			\begin{center}
-				\includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{images/fce.png}\\[0.3em]
+				\includegraphics[height=0.90\textheight,keepaspectratio]{images/fce.png}
 			\end{center}
 		\end{column}
 	\end{columns}
@@ -411,7 +472,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % SLIDE 6: PCS
 % ==========================================
 \begin{frame}{PCS: \texttt{can\_pcs} -- Bit Timing and Transmitter Delay Compensation (TDC)}
-	\begin{columns}[T]
+	\begin{columns}[c]
 		\begin{column}{0.50\textwidth}
 			\begin{itemize}\setlength{\itemsep}{6pt}
 				\item SP strobes at end of PHASE\_SEG1
@@ -443,7 +504,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % SLIDE 9a: Verification plan methodology
 % ==========================================
 \begin{frame}{Verification Plan}
-	\begin{columns}[T]
+	\begin{columns}[c]
 		\begin{column}{0.40\textwidth}
 			\begin{itemize}\setlength{\itemsep}{6pt}
 				\item 37 requirements distilled from ISO\,11898-1
@@ -560,7 +621,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % ==========================================
 \section{Synthesis}
 \begin{frame}{Synthesis Results: Cyclone~10~LP}
-	\begin{columns}[T]
+	\begin{columns}[c]
 		\begin{column}{0.46\textwidth}
 			\textbf{Resource utilisation}\\[0.4em]
 			\renewcommand{\arraystretch}{1.3}
@@ -595,7 +656,7 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 \section{Conclusion}
 \begin{frame}[t]{Conclusion and Future Work}
 	\small
-	\begin{columns}[T]
+	\begin{columns}[c]
 		\begin{column}{0.48\textwidth}
 			\textbf{Delivered}\\[0.15em]
 			Full CAN/CAN FD node in VHDL-93.
