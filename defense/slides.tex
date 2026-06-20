@@ -196,39 +196,36 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 \section{Design and Implementation}
 \begin{frame}{Requirements Extraction -- ISO\,11898-1 to Structured Requirements}
 	\begin{columns}[c]
-		\begin{column}{0.38\textwidth}
+		\begin{column}{0.50\textwidth}
 			\begin{itemize}\setlength{\itemsep}{8pt}
 				\item 38 requirements distilled from ISO\,11898-1 --- AI-assisted extraction, manual consolidation
-				\item Classification fields drive module boundaries: each requirement assigned to one layer, one side, one set of frame formats
-				\item \textbf{Implementation order:} MAC FSM first (protocol core), then BS/CRC/SER outward, then PCS (timing), then FCE (fault confinement), then integration
+				\item The ISO sub-layer structure became the module structure directly --- \texttt{layer} is the single field that maps each requirement to one implementation unit
+				\item Classifying each requirement by \texttt{layer} and \texttt{priority} forced explicit design decisions before any RTL was written --- which module owns which behavior, and what is strictly needed vs.\ optional
+				\item \textbf{Implementation order:} started at the protocol core (\texttt{can\_mac\_fsm}) and worked outward --- BS/CRC/SER, then PCS, then FCE, then integration
 			\end{itemize}
 		\end{column}
-		\begin{column}{0.62\textwidth}
+		\begin{column}{0.50\textwidth}
 			\footnotesize
 			\renewcommand{\arraystretch}{1.4}
 			\begin{tabular}{>{\ttfamily}l p{0.60\textwidth}}
 				\toprule
 				id             & REQ-NNN                        \\
-				source\_clause & ISO\,11898-1 section reference  \\
+				source\_clause & ISO\,11898-1 section reference \\
 				paraphrase     & Concise restatement            \\
 				layer          & LLC / MAC / PCS / FCE / System \\
-				side           & TX / RX / both                 \\
-				format         & CB / CE / FB / FE              \\
 				priority       & P1 / P2 / P3                   \\
-				\midrule
-				\multicolumn{2}{l}{\textit{Verification fields added later: observability, method, status, label, file}} \\
 				\bottomrule
 			\end{tabular}
 		\end{column}
 	\end{columns}
 \end{frame}
 \note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-	\item \textbf{Extraction:} Claude bootstrapped 168 normative statements from ISO\,11898-1. Manual distillation to 38 prioritised, independently verifiable requirements was substantial --- AI helped consistency, not speed.
-	\item \textbf{Classification payoff:} layer/side/format fields make each requirement unambiguously assigned to one module. Module boundaries fall out of the classification, not vice versa.
-	\item \textbf{Implementation order:} MAC FSM is the protocol core --- everything interfaces to it. Sub-modules (BS, CRC, SER) built next as they have clear, narrow contracts with FSM. PCS below (provides SP/SSP strobes), FCE beside (monitors events). Integration last.
-	\item \textbf{Q: Why MAC FSM first?} It defines the interface contract for every other module --- building anything else first would mean designing against a moving target.
-	\item \textbf{Q: What does priority mean?} P1 = shall (core correctness), P2 = should, P3 = optional. Drives verification schedule.
-\end{itemize}}
+		\item \textbf{Extraction:} Claude bootstrapped 168 normative statements from ISO\,11898-1. Manual distillation to 38 prioritised, independently verifiable requirements was substantial --- AI helped consistency, not speed.
+		\item \textbf{Layer as design driver:} one ISO sub-layer = one RTL module. \texttt{layer} is the single field that produced the module split --- all other classification fields shape testbenches, not modules.
+		\item \textbf{Implementation order:} MAC FSM is the protocol core --- everything interfaces to it. Sub-modules (BS, CRC, SER) built next as they have clear, narrow contracts with FSM. PCS below (provides SP/SSP strobes), FCE beside (monitors events). Integration last.
+		\item \textbf{Q: Why MAC FSM first?} It defines the interface contract for every other module --- building anything else first would mean designing against a moving target.
+		\item \textbf{Q: What does priority mean?} P1 = strictly needed for a correct implementation (shall clauses). P2 = nice-to-have. P3 = optional. A scope clarity tool, not a schedule.
+	\end{itemize}}
 
 % ==========================================
 % SLIDE: Layered architecture
@@ -458,25 +455,27 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 			\renewcommand{\arraystretch}{1.4}
 			\begin{tabular}{>{\ttfamily}l p{0.55\textwidth}}
 				\toprule
-				\multicolumn{2}{l}{\textit{(id, paraphrase, layer, side, format, priority from D\&I)}} \\
+				\multicolumn{2}{l}{\textit{(id, paraphrase, layer, priority from D\&I)}} \\
 				\midrule
-				observability  & black\_box / white\_box                \\
-				method         & simulation / waveform / inspection     \\
-				status         & not\_started / in\_progress / complete \\
-				label          & TB procedure or RTL tag                \\
-				file           & Testbench or RTL source file           \\
+				side          & TX / RX / both                                           \\
+				format        & CB / CE / FB / FE                                        \\
+				observability & black\_box / white\_box                                  \\
+				method        & simulation / waveform / inspection                       \\
+				status        & not\_started / in\_progress / complete                   \\
+				label         & TB procedure or RTL tag                                  \\
+				file          & Testbench or RTL source file                             \\
 				\bottomrule
 			\end{tabular}
 		\end{column}
 	\end{columns}
 \end{frame}
 \note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-	\item \textbf{Observability:} black\_box = stimulus/response at module ports only. white\_box = internal signal inspection via waveform. Determines which TB strategy applies.
-	\item \textbf{Method:} simulation = pass/fail from TB assertions. waveform = human inspection of waveform evidence. inspection = RTL code review for structural properties.
-	\item \textbf{MCP server:} wraps the TOML file with a typed write interface. Prevents silent data corruption that would occur with direct file edits by AI agents. Narrow interface = safe incremental updates.
-	\item \textbf{Q: Why not a spreadsheet or issue tracker?} TOML is version-controlled alongside RTL --- every requirement change is a git commit, so traceability is auditable.
-	\item \textbf{Q: How many P1 requirements?} All MAC, PCS, and FCE P1 requirements are closed. Open items are LLC (out of scope), one optional (REQ-035), and one requiring error injection tooling (REQ-021).
-\end{itemize}}
+		\item \textbf{Observability:} black\_box = stimulus/response at module ports only. white\_box = internal signal inspection via waveform. Determines which TB strategy applies.
+		\item \textbf{Method:} simulation = pass/fail from TB assertions. waveform = human inspection of waveform evidence. inspection = RTL code review for structural properties.
+		\item \textbf{MCP server:} wraps the TOML file with a typed write interface. Prevents silent data corruption that would occur with direct file edits by AI agents. Narrow interface = safe incremental updates.
+		\item \textbf{Q: Why not a spreadsheet or issue tracker?} TOML is version-controlled alongside RTL --- every requirement change is a git commit, so traceability is auditable.
+		\item \textbf{Q: How many P1 requirements?} All MAC, PCS, and FCE P1 requirements are closed. Open items are LLC (out of scope), one optional (REQ-035), and one requiring error injection tooling (REQ-021).
+	\end{itemize}}
 
 % ==========================================
 % SLIDE 9b: Verification results
@@ -536,6 +535,13 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 			keepaspectratio]{\figures/waveforms/full_fd_frame.pdf}
 	\end{center}
 \end{frame}
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
+		\item \textbf{Top waveform:} A$\to$B = TDC count-up while TX echo propagates back (19\,TQ loop delay). C$\to$D = countdown from BRS edge to reserved bit. D = SSP fires at the correct offset for bit-error monitoring.
+		\item \textbf{Bottom waveform:} Full CAN FD frame --- arbitration phase at nominal rate, data phase faster after BRS. Shows complete TX/RX round-trip.
+		\item \textbf{REQ-022:} TDC positions SSP by measuring the transceiver loop delay on the reserved bit --- this waveform is the direct evidence.
+		\item \textbf{Q: What does TDC actually measure?} Time from TX drive to RX echo on the reserved bit --- the transceiver round-trip delay.
+		\item \textbf{Q: Why is SSP separate from SP?} At fast data rates the TX echo arrives late; SP fires at the nominal sample point, which samples the wrong bit. SSP fires at the measured offset.
+	\end{itemize}}
 
 % ==========================================
 % SLIDE 8: Bus-off recovery
@@ -551,6 +557,13 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 		Error active $\to$ error passive (TEC\,=\,128) $\to$
 		bus off (TEC\,=\,256) $\to$ 128 idle sequences $\to$ error active}
 \end{frame}
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
+		\item \textbf{Waveform:} Each TEC increment driven by injected errors from \texttt{p\_test\_ctrl}. TEC crosses 128 (error passive), crosses 256 (bus off), then 128 idle sequences counted by \texttt{can\_pcs} before recovery.
+		\item \textbf{Recovery mechanism:} \texttt{can\_pcs} emits \texttt{idle\_condition} strobes on 11 consecutive recessive bits. FCE counts 128 of these, then transitions back to error active and signals \texttt{can\_mac\_fsm}.
+		\item \textbf{Integration evidence:} This requires FCE, PCS, and MAC FSM all operating correctly together --- a unit testbench cannot produce this sequence.
+		\item \textbf{Q: Why 128 sequences of 11 recessive bits?} ISO 11898-1 mandates it --- extended quiet period ensures the bus is genuinely idle before the node re-joins.
+		\item \textbf{Q: Can a node re-enter bus off immediately after recovery?} Yes --- if errors continue, TEC climbs back to 256 and the cycle repeats.
+	\end{itemize}}
 
 % ==========================================
 % SLIDE 10: Synthesis
@@ -585,6 +598,13 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 		\end{column}
 	\end{columns}
 \end{frame}
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
+		\item \textbf{Fmax margin:} 127\,MHz on worst-case slow 100$^\circ$C corner. Minimum for 5\,Mbit/s at 8\,TQ/bit = 40\,MHz --- gives $3\times$ margin.
+		\item \textbf{Frame buffer dominates:} \texttt{can\_mac\_fsm} holds the 560-bit RX frame buffer in logic (0 memory blocks). BRAM migration is listed as future work --- would cut LEs significantly.
+		\item \textbf{4.0$\times$ total LEs:} CAN FD supports 64-byte payload vs 8-byte CC, longer CRC, three parallel CRC engines, fixed stuffing, TDC. $2.9\times$ is protocol logic alone; the rest is the larger frame buffer.
+		\item \textbf{Q: Why is \texttt{can\_mac\_fsm} 89\,\% of LEs?} 560-bit RX frame buffer implemented in logic registers --- no on-chip BRAM used. BRAM migration is listed as future work.
+		\item \textbf{Q: What is the minimum clock for 5\,Mbit/s?} 5\,Mbit/s at 8\,TQ/bit requires 40\,MHz. 127\,MHz gives $3\times$ margin.
+	\end{itemize}}
 
 % ==========================================
 % SLIDE 11: Conclusion
@@ -618,5 +638,12 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 		\end{column}
 	\end{columns}
 \end{frame}
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
+		\item \textbf{Delivered:} Full TX/RX for all four frame formats (CB, CE, FB, FE). MAC, PCS, and FCE implemented and verified. All P1 requirements closed.
+		\item \textbf{Lesson 1:} The \texttt{side} (TX/RX) dimension in requirements shapes testbench structure, not module structure. Unified FSM serves both directions; testbenches stimulate each direction independently.
+		\item \textbf{Lesson 2:} ISO sub-layer boundaries map cleanly to testbench boundaries --- each module has exactly one TB, and requirements trace unambiguously to one module.
+		\item \textbf{Q: What would LLC add?} Acceptance filtering, retransmission on arbitration loss, transfer status reporting to application layer.
+		\item \textbf{Q: Why not implement LLC?} Project timeline. MAC, PCS, and FCE are sufficient to demonstrate full frame TX/RX and fault confinement --- the core protocol engine is complete.
+	\end{itemize}}
 
 \end{document}
