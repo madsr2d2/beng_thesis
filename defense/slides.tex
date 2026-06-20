@@ -191,38 +191,9 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 }
 
 % ==========================================
-% SLIDE 4: Layered architecture
-% ==========================================
-\section{Design and Implementation}
-\begin{frame}{From ISO Reference Model to RTL Modules}
-	\begin{columns}[c]
-		\begin{column}{0.50\textwidth}
-			\begin{center}
-				\includegraphics[height=0.75\textheight,keepaspectratio]{images/ecu.png}\\
-				{\tiny ISO\,11898-1 reference model}
-			\end{center}
-		\end{column}
-		\begin{column}{0.50\textwidth}
-			\begin{center}
-				\includegraphics[height=0.75\textheight,keepaspectratio]{images/can_controller.png}\\
-				{\tiny Implemented RTL modules}
-			\end{center}
-		\end{column}
-	\end{columns}
-\end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
-		\item ISO 11898-1 defines four sub-layers: LLC, MAC, PCS, and FCE. Each has a specific responsibility boundary --- the standard does not prescribe RTL structure, just the functional split.
-		\item \textbf{LLC} (Logic Link Control): acceptance filtering on received frames, retransmission on arbitration loss or error, conversion between host-facing and MAC-facing frame formats.
-		\item \textbf{MAC} (Medium Access Control): orchestrates frame TX and RX across all four formats, controls bit stuffing/destuffing, drives CRC computation, and commits bits to the bus.
-		\item \textbf{PCS} (Physical Coding Sub-layer): bit timing, sample point generation, hard synchronization and resynchronization, TDC for SSP positioning in the data phase.
-		\item \textbf{FCE} (Fault Confinement Entity): tracks TX and RX error counts, manages error active/error passive/bus off state transitions. Sits outside the data path --- monitors every TX and RX event as a cross-cutting entity.
-		\item Right diagram: one RTL module per sub-layer. LLC is not implemented (out of scope). MAC is split into four sub-modules: \texttt{can\_mac\_fsm} orchestrates, \texttt{can\_mac\_ser} serializes the TX frame, \texttt{can\_mac\_bs} handles bit stuffing/destuffing, \texttt{can\_mac\_crc} runs three CRC engines in parallel.
-		\item Key payoff: module boundaries = testbench boundaries. Each module has exactly one testbench. Requirements trace unambiguously to one module.
-	\end{itemize}}
-
-% ==========================================
 % SLIDE: Requirements extraction
 % ==========================================
+\section{Design and Implementation}
 \begin{frame}{Requirements Extraction -- ISO\,11898-1 to Structured Requirements}
 	\begin{columns}[c]
 		\begin{column}{0.38\textwidth}
@@ -258,6 +229,35 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 	\item \textbf{Q: Why MAC FSM first?} It defines the interface contract for every other module --- building anything else first would mean designing against a moving target.
 	\item \textbf{Q: What does priority mean?} P1 = shall (core correctness), P2 = should, P3 = optional. Drives verification schedule.
 \end{itemize}}
+
+% ==========================================
+% SLIDE: Layered architecture
+% ==========================================
+\begin{frame}{From ISO Reference Model to RTL Modules}
+	\begin{columns}[c]
+		\begin{column}{0.50\textwidth}
+			\begin{center}
+				\includegraphics[height=0.75\textheight,keepaspectratio]{images/ecu.png}\\
+				{\tiny ISO\,11898-1 reference model}
+			\end{center}
+		\end{column}
+		\begin{column}{0.50\textwidth}
+			\begin{center}
+				\includegraphics[height=0.75\textheight,keepaspectratio]{images/can_controller.png}\\
+				{\tiny Implemented RTL modules}
+			\end{center}
+		\end{column}
+	\end{columns}
+\end{frame}
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
+		\item ISO 11898-1 defines four sub-layers: LLC, MAC, PCS, and FCE. Each has a specific responsibility boundary --- the standard does not prescribe RTL structure, just the functional split.
+		\item \textbf{LLC} (Logic Link Control): acceptance filtering on received frames, retransmission on arbitration loss or error, conversion between host-facing and MAC-facing frame formats.
+		\item \textbf{MAC} (Medium Access Control): orchestrates frame TX and RX across all four formats, controls bit stuffing/destuffing, drives CRC computation, and commits bits to the bus.
+		\item \textbf{PCS} (Physical Coding Sub-layer): bit timing, sample point generation, hard synchronization and resynchronization, TDC for SSP positioning in the data phase.
+		\item \textbf{FCE} (Fault Confinement Entity): tracks TX and RX error counts, manages error active/error passive/bus off state transitions. Sits outside the data path --- monitors every TX and RX event as a cross-cutting entity.
+		\item Right diagram: one RTL module per sub-layer. LLC is not implemented (out of scope). MAC is split into four sub-modules: \texttt{can\_mac\_fsm} orchestrates, \texttt{can\_mac\_ser} serializes the TX frame, \texttt{can\_mac\_bs} handles bit stuffing/destuffing, \texttt{can\_mac\_crc} runs three CRC engines in parallel.
+		\item Key payoff: module boundaries = testbench boundaries. Each module has exactly one testbench. Requirements trace unambiguously to one module.
+	\end{itemize}}
 
 % ==========================================
 % SLIDE MAC-1: FSM per-field structure
