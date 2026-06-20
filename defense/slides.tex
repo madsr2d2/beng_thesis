@@ -18,7 +18,7 @@
 \newcommand{\canbusanchor}{%
   \begin{column}{0.60\textwidth}
     \begin{center}
-      \includegraphics[width=\textwidth,height=0.78\textheight,keepaspectratio]{\figures/can_bus.png}
+      \includegraphics[width=\textwidth,keepaspectratio]{\figures/can_bus.png}
     \end{center}
   \end{column}%
 }
@@ -31,26 +31,25 @@
 % SLIDE 1: What is CAN
 % ==========================================
 \section{Introduction}
-\begin{frame}{Controller Area Network (CAN)}
+\begin{frame}{Controller Area Network (CAN) -- Key Attributes and Benefits}
 	\begin{columns}[c]
 		\canbusanchor
 		\begin{column}{0.40\textwidth}
 			\begin{itemize}\setlength{\itemsep}{10pt}
-				\item \textbf{Simple and low cost:} single shared bus, no bus master
-				\item \textbf{Centralized access:} diagnostics, logging, and firmware updates via one tap
-				\item \textbf{Robust:} differential signaling; built-in error detection; faulty nodes isolated
-				\item \textbf{Priority-based:} bitwise arbitration --- lowest ID wins, no collisions
+				\item \textbf{Simple and low cost:} Single shared multi-master bus, widely used in automotive and industrial contexts
+				\item \textbf{Robust:} Differential signaling, built-in error detection, faulty nodes isolated
+				\item \textbf{Priority-based access:} Highest priority ID wins bit-wise arbitration
 			\end{itemize}
 		\end{column}
 	\end{columns}
 \end{frame}
 \note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-	\item \textbf{Context:} CAN = Controller Area Network. Bosch, 1980s. ISO 11898-1. Each box = an ECU: CAN controller + transceiver. Used in automotive, marine, industrial.
-	\item \textbf{Everllence link:} Marine engine control --- sensors and actuators on one shared CAN bus on the IO-extender FPGA.
-	\item \textbf{Robustness note:} Marine engine bay is one of the harshest EMI environments --- differential signaling and bus-off isolation are requirements, not nice-to-haves.
-	\item \textbf{Arbitration note:} Non-destructive --- the losing node backs off without corrupting the winning frame. No wasted bandwidth, no collision recovery.
-	\item \textbf{Q: Why design in-house rather than use an IP core?} Covered on the Objectives slide.
-\end{itemize}}
+		\item \textbf{Context:} Bosch, 1980s. ISO 11898-1. Each node = ECU (CAN controller + transceiver). Everllence: marine engine control on IO-extender FPGA.
+		\item \textbf{Robustness:} CANH/CANL differential --- noise couples equally to both wires and cancels. Bus-off isolates faulty nodes automatically.
+		\item \textbf{Arbitration:} Non-destructive --- losing node backs off without corrupting the winning frame. No collision recovery overhead.
+		\item \textbf{Q: Why CAN over Ethernet or similar?} Hard real-time priority arbitration, deterministic latency, and far simpler embedded hardware.
+		\item \textbf{Q: Why design in-house?} Covered on the Objectives slide.
+	\end{itemize}}
 
 % ==========================================
 % SLIDE: Bit Timing
