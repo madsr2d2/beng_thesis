@@ -45,3 +45,4 @@ __pycache__/
 # Osvvm
 OsvvmTemp_GHDL/
 OsvvmLibraries/
+defense/.venv/

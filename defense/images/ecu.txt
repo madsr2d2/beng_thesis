@@ -23,7 +23,7 @@ classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
 
 subgraph dev1["`**ECU**`"]
   user("`**CAN Application Process**`")
-  subgraph d1["`**CAN Controller**`"]
+  subgraph d1["`**CAN Protocol Controller**`"]
       LLC("`**Logic Link Control
       (LLC)**`") 
       MAC("`**Medium Access Control
@@ -45,8 +45,9 @@ subgraph dev1["`**ECU**`"]
   t -->|RX| PCS
 end
 
-class LLC,MAC wd1
-class PCS wd1
-class FCE wd1
+class MAC wd7
+class LLC wd4
+class PCS wd5
+class FCE wd9
 class user wd2
 class t wd2

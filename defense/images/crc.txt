@@ -23,14 +23,19 @@ classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
 classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
 classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
 
+subgraph mac["`**can_mac**`"]
 subgraph crc["`**can_mac_crc**`"]
-crc15("`**CRC-15**`")
-crc17("`**CRC-17**`")
-crc21("`**CRC-21**`")
+crc15("`**CRC_15**`")
+crc17("`**CRC_17**`")
+crc21("`**CRC_21**`")
 mux("`**MUX**`")
 end
 
 fsm("`**can_mac_fsm**`")
+ser("`**can_mac_ser**`")
+bs("`**can_mac_bs**`")
+end
+
 
 crc15 --> mux
 crc17 --> mux
@@ -42,11 +47,8 @@ fsm -->|data_cc| crc
 fsm -->|data_cf| crc
 fsm -->|valid_cc| crc
 fsm -->|valid_cf| crc
+fsm <==> bs
+fsm <==> ser
 
 
-
-
-
-class s_dynamic rwd1
-class s_fixed wd1
-class ev_fsb_rise,ev_fsb_fall wd1
+class crc15,crc17,crc21,mux,fsm,ser,bs wd7

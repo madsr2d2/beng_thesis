@@ -11,7 +11,7 @@ config:
     edgeRouting: SPLINES
 ---
 
-flowchart LR
+flowchart
 
 classDef reset fill:#,stroke:#,stroke-width:6px,color:#000000
 classDef ff    fill:#,stroke:#,color:#000000
@@ -26,19 +26,26 @@ classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
 classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
 classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
 
-subgraph ser["`**can_mac_ser**`"]
+subgraph mac["`**can_mac**`"]
 direction TD
-s_load_config_byte_0("`**Load config byte 0**`")
+subgraph ser["`**can_mac_ser**`"]
+direction LR
+subgraph FSM["`**State machine**`"]
+s_load_config_byte_0("`**s_load_config_byte_0**`")
 
-s_load_config_byte_1("`**Load config byte 1**`")
+s_load_config_byte_1("`**s_load_config_byte_1**`")
 
-s_load_llc_frame_byte("`**Load frame byte**`")
+s_load_llc_frame_byte("`**s_load_frame_byte**`")
 
-s_shift_out_bits("`**Shift out bits**`")
+s_shift_out_bits("`**s_shift_out_bits**`")
+end
 end
 
 fsm("`**can_mac_fsm**`")
-llc("`**LLC**`")
+bs("`**can_mac_bs**`")
+crc("`**can_mac_crc**`")
+end
+llc("`**LLC stub**`")
 
 
 s_load_config_byte_0 --> s_load_config_byte_1
@@ -50,11 +57,15 @@ fsm ==>|transfer_status| ser
 ser -->|valid| fsm
 ser -->|data| fsm
 ser ==>|metadata| fsm
-llc <==> ser
+llc <==>|Avalon-ST| ser
+llc <==>|Avalon-ST| fsm
+fsm <==> bs
+fsm <==> crc
 
 
 s_shift_out_bits -->|transfer done| s_load_config_byte_0
 
 class s_load_config_byte_0 reset
-class s_load_config_byte_1,s_load_llc_frame_byte,s_shift_out_bits ff
-class ev_abort wd4
+class bs,crc,s_load_config_byte_0,s_load_config_byte_1,s_load_llc_frame_byte,s_shift_out_bits wd7
+class fsm wd7
+class llc wd4

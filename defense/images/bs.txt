@@ -23,12 +23,17 @@ classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
 classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
 classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
 
+subgraph mac["`**can_mac**`"]
 subgraph bs["`**can_mac_bs**`"]
-s_dynamic("`**Dynamic bit stuffing**`")
-s_fixed("`**Fixed bit stuffing**`")
+direction TD
+s_dynamic("`**Dynamic bit stuffing logic**`")
+s_fixed("`**Fixed bit stuffing logic**`")
 end
 
 fsm("`**can_mac_fsm**`")
+ser("`**can_mac_ser**`")
+crc("`**can_mac_crc**`")
+end
 
 bs -->|valid| fsm
 bs -->|data| fsm
@@ -36,12 +41,12 @@ bs ==>|sbc| fsm
 fsm -->|valid| bs
 fsm -->|data| bs
 fsm -->|enable| bs
+fsm <==> crc
+fsm <==> ser
 
 
-s_dynamic --> s_fixed
-s_fixed --> s_dynamic
 
 
-class s_dynamic rwd1
-class s_fixed wd1
-class ev_fsb_rise,ev_fsb_fall wd1
+
+class s_dynamic,s_fixed,fsm,ser,crc wd7
+

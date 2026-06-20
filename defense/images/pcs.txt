@@ -18,11 +18,22 @@ classDef event fill:#,stroke:#,color:#000000
 classDef ctrl  fill:#D6EAF8,stroke:#2E86C1,color:#000000
 classDef tdc   fill:#,stroke:#,color:#000000
 
-
+classDef wd2 fill:#FFFFFF,stroke:#999999,color:#000000
+classDef wd3 fill:#FFFFB4,stroke:#999900,color:#000000
+classDef wd4 fill:#FFE0B9,stroke:#CC8833,color:#000000
+classDef wd5 fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef wd6 fill:#CCFDFE,stroke:#33AAAA,color:#000000
+classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
+classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
 
 
 subgraph pcs["`**can_psc**`"]
 direction LR
+  tdc("`**TDC logic**`")
+  idle("`**Idle condition pulse logic**`")
+  sync("`**synchronization logic**`")
+  subgraph FSM["`**State machine**`"]
   s_sync_seg("`**s_sync_seg**`")
 
   s_prop_seg("`**s_prop_seg**`")
@@ -30,10 +41,13 @@ direction LR
   s_phase_seg1("`**s_phase_seg1**`")
 
   s_phase_seg2("`**s_phase_seg2**`")
+  end
 end
 
 fsm("`**can_mac_fsm**`")
 tran("`**CAN Transceiver**`")
+
+fce("`**can_fce**`")
 
 fsm -->|res_bit| pcs
 fsm -->|brs_bit| pcs
@@ -47,6 +61,9 @@ pcs -->|ssp| fsm
 pcs ==>|tdc_dealy| fsm
 pcs -->|TX| tran
 tran -->|RX| pcs
+fce -->|bus_off| pcs
+pcs -->|idel_condition| fce
+fsm <==> fce
 
 
 
@@ -64,7 +81,9 @@ s_phase_seg2 --> s_sync_seg
 
 
 class s_sync_seg reset
-class s_prop_seg,s_phase_seg1,s_phase_seg2 ff
-class ev_sp,ev_bb,ev_ssp event
-class tdc_count,tdc_wait,tdc_down tdc
-class sync_eval ctrl
+class sync,idle,tdc,s_sync_seg,s_prop_seg,s_phase_seg1,s_phase_seg2 wd5
+class tran wd2
+class fce wd9
+class fsm wd7
+
+

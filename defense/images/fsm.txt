@@ -11,29 +11,68 @@ config:
     edgeRouting: SPLINES
 ---
 
-graph 
 
-subgraph DUT["`**can_mac_fsm**`"]
-    case("`**FSM case block**
-    - Per-field state logic
-    - State transitions`")
+flowchart TD
 
-    precase("`**Pre-case code block**
-    - Error detection
-    - Bit stuffing handling`")
+classDef wd2 fill:#FFFFFF,stroke:#999999,color:#000000
+classDef wd3 fill:#FFFFB4,stroke:#999900,color:#000000
+classDef wd4 fill:#FFE0B9,stroke:#CC8833,color:#000000
+classDef wd5 fill:#B9E0FF,stroke:#4477BB,color:#000000
+classDef wd6 fill:#CCFDFE,stroke:#33AAAA,color:#000000
+classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
+classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
 
-    postcase("`**Post-case code block**
-    - Drive bit to PCS
-    - Feed CRC and Bit stuffer`")
 
-    error("`**Drive Error Flag**`")
+subgraph macfsm["`**can_mac_fsm**`"]
+
+
+subgraph fsm["`**State machine**`"]
+direction LR
+
+subgraph trans["`**Error free state transition**`"]
+    ifs("`**IFS**`")
+    arb("`**arbitration**`")
+    cc("`**CC branch**`")
+    cf("`**CF branch**`")
+    eof("`**EOF**`")
 end
-    precase --> case
-    precase -->|"`Stuff bit
-    detected`"| postcase
-    precase -->|Error detected| error
-    case --> postcase
-    postcase --> precase
-    error -->|"`Error flag
-    complete`"| precase
+    error("`**Error Flag**`")
 
+end
+    stream("`**p_stream**`")
+end
+ser("`**can_mac_ser**`")
+crc("`**can_mac_crc**`")
+bs("`**can_mac_bs**`")
+fce("`**can_fce**`")
+pcs("`**can_pcs**`")
+llc("`**LLC stub**`")
+
+  
+
+ 
+
+    macfsm <==> ser
+    macfsm <==> bs
+    macfsm <==> crc
+    macfsm <==> fce
+    macfsm <==> pcs
+    llc <==> ser
+    llc <==> stream
+
+    ifs --> arb
+    arb --> cc
+    arb --> cf
+    cc --> eof
+    cf --> eof
+    eof --> ifs
+    trans --> error
+    error --> ifs
+
+
+
+class stream,ifs,arb,cc,cf,eof,errorlogic,case,precase,postcase,error,ser,bs,crc wd7
+class fce wd9
+class pcs wd5
+class llc wd4

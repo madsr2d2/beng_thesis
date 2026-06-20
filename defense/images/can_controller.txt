@@ -11,7 +11,7 @@ config:
     edgeRouting: SPLINES
 ---
 
-flowchart TD
+flowchart 
 
 classDef llc fill:#B9E0FF,stroke:#4477BB,color:#000000
 classDef mac fill:#CDFDC5,stroke:#33AA33,color:#000000
@@ -28,13 +28,15 @@ classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
 classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
 
 
-subgraph mac_pcs_fce["`**CAN Controller**`"]
+subgraph mac_pcs_fce["`**CAN Protocol Controller**`"]
 
-LLC("`**LLC**`")
+LLC("`**LLC Stub**`")
 
 
-
-subgraph MAC["`**MAC**`"]
+subgraph integrated["`**can_mac_pcs_fce
+(Top wrapper for implemented modules)**`"]
+subgraph MAC["`**can_mac
+(MAC sub-layer)**`"]
     SER("`**can_mac_ser**`")
 
     FSM("`**can_mac_fsm**`")
@@ -44,11 +46,12 @@ subgraph MAC["`**MAC**`"]
     CRC("`**can_mac_crc**`")
 end
 
-PCS("`**PCS
-(can_pcs)**`")
+PCS("`**can_pcs
+(PCS)**`")
 
-FCE("`**FCE
-(can_fce)**`")
+FCE("`**can_fce
+(FCE)**`")
+end
 
 end
 
@@ -63,7 +66,7 @@ SER <==> FSM
 FSM <==> BS
 FSM <==> CRC
 
-class LLC wd2
-class SER,FSM,BS,CRC w1
-class PCS w1
-class FCE w1
+class LLC wd4
+class SER,FSM,BS,CRC wd7
+class PCS wd5
+class FCE wd9
