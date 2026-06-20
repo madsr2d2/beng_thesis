@@ -221,6 +221,45 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 	\end{itemize}}
 
 % ==========================================
+% SLIDE: Requirements extraction
+% ==========================================
+\begin{frame}{Requirements Extraction -- ISO\,11898-1 to Structured Requirements}
+	\begin{columns}[c]
+		\begin{column}{0.38\textwidth}
+			\begin{itemize}\setlength{\itemsep}{8pt}
+				\item 38 requirements distilled from ISO\,11898-1 --- AI-assisted extraction, manual consolidation
+				\item Classification fields drive module boundaries: each requirement assigned to one layer, one side, one set of frame formats
+				\item \textbf{Implementation order:} MAC FSM first (protocol core), then BS/CRC/SER outward, then PCS (timing), then FCE (fault confinement), then integration
+			\end{itemize}
+		\end{column}
+		\begin{column}{0.62\textwidth}
+			\footnotesize
+			\renewcommand{\arraystretch}{1.4}
+			\begin{tabular}{>{\ttfamily}l p{0.60\textwidth}}
+				\toprule
+				id             & REQ-NNN                        \\
+				source\_clause & ISO\,11898-1 section reference  \\
+				paraphrase     & Concise restatement            \\
+				layer          & LLC / MAC / PCS / FCE / System \\
+				side           & TX / RX / both                 \\
+				format         & CB / CE / FB / FE              \\
+				priority       & P1 / P2 / P3                   \\
+				\midrule
+				\multicolumn{2}{l}{\textit{Verification fields added later: observability, method, status, label, file}} \\
+				\bottomrule
+			\end{tabular}
+		\end{column}
+	\end{columns}
+\end{frame}
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
+	\item \textbf{Extraction:} Claude bootstrapped 168 normative statements from ISO\,11898-1. Manual distillation to 38 prioritised, independently verifiable requirements was substantial --- AI helped consistency, not speed.
+	\item \textbf{Classification payoff:} layer/side/format fields make each requirement unambiguously assigned to one module. Module boundaries fall out of the classification, not vice versa.
+	\item \textbf{Implementation order:} MAC FSM is the protocol core --- everything interfaces to it. Sub-modules (BS, CRC, SER) built next as they have clear, narrow contracts with FSM. PCS below (provides SP/SSP strobes), FCE beside (monitors events). Integration last.
+	\item \textbf{Q: Why MAC FSM first?} It defines the interface contract for every other module --- building anything else first would mean designing against a moving target.
+	\item \textbf{Q: What does priority mean?} P1 = shall (core correctness), P2 = should, P3 = optional. Drives verification schedule.
+\end{itemize}}
+
+% ==========================================
 % SLIDE MAC-1: FSM per-field structure
 % ==========================================
 \begin{frame}{MAC: \texttt{can\_mac\_fsm} -- FSM orchestrating the MAC layer}
@@ -405,29 +444,24 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 % ==========================================
 % SLIDE 9a: Verification plan methodology
 % ==========================================
-\begin{frame}{Verification Plan}
+\begin{frame}{Verification Plan -- Closing the Requirements Loop}
 	\begin{columns}[c]
-		\begin{column}{0.40\textwidth}
-			\begin{itemize}\setlength{\itemsep}{6pt}
-				\item 37 requirements distilled from ISO\,11898-1
-				\item AI-assisted extraction and manual review
-				\item Managed via MCP server for safe incremental AI-assisted updates throughout design and verification
+		\begin{column}{0.42\textwidth}
+			\begin{itemize}\setlength{\itemsep}{8pt}
+				\item Each requirement augmented with verification fields
+				\item MCP server enforces typed writes --- agents update status, labels, and file links safely throughout the project
+				\item Traceability: \texttt{label} names the TB procedure; \texttt{file} points to the testbench
 			\end{itemize}
 		\end{column}
-		\begin{column}{0.60\textwidth}
+		\begin{column}{0.58\textwidth}
 			\footnotesize
 			\renewcommand{\arraystretch}{1.4}
-			\begin{tabular}{>{\ttfamily}l p{0.65\textwidth}}
+			\begin{tabular}{>{\ttfamily}l p{0.55\textwidth}}
 				\toprule
-				id             & REQ-NNN                                \\
-				source\_clause & ISO\,11898-1 section reference         \\
-				paraphrase     & Concise restatement                    \\
-				layer          & LLC / MAC / PCS / FCE / System         \\
-				side           & TX / RX / both                         \\
-				format         & CB / CE / FB / FE                      \\
+				\multicolumn{2}{l}{\textit{(id, paraphrase, layer, side, format, priority from D\&I)}} \\
+				\midrule
 				observability  & black\_box / white\_box                \\
 				method         & simulation / waveform / inspection     \\
-				priority       & P1 / P2 / P3                           \\
 				status         & not\_started / in\_progress / complete \\
 				label          & TB procedure or RTL tag                \\
 				file           & Testbench or RTL source file           \\
@@ -436,13 +470,13 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 		\end{column}
 	\end{columns}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
-		\item AI-assisted extraction: Claude bootstrapped 168 normative statements from ISO\,11898-1. Manual distillation step --- consolidating to 37 prioritised, independently verifiable requirements --- was substantial and irreplaceable. Primary benefit of AI assistance was consistency, not speed.
-		\item The five classification dimensions (layer, side, format, observability, method) make each requirement independently testable and unambiguously assigned to one implementation unit.
-		\item MCP server wraps the TOML file with a typed write interface. Claude Code agents use it throughout design and verification to update status, add labels, and link files --- the narrow interface prevents silent data corruption that would occur with direct file edits.
-		\item P1 = need-to-have (shall requirements, core correctness). P2 = nice-to-have. P3 = optional (should clauses). Priority drives the verification schedule.
-		\item \texttt{label} and \texttt{file} are the traceability endpoints --- label names the TB procedure or RTL tag, file is the testbench or RTL source. Together they link each requirement to runnable evidence.
-	\end{itemize}}
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
+	\item \textbf{Observability:} black\_box = stimulus/response at module ports only. white\_box = internal signal inspection via waveform. Determines which TB strategy applies.
+	\item \textbf{Method:} simulation = pass/fail from TB assertions. waveform = human inspection of waveform evidence. inspection = RTL code review for structural properties.
+	\item \textbf{MCP server:} wraps the TOML file with a typed write interface. Prevents silent data corruption that would occur with direct file edits by AI agents. Narrow interface = safe incremental updates.
+	\item \textbf{Q: Why not a spreadsheet or issue tracker?} TOML is version-controlled alongside RTL --- every requirement change is a git commit, so traceability is auditable.
+	\item \textbf{Q: How many P1 requirements?} All MAC, PCS, and FCE P1 requirements are closed. Open items are LLC (out of scope), one optional (REQ-035), and one requiring error injection tooling (REQ-021).
+\end{itemize}}
 
 % ==========================================
 % SLIDE 9b: Verification results
