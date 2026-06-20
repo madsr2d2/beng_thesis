@@ -31,123 +31,26 @@
 % SLIDE 1: What is CAN
 % ==========================================
 \section{Introduction}
-\begin{frame}{Controller Area Network (CAN) -- Bus Topology and ECUs}
+\begin{frame}{Controller Area Network (CAN)}
 	\begin{columns}[c]
 		\canbusanchor
 		\begin{column}{0.40\textwidth}
-			\begin{center}
-				\vspace{1.2em}
-				\includegraphics[width=\textwidth,height=0.65\textheight,keepaspectratio]{images/bus_wire.jpeg}\\[0.3em]
-				{\tiny CAN bus wire - notice the twist, (source: Amazon.com)}
-			\end{center}
-		\end{column}
-	\end{columns}
-\end{frame}
-\note{
-	\footnotesize
-	\begin{itemize}\setlength{\itemsep}{4pt}
-		\item CAN = Controller Area Network. Bosch, 1980s. Now ISO 11898-1 --- the dominant embedded bus standard.
-		\item Each box = an ECU (Electronic Control Unit). CAN controller + transceiver chip. No host, no bus master.
-		\item Used in: cars, trucks, marine, industrial machinery, aerospace, agriculture.
-		\item Everllence: marine engine control. Sensors and actuators on one shared CAN bus on the IO-extender FPGA.
-	\end{itemize}
-}
-
-% ==========================================
-% SLIDE 2: Benefit 1
-% ==========================================
-\begin{frame}{Why CAN -- Key Attributes and Benefits}
-	\begin{columns}[c]
-		\canbusanchor
-		\begin{column}{0.40\textwidth}
-			\vspace{1.2em}
-			\textbf{Simple and Low Cost}
 			\begin{itemize}\setlength{\itemsep}{10pt}
-				\item Single shared bus replaces complex point-to-point wiring
-				\item Reduces vehicle/machine weight, wiring errors, and costs
-				\item Widely adopted: low-cost controllers, transceivers, and tooling
+				\item \textbf{Simple and low cost:} single shared bus, no bus master
+				\item \textbf{Centralized access:} diagnostics, logging, and firmware updates via one tap
+				\item \textbf{Robust:} differential signaling; built-in error detection; faulty nodes isolated
+				\item \textbf{Priority-based:} bitwise arbitration --- lowest ID wins, no collisions
 			\end{itemize}
 		\end{column}
 	\end{columns}
 \end{frame}
-\note{
-	Good example: NMEA 0183 (point-to-point, one talker per line) vs NMEA 2000
-	(CAN-based, all devices on one bus) in marine systems --- exactly Everllence's world.
-	Weight reduction in automotive: switching to CAN can save up to 20 kg of wiring harness.
-}
-
-% ==========================================
-% SLIDE 3: Benefit 2
-% ==========================================
-\begin{frame}{Why CAN -- Key Attributes and Benefits}
-	\begin{columns}[c]
-		\canbusanchor
-		\begin{column}{0.40\textwidth}
-			\vspace{1.2em}
-			\textbf{Easy Centralized Access}
-			\begin{itemize}\setlength{\itemsep}{10pt}
-				\item One connection point for diagnostics across all ECUs on the network
-				\item Silent data logging --- the interface does not affect bus traffic
-				\item Remote ECU firmware and configuration updates via CAN frames
-			\end{itemize}
-		\end{column}
-	\end{columns}
-\end{frame}
-\note{
-	Silent mode is critical for non-invasive diagnostics in production systems ---
-	a logging device that influences the bus would invalidate the measurement.
-	ECU flashing over CAN is standard in automotive (UDS protocol) and is used
-	in Everllence's engine platforms too.
-}
-
-% ==========================================
-% SLIDE 4: Benefit 3
-% ==========================================
-\begin{frame}{Why CAN -- Key Attributes and Benefits}
-	\begin{columns}[c]
-		\canbusanchor
-		\begin{column}{0.40\textwidth}
-			\vspace{1.2em}
-			\textbf{Robust Against Interference}
-			\begin{itemize}\setlength{\itemsep}{10pt}
-				\item Differential signaling (CANH/CANL): noise couples equally to both wires and cancels
-				\item Built-in error detection: bit, stuff, CRC, form, and ACK errors
-				\item Faulty nodes automatically isolated --- bus off prevents one node corrupting the network
-			\end{itemize}
-		\end{column}
-	\end{columns}
-\end{frame}
-\note{
-	The marine engine bay is one of the harshest EMI environments imaginable ---
-	high-current motor drives, ignition systems, inverters. Differential signaling
-	and bus-off isolation are not nice-to-haves here, they are requirements.
-	Bus off is implemented in the FCE (Fault Confinement Entity) in this project ---
-	good segue to the architecture slides later.
-}
-
-% ==========================================
-% SLIDE 5: Benefit 4
-% ==========================================
-\begin{frame}{Why CAN -- Key Attributes and Benefits}
-	\begin{columns}[c]
-		\canbusanchor
-		\begin{column}{0.40\textwidth}
-			\vspace{1.2em}
-			\textbf{Efficient Priority-Based Access}
-			\begin{itemize}\setlength{\itemsep}{10pt}
-				\item Bitwise arbitration: lowest identifier wins, no collisions, no bus master
-				\item Safety-critical messages always transmitted first
-				\item Lower-priority frames automatically fill remaining bus bandwidth
-			\end{itemize}
-		\end{column}
-	\end{columns}
-\end{frame}
-\note{
-	Non-destructive arbitration: the losing node does not corrupt the winning frame ---
-	it simply backs off and retries. No wasted bandwidth, no collision recovery overhead.
-	This is the key reason CAN outperformed competing protocols like VAN and SCP
-	in the 1990s for safety-critical automotive use.
-}
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
+	\item \textbf{Context:} CAN = Controller Area Network. Bosch, 1980s. ISO 11898-1. Each box = an ECU: CAN controller + transceiver. Used in automotive, marine, industrial.
+	\item \textbf{Everllence link:} Marine engine control --- sensors and actuators on one shared CAN bus on the IO-extender FPGA.
+	\item \textbf{Robustness note:} Marine engine bay is one of the harshest EMI environments --- differential signaling and bus-off isolation are requirements, not nice-to-haves.
+	\item \textbf{Arbitration note:} Non-destructive --- the losing node backs off without corrupting the winning frame. No wasted bandwidth, no collision recovery.
+	\item \textbf{Q: Why design in-house rather than use an IP core?} Covered on the Objectives slide.
+\end{itemize}}
 
 % ==========================================
 % SLIDE: Bit Timing
@@ -187,7 +90,7 @@
 			\textbf{Five error types}
 			\begin{itemize}\setlength{\itemsep}{4pt}
 				\item \textbf{Bit:} transmitted bit $\neq$ monitored bus level
-				\item \textbf{Stuff:} six consecutive identical bits
+				\item \textbf{Stuff:} six consecutive identical bits (transmitter inserts an opposite bit; receiver removes it)
 				\item \textbf{CRC:} computed vs.\ received remainder mismatch
 				\item \textbf{Form:} fixed-form field violated
 				\item \textbf{ACK:} no dominant ACK received
