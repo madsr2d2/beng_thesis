@@ -15,25 +15,53 @@
 \setcolor{dtured}
 
 \def\figures{../docs/figures}
-\newcommand{\canbusanchor}{%
-  \begin{column}{0.60\textwidth}
-    \begin{center}
-      \includegraphics[width=\textwidth,keepaspectratio]{\figures/can_bus.png}
-    \end{center}
-  \end{column}%
-}
 
 \begin{document}
 
 \inserttitlepage
 
 % ==========================================
-% SLIDE 1: What is CAN
+% SLIDE 0: Industrial context
 % ==========================================
 \section{Introduction}
+\begin{frame}{Industrial Collaboration}
+	\begin{columns}[T]
+		\begin{column}{0.45\textwidth}
+			\fbox{\includegraphics[width=\textwidth,keepaspectratio]{images/everllence_logo.png}}\\
+			{\small\textit{Source: www.everllence.com}}
+			\begin{itemize}
+				\item  Everllence's principal activity is the design and maintenance of \textbf{marine propulsion systems}.
+				\item Current CAN infrastructure at Everllence builds on the \textbf{CAN Classic protocol}
+			\end{itemize}
+		\end{column}
+		\hfill
+		\begin{column}{0.55\textwidth}
+			\textbf{Project Context and Scope}
+			\begin{itemize}\setlength{\itemsep}{6pt}
+				\item The thesis was conducted within the Everllence's \textbf{engine control department}
+				\item Everllence is \textbf{considering migrating current CAN infrastructure} from CAN Classic to CAN FD
+				\item Pilot implementation of a \textbf{combined CAN Classic and CAN FD} protocol controller in VHDL, compatible with Everllence's existing CAN infrastructure
+			\end{itemize}
+		\end{column}
+	\end{columns}
+\end{frame}
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
+		\item ``Everllence is a \textbf{Copenhagen-based} company. They build \textbf{marine propulsion systems} and run a custom \textbf{IO-extender FPGA} on the engine control bus that handles real-time motor telemetry and actuator commands.''
+		\item ``The CAN controller currently runs as an \textbf{IP core on that FPGA}, operating at \textbf{500\,kbit/s} with a payload limit of \textbf{8 bytes per frame}.''
+		\item ``This thesis was carried out within the engine control department, which \textbf{owns and maintains the CAN infrastructure} and initiated the migration evaluation.''
+		\item ``The motivation is \textbf{future-proofing} --- as the platform evolves, \textbf{CAN FD} provides headroom with 64-byte payloads and up to 8\,Mbit/s, without changing the physical bus.''
+		\item ``The thesis gives Everllence a \textbf{working reference implementation} --- a verified, ISO-compliant design they can use as a starting point and technical baseline for the full migration effort.''
+	\end{itemize}}
+
+% ==========================================
+% SLIDE 1: What is CAN
+% ==========================================
 \begin{frame}{Controller Area Network (CAN) -- Key Attributes and Benefits}
 	\begin{columns}[c]
-		\canbusanchor
+		\begin{column}{0.60\textwidth}
+			\fbox{\includegraphics[width=\textwidth,keepaspectratio]{\figures/can_bus.png}}\\
+			{\small\textit{Two-node CAN bus and node composition}}
+		\end{column}
 		\begin{column}{0.40\textwidth}
 			\begin{itemize}\setlength{\itemsep}{10pt}
 				\item \textbf{Simple and low cost:} Single shared multi-master bus, widely used in automotive and industrial contexts
@@ -43,123 +71,95 @@
 		\end{column}
 	\end{columns}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-		\item \textbf{Context:} Bosch, 1980s. ISO 11898-1. Each node = ECU (CAN controller + transceiver). Everllence: marine engine control on IO-extender FPGA.
-		\item \textbf{Robustness:} CANH/CANL differential --- noise couples equally to both wires and cancels. Bus-off isolates faulty nodes automatically.
-		\item \textbf{Arbitration:} Non-destructive --- losing node backs off without corrupting the winning frame. No collision recovery overhead.
-		\item \textbf{Q: Why CAN over Ethernet or similar?} Hard real-time priority arbitration, deterministic latency, and far simpler embedded hardware.
-		\item \textbf{Q: Why design in-house?} Covered on the Objectives slide.
+\note{\footnotesize\begin{itemize}
+		\item So what is \textbf{CAN bus}? It is a \textbf{serial communication bus} developed by Bosch in the 1980s for connecting electronic control units in vehicles and industrial systems. The figure shows the physical setup of a two-node CAN bus --- each CAN node consists of a \textbf{CAN controller} handling the protocol logic and a \textbf{transceiver IC} driving the differential bus. All nodes share the same two wires, \textbf{CANH and CANL}, terminated at each end with a \textbf{120\,$\Omega$} resistor that matches the characteristic impedance of the twisted pair and prevents signal reflections.''
+		\item \textbf{Simple and low cost:} ``Just \textbf{two wires} shared by all nodes, and every node can initiate a transfer --- no central master node required.
+		\item \textbf{Robust:} The bus uses \textbf{differential signaling} on CANH and CANL, which makes it inherently noise-resistant. Faulty nodes are automatically isolated through the \textbf{bus-off} mechanism.
+		\item \textbf{Priority-based access:} Arbitration is \textbf{non-destructive} -- the bus implements a \textbf{wired-AND} where dominant ('0') always beats recessive ('1'). A losing node backs off the moment it detects a stronger signal, leaving the winning frame \textbf{uninterrupted}.
 	\end{itemize}}
 
 % ==========================================
 % SLIDE: Bit Timing
 % ==========================================
 \begin{frame}{CAN Bit Timing and Synchronization}
-	\begin{columns}[c]
-		\begin{column}{0.42\textwidth}
-			\begin{itemize}\setlength{\itemsep}{6pt}
-				\item Each bit: SYNC\_SEG, PROP\_SEG, PHASE\_SEG1, PHASE\_SEG2 --- sample point at end of PHASE\_SEG1
-				\item Hard synchronization on SOF dominant edge; resynchronization on any recessive-to-dominant edge mid-frame
-				\item CAN FD: arbitration phase at nominal rate, data phase at up to 8\,Mbit/s --- switch at BRS bit
-				\item TDC measures transceiver loop delay on reserved bit; positions SSP for bit-error monitoring in data phase
-			\end{itemize}
-		\end{column}
-		\begin{column}{0.58\textwidth}
-			\begin{center}
-				\includegraphics[width=\textwidth,height=0.38\textheight,keepaspectratio]{\figures/bit_timing.png}\\[0.4em]
-				\includegraphics[width=\textwidth,height=0.38\textheight,keepaspectratio]{\figures/tdc.png}
-			\end{center}
-		\end{column}
-	\end{columns}
+	\fbox{\includegraphics[width=\textwidth,keepaspectratio]{\figures/bit_timing.png}}\\
+	{\small\textit{CAN bit segmentation and sample point}}
+	\begin{itemize}
+		\item Receiving nodes do \textbf{hard synchronization} on the first frame bit and \textbf{resynchronization on recessive-to-dominant} edges mid-frame
+	\end{itemize}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-		\item \textbf{Segments:} SYNC\_SEG = 1\,TQ (edge expected here). PROP\_SEG compensates bus propagation. PHASE\_SEG1/2 are adjustable for sync. Total bit time is configurable in time quanta (TQ).
-		\item \textbf{Hard sync:} only on SOF, resets the bit timing counter. Resync: adjusts PHASE\_SEG1 (lengthen) or PHASE\_SEG2 (shorten) by up to the sync jump width.
-		\item \textbf{Dual rate:} arbitration must be slow enough for all nodes to participate simultaneously (round-trip propagation). Data phase is point-to-point after arbitration --- can be much faster.
-		\item \textbf{TDC:} transmitter drives a bit, echos it back via the transceiver. At 5\,Mbit/s a 200\,ns loop delay = 1 full bit period --- SP would sample the wrong bit. TDC counts from BRS edge to reserved bit echo, stores the offset, fires SSP at that offset each data-phase bit.
-		\item \textbf{Q: Why not just use SP for bit-error monitoring in data phase?} SP fires at the nominal sample point --- at fast rates, the TX echo arrives late, so the transmitter would read its own bit one period behind. SSP fires at the correct offset.
+\note{\footnotesize\begin{itemize}
+		\item Each node on the bus runs on its own \textbf{independent clock oscillator} so the bus needs a way to synchronize nodes and correct for oscillator drift during transmission.
+		\item The synchronization mechanism is comprised of two sycn types: Hard sync and resync. \textbf{Hard sync} align node clocks by resetting the timer logic at the start of each frame. \textbf{Resynchronization} corrects for oscillator drift mid-frame by lengthening Phase\_Seg1 or shortening Phase\_Seg2 on recessive-to-dominant edge.
+		\item ``The figure shows the bit segmentation of two nodes with node B synchronised to node A -- the bit edge of node A arrives within the sync\_seg of node B. Each bit is split into \textbf{Sync\_Seg}, \textbf{Prop\_Seg}, \textbf{Phase\_Seg1}, and \textbf{Phase\_Seg2}, with the \textbf{sample point} at the end of Phase\_Seg1. The leading node A is offset from B by the \textbf{one-way propagation delay}. Prop\_Seg must cover the full round-trip delay so A sees the settled bus level before sampling.''
 	\end{itemize}}
 
 % ==========================================
 % SLIDE: Error Detection and Confinement
 % ==========================================
 \begin{frame}{Error Detection and Confinement}
-	\begin{columns}[c]
-		\begin{column}{0.42\textwidth}
-			\textbf{Five error types}
-			\begin{itemize}\setlength{\itemsep}{4pt}
+	\begin{columns}[T]
+		\begin{column}{0.60\textwidth}
+			\textbf{Five error types}:
+			\begin{itemize}\setlength{\itemsep}{3pt}
 				\item \textbf{Bit:} transmitted bit $\neq$ monitored bus level
-				\item \textbf{Stuff:} six consecutive identical bits (transmitter inserts an opposite bit; receiver removes it)
+				\item \textbf{Stuff:} six consecutive identical bits detected
 				\item \textbf{CRC:} computed vs.\ received remainder mismatch
 				\item \textbf{Form:} fixed-form field violated
 				\item \textbf{ACK:} no dominant ACK received
 			\end{itemize}
-			\vspace{0.5em}
-			Any detecting node transmits an error flag, destroying the current frame
+			Any \textbf{detecting node sends an error flag} -- 6 dominant bits (error active) or 6 recessive bits (error passive)
 		\end{column}
-		\begin{column}{0.58\textwidth}
-			\begin{center}
-				\includegraphics[width=\textwidth,height=0.72\textheight,keepaspectratio]{\figures/fce_fsm.png}
-			\end{center}
+		\begin{column}{0.40\textwidth}
+			\fbox{\includegraphics[width=\textwidth,keepaspectratio]{images/fce.png}}\\
+			{\small\textit{Fault confinement FSM}}
 		\end{column}
 	\end{columns}
 \end{frame}
 \note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-		\item \textbf{Active error flag:} 6 dominant bits --- violates stuff rule, all nodes detect it and join in. Passive error flag: 6 recessive bits --- invisible on bus, other nodes continue.
-		\item \textbf{TEC/REC rules:} TEC $+8$ on TX error, $-1$ on success. REC $+1$ on RX error, $-8$ on primary error (node caused it), $-1$ on success.
-		\item \textbf{Error passive:} TEC or REC $\geq 128$. Node still participates but cannot destroy frames --- passive flags are recessive and ignored by other nodes.
-		\item \textbf{Bus off:} TEC $\geq 256$. Node stops driving. Recovery: 128 sequences of 11 consecutive recessive bits.
-		\item \textbf{Q: Why does error passive node still transmit?} It can still receive and ACK --- only its ability to signal errors is degraded. Useful for a node recovering from transient faults.
+		\item ``This slide covers two related things --- the \textbf{five ways a CAN frame can go wrong}, and how the node reacts when errors accumulate.''
+		\item \textbf{Five error types / error flag:} ``Any detecting node immediately sends an \textbf{error flag}. An \textbf{error active} node sends 6 dominant bits --- this violates the stuff rule and forces all other nodes to join in. An \textbf{error passive} node sends 6 recessive bits, which are invisible to other nodes --- the frame is not destroyed.''
+		\item \textbf{Fault confinement FSM:} ``Each node independently tracks a \textbf{transmit error counter} (TEC) and \textbf{receive error counter} (REC). TEC goes up by 8 on a TX error and down by 1 on success. The FSM has three states --- \textbf{error active}, \textbf{error passive}, and \textbf{bus off} --- driven by these counters.''
+		\item \textbf{Bus off:} ``Once TEC exceeds 255 the node stops driving entirely. Recovery requires seeing \textbf{128 sequences of 11 consecutive recessive bits} --- a deliberately long quiet period before re-joining the bus.''
 	\end{itemize}}
 
 % ==========================================
 % SLIDE: CAN vs CAN FD
 % ==========================================
 \begin{frame}{CAN Classic (CC) vs. CAN Flexible Data Rate (CF)}
-	\vspace{0.3em}
-	\includegraphics[width=\textwidth,keepaspectratio]{images/frame_format.png}\\[0.3em]
+	\fbox{\includegraphics[width=\textwidth,keepaspectratio]{images/frame_format.png}}\\
+	{\small\textit{CAN Classic and CAN FD frame structures}}
+	\linebreak
+
 	\footnotesize
-	\renewcommand{\arraystretch}{1.5}
-	\begin{tabular}{>{\bfseries}p{0.26\textwidth} p{0.26\textwidth} p{0.26\textwidth}}
+	\begin{tabular}{p{0.30\textwidth} p{0.30\textwidth} p{0.30\textwidth}}
 		\toprule
-		Feature                      & CC                               & CF                           \\
+		Feature                      & CAN Classic                      & CAN FD                       \\
 		\midrule
 		Max bit rate                 & 1\,Mbit/s                        & 8\,Mbit/s (data phase)       \\
 		Max payload                  & 8\,bytes                         & 64\,bytes                    \\
 		Error detection HD$^\dagger$ & 6 typical, \textbf{2 worst case} & 6, all patterns, $\leq$64\,B \\
 		Burst error detection        & up to 15\,bits                   & up to 17/21\,bits            \\
 		\bottomrule
-	\end{tabular}\\[0.2em]
+	\end{tabular}\\
 	{\tiny $^\dagger$ CAN in Automation (CiA), \textit{CRC in CAN Frames}, can-cia.org.}
 \end{frame}
-\note{
-\footnotesize\setlength{\parskip}{3pt}
-\textbf{Dual bit rate:} Arbitration at nominal rate (backward compatible). Data phase
-switches to fast rate at the BRS bit. TDC compensates transceiver loop delay.
-
-\textbf{HD=6 requires fixed length:} CRC-15 BCH guarantees HD=6 only for fixed codeword
-length. CAN Classic stuff bits make wire length variable --- receiver determines
-stuff positions by counting, not from metadata.
-
-\textbf{HD=2 worst case:} Two errors can \emph{relocate} a stuff bit (one deletes it,
-one creates it elsewhere). Receiver strips the wrong bit, feeds a different logical
-sequence to CRC. For specific data patterns the CRC accidentally matches --- undetected.
-CAN FD fixes this: dynamic stuff bits included in CRC feed + SBC field (Gray-coded
-count + parity) means any relocation changes the CRC remainder.
-
-\textbf{Burst detection:} Burst error of length $b$ = polynomial $x^i \cdot B(x)$,
-$\deg(B)=b{-}1$. Undetected only if $G(x)$ divides $B(x)$. Impossible when
-$\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD frames.
-}
+\note{\footnotesize\begin{itemize}
+		\item This slide compares \textbf{CAN Classic and CAN FD} --- the two frame formats this controller supports.
+		\item The figure shows the two frame structures side by side. CAN FD adds the \textbf{BRS bit} (bit rate switch), \textbf{ESI} (error state indicator), and a \textbf{longer CRC field} to support the higher data rate and larger payload.
+		\item \textbf{Max bit rate / payload:} CAN Classic tops out at \textbf{1\,Mbit/s} and \textbf{8 bytes}. CAN FD switches to up to \textbf{8\,Mbit/s} in the data phase and supports up to \textbf{64 bytes}.
+		\item \textbf{Error detection HD:} CAN Classic computes CRC before stuffing, so two errors can \textbf{relocate a stuff bit} making the true and corrupted frames produce the \textbf{same CRC remainder}, giving \textbf{HD=2}. CAN FD includes stuff bits in the CRC and adds the \textbf{SBC field}, so any relocation changes the remainder and \textbf{restoring HD=6}.
+		\item \textbf{Burst error detection:} Any burst of length $b < \deg(G)$ produces a polynomial the generator cannot divide --- so \textbf{CRC-15 catches all 15-bit bursts} for free. CAN FD uses \textbf{CRC-17/21} to both raise the burst ceiling and maintain \textbf{HD=6} over the larger 64-byte payloads.
+	\end{itemize}}
 
 % ==========================================
 % SLIDE 2: Why clean-slate
 % ==========================================
 \begin{frame}{Project Objectives and Rationale}
-	\begin{columns}[c]
+	\begin{columns}[T]
 		\begin{column}{0.50\textwidth}
 			\textbf{Objectives}
-			\begin{enumerate}\setlength{\itemsep}{8pt}
+			\begin{enumerate}
 				\item Implement a CAN Classic/FD protocol controller in VHDL, compliant with ISO\,11898-1
 				\item Structured requirements framework with traceability from ISO\,11898-1 to testbench evidence
 				\item RTL design integrated via Avalon-ST into Everllence's existing FPGA infrastructure
@@ -167,64 +167,58 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 		\end{column}
 		\begin{column}{0.50\textwidth}
 			\textbf{Why design in-house}
-			\begin{itemize}\setlength{\itemsep}{6pt}
-				\item IP ownership: 30-year service horizon
-				\item Verification authority: own the test suite
-				\item Scope: protocol engine only, not a full node
-				\item Integration: Avalon-ST + existing infrastructure
-				\item Platform independence: portable VHDL-93
+			\begin{itemize}
+				\item \textbf{IP ownership:} 30-year service horizon
+				\item \textbf{Verification authority:} own the test suite
+				\item \textbf{Integration:} Avalon-ST + existing infrastructure
+				\item \textbf{Platform independence:} portable VHDL-93
 			\end{itemize}
 		\end{column}
 	\end{columns}
 \end{frame}
-\note{
-	\footnotesize
-	\textbf{Third-party IP --- why rejected:} No available core satisfies all five
-	constraints simultaneously.
-	\begin{itemize}\setlength{\itemsep}{3pt}
-		\item IP ownership: 30-year service horizon; no vendor dependency
-		\item Verification authority: must own the verification, not inherit it
-		\item Architectural scope: existing cores include full node (buffers, filters, DMA) --- Everllence needs protocol engine only
-		\item Platform independence: Xilinx/Intel-locked cores are a non-starter
-		\item Integration conventions: Avalon-ST interfaces, existing FPGA infrastructure
-	\end{itemize}
-}
+\note{\footnotesize\begin{itemize}
+		\item That covers the \textbf{CAN protocol background}. Now let's look at the \textbf{project objectives} and why Everllence chose to build the controller in-house rather than use a third-party IP core.
+		\item \textbf{Objectives:} Three concrete goals -- a \textbf{verified ISO-compliant controller} in VHDL, a \textbf{structured requirements framework} with traceability from spec to test evidence, and \textbf{Avalon-ST integration} into the existing FPGA infrastructure.
+		\item \textbf{IP ownership:} A \textbf{30-year service horizon} makes vendor dependency a real risk. Owning the RTL means the design can be maintained, ported, and extended without licensing constraints.
+		\item \textbf{Verification authority:} Inheriting a third-party core means inheriting its test suite. Everllence needs to \textbf{own the verification} to know exactly what has and hasn't been tested.
+		\item \textbf{Integration:} A clean-slate design with \textbf{Avalon-ST interfaces} fits directly into Everllence's existing FPGA infrastructure without adaptation layers.
+		\item \textbf{Platform independence:} The design is in \textbf{portable VHDL-93} making it independent of any vendor-specific toolchains, which matters for a 30-year horizon.
+	\end{itemize}}
 
 % ==========================================
 % SLIDE: Requirements extraction
 % ==========================================
 \section{Design and Implementation}
-\begin{frame}{Requirements Extraction -- ISO\,11898-1 to Structured Requirements}
+\begin{frame}{From ISO specification to Structured Requirements Set}
 	\begin{columns}[c]
-		\begin{column}{0.50\textwidth}
+		\begin{column}{0.40\textwidth}
 			\begin{itemize}\setlength{\itemsep}{8pt}
-				\item 38 requirements distilled from ISO\,11898-1 --- AI-assisted extraction, manual consolidation
-				\item The ISO sub-layer structure became the module structure directly --- \texttt{layer} is the single field that maps each requirement to one implementation unit
-				\item Classifying each requirement by \texttt{layer} and \texttt{priority} forced explicit design decisions before any RTL was written --- which module owns which behavior, and what is strictly needed vs.\ optional
-				\item \textbf{Implementation order:} started at the protocol core (\texttt{can\_mac\_fsm}) and worked outward --- BS/CRC/SER, then PCS, then FCE, then integration
+				\item \textbf{37 requirements} distilled from ISO\,11898-1:2024
+				\item \textbf{\texttt{layer} field maps each requirement to an ISO reference model sub-layer}. This settled the module scope before any RTL was written
 			\end{itemize}
 		\end{column}
-		\begin{column}{0.50\textwidth}
+		\begin{column}{0.60\textwidth}
 			\footnotesize
-			\renewcommand{\arraystretch}{1.4}
-			\begin{tabular}{>{\ttfamily}l p{0.60\textwidth}}
+			\begin{tabular}{p{0.30\textwidth} p{0.6\textwidth}}
 				\toprule
+				\textbf{Field} & \textbf{Content}               \\
+				\midrule
 				id             & REQ-NNN                        \\
 				source\_clause & ISO\,11898-1 section reference \\
 				paraphrase     & Concise restatement            \\
 				layer          & LLC / MAC / PCS / FCE / System \\
 				priority       & P1 / P2 / P3                   \\
 				\bottomrule
-			\end{tabular}
+			\end{tabular}\\
+			{\small\textit{Requirements table field descriptions}}
 		\end{column}
 	\end{columns}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-		\item \textbf{Extraction:} Claude bootstrapped 168 normative statements from ISO\,11898-1. Manual distillation to 38 prioritised, independently verifiable requirements was substantial --- AI helped consistency, not speed.
-		\item \textbf{Layer as design driver:} one ISO sub-layer = one RTL module. \texttt{layer} is the single field that produced the module split --- all other classification fields shape testbenches, not modules.
-		\item \textbf{Implementation order:} MAC FSM is the protocol core --- everything interfaces to it. Sub-modules (BS, CRC, SER) built next as they have clear, narrow contracts with FSM. PCS below (provides SP/SSP strobes), FCE beside (monitors events). Integration last.
-		\item \textbf{Q: Why MAC FSM first?} It defines the interface contract for every other module --- building anything else first would mean designing against a moving target.
-		\item \textbf{Q: What does priority mean?} P1 = strictly needed for a correct implementation (shall clauses). P2 = nice-to-have. P3 = optional. A scope clarity tool, not a schedule.
+\note{\footnotesize\begin{itemize}
+		\item Now let's focus on the \textbf{design and implementation} --- starting with how the ISO spec was turned into a structured requirements set.
+		\item \textbf{37 requirements:} ISO\,11898-1 is a relatively sprawling document with requirements scattered across subsections and compound clauses and intermixed with descriptive language. So to make the requirement extraction more systematic and consistent the standard was converted to Markdown and fed to a Claude agent, which was prompted to extract all normative statements -- yielding \textbf{168 raw statements}. Manual review then distilled these to \textbf{37 verifiable requirements}.
+		\item The table shows the dimensions along which the requirements were classified. \textbf{id} for traceability, \textbf{source\_clause} links back to the ISO section, \textbf{layer} assigns each requirement to a model sub-layer, and \textbf{priority} where P1,P2,P3 map to must-have, nice-to-have and optional according to the ISO standard.
+		\item \textbf{\texttt{layer} field:} Each requirement is tagged with the ISO reference model sub-layer that owns it -- LLC, MAC, PCS, FCE, or System. The design was split along these boundaries thus settling the module scope before any RTL was written. System-tagged requirements pertain to the complete system and can not be verified at the sub-module level.
 	\end{itemize}}
 
 % ==========================================
@@ -234,26 +228,22 @@ $\deg(B) < \deg(G) = 15$. CRC-17/21 raise ceiling to 17/21 bits for longer FD fr
 	\begin{columns}[c]
 		\begin{column}{0.50\textwidth}
 			\begin{center}
-				\includegraphics[height=0.75\textheight,keepaspectratio]{images/ecu.png}\\
-				{\tiny ISO\,11898-1 reference model}
+				\fbox{\includegraphics[height=0.75\textheight,keepaspectratio]{images/ecu.png}}\\{\small ISO\,11898-1 reference model}
 			\end{center}
 		\end{column}
 		\begin{column}{0.50\textwidth}
 			\begin{center}
-				\includegraphics[height=0.75\textheight,keepaspectratio]{images/can_controller.png}\\
-				{\tiny Implemented RTL modules}
+				\fbox{\includegraphics[height=0.75\textheight,keepaspectratio]{images/can_controller.png}}\\{\small Implemented RTL modules}
 			\end{center}
 		\end{column}
 	\end{columns}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
-		\item ISO 11898-1 defines four sub-layers: LLC, MAC, PCS, and FCE. Each has a specific responsibility boundary --- the standard does not prescribe RTL structure, just the functional split.
-		\item \textbf{LLC} (Logic Link Control): acceptance filtering on received frames, retransmission on arbitration loss or error, conversion between host-facing and MAC-facing frame formats.
-		\item \textbf{MAC} (Medium Access Control): orchestrates frame TX and RX across all four formats, controls bit stuffing/destuffing, drives CRC computation, and commits bits to the bus.
-		\item \textbf{PCS} (Physical Coding Sub-layer): bit timing, sample point generation, hard synchronization and resynchronization, TDC for SSP positioning in the data phase.
-		\item \textbf{FCE} (Fault Confinement Entity): tracks TX and RX error counts, manages error active/error passive/bus off state transitions. Sits outside the data path --- monitors every TX and RX event as a cross-cutting entity.
-		\item Right diagram: one RTL module per sub-layer. LLC is not implemented (out of scope). MAC is split into four sub-modules: \texttt{can\_mac\_fsm} orchestrates, \texttt{can\_mac\_ser} serializes the TX frame, \texttt{can\_mac\_bs} handles bit stuffing/destuffing, \texttt{can\_mac\_crc} runs three CRC engines in parallel.
-		\item Key payoff: module boundaries = testbench boundaries. Each module has exactly one testbench. Requirements trace unambiguously to one module.
+\note{\footnotesize\begin{itemize}
+		\item So this is the \textbf{ISO 11898-1 reference model} on the left and the \textbf{implemented RTL module structure} on the right. Each sub-layer maps directly to one or more RTL modules.
+		\item \textbf{LLC} (Logic Link Control): The application-facing layer responsible for \textbf{acceptance filtering and frame retransmission}. This module was \textbf{deferred due to time constraints}. Without LLC the controller still transmits and receives fully compliant frames, but the host must handles filtering and retransmission directly. This works in practice because \textbf{both the LLC-MAC and LLC-host interfaces are Avalon-ST}, so the host can talk directly to the MAC using the same interface convention Everllence's existing infrastructure already speaks.
+		\item \textbf{MAC} (Medium Access Control): orchestrates frame TX and RX, bit stuffing/destuffing, CRC, and bus arbitration. \textbf{Split into four sub-modules}: \texttt{can\_mac\_fsm} orchestrates, \texttt{can\_mac\_ser} serializes TX, \texttt{can\_mac\_bs} handles stuffing, \texttt{can\_mac\_crc} runs the CRC engines.
+		\item \textbf{PCS} (Physical Coding Sub-layer): Responsible bit timing and clock synchronization.
+		\item \textbf{FCE} (Fault Confinement Entity): Tracks transmitter/receiver errors and manages error state transitions.
 	\end{itemize}}
 
 % ==========================================

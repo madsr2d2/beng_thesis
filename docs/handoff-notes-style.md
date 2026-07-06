@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the speaker note formatting style established during the June 2026 slide polish session. Any agent or session working on `defense/slides.tex` notes should follow this style exactly.
+This document defines the speaker note formatting style established during the defense slide sessions. Any agent or session working on `defense/slides.tex` notes should follow this style exactly.
 
 ---
 
@@ -15,74 +15,65 @@ This document defines the speaker note formatting style established during the J
 
 ---
 
-## LaTeX Template
+## Format
+
+Notes are verbatim speech in quotes with key terms bolded. One bullet per slide bullet. The purpose is to serve as a spoken delivery guide during the defense — not a compressed reference or Q&A prep sheet.
 
 ```latex
 \note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-    \item \textbf{Topic:} One tight sentence. Second sentence only if essential.
-    \item \textbf{Topic:} ...
-        \begin{itemize}\setlength{\itemsep}{1pt}
-            \item Sub-point for a named item that needs elaboration.
-            \item Sub-point for another named item.
-        \end{itemize}
-    \item \textbf{Q: Anticipated examiner question?} One-sentence answer.
-    \item \textbf{Q: Second likely question?} One-sentence answer.
+    \item ``Spoken sentence for first slide bullet, with \textbf{key terms} bolded.''
+    \item ``Spoken sentence for second slide bullet, with \textbf{key terms} bolded.''
+    \item ``Spoken sentence for third slide bullet, with \textbf{key terms} bolded.''
 \end{itemize}}
 ```
 
 Key parameters:
 - Outer itemsep: `5pt`
-- Inner (sub-bullet) itemsep: `1pt`
-- Lead term always bolded: `\textbf{Term:}`
-- Q lines always at the bottom, formatted `\textbf{Q: ...?} answer.`
+- Speech in double quotes: ```` ``...'' ````
+- Key terms bolded inline: `\textbf{term}`
 
 ---
 
 ## Rules
 
-### 1. Bold lead term on every bullet
+### 1. One bullet per slide bullet
 
-Every main bullet starts with `\textbf{Keyword:}` so the presenter can find their place at a glance without reading the full line.
+The first bullet is always a **framing opener** — one sentence that orients the presenter before they start talking. It introduces the slide topic in spoken form, often as a rhetorical question or a "this slide covers..." statement. It does not correspond to any slide bullet.
 
-Good: `\item \textbf{Error counters:} TEC $+8$ on TX error, $-1$ on successful TX.`
-Bad: `\item TEC increments by 8 on TX errors and decrements by 1 on successful TX.`
+Every subsequent bullet corresponds to one slide bullet. The note rephrases the slide content in natural spoken form and adds one piece of depth not visible on the slide — context, a number, a motivation, a consequence. It does not restate the slide verbatim.
 
-### 2. Sub-bullets only for named lists
+Good: slide says "CAN Classic protocol", note says ``"The CAN controller currently runs as an \textbf{IP core on that FPGA}, operating at \textbf{500\,kbit/s} with a payload limit of \textbf{8 bytes per frame}."''
 
-Use a nested `itemize` when a bullet enumerates specific signal names, states, or fields that the presenter may need to reference by name. Do not nest for prose elaboration — that belongs in the parent bullet.
+Bad: slide says "CAN Classic protocol", note says ``"The current CAN infrastructure builds on the CAN Classic protocol."''
 
-Good use: listing 5 input signals from `can_mac_fsm` with brief explanations of the non-obvious ones.
-Bad use: nesting a second sentence of prose under a bullet that is already clear.
+### 2. Bold key terms inline
 
-### 3. Q lines at the bottom
+Bold the two or three terms per bullet the presenter must land clearly when speaking. These are the terms the examiner will latch onto. Do not bold whole phrases — just the noun or number that carries the meaning.
 
-End every note with one or two `\textbf{Q: ...?}` lines covering the examiner questions most likely to come from that slide. Keep the answer to one sentence. These are the last thing the presenter sees before the examiner speaks — make them punchy.
+### 3. Do not restate the slide
 
-### 4. One fact per bullet
+The examiner can read the slide. Notes that repeat slide text verbatim waste airtime. Each bullet must add something the slide does not say.
 
-If a bullet contains two independent facts joined by a semicolon, split it. If it contains a subordinate clause longer than the main clause, trim the subordinate clause.
+### 4. No Q&A lines in notes
+
+Examiner Q&A prep does not belong in the speaker notes. The notes are for delivery, not preparation. Q&A material goes in a separate document if needed.
 
 ### 5. Fit test
 
-After editing, build with `latexmk -pdf -interaction=nonstopmode -g slides.tex` and visually check the note page in the PDF. If the note overflows, cut the lowest-priority bullet first, then shorten sub-bullets, then condense main bullets.
+After editing, build with `latexmk -pdf -interaction=nonstopmode -g slides.tex` and visually check the note page in the PDF. If the note overflows, shorten the longest bullet first.
 
 ---
 
-## Reference Example — FCE Slide
+## Reference Example — CAN Bus Topology Slide
 
-This is the canonical example of the style in its final state (`f86845f1`):
+The first bullet is the framing opener. The remaining bullets each correspond to one slide bullet, anchored by the slide's bold lead term, adding depth not visible on the slide.
 
 ```latex
 \note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-    \item \textbf{Error counters:} TEC $+8$ on TX error, $-1$ on successful TX. REC $+1$ on RX error, $-1$ on successful RX.
-    \item \textbf{State thresholds:} Error active: TEC and REC $<128$. Error passive: TEC or REC $\geq128$ --- passive flags are recessive, invisible on bus. Bus off: TEC $\geq256$ --- stops transmitting.
-    \item \textbf{Error events:} \texttt{primary\_error}, \texttt{sending\_error\_flag}, \texttt{passive\_tx\_ack\_error}, \texttt{error\_delim\_to\_late}, \texttt{successful\_transfer}.
-        \begin{itemize}\setlength{\itemsep}{1pt}
-            \item \texttt{passive\_tx\_ack\_error}: ACK failure for an error-passive transmitter -- ISO exempts this from TEC increment to avoid stranding lone node at bus off.
-            \item \texttt{error\_delim\_to\_late}: delimiter window expired with no recessive edge --- stuck-dominant fault. Hits both TEC and REC by 8 to fast-track bus off.
-        \end{itemize}
-    \item \textbf{Q: Why 128 sequences?} ISO mandates it -- extended quiet period prevents rapid re-entry after bus-off.
-    \item \textbf{Q: In-flight frame on bus off?} \texttt{can\_mac\_fsm} receives \texttt{bus\_off} and aborts immediately.
+    \item ``So what is \textbf{CAN bus}? It is a \textbf{serial communication bus} developed by Bosch in the 1980s for connecting electronic control units in vehicles and industrial systems. The figure shows the physical setup of a two-node CAN bus --- each CAN node consists of a \textbf{CAN controller} handling the protocol logic and a \textbf{transceiver IC} driving the differential bus. All nodes share the same two wires, \textbf{CANH and CANL}, terminated at each end with a \textbf{120\,$\Omega$} resistor that matches the characteristic impedance of the twisted pair and prevents signal reflections.''
+    \item \textbf{Simple and low cost:} ``Just \textbf{two wires} shared by all nodes, and every node can initiate a transfer --- no central master node required.''
+    \item \textbf{Robust:} ``The bus uses \textbf{differential signaling} on CANH and CANL, which makes it inherently noise-resistant. Faulty nodes are automatically isolated through the \textbf{bus-off} mechanism.''
+    \item \textbf{Priority-based access:} ``Arbitration is \textbf{non-destructive} --- the bus implements a \textbf{wired-AND} where dominant always beats recessive. A losing node backs off the moment it detects a stronger signal, leaving the winning frame \textbf{uninterrupted}.''
 \end{itemize}}
 ```
 
@@ -92,6 +83,7 @@ This is the canonical example of the style in its final state (`f86845f1`):
 
 | Slide | Title | Notes status |
 |---|---|---|
+| 0 | Industrial Collaboration | Done — canonical style reference |
 | 1 | CAN Bus Topology and ECUs | Done (prose style, pre-dates this format) |
 | 2-5 | Why CAN (4 benefit slides) | Done (prose style, pre-dates this format) |
 | 6 | CAN Classic vs CAN FD | Done (bold-lead style) |
@@ -101,7 +93,7 @@ This is the canonical example of the style in its final state (`f86845f1`):
 | 10 | MAC: `can_mac_bs` | Done |
 | 11 | MAC: `can_mac_crc` | Done |
 | 12 | MAC: `can_mac_ser` | Done |
-| 13 | FCE: `can_mac_pcs_fce` | Done — canonical style reference |
+| 13 | FCE: `can_mac_pcs_fce` | Done |
 | 14 | PCS: `can_pcs` | Done |
 | 15 | Verification Plan | Done |
 | 16 | Verification Results | Done |
@@ -110,28 +102,6 @@ This is the canonical example of the style in its final state (`f86845f1`):
 | 19 | Bus-Off Recovery | **Missing** |
 | 20 | Synthesis Results | **Missing** |
 | 21 | Conclusion and Future Work | **Missing** |
-
----
-
-## Next Session Scope
-
-Add notes to the four missing slides following this style. Suggested Q lines per slide:
-
-**PCS Waveform Evidence**
-- Q: What does TDC actually measure? (transceiver loop delay: time from TX drive to RX echo on the reserved bit)
-- Q: Why is SSP separate from SP? (transmitter uses SSP for bit-error monitoring in data phase — SP offset is wrong at high data rates due to loop delay)
-
-**Bus-Off Recovery**
-- Q: Why 128 sequences of 11 recessive bits? (ISO 11898-1 mandates it — extended quiet period before re-joining)
-- Q: Can a node re-enter bus off immediately after recovery? (yes, if errors continue TEC climbs back to 256)
-
-**Synthesis Results**
-- Q: Why is `can_mac_fsm` 89% of LEs? (560-bit RX frame buffer implemented in logic — BRAM migration is listed as future work)
-- Q: What is the minimum clock for 5 Mbit/s? (5 Mbit/s at 8 TQ/bit = 40 MHz; 127 MHz gives 3x margin)
-
-**Conclusion**
-- Q: What would LLC add? (acceptance filtering, retransmission on arbitration loss, transfer status reporting to application)
-- Q: Why not implement LLC? (project timeline; MAC, PCS, FCE sufficient to demonstrate full frame TX/RX)
 
 ---
 

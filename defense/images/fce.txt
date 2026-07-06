@@ -11,7 +11,7 @@ config:
     edgeRouting: SPLINES
 ---
 
-flowchart 
+flowchart TD
 
 classDef reset fill:#,stroke:#,stroke-width:6px,color:#000000
 classDef ff    fill:#,stroke:#,color:#000000
@@ -22,50 +22,22 @@ classDef wd3 fill:#FFFFB4,stroke:#999900,color:#000000
 classDef wd4 fill:#FFE0B9,stroke:#CC8833,color:#000000
 classDef wd5 fill:#B9E0FF,stroke:#4477BB,color:#000000
 classDef wd6 fill:#CCFDFE,stroke:#33AAAA,color:#000000
-classDef wd7 fill:#CDFDC5,stroke:#33AA33,color:#000000
+classDef wd7 fill:#CDFDC5,stroke-width:6px,stroke:#33AA33,color:#000000
 classDef wd8 fill:#F0C1FB,stroke:#9933BB,color:#000000
 classDef wd9 fill:#F5C2C0,stroke:#BB3333,color:#000000
 
-subgraph fce["`**can_fce**`"]
-subgraph FSM["`**State machine**`"]
-direction TD
-s_error_active("`**s_error_active**`")
+s_error_active("`**Error active**`")
 
-s_error_passive("`**s_error_passive**`")
+s_error_passive("`**Error passive**`")
 
-s_bus_off("`**s_bus_off**`")
-end
-end
+s_bus_off("`**Bus off**`")
 
-mac("`**can_mac_fsm**`")
-pcs("`**can_pcs**`")
-llc("`**LLC stub**`")
-
-s_error_active  -->|"TEC > 127 or REC > 127"| s_error_passive
-s_error_passive -->|"TEC ≤ 127 and REC ≤ 127"| s_error_active
+s_error_active  -->|"TEC OR REC > 127"| s_error_passive
+s_error_passive -->|"TEC AND REC < 128"| s_error_active
 s_error_active  -->|"TEC > 255"| s_bus_off
 s_error_passive -->|"TEC > 255"| s_bus_off
-s_bus_off       -->|"idle_count = 128"| s_error_active
+s_bus_off       -->|"idle condition count = 128"| s_error_active
 
-
-mac ==>|"`error events`"| fce
-
-
-
-
-fce -->|"`error_active`"| mac
-fce -->|"`bus_off`"| mac
-
-pcs -->|Idel_condition| fce
-fce -->|bus_off| pcs
-llc -->|normal_mode| fce
-fce -->|bus_off| llc
-mac <==> pcs
-mac <==> llc
-
-
-class s_error_active reset
-class s_error_active,s_error_passive,s_bus_off wd9
-class mac wd7
-class pcs wd5
-class llc wd4
+class s_error_active wd7
+class s_error_passive wd4
+class s_bus_off wd9
