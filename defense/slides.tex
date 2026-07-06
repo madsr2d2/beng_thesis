@@ -111,7 +111,7 @@
 			Any \textbf{detecting node sends an error flag} -- 6 dominant bits (error active) or 6 recessive bits (error passive)
 		\end{column}
 		\begin{column}{0.40\textwidth}
-			\fbox{\includegraphics[width=\textwidth,keepaspectratio]{images/fce.png}}\\
+			\fbox{\includegraphics[width=\textwidth,keepaspectratio]{images/fce_simple.png}}\\
 			{\small\textit{Fault confinement FSM}}
 		\end{column}
 	\end{columns}
@@ -253,9 +253,10 @@
 	\begin{columns}[c]
 		\begin{column}{0.60\textwidth}
 			\begin{itemize}\setlength{\itemsep}{8pt}
-				\item CB, CE, FB and FE gets one branch each in the FSM state graph -- one state per frame field
-				\item The \texttt{is\_transmitter} flag gates TX vs.\ RX logic within each state
-				\item State transition on the sample point strobe from \texttt{can\_pcs}. Next bit is driven two cycles later once \texttt{can\_mac\_bs} and \texttt{can\_mac\_crc} outputs have settled
+				\item The FSM State graph maps directly to the frame field sequence with one state per field and branching where CAN Classic and CAN FD formats diverge.
+				\item An \texttt{is\_transmitter} flag gates TX vs.\ RX logic within each state.
+				\item State transition on the sample point strobe from \texttt{can\_pcs}.
+				\item Valid received frames are streamed to the LLC by a separate Avalon-ST interface control process, \texttt{p\_stream}.
 			\end{itemize}
 		\end{column}
 		\begin{column}{0.40\textwidth}
@@ -265,14 +266,12 @@
 		\end{column}
 	\end{columns}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
-		\item Point to the frame format image: CC and CF are identical up to FDF. From FDF onward the field sequences diverge --- BRS, ESI, longer data, SBC, different CRC. Each of those fields is one FSM state.
-		\item Format transitions (e.g. CC to CF at FDF bit) are state graph edges, not conditionals inside a shared counting state. This makes the FSM directly readable against the ISO field sequence table.
-		\item \texttt{is\_transmitter} is set at frame start and held for the duration. In each state, TX logic (driving the bus, reading from \texttt{can\_mac\_ser}) is gated on \texttt{is\_transmitter='1'}; RX logic (sampling the bus, writing to the RX buffer) is gated on \texttt{is\_transmitter='0'}. This is the mechanism that lets one FSM serve both directions without duplication.
-		\item Traceability is structural --- each requirement maps to exactly one FSM state. Falls out of the one-state-per-field decision automatically, not a documentation exercise.
-		\item Split-path attempt: TX and RX into separate FSMs --- \texttt{side} dimension misread as implementation-facing. Two weeks of parallel development produced eight timing divergences.
-		\item Three representative bugs: SOF structural divergence (systematic, every FD frame); \texttt{in\_data\_phase} cleared 1~SP early at CRC boundary ($\sim$265 FD frames); ACK window excluded \texttt{s\_ack\_delimiter} (unreachable with zero-delay loopback).
-		\item Unified path: a second independent CAN implementation verifying the first. Bug~D structurally impossible to trigger in a single-node testbench --- only visible with two nodes and realistic bus delay.
+\note{\footnotesize\begin{itemize}
+		\item This slide covers \texttt{can\_mac\_fsm}. This \textbf{central orchestrator} of the MAC layer and is by far the largest module in the design. It relies on three peripheral helper modules handling bit stuffing, CRC, and TX serialization.
+		\item \textbf{State graph:} CAN Classic and CAN FD are identical up to the FDF bit. From there the field sequences diverge --- BRS, ESI, longer data, SBC, different CRC. Each frame field is one FSM state. This makes the FSM directly readable against the frame structure, and the mapping from requirements to states clear.
+		\item \textbf{\texttt{is\_transmitter}:} The FSM handles both TX and RX in a single state graph, with the \texttt{is\_transmitter} flag gating TX vs.\ RX logic within each state.
+		\item \textbf{State transitions:} The FSM advances on the \textbf{sample point strobe} from \texttt{can\_pcs}. The next bit is then driven to \texttt{can\_pcs} two clock cycles later once \texttt{can\_mac\_bs} and \texttt{can\_mac\_crc} outputs have settled.
+		\item \textbf{Streaming:} Valid received frames are streamed to LLC via a separate \textbf{Avalon-ST} interface control process.
 	\end{itemize}}
 
 % ==========================================
@@ -300,11 +299,11 @@
 		\end{column}
 	\end{columns}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
-		\item \texttt{can\_mac\_bs} is a single shared instance -- same module handles TX stuffing and RX destuffing, switched by \texttt{is\_transmitter}.
-		\item Dynamic stuffing applies from SOF through the data field in both CC and CF. Fixed stuffing applies only to the CF CRC region.
-		\item SBC (Stuff Bit Count): Gray-coded count of dynamic stuff bits inserted since SOF, plus a parity bit. Transmitted before the CF CRC. Receiver verifies independently of CRC.
-		\item HD=2 fix: in CC, dynamic stuff bits excluded from CRC feed --- two errors can relocate a stuff bit and leave CRC unchanged. In CF, dynamic stuff bits included in \texttt{data\_fd}, so any relocation changes the remainder.
+\note{\footnotesize\begin{itemize}
+		\item This diagram shows the bit stuffing module and its interface with \texttt{can\_mac\_fsm}. It uses a two-way valid/data interface to and the enable signal selects dynamic vs. fixed bit stuffing. The SBC signal caries the 4-bit stuff bit count used in the CAN FD frame format.
+		\item \textbf{Dynamic stuffing:} After five consecutive identical bits the transmitter inserts the inverse bit. The receiver strips it and flags a stuff error if the expected inverse bit is missing. Applies from SOF through the data field in both CC and CF.
+		\item \textbf{Fixed stuffing:} In the CF CRC region, stuff bits are inserted at fixed intervals regardless of the data pattern --- not data-driven.
+		\item \textbf{SBC:} Gray-coded count of dynamic stuff bits inserted since SOF, plus a parity bit. Transmitted before the CF CRC. This is the fix for the HD=2 problem --- any relocation of a dynamic stuff bit changes the SBC and therefore the CRC remainder.
 	\end{itemize}}
 
 % ==========================================
@@ -333,10 +332,10 @@
 		\end{column}
 	\end{columns}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
-		\item All three CRC engines run every cycle. Output selected at CRC transmission/check time based on format and DLC.
-		\item \texttt{data\_cc} is the de-stuffed stream, identical to what the CC receiver reconstructs. \texttt{data\_fd} includes dynamic stuff bits --- this restores the HD=6 guarantee lost in CC due to variable wire length.
-		\item CRC-17 and CRC-21 are both BCH codes with HD=6 guarantee for fixed-length codewords. CF fixed stuffing makes wire-length predictable, restoring the HD=6 property lost in CC.
+\note{\footnotesize\begin{itemize}
+		\item And here we see the next MAC layer helper module (\texttt{can\_mac\_crc}) and its interface with \texttt{can\_mac\_fsm}. It runs \textbf{three CRC engines in parallel} -- one for each generator polynomial. It has a dual data feed from can\_mac\_fsm -- one for each frame format. The crc output signal is continuously updated and caries the result of the CRC calculation. The select input signal controls which CRC engine is routed to the output.
+		\item \textbf{Three parallel engines:} CRC-15 for CC, CRC-17 for short CF payloads ($\leq$16 bytes), CRC-21 for longer CF payloads. Running in parallel avoids any timing dependency on knowing the format early.
+		\item \textbf{Dual data feed:} \texttt{data\_cc} is the de-stuffed stream --- what CC receivers reconstruct. \texttt{data\_fd} includes dynamic stuff bits. CRC-17 and CRC-21 consume \texttt{data\_fd}. The dual feed is needed since receivers don't know the frame format until after the DLC field.
 	\end{itemize}}
 
 % ==========================================
@@ -345,7 +344,7 @@
 \begin{frame}{MAC: \texttt{can\_mac\_ser} -- TX Frame Serializer}
 	\begin{columns}[c]
 		\begin{column}{0.70\textwidth}
-			\begin{itemize}\setlength{\itemsep}{6pt}
+			\begin{itemize}
 				\item Converts LLC byte stream to serial bit stream for \texttt{can\_mac\_fsm}
 				\item Receives frame from LLC over Avalon-ST interface
 				\item Extracts frame metadata (IDE, FDF, DLC, FTYP, BRS, ESI) from two leading config bytes in LLC frame
@@ -358,42 +357,48 @@
 		\end{column}
 	\end{columns}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
-		\item \texttt{can\_mac\_ser} is TX-only --- there is no RX path. The receiver samples bits directly from the bus via \texttt{can\_pcs}.
-		\item The LLC-MAC frame format front-loads all metadata into two leading config bytes, so \texttt{can\_mac\_ser} can begin streaming ID and data bits immediately without buffering the full 71-byte frame.
-		\item Padding bits in the 32-bit ID field: base ID occupies bits [31:21] (11 bits, 21 trailing unused); extended ID occupies bits [31:3] (29 bits, 3 trailing unused). \texttt{can\_mac\_ser} skips these without asserting valid.
-		\item \texttt{transfer\_status} from \texttt{can\_mac\_fsm} is forwarded back to \texttt{can\_llc} --- on any non-ongoing status (transmitted, aborted, lost arbitration) \texttt{can\_mac\_ser} returns to its reset state.
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
+		\item And this diagram shows the FSM of the last of the mac layer helper modules - the TX frame serializer along with its interface with \texttt{can\_mac\_fsm}. The modules interfaces with the LLC through an Avalon-ST interface and the serialised stream is transferred to \texttt{can\_mac\_fsm} using a ready/valid handshake.
+		\item \textbf{LLC byte stream to serial bit stream:} The LLC-frame front-loads all metadata into two leading config bytes, and \texttt{can\_mac\_ser} can begin streaming ID and data bits after receiving these.
+		\item \textbf{Metadata extraction:} The metadata contained in the config bytes (IDE, FDF, DLC, FTYP, BRS, and ESI) are presented on the metadata signal and held stable for the duration of frame transmission - guiding the format selection logic of can\_mac\_fsm.
+		\item \textbf{Transfer status:} The \texttt{transfer\_status} signal caries the status of the latest attempted transmission. It is used to reset the FSM and forwarded back to the LLC.
 	\end{itemize}}
 
 % ==========================================
 % SLIDE MAC-5: FCE
 % ==========================================
 \begin{frame}{FCE: \texttt{can\_fce} -- Fault Confinement Entity}
-	\begin{columns}[c]
-		\begin{column}{0.70\textwidth}
-			\begin{itemize}\setlength{\itemsep}{6pt}
-				\item Three states: error active, error passive, bus off. Driven by TEC and REC thresholds
-				\item Subscribes to error events from \texttt{can\_mac\_fsm}. Signals \texttt{error\_active} and \texttt{bus\_off} back
-				\item Bus-off recovery after 128 \texttt{idle\_condition} strobes from \texttt{can\_pcs}
-			\end{itemize}
-		\end{column}
-		\begin{column}{0.30\textwidth}
-			\begin{center}
-				\includegraphics[height=0.90\textheight,keepaspectratio]{images/fce.png}
-			\end{center}
-		\end{column}
-	\end{columns}
+	\begin{itemize}\setlength{\itemsep}{10pt}
+		\item The error counting FSM has three states: error active, error passive, bus off -- driven by TEC and REC thresholds.
+		\item The module subscribes to error events from \texttt{can\_mac\_fsm}. It signals \texttt{error\_active} and \texttt{bus\_off} back according to the thresholds of the error counting FSM.
+		\item An active bus-off signal is lowered after 128 \texttt{idle\_condition} strobes from \texttt{can\_pcs}
+	\end{itemize}
+\end{frame}
+\note{\footnotesize\begin{itemize}
+		\item The FCE requirements are implemented in the \texttt{can\_fce} module. The module sits outside the data path and monitors TX and RX error events. It maintains error counters and updates the node error state accordingly.
+		\item \textbf{Three states:} TEC and REC are incremented by 8 on errors and decremented by 1 on success. Above 127 the node enters \textbf{error passive} --- its error flags are recessive and invisible to other nodes. Above 255 it goes \textbf{bus off} and stops driving entirely.
+		\item \textbf{Error events:} \texttt{can\_mac\_fsm} signals error events to FCE --- including \texttt{passive\_tx\_ack\_error} (ISO exempts this from TEC increment to avoid stranding an error-passive transmitter at bus off) and \texttt{error\_delim\_to\_late} (stuck-dominant fault, hits both counters by 8).
+		\item \textbf{Bus-off recovery:} ISO mandates 128 sequences of 11 recessive bits --- an extended quiet period before re-joining. The \texttt{idle\_condition} strobe from \texttt{can\_pcs} counts these.
+	\end{itemize}}
+
+% ==========================================
+% SLIDE: TDC concept
+% ==========================================
+\begin{frame}{Transmitter Delay Compensation (TDC)}
+	\begin{center}
+		\includegraphics[width=\textwidth,keepaspectratio]{\figures/tdc.png}
+	\end{center}
+	\begin{itemize}
+		\item At high data rates the \textbf{transceiver loop delay} can exceed the bit time -- TX echo arrives too late for the normal SP
+		\item Without compensation \textbf{bit-error monitoring} fails in the data phase
+		\item TDC measures the delay on the \textbf{reserved bit} and defers the \textbf{SSP} to match
+	\end{itemize}
 \end{frame}
 \note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-		\item \textbf{Error counters:} TEC $+8$ on TX error, $-1$ on successful TX. REC $+1$ on RX error, $-1$ on successful RX.
-		\item \textbf{State thresholds:} Error active: TEC and REC $<128$. Error passive: TEC or REC $\geq128$ --- passive flags are recessive, invisible on bus. Bus off: TEC $\geq256$ --- stops transmitting.
-		\item \textbf{Error events:} \texttt{primary\_error}, \texttt{sending\_error\_flag}, \texttt{passive\_tx\_ack\_error}, \texttt{error\_delim\_to\_late}, \texttt{successful\_transfer}.
-		      \begin{itemize}\setlength{\itemsep}{1pt}
-			      \item \texttt{passive\_tx\_ack\_error}: ACK failure for an error-passive transmitter -- ISO exempts this from TEC increment to avoid stranding lone node at bus off.
-			      \item \texttt{error\_delim\_to\_late}: delimiter window expired with no recessive edge --- stuck-dominant fault. Hits both TEC and REC by 8 to fast-track bus off.
-		      \end{itemize}
-		\item \textbf{Q: Why 128 sequences?} ISO mandates it -- extended quiet period prevents rapid re-entry after bus-off.
-		\item \textbf{Q: In-flight frame on bus off?} \texttt{can\_mac\_fsm} receives \texttt{bus\_off} and aborts immediately.
+		\item Before describing the PCS module I want to take a brief detour to explain Transmitter Delay Compensation \textbf{TDC} -- it is the key concept driving the additional complexity bit-timing in CAN FD frame transmission.
+		\item \textbf{The problem:} The transmitter detects bit errors by monitoring its own echo on the bus. At high data rates the transceiver loop delay can exceed the bit period --- the echo arrives too late. If the transmitter uses the normal SP it reads the previous bit, not the one it just drove --- so bit errors go undetected and fault confinement breaks down.
+		\item \textbf{Invalid SSP:} The figure shows TX driving bits and the delayed RX echo. The SP fires at the wrong position during the early data-phase bits --- marked "Invalid SSP" --- because the echo has not yet arrived. Once the TDC offset is known the SSP fires correctly, aligned with the actual echo.
+		\item \textbf{TDC measurement:} The transmitter drives the \textbf{FDF bit} and starts a counter. It watches for the RX echo of the \textbf{reserved bit}. The counter value when the echo arrives is the \textbf{transmitter delay} --- this offset is then applied to every subsequent SSP in the data phase.
 	\end{itemize}}
 
 % ==========================================
@@ -404,7 +409,7 @@
 		\begin{column}{0.50\textwidth}
 			\begin{itemize}\setlength{\itemsep}{6pt}
 				\item SP strobes at end of PHASE\_SEG1
-				\item Transmit bit at end of PHASE\_SEG2
+				\item Transmit bit on TX line at end of PHASE\_SEG2
 				\item SSP strobe used for bit-error monitoring in data phase
 				\item Switch to data phase bit rate at BRS bit
 				\item Transceiver loop delay measured on res bit
@@ -417,11 +422,10 @@
 		\end{column}
 	\end{columns}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
-		\item Nominal rate: e.g.\ 500\,kbit/s for arbitration. Data phase: up to 5\,Mbit/s, entered at BRS bit, exited at CRC delimiter.
-		\item Hard synchronization: on SOF dominant edge after bus idle --- resets the bit timing counter. Resynchronization: on any recessive-to-dominant edge during a frame --- adjusts PHASE\_SEG1 or PHASE\_SEG2 by the sync jump width.
-		\item TDC: the transceiver introduces a loop delay between TX drive and RX echo. At fast data rates this is a significant fraction of the bit period. TDC measures it on the reserved bit, counts down from BRS, and fires SSP at the correct offset.
-		\item SSP fires independently of SP --- transmitter uses SSP for bit-error detection in data phase, not SP.
+\note{\footnotesize\begin{itemize}
+		\item Great -- now that TDC is clear, let's look at the \textbf{PCS implementation}. The diagram shows \texttt{can\_pcs} and its interface with \texttt{can\_mac\_fsm}. The PCS generates \textbf{sp} and \textbf{ssp} strobes that MAC FSM use for state transition and data-phase bit-error error monitoring.
+		\item \textbf{Interface:} \texttt{can\_mac\_fsm} drives \textbf{brs\_bit}, \textbf{res\_bit}, and \textbf{data\_phase\_stop} into the PCS --- these are exactly the signals the TDC logic needs. \textbf{brs\_bit} triggers the rate switch, \textbf{res\_bit} triggers the TDC measurement, \textbf{data\_phase\_stop} signals the return to nominal rate. The PCS outputs \textbf{sp}, \textbf{ssp}, and \textbf{tdc\_delay} back to the MAC FSM. The MAC FSM maintains a fifo of transmitted bits and the \textbf{tdc\_delay} is used to select the relevant bit for error detection. The module also generates the idel\_condition strobe during bus-off used by FCE for bus-off recovery.
+		\item The \textbf{SP strobe} is controlled by the main PCS FSM and fires at the end of Phase\_Seg1. Hard sync is initiated my the MC FSM through the hard\_sync signal and resync adjusts Phase\_Seg1 or Phase\_Seg2 mid-frame.
 	\end{itemize}}
 
 % ==========================================
@@ -431,7 +435,7 @@
 % ==========================================
 % SLIDE 9a: Verification plan methodology
 % ==========================================
-\begin{frame}{Verification Plan -- Closing the Requirements Loop}
+\begin{frame}{Verification Plan}
 	\begin{columns}[c]
 		\begin{column}{0.42\textwidth}
 			\begin{itemize}\setlength{\itemsep}{8pt}
@@ -460,11 +464,10 @@
 	\end{columns}
 \end{frame}
 \note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-		\item \textbf{Observability:} black\_box = stimulus/response at module ports only. white\_box = internal signal inspection via waveform. Determines which TB strategy applies.
-		\item \textbf{Method:} simulation = pass/fail from TB assertions. waveform = human inspection of waveform evidence. inspection = RTL code review for structural properties.
-		\item \textbf{MCP server:} wraps the TOML file with a typed write interface. Prevents silent data corruption that would occur with direct file edits by AI agents. Narrow interface = safe incremental updates.
-		\item \textbf{Q: Why not a spreadsheet or issue tracker?} TOML is version-controlled alongside RTL --- every requirement change is a git commit, so traceability is auditable.
-		\item \textbf{Q: How many P1 requirements?} All MAC, PCS, and FCE P1 requirements are closed. Open items are LLC (out of scope), one optional (REQ-035), and one requiring error injection tooling (REQ-021).
+		\item That concludes design and implementation. Now  let's have a look at \textbf{verification}. Each requirement from the D\&I phase is augmented with a set of verification fields that track how and whether it is verified.
+		\item \textbf{Each requirement augmented:} \textbf{side} (TX/RX/both), \textbf{format} (which frame formats apply), \textbf{observability} (black-box port-level or white-box waveform inspection), \textbf{method} (simulation, waveform, or RTL inspection), \textbf{status}, and \textbf{traceability} fields pointing to the TB procedure and file.
+		\item \textbf{MCP server:} The requirements are stored in a TOML file. Direct AI edits to large structured files are error-prone --- the MCP server wraps it with a typed write interface so each update targets a single field and is schema-validated before it reaches the file.
+		\item \textbf{Traceability:} \texttt{label} names the exact TB procedure that closes the requirement. \texttt{file} points to the testbench source. Every closed requirement has a direct link to its evidence.
 	\end{itemize}}
 
 % ==========================================
@@ -478,12 +481,11 @@
 		\item \textbf{REQ-021 in progress:} Sub-claim~1 verified (Bit-error detection). Sub-claims 2-5 require frame-aware error injection into a running frame - not supported in the current test environment.
 	\end{itemize}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
-		\item 28 closed means all P1 MAC, PCS, and FCE requirements are verified. The open items are either structurally deferred (LLC), architecturally not applicable (REQ-034), or require tooling not yet in place (REQ-021).
-		\item LLC was not implemented due to project timeline constraints, not because it is out of scope. The six LLC requirements cover transfer status reporting, retransmission, acceptance filtering, and frame format conversion. These are genuine protocol engine responsibilities per ISO 11898-1.
-		\item REQ-034: the shared-memory data consistency requirement is conditional --- it only applies if the implementation uses shared memory for MAC frames. This design streams frames directly from LLC to MAC via Avalon-ST, so the condition never applies.
-		\item REQ-035: configurable error signalling enable/disable is a P2 requirement. Not implemented within the project timeline but non-blocking --- the controller operates correctly in the default error-active mode.
-		\item REQ-021 bit-error detection: sub-claim 1 (SP bit-error at arbitrary point in frame) is verified. Sub-claims 2--5 cover SSP bit-error, error flag injection, error passive flag, and bus-off entry triggered by bit-error --- these require injecting an error into a specific bit position within a running frame, which the current testbench cannot do.
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
+		\item \textbf{28 of 37 closed} means all P1 MAC, PCS, and FCE requirements are verified. The nine open items fall into three categories.
+		\item \textbf{LLC not implemented:} Six LLC requirements not started --- deferred due to time constraints. The controller functions correctly without LLC as discussed earlier.
+		\item \textbf{REQ-034 not applicable:} Conditional on using shared memory for MAC frames. This design streams directly via Avalon-ST --- the condition never applies.
+		\item \textbf{REQ-021 in progress:} Sub-claim 1 (SP bit-error detection) is verified. Sub-claims 2--5 require injecting an error into a specific bit position within a running frame --- not supported by the current testbench environment.
 	\end{itemize}}
 
 % ==========================================
@@ -501,11 +503,11 @@
 		\item \texttt{rx\_llc\_dut\_2} checks received frames against expected frames from the TX source
 	\end{itemize}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{4pt}
-		\item Each of the six modules has its own unit testbench --- \texttt{can\_mac\_fsm\_tb}, \texttt{can\_mac\_bs\_tb}, \texttt{can\_mac\_crc\_tb}, \texttt{can\_mac\_ser\_tb}, \texttt{can\_pcs\_tb}, \texttt{can\_fce\_tb}. The bulk of requirement coverage lives in the unit TBs. Integration TB shown here for brevity.
-		\item Two-node approach catches bugs structurally invisible in a single-node setup. Bug~D (ACK window excluded \texttt{s\_ack\_delimiter}) could not be triggered without a second node with realistic bus delay --- zero-delay loopback always ACKs, masking the defect.
-		\item \texttt{p\_test\_ctrl} orchestrates: drives TX frames into both DUTs, monitors \texttt{transfer\_status} and \texttt{bus\_off}, controls error injection timing and configurable loop delay for TDC validation.
-		\item \texttt{rx\_llc\_dut\_2} compares received frames against expected frames asserted by the TX source --- any field mismatch fails the test immediately.
+\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
+		\item Each module has its own \textbf{unit testbench}. The integration TB shown here puts two full controller instances on a shared bus --- what DUT~1 transmits, DUT~2 must receive correctly and vice versa.
+		\item \textbf{Two-node approach:} Catches bugs structurally invisible in a single-node setup. A zero-delay loopback always ACKs, masking defects in the ACK window logic. A second node with realistic bus delay exposes them.
+		\item \textbf{\texttt{p\_test\_ctrl}:} Orchestrates the test --- drives TX frames into both DUTs, monitors \texttt{transfer\_status} and \texttt{bus\_off}, controls error injection timing and configurable loop delay for TDC validation.
+		\item \textbf{\texttt{rx\_llc\_dut\_2}:} Compares received frames against expected frames field by field --- any mismatch fails the test immediately.
 	\end{itemize}}
 
 % ==========================================
