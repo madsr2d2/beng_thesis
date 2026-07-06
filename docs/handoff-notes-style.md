@@ -17,19 +17,19 @@ This document defines the speaker note formatting style established during the d
 
 ## Format
 
-Notes are verbatim speech in quotes with key terms bolded. One bullet per slide bullet. The purpose is to serve as a spoken delivery guide during the defense — not a compressed reference or Q&A prep sheet.
+Notes are spoken delivery cues with key terms bolded. One bullet per slide bullet. The purpose is to serve as a spoken delivery guide during the defense — not a compressed reference or Q&A prep sheet.
 
 ```latex
 \note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-    \item ``Spoken sentence for first slide bullet, with \textbf{key terms} bolded.''
-    \item ``Spoken sentence for second slide bullet, with \textbf{key terms} bolded.''
-    \item ``Spoken sentence for third slide bullet, with \textbf{key terms} bolded.''
+    \item Spoken sentence for first slide bullet, with \textbf{key terms} bolded.
+    \item Spoken sentence for second slide bullet, with \textbf{key terms} bolded.
+    \item Spoken sentence for third slide bullet, with \textbf{key terms} bolded.
 \end{itemize}}
 ```
 
 Key parameters:
 - Outer itemsep: `5pt`
-- Speech in double quotes: ```` ``...'' ````
+- No quote marks — the notes are already understood to be spoken words
 - Key terms bolded inline: `\textbf{term}`
 
 ---
@@ -42,9 +42,9 @@ The first bullet is always a **framing opener** — one sentence that orients th
 
 Every subsequent bullet corresponds to one slide bullet. The note rephrases the slide content in natural spoken form and adds one piece of depth not visible on the slide — context, a number, a motivation, a consequence. It does not restate the slide verbatim.
 
-Good: slide says "CAN Classic protocol", note says ``"The CAN controller currently runs as an \textbf{IP core on that FPGA}, operating at \textbf{500\,kbit/s} with a payload limit of \textbf{8 bytes per frame}."''
+Good: slide says "CAN Classic protocol", note says `The CAN controller runs as an \textbf{IP core on that FPGA} --- \textbf{500\,kbit/s}, 8 bytes per frame.`
 
-Bad: slide says "CAN Classic protocol", note says ``"The current CAN infrastructure builds on the CAN Classic protocol."''
+Bad: slide says "CAN Classic protocol", note says `The current CAN infrastructure builds on the CAN Classic protocol.`
 
 ### 2. Bold key terms inline
 
@@ -54,11 +54,18 @@ Bold the two or three terms per bullet the presenter must land clearly when spea
 
 The examiner can read the slide. Notes that repeat slide text verbatim waste airtime. Each bullet must add something the slide does not say.
 
-### 4. No Q&A lines in notes
+### 4. Conversational tone
+
+Write how you would actually say it, not how you would write it. Use short sentences. Contractions are fine. Natural connectors like "So", "Now", "The thing is" work well as openers. Avoid long compound sentences — if a sentence needs a semicolon, split it. Avoid passive voice and nominalisations ("the implementation of" → "implementing"). Read each bullet aloud: if it sounds like you are reading a document, rewrite it.
+
+Bad: `The bus uses differential signaling on CANH and CANL, which makes it inherently noise-resistant.`
+Good: `It uses \textbf{differential signaling} --- CANH and CANL --- so noise hits both wires equally and cancels out.`
+
+### 5. No Q&A lines in notes
 
 Examiner Q&A prep does not belong in the speaker notes. The notes are for delivery, not preparation. Q&A material goes in a separate document if needed.
 
-### 5. Fit test
+### 6. Fit test
 
 After editing, build with `latexmk -pdf -interaction=nonstopmode -g slides.tex` and visually check the note page in the PDF. If the note overflows, shorten the longest bullet first.
 
@@ -70,10 +77,10 @@ The first bullet is the framing opener. The remaining bullets each correspond to
 
 ```latex
 \note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-    \item ``So what is \textbf{CAN bus}? It is a \textbf{serial communication bus} developed by Bosch in the 1980s for connecting electronic control units in vehicles and industrial systems. The figure shows the physical setup of a two-node CAN bus --- each CAN node consists of a \textbf{CAN controller} handling the protocol logic and a \textbf{transceiver IC} driving the differential bus. All nodes share the same two wires, \textbf{CANH and CANL}, terminated at each end with a \textbf{120\,$\Omega$} resistor that matches the characteristic impedance of the twisted pair and prevents signal reflections.''
-    \item \textbf{Simple and low cost:} ``Just \textbf{two wires} shared by all nodes, and every node can initiate a transfer --- no central master node required.''
-    \item \textbf{Robust:} ``The bus uses \textbf{differential signaling} on CANH and CANL, which makes it inherently noise-resistant. Faulty nodes are automatically isolated through the \textbf{bus-off} mechanism.''
-    \item \textbf{Priority-based access:} ``Arbitration is \textbf{non-destructive} --- the bus implements a \textbf{wired-AND} where dominant always beats recessive. A losing node backs off the moment it detects a stronger signal, leaving the winning frame \textbf{uninterrupted}.''
+    \item So --- what is \textbf{CAN}? It's a \textbf{serial bus} Bosch developed in the 1980s for connecting ECUs in vehicles. The figure shows a two-node setup --- each node is a \textbf{CAN controller} plus a \textbf{transceiver IC}. Both nodes share the same two wires, \textbf{CANH and CANL}, terminated at each end with \textbf{120\,$\Omega$} to kill reflections.
+    \item \textbf{Simple and low cost:} Just \textbf{two wires}, shared by everyone. There's no master node --- any node can start a transfer.
+    \item \textbf{Robust:} It uses \textbf{differential signaling} on CANH and CANL, so noise hits both wires equally and cancels out. And if a node goes faulty, the \textbf{bus-off} mechanism isolates it automatically.
+    \item \textbf{Priority-based access:} Arbitration is \textbf{non-destructive}. The bus is a \textbf{wired-AND} --- dominant beats recessive. A losing node backs off the moment it sees a stronger signal, so the winning frame goes through uninterrupted.
 \end{itemize}}
 ```
 
@@ -98,10 +105,8 @@ The first bullet is the framing opener. The remaining bullets each correspond to
 | 15 | Verification Plan | Done |
 | 16 | Verification Results | Done |
 | 17 | Integration Testbench Architecture | Done |
-| 18 | PCS Waveform Evidence | **Missing** |
-| 19 | Bus-Off Recovery | **Missing** |
-| 20 | Synthesis Results | **Missing** |
-| 21 | Conclusion and Future Work | **Missing** |
+| 18 | Synthesis Results | Done |
+| 19 | Conclusion and Future Work | Done |
 
 ---
 
