@@ -439,9 +439,8 @@
 	\begin{columns}[c]
 		\begin{column}{0.42\textwidth}
 			\begin{itemize}\setlength{\itemsep}{8pt}
-				\item Each requirement augmented with verification fields
-				\item MCP server enforces typed writes --- agents update status, labels, and file links safely throughout the project
-				\item Traceability: \texttt{label} names the TB procedure; \texttt{file} points to the testbench
+				\item Each requirement augmented with verification facing fields -- \textbf{guidance fields} informing how to verify, and \textbf{tracking fields} recording whether it is verified and where the verification artifacts lives.
+				\item  Incremental AI-agent edits of the verification plan was done using and MCP server.
 			\end{itemize}
 		\end{column}
 		\begin{column}{0.58\textwidth}
@@ -463,11 +462,10 @@
 		\end{column}
 	\end{columns}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
+\note{\footnotesize\begin{itemize}
 		\item That concludes design and implementation. Now  let's have a look at \textbf{verification}. Each requirement from the D\&I phase is augmented with a set of verification fields that track how and whether it is verified.
-		\item \textbf{Each requirement augmented:} \textbf{side} (TX/RX/both), \textbf{format} (which frame formats apply), \textbf{observability} (black-box port-level or white-box waveform inspection), \textbf{method} (simulation, waveform, or RTL inspection), \textbf{status}, and \textbf{traceability} fields pointing to the TB procedure and file.
-		\item \textbf{MCP server:} The requirements are stored in a TOML file. Direct AI edits to large structured files are error-prone --- the MCP server wraps it with a typed write interface so each update targets a single field and is schema-validated before it reaches the file.
-		\item \textbf{Traceability:} \texttt{label} names the exact TB procedure that closes the requirement. \texttt{file} points to the testbench source. Every closed requirement has a direct link to its evidence.
+		\item  The \textbf{guidance fields} -- side, format, observability, method -- answer "how should this be verified?" They inform the testbench design but do not themselves constitute evidence. The \textbf{tracking fields} -- status, label, file -- are what actually close the loop. \texttt{status} records whether the requirement is verified, \texttt{label} names the exact TB procedure, and \texttt{file} points to the source. Every closed requirement has a direct link to its evidence.
+		\item  The requirements are stored in a TOML file. Direct AI edits to large structured files are quite error-prone, so an MCP server was developed alongside the verification plan -- enabling \textbf{safe and consistent AI-assisted edits} throughout the project.
 	\end{itemize}}
 
 % ==========================================
@@ -482,7 +480,7 @@
 	\end{itemize}
 \end{frame}
 \note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-		\item \textbf{28 of 37 closed} means all P1 MAC, PCS, and FCE requirements are verified. The nine open items fall into three categories.
+		\item So here are the results of the verification effort --- \textbf{28 of 37 requirements closed}. All P1 MAC, PCS, and FCE requirements are verified. The nine open items fall into three categories.
 		\item \textbf{LLC not implemented:} Six LLC requirements not started --- deferred due to time constraints. The controller functions correctly without LLC as discussed earlier.
 		\item \textbf{REQ-034 not applicable:} Conditional on using shared memory for MAC frames. This design streams directly via Avalon-ST --- the condition never applies.
 		\item \textbf{REQ-021 in progress:} Sub-claim 1 (SP bit-error detection) is verified. Sub-claims 2--5 require injecting an error into a specific bit position within a running frame --- not supported by the current testbench environment.
@@ -528,11 +526,10 @@
 	\end{center}
 \end{frame}
 \note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-		\item \textbf{Top waveform:} A$\to$B = TDC count-up while TX echo propagates back (19\,TQ loop delay). C$\to$D = countdown from BRS edge to reserved bit. D = SSP fires at the correct offset for bit-error monitoring.
-		\item \textbf{Bottom waveform:} Full CAN FD frame --- arbitration phase at nominal rate, data phase faster after BRS. Shows complete TX/RX round-trip.
-		\item \textbf{REQ-022:} TDC positions SSP by measuring the transceiver loop delay on the reserved bit --- this waveform is the direct evidence.
-		\item \textbf{Q: What does TDC actually measure?} Time from TX drive to RX echo on the reserved bit --- the transceiver round-trip delay.
-		\item \textbf{Q: Why is SSP separate from SP?} At fast data rates the TX echo arrives late; SP fires at the nominal sample point, which samples the wrong bit. SSP fires at the measured offset.
+		\item These waveforms are the direct evidence for TDC and PCS verification --- this is what correct TDC behavior looks like on the simulator.
+		\item \textbf{Top waveform:} A$\to$B shows the TDC counter counting up as the TX echo propagates back --- 19\,TQ loop delay. C$\to$D is the countdown from BRS to the reserved bit. At D the SSP fires at the correct offset for bit-error monitoring.
+		\item \textbf{Bottom waveform:} A full CAN FD frame --- arbitration phase at nominal rate, then the faster data phase after BRS. Shows a complete TX/RX round-trip through both DUTs.
+		\item \textbf{REQ-022:} This waveform is the direct verification evidence that TDC correctly positions SSP by measuring the transceiver loop delay on the reserved bit.
 	\end{itemize}}
 
 % ==========================================
@@ -550,11 +547,10 @@
 		bus off (TEC\,=\,256) $\to$ 128 idle sequences $\to$ error active}
 \end{frame}
 \note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-		\item \textbf{Waveform:} Each TEC increment driven by injected errors from \texttt{p\_test\_ctrl}. TEC crosses 128 (error passive), crosses 256 (bus off), then 128 idle sequences counted by \texttt{can\_pcs} before recovery.
-		\item \textbf{Recovery mechanism:} \texttt{can\_pcs} emits \texttt{idle\_condition} strobes on 11 consecutive recessive bits. FCE counts 128 of these, then transitions back to error active and signals \texttt{can\_mac\_fsm}.
-		\item \textbf{Integration evidence:} This requires FCE, PCS, and MAC FSM all operating correctly together --- a unit testbench cannot produce this sequence.
-		\item \textbf{Q: Why 128 sequences of 11 recessive bits?} ISO 11898-1 mandates it --- extended quiet period ensures the bus is genuinely idle before the node re-joins.
-		\item \textbf{Q: Can a node re-enter bus off immediately after recovery?} Yes --- if errors continue, TEC climbs back to 256 and the cycle repeats.
+		\item This waveform shows the full bus-off cycle driven by injected errors from \texttt{p\_test\_ctrl} in the integration testbench.
+		\item \textbf{Waveform:} TEC increments on each injected error. It crosses 128 (node enters \textbf{error passive}), then 256 (node enters \textbf{bus off} and stops driving). After 128 idle sequences counted by \texttt{can\_pcs}, the node recovers to \textbf{error active}.
+		\item \textbf{Recovery:} \texttt{can\_pcs} emits \texttt{idle\_condition} strobes on 11 consecutive recessive bits. FCE counts 128 of these --- ISO mandates this extended quiet period before re-joining. The 128 sequences prevent a faulty node from rapidly cycling in and out of bus off.
+		\item \textbf{Integration evidence:} This sequence requires FCE, PCS, and MAC FSM all operating correctly together --- it cannot be produced by any unit testbench alone.
 	\end{itemize}}
 
 % ==========================================
