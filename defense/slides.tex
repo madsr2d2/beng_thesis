@@ -496,16 +496,16 @@
 	\vspace{0.2em}
 	\footnotesize
 	\begin{itemize}\setlength{\itemsep}{3pt}
-		\item Two independent \texttt{can\_mac\_pcs\_fce} instances --- what DUT~1 transmits, DUT~2 must receive correctly and vice versa
-		\item Bus model with configurable loop delay and error injection controlled by \texttt{p\_test\_ctrl}
-		\item \texttt{rx\_llc\_dut\_2} checks received frames against expected frames from the TX source
+		\item The testbench puts \textbf{two full controller instances} on a shared bus. What DUT~1 transmits, DUT~2 must receive correctly and vice versa.
+		\item \textbf{Bus model:} Configurable transceiver loop delay and propagation delay enables TDC validation
+		\item \textbf{VCs:} TX VCs drive frames into both DUTs. RX VC checks received bytes byte-by-byte
 	\end{itemize}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-		\item Each module has its own unit testbench. This integration TB puts \textbf{two full controller instances} on a shared bus --- what DUT~1 transmits, DUT~2 must receive correctly, and vice versa.
-		\item \textbf{Two-node approach:} Catches bugs invisible in a single-node setup. A zero-delay loopback always ACKs --- masking defects in ACK window logic. A second node with \textbf{realistic bus delay} exposes them.
-		\item \textbf{\texttt{p\_test\_ctrl}:} Orchestrates the test --- drives TX frames into both DUTs, monitors \texttt{transfer\_status} and \texttt{bus\_off}, and controls error injection timing and loop delay for \textbf{TDC validation}.
-		\item \textbf{\texttt{rx\_llc\_dut\_2}:} Compares received frames against expected frames \textbf{field by field}. Any mismatch fails the test immediately.
+\note{\footnotesize\begin{itemize}
+		\item Right, so unit testbenches verify each module in isolation -- but they can't really verify a complete frame exchange. So let's look at the integration TB, which closes that gap with \textbf{two full controller instances} on a shared bus verifying \textbf{end-to-end frame transmission}.
+		\item The \textbf{bus model} sits between the two DUTs and imposes a configurable \textbf{transceiver loop delay} and \textbf{propagation delay} --- this is what makes TDC testable.
+		\item The \textbf{test controller} drives TX frames into both DUTs, controls the loop delay and error injection timing, and monitors \texttt{transfer\_status} and \texttt{bus\_off}.
+		\item The \textbf{TX VCs} stream frame bytes into each DUT via Avalon-ST transactions. The \textbf{RX VC} on DUT~2 checks received bytes \textbf{byte-by-byte} against an \textbf{OSVVM scoreboard}.
 	\end{itemize}}
 
 
@@ -514,66 +514,62 @@
 % ==========================================
 \section{Synthesis}
 \begin{frame}{Synthesis Results: Cyclone~10~LP}
-	\begin{columns}[c]
+	\begin{columns}[T]
 		\begin{column}{0.46\textwidth}
 			\textbf{Resource utilisation}\\[0.4em]
 			\renewcommand{\arraystretch}{1.3}
 			\begin{tabular}{lr}
 				\toprule
-				Metric                     & Value            \\
+				Metric                     & Value    \\
 				\midrule
-				Logic elements             & 4{,}608 (30\,\%) \\
-				Registers                  & 869              \\
-				Memory blocks              & 0                \\
-				Fmax (slow 100\,$^\circ$C) & 127\,MHz         \\
+				Logic elements             & 4608     \\
+				Registers                  & 869      \\
+				Memory blocks              & 0        \\
+				Fmax (slow 100\,$^\circ$C) & 127\,MHz \\
 				\bottomrule
-			\end{tabular}\\[0.7em]
-			Exceeds 40\,MHz minimum for 5\,Mbit/s at 8\,TQ/bit.
+			\end{tabular}
 		\end{column}
 		\begin{column}{0.50\textwidth}
 			\textbf{CAN FD vs.\ CAN Classic}\\[0.4em]
 			\begin{itemize}
 				\item $4.0\times$ total LEs
-				\item Frame buffer dominates: \texttt{can\_mac\_fsm} is 89\,\% of LEs,
-				      driven by 560-bit RX buffer
-				\item Protocol logic alone: $2.9\times$
-				\item Payload-normalised: 72 vs.\ 143\,LE/byte
+				\item \texttt{can\_mac\_fsm} is $4.5\times$ the equivalent CC modules. RX buffer scaled from 120 to 560\,bits
+				\item \texttt{can\_pcs} only $1.7\times$ despite adding TDC, dual bit rate, and SSP
+				\item Protocol logic alone (buffer excluded): $2.4\times$ to $3.0\times$
 			\end{itemize}
 		\end{column}
 	\end{columns}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-		\item Let's look at synthesis on the \textbf{Cyclone 10 LP} --- the target device used throughout.
-		\item Left table: \textbf{4{,}608 logic elements} --- \textbf{30\,\%} of the device --- zero memory blocks. \textbf{Fmax of 127\,MHz} on the worst-case slow 100\,$^\circ$C corner. That's \textbf{three times} the 40\,MHz minimum for 5\,Mbit/s at 8\,TQ per bit.
-		\item The \textbf{frame buffer dominates}: \texttt{can\_mac\_fsm} alone accounts for \textbf{89\,\%} of all LEs, driven entirely by the \textbf{560-bit RX frame buffer} in registers. BRAM migration is future work --- would cut the LE count significantly.
-		\item Compared to CAN Classic: \textbf{4.0 times} total logic --- but only \textbf{2.9 times} when you strip out the larger frame buffer. Normalised by payload, the ratio \textbf{inverts} --- 72 vs.\ 143 \textbf{LE per byte}. CAN FD is more efficient per byte carried.
-	\end{itemize}}
+\note{\footnotesize\begin{itemize}
+		\item Right, so lets have a look at the synthesis results. The design was synthesised on \textbf{Cyclone 10 LP} -- the FPGA used in the IO extender board -- so the resource utilization could be directly compared with the existing CAN CC protocol controller.
+		\item \textbf{4,608 LEs} at \textbf{30\,\%} utilisation, zero memory blocks. Fmax \textbf{127\,MHz} --- more than \textbf{1.5 times} the highest recommended CAN FD system clock of \textbf{80\,MHz}.
+		\item \textbf{4.0 times} total LEs over CC. The FSM dominates -- \texttt{can\_mac\_fsm} is \textbf{4.5 times} the equivalent CC modules, driven by the RX buffer scaling from \textbf{120 to 560 bits}.
+		\item \textbf{PCS only 1.7 times} despite adding TDC, dual bit rate, and SSP -- so the added complexity is concentrated in the MAC FSM.
+		\item \textbf{Protocol logic alone} (buffer excluded assuming 4 LEs pr register write-enable and corrected for FCE-logic): \textbf{2.4 to 3.0 times} CC.
+	\end{itemize}
+	\vspace{3pt}\hrule\vspace{2pt}
+	\scriptsize\textit{If pressed: Buffer = 64$\times$8$\times$4\,LUTs (WE) + 69$\times$8\,LUTs (mux) + 560\,FFs = 2,716\,LEs. Residual = 4,109$-$2,716 = 1,393\,LEs. CC baseline: 589 raw or 589$-$117 = 472 (FCE-corrected) → 2.4$\times$ to 3.0$\times$.}}
 
 % ==========================================
 % SLIDE 11: Conclusion
 % ==========================================
 \section{Conclusion}
-\begin{frame}[t]{Conclusion and Future Work}
+\begin{frame}{Conclusion and Future Work}
 	\small
-	\begin{columns}[c]
+	\begin{columns}[T]
 		\begin{column}{0.48\textwidth}
-			\textbf{Delivered}\\[0.15em]
-			Full CAN/CAN FD node in VHDL-93.
-			28\,/\,37 requirements closed.
-			4{,}608\,LE at 127\,MHz (Cyclone~10~LP).\\[0.5em]
-			\textbf{Two lessons}
+			\textbf{Conclusions}
 			\begin{enumerate}\setlength{\itemsep}{3pt}
-				\item Requirements structure is not RTL structure ---
-				      the \texttt{side} dimension shapes testbenches, not modules
-				\item Layered architecture is a practical partitioning ---
-				      sub-layer boundaries are testbench boundaries
+				\item Full TX/RX for all four frame formats -- 28/37 requirements closed, 4,608\,LE at 127\,MHz
+				\item ISO layered model is a practical design partitioning -- each sub-layer independently implementable and testable
+				\item BRAM migration is the primary LE reduction path --- eliminates write-enable decode and read mux
 			\end{enumerate}
 		\end{column}
 		\begin{column}{0.48\textwidth}
 			\textbf{Future work}
 			\begin{enumerate}\setlength{\itemsep}{3pt}
 				\item \texttt{can\_llc} implementation
-				\item Hardware bring-up and PCAN interoperability
+				\item Hardware bring-up with a re
 				\item BRAM migration for RX frame buffer
 				\item REQ-021 frame-aware error injection
 				      (all four error types)
@@ -581,12 +577,12 @@
 		\end{column}
 	\end{columns}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-		\item So to close --- what was delivered and where does the work go next.
-		\item Delivered: \textbf{full TX and RX} for all four CAN FD frame formats in \textbf{VHDL-93 RTL}. \textbf{28 of 37 requirements} closed --- all \textbf{P1 requirements} across MAC, PCS, and FCE verified. \textbf{4{,}608 LEs} at \textbf{127\,MHz} on Cyclone 10 LP.
-		\item Lesson one: \textbf{requirements structure is not RTL structure}. ISO has separate TX and RX sides, but the MAC uses a \textbf{unified FSM}. The \texttt{side} dimension shapes \textbf{testbenches}, not modules.
-		\item Lesson two: \textbf{ISO sub-layer boundaries} map directly to \textbf{testbench boundaries}. Each module has one testbench, requirements trace to exactly one module. The architecture made verification tractable.
-		\item Future work: \texttt{can\_llc} is the next layer up. \textbf{Hardware bring-up} against a PCAN device validates physical layer integration. \textbf{BRAM migration} cuts the LE count.
+\note{\footnotesize\begin{itemize}
+		\item So to close -- here are the three main conclusions and where the work goes next.
+		\item \textbf{Full TX and RX} for all four frame formats in VHDL-93. \textbf{28 of 37 requirements} closed --- all P1 requirements across MAC, PCS, and FCE verified. \textbf{4,608 LEs} at \textbf{127\,MHz}.
+		\item The \textbf{ISO layered model proved a practical partitioning} --- each sub-layer was implemented, verified, and debugged independently. That's exactly the property that makes in-house development viable for Everllence --- they own and can maintain every layer.
+		\item \textbf{BRAM migration} is the primary LE reduction path. With flip-flop registers each of the 512 payload FFs needs its own \textbf{individual write-enable} --- that's the 2,048 LE cost. With BRAM you compute one shared \textbf{write address} instead, and the RAM handles internal selection. The 560 storage FFs and 552 LE read mux are also eliminated. Net saving: ~2,600 LEs, leaving \texttt{can\_mac\_fsm} at protocol-logic cost.
+		\item Future work: \texttt{can\_llc} is the next layer up. \textbf{Hardware bring-up} with a reference PCAN node validates the physical layer end-to-end. \textbf{BRAM migration} cuts the LE count as discussed. \textbf{REQ-021} needs frame-aware error injection to close the remaining sub-claims.
 	\end{itemize}}
 
 \end{document}
