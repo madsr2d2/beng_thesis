@@ -150,34 +150,34 @@
 % ==========================================
 % SLIDE 2: Why clean-slate
 % ==========================================
-\begin{frame}{Project Objectives and Rationale}
-	\begin{columns}[T]
-		\begin{column}{0.50\textwidth}
-			\textbf{Objectives}
-			\begin{enumerate}
-				\item Implement a CAN Classic/FD protocol controller in VHDL, compliant with ISO\,11898-1
-				\item Structured requirements framework with traceability from ISO\,11898-1 to testbench evidence
-				\item RTL design integrated via Avalon-ST into Everllence's existing FPGA infrastructure
-			\end{enumerate}
-		\end{column}
-		\begin{column}{0.50\textwidth}
-			\textbf{Why design in-house}
-			\begin{itemize}
-				\item \textbf{IP ownership:} 30-year service horizon
-				\item \textbf{Verification authority:} own the test suite
-				\item \textbf{Integration:} Avalon-ST + existing infrastructure
-				\item \textbf{Platform independence:} portable VHDL-93
-			\end{itemize}
-		\end{column}
-	\end{columns}
-\end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-		\item That's the CAN background. Now --- why build this in-house, and what were the three objectives?
-		\item Three goals: a \textbf{verified ISO-compliant controller} in VHDL, a \textbf{structured requirements framework} with traceability from spec to test evidence, and \textbf{Avalon-ST integration} into Everllence's existing FPGA infrastructure.
-		\item \textbf{IP ownership:} A \textbf{30-year service horizon} makes vendor dependency a real risk. Owning the RTL means it can be maintained and ported without licensing constraints.
-		\item \textbf{Verification authority:} Inheriting a third-party core means inheriting its test suite. Everllence needs to \textbf{own the verification} to know exactly what's been tested.
-		\item \textbf{Integration and portability:} \textbf{Avalon-ST} interfaces fit directly into the existing FPGA stack. \textbf{VHDL-93} means no vendor toolchain lock-in --- which matters on a 30-year horizon.
-	\end{itemize}}
+% \begin{frame}{Project Objectives and Rationale}
+% 	\begin{columns}[T]
+% 		\begin{column}{0.50\textwidth}
+% 			\textbf{Objectives}
+% 			\begin{enumerate}
+% 				\item Implement a CAN Classic/FD protocol controller in VHDL, compliant with ISO\,11898-1
+% 				\item Structured requirements framework with traceability from ISO\,11898-1 to testbench evidence
+% 				\item RTL design integrated via Avalon-ST into Everllence's existing FPGA infrastructure
+% 			\end{enumerate}
+% 		\end{column}
+% 		\begin{column}{0.50\textwidth}
+% 			\textbf{Why design in-house}
+% 			\begin{itemize}
+% 				\item \textbf{IP ownership:} 30-year service horizon
+% 				\item \textbf{Verification authority:} own the test suite
+% 				\item \textbf{Integration:} Avalon-ST + existing infrastructure
+% 				\item \textbf{Platform independence:} portable VHDL-93
+% 			\end{itemize}
+% 		\end{column}
+% 	\end{columns}
+% \end{frame}
+% \note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
+% 		\item That's the CAN background. Now --- why build this in-house, and what were the three objectives?
+% 		\item Three goals: a \textbf{verified ISO-compliant controller} in VHDL, a \textbf{structured requirements framework} with traceability from spec to test evidence, and \textbf{Avalon-ST integration} into Everllence's existing FPGA infrastructure.
+% 		\item \textbf{IP ownership:} A \textbf{30-year service horizon} makes vendor dependency a real risk. Owning the RTL means it can be maintained and ported without licensing constraints.
+% 		\item \textbf{Verification authority:} Inheriting a third-party core means inheriting its test suite. Everllence needs to \textbf{own the verification} to know exactly what's been tested.
+% 		\item \textbf{Integration and portability:} \textbf{Avalon-ST} interfaces fit directly into the existing FPGA stack. \textbf{VHDL-93} means no vendor toolchain lock-in --- which matters on a 30-year horizon.
+% 	\end{itemize}}
 
 % ==========================================
 % SLIDE: Requirements extraction
@@ -208,11 +208,12 @@
 		\end{column}
 	\end{columns}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-		\item Now into design and implementation --- starting with how the ISO spec becomes a structured requirements set.
-		\item ISO\,11898-1 is a sprawling document --- requirements scattered across subsections, mixed in with descriptive text. The standard was converted to Markdown and fed to a Claude agent, which extracted normative statements --- \textbf{168 raw statements}. Manual review distilled these down to \textbf{37 verifiable requirements}.
-		\item The table shows the fields. \textbf{id} for traceability, \textbf{source\_clause} back to the ISO section, \textbf{layer} assigns the sub-layer owner, \textbf{priority} maps to must-have, nice-to-have, and optional.
-		\item The \textbf{layer field} was the key design decision. Tagging each requirement with its ISO sub-layer settled the module split \textbf{before any RTL was written}. System-tagged requirements span the full stack and can't be verified at sub-module level.
+\note{\footnotesize\begin{itemize}
+		\item \textbf{So that concludes the CAN protocol overview - now lets get into design and implementation}.
+		\item The ISO specification describing CAN Classic and CAN FD is a \textbf{relatively sprawling document with requirements scattered allover the place}. So the \textbf{first thing I set out to do was to try and extract a structured table of requirements I could use to guide design}.
+		\item So to this end \textbf{I used a AI-assisted extraction pipeline}. So what I did was to \textbf{extracted all normative statements from the IOS document using an AI agent and then I manually distilled these to 37 verifiable requirements}.
+		\item \textbf{The table here shows the fields of the requirements table}. So the \textbf{id} is just label, \textbf{source\_clause} is the specific section in the ISO document describing the requirement. The \textbf{layer} assigns the requirement to a sub-layer and the \textbf{priority} maps to must-have, nice-to-have, and optional.
+		\item So the \textbf{layer field was the key input to the design architecture}. Tagging each requirement with its ISO sub-layer \textbf{clarified the module scope before before any code was written}. It also made it clear which part of the design that the verification effort should target for a given requirement.
 	\end{itemize}}
 
 % ==========================================
@@ -232,13 +233,12 @@
 		\end{column}
 	\end{columns}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-		\item ISO reference model on the left, RTL module structure on the right. Each sub-layer maps directly to one or more RTL modules.
-		\item \textbf{LLC} is deferred --- time constraints. The controller still TX/RX fully compliant frames without it. Both the LLC-MAC and LLC-host interfaces are \textbf{Avalon-ST}, so the host can talk directly to the MAC using the same interface Everllence already uses.
-		\item \textbf{MAC} orchestrates frame TX and RX, bit stuffing, CRC, and arbitration. Split into four sub-modules: \texttt{can\_mac\_fsm} orchestrates, \texttt{can\_mac\_ser} serializes TX, \texttt{can\_mac\_bs} handles stuffing, \texttt{can\_mac\_crc} runs the CRC engines.
-		\item \textbf{PCS} handles bit timing and clock synchronization. \textbf{FCE} tracks TX/RX errors and manages the node error state.
-	\end{itemize}}
-
+\note{\footnotesize\begin{itemize}
+		\item \textbf{So the left diagram is the ISO standard reference model that I hinted at in the last slide}. And the \textbf{right diagram shows the architecture of the implemented design}. Here each reference model sub-layer \textbf{maps directly to one of the implemented modules}.
+		\item So the \textbf{MAC sub-layer is the core of the reference model and it covers most of the protocol}. It orchestrates frame transmission and reception, bit stuffing, error detection, CRC calculation, and arbitration. \textbf{In the design it is split into four sub-modules}: \texttt{can\_mac\_fsm} is the controlling FSM. \texttt{can\_mac\_ser} which serializes TX frames, \texttt{can\_mac\_bs} which handles bit stuffing, and \texttt{can\_mac\_crc} runs the CRC engines.
+		\item The \textbf{PCS sub-layer} is responsible bit timing and clock synchronization.
+		\item The \textbf{FCE} maintains the error counters and manages the node error state.
+		\item The \textbf{LLC sub-layer} is responsible for frame re-transmission and frame acceptance filtering. \textbf{The implementation of this layer was deferred do to time constraints}. However, the controller \texstbf{can still transmit and receive fully compliant frames without it}. The MAC and LLC both use a Avalon-ST interface so the host can can just talk directly to the MAC. \textbf{But the host now becomes responsible for retransmission and acceptance filtering}. \end{itemize}}
 % ==========================================
 % SLIDE MAC-1: FSM per-field structure
 % ==========================================
