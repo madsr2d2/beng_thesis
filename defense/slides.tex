@@ -31,7 +31,6 @@
 			{\small\textit{Source: www.everllence.com}}
 			\begin{itemize}
 				\item  Everllence's principal activity is the design and maintenance of \textbf{marine propulsion systems}.
-				\item Current CAN infrastructure at Everllence builds on the \textbf{CAN Classic protocol}
 			\end{itemize}
 		\end{column}
 		\hfill
@@ -46,11 +45,9 @@
 	\end{columns}
 \end{frame}
 \note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-		\item Everllence is a \textbf{Copenhagen-based} company. They build \textbf{marine propulsion systems} and run a custom \textbf{IO-extender FPGA} on the engine control bus --- handles real-time motor telemetry and actuator commands.
-		\item The CAN controller is an \textbf{IP core on that FPGA} --- running at \textbf{500\,kbit/s} with an \textbf{8-byte} payload limit.
-		\item This thesis was done inside the \textbf{engine control department} --- they own the CAN infrastructure and initiated the migration evaluation.
-		\item The motivation is \textbf{future-proofing}. \textbf{CAN FD} gives 64-byte payloads and up to \textbf{8\,Mbit/s} --- without touching the physical bus.
-		\item The deliverable for Everllence is a \textbf{working reference implementation} --- verified, ISO-compliant, something they can actually build on.
+		\item \textbf{So lets start with the company}. Everllence is a \textbf{Copenhagen-based} company. Their main activity is the \textbf{design and maintenance of large marine propulsion systems}. Specifically, the thesis was conducted within the \textbf{Engine control department} -- where \textbf{Fredrik plays a key role} --  and he was also may \textbf{day-to-day advisor and handler throughout the project}.
+		\item The \textbf{overall motivation for the project} is that Everllence is considering migrating its current CAN infrastructure from CAN Classic to CAN FD. \textbf{And a natural first step in this migration process is of cause a pilot CAN FD} controller.
+		\item \textbf{So that basically became the subject of my thesis} -- a pilot implementation of a \textbf{combined CAN Classic and CAN FD} protocol controller in VHDL, compatible with Everllence's existing CAN infrastructure.
 	\end{itemize}}
 
 % ==========================================
@@ -71,11 +68,12 @@
 		\end{column}
 	\end{columns}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-		\item So --- what is CAN? It's a \textbf{serial bus} Bosch developed in the 1980s for ECUs in vehicles and industrial systems. The figure shows a two-node setup --- each node is a \textbf{CAN controller} plus a \textbf{transceiver IC}. Both share the same two wires, \textbf{CANH and CANL}, terminated at each end with \textbf{120\,$\Omega$} to kill reflections.
-		\item \textbf{Simple and low cost:} Just \textbf{two wires}, shared by everyone. No master node --- any node can start a transfer.
-		\item \textbf{Robust:} Differential signaling on CANH and CANL, so noise hits both wires equally and cancels out. Faulty nodes get isolated automatically through \textbf{bus-off}.
-		\item \textbf{Priority-based access:} \textbf{Non-destructive} arbitration. The bus is a \textbf{wired-AND} --- dominant beats recessive. A losing node backs off the moment it sees a stronger signal.
+\note{\footnotesize\begin{itemize}
+		\item \textbf{So what is a Controller Area Network - can CAN?} It's a \textbf{serial bus protocol} developed by Bosch in the 1980s \textbf{targeting vehicular and industrial systems.}
+		\item \textbf{The figure shows a two-node CAN} -- where each node consisting of a \textbf{CAN protocol controller - this is the component I will be developing} plus a \textbf{transceiver driving the physical bus}.
+		\item \textbf{A key attribute of the system is the low cost and simplicity of the network} -- \textbf{it's just a two wire bus} shared by every node. \textbf{There is no special master node -- any node can transmit and receive frames}.
+		\item \textbf{It is a very robust system} -- The bus value is \textbf{encodes as the differential between the two bus wires} and the \textbf{twisted topology} ensures that electromagnetic interference cancels out. \textbf{The protocol also has multiple layers of error detection}. In addition a \textbf{fault confinement mechanism that aims to isolate faulty nodes from the bus} - herby preventing corrupted frames from polluting the healthy traffic.
+		\item \textbf{The last key feature I would liek to mention is the priority-based access mechanism}. \textbf{This is non-destructive} and the node loosing the arbitration just backs of and becomes a receiver.
 	\end{itemize}}
 
 % ==========================================
@@ -88,10 +86,11 @@
 		\item Receiving nodes do \textbf{hard synchronization} on the first frame bit and \textbf{resynchronization on recessive-to-dominant} edges mid-frame
 	\end{itemize}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-		\item Each node runs on its own \textbf{independent oscillator} --- no shared clock. So there needs to be a mechanism to sync nodes and correct for drift during transmission.
-		\item There are two sync types. \textbf{Hard sync} resets the bit timer on the first frame edge. \textbf{Resynchronization} corrects drift mid-frame by lengthening Phase\_Seg1 or shortening Phase\_Seg2 on a recessive-to-dominant edge.
-		\item The figure shows two nodes: A leads, B is synchronized to A. Each bit splits into \textbf{Sync\_Seg}, \textbf{Prop\_Seg}, \textbf{Phase\_Seg1}, and \textbf{Phase\_Seg2} --- the \textbf{sample point} sits at the end of Phase\_Seg1. Prop\_Seg must cover the full \textbf{round-trip delay} so A has seen the settled bus level before sampling.
+\note{\footnotesize\begin{itemize}
+		\item \textbf{The protocol is asynchronous - meaning there is no shared clock line}. So the nodes on the network need some way to synchronize their bit timing. This is achieved through 2 separate synchronization mechanisms.
+		\item \textbf{The first is hard synchronization} -- which resets the bit timing logic at the start of first received frame bit.
+		\item  \textbf{ The second resynchronization} -- which correct for oscillator drift mid-frame by dynamically adjusting the length of the bit time.
+		\item \textbf{So the figure shows the CAN bit segmentation} and the placement of the \textbf{bus sample point}. The CAN bit consists of \textbf{4 segments} where \textbf{Phase\_Seg1 and Phase\_Seg2 are the segments adjusted by resynchronization}.
 	\end{itemize}}
 
 % ==========================================
@@ -116,11 +115,10 @@
 		\end{column}
 	\end{columns}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-		\item This covers two things --- the \textbf{five error types} and how the node reacts when errors accumulate.
-		\item Any detecting node immediately sends an \textbf{error flag}. An \textbf{error active} node sends 6 dominant bits --- that violates the stuff rule, forcing all other nodes to join in. An \textbf{error passive} node sends 6 recessive bits --- invisible to others, so the frame isn't destroyed.
-		\item Each node independently tracks a \textbf{transmit error counter} (TEC) and \textbf{receive error counter} (REC). TEC goes up by 8 on TX errors, down by 1 on success. Three states: \textbf{error active}, \textbf{error passive}, and \textbf{bus off}.
-		\item Once TEC exceeds 255 the node stops driving entirely. Recovery requires \textbf{128 sequences of 11 recessive bits} --- a deliberately long quiet period before re-joining.
+\note{\footnotesize\begin{itemize}
+		\item \textbf{So here we have the 5 layers of error detection I mentioned earlier}. The Bit and Ack errors are \textbf{detected by transmitting nodes} and the remaining 3 are \textbf{detected by receiving nodes}.
+		\item \textbf{A node detecting an error will start transmitting and error flag}. If the node error active, then \textbf{this flag will cause stuff errors in the other nodes} on the bus. They will then start \textbf{transmit their own error flags simultaneously}. This retest the bus and \textbf{after this nodes with pending frames will attempt retransmission}.
+		\item \textbf{The figure shows the state machine driving the fault confinement mechanism I mentioned}. So each node \textbf{keeps track of its own error counters} and \textbf{transitions between the three states based on the thresholds of these counters}. In the bus-off state the node is completely isolated from the bus, and it \textbf{reenters the bus as error active after observing 128 occurrences 11 consecutive recessive bits}.
 	\end{itemize}}
 
 % ==========================================
@@ -139,17 +137,14 @@
 		Max bit rate                 & 1\,Mbit/s                        & 8\,Mbit/s (data phase)       \\
 		Max payload                  & 8\,bytes                         & 64\,bytes                    \\
 		Error detection HD$^\dagger$ & 6 typical, \textbf{2 worst case} & 6, all patterns, $\leq$64\,B \\
-		Burst error detection        & up to 15\,bits                   & up to 17/21\,bits            \\
 		\bottomrule
 	\end{tabular}\\
 	{\tiny $^\dagger$ CAN in Automation (CiA), \textit{CRC in CAN Frames}, can-cia.org.}
 \end{frame}
-\note{\footnotesize\begin{itemize}\setlength{\itemsep}{5pt}
-		\item This compares the two frame formats the controller supports.
-		\item The figure shows them side by side. CAN FD adds the \textbf{BRS bit} (bit rate switch), \textbf{ESI} (error state indicator), and a \textbf{longer CRC field} to support the higher data rate and bigger payload.
-		\item \textbf{Max bit rate / payload:} CAN Classic tops out at \textbf{1\,Mbit/s} and \textbf{8 bytes}. CAN FD switches to up to \textbf{8\,Mbit/s} in the data phase and supports \textbf{64 bytes}.
-		\item \textbf{Error detection HD:} In CAN Classic, two errors can relocate a stuff bit so the corrupted frame produces the same CRC remainder --- that's \textbf{HD=2}. CAN FD feeds stuff bits into the CRC and adds the \textbf{SBC field}, so any relocation changes the remainder --- \textbf{HD=6} restored.
-		\item \textbf{Burst error detection:} CRC-15 catches all \textbf{15-bit bursts} for free. CAN FD uses \textbf{CRC-17/21} to raise the ceiling and maintain HD=6 over 64-byte payloads.
+\note{\footnotesize\begin{itemize}
+		\item So what is the difference between CAN Classic and CAN FD? \textbf{First of all CAN FD has a higher bit rate and data payload}.
+		\item \textbf{CAN FD also has improved error detection}. It corrects a know week point of the CAN Classic CRC error detection mechanism \textbf{by including stuff bits in the CRC calculation}. This means that that the \textbf{Hamming distance for CAN FD is guaranteed to be 6 for all frame patterns}, where it reduces to 2 for specific patterns in CAN Classic.
+		\item \textbf{The frame formats are also different - as illustrated by the figure}. The key differences here is \textbf{the introduction of the data-phase}, which is the part of frame that is transmitted at the higher bit rate.
 	\end{itemize}}
 
 % ==========================================
@@ -569,7 +564,7 @@
 			\textbf{Future work}
 			\begin{enumerate}\setlength{\itemsep}{3pt}
 				\item \texttt{can\_llc} implementation
-				\item Hardware bring-up with a re
+				\item Hardware bring-up with a reference CAN node (PCAN)
 				\item BRAM migration for RX frame buffer
 				\item REQ-021 frame-aware error injection
 				      (all four error types)
@@ -581,7 +576,7 @@
 		\item So to close -- here are the three main conclusions and where the work goes next.
 		\item \textbf{Full TX and RX} for all four frame formats in VHDL-93. \textbf{28 of 37 requirements} closed --- all P1 requirements across MAC, PCS, and FCE verified. \textbf{4,608 LEs} at \textbf{127\,MHz}.
 		\item The \textbf{ISO layered model proved a practical partitioning} --- each sub-layer was implemented, verified, and debugged independently. That's exactly the property that makes in-house development viable for Everllence --- they own and can maintain every layer.
-		\item \textbf{BRAM migration} is the primary LE reduction path. With flip-flop registers each of the 512 payload FFs needs its own \textbf{individual write-enable} --- that's the 2,048 LE cost. With BRAM you compute one shared \textbf{write address} instead, and the RAM handles internal selection. The 560 storage FFs and 552 LE read mux are also eliminated. Net saving: ~2,600 LEs, leaving \texttt{can\_mac\_fsm} at protocol-logic cost.
+		\item \textbf{BRAM migration} is the primary LE reduction path. Each payload FF currently needs its own write-enable --- 2,048 LEs. BRAM replaces that with a single shared write address. The 560 FFs and 552 LE read mux go too --- net saving ~2,600 LEs.
 		\item Future work: \texttt{can\_llc} is the next layer up. \textbf{Hardware bring-up} with a reference PCAN node validates the physical layer end-to-end. \textbf{BRAM migration} cuts the LE count as discussed. \textbf{REQ-021} needs frame-aware error injection to close the remaining sub-claims.
 	\end{itemize}}
 
